@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/core/type";
 import { isRunActive } from "@/language/runtime/run";
-import { ColorShade, ColorType, NodeType, PipeType, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, PipeType, PipeTypeOptionInfo, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/ui/flow";
 import { runtime } from "@/runtime/runtime";
 import { canvas, pkgConnection } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { ICON_BY_PIPE_TYPE, IconInline } from "@/ui/icon";
+import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/ui/flow";
+import { IconInline, makeIcon } from "@/ui/icon";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -137,7 +137,7 @@ defineExpose<ViewExpose>({ self, id, actions });
     >
       <!-- Type -->
       <IconInline
-        v-bind="ICON_BY_PIPE_TYPE[pipe.type]"
+        v-bind="makeIcon(PipeTypeOptionInfo[pipe.type]!.icon!)"
         class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
       />
       <!-- Name -->

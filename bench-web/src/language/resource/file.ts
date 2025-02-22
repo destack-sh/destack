@@ -13,6 +13,7 @@ import {
   FileKind,
   FileRetentionMode,
   FileType,
+  FileTypeOptionInfo,
   IconData,
   MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
@@ -24,7 +25,7 @@ import {
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
 import { isNode, isNodeOrRef, makeScope, newNodeId, nodeReference, toNodeRef } from "@/proto/wiring";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
+import { makeIcon } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
@@ -498,7 +499,6 @@ export function useFileDownload(
 export const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT];
 export const INLINE_FILE_TYPES = [FileType.IMAGE, FileType.VIDEO, FileType.AUDIO];
 
-
 /** Prefetch the given files (incl. content where it makes sense). */
 export async function prefetchFiles(files: FileData[]): Promise<void> {
   downloadFiles(files, {
@@ -530,9 +530,13 @@ async function sha256(content: File): Promise<string> {
 
 /** Gets the icon for the given file. */
 export function getFileIcon(file: FileData): IconData | null {
-  if (file.format != null && ICON_BY_FILE_FORMAT[file.format] != null) return ICON_BY_FILE_FORMAT[file.format]!;
-  else if (file.type != null && ICON_BY_FILE_TYPE[file.type] != null) return ICON_BY_FILE_TYPE[file.type]!;
-  else return null;
+  if (file.format != null && FILE_FORMAT_BY_MIME_TYPE[file.mimeType!] != null) {
+    return makeIcon(FileTypeOptionInfo[file.type]!.icon!);
+  } else if (file.type != null && FILE_FORMAT_BY_MIME_TYPE[file.mimeType!] != null) {
+    return makeIcon(FileTypeOptionInfo[file.type]!.icon!);
+  } else {
+    return null;
+  }
 }
 
 /** Gets the icon for the given file, if any. */

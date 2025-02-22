@@ -58,7 +58,6 @@ import {
   fontAwesomeIcon,
   getNodeIcon,
   getNodeName,
-  ICON_BY_TYPE_KIND,
   type FontAwesomeIcon,
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
@@ -824,7 +823,7 @@ function anyNodeTypeItem(idxId: string): TypeItem {
     id: "node",
     itemId: `${idxId}-node`,
     title: "Node",
-    icon: ICON_BY_TYPE_KIND[TypeKind.NODE],
+    icon: undefined,
     isRequired: false,
     isList: false,
     isSecret: false,

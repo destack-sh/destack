@@ -54,7 +54,7 @@ import {
   useMultiDropZone,
   useSelectionZone,
 } from "@/ui/drag";
-import { getNodeIcon, getTypeIcon, ICON_BY_EXPRESSION_OP as ICON_BY_EXPRESSION_TYPE, IconInline } from "@/ui/icon";
+import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { PopoverInfoIn, pushDefaultMenu, pushPopover } from "@/ui/popover";
 import { useNodeTableActions } from "@/ui/table";
@@ -609,7 +609,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             :key="i"
             class="group rounded-full px-2 py-0.5 hover:bg-gray-100"
           >
-            <IconInline v-bind="ICON_BY_EXPRESSION_TYPE[sort.type]" class="mr-1.5 text-gray-700" />
             <span class="text-gray-900">
               {{ findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!) }}
             </span>

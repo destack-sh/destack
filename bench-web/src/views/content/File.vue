@@ -12,6 +12,7 @@ import {
 import {
   FileFormat,
   FileType,
+  FileTypeOptionInfo,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -22,7 +23,7 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, canvas, pkgConnection } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
-import { ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
+import { IconInline, makeIcon } from "@/ui/icon";
 import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
@@ -59,7 +60,7 @@ const fileType = computed(() => {
   else return FileType.GENERIC;
 });
 const facetIcon = computed(() => {
-  return ICON_BY_FILE_TYPE[fileType.value];
+  return makeIcon(FileTypeOptionInfo[fileType.value]!.icon!);
 });
 const facetName = computed(() => {
   if (fileType.value != FileType.GENERIC) {

@@ -6,26 +6,22 @@ import {
   ColorShade,
   NodeReferenceData,
   NodeType,
+  NodeTypeOptionInfo,
   ObjectType,
   Orientation,
   PickerVariant,
   RectangleData,
+  StructType,
+  StructTypeOptionInfo,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { autoloader } from "@/globals";
 import { canvas } from "@/system/space";
-import {
-  getNodeIcon,
-  ICON_BY_BENCH_TYPE,
-  ICON_BY_NODE_TYPE,
-  ICON_BY_TYPE_KIND,
-  IconInline,
-  makeIcon
-} from "@/ui/icon";
+import { getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import type { SearchItem } from "@/ui/search";
@@ -81,12 +77,12 @@ const facetIcon = computed(() => {
   } else if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return getNodeIcon(baseType.value);
   } else if (props.valueType?.benchType != null) {
-    return ICON_BY_BENCH_TYPE[props.valueType.benchType];
-  } else if (props.valueType?.kind != null) {
-    return ICON_BY_TYPE_KIND[props.valueType.kind];
-  } else {
-    return null;
+    const icon =
+      NodeTypeOptionInfo[props.valueType.benchType as unknown as NodeType]?.icon ??
+      StructTypeOptionInfo[props.valueType.benchType as unknown as StructType]?.icon;
+    return icon != null ? makeIcon(icon) : null;
   }
+  return null;
 });
 const facetName = computed(() => {
   if (props.title != null) {
@@ -139,7 +135,7 @@ function getItemVignette(value: any): ItemVignette {
   } else if (isNodeRef(value)) {
     return {
       title: undefined,
-      icon: ICON_BY_NODE_TYPE[value.nodeType],
+      icon: makeIcon(NodeTypeOptionInfo[value.nodeType]!.icon!),
       status: autoloader.isPending(value) ? "pending" : "missing",
     };
   } else {

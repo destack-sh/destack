@@ -1,7 +1,6 @@
 import { ENUM_TYPES, ENUM_TITLE_BY_TYPE, FILTERED_ENUMS, toCamelName } from "@/language/core/const";
 import { EnumType, IconData, EnumTypeMapping, ENUM_BY_TYPE, ColorType, ENUM_OPTION_INFO_BY_TYPE } from "@/proto/wire";
-import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
-import { COLORS_BY_ENUM_TYPE } from "@/ui/style";
+import { makeIcon } from "@/ui/icon";
 import { toCasing, Casing } from "@/utils/string";
 
 export type EnumOption<T extends EnumType = EnumType> = {
@@ -24,16 +23,16 @@ export const ENUM_OPTIONS_BY_VALUE: Record<EnumType, Record<number, EnumOption>>
 /** Get the EnumOptions for an enum type */
 function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
-  const icons = ICONS_BY_ENUM_TYPE[enumType];
+  const icons = ENUM_OPTION_INFO_BY_TYPE[enumType];
   const titles = ENUM_TITLE_BY_TYPE[enumType];
   const availableEnums =
     FILTERED_ENUMS[enumType] ?? Object.values(protoEnum).filter((v) => typeof v == "number" && v > 0);
   const options: EnumOption<T>[] = availableEnums.map((value) => {
-    const icon = icons?.[value];
+    const icon = icons?.[value]?.icon != null ? makeIcon(icons[value].icon) : undefined;
     const name = protoEnum[value] as string;
     if (name == null) throw new Error(`missing enum option ${value} in ${EnumType[enumType]}`);
     const title = titles?.[value] ?? toCasing(name, Casing.CAMEL, true);
-    const color = COLORS_BY_ENUM_TYPE[enumType]?.[value];
+    const color = ENUM_OPTION_INFO_BY_TYPE[enumType]?.[value]?.color;
     const text = ENUM_OPTION_INFO_BY_TYPE[enumType]?.[value]?.text;
     const option: EnumOption<T> = {
       id: value.toString(),

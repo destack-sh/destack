@@ -8,6 +8,7 @@ from bench.pb2 import AnyNodeData
 from .const import (
     REGION,
     BuiltinEnum,
+    ColorType,
     EnumType,
     NodeType,
     Region,
@@ -43,14 +44,14 @@ class ResourceStatus(BuiltinEnum):
     """Generalized status of a Resource in its lifecycle."""
 
     # definition
-    DECLARED = 1, None, None, "fas fa-circle-dot"
+    DECLARED = 1, None, None, "fas fa-circle-dot", ColorType.GRAY
     # extant
-    UP = 10, None, None, "fas fa-circle-check"
-    SLEEPING = 11, None, None, "fas fa-zzz"
-    DOWN = 15, None, None, "fas fa-circle-xmark"
-    DEGRADED = 16, None, None, "fas fa-circle-exclamation"
+    UP = 10, None, None, "fas fa-circle-check", ColorType.GRAY
+    SLEEPING = 11, None, None, "fas fa-zzz", ColorType.GRAY
+    DOWN = 15, None, None, "fas fa-circle-xmark", ColorType.RED
+    DEGRADED = 16, None, None, "fas fa-circle-exclamation", ColorType.YELLOW
     # terminal
-    DECOMMISSIONED = 30, None, None, "fas fa-circle-slash"
+    DECOMMISSIONED = 30, None, None, "fas fa-circle-slash", ColorType.GRAY
 
     @property
     def is_extant(self) -> bool:

@@ -9,6 +9,7 @@ import { createBlock } from "@/language/source/block";
 import {
   BlockData,
   BlockType,
+  BlockTypeOptionInfo,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -22,7 +23,7 @@ import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
+import { IconInline, makeIcon } from "@/ui/icon";
 import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
@@ -454,7 +455,7 @@ defineExpose<ViewExpose>({ self, actions, focus });
             @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
           >
             <IconInline
-              v-bind="ICON_BY_BLOCK_TYPE[blockType]"
+              v-bind="makeIcon(BlockTypeOptionInfo[blockType]!.icon!)"
               class="mr-1.5 w-5 text-center transition-colors duration-150"
               :class="isEmpty ? 'text-gray-700' : 'text-gray-400 group-hover/footer:text-gray-700'"
             />

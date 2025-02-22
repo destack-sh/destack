@@ -8,6 +8,7 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     BuiltinObject,
+    ColorType,
     EnumType,
     FieldType,
     LocalNodeList,
@@ -71,46 +72,46 @@ _type = type
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
     # flow
-    START = 1, "Start", "Begin the Flow", "fas fa-circle-play"
-    COMPLETE = 10, "Complete", "Complete the entire Flow", "fas fa-flag-checkered"
-    FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation"
+    START = 1, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
+    COMPLETE = 10, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
+    FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation", ColorType.YELLOW
     # ABORT?
 
     # tool
-    TOOL = 100, "Tool", "Delegate to a tool", "fas fa-screwdriver-wrench"
-    CODE = 101, "Code", "Run some Code", "fas fa-code"
+    TOOL = 100, "Tool", "Delegate to a tool", "fas fa-screwdriver-wrench", ColorType.SKY
+    CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.SKY
 
     # dynamic
-    ACT = 200, "Act", "Perform an arbitrary action", "fas fa-hammer"
-    THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit"
-    ROUTE = 202, "Route", "Route between Actions", "fas fa-split"
-    GENERATE = 203, "Generate", "Generate something new", "fas fa-wand-magic-sparkles"
-    TRANSFORM = 204, "Transform", "Change the form of something", "fas fa-arrows-rotate"
-    EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter"
-    CLASSIFY = 206, "Classify", "Classify or categorize", "fas fa-tags"
-    SUMMARIZE = 207, "Summarize", "Condense media content", "fas fa-file-lines"
-    COMPARE = 208, "Compare", "Compare multiple things", "fas fa-code-compare"
-    TRANSLATE = 209, "Translate", "Translate between languages", "fas fa-language"
-    CHANGE = 210, "Change", "Edit this Bench", "fas fa-pen-to-square"
+    ACT = 200, "Act", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
+    THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
+    ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
+    GENERATE = 203, "Generate", "Generate something new", "fas fa-wand-magic-sparkles", ColorType.VIOLET
+    TRANSFORM = 204, "Transform", "Change the form of something", "fas fa-arrows-rotate", ColorType.VIOLET
+    EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
+    CLASSIFY = 206, "Classify", "Classify or categorize", "fas fa-tags", ColorType.VIOLET
+    SUMMARIZE = 207, "Summarize", "Condense media content", "fas fa-file-lines", ColorType.VIOLET
+    COMPARE = 208, "Compare", "Compare multiple things", "fas fa-code-compare", ColorType.VIOLET
+    TRANSLATE = 209, "Translate", "Translate between languages", "fas fa-language", ColorType.VIOLET
+    CHANGE = 210, "Change", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
 
     # read
-    GET = 300, "Get", "Get a Node", "fas fa-magnifying-glass"
-    SEARCH = 301, "Search", "Search for Nodes", "fas fa-magnifying-glass"
+    GET = 300, "Get", "Get a Node", "fas fa-magnifying-glass", ColorType.SKY
+    SEARCH = 301, "Search", "Search for Nodes", "fas fa-magnifying-glass", ColorType.SKY
     # AGGREGATE?
     # COPY?
 
     # write
-    CREATE = 400, "Create", "Create a Node", "fas fa-plus"
-    DUPLICATE = 401, "Duplicate", "Duplicate a Node", "fas fa-clone"
-    UPDATE = 402, "Update", "Update a Node", "fas fa-pencil"
-    DELETE = 403, "Delete", "Delete a Node", "fas fa-trash"
+    CREATE = 400, "Create", "Create a Node", "fas fa-plus", ColorType.SKY
+    DUPLICATE = 401, "Duplicate", "Duplicate a Node", "fas fa-clone", ColorType.SKY
+    UPDATE = 402, "Update", "Update a Node", "fas fa-pencil", ColorType.SKY
+    DELETE = 403, "Delete", "Delete a Node", "fas fa-trash", ColorType.SKY
     # PASTE?
 
     # communicate
-    WAIT = 500, "Wait", "Wait for some trigger", "fas fa-clock"
-    SEND = 510, "Send", "Send a Message", "fas fa-inbox-out"
-    RECEIVE = 511, "Receive", "Receive a Message", "fas fa-inbox-in"
-    YIELD = 520, "Yield", "Defer to someone", "fas fa-hand"
+    WAIT = 500, "Wait", "Wait for some trigger", "fas fa-clock", ColorType.PINK
+    SEND = 510, "Send", "Send a Message", "fas fa-inbox-out", ColorType.PINK
+    RECEIVE = 511, "Receive", "Receive a Message", "fas fa-inbox-in", ColorType.PINK
+    YIELD = 520, "Yield", "Defer to someone", "fas fa-hand", ColorType.PINK
     # NOTIFY?
 
     # resource
@@ -122,31 +123,31 @@ class ActionType(BuiltinEnum):
     # ...
 
     # environment
-    LOOK = 800, "Look", "Look at the environment", "fas fa-eye"
+    LOOK = 800, "Look", "Look at the environment", "fas fa-eye", ColorType.EMERALD
     # LISTEN, ...
 
     # application
-    CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer"
-    PRESS = 1001, "Press", "Press a key", "fas fa-keyboard"
-    TYPE = 1002, "Type", "Type text", "fas fa-keyboard"
-    SCROLL = 1003, "Scroll", "Scroll the mouse wheel", "fas fa-computer-mouse-scrollwheel"
-    SELECT = 1004, "Select", "Select an element", "fas fa-lasso"
-    DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer"
-    GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left"
-    GO_FORWARD = 1007, "Go forward", "Go forward in history", "fas fa-arrow-turn-right"
+    CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer", ColorType.INDIGO
+    PRESS = 1001, "Press", "Press a key", "fas fa-keyboard", ColorType.INDIGO
+    TYPE = 1002, "Type", "Type text", "fas fa-keyboard", ColorType.INDIGO
+    SCROLL = 1003, "Scroll", "Scroll the mouse wheel", "fas fa-computer-mouse-scrollwheel", ColorType.INDIGO
+    SELECT = 1004, "Select", "Select an element", "fas fa-lasso", ColorType.INDIGO
+    DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer", ColorType.INDIGO
+    GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left", ColorType.INDIGO
+    GO_FORWARD = 1007, "Go forward", "Go forward in history", "fas fa-arrow-turn-right", ColorType.INDIGO
 
     # web
-    GO_TO_URL = 1100, "Go to URL", "Navigate to a URL", "fas fa-link"
-    GO_TO_TAB = 1101, "Go to tab", "Switch to a tab", "fas fa-sidebar"
-    OPEN_TAB = 1102, "Open tab", "Open a new tab", "fas fa-plus"
-    CLOSE_TAB = 1103, "Close tab", "Close a tab", "fas fa-minus"
+    GO_TO_URL = 1100, "Go to URL", "Navigate to a URL", "fas fa-link", ColorType.INDIGO
+    GO_TO_TAB = 1101, "Go to tab", "Switch to a tab", "fas fa-sidebar", ColorType.INDIGO
+    OPEN_TAB = 1102, "Open tab", "Open a new tab", "fas fa-plus", ColorType.INDIGO
+    CLOSE_TAB = 1103, "Close tab", "Close a tab", "fas fa-minus", ColorType.INDIGO
 
     # containers
     # GROUP = 8000, "Associate multiple Actions"
     # LOOP = 8001, "Repeat some Actions"
 
     # misc
-    TEXT = 9000, "Text", "Just some documentation", "fas fa-align-left"
+    TEXT = 9000, "Text", "Just some documentation", "fas fa-align-left", ColorType.GRAY
 
     @property
     def is_boundary(self) -> bool:
@@ -167,13 +168,13 @@ class ActionType(BuiltinEnum):
 
 @enum_(EnumType.ACTION_CATEGORY)
 class ActionCategory(BuiltinEnum):
-    FLOW = 100, "Flow", "Control the Flow", "fas fa-diagram-project"
-    READ = 300, "Read", "Read Data", "fas fa-magnifying-glass"
-    WRITE = 400, "Write", "Write Data", "fas fa-pencil"
-    COMMUNICATE = 500, "Communicate", "Communicate with others", "fas fa-inbox"
-    ENVIRONMENT = 800, "Environment", "Interact with the Environment", "fas fa-island-tropical"
-    APPLICATION = 1000, "Application", "Interact with an Application", "fas fa-desktop"
-    WEB = 1100, "Web", "Interact with the Web", "fas fa-globe"
+    FLOW = 100, "Flow", "Control the Flow", "fas fa-diagram-project", ColorType.YELLOW
+    READ = 300, "Read", "Read Data", "fas fa-magnifying-glass", ColorType.SKY
+    WRITE = 400, "Write", "Write Data", "fas fa-pencil", ColorType.SKY
+    COMMUNICATE = 500, "Communicate", "Communicate with others", "fas fa-inbox", ColorType.PINK
+    ENVIRONMENT = 800, "Environment", "Interact with the Environment", "fas fa-island-tropical", ColorType.EMERALD
+    APPLICATION = 1000, "Application", "Interact with an Application", "fas fa-desktop", ColorType.INDIGO
+    WEB = 1100, "Web", "Interact with the Web", "fas fa-globe", ColorType.INDIGO
 
 
 DYNAMIC_ACTION_TYPES = [t for t in ActionType if t.is_dynamic]

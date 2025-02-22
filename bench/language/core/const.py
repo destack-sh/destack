@@ -1152,14 +1152,69 @@ class AccessMode(BuiltinEnum):
 #
 
 
+@enum_(EnumType.COLOR_TYPE)
+class ColorType(BuiltinEnum):
+    """Built-in color types a la SwiftUI or Tailwind."""
+
+    # surface
+    PRIMARY = 1
+    SECONDARY = 2
+    ACCENT = 3
+    CANVAS = 4
+    # semantic
+    SUCCESS = 10
+    HINT = 11
+    WARNING = 12
+    DANGER = 13
+    # actual
+    GRAY = 30
+    RED = 31
+    ORANGE = 32
+    AMBER = 33
+    YELLOW = 34
+    LIME = 35
+    GREEN = 36
+    EMERALD = 37
+    TEAL = 38
+    CYAN = 39
+    SKY = 40
+    BLUE = 41
+    INDIGO = 42
+    VIOLET = 43
+    PURPLE = 44
+    FUCHSIA = 45
+    PINK = 46
+    ROSE = 47
+
+
+@enum_(EnumType.COLOR_SHADE)
+class ColorShade(BuiltinEnum):
+    """Built-in color shades a la Tailwind."""
+
+    # surface
+    ...
+    # actual
+    S50 = 50
+    S100 = 100
+    S200 = 200
+    S300 = 300
+    S400 = 400
+    S500 = 500
+    S600 = 600
+    S700 = 700
+    S800 = 800
+    S900 = 900
+    S950 = 950
+
+
 @enum_(EnumType.SEVERITY)
 class Severity(BuiltinEnum):
-    TRACE = 1, None, None, "fas fa-bug"
-    DEBUG = 2, None, None, "fas fa-bug"
-    INFO = 3, None, None, "fas fa-circle-check"
-    WARNING = 4, None, None, "fas fa-circle-exclamation"
-    ERROR = 5, None, None, "fas fa-circle-exclamation"
-    PANIC = 6, None, None, "fas fa-skull"
+    TRACE = 1, None, None, "fas fa-bug", ColorType.GRAY
+    DEBUG = 2, None, None, "fas fa-bug", ColorType.GRAY
+    INFO = 3, None, None, "fas fa-circle-check", ColorType.GRAY
+    WARNING = 4, None, None, "fas fa-circle-exclamation", ColorType.YELLOW
+    ERROR = 5, None, None, "fas fa-circle-exclamation", ColorType.RED
+    PANIC = 6, None, None, "fas fa-skull", ColorType.RED
 
 
 @enum_(EnumType.LOG_TYPE)
@@ -1564,61 +1619,6 @@ else:
     )
     ExpressionType.kind = property(lambda self: EXPRESSION_KIND_BY_OP[self])
     enum_(EnumType.EXPRESSION_OP)(ExpressionType)
-
-
-@enum_(EnumType.COLOR_TYPE)
-class ColorType(BuiltinEnum):
-    """Built-in color types a la SwiftUI or Tailwind."""
-
-    # surface
-    PRIMARY = 1
-    SECONDARY = 2
-    ACCENT = 3
-    CANVAS = 4
-    # semantic
-    SUCCESS = 10
-    HINT = 11
-    WARNING = 12
-    DANGER = 13
-    # actual
-    GRAY = 30
-    RED = 31
-    ORANGE = 32
-    AMBER = 33
-    YELLOW = 34
-    LIME = 35
-    GREEN = 36
-    EMERALD = 37
-    TEAL = 38
-    CYAN = 39
-    SKY = 40
-    BLUE = 41
-    INDIGO = 42
-    VIOLET = 43
-    PURPLE = 44
-    FUCHSIA = 45
-    PINK = 46
-    ROSE = 47
-
-
-@enum_(EnumType.COLOR_SHADE)
-class ColorShade(BuiltinEnum):
-    """Built-in color shades a la Tailwind."""
-
-    # surface
-    ...
-    # actual
-    S50 = 50
-    S100 = 100
-    S200 = 200
-    S300 = 300
-    S400 = 400
-    S500 = 500
-    S600 = 600
-    S700 = 700
-    S800 = 800
-    S900 = 900
-    S950 = 950
 
 
 @enum_(EnumType.CLIENT_TYPE)

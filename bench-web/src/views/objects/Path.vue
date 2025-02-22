@@ -11,16 +11,17 @@ import {
   PathData,
   PathElementType,
   StructType,
+  StructTypeOptionInfo,
   TypeKind,
   ViewData
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
-import { ICON_BY_STRUCT_TYPE } from "@/ui/icon";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
 import { computed, toRef } from "vue";
+import { makeIcon } from "@/ui/icon";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
@@ -66,7 +67,7 @@ defineExpose<ViewExpose>({ self, id });
     <Picker
       id="picker"
       :title="title ?? 'Path'"
-      :icon="icon ?? ICON_BY_STRUCT_TYPE[StructType.PATH]"
+      :icon="icon ?? makeIcon(StructTypeOptionInfo[StructType.PATH]!.icon!)"
       :value-type="nodeValueType"
       :is-input="isInput"
       :is-disabled="isDisabled"

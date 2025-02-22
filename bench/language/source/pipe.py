@@ -43,9 +43,9 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(BuiltinEnum):
-    CALL = 1, "Always call"
+    CALL = 1, "Call", "Always call", "fas fa-arrow-right"
     # FAIL?
-    SELECT = 10, "Call only if selected"
+    SELECT = 10, "Select", "Call only if selected", "fas fa-checkbox"
     # MESSAGE?
     # WAIT?
     # STREAM?
@@ -53,9 +53,9 @@ class PipeType(BuiltinEnum):
 
 @enum_(EnumType.PIPE_TRIGGER)
 class PipeTrigger(BuiltinEnum):
-    ON_COMPLETED = 1, "If the action succeeds"
-    ON_FAILED = 2, "If the action fails"
-    ON_TERMINATED = 3, "Always, success or failure"
+    ON_COMPLETED = 1, "On completed", "If the action succeeds", "fas fa-check"
+    ON_FAILED = 2, "On failed", "If the action fails", "fas fa-xmark"
+    ON_TERMINATED = 3, "On terminated", "Always, success or failure", "fas fa-check-double"
 
 
 SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
