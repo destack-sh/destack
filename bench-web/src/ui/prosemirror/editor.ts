@@ -503,13 +503,28 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       }
     },
     "Mod-Enter": (state, dispatch, view) => {
-      return commands.splitBlockAs((node, atEnd, $from) => {
-        if (node.type.isInGroup("line")) {
-          // remove blockPtr from the new block (force create)
-          return { type: node.type, attrs: { ...node.attrs, blockPtr: null } };
-        }
-        return null;
-      })(state, dispatch);
+      if (commands.exitCode(state, dispatch, view)) {
+        return true;
+      } else {
+        return commands.splitBlockAs((node, atEnd, $from) => {
+          if (node.type.isInGroup("line")) {
+            // remove blockPtr from the new block (force create)
+            return { type: node.type, attrs: { ...node.attrs, blockPtr: null } };
+          }
+          return null;
+        })(state, dispatch);
+      }
+    },
+    "Shift-Enter": (state, dispatch, view) => {
+      if (commands.newlineInCode(state, dispatch, view)) {
+        return true;
+      } else {
+        // insert spanHardBreak at cursor
+        const { from } = state.selection;
+        const hardBreak = PM_SCHEMA.node("spanHardBreak");
+        dispatch?.(state.tr.insert(from, hardBreak));
+        return true;
+      }
     },
     Enter(state, dispatch, view) {
       const { $from, $to } = state.selection;
@@ -527,13 +542,17 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
           return true;
         }
       }
-      return commands.splitBlockAs((node, atEnd, $from) => {
-        if (node.type.isInGroup("line")) {
-          // remove blockPtr from the new block (force create)
-          return { type: node.type, attrs: { ...node.attrs, blockPtr: null } };
-        }
-        return null;
-      })(state, dispatch);
+      if (commands.newlineInCode(state, dispatch, view)) {
+        return true;
+      } else {
+        return commands.splitBlockAs((node, atEnd, $from) => {
+          if (node.type.isInGroup("line")) {
+            // remove blockPtr from the new block (force create)
+            return { type: node.type, attrs: { ...node.attrs, blockPtr: null } };
+          }
+          return null;
+        })(state, dispatch);
+      }
     },
   };
   return extraCommands;
@@ -789,15 +808,6 @@ export function useTextEditor(options: {
     "text.format.strikethrough": markFormatAction("strikethrough"),
     "text.format.underline": markFormatAction("underline"),
     "text.format.code": markFormatAction("code"),
-    "text.edit.hardBreak": {
-      action: () => {
-        // insert 'hardBreak' node at cursor
-        if (view == null || toValue(suppressEnter)) return; // suppress if needed
-        const { from } = view.state.selection;
-        const hardBreak = PM_SCHEMA.node("spanHardBreak");
-        view.dispatch(view.state.tr.insert(from, hardBreak));
-      },
-    },
     // space
     "space.edit.delete": {
       action: () => commands.deleteSelection(view!.state, view!.dispatch),
