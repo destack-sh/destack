@@ -3105,6 +3105,7 @@ message RunData {
   optional google.protobuf.Timestamp terminated_at = 49;
   optional ErrorData error = 50;
   optional NodeReferenceData interruption_ptr = 51;
+  optional NodeReferenceData thread_ptr = 52;
   NodeReferenceData page_ptr = 60;
   optional NodeReferenceData flow_ptr = 61;
   optional NodeReferenceData action_ptr = 62;

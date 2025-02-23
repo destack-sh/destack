@@ -75,6 +75,6 @@ async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWo
     await run.wait_until_status(RunStatus.PAUSED, *TERMINAL_RUN_STATUSES)
     assert run.status == RunStatus.PAUSED
     run.resume()
-    await runtime.commit()
+    await runtime.commit()  # should automatically resume within runtime
     await run.wait_until_terminated()
     assert run.status == RunStatus.COMPLETED

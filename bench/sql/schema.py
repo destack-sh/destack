@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.22.0"
+VERSION = "2025.02.23.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1638,6 +1638,7 @@ RUN_TABLE = Table(
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
         Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("page_id", PrimitiveType.UUID),
         Column("page_ck", PrimitiveType.UUID),
         Column("page_bench_id", PrimitiveType.UUID),
