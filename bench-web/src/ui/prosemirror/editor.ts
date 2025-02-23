@@ -1,9 +1,11 @@
+import { newChangeId } from "@/language/runtime/transaction";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
-import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { getNodesForAction, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
 import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
+import { deleteSelection } from "@/ui/space";
 import { deepValueEquals } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import TextSpecialInput from "@/views/builtins/TextSpecialInput.vue";
@@ -810,10 +812,18 @@ export function useTextEditor(options: {
     "text.format.code": markFormatAction("code"),
     // space
     "space.edit.delete": {
-      action: () => commands.deleteSelection(view!.state, view!.dispatch),
+      action: (action, ctx) => {
+        if (deleteSelection(action, ctx)) {
+          return true;
+        } else {
+          return commands.deleteSelection(view!.state, view!.dispatch);
+        }
+      },
     },
     "space.select.all": {
-      action: () => commands.selectAll(view!.state, view!.dispatch),
+      action: () => {
+        return commands.selectAll(view!.state, view!.dispatch);
+      },
     },
   };
 

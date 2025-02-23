@@ -59,7 +59,7 @@ import {
 import { getContainingFlow } from "@/ui/flow";
 import { canvas, supergraph } from "@/globals";
 import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
-import { declareActions, getNodesForAction } from "@/ui/action";
+import { Action, ActionContext, declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
 import { getNodeIcon, getNodeName, toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
@@ -1376,6 +1376,34 @@ export function createDesktopEmptySpace(tx: Transaction, space: SpaceData): { pr
 // Actions
 //
 
+/** Duplicates the selected nodes */
+export function duplicateSelection(action: Action, ctx: ActionContext): boolean {
+  const { connection, graph, nodes } = getNodesForAction(action, ctx);
+  if (connection == null || graph == null || nodes.length == 0) {
+    return true; // no action, but suppress anyway to avoid triggering browser shortcuts
+  }
+  const clonedNodes = cloneNodes(connection.tx, graph, nodes);
+  canvas.select(clonedNodes);
+  if (clonedNodes.length > 0 && !(ctx.event != null && findViewComponentUp(ctx.event.target, HELPER_VIEW_TYPES))) {
+    canvas.goToNode(clonedNodes[0]);
+    canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
+  }
+  return true;
+}
+
+/** Deletes the selected nodes */
+export function deleteSelection(action: Action, ctx: ActionContext): boolean {
+  const { connection, graph, nodes } = getNodesForAction(action, ctx);
+  if (connection == null || graph == null || nodes.length == 0) {
+    return false; // bubble up
+  }
+  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
+  for (const node of nodes) {
+    tx.delete(node);
+  }
+  return true;
+}
+
 // space
 declareActions<"space">({
   // edit
@@ -1413,36 +1441,14 @@ declareActions<"space">({
     title: "Duplicate",
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
-    action: (action, ctx) => {
-      const { connection, graph, nodes } = getNodesForAction(action, ctx);
-      if (connection == null || graph == null || nodes.length == 0) {
-        return; // no action, but suppress anyway to avoid triggering browser shortcuts
-      }
-      const clonedNodes = cloneNodes(connection.tx, graph, nodes);
-      canvas.select(clonedNodes);
-      if (clonedNodes.length > 0 && !(ctx.event != null && findViewComponentUp(ctx.event.target, HELPER_VIEW_TYPES))) {
-        canvas.goToNode(clonedNodes[0]);
-        canvas.inspect({ node: clonedNodes[0], view: canvas.focusedViewPtr.value });
-      }
-      return true;
-    },
+    action: (action, ctx) => duplicateSelection(action, ctx),
   },
   "space.edit.delete": {
     icon: "fas fa-trash",
     title: "Delete",
     text: "Delete this item",
     shortcuts: ["del", "backspace"],
-    action: (action, ctx) => {
-      const { connection, graph, nodes } = getNodesForAction(action, ctx);
-      if (connection == null || graph == null || nodes.length == 0) {
-        return false; // bubble up
-      }
-      const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
-      for (const node of nodes) {
-        tx.delete(node);
-      }
-      return true;
-    },
+    action: (action, ctx) => deleteSelection(action, ctx),
   },
   // navigate
   "space.navigate.open": {
