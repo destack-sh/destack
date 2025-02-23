@@ -61,6 +61,7 @@ if TYPE_CHECKING:
         RunnableNode,
         RunSpan,
         TextOptions,
+        Thread,
         Trigger,
         TypeBase,
         VideoOptions,
@@ -189,6 +190,9 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     )
     interruption: Optional["Interruption"] = p_internal(
         51, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+    )
+    thread: Optional["Thread"] = p_internal(
+        52, require=False, array=False, references=NodeType.THREAD, same_bench=True
     )
 
     # flow

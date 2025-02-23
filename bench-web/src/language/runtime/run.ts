@@ -2,6 +2,7 @@ import {
   ACTIVE_RUN_STATUSES,
   BAD_RUN_STATUSES,
   INTERRUPTED_RUN_STATUSES,
+  RUNNABLE_NODE_TYPES,
   TERMINAL_RUN_STATUSES,
 } from "@/language/core/const";
 import {
@@ -18,7 +19,7 @@ import {
   RunStatus,
   RunType,
   type ActionData,
-  type RunData
+  type RunData,
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
@@ -56,13 +57,7 @@ export const RUN_PROPERTY_BY_FIELD_TYPE: Partial<Record<FieldType, PropertyRefer
 
 /** Whether the given node is runnable */
 export function isRunnable(node: any | null | undefined): node is RunnableNode {
-  if (isNode(node, NodeType.ACTION)) {
-    return true;
-  } else if (isNode(node, NodeType.BLOCK)) {
-    return node.type == BlockType.FLOW;
-  } else {
-    return false;
-  }
+  return node != null && RUNNABLE_NODE_TYPES.includes(node.metatype);
 }
 
 export function isRunActive(run: RunData | RunSpanData): boolean {
