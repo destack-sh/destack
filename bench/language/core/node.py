@@ -124,6 +124,7 @@ if TYPE_CHECKING:
         SearchConnection,
         Session,
         Text,
+        Thread,
         Type,
         User,
     )
@@ -1574,10 +1575,20 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
         references=NodeType.BLOCK,
         description="The Block where this Node is 'defined'.",
     )
+    thread: Optional["Thread"] = p_internal(
+        37,
+        require=False,
+        array=False,
+        references=NodeType.THREAD,
+        same_bench=True,
+        description="The 'main' Thread associated with this Node.",
+    )
     if TYPE_CHECKING:
         block_id: Optional[UUID] = None
         block_ck: Optional[UUID] = None
         block_ptr: Optional[NodeReference] = None
+        thread_id: Optional[UUID] = None
+        thread_ptr: Optional[NodeReference] = None
 
     @property
     def container(self) -> "Node | None":

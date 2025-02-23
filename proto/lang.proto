@@ -3446,6 +3446,7 @@ message ChannelData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
 }
 
 message ChoiceData {
@@ -3470,6 +3471,7 @@ message ChoiceData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
 }
 
 message ClassData {
@@ -3494,6 +3496,7 @@ message ClassData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
 }
 
 message DatabaseData {
@@ -3518,6 +3521,7 @@ message DatabaseData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
 }
 
 message DependencyData {
@@ -3601,6 +3605,7 @@ message FlowData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
   optional RunOptionsData run_options = 40;
   repeated NodeReferenceData roles_ptr = 42;
 }
@@ -3677,6 +3682,7 @@ message PageData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
 }
 
 message PipeData {
@@ -3736,6 +3742,7 @@ message ViewData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
   optional google.protobuf.Value subviews_packed = 39;
   optional string title = 40;
   optional TypeData value_type = 41;
@@ -3855,6 +3862,7 @@ message RoleData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
   optional ColorType color = 40;
 }
 
