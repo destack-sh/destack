@@ -125,7 +125,6 @@ export const PM_SCHEMA = new PmSchema({
       group: "line",
       content: "span*",
       attrs: { blockPtr: { default: null }, type: { default: TextLineType.LIST_ORDERED } },
-      // This node will now only be created inside an orderedList wrapper.
       toDOM(node) {
         return toLineDom(node, LIST_ORDERED_DOM);
       },

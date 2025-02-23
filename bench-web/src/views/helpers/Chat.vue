@@ -196,7 +196,7 @@ watchEffect(() => {
     millisecondsSinceLastAutoscroll >= MIN_AUTOSCROLL_INTERVAL_MILLISECONDS
   ) {
     if ((topPlaceholderVisible.value || bodyScrollRef.value?.isCloseToStart) && !isAtStart.value) {
-      go("up"); 
+      go("up");
       lastAutoscrollAt.value = DateTime.now();
     } else if ((bottomPlaceholderVisible.value || bodyScrollRef.value?.isCloseToEnd) && !isAtEnd.value) {
       go("down");
@@ -536,7 +536,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     >
       <!-- Messages -->
       <ul
-        class="relative mb-4 mt-2 flex flex-col"
+        class="relative mb-4 mt-2 flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 32 + 'px' : undefined }"
       >
@@ -681,7 +681,13 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               </div>
               <!-- Content -->
               <template v-if="!isEditing">
-                <Text v-if="!isEditing" :id="'text-' + message.id" is-minimal :model-value="message.text" />
+                <Text
+                  v-if="!isEditing"
+                  :id="'text-' + message.id"
+                  placeholder="Empty message"
+                  is-minimal
+                  :model-value="message.text"
+                />
               </template>
               <div v-else class="my-1">
                 <Text
@@ -691,6 +697,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                   is-input
                   suppress-enter
                   suppress-drop
+                  placeholder="Edit message..."
                   @update:model-value="
                     (value) => {
                       editingText = value;

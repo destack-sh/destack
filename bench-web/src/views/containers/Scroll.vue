@@ -153,11 +153,11 @@ defineExpose<
 });
 </script>
 <template>
-  <div class="group/scroll relative">
+  <div class="group/scroll relative focus:outline-none">
     <!-- Scroll area -->
     <div
       ref="containerRef"
-      class="scrollbar-none relative overscroll-auto"
+      class="scrollbar-none relative overscroll-auto focus:outline-none"
       :class="[
         orientation == Orientation.HORIZONTAL ? 'overflow-y-hidden overflow-x-scroll' : '',
         orientation == Orientation.VERTICAL ? 'overflow-x-hidden overflow-y-scroll' : '',
@@ -165,6 +165,7 @@ defineExpose<
         $attrs.class,
       ]"
       :style="{ ...sizeStyles }"
+      :tabindex="-1"
     >
       <!-- Inner wrapper -->
       <div ref="innerRef" class="min-h-fit min-w-fit" :class="$attrs.class">
