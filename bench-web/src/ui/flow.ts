@@ -20,6 +20,9 @@ import {
   SelectionData,
   StructType,
   TransformData,
+  TriggerData,
+  TriggerEffect,
+  TriggerType,
   TypeKind,
   Vector2Data,
   ViewData,
@@ -99,6 +102,7 @@ export class ActionState {
   toolPtr: Ref<TypedNodeReferenceData<NodeType.FLOW | NodeType.ACTION> | null>;
   tool: Ref<FlowData | ActionData | null>;
   fields: Ref<FieldData[]>;
+  triggers: Ref<TriggerData[]>;
   actionFields: Ref<FieldData[]>;
   toolFields: Ref<FieldData[]>;
   // layout
@@ -122,6 +126,7 @@ export class ActionState {
     this.tool = flow.graph.getRef(this.toolPtr);
     this.toolFields = flow.graph.getChildrenRef(this.toolPtr, NodeType.FIELD);
     this.actionFields = flow.graph.getChildrenRef(action, NodeType.FIELD);
+    this.triggers = flow.graph.getChildrenRef(action, NodeType.TRIGGER);
     this.fields = computed(() => {
       const actionType = this.action.value?.type;
       if (actionType == ActionType.START) {
@@ -1230,7 +1235,11 @@ export class FlowContext {
       );
 
     // create
-    const action = (options.tx ?? this.tx).create({
+    const tx = options.tx ?? this.tx;
+    if (tx.change?.key == null) {
+      options.tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
+    }
+    const action = tx.create({
       metatype: NodeType.ACTION,
       name: makeNodeName(this.graph, { metatype: ObjectType.ACTION, type: options.action.type, parentPtr }),
       orderKey,
@@ -1240,6 +1249,17 @@ export class FlowContext {
       parentPtr,
       packagePtr,
     });
+    if (action.type == ActionType.RECEIVE) {
+      // new message trigger
+      tx.create({
+        metatype: NodeType.TRIGGER,
+        type: TriggerType.MESSAGE,
+        benchPtr: action.benchPtr,
+        packagePtr: action.packagePtr,
+        parentPtr: toNodeRef(action),
+        effect: TriggerEffect.REPLACE_RUN,
+      });
+    }
     canvas.inspect({ node: action, view: this.view.value });
     return action;
   }

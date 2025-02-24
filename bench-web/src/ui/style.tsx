@@ -1,21 +1,15 @@
 import {
+  ActionTypeOptionInfo,
   AnyNodeData,
-  BlockType,
+  BlockTypeOptionInfo,
   ColorData,
   ColorShade,
   ColorType,
-  Severity,
   NodeType,
-  ObjectType,
-  ResourceStatus,
-  RunStatus,
-  ActionType,
-  EnumType,
-  ActionCategory,
-  RunStatusOptionInfo,
-  BlockTypeOptionInfo,
-  ActionTypeOptionInfo,
   NodeTypeOptionInfo,
+  ObjectType,
+  RunStatus,
+  RunStatusOptionInfo
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -99,7 +93,9 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
 }
 
 export function getRunColorHex(status: RunStatus, shade?: ColorShade): string | undefined {
-  return getColorHex(RunStatusOptionInfo[status]!.color!, shade);
+  const color = RunStatusOptionInfo[status]?.color;
+  if (color == null) return undefined;
+  return getColorHex(color, shade);
 }
 
 export function getColorTitle(color: ColorType | ColorData): string | null {
