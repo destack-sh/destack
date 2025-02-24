@@ -223,10 +223,6 @@ class Session(RuntimeNode[SessionData]):
         return self.opened_at is not None and self.closed_at is None
 
     @property
-    def is_closed(self) -> bool:
-        return self.closed_at is not None
-
-    @property
     def is_active(self):
         return len(self._active_session_tokens) > 0
 
@@ -621,23 +617,39 @@ class Session(RuntimeNode[SessionData]):
 
     async def _run_commit_loop(self):
         """Commits pending edits (on request) while the session is open."""
-        while not self.is_closed:
+        while True:
             try:
                 event = await self._commit_queue.get()
                 assert self._tx is not None, f"no active transaction in {self!r}"
                 if not self._tx.has_edits:
                     self._commit_queue.task_done()
-                    logger.trace("session.queue.skip", session=self, e=event)
+                    logger.trace(
+                        "session.queue.skip",
+                        session=self,
+                        e=event,
+                        qsize=self._commit_queue.qsize(),
+                    )
                     continue  # nothing to do
                 _ = await self._do_commit()
                 self._commit_queue.task_done()
-                logger.trace("session.queue.tick", session=self, e=event)
+                logger.trace(
+                    "session.queue.tick", session=self, e=event, qsize=self._commit_queue.qsize()
+                )
             except asyncio.CancelledError:
                 if not self._commit_queue.empty():
-                    logger.debug("session.queue.cancel", session=self)
+                    logger.debug(
+                        "session.queue.cancel",
+                        session=self,
+                        qsize=self._commit_queue.qsize(),
+                    )
                 break
             except BaseException as e:
-                logger.error("session.queue.error", session=self, exc_info=e)
+                logger.error(
+                    "session.queue.error",
+                    session=self,
+                    exc_info=e,
+                    qsize=self._commit_queue.qsize(),
+                )
                 raise
 
     def _is_current_runtime_node(self, node: Node) -> bool:

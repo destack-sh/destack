@@ -352,7 +352,7 @@ class Simulation:
                 if isinstance(client.parent, MachineHandle):
                     await client.prepare(supervisor_client)
 
-        # start services
+        # start hosts
         await asyncio.gather(*(host.start() for host in self.hosts_by_name.values()))
         # start runtimes
         await asyncio.gather(*(runtime.start() for runtime in self.runtimes_by_name.values()))
