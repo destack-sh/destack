@@ -60,7 +60,7 @@ from bench.language.runtime import (
 )
 from bench.utils.time import timedelta_to_isoformat
 
-from .action import Action, ToolFilter, ToolSelection
+from .action import Action
 from .block import Block
 from .choice import Choice
 from .clazz import Class
@@ -1063,35 +1063,6 @@ class CallPlanRenderer(BuiltinObjectRenderer[CallPlan]):
             *calls_strs, renderer._render_kwargs(**rendered_kwargs) or None
         )
         return f"{func}({args})"
-
-
-@_renderer(StructType.TOOL_SELECTION)
-class ToolSelectionRenderer(BuiltinObjectRenderer[ToolSelection]):
-    @override
-    def render(self, renderer: "Renderer", obj: ToolSelection) -> str:
-        if obj.filter == ToolFilter.SELECT_CUSTOM:
-            tools = [renderer.render_node_ref(tool) for tool in obj.tool_nodes]
-            return f"ToolSelection.custom({', '.join(tools)})"
-        elif obj.filter == ToolFilter.SELECT_BUILIN:
-            tools = []
-            if obj.tool_types:
-                tools.extend(f"ActionType.{t.name}" for t in obj.tool_types)
-            if obj.tool_categories:
-                tools.extend(f"ActionCategory.{c.name}" for c in obj.tool_categories)
-            return f"ToolSelection.builtin({', '.join(tools)})"
-        elif obj.filter == ToolFilter.SELECT:
-            tools = []
-            if obj.tool_types:
-                tools.extend(f"ActionType.{t.name}" for t in obj.tool_types)
-            if obj.tool_categories:
-                tools.extend(f"ActionCategory.{c.name}" for c in obj.tool_categories)
-            if obj.tool_nodes:
-                tools.extend(renderer.render_node_ref(tool) for tool in obj.tool_nodes)
-            return f"ToolSelection.only({', '.join(tools)})"
-        elif obj.filter is None or obj.filter == ToolFilter.ANY:
-            return "ToolSelection.any()"
-        else:
-            assert_never(obj.filter)
 
 
 #

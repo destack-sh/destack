@@ -282,7 +282,7 @@ export function useScrollArea(area: {
   containerSize: ReturnType<typeof useElementSize>;
   innerSize: ReturnType<typeof useElementSize>;
 } {
-  const CLOSE_THRESHOLD = 0.4; // % of container size
+  const CLOSE_THRESHOLD = 0.25; // % of container size
   const orientationRef = toRef(area.orientation) as Ref<Orientation>;
   const trackWidthRef = toRef(area.trackWidth) as Ref<ScrollbarWidth>;
   const scroll = useScroll(area.container);

@@ -340,7 +340,7 @@ def basic_planning_with_tools(package: Package):
     Flow1 = Flow.new(name="Flow1")
     Start = Action.new(ActionType.START, name="Start")
     Think1 = Action.new(ActionType.THINK, name="Think1")
-    Tool1 = Action.new(ActionType.TOOL, name="Tool1", tool_selection=ToolSelection.any())
+    Tool1 = Action.new(ActionType.TOOL, name="Tool1")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow1.actions.extend(Start, Think1, Tool1, Complete)
     Start.connect(PipeType.CALL, Think1)

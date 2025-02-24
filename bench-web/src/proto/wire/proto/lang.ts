@@ -1540,10 +1540,6 @@ export interface ToolSelectionData {
      * @generated from protobuf field: repeated symbolx.bench.ActionType tool_types = 41;
      */
     toolTypes: ActionType[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ActionCategory tool_categories = 42;
-     */
-    toolCategories: ActionCategory[];
 }
 /**
  * @generated from protobuf message symbolx.bench.FontData
@@ -4425,55 +4421,9 @@ export interface RouteActionData {
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
  *
- * @generated from protobuf message symbolx.bench.ChangeActionData
+ * @generated from protobuf message symbolx.bench.EditActionData
  */
-export interface ChangeActionData {
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 120;
-     */
-    nodesPtr: NodeReferenceData[];
-}
-/**
- * Get a single Node.
- *
- * @generated from protobuf message symbolx.bench.GetActionData
- */
-export interface GetActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 120;
-     */
-    nodeType?: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_block_ptr = 121;
-     */
-    baseBlockPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 122;
-     */
-    filter?: ExpressionData;
-}
-/**
- * Search for Nodes.
- *
- * @generated from protobuf message symbolx.bench.SearchActionData
- */
-export interface SearchActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 120;
-     */
-    nodeType?: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_block_ptr = 121;
-     */
-    baseBlockPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 122;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 123;
-     */
-    sort: ExpressionData[];
+export interface EditActionData {
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -7760,10 +7710,6 @@ export enum EnumType {
      */
     ACTION_TYPE = 22350,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACTION_CATEGORY = 22351;
-     */
-    ACTION_CATEGORY = 22351,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 22352;
      */
     PORT_SIDE = 22352,
@@ -9535,10 +9481,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 22350;
      */
     ACTION_TYPE = 22350,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACTION_CATEGORY = 22351;
-     */
-    ACTION_CATEGORY = 22351,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 22352;
      */
@@ -12894,17 +12836,9 @@ export enum ActionType {
      */
     TRANSLATE = 209,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CHANGE = 210;
+     * @generated from protobuf enum value: ACTION_TYPE_EDIT = 210;
      */
-    CHANGE = 210,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GET = 300;
-     */
-    GET = 300,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_SEARCH = 301;
-     */
-    SEARCH = 301,
+    EDIT = 210,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_CREATE = 400;
      */
@@ -12974,62 +12908,45 @@ export enum ActionType {
      */
     GO_FORWARD = 1007,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_TO_URL = 1100;
+     * @generated from protobuf enum value: ACTION_TYPE_GO_TO_URL = 1050;
      */
-    GO_TO_URL = 1100,
+    GO_TO_URL = 1050,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_TO_TAB = 1101;
+     * @generated from protobuf enum value: ACTION_TYPE_GO_TO_TAB = 1051;
      */
-    GO_TO_TAB = 1101,
+    GO_TO_TAB = 1051,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_OPEN_TAB = 1102;
+     * @generated from protobuf enum value: ACTION_TYPE_OPEN_TAB = 1052;
      */
-    OPEN_TAB = 1102,
+    OPEN_TAB = 1052,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_CLOSE_TAB = 1103;
+     * @generated from protobuf enum value: ACTION_TYPE_CLOSE_TAB = 1053;
      */
-    CLOSE_TAB = 1103,
+    CLOSE_TAB = 1053,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_TEXT = 9000;
+     * @generated from protobuf enum value: ACTION_TYPE_HTTP = 1100;
      */
-    TEXT = 9000
-}
-/**
- * @generated from protobuf enum symbolx.bench.ActionCategory
- */
-export enum ActionCategory {
+    HTTP = 1100,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: ACTION_TYPE_REST = 1101;
      */
-    UNSPECIFIED = 0,
+    REST = 1101,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_FLOW = 100;
+     * @generated from protobuf enum value: ACTION_TYPE_GRAPHQL = 1102;
      */
-    FLOW = 100,
+    GRAPHQL = 1102,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_READ = 300;
+     * @generated from protobuf enum value: ACTION_TYPE_SQL = 1103;
      */
-    READ = 300,
+    SQL = 1103,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_WRITE = 400;
+     * @generated from protobuf enum value: ACTION_TYPE_WEB = 1200;
      */
-    WRITE = 400,
+    WEB = 1200,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_COMMUNICATE = 500;
+     * @generated from protobuf enum value: ACTION_TYPE_TEXT = 29000;
      */
-    COMMUNICATE = 500,
-    /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_ENVIRONMENT = 800;
-     */
-    ENVIRONMENT = 800,
-    /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_APPLICATION = 1000;
-     */
-    APPLICATION = 1000,
-    /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_WEB = 1100;
-     */
-    WEB = 1100
+    TEXT = 29000
 }
 /**
  * @generated from protobuf enum symbolx.bench.PortSide
@@ -14230,7 +14147,11 @@ export enum MessageType {
     /**
      * @generated from protobuf enum value: MESSAGE_TYPE_INTERRUPTION = 120;
      */
-    INTERRUPTION = 120
+    INTERRUPTION = 120,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_EDIT = 200;
+     */
+    EDIT = 200
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageStatus
@@ -18714,8 +18635,7 @@ class ToolSelectionData$Type extends MessageType$<ToolSelectionData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 35, name: "filter", kind: "enum", opt: true, T: () => ["symbolx.bench.ToolFilter", ToolFilter, "TOOL_FILTER_"] },
             { no: 40, name: "tool_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 41, name: "tool_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] },
-            { no: 42, name: "tool_categories", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionCategory", ActionCategory, "ACTION_CATEGORY_"] }
+            { no: 41, name: "tool_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ActionType", ActionType, "ACTION_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<ToolSelectionData>): ToolSelectionData {
@@ -18723,7 +18643,6 @@ class ToolSelectionData$Type extends MessageType$<ToolSelectionData> {
         message.metatype = 0;
         message.toolNodesPtr = [];
         message.toolTypes = [];
-        message.toolCategories = [];
         if (value !== undefined)
             reflectionMergePartial<ToolSelectionData>(this, message, value);
         return message;
@@ -18748,13 +18667,6 @@ class ToolSelectionData$Type extends MessageType$<ToolSelectionData> {
                             message.toolTypes.push(reader.int32());
                     else
                         message.toolTypes.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.ActionCategory tool_categories */ 42:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.toolCategories.push(reader.int32());
-                    else
-                        message.toolCategories.push(reader.int32());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18782,13 +18694,6 @@ class ToolSelectionData$Type extends MessageType$<ToolSelectionData> {
             writer.tag(41, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.toolTypes.length; i++)
                 writer.int32(message.toolTypes[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.ActionCategory tool_categories = 42; */
-        if (message.toolCategories.length) {
-            writer.tag(42, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.toolCategories.length; i++)
-                writer.int32(message.toolCategories[i]);
             writer.join();
         }
         let u = options.writeUnknownFields;
@@ -25305,42 +25210,20 @@ class RouteActionData$Type extends MessageType$<RouteActionData> {
  */
 export const RouteActionData = new RouteActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ChangeActionData$Type extends MessageType$<ChangeActionData> {
+class EditActionData$Type extends MessageType$<EditActionData> {
     constructor() {
-        super("symbolx.bench.ChangeActionData", [
-            { no: 120, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
-        ]);
+        super("symbolx.bench.EditActionData", []);
     }
-    create(value?: PartialMessage<ChangeActionData>): ChangeActionData {
+    create(value?: PartialMessage<EditActionData>): EditActionData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.nodesPtr = [];
         if (value !== undefined)
-            reflectionMergePartial<ChangeActionData>(this, message, value);
+            reflectionMergePartial<EditActionData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeActionData): ChangeActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 120:
-                    message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditActionData): EditActionData {
+        return target ?? this.create();
     }
-    internalBinaryWrite(message: ChangeActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 120; */
-        for (let i = 0; i < message.nodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(120, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: EditActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25348,137 +25231,9 @@ class ChangeActionData$Type extends MessageType$<ChangeActionData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.ChangeActionData
+ * @generated MessageType for protobuf message symbolx.bench.EditActionData
  */
-export const ChangeActionData = new ChangeActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class GetActionData$Type extends MessageType$<GetActionData> {
-    constructor() {
-        super("symbolx.bench.GetActionData", [
-            { no: 120, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 121, name: "base_block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 122, name: "filter", kind: "message", T: () => ExpressionData }
-        ]);
-    }
-    create(value?: PartialMessage<GetActionData>): GetActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<GetActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetActionData): GetActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType node_type */ 120:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData base_block_ptr */ 121:
-                    message.baseBlockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseBlockPtr);
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 122:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: GetActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType node_type = 120; */
-        if (message.nodeType !== undefined)
-            writer.tag(120, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_block_ptr = 121; */
-        if (message.baseBlockPtr)
-            NodeReferenceData.internalBinaryWrite(message.baseBlockPtr, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 122; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(122, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.GetActionData
- */
-export const GetActionData = new GetActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SearchActionData$Type extends MessageType$<SearchActionData> {
-    constructor() {
-        super("symbolx.bench.SearchActionData", [
-            { no: 120, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 121, name: "base_block_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 122, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 123, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
-        ]);
-    }
-    create(value?: PartialMessage<SearchActionData>): SearchActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.sort = [];
-        if (value !== undefined)
-            reflectionMergePartial<SearchActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SearchActionData): SearchActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType node_type */ 120:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData base_block_ptr */ 121:
-                    message.baseBlockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.baseBlockPtr);
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 122:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 123:
-                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SearchActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType node_type = 120; */
-        if (message.nodeType !== undefined)
-            writer.tag(120, WireType.Varint).int32(message.nodeType);
-        /* optional symbolx.bench.NodeReferenceData base_block_ptr = 121; */
-        if (message.baseBlockPtr)
-            NodeReferenceData.internalBinaryWrite(message.baseBlockPtr, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData filter = 122; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(122, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 123; */
-        for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(123, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SearchActionData
- */
-export const SearchActionData = new SearchActionData$Type();
+export const EditActionData = new EditActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateActionData$Type extends MessageType$<CreateActionData> {
     constructor() {
@@ -32758,7 +32513,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.ACTION_TYPE]: ActionType,
-  [EnumType.ACTION_CATEGORY]: ActionCategory,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.PIPE_TRIGGER]: PipeTrigger,
@@ -32910,7 +32664,7 @@ export interface ScalerSubtypeMapping extends Record<ScalerType, ScalerSubtype> 
   [ScalerType.BROWSER]: BrowserScalerData,
 }
 
-export type ActionSubtype = StartActionData | CompleteActionData | FailActionData | CodeActionData | ToolActionData | GenerateActionData | TransformActionData | RouteActionData | ChangeActionData | GetActionData | SearchActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | WaitActionData | SendActionData | ReceiveActionData | YieldActionData | LookActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData;
+export type ActionSubtype = StartActionData | CompleteActionData | FailActionData | CodeActionData | ToolActionData | GenerateActionData | TransformActionData | RouteActionData | EditActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | WaitActionData | SendActionData | ReceiveActionData | YieldActionData | LookActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData;
 export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> {
   [ActionType.START]: StartActionData,
   [ActionType.COMPLETE]: CompleteActionData,
@@ -32920,9 +32674,7 @@ export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> 
   [ActionType.GENERATE]: GenerateActionData,
   [ActionType.TRANSFORM]: TransformActionData,
   [ActionType.ROUTE]: RouteActionData,
-  [ActionType.CHANGE]: ChangeActionData,
-  [ActionType.GET]: GetActionData,
-  [ActionType.SEARCH]: SearchActionData,
+  [ActionType.EDIT]: EditActionData,
   [ActionType.CREATE]: CreateActionData,
   [ActionType.DUPLICATE]: DuplicateActionData,
   [ActionType.UPDATE]: UpdateActionData,
@@ -33179,7 +32931,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.ACTION_TYPE]: ActionType,
-  [EnumType.ACTION_CATEGORY]: ActionCategory,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.PIPE_TRIGGER]: PipeTrigger,
@@ -34464,21 +34215,8 @@ export enum RouteActionProperty {
 
 }
 
-export enum ChangeActionProperty {
-  nodesPtr = 120,
-}
+export enum EditActionProperty {
 
-export enum GetActionProperty {
-  nodeType = 120,
-  baseBlockPtr = 121,
-  filter = 122,
-}
-
-export enum SearchActionProperty {
-  nodeType = 120,
-  baseBlockPtr = 121,
-  filter = 122,
-  sort = 123,
 }
 
 export enum CreateActionProperty {
@@ -35139,7 +34877,6 @@ export enum ToolSelectionProperty {
   filter = 35,
   toolNodesPtr = 40,
   toolTypes = 41,
-  toolCategories = 42,
 }
 
 export enum ColorProperty {
@@ -35488,9 +35225,7 @@ export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> =
   [ActionType.GENERATE]: GenerateActionProperty,
   [ActionType.TRANSFORM]: TransformActionProperty,
   [ActionType.ROUTE]: RouteActionProperty,
-  [ActionType.CHANGE]: ChangeActionProperty,
-  [ActionType.GET]: GetActionProperty,
-  [ActionType.SEARCH]: SearchActionProperty,
+  [ActionType.EDIT]: EditActionProperty,
   [ActionType.CREATE]: CreateActionProperty,
   [ActionType.DUPLICATE]: DuplicateActionProperty,
   [ActionType.UPDATE]: UpdateActionProperty,
@@ -35791,8 +35526,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35823,8 +35558,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.23.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36809,19 +36544,8 @@ export const TransformActionDataInfo: Record<TransformActionProperty, PropertyIn
 export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
 
 }
-export const ChangeActionDataInfo: Record<ChangeActionProperty, PropertyInfo> = {
-  [ChangeActionProperty.nodesPtr]: { id: 120, name: 'nodes_ptr', component: ObjectType.ACTION, componentSubtype: 210, kind: 'reference', fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const GetActionDataInfo: Record<GetActionProperty, PropertyInfo> = {
-  [GetActionProperty.nodeType]: { id: 120, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GetActionProperty.baseBlockPtr]: { id: 121, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 300, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [GetActionProperty.filter]: { id: 122, name: 'filter', component: ObjectType.ACTION, componentSubtype: 300, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-}
-export const SearchActionDataInfo: Record<SearchActionProperty, PropertyInfo> = {
-  [SearchActionProperty.nodeType]: { id: 120, name: 'node_type', component: ObjectType.ACTION, componentSubtype: 301, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [SearchActionProperty.baseBlockPtr]: { id: 121, name: 'base_block_ptr', component: ObjectType.ACTION, componentSubtype: 301, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SearchActionProperty.filter]: { id: 122, name: 'filter', component: ObjectType.ACTION, componentSubtype: 301, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [SearchActionProperty.sort]: { id: 123, name: 'sort', component: ObjectType.ACTION, componentSubtype: 301, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+export const EditActionDataInfo: Record<EditActionProperty, PropertyInfo> = {
+
 }
 export const CreateActionDataInfo: Record<CreateActionProperty, PropertyInfo> = {
   [CreateActionProperty.nodePartialPacked]: { id: 120, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 400, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
@@ -36906,16 +36630,16 @@ export const GoForwardActionDataInfo: Record<GoForwardActionProperty, PropertyIn
   [GoForwardActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const GoToUrlActionDataInfo: Record<GoToUrlActionProperty, PropertyInfo> = {
-  [GoToUrlActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoToUrlActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoToUrlActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoToUrlActionProperty.url]: { id: 120, name: 'url', component: ObjectType.ACTION, componentSubtype: 1100, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoToUrlActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToUrlActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoToUrlActionProperty.url]: { id: 120, name: 'url', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const GoToTabActionDataInfo: Record<GoToTabActionProperty, PropertyInfo> = {
-  [GoToTabActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoToTabActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoToTabActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoToTabActionProperty.tabIndex]: { id: 120, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1101, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [GoToTabActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [GoToTabActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
+  [GoToTabActionProperty.tabIndex]: { id: 120, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
 }
 export const SelectPipeDataInfo: Record<SelectPipeProperty, PropertyInfo> = {
 
@@ -37399,7 +37123,6 @@ export const ToolSelectionDataInfo: Record<ToolSelectionProperty, PropertyInfo> 
   [ToolSelectionProperty.filter]: { id: 35, name: 'filter', component: ObjectType.TOOL_SELECTION, enumType: EnumType.TOOL_FILTER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ToolSelectionProperty.toolNodesPtr]: { id: 40, name: 'tool_nodes_ptr', component: ObjectType.TOOL_SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION, NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
   [ToolSelectionProperty.toolTypes]: { id: 41, name: 'tool_types', component: ObjectType.TOOL_SELECTION, enumType: EnumType.ACTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
-  [ToolSelectionProperty.toolCategories]: { id: 42, name: 'tool_categories', component: ObjectType.TOOL_SELECTION, enumType: EnumType.ACTION_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37613,9 +37336,7 @@ export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, P
   [ActionType.GENERATE]: GenerateActionDataInfo,
   [ActionType.TRANSFORM]: TransformActionDataInfo,
   [ActionType.ROUTE]: RouteActionDataInfo,
-  [ActionType.CHANGE]: ChangeActionDataInfo,
-  [ActionType.GET]: GetActionDataInfo,
-  [ActionType.SEARCH]: SearchActionDataInfo,
+  [ActionType.EDIT]: EditActionDataInfo,
   [ActionType.CREATE]: CreateActionDataInfo,
   [ActionType.DUPLICATE]: DuplicateActionDataInfo,
   [ActionType.UPDATE]: UpdateActionDataInfo,
@@ -38008,9 +37729,7 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.SUMMARIZE]: { id: 207, name: 'SUMMARIZE', text: 'Condense media content', title: 'Summarize', color: ColorType.VIOLET, icon: 'fas fa-file-lines' },
   [ActionType.COMPARE]: { id: 208, name: 'COMPARE', text: 'Compare multiple things', title: 'Compare', color: ColorType.VIOLET, icon: 'fas fa-code-compare' },
   [ActionType.TRANSLATE]: { id: 209, name: 'TRANSLATE', text: 'Translate between languages', title: 'Translate', color: ColorType.VIOLET, icon: 'fas fa-language' },
-  [ActionType.CHANGE]: { id: 210, name: 'CHANGE', text: 'Edit this Bench', title: 'Change', color: ColorType.VIOLET, icon: 'fas fa-pen-to-square' },
-  [ActionType.GET]: { id: 300, name: 'GET', text: 'Get a Node', title: 'Get', color: ColorType.SKY, icon: 'fas fa-magnifying-glass' },
-  [ActionType.SEARCH]: { id: 301, name: 'SEARCH', text: 'Search for Nodes', title: 'Search', color: ColorType.SKY, icon: 'fas fa-magnifying-glass' },
+  [ActionType.EDIT]: { id: 210, name: 'EDIT', text: 'Edit this Bench', title: 'Change', color: ColorType.VIOLET, icon: 'fas fa-pen-to-square' },
   [ActionType.CREATE]: { id: 400, name: 'CREATE', text: 'Create a Node', title: 'Create', color: ColorType.SKY, icon: 'fas fa-plus' },
   [ActionType.DUPLICATE]: { id: 401, name: 'DUPLICATE', text: 'Duplicate a Node', title: 'Duplicate', color: ColorType.SKY, icon: 'fas fa-clone' },
   [ActionType.UPDATE]: { id: 402, name: 'UPDATE', text: 'Update a Node', title: 'Update', color: ColorType.SKY, icon: 'fas fa-pencil' },
@@ -38028,21 +37747,16 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.DRAG]: { id: 1005, name: 'DRAG', text: 'Drag an element', title: 'Drag', color: ColorType.INDIGO, icon: 'fas fa-hand-pointer' },
   [ActionType.GO_BACKWARD]: { id: 1006, name: 'GO_BACKWARD', text: 'Go back in history', title: 'Go back', color: ColorType.INDIGO, icon: 'fas fa-arrow-turn-left' },
   [ActionType.GO_FORWARD]: { id: 1007, name: 'GO_FORWARD', text: 'Go forward in history', title: 'Go forward', color: ColorType.INDIGO, icon: 'fas fa-arrow-turn-right' },
-  [ActionType.GO_TO_URL]: { id: 1100, name: 'GO_TO_URL', text: 'Navigate to a URL', title: 'Go to URL', color: ColorType.INDIGO, icon: 'fas fa-link' },
-  [ActionType.GO_TO_TAB]: { id: 1101, name: 'GO_TO_TAB', text: 'Switch to a tab', title: 'Go to tab', color: ColorType.INDIGO, icon: 'fas fa-sidebar' },
-  [ActionType.OPEN_TAB]: { id: 1102, name: 'OPEN_TAB', text: 'Open a new tab', title: 'Open tab', color: ColorType.INDIGO, icon: 'fas fa-plus' },
-  [ActionType.CLOSE_TAB]: { id: 1103, name: 'CLOSE_TAB', text: 'Close a tab', title: 'Close tab', color: ColorType.INDIGO, icon: 'fas fa-minus' },
-  [ActionType.TEXT]: { id: 9000, name: 'TEXT', text: 'Just some documentation', title: 'Text', color: ColorType.GRAY, icon: 'fas fa-align-left' },
-}
-
-export const ActionCategoryOptionInfo: Partial<Record<ActionCategory, EnumOptionInfo>> = {
-  [ActionCategory.FLOW]: { id: 100, name: 'FLOW', text: 'Control the Flow', title: 'Flow', color: ColorType.YELLOW, icon: 'fas fa-diagram-project' },
-  [ActionCategory.READ]: { id: 300, name: 'READ', text: 'Read Data', title: 'Read', color: ColorType.SKY, icon: 'fas fa-magnifying-glass' },
-  [ActionCategory.WRITE]: { id: 400, name: 'WRITE', text: 'Write Data', title: 'Write', color: ColorType.SKY, icon: 'fas fa-pencil' },
-  [ActionCategory.COMMUNICATE]: { id: 500, name: 'COMMUNICATE', text: 'Communicate with others', title: 'Communicate', color: ColorType.PINK, icon: 'fas fa-inbox' },
-  [ActionCategory.ENVIRONMENT]: { id: 800, name: 'ENVIRONMENT', text: 'Interact with the Environment', title: 'Environment', color: ColorType.EMERALD, icon: 'fas fa-island-tropical' },
-  [ActionCategory.APPLICATION]: { id: 1000, name: 'APPLICATION', text: 'Interact with an Application', title: 'Application', color: ColorType.INDIGO, icon: 'fas fa-desktop' },
-  [ActionCategory.WEB]: { id: 1100, name: 'WEB', text: 'Interact with the Web', title: 'Web', color: ColorType.INDIGO, icon: 'fas fa-globe' },
+  [ActionType.GO_TO_URL]: { id: 1050, name: 'GO_TO_URL', text: 'Navigate to a URL', title: 'Go to URL', color: ColorType.INDIGO, icon: 'fas fa-link' },
+  [ActionType.GO_TO_TAB]: { id: 1051, name: 'GO_TO_TAB', text: 'Switch to a tab', title: 'Go to tab', color: ColorType.INDIGO, icon: 'fas fa-sidebar' },
+  [ActionType.OPEN_TAB]: { id: 1052, name: 'OPEN_TAB', text: 'Open a new tab', title: 'Open tab', color: ColorType.INDIGO, icon: 'fas fa-plus' },
+  [ActionType.CLOSE_TAB]: { id: 1053, name: 'CLOSE_TAB', text: 'Close a tab', title: 'Close tab', color: ColorType.INDIGO, icon: 'fas fa-minus' },
+  [ActionType.HTTP]: { id: 1100, name: 'HTTP', text: 'Make an HTTP call', title: 'HTTP', color: ColorType.INDIGO, icon: 'fas fa-globe' },
+  [ActionType.REST]: { id: 1101, name: 'REST', text: 'Make a REST call', title: 'REST', color: ColorType.INDIGO, icon: 'fas fa-brackets-curly' },
+  [ActionType.GRAPHQL]: { id: 1102, name: 'GRAPHQL', text: 'Make a GraphQL call', title: 'GraphQL', color: ColorType.INDIGO, icon: 'fas fa-brackets-curly' },
+  [ActionType.SQL]: { id: 1103, name: 'SQL', text: 'Make a SQL call', title: 'SQL', color: ColorType.INDIGO, icon: 'fas fa-code' },
+  [ActionType.WEB]: { id: 1200, name: 'WEB', text: 'Search the Web', title: 'Web', color: ColorType.INDIGO, icon: 'fas fa-globe' },
+  [ActionType.TEXT]: { id: 29000, name: 'TEXT', text: 'Just some documentation', title: 'Text', color: ColorType.GRAY, icon: 'fas fa-align-left' },
 }
 
 export const PipeTypeOptionInfo: Partial<Record<PipeType, EnumOptionInfo>> = {
@@ -38128,6 +37842,7 @@ export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>>
   [MessageType.THREAD]: { id: 100, name: 'THREAD', title: 'Begin a Thread' },
   [MessageType.RUN]: { id: 110, name: 'RUN', title: 'Begin a Run' },
   [MessageType.INTERRUPTION]: { id: 120, name: 'INTERRUPTION', title: 'Interrupt a Run' },
+  [MessageType.EDIT]: { id: 200, name: 'EDIT', title: 'Edited the Bench' },
 }
 
 
@@ -38155,7 +37870,6 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.SEVERITY]: SeverityOptionInfo,
   [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
-  [EnumType.ACTION_CATEGORY]: ActionCategoryOptionInfo,
   [EnumType.PIPE_TYPE]: PipeTypeOptionInfo,
   [EnumType.PIPE_TRIGGER]: PipeTriggerOptionInfo,
   [EnumType.TOOL_FILTER]: ToolFilterOptionInfo,

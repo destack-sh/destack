@@ -23,7 +23,6 @@ from bench.language import (
     FailAction,
     FileFormat,
     FileType,
-    GetAction,
     GoBackwardAction,
     GoForwardAction,
     GoToTabAction,
@@ -44,7 +43,6 @@ from bench.language import (
     RunSpanType,
     RunType,
     ScrollAction,
-    SearchAction,
     SelectAction,
     Text,
     ToolAction,
@@ -368,23 +366,6 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 
 
 #
-# Read
-#
-
-
-class GetActionRunner(StaticActionRunner[GetAction]):
-    @override
-    async def run_static(self) -> None:
-        raise NotImplementedError
-
-
-class SearchActionRunner(StaticActionRunner[SearchAction]):
-    @override
-    async def run_static(self) -> None:
-        raise NotImplementedError
-
-
-#
 # Write
 #
 
@@ -642,11 +623,6 @@ class GoForwardActionRunner(ApplicationActionRunner[GoForwardAction]):
         await self.runtime.playwright.wait_for_idle(pw_page)
 
 
-#
-# Web
-#
-
-
 class GoToUrlActionRunner(ApplicationActionRunner[GoToUrlAction]):
     @override
     async def run_static(self) -> None:
@@ -690,10 +666,9 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.SUMMARIZE: DynamicActionRunner,
     ActionType.COMPARE: DynamicActionRunner,
     ActionType.TRANSLATE: DynamicActionRunner,
-    ActionType.CHANGE: DynamicActionRunner,
+    ActionType.EDIT: DynamicActionRunner,
     # read
-    ActionType.GET: GetActionRunner,
-    ActionType.SEARCH: SearchActionRunner,
+    # ...
     # write
     ActionType.CREATE: CreateActionRunner,
     ActionType.DUPLICATE: DuplicateActionRunner,

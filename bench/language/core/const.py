@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.23.1"
+VERSION = "2025.02.24.0"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -412,7 +412,6 @@ class EnumType(BuiltinEnum):
 
     # flow (22350-22399)
     ACTION_TYPE = 22350
-    ACTION_CATEGORY = 22351
     PORT_SIDE = 22352
     PIPE_TYPE = 22353
     PIPE_TRIGGER = 22354
@@ -463,6 +462,16 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 #
 
 
+@enum_(EnumType.NODE_MODE)
+class NodeMode(BuiltinEnum):
+    BUILTIN = 1, None, None, "fas fa-cog"
+    PRODUCTION = 2, None, None, "fas fa-globe"
+    DEVELOPMENT = 4, None, None, "fas fa-bug"
+    TEST = 6, None, None, "fas fa-flask"
+    PREVIEW = 8, None, None, "fas fa-eye"
+    ARCHIVE = 10, None, None, "fas fa-box-archive"
+
+
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
     #
@@ -485,8 +494,8 @@ class NodeType(BuiltinEnum):
     # compute
     SCALER = 1000, None, None, "fas fa-scale-unbalanced"
     STORE = 1001, None, None, "fas fa-database"
-    # RESOURCE_CLAIM?
     # CACHE?
+    # RESOURCE_CLAIM?
     MACHINE = 1100, None, None, "fas fa-computer-classic"
     BROWSER = 1110, None, None, "fas fa-globe"
     # MODEL, ...
@@ -1395,16 +1404,6 @@ class Month(BuiltinEnum):
     OCTOBER = 10
     NOVEMBER = 11
     DECEMBER = 12
-
-
-@enum_(EnumType.NODE_MODE)
-class NodeMode(BuiltinEnum):
-    BUILTIN = 1, None, None, "fas fa-cog"
-    PRODUCTION = 2, None, None, "fas fa-globe"
-    DEVELOPMENT = 4, None, None, "fas fa-bug"
-    TEST = 6, None, None, "fas fa-flask"
-    PREVIEW = 8, None, None, "fas fa-eye"
-    ARCHIVE = 10, None, None, "fas fa-box-archive"
 
 
 @enum_(EnumType.RUN_TYPE)

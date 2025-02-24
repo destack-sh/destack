@@ -114,7 +114,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_ACTION_CATEGORY: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
     ENUM_TYPE_PIPE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PIPE_TRIGGER: _ClassVar[EnumType]
@@ -565,7 +564,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
     BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_ACTION_CATEGORY: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
     BENCH_TYPE_PIPE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PIPE_TRIGGER: _ClassVar[BenchType]
@@ -1542,9 +1540,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_SUMMARIZE: _ClassVar[ActionType]
     ACTION_TYPE_COMPARE: _ClassVar[ActionType]
     ACTION_TYPE_TRANSLATE: _ClassVar[ActionType]
-    ACTION_TYPE_CHANGE: _ClassVar[ActionType]
-    ACTION_TYPE_GET: _ClassVar[ActionType]
-    ACTION_TYPE_SEARCH: _ClassVar[ActionType]
+    ACTION_TYPE_EDIT: _ClassVar[ActionType]
     ACTION_TYPE_CREATE: _ClassVar[ActionType]
     ACTION_TYPE_DUPLICATE: _ClassVar[ActionType]
     ACTION_TYPE_UPDATE: _ClassVar[ActionType]
@@ -1566,18 +1562,12 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_GO_TO_TAB: _ClassVar[ActionType]
     ACTION_TYPE_OPEN_TAB: _ClassVar[ActionType]
     ACTION_TYPE_CLOSE_TAB: _ClassVar[ActionType]
+    ACTION_TYPE_HTTP: _ClassVar[ActionType]
+    ACTION_TYPE_REST: _ClassVar[ActionType]
+    ACTION_TYPE_GRAPHQL: _ClassVar[ActionType]
+    ACTION_TYPE_SQL: _ClassVar[ActionType]
+    ACTION_TYPE_WEB: _ClassVar[ActionType]
     ACTION_TYPE_TEXT: _ClassVar[ActionType]
-
-class ActionCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ACTION_CATEGORY_UNSPECIFIED: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_FLOW: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_READ: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_WRITE: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_COMMUNICATE: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_ENVIRONMENT: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_APPLICATION: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_WEB: _ClassVar[ActionCategory]
 
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1922,6 +1912,7 @@ class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MESSAGE_TYPE_THREAD: _ClassVar[MessageType]
     MESSAGE_TYPE_RUN: _ClassVar[MessageType]
     MESSAGE_TYPE_INTERRUPTION: _ClassVar[MessageType]
+    MESSAGE_TYPE_EDIT: _ClassVar[MessageType]
 
 class MessageStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2063,7 +2054,6 @@ ENUM_TYPE_MODEL_FAMILY: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_CODE_TYPE: EnumType
 ENUM_TYPE_ACTION_TYPE: EnumType
-ENUM_TYPE_ACTION_CATEGORY: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
 ENUM_TYPE_PIPE_TYPE: EnumType
 ENUM_TYPE_PIPE_TRIGGER: EnumType
@@ -2502,7 +2492,6 @@ BENCH_TYPE_MODEL_FAMILY: BenchType
 BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_CODE_TYPE: BenchType
 BENCH_TYPE_ACTION_TYPE: BenchType
-BENCH_TYPE_ACTION_CATEGORY: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
 BENCH_TYPE_PIPE_TYPE: BenchType
 BENCH_TYPE_PIPE_TRIGGER: BenchType
@@ -3221,9 +3210,7 @@ ACTION_TYPE_CLASSIFY: ActionType
 ACTION_TYPE_SUMMARIZE: ActionType
 ACTION_TYPE_COMPARE: ActionType
 ACTION_TYPE_TRANSLATE: ActionType
-ACTION_TYPE_CHANGE: ActionType
-ACTION_TYPE_GET: ActionType
-ACTION_TYPE_SEARCH: ActionType
+ACTION_TYPE_EDIT: ActionType
 ACTION_TYPE_CREATE: ActionType
 ACTION_TYPE_DUPLICATE: ActionType
 ACTION_TYPE_UPDATE: ActionType
@@ -3245,15 +3232,12 @@ ACTION_TYPE_GO_TO_URL: ActionType
 ACTION_TYPE_GO_TO_TAB: ActionType
 ACTION_TYPE_OPEN_TAB: ActionType
 ACTION_TYPE_CLOSE_TAB: ActionType
+ACTION_TYPE_HTTP: ActionType
+ACTION_TYPE_REST: ActionType
+ACTION_TYPE_GRAPHQL: ActionType
+ACTION_TYPE_SQL: ActionType
+ACTION_TYPE_WEB: ActionType
 ACTION_TYPE_TEXT: ActionType
-ACTION_CATEGORY_UNSPECIFIED: ActionCategory
-ACTION_CATEGORY_FLOW: ActionCategory
-ACTION_CATEGORY_READ: ActionCategory
-ACTION_CATEGORY_WRITE: ActionCategory
-ACTION_CATEGORY_COMMUNICATE: ActionCategory
-ACTION_CATEGORY_ENVIRONMENT: ActionCategory
-ACTION_CATEGORY_APPLICATION: ActionCategory
-ACTION_CATEGORY_WEB: ActionCategory
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
@@ -3517,6 +3501,7 @@ MESSAGE_TYPE_FORWARDED: MessageType
 MESSAGE_TYPE_THREAD: MessageType
 MESSAGE_TYPE_RUN: MessageType
 MESSAGE_TYPE_INTERRUPTION: MessageType
+MESSAGE_TYPE_EDIT: MessageType
 MESSAGE_STATUS_UNSPECIFIED: MessageStatus
 MESSAGE_STATUS_DRAFT: MessageStatus
 MESSAGE_STATUS_SENDING: MessageStatus
@@ -4376,18 +4361,16 @@ class ContextData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., machine_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class ToolSelectionData(_message.Message):
-    __slots__ = ("metatype", "filter", "tool_nodes_ptr", "tool_types", "tool_categories")
+    __slots__ = ("metatype", "filter", "tool_nodes_ptr", "tool_types")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     TOOL_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
     TOOL_TYPES_FIELD_NUMBER: _ClassVar[int]
-    TOOL_CATEGORIES_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     filter: ToolFilter
     tool_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     tool_types: _containers.RepeatedScalarFieldContainer[ActionType]
-    tool_categories: _containers.RepeatedScalarFieldContainer[ActionCategory]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., filter: _Optional[_Union[ToolFilter, str]] = ..., tool_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., tool_types: _Optional[_Iterable[_Union[ActionType, str]]] = ..., tool_categories: _Optional[_Iterable[_Union[ActionCategory, str]]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., filter: _Optional[_Union[ToolFilter, str]] = ..., tool_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., tool_types: _Optional[_Iterable[_Union[ActionType, str]]] = ...) -> None: ...
 
 class FontData(_message.Message):
     __slots__ = ("metatype", "type", "weight", "size")
@@ -5885,33 +5868,9 @@ class RouteActionData(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class ChangeActionData(_message.Message):
-    __slots__ = ("nodes_ptr",)
-    NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
-
-class GetActionData(_message.Message):
-    __slots__ = ("node_type", "base_block_ptr", "filter")
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    node_type: NodeType
-    base_block_ptr: NodeReferenceData
-    filter: ExpressionData
-    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ...) -> None: ...
-
-class SearchActionData(_message.Message):
-    __slots__ = ("node_type", "base_block_ptr", "filter", "sort")
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    node_type: NodeType
-    base_block_ptr: NodeReferenceData
-    filter: ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
-    def __init__(self, node_type: _Optional[_Union[NodeType, str]] = ..., base_block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...) -> None: ...
+class EditActionData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class CreateActionData(_message.Message):
     __slots__ = ("node_partial_packed", "node_ptr")

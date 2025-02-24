@@ -6,7 +6,6 @@ from uuid import UUID
 
 from bench.language import (
     Action,
-    ActionCategory,
     ActionType,
     Aliasing,
     Block,
@@ -35,7 +34,6 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
-    ToolSelection,
     call,
     call_none,
     call_parallel,
@@ -307,24 +305,6 @@ def test_render_call_plan(session: Session, package: Package):
         on_terminate=CallTerminationMode.RETURN,
     )
     return {"Action1": Action1, "Plan1": Plan1, "Plan2": Plan2, "Plan3": Plan3}
-
-
-@_render_test
-def test_render_tool_selection(session: Session, package: Package):
-    Action1 = Action.new(ActionType.TOOL, "Action1", tool_selection=ToolSelection.any())
-    ToolOptions1 = ToolSelection.custom(Action1)
-    ToolOptions2 = ToolSelection.builtin(ActionType.CODE)
-    ToolOptions3 = ToolSelection.only(
-        ActionType.CODE, ActionCategory.APPLICATION, ActionCategory.ENVIRONMENT, Action1
-    )
-    ToolOptions4 = ToolSelection.any()
-    return {
-        "Action1": Action1,
-        "ToolOptions1": ToolOptions1,
-        "ToolOptions2": ToolOptions2,
-        "ToolOptions3": ToolOptions3,
-        "ToolOptions4": ToolOptions4,
-    }
 
 
 #

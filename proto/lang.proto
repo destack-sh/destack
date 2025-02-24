@@ -102,7 +102,6 @@ enum EnumType {
   ENUM_TYPE_MODEL_PROVIDER = 22253;
   ENUM_TYPE_CODE_TYPE = 22300;
   ENUM_TYPE_ACTION_TYPE = 22350;
-  ENUM_TYPE_ACTION_CATEGORY = 22351;
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_PIPE_TYPE = 22353;
   ENUM_TYPE_PIPE_TRIGGER = 22354;
@@ -553,7 +552,6 @@ enum BenchType {
   BENCH_TYPE_MODEL_PROVIDER = 22253;
   BENCH_TYPE_CODE_TYPE = 22300;
   BENCH_TYPE_ACTION_TYPE = 22350;
-  BENCH_TYPE_ACTION_CATEGORY = 22351;
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_PIPE_TYPE = 22353;
   BENCH_TYPE_PIPE_TRIGGER = 22354;
@@ -1557,9 +1555,7 @@ enum ActionType {
   ACTION_TYPE_SUMMARIZE = 207;
   ACTION_TYPE_COMPARE = 208;
   ACTION_TYPE_TRANSLATE = 209;
-  ACTION_TYPE_CHANGE = 210;
-  ACTION_TYPE_GET = 300;
-  ACTION_TYPE_SEARCH = 301;
+  ACTION_TYPE_EDIT = 210;
   ACTION_TYPE_CREATE = 400;
   ACTION_TYPE_DUPLICATE = 401;
   ACTION_TYPE_UPDATE = 402;
@@ -1577,22 +1573,16 @@ enum ActionType {
   ACTION_TYPE_DRAG = 1005;
   ACTION_TYPE_GO_BACKWARD = 1006;
   ACTION_TYPE_GO_FORWARD = 1007;
-  ACTION_TYPE_GO_TO_URL = 1100;
-  ACTION_TYPE_GO_TO_TAB = 1101;
-  ACTION_TYPE_OPEN_TAB = 1102;
-  ACTION_TYPE_CLOSE_TAB = 1103;
-  ACTION_TYPE_TEXT = 9000;
-}
-
-enum ActionCategory {
-  ACTION_CATEGORY_UNSPECIFIED = 0;
-  ACTION_CATEGORY_FLOW = 100;
-  ACTION_CATEGORY_READ = 300;
-  ACTION_CATEGORY_WRITE = 400;
-  ACTION_CATEGORY_COMMUNICATE = 500;
-  ACTION_CATEGORY_ENVIRONMENT = 800;
-  ACTION_CATEGORY_APPLICATION = 1000;
-  ACTION_CATEGORY_WEB = 1100;
+  ACTION_TYPE_GO_TO_URL = 1050;
+  ACTION_TYPE_GO_TO_TAB = 1051;
+  ACTION_TYPE_OPEN_TAB = 1052;
+  ACTION_TYPE_CLOSE_TAB = 1053;
+  ACTION_TYPE_HTTP = 1100;
+  ACTION_TYPE_REST = 1101;
+  ACTION_TYPE_GRAPHQL = 1102;
+  ACTION_TYPE_SQL = 1103;
+  ACTION_TYPE_WEB = 1200;
+  ACTION_TYPE_TEXT = 29000;
 }
 
 enum PortSide {
@@ -1944,6 +1934,7 @@ enum MessageType {
   MESSAGE_TYPE_THREAD = 100;
   MESSAGE_TYPE_RUN = 110;
   MESSAGE_TYPE_INTERRUPTION = 120;
+  MESSAGE_TYPE_EDIT = 200;
 }
 
 enum MessageStatus {
@@ -2445,7 +2436,6 @@ message ToolSelectionData {
   optional ToolFilter filter = 35;
   repeated NodeReferenceData tool_nodes_ptr = 40;
   repeated ActionType tool_types = 41;
-  repeated ActionCategory tool_categories = 42;
 }
 
 message FontData {
@@ -3252,23 +3242,7 @@ message RouteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
-message ChangeActionData {
-  repeated NodeReferenceData nodes_ptr = 120;
-}
-
-// Get a single Node.
-message GetActionData {
-  optional NodeType node_type = 120;
-  optional NodeReferenceData base_block_ptr = 121;
-  optional ExpressionData filter = 122;
-}
-
-// Search for Nodes.
-message SearchActionData {
-  optional NodeType node_type = 120;
-  optional NodeReferenceData base_block_ptr = 121;
-  optional ExpressionData filter = 122;
-  repeated ExpressionData sort = 123;
+message EditActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
