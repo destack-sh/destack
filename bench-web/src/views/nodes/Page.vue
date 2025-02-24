@@ -162,7 +162,7 @@ const {
   plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin, lineHandlePlugin],
   parentComponent: vueInstance,
   pageContext,
-  onTransaction: (view, prevState, newState) => {
+  onPmTransaction: (view, prevState, newState) => {
     // auto deselect nodes if anything was edited by the user
     const selectionChanged = !(
       prevState &&

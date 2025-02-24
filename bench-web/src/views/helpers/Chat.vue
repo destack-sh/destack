@@ -354,6 +354,9 @@ const editingText = ref<TextData | null>(null);
 const editingPtr = ref<NodeReferenceData | null>(null);
 
 function startEdit(message: MessageData) {
+  if (draftReplyTo.value != null) {
+    stopReplying();
+  }
   editingPtr.value = toNodeRef(message);
   editingText.value = message.text ?? null;
   nextTick(() => {
@@ -697,7 +700,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                   is-input
                   suppress-enter
                   suppress-drop
-                  placeholder="Edit message..."
+                  placeholder="Empty message"
                   @update:model-value="
                     (value) => {
                       editingText = value;
