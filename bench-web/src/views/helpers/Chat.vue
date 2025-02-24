@@ -528,6 +528,9 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       </div>
     </div>
 
+    <!-- TODO :UX: autoscroll Chat more smoothly (sometimes it jumps, especially when scrolling down) -->
+    <!-- also see https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-anchor/Guide_to_scroll_anchoring -->
+
     <!-- Body -->
     <Scroll
       id="scroll"

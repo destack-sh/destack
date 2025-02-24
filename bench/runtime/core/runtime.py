@@ -129,6 +129,7 @@ class Runtime:
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
+        # nocheckin: actually open & close Session (and sync it)
 
         self._locks_by_id: dict[UUID, asyncio.Lock] = {}
         self._owned_runners_by_id: dict[UUID, Runner] = {}

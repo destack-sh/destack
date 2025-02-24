@@ -1,6 +1,6 @@
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 
 import cachetools
 
@@ -43,12 +43,10 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Block,
         Browser,
         CallPlan,
         Code,
         DomNode,
-        Expression,
         Field,
         File,
         Flow,
@@ -80,23 +78,34 @@ class ActionType(BuiltinEnum):
     # tool
     TOOL = 100, "Tool", "Delegate to a tool", "fas fa-screwdriver-wrench", ColorType.SKY
     CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.SKY
+    # SHELL, ...
 
     # dynamic
     ACT = 200, "Act", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
     THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
     ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
-    GENERATE = 203, "Generate", "Generate something new", "fas fa-wand-magic-sparkles", ColorType.VIOLET
-    TRANSFORM = 204, "Transform", "Change the form of something", "fas fa-arrows-rotate", ColorType.VIOLET
+    GENERATE = (
+        203,
+        "Generate",
+        "Generate something new",
+        "fas fa-wand-magic-sparkles",
+        ColorType.VIOLET,
+    )
+    TRANSFORM = (
+        204,
+        "Transform",
+        "Change the form of something",
+        "fas fa-arrows-rotate",
+        ColorType.VIOLET,
+    )
     EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
     CLASSIFY = 206, "Classify", "Classify or categorize", "fas fa-tags", ColorType.VIOLET
     SUMMARIZE = 207, "Summarize", "Condense media content", "fas fa-file-lines", ColorType.VIOLET
     COMPARE = 208, "Compare", "Compare multiple things", "fas fa-code-compare", ColorType.VIOLET
     TRANSLATE = 209, "Translate", "Translate between languages", "fas fa-language", ColorType.VIOLET
-    CHANGE = 210, "Change", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
+    EDIT = 210, "Change", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
 
     # read
-    GET = 300, "Get", "Get a Node", "fas fa-magnifying-glass", ColorType.SKY
-    SEARCH = 301, "Search", "Search for Nodes", "fas fa-magnifying-glass", ColorType.SKY
     # AGGREGATE?
     # COPY?
 
@@ -130,24 +139,44 @@ class ActionType(BuiltinEnum):
     CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer", ColorType.INDIGO
     PRESS = 1001, "Press", "Press a key", "fas fa-keyboard", ColorType.INDIGO
     TYPE = 1002, "Type", "Type text", "fas fa-keyboard", ColorType.INDIGO
-    SCROLL = 1003, "Scroll", "Scroll the mouse wheel", "fas fa-computer-mouse-scrollwheel", ColorType.INDIGO
+    SCROLL = (
+        1003,
+        "Scroll",
+        "Scroll the mouse wheel",
+        "fas fa-computer-mouse-scrollwheel",
+        ColorType.INDIGO,
+    )
     SELECT = 1004, "Select", "Select an element", "fas fa-lasso", ColorType.INDIGO
     DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer", ColorType.INDIGO
     GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left", ColorType.INDIGO
-    GO_FORWARD = 1007, "Go forward", "Go forward in history", "fas fa-arrow-turn-right", ColorType.INDIGO
+    GO_FORWARD = (
+        1007,
+        "Go forward",
+        "Go forward in history",
+        "fas fa-arrow-turn-right",
+        ColorType.INDIGO,
+    )
+    GO_TO_URL = 1050, "Go to URL", "Navigate to a URL", "fas fa-link", ColorType.INDIGO
+    GO_TO_TAB = 1051, "Go to tab", "Switch to a tab", "fas fa-sidebar", ColorType.INDIGO
+    OPEN_TAB = 1052, "Open tab", "Open a new tab", "fas fa-plus", ColorType.INDIGO
+    CLOSE_TAB = 1053, "Close tab", "Close a tab", "fas fa-minus", ColorType.INDIGO
 
-    # web
-    GO_TO_URL = 1100, "Go to URL", "Navigate to a URL", "fas fa-link", ColorType.INDIGO
-    GO_TO_TAB = 1101, "Go to tab", "Switch to a tab", "fas fa-sidebar", ColorType.INDIGO
-    OPEN_TAB = 1102, "Open tab", "Open a new tab", "fas fa-plus", ColorType.INDIGO
-    CLOSE_TAB = 1103, "Close tab", "Close a tab", "fas fa-minus", ColorType.INDIGO
+    # data
+    HTTP = 1100, "HTTP", "Make an HTTP call", "fas fa-globe", ColorType.INDIGO
+    REST = 1101, "REST", "Make a REST call", "fas fa-brackets-curly", ColorType.INDIGO
+    GRAPHQL = 1102, "GraphQL", "Make a GraphQL call", "fas fa-brackets-curly", ColorType.INDIGO
+    SQL = 1103, "SQL", "Make a SQL call", "fas fa-code", ColorType.INDIGO
+    # GRPC, JDBC, SOQL, ...
+
+    # internet
+    WEB = 1200, "Web", "Search the Web", "fas fa-globe", ColorType.INDIGO
+    # ...
 
     # containers
-    # GROUP = 8000, "Associate multiple Actions"
-    # LOOP = 8001, "Repeat some Actions"
+    # GROUP, LOOP, ...
 
     # misc
-    TEXT = 9000, "Text", "Just some documentation", "fas fa-align-left", ColorType.GRAY
+    TEXT = 29000, "Text", "Just some documentation", "fas fa-align-left", ColorType.GRAY
 
     @property
     def is_boundary(self) -> bool:
@@ -160,21 +189,6 @@ class ActionType(BuiltinEnum):
     @property
     def is_container(self) -> bool:
         return self >= 8000 and self < 9000
-
-    @property
-    def category(self) -> "ActionCategory":
-        return ActionCategory((self.value // 100) * 100)
-
-
-@enum_(EnumType.ACTION_CATEGORY)
-class ActionCategory(BuiltinEnum):
-    FLOW = 100, "Flow", "Control the Flow", "fas fa-diagram-project", ColorType.YELLOW
-    READ = 300, "Read", "Read Data", "fas fa-magnifying-glass", ColorType.SKY
-    WRITE = 400, "Write", "Write Data", "fas fa-pencil", ColorType.SKY
-    COMMUNICATE = 500, "Communicate", "Communicate with others", "fas fa-inbox", ColorType.PINK
-    ENVIRONMENT = 800, "Environment", "Interact with the Environment", "fas fa-island-tropical", ColorType.EMERALD
-    APPLICATION = 1000, "Application", "Interact with an Application", "fas fa-desktop", ColorType.INDIGO
-    WEB = 1100, "Web", "Interact with the Web", "fas fa-globe", ColorType.INDIGO
 
 
 DYNAMIC_ACTION_TYPES = [t for t in ActionType if t.is_dynamic]
@@ -446,61 +460,13 @@ class ToolFilter(BuiltinEnum):
 
 @struct_(StructType.TOOL_SELECTION)
 class ToolSelection(Struct):
-    """
-    Options for dynamic Actions.
-    """
-
+    # nocheckin: ToolSelection -> ??? (NodeSelection? just Selection?)
     filter: ToolFilter | None = p_regular(35, default=None)
     tool_nodes: list[Union["Flow", "Action"]] = p_regular(
         40, array=True, require=False, references=(NodeType.ACTION, NodeType.FLOW)
     )
     tool_types: list[ActionType] = p_regular(41, array=True, require=False)
-    tool_categories: list[ActionCategory] = p_regular(42, array=True, require=False)
-
-    def supports(self, action_type: ActionType, tool: Union["Flow", "Action", None]) -> bool:
-        """Whether this tool filter includes the given Action."""
-        if self.filter is None or self.filter == ToolFilter.ANY:
-            return True
-        elif self.filter == ToolFilter.SELECT_CUSTOM:
-            # must be in tool_nodes
-            return tool is not None and tool in self.tool_nodes
-        elif self.filter == ToolFilter.SELECT_BUILIN:
-            # must be in tool_types or tool_categories
-            return action_type in self.tool_types or action_type.category in self.tool_categories
-        elif self.filter == ToolFilter.SELECT:
-            # must be in tool_types or tool_categories
-            return (
-                action_type in self.tool_types
-                or action_type.category in self.tool_categories
-                or (tool is not None and tool in self.tool_nodes)
-            )
-        else:
-            assert_never(self.filter)
-
-    @staticmethod
-    def custom(*tools: Union["Flow", "Action"]) -> "ToolSelection":
-        return ToolSelection(filter=ToolFilter.SELECT_CUSTOM, tool_nodes=list(tools))
-
-    @staticmethod
-    def builtin(*tools: Union["ActionType", "ActionCategory"]) -> "ToolSelection":
-        return ToolSelection(
-            filter=ToolFilter.SELECT_BUILIN,
-            tool_types=[t for t in tools if isinstance(t, ActionType)],
-            tool_categories=[t for t in tools if isinstance(t, ActionCategory)],
-        )
-
-    @staticmethod
-    def only(*tools: Union["ActionType", "ActionCategory", "Flow", "Action"]) -> "ToolSelection":
-        return ToolSelection(
-            filter=ToolFilter.SELECT,
-            tool_types=[t for t in tools if isinstance(t, ActionType)],
-            tool_categories=[t for t in tools if isinstance(t, ActionCategory)],
-            tool_nodes=[t for t in tools if isinstance(t, Node)],
-        )
-
-    @staticmethod
-    def any() -> "ToolSelection":
-        return ToolSelection(filter=ToolFilter.ANY)
+    # tool_categories, ...?
 
 
 #
@@ -563,55 +529,14 @@ class RouteAction(Action):
     pass
 
 
-@subnode_(ActionType.CHANGE)
-class ChangeAction(Action):
-    nodes: list[Node] = p_regular(
-        120, array=True, require=False, references="any", field_type=FieldType.INPUT
-    )
+@subnode_(ActionType.EDIT)
+class EditAction(Action):
+    pass
 
 
 #
 # Read
 #
-
-
-@subnode_(ActionType.GET)
-class GetAction(Action):
-    """Get a single Node."""
-
-    node_type: NodeType | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    base_block: Optional["Block"] = p_regular(
-        121,
-        array=False,
-        require=False,
-        default=None,
-        references=NodeType.BLOCK,
-        field_type=FieldType.INPUT,
-    )
-    filter: Optional["Expression"] = p_regular(
-        122, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
-    )
-
-
-@subnode_(ActionType.SEARCH)
-class SearchAction(Action):
-    """Search for Nodes."""
-
-    node_type: NodeType | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    base_block: Optional["Block"] = p_regular(
-        121,
-        array=False,
-        require=False,
-        default=None,
-        references=NodeType.BLOCK,
-        field_type=FieldType.INPUT,
-    )
-    filter: Optional["Expression"] = p_regular(
-        122, default=None, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
-    )
-    sort: Optional[list["Expression"]] = p_regular(
-        123, default=None, array=True, struct=StructType.EXPRESSION, field_type=FieldType.INPUT
-    )
 
 
 #

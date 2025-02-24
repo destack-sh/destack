@@ -56,6 +56,7 @@ class MessageType(BuiltinEnum):
     THREAD = 100, "Begin a Thread"
     RUN = 110, "Begin a Run"
     INTERRUPTION = 120, "Interrupt a Run"
+    EDIT = 200, "Edited the Bench"
     # also see https://discord.com/developers/docs/resources/message
 
 
