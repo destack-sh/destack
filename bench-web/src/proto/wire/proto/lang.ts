@@ -12133,13 +12133,13 @@ export enum SessionStatus {
      */
     PENDING = 1,
     /**
-     * @generated from protobuf enum value: SESSION_STATUS_OPEN = 3;
+     * @generated from protobuf enum value: SESSION_STATUS_OPEN = 10;
      */
-    OPEN = 3,
+    OPEN = 10,
     /**
-     * @generated from protobuf enum value: SESSION_STATUS_CLOSED = 6;
+     * @generated from protobuf enum value: SESSION_STATUS_CLOSED = 30;
      */
-    CLOSED = 6
+    CLOSED = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.TriggerType

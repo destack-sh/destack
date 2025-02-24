@@ -47,7 +47,10 @@ from bench.language import (
     RunSpan,
     RunSpanType,
     RunStatus,
+    RunType,
     Session,
+    SessionStatus,
+    TriggerEffect,
     Type,
     TypeIn,
     TypeKind,
@@ -65,8 +68,6 @@ from bench.language import (
     synchronize_nodes,
     to_type_scalar,
 )
-from bench.language.core.const import RunType
-from bench.language.source.trigger import TriggerEffect
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -129,7 +130,6 @@ class Runtime:
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
-        # nocheckin: actually open & close Session (and sync it)
 
         self._locks_by_id: dict[UUID, asyncio.Lock] = {}
         self._owned_runners_by_id: dict[UUID, Runner] = {}
@@ -162,12 +162,22 @@ class Runtime:
         runner = self._active_runner.get(None)
         return runner.mode if runner else self.session.mode
 
+    @tracer.start_as_current_span("runtime.start")
+    async def start(self):
+        """Start the Runtime."""
+        assert self.session.status == SessionStatus.PENDING, f"{self.session!r} is not pending"
+        self.session.status = SessionStatus.OPEN
+        self.session.opened_at = self.oracle.utc()
+        self.session._create(self.session)
+        await self.session.commit()
+
     def stop(self):
         """Stop the Runtime."""
         # TODO :Robustness: handle Runtime stop better? pause existing Runs?
         #  (maybe auto-interrupt all active Runners so we can transfer them? :HibernateRuns)
         self._is_stop_requested = True
 
+    @tracer.start_as_current_span("runtime.wait_stopped")
     async def wait_stopped(self):
         """Wait for the Runtime to stop (all active Runs to stop + commit)."""
         active_runners = tuple(runner for runner in self._active_root_runners if runner.task)
@@ -176,7 +186,9 @@ class Runtime:
             await asyncio.gather(
                 *(runner.task for runner in active_runners if runner.task), return_exceptions=True
             )
-        await self.session.commit()
+        self.session.closed_at = self.oracle.utc()
+        self.session.status = SessionStatus.CLOSED
+        await self.session.commit(_ignore_open=True)
         await self.session.close()
 
     #
