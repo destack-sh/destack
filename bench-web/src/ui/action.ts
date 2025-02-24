@@ -305,14 +305,22 @@ function getActionSuppressor(id: ActionBuiltinId, el: HTMLElement): HTMLElement 
     const elTag = el.tagName.toLowerCase();
     const suppress = el.getAttribute("data-suppress-actions");
     let masks: string[];
-    if (suppress != null) masks = suppress.split(",");
-    else if (DEFAULT_SUPPRESSED_ACTIONS[elTag] != null) masks = DEFAULT_SUPPRESSED_ACTIONS[elTag];
-    else if (el.contentEditable == "true") masks = DEFAULT_SUPPRESSED_ACTIONS.contenteditable;
-    else masks = [];
+    if (suppress != null) {
+      masks = suppress.split(",");
+    } else if (DEFAULT_SUPPRESSED_ACTIONS[elTag] != null) {
+      masks = DEFAULT_SUPPRESSED_ACTIONS[elTag];
+    } else if (el.contentEditable == "true") {
+      // we handle delete in our prosemirror views via custom actions, see src/ui/prosemirror/editor.ts
+      masks = DEFAULT_SUPPRESSED_ACTIONS.contenteditable;
+    } else {
+      masks = [];
+    }
 
-    if (masks.some((mask) => id.startsWith(mask)))
+    if (masks.some((mask) => id.startsWith(mask))) {
       return el; // suppressed
-    else el = el.parentElement!;
+    } else {
+      el = el.parentElement!;
+    }
   }
   return null;
 }

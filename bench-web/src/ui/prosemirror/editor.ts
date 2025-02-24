@@ -1,6 +1,7 @@
+import { canvas, supergraph } from "@/globals";
 import { newChangeId } from "@/language/runtime/transaction";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
-import { getNodesForAction, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
@@ -483,16 +484,37 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
     },
     Backspace(state, dispatch) {
       const { empty, $cursor, $from, $to } = state.selection as TextSelection;
-      if (
-        $from.parent.type.name !== "lineParagraph" &&
-        $from.parentOffset === 0 &&
-        $from.start() === $from.end() &&
-        $to.pos === $from.end()
-      ) {
+      const atStart = empty && $from.parentOffset === 0 && $from.start() === $from.end() && $to.pos === $from.end();
+
+      // delete node selection if we have one
+      if (empty && canvas.selection != null && canvas.selection.nodesPtr.length > 0) {
+        const link = supergraph.getLinkMany(canvas.selection.nodesPtr);
+        if (link != null) {
+          const tx = link.connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
+          for (const node of link.nodes) {
+            tx.delete(node);
+          }
+          return true;
+        }
+      }
+
+      if (atStart && $from.parent.type.name !== "lineParagraph") {
         // morph to plain paragraph
         return morphLineNode(state, $from, TextLineType.PARAGRAPH, dispatch);
+      } else if (
+        atStart &&
+        $from.parent.type.name === "lineParagraph" &&
+        $from.index(-1) > 0 &&
+        $from.node(-1).child($from.index(-1) - 1).type.name == "block"
+      ) {
+        // delete this line and focus block above (can't delete blocks with backspace)
+        let tr = state.tr;
+        tr = tr.deleteRange($from.pos - 1, $to.end());
+        tr = tr.setSelection(NodeSelection.create(tr.doc, $from.pos - 2));
+        dispatch?.(tr);
+        return true;
       } else if (empty && state.doc.textContent === "" && state.doc.children.length <= 1) {
-        // delete self
+        // delete self if doc is empty
         deleteSelf();
         return true;
       } else {
@@ -628,7 +650,7 @@ export function useTextEditor(options: {
   parentComponent: ComponentInternalInstance;
   history?: boolean;
   pageContext?: PageContext;
-  onTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
+  onPmTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
   const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
 
@@ -763,7 +785,7 @@ export function useTextEditor(options: {
         if (tx.docChanged) {
           updateLineRefs(view);
         }
-        options.onTransaction?.(view, prevState, newState);
+        options.onPmTransaction?.(view, prevState, newState);
       },
     });
     updateLineRefs(view);
@@ -815,8 +837,6 @@ export function useTextEditor(options: {
       action: (action, ctx) => {
         if (deleteSelection(action, ctx)) {
           return true;
-        } else {
-          return commands.deleteSelection(view!.state, view!.dispatch);
         }
       },
     },

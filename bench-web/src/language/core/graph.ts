@@ -1486,6 +1486,26 @@ export class NodeSuperGraph {
   }
 
   /**
+   * Gets a link for many nodes. Only returns nodes for the first matching link.
+   */
+  getLinkMany<T extends NodeType>(
+    keys: TypedNodeKey<T>[],
+  ): {
+    nodes: NodeTypeMapping[T][];
+    graph: ReadNodeGraph;
+    connection: ConnectionBase<any, any>;
+  } | null {
+    for (const key of keys) {
+      const link = this.getLink(key);
+      if (link != null) {
+        const nodes = keys.map((key) => link.graph.get(key)).filter((node) => node != null) as NodeTypeMapping[T][];
+        return { nodes, graph: link.graph, connection: link.connection };
+      }
+    }
+    return null;
+  }
+
+  /**
    * Gets the source connection/graph from the supergraph.
    */
   getLink<T extends NodeType>(

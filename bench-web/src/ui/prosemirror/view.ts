@@ -1,3 +1,5 @@
+import { supergraph } from "@/globals";
+import { canvas } from "@/globals";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { isNodeRef } from "@/proto/wiring";
 import { startDragging } from "@/ui/drag";
@@ -95,7 +97,15 @@ export class VueComponentView implements PmNodeView {
   }
 
   stopEvent(event: Event): boolean {
-    // suppress all events
+    // forward events for node selections
+    if (event instanceof KeyboardEvent && canvas.selection != null && canvas.selection.nodesPtr.length > 0) {
+      const link = supergraph.getLinkMany(canvas.selection.nodesPtr);
+      if (link != null) {
+        return false;
+      }
+    }
+
+    // suppress all other events
     return true;
   }
 
