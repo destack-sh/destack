@@ -460,7 +460,7 @@ def _register_system_policies():
             .object(node_types=(NodeType.HANDLE,)),
             PolicyRule(
                 name="CannotRemoveRuntimeNodes",
-                text=Text.plain("Cannot remove Runtime Nodes"),
+                text=Text.plain("Cannot remove Runtime Nodes."),
             )
             .deny(EditType.DELETE, EditType.ERASE)
             .object(node_types=RUNTIME_NODE_TYPES.tuple),

@@ -49,8 +49,8 @@ from bench.language.core import (
     bittuple,
     p_internal,
     p_node_parent,
+    p_regular,
     p_runtime,
-    p_system,
     repr_scope,
     struct_,
     timed_node_,
@@ -134,10 +134,10 @@ class Session(RuntimeNode[SessionData]):
     parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
     # status
-    status: SessionStatus = p_system(40, default=SessionStatus.PENDING, index_in_pg=True)
-    duration: Optional[timedelta] = p_system(41, default=None)
-    opened_at: Optional[datetime] = p_system(42, default=None)
-    closed_at: Optional[datetime] = p_system(43, default=None)
+    status: SessionStatus = p_regular(40, default=SessionStatus.PENDING, index_in_pg=True)
+    duration: Optional[timedelta] = p_regular(41, default=None)
+    opened_at: Optional[datetime] = p_regular(42, default=None)
+    closed_at: Optional[datetime] = p_regular(43, default=None)
 
     # context
     # ...HasRuntimeContext[80-99]
@@ -730,7 +730,6 @@ class Session(RuntimeNode[SessionData]):
         #  Maybe Session should remain a Node (that we track for real), but the Session logic
         #   could go elsewhere, or we move it into Transaction, or something else.
 
-        assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         log = logger.bind(session=self, span="current")
@@ -818,7 +817,11 @@ class Session(RuntimeNode[SessionData]):
         return event.new_edits, []
 
     async def commit(
-        self, *, optimistic: bool = False, _data_graph: NodeDataGraph | None = None
+        self,
+        *,
+        optimistic: bool = False,
+        _data_graph: NodeDataGraph | None = None,
+        _ignore_open: bool = False,
     ) -> tuple[list[EditData], list[EditData]]:
         """
         Commits all edits. Returns *all* edits & cascaded edits. Resets tx state.
@@ -826,7 +829,7 @@ class Session(RuntimeNode[SessionData]):
         If not optimistic, we wait for any pending commit to complete, then commit.
         Cascaded edits are only returned for non-optimistic commits.
         """
-        assert self.is_open, f"cannot commit {self!r} when closed"
+        assert self.is_open or _ignore_open, f"cannot commit {self!r} when closed"
         trace.get_current_span().set_attribute("optimistic", optimistic)
 
         if optimistic:

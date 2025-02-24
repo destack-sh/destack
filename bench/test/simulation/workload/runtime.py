@@ -26,6 +26,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
         self.runtime = Runtime(
             session=self.session, cache=MemoryCache(self.bench), oracle=self.oracle
         )
+        await self.runtime.start()
 
     async def run_in_runtime(
         self,

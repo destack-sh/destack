@@ -1487,8 +1487,8 @@ TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
 @enum_(EnumType.SESSION_STATUS)
 class SessionStatus(BuiltinEnum):
     PENDING = 1
-    OPEN = 3
-    CLOSED = 6
+    OPEN = 10
+    CLOSED = 30
 
 
 @enum_(EnumType.EXPRESSION_KIND)

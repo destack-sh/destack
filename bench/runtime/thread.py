@@ -104,6 +104,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         await super().start()
         assert self._session is not None, f"no session for {self!r}"
         assert self._bench is not None, f"no bench for {self!r}"
+        asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         cache = RedisCache(bench=self._bench)
         self._runtime = Runtime(
             session=self._session,
@@ -114,7 +115,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,
             on_error=self.on_error,
         )
-        asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
+        await self._runtime.start()
         logger.info("runtime_thread.start", process=self, bench=self._bench)
 
     @override
