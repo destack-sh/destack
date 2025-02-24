@@ -367,12 +367,17 @@ export function makeRun(
   } else {
     assertNever(runnable);
   }
+  const page = graph.getAncestors(runnable, { includeSelf: true }).find((node) => isNode(node, NodeType.PAGE));
+  if (page == null) {
+    throw new Error(`no containing page for ${describeNode(runnable)}`);
+  }
   const run = makeNode({
     metatype: NodeType.RUN,
     parentPtr: benchPtr,
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
+    pagePtr: toNodeRef(page),
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,

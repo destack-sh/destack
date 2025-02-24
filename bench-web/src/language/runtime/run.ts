@@ -88,17 +88,24 @@ export function isRunTerminal(run: RunData | RunSpanData): boolean {
   }
 }
 
+export const RUN_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, RunType>> = {
+  [NodeType.FLOW]: RunType.FLOW,
+  [NodeType.ACTION]: RunType.ACTION,
+  [NodeType.PIPE]: RunType.PIPE,
+};
+export const NODE_TYPE_BY_RUN_TYPE: Partial<Record<RunType, NodeType>> = {
+  [RunType.FLOW]: NodeType.FLOW,
+  [RunType.ACTION]: NodeType.ACTION,
+  [RunType.PIPE]: NodeType.PIPE,
+};
+
 /** Determine the type of run for some runnable object */
 export function getRunType(runnable: RunnableNode): RunType {
-  if (isNode(runnable, NodeType.BLOCK)) {
-    if (runnable.type == BlockType.FLOW) {
-      return RunType.FLOW;
-    }
-  } else if (isNode(runnable, NodeType.ACTION)) {
-    return RunType.ACTION;
+  const runType = RUN_TYPE_BY_NODE_TYPE[runnable.metatype as unknown as keyof typeof RUN_TYPE_BY_NODE_TYPE];
+  if (runType == null) {
+    throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
   }
-
-  throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
+  return runType;
 }
 
 /** Gets the startedAt timestamp of a Run */

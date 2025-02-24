@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.24.0"
+VERSION = "2025.02.24.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1447,19 +1447,19 @@ class ErrorKind(BuiltinEnum):
 @enum_(EnumType.RUN_STATUS)
 class RunStatus(BuiltinEnum):
     # pre
-    SCHEDULED = 1, None, None, "fas fa-clock"
-    QUEUED = 2, None, None, "fas fa-hourglass"
+    SCHEDULED = 1, None, None, "fas fa-clock", ColorType.GRAY
+    QUEUED = 2, None, None, "fas fa-hourglass", ColorType.GRAY
     # active
-    RUNNING = 10, None, None, "fas fa-circle-notch"
+    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.GREEN
     # interrupted
-    PAUSED = 20, None, None, "fas fa-circle-pause"
-    YIELDED = 21, None, None, "fas fa-circle-pause"
-    WAITING = 22, None, None, "fas fa-circle-pause"
+    PAUSED = 20, None, None, "fas fa-circle-pause", ColorType.PINK
+    YIELDED = 21, None, None, "fas fa-circle-pause", ColorType.PINK
+    WAITING = 22, None, None, "fas fa-circle-pause", ColorType.PINK
     # terminal
-    CANCELLED = 30, None, None, "fas fa-circle-xmark"
-    ABORTED = 31, None, None, "fas fa-skull"
-    FAILED = 32, None, None, "fas fa-circle-exclamation"
-    COMPLETED = 33, None, None, "fas fa-circle-check"
+    CANCELLED = 30, None, None, "fas fa-circle-xmark", ColorType.RED
+    ABORTED = 31, None, None, "fas fa-skull", ColorType.RED
+    FAILED = 32, None, None, "fas fa-circle-exclamation", ColorType.RED
+    COMPLETED = 33, None, None, "fas fa-circle-check", ColorType.GREEN
 
     @property
     def is_active(self) -> bool:

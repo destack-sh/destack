@@ -36308,10 +36308,10 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.mode]: { id: 20, name: 'mode', component: ObjectType.SESSION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SessionProperty.status]: { id: 40, name: 'status', component: ObjectType.SESSION, enumType: EnumType.SESSION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.closedAt]: { id: 43, name: 'closed_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.status]: { id: 40, name: 'status', component: ObjectType.SESSION, enumType: EnumType.SESSION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [SessionProperty.closedAt]: { id: 43, name: 'closed_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.runPtr]: { id: 91, name: 'run_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
@@ -37645,16 +37645,16 @@ export const PathElementTypeOptionInfo: Partial<Record<PathElementType, EnumOpti
 }
 
 export const RunStatusOptionInfo: Partial<Record<RunStatus, EnumOptionInfo>> = {
-  [RunStatus.SCHEDULED]: { id: 1, name: 'SCHEDULED', icon: 'fas fa-clock' },
-  [RunStatus.QUEUED]: { id: 2, name: 'QUEUED', icon: 'fas fa-hourglass' },
-  [RunStatus.RUNNING]: { id: 10, name: 'RUNNING', icon: 'fas fa-circle-notch' },
-  [RunStatus.PAUSED]: { id: 20, name: 'PAUSED', icon: 'fas fa-circle-pause' },
-  [RunStatus.YIELDED]: { id: 21, name: 'YIELDED', icon: 'fas fa-circle-pause' },
-  [RunStatus.WAITING]: { id: 22, name: 'WAITING', icon: 'fas fa-circle-pause' },
-  [RunStatus.CANCELLED]: { id: 30, name: 'CANCELLED', icon: 'fas fa-circle-xmark' },
-  [RunStatus.ABORTED]: { id: 31, name: 'ABORTED', icon: 'fas fa-skull' },
-  [RunStatus.FAILED]: { id: 32, name: 'FAILED', icon: 'fas fa-circle-exclamation' },
-  [RunStatus.COMPLETED]: { id: 33, name: 'COMPLETED', icon: 'fas fa-circle-check' },
+  [RunStatus.SCHEDULED]: { id: 1, name: 'SCHEDULED', color: ColorType.GRAY, icon: 'fas fa-clock' },
+  [RunStatus.QUEUED]: { id: 2, name: 'QUEUED', color: ColorType.GRAY, icon: 'fas fa-hourglass' },
+  [RunStatus.RUNNING]: { id: 10, name: 'RUNNING', color: ColorType.GREEN, icon: 'fas fa-circle-notch' },
+  [RunStatus.PAUSED]: { id: 20, name: 'PAUSED', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
+  [RunStatus.YIELDED]: { id: 21, name: 'YIELDED', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
+  [RunStatus.WAITING]: { id: 22, name: 'WAITING', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
+  [RunStatus.CANCELLED]: { id: 30, name: 'CANCELLED', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
+  [RunStatus.ABORTED]: { id: 31, name: 'ABORTED', color: ColorType.RED, icon: 'fas fa-skull' },
+  [RunStatus.FAILED]: { id: 32, name: 'FAILED', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
+  [RunStatus.COMPLETED]: { id: 33, name: 'COMPLETED', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
 }
 
 export const RunSpanTypeOptionInfo: Partial<Record<RunSpanType, EnumOptionInfo>> = {
@@ -37679,7 +37679,7 @@ export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
   [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', title: 'Start a new Run' },
   [TriggerEffect.ENSURE_RUN]: { id: 2, name: 'ENSURE_RUN', title: 'Continue an existing or start a new Run' },
-  [TriggerEffect.REPLACE_RUN]: { id: 3, name: 'REPLACE_RUN', title: 'Abort and restart (part of) the current Run' },
+  [TriggerEffect.REPLACE_RUN]: { id: 3, name: 'REPLACE_RUN', title: 'Replace/restart (part of) the current Run' },
 }
 
 export const CallExecutionModeOptionInfo: Partial<Record<CallExecutionMode, EnumOptionInfo>> = {
