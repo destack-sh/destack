@@ -186,7 +186,7 @@ const bottomPlaceholderVisible = useElementVisibility(bottomPlaceholderRef);
 
 // auto scroll up/down
 const now = getNow(TimeUpdateInterval.SECOND);
-const lastAutoscrollAt: Ref<DateTime> = ref(now.value);
+const lastAutoscrollAt: Ref<DateTime> = ref(now.value.plus({ seconds: 1 })); // don't autoscroll immediately
 watchEffect(() => {
   const millisecondsSinceLastAutoscroll =
     lastAutoscrollAt.value != null ? now.value.diff(lastAutoscrollAt.value, "milliseconds").milliseconds : Infinity;

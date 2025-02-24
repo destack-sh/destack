@@ -65,7 +65,13 @@ const sizeStyles = computed(() => {
 
 // auto-scroll to end if sticky
 watch(
-  () => [props.stickToEnd, horizontalScrollArea.innerSize.width.value, verticalScrollArea.innerSize.height.value],
+  () => [
+    props.stickToEnd,
+    horizontalScrollArea.containerSize.width.value,
+    horizontalScrollArea.innerSize.width.value,
+    verticalScrollArea.containerSize.height.value,
+    verticalScrollArea.innerSize.height.value,
+  ],
   () => {
     if (props.stickToEnd) {
       scrollToEnd();
@@ -185,12 +191,11 @@ defineExpose<
             { orientation: Orientation.HORIZONTAL, area: horizontalScrollArea },
             { orientation: Orientation.VERTICAL, area: verticalScrollArea },
           ]"
-      :class="[
-        'group/track absolute z-30',
-        orientation == Orientation.HORIZONTAL ? 'bottom-0 left-0 w-full' : 'right-0 top-0 h-full',
-      ]"
+      :class="['group/track absolute z-30']"
       :style="
-        orientation == Orientation.HORIZONTAL ? { height: props.trackWidth + 'px' } : { width: props.trackWidth + 'px' }
+        orientation == Orientation.HORIZONTAL
+          ? { height: props.trackWidth + 'px', bottom: '0px', left: '0px', width: '100%' }
+          : { width: props.trackWidth + 'px', right: area.thumb.value.width + 'px', top: '0px', height: '100%' }
       "
       data-suppress-drag="both"
     >
