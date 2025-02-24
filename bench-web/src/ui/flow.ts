@@ -1257,6 +1257,11 @@ export class FlowContext {
         benchPtr: action.benchPtr,
         packagePtr: action.packagePtr,
         parentPtr: toNodeRef(action),
+        name: makeNodeName(this.graph, {
+          metatype: ObjectType.TRIGGER,
+          type: TriggerType.MESSAGE,
+          parentPtr: toNodeRef(action),
+        }),
         effect: TriggerEffect.REPLACE_RUN,
       });
     }
