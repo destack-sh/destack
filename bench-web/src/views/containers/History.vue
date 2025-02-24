@@ -73,6 +73,7 @@ defineExpose<ViewExpose>({ self, actions });
     <component
       :is="getViewComponent(focusedView.type)"
       v-if="focusedView != null && getViewComponent(focusedView.type) != null"
+      :key="focusedView.id"
       :self="toNodeRef(focusedView)"
       :is-root="isRoot"
       v-bind="getViewBinding(focusedView, size)"

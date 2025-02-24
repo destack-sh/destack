@@ -1335,7 +1335,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
   const layout = makeLayout(tx, window, [
     {
       type: ViewType.HUB,
-      name: "Side",
+      name: "Sidebar",
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 280, maxWidth: 500 }),
       subnode: { aspect: HubAspect.BENCH },

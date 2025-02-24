@@ -263,6 +263,7 @@ defineExpose<ViewExpose>({ self, actions });
       <component
         :is="getViewComponent(tabs[focusedTabIdx].type)"
         v-if="focusedTabIdx != null && getViewComponent(tabs[focusedTabIdx].type) != null"
+        :key="tabs[focusedTabIdx].id"
         :self="toNodeRef(tabs[focusedTabIdx])"
         v-bind="getViewBinding(tabs[focusedTabIdx], innerSize)"
       />
