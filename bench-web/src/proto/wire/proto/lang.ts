@@ -37676,10 +37676,21 @@ export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
   [PlanType.CALL]: { id: 1, name: 'CALL', title: 'Run' },
 }
 
+export const TriggerTypeOptionInfo: Partial<Record<TriggerType, EnumOptionInfo>> = {
+  [TriggerType.SCHEDULE]: { id: 10, name: 'SCHEDULE', text: 'Run on a schedule', title: 'Schedule', icon: 'fas fa-clock' },
+  [TriggerType.MESSAGE]: { id: 20, name: 'MESSAGE', text: 'Run when a Message is received', title: 'Message', icon: 'fas fa-envelope' },
+}
+
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
-  [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', title: 'Start a new Run' },
-  [TriggerEffect.ENSURE_RUN]: { id: 2, name: 'ENSURE_RUN', title: 'Continue an existing or start a new Run' },
-  [TriggerEffect.REPLACE_RUN]: { id: 3, name: 'REPLACE_RUN', title: 'Replace/restart (part of) the current Run' },
+  [TriggerEffect.START_RUN]: { id: 1, name: 'START_RUN', text: 'Start a new Run', title: 'Start Run', icon: 'fas fa-play' },
+  [TriggerEffect.ENSURE_RUN]: { id: 2, name: 'ENSURE_RUN', text: 'Continue an existing or start a new Run', title: 'Ensure Run', icon: 'fas fa-forward-step' },
+  [TriggerEffect.REPLACE_RUN]: { id: 3, name: 'REPLACE_RUN', text: 'Replace/restart (part of) the current Run', title: 'Replace Run', icon: 'fas fa-backward-step' },
+}
+
+export const TriggerStatusOptionInfo: Partial<Record<TriggerStatus, EnumOptionInfo>> = {
+  [TriggerStatus.INACTIVE]: { id: 1, name: 'INACTIVE', text: 'Not actively triggering', title: 'Inactive', color: ColorType.GRAY, icon: 'fas fa-bolt-slash' },
+  [TriggerStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Actively triggering', title: 'Open', color: ColorType.GREEN, icon: 'fas fa-bolt' },
+  [TriggerStatus.CLOSED]: { id: 20, name: 'CLOSED', text: 'No longer triggering', title: 'Closed', color: ColorType.RED, icon: 'fas fa-toggle-large-off' },
 }
 
 export const CallExecutionModeOptionInfo: Partial<Record<CallExecutionMode, EnumOptionInfo>> = {
@@ -37760,8 +37771,8 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
 }
 
 export const PipeTypeOptionInfo: Partial<Record<PipeType, EnumOptionInfo>> = {
-  [PipeType.CALL]: { id: 1, name: 'CALL', text: 'Always call', title: 'Call', icon: 'fas fa-arrow-right' },
-  [PipeType.SELECT]: { id: 10, name: 'SELECT', text: 'Call only if selected', title: 'Select', icon: 'fas fa-checkbox' },
+  [PipeType.CALL]: { id: 1, name: 'CALL', text: 'Call always', title: 'Call', icon: 'fas fa-arrow-right' },
+  [PipeType.SELECT]: { id: 10, name: 'SELECT', text: 'Call only if selected', title: 'Select', icon: 'far fa-square-check' },
 }
 
 export const PipeTriggerOptionInfo: Partial<Record<PipeTrigger, EnumOptionInfo>> = {
@@ -37863,7 +37874,9 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.RUN_STATUS]: RunStatusOptionInfo,
   [EnumType.RUN_SPAN_TYPE]: RunSpanTypeOptionInfo,
   [EnumType.PLAN_TYPE]: PlanTypeOptionInfo,
+  [EnumType.TRIGGER_TYPE]: TriggerTypeOptionInfo,
   [EnumType.TRIGGER_EFFECT]: TriggerEffectOptionInfo,
+  [EnumType.TRIGGER_STATUS]: TriggerStatusOptionInfo,
   [EnumType.CALL_EXECUTION_MODE]: CallExecutionModeOptionInfo,
   [EnumType.CALL_FAILURE_MODE]: CallFailureModeOptionInfo,
   [EnumType.CALL_TERMINATION_MODE]: CallTerminationModeOptionInfo,

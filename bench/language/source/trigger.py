@@ -5,6 +5,7 @@ from bench.language.core import (
     INLINE_SOURCE_NODE_TYPES,
     NAME_CONSTRAINT,
     BuiltinEnum,
+    ColorType,
     EnumType,
     InlineSourceNode,
     NodeType,
@@ -40,16 +41,16 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TRIGGER_TYPE)
 class TriggerType(BuiltinEnum):
-    SCHEDULE = 10
-    MESSAGE = 20
+    SCHEDULE = 10, "Schedule", "Run on a schedule", "fas fa-clock"
+    MESSAGE = 20, "Message", "Run when a Message is received", "fas fa-envelope"
     # RECORD, LOG, EDIT, ...
 
 
 @enum_(EnumType.TRIGGER_STATUS)
 class TriggerStatus(BuiltinEnum):
-    INACTIVE = 1
-    OPEN = 10
-    CLOSED = 20
+    INACTIVE = 1, "Inactive", "Not actively triggering", "fas fa-bolt-slash", ColorType.GRAY
+    OPEN = 10, "Open", "Actively triggering", "fas fa-bolt", ColorType.GREEN
+    CLOSED = 20, "Closed", "No longer triggering", "fas fa-toggle-large-off", ColorType.RED
 
     @property
     def is_open(self) -> bool:
@@ -59,9 +60,14 @@ class TriggerStatus(BuiltinEnum):
 @enum_(EnumType.TRIGGER_EFFECT)
 class TriggerEffect(BuiltinEnum):
     # run
-    START_RUN = 1, "Start a new Run"
-    ENSURE_RUN = 2, "Continue an existing or start a new Run"
-    REPLACE_RUN = 3, "Replace/restart (part of) the current Run"
+    START_RUN = 1, "Start Run", "Start a new Run", "fas fa-play"
+    ENSURE_RUN = 2, "Ensure Run", "Continue an existing or start a new Run", "fas fa-forward-step"
+    REPLACE_RUN = (
+        3,
+        "Replace Run",
+        "Replace/restart (part of) the current Run",
+        "fas fa-backward-step",
+    )
     # interruption
     # CANCEL_INTERRUPTION, COMPLETE_INTERRUPTION, ...?
 
