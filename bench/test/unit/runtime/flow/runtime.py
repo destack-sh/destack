@@ -52,6 +52,37 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
 
 
 @simulated_runtime(runtimes=True)
+async def test_reply_to_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Reply to a Message in a Flow. Should complete and not recurse endlessly."""
+    Channel1 = Channel.new("General")
+    Flow1 = Flow.new("Flow1")
+    Receive1 = Action.new(ActionType.RECEIVE, "Receive1", triggers=[Trigger.on_message()])
+    Code1 = Action.new(
+        ActionType.CODE,
+        "Code1",
+        code=code("""\
+message_in = runner.get_latest_run(Receive1).inputs.message
+reply = Message.new(title="Hi.", reply_to=message_in)
+message_in.parent.append(reply)
+"""),
+    )
+    Complete1 = Action.new(ActionType.COMPLETE, "Complete1")
+    Flow1.extend(Receive1, Code1, Complete1)
+    Receive1.connect(PipeType.CALL, Code1)
+    Code1.connect(PipeType.CALL, Complete1)
+    runtime.page().extend(Channel1, Flow1)
+    await runtime.commit()
+
+    Message1 = Message.new(title="Hello, world!")
+    Channel1.messages.append(Message1)
+    await runtime.commit()
+
+    Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
+    assert Run1.status == RunStatus.COMPLETED
+    # nocheckin
+
+
+@simulated_runtime(runtimes=True)
 async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")

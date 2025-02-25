@@ -248,6 +248,16 @@ class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
         text: Text | None = None,
         *,
         platform: MessagePlatform = MessagePlatform.BENCH,
+        scope: Optional["InlineSourceNode"] = None,
+        reply_to: Optional["Message"] = None,
     ) -> "Message":
-        message = Message(type=MessageType.REGULAR, platform=platform, title=title, text=text)
+        message = Message(
+            type=MessageType.REGULAR,
+            platform=platform,
+            title=title,
+            text=text,
+            reply_to=reply_to,
+        )
+        if scope is not None:
+            message.scope = scope
         return message
