@@ -181,8 +181,8 @@ defineExpose<ViewExpose>({ self });
         <RunStatus :run="containingRun" icon="dot" />
       </div>
 
+      <!-- Tabs -->
       <div class="ml-auto flex flex-row items-center">
-        <!-- Tabs -->
         <button
           v-for="a in visibleAspects"
           :key="a"
@@ -190,7 +190,7 @@ defineExpose<ViewExpose>({ self });
           class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
           :class="[
             a == aspect
-              ? 'bg-gray-100 font-medium text-gray-900'
+              ? 'bg-gray-100 font-medium text-gray-700'
               : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
           ]"
           @click="selectAspect(a)"
@@ -202,7 +202,7 @@ defineExpose<ViewExpose>({ self });
 
     <!-- Header -->
     <div
-      class="mx-3 flex flex-row items-center gap-x-2 pb-3 pt-1.5"
+      class="mx-3 flex flex-row items-center gap-x-2"
       :style="{
         height: `${HEADER_HEIGHT}px`,
       }"
@@ -215,23 +215,23 @@ defineExpose<ViewExpose>({ self });
           is-small
           is-input
           placeholder="Text"
-          class="w-full"
+          class="mx-1 w-full"
           :model-value="(target as any).text"
           @update:model-value="
             inspectionConnection?.tx.update(target as PageData, { text: $event }, { debounce: 'long' })
           "
         />
-        <span v-else class="text-gray-400">No details</span>
+        <span v-else class="mx-1 text-gray-400">No text available.</span>
       </template>
       <template v-else-if="aspect == ContextAspect.CHAT">
         <div class="flex flex-row items-center px-4 text-gray-400">
           <span
-            >This is the Thread just for
+            >This is the Thread for
             {{ (scope as any)?.name ?? "this " + (scope != null ? toCamelName(NodeType, scope.metatype) : "Node") }}.
           </span>
         </div>
       </template>
-      <template v-if="aspect == ContextAspect.RUN">
+      <template v-else-if="aspect == ContextAspect.RUN">
         <!-- Run controls-->
         <button
           v-for="action in containingRun != null

@@ -70,7 +70,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 if trigger.type == TriggerType.MESSAGE and message_trigger_matches(
                     cast(MessageTrigger, trigger), message
                 ):
-                    inputs = {"message_in": message}
+                    inputs = {"message": message}
                     fired_triggers.append((message.run, inputs, str(message.id), trigger))
 
         # fire triggers

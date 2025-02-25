@@ -3280,14 +3280,12 @@ message WaitActionData {
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message SendActionData {
   optional google.protobuf.Value message_in_packed = 121;
-  optional bool is_blocking = 130;
-  optional NodeReferenceData message_out_ptr = 200;
+  optional NodeReferenceData message_ptr = 200;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
 message ReceiveActionData {
-  optional NodeReferenceData message_in_ptr = 100;
-  optional NodeReferenceData message_out_ptr = 200;
+  optional NodeReferenceData message_ptr = 100;
 }
 
 // A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -3903,14 +3901,12 @@ message TriggerData {
   optional google.protobuf.Timestamp closed_at = 45;
 }
 
-// A Trigger is an event-driven condition that, once met, affects the runtime.
-// Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
+// A Trigger is an event-driven condition that, once met, affects the runtime somehow.
 message ScheduleTriggerData {
   optional ScheduleData schedule = 100;
 }
 
-// A Trigger is an event-driven condition that, once met, affects the runtime.
-// Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
+// A Trigger is an event-driven condition that, once met, affects the runtime somehow.
 message MessageTriggerData {
   optional NodeReferenceData channel_ptr = 100;
   optional NodeReferenceData thread_ptr = 101;
