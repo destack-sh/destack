@@ -54,7 +54,7 @@ class Package(SourceNode[PackageData]):
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
     )
 
-    default_channel: Optional["Channel"] = p_regular(
+    main_channel: Optional["Channel"] = p_regular(
         50, require=False, array=False, references=NodeType.CHANNEL, same_bench=True
     )
 

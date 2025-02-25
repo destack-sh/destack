@@ -1,12 +1,24 @@
 <script lang="ts" setup>
-import { isInlineSourceNode, isSourceNode, toCamelName } from "@/language/core/const";
+import { isInlineSourceNode, isSourceNode, isStateNode, toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
+import { makeType } from "@/language/core/type";
 import { isRunnable } from "@/language/runtime/run";
-import { BlockType, ContextAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
-import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  BenchType,
+  BlockType,
+  ContextAspect,
+  IconData,
+  NodeType,
+  Orientation,
+  RunData,
+  TypeKind,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas, channelPtr, inspectionPtr, space, spaceConnection } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -16,14 +28,24 @@ import RunStatus from "@/views/builtins/RunStatus.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import Picker from "@/views/content/Picker.vue";
 import Chat from "@/views/helpers/Chat.vue";
 import Run from "@/views/nodes/Run.vue";
+import Thread from "@/views/nodes/Thread.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 0;
+
+const ICON_BY_CONTEXT_ASPECT: Record<ContextAspect, IconData> = {
+  [ContextAspect.UNSPECIFIED]: makeIcon("fas fa-question"),
+  [ContextAspect.DETAIL]: makeIcon("fas fa-eye"),
+  [ContextAspect.RUN]: makeIcon("fas fa-play"),
+  [ContextAspect.CHAT]: makeIcon("fas fa-message"),
+  [ContextAspect.LOG]: makeIcon("fas fa-file-lines"),
+};
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
@@ -59,13 +81,28 @@ const target = computed(() => {
     return inspection.value;
   }
 });
+const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
 const scope = computed(() => {
   if (delegate.value != null) {
     return delegate.value;
-  } else if (isSourceNode(inspection.value) && !isInlineSourceNode(inspection.value)) {
+  } else if (
+    isStateNode(inspection.value) ||
+    (isSourceNode(inspection.value) && !isInlineSourceNode(inspection.value))
+  ) {
     return parent.value;
   } else {
     return inspection.value;
+  }
+});
+const threadPtr = computed(() => {
+  if (isInlineSourceNode(inspection.value) && inspection.value.threadPtr != null) {
+    return inspection.value.threadPtr;
+  } else if (isNode(inspection.value, NodeType.CHANNEL) || isNode(inspection.value, NodeType.THREAD)) {
+    return undefined; // don't show the same thread twice
+  } else if (isNode(inspection.value, NodeType.MESSAGE) && inspection.value.createdThreadPtr != null) {
+    return inspection.value.createdThreadPtr;
+  } else {
+    return inspectionPtr.value;
   }
 });
 
@@ -133,14 +170,39 @@ defineExpose<ViewExpose>({ self });
         <span class="mx-0.5 text-gray-400">in</span>
         <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="regular" />
       </template>
+      <!-- Run status -->
+      <div v-if="containingRun != null" class="flex flex-row px-1.5">
+        <RunStatus :run="containingRun" icon="dot" />
+      </div>
 
+      <div class="ml-auto flex flex-row items-center">
+        <!-- Tabs -->
+        <button
+          v-for="a in visibleAspects"
+          :key="a"
+          v-tooltip="{ title: toCamelName(ContextAspect, a), small: true, group: 'context.tabs' }"
+          class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
+          :class="[
+            a == aspect
+              ? 'bg-gray-100 font-medium text-gray-900'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
+          ]"
+          @click="selectAspect(a)"
+        >
+          <IconInline v-bind="ICON_BY_CONTEXT_ASPECT[a]" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div
+      class="mx-3 flex flex-row items-center gap-x-2 pb-3 pt-1.5"
+      :style="{
+        height: `${HEADER_HEIGHT}px`,
+      }"
+    >
       <!-- Meta/Controls -->
-      <div class="ml-auto flex flex-row items-center gap-x-1">
-        <!-- Run status -->
-        <div v-if="containingRun != null" class="flex flex-row px-1.5">
-          <RunStatus :run="containingRun" icon="dot" />
-        </div>
-
+      <template v-if="aspect == ContextAspect.RUN">
         <!-- Controls -->
         <div
           class="flex flex-row items-center gap-x-0.5"
@@ -163,27 +225,20 @@ defineExpose<ViewExpose>({ self });
             <span v-if="action.isPrimary" class="ml-1">{{ action.title }}</span>
           </button>
         </div>
-      </div>
-    </div>
-
-    <!-- Header -->
-    <div
-      class="mx-3 flex flex-row items-center gap-x-2 pb-3 pt-1.5"
-      :style="{
-        height: `${HEADER_HEIGHT}px`,
-      }"
-    >
-      <button
-        v-for="a in visibleAspects"
-        :key="a"
-        class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
-        :class="[
-          a == aspect ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
-        ]"
-        @click="selectAspect(a)"
-      >
-        <span>{{ toCamelName(ContextAspect, a) }} </span>
-      </button>
+      </template>
+      <template v-else-if="aspect == ContextAspect.CHAT">
+        <!-- Thread in ... -->
+        <span>Thread in</span>
+        <!-- nocheckin -->
+        <Picker
+          id="channelPicker"
+          is-input
+          data-ignore-element="self"
+          :value-type="makeType({ kind: TypeKind.NODE, benchType: BenchType.CHANNEL })"
+          :model-value="channelPtr"
+          @update:model-value="space && spaceConnection.tx.update(space, { channelPtr: $event })"
+        />
+      </template>
     </div>
 
     <!-- Content -->
@@ -205,7 +260,7 @@ defineExpose<ViewExpose>({ self });
         <SomeObject
           v-if="aspect == ContextAspect.DETAIL"
           id="detail"
-          :node-ptr="delegatePtr ?? nodePtr"
+          :node-ptr="targetPtr"
           is-input
           v-bind="state.getChildState('scroll.detail', { nodePtr, isInput: true, isMinimal: false })"
           data-contextmenu="ignore"
@@ -215,16 +270,16 @@ defineExpose<ViewExpose>({ self });
           v-else-if="aspect == ContextAspect.RUN"
           id="start"
           ref="startRef"
-          :node-ptr="delegatePtr ?? nodePtr"
+          :node-ptr="targetPtr"
           v-bind="state.getChildState('scroll.start', { nodePtr })"
           data-contextmenu="ignore"
         />
         <!-- Chat -->
-        <Chat
+        <Thread
           v-else-if="aspect == ContextAspect.CHAT"
           id="chat"
           ref="chatRef"
-          :node-ptr="delegatePtr ?? nodePtr"
+          :node-ptr="threadPtr"
           v-bind="state.getChildState('scroll.chat', { nodePtr })"
           :size="{ width: size?.width, height: bodyHeight }"
           data-contextmenu="ignore"

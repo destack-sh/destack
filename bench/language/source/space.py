@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    NODE_TYPES,
     OWNER_TYPES,
     BuiltinEnum,
     EnumType,
@@ -24,7 +23,14 @@ from bench.pb2 import SpaceData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Package, Run, Text, View
+    from bench.language import (
+        Channel,
+        Package,
+        Run,
+        Text,
+        Thread,
+        View,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -55,10 +61,13 @@ class Space(SourceNode[SpaceData]):
         71, default=None, require=False, struct=StructType.SELECTION
     )
     inspection: Optional[Node] = p_regular(
-        75, default=None, require=False, array=False, references=tuple(NODE_TYPES)
+        73, default=None, require=False, array=False, references="any"
     )
-    base: Optional[Node] = p_regular(
-        76, default=None, require=False, array=False, references=tuple(NODE_TYPES)
+    channel: Optional["Channel"] = p_regular(
+        75, default=None, require=False, array=False, references=NodeType.CHANNEL
+    )
+    thread: Optional["Thread"] = p_regular(
+        76, default=None, require=False, array=False, references=NodeType.THREAD
     )
     run: Optional["Run"] = p_regular(
         77, default=None, require=False, array=False, references=NodeType.RUN

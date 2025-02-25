@@ -54,7 +54,7 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
+import { inspectionPtr, pkg, space } from "@/system/space";
 import { Action, ActionContext, declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
@@ -75,7 +75,7 @@ import {
   makeSelection,
   makeSelectionMaybe,
 } from "@/ui/view";
-import { getElement, isFocusableElement } from "@/utils/element";
+import { isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { DISCORD_URL } from "@/utils/globals";
@@ -337,25 +337,10 @@ export class SpaceCanvas {
     const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
     const baseView = this.graph.getMaybe(getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]));
     const nodePtr = this.getNodeAt(element as HTMLElement);
-    const keepInspectionInBase =
-      getElement(element)?.closest?.("[data-keep-inspection-in-base-view]") != null &&
-      inspectionBasePtr.value != null &&
-      nodePtr != null &&
-      isDescendantOf(this.graph, inspectionBasePtr.value, nodePtr);
-    if (
-      !keepInspectionInBase &&
-      baseView != null &&
-      !HELPER_VIEW_TYPES.has(baseView.type) &&
-      nodePtr != null &&
-      !this.isInspected(nodePtr)
-    ) {
+    if (baseView != null && !HELPER_VIEW_TYPES.has(baseView.type) && nodePtr != null && !this.isInspected(nodePtr)) {
       this.inspect({ node: nodePtr, view: this.focusedViewPtr.value! });
     }
-    if (
-      !keepInspectionInBase &&
-      this.focusedViewPtr.value != null &&
-      focusedView?.focus?.nodesPtr[0]?.id != nodePtr?.id
-    ) {
+    if (this.focusedViewPtr.value != null && focusedView?.focus?.nodesPtr[0]?.id != nodePtr?.id) {
       this.focusInGraph({ view: this.focusedViewPtr.value, focus: makeSelectionMaybe(nodePtr) });
     }
   }
@@ -396,12 +381,9 @@ export class SpaceCanvas {
       view = this.focusedView;
     }
     if (view == null) throw new Error(`no view for ${inspect.view}`);
-    const viewAncestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
-    const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
-    const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
-    if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
+    if (inspectionPtr.value?.id != nodePtr.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
-      this.tx().update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "long" });
+      this.tx().update(space, { inspectionPtr: nodePtr }, { debounce: "long" });
     }
 
     // open inspector
@@ -1334,7 +1316,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       type: ViewType.SIDEBAR,
       name: "Sidebar",
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
-      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 280, maxWidth: 500 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 300, maxWidth: 600 }),
       subnode: { aspect: SidebarAspect.BENCH },
     },
     {
@@ -1348,7 +1330,7 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       name: "Context",
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 600 }),
-      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 500, maxWidth: 900 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600, maxWidth: 900 }),
       subnode: { aspect: ContextAspect.DETAIL },
     },
   ]);

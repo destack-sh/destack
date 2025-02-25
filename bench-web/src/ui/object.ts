@@ -749,9 +749,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
 
 export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
   make() {
-    const commonRows: Row[] = [
-      this.rowProperty(ChoiceProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ];
+    const commonRows: Row[] = [];
     this.section(undefined, commonRows);
 
     // schema
@@ -765,9 +763,7 @@ export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
 
 export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
   make() {
-    const commonRows: Row[] = [
-      this.rowProperty(DatabaseProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ];
+    const commonRows: Row[] = [];
     this.section(undefined, commonRows);
 
     // schema
@@ -781,9 +777,7 @@ export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
 
 export class FlowLayout extends NodeLayout<NodeType.FLOW> {
   make() {
-    const commonRows: Row[] = [
-      this.rowProperty(FlowProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ];
+    const commonRows: Row[] = [];
     this.section(undefined, commonRows);
 
     // schema
@@ -815,9 +809,7 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
   make() {
     const node = this.node!;
     const graph = this.graph;
-    const commonRows: Row[] = [
-      this.rowProperty(FieldProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ];
+    const commonRows: Row[] = [];
     this.section(undefined, commonRows);
     commonRows.push(
       this.rowType({
@@ -1139,9 +1131,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
 
-    if (this.propertyFieldTypes.length == 0) {
-      commonRows.push(this.rowProperty(ActionProperty.text, { title: false, props: { placeholder: "Text..." } }));
-    }
     if (
       this.propertyFieldTypes.length == 0 ||
       (this.subtype == ActionType.TOOL && this.propertyFieldTypes.includes(FieldType.INPUT))
@@ -1209,10 +1198,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
 export class PipeLayout extends NodeLayout<NodeType.PIPE> {
   make() {
-    const commonRows = [
-      this.rowProperty(PipeProperty.text, { title: false, props: { placeholder: "Text..." } }),
-      this.rowProperty(PipeProperty.type),
-    ];
+    const commonRows = [this.rowProperty(PipeProperty.type)];
     if (this.node.type == PipeType.CALL) {
       commonRows.push(this.rowProperty(PipeProperty.trigger));
     }
@@ -1229,8 +1215,6 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
       commonRows.push(this.rowProperty(RecordProperty.databasePtr, { title: "Database", isComputable: true }));
       // NOTE :Incomplete: generalize SourceNode partial NodeLayout properties?
       commonRows.push(this.rowProperty(RecordProperty.name, { isComputable: true }));
-    } else {
-      commonRows.push(this.rowProperty(RecordProperty.text, { title: false, props: { placeholder: "Text..." } }));
     }
     if (this.node.databasePtr != null) {
       // value
@@ -1252,9 +1236,7 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
 
 export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
   make() {
-    this.section(undefined, [
-      this.rowProperty(ChannelProperty.text, { title: false, props: { placeholder: "Text..." } }),
-    ]);
+    this.section(undefined, []);
   }
 }
 
