@@ -3,7 +3,7 @@ import { toCamelName } from "@/language/core/const";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
-import { HubAspect, IconData, NodeType, NodeTypeOptionInfo, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
+import { SidebarAspect, IconData, NodeType, NodeTypeOptionInfo, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import {
   bench,
@@ -21,7 +21,6 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import Tree from "@/views/collections/Tree.vue";
@@ -104,12 +103,12 @@ const USER_MENU_ITEMS = computed(() => {
   return items;
 });
 
-const ICON_BY_HUB_ASPECT: Record<HubAspect, IconData> = {
-  [HubAspect.UNSPECIFIED]: makeIcon("fas fa-sitemap"),
-  [HubAspect.BENCH]: makeIcon("fas fa-sitemap"),
-  [HubAspect.ACTIVITY]: makeIcon("fas fa-chart-line"),
-  [HubAspect.CATALOG]: makeIcon("fas fa-list"),
-  [HubAspect.LIBRARY]: makeIcon("fas fa-book"),
+const ICON_BY_HUB_ASPECT: Record<SidebarAspect, IconData> = {
+  [SidebarAspect.UNSPECIFIED]: makeIcon("fas fa-sitemap"),
+  [SidebarAspect.BENCH]: makeIcon("fas fa-sitemap"),
+  [SidebarAspect.ACTIVITY]: makeIcon("fas fa-chart-line"),
+  [SidebarAspect.CATALOG]: makeIcon("fas fa-list"),
+  [SidebarAspect.LIBRARY]: makeIcon("fas fa-book"),
 };
 
 const props = defineProps<
@@ -124,8 +123,8 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
-const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HUB, toRef(props, "subnodePacked"), "aspect");
-const visibleAspects = [HubAspect.BENCH, HubAspect.ACTIVITY, HubAspect.CATALOG];
+const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.SIDEBAR, toRef(props, "subnodePacked"), "aspect");
+const visibleAspects = [SidebarAspect.BENCH, SidebarAspect.ACTIVITY, SidebarAspect.CATALOG]; // :DefaultViewAspect
 const visibleAspectsOverflow = computed(() => visibleAspects.length * 75 > (props.size?.width ?? 0));
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
@@ -179,7 +178,7 @@ defineExpose<ViewExpose>({ self });
         :key="a"
         v-tooltip="{
           small: true,
-          text: toCamelName(HubAspect, a),
+          text: toCamelName(SidebarAspect, a),
           isEnabled: visibleAspectsOverflow,
           group: 'hub-aspect',
         }"
@@ -189,11 +188,11 @@ defineExpose<ViewExpose>({ self });
           visibleAspectsOverflow ? 'flex-1 justify-center' : '',
         ]"
         @click="
-          state.update({ metatype: NodeType.VIEW, type: ViewType.HUB, subnode: { aspect: a } }, { debounce: 'short' })
+          state.update({ metatype: NodeType.VIEW, type: ViewType.SIDEBAR, subnode: { aspect: a } }, { debounce: 'short' })
         "
       >
         <IconInline v-if="visibleAspectsOverflow" v-bind="ICON_BY_HUB_ASPECT[a]" />
-        <span v-else>{{ toCamelName(HubAspect, a) }} </span>
+        <span v-else>{{ toCamelName(SidebarAspect, a) }} </span>
       </button>
     </div>
 
@@ -212,7 +211,7 @@ defineExpose<ViewExpose>({ self });
           minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
         }"
       >
-        <div v-if="aspect == HubAspect.BENCH">
+        <div v-if="aspect == SidebarAspect.BENCH">
           <!-- Package -->
           <div
             class="group/header mx-4 flex flex-row items-center pt-1.5"
@@ -260,18 +259,18 @@ defineExpose<ViewExpose>({ self });
         </div>
         <!-- Activity -->
         <Activity
-          v-else-if="aspect == HubAspect.ACTIVITY"
+          v-else-if="aspect == SidebarAspect.ACTIVITY"
           id="activity"
           :size="{ width: size?.width, height: bodyHeight }"
         />
         <!-- Catalog -->
         <Catalog
-          v-else-if="aspect == HubAspect.CATALOG"
+          v-else-if="aspect == SidebarAspect.CATALOG"
           id="catalog"
           :size="{ width: size?.width, height: bodyHeight }"
         />
         <div v-else class="mx-5">
-          <span class="text-red-600">{{ toCamelName(HubAspect, aspect) }}</span>
+          <span class="text-red-600">{{ toCamelName(SidebarAspect, aspect) }}</span>
         </div>
       </div>
 

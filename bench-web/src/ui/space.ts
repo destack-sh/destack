@@ -1,7 +1,7 @@
+import { canvas, supergraph } from "@/globals";
 import {
   getBaseFromNode,
   HELPER_VIEW_TYPES,
-  INLINE_SOURCE_NODE_TYPES,
   isInlineSourceNode,
   ROOT_VIEW_TYPES,
   toCamelName,
@@ -17,6 +17,7 @@ import {
   unpackSubnode,
 } from "@/language/core/node";
 import { getOrderKey, updateOrder } from "@/language/core/order";
+import { unpackBuiltinObject } from "@/language/core/value";
 import {
   makeEdit,
   makeEditFromSubnode,
@@ -24,20 +25,17 @@ import {
   TransactionOptions,
   type Transaction,
 } from "@/language/runtime/transaction";
-import { unpackBuiltinObject } from "@/language/core/value";
 import {
   BlockType,
   ChangeCategory,
-  DESCENDANT_NODE_TYPES,
-  HelpAspect,
-  HubAspect,
-  IconData,
+  ContextAspect,
   NodeMode,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
   SelectionData,
+  SidebarAspect,
   SpaceData,
   StructType,
   ViewData,
@@ -56,11 +54,10 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { getContainingFlow } from "@/ui/flow";
-import { canvas, supergraph } from "@/globals";
 import { inspectionBasePtr, inspectionPtr, pkg, space } from "@/system/space";
 import { Action, ActionContext, declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
+import { getContainingFlow } from "@/ui/flow";
 import { getNodeIcon, getNodeName, toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { PopoverInfoIn, PopoverInstance, pushPopover } from "@/ui/popover";
@@ -1078,14 +1075,14 @@ export class SpaceCanvas {
       this.goToNode(base, options);
       const runPtr = isNode(node, NodeType.RUN) ? (node.rootPtr ?? toNodeRef(node)) : node.rootPtr;
       this.tx().update(this.space.value!, { runPtr }, { debounce: "tick" });
-      const helpView = this.findView({ type: ViewType.HELP });
+      const helpView = this.findView({ type: ViewType.CONTEXT });
       if (helpView != null) {
         this.tx().update(
           helpView,
           makeEditFromSubnode(helpView, {
             metatype: NodeType.VIEW,
-            type: ViewType.HELP,
-            subnode: { aspect: HelpAspect.RUN },
+            type: ViewType.CONTEXT,
+            subnode: { aspect: ContextAspect.RUN },
           }),
         );
       }
@@ -1334,11 +1331,11 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
   const window = makeMainWindow(space, tx);
   const layout = makeLayout(tx, window, [
     {
-      type: ViewType.HUB,
+      type: ViewType.SIDEBAR,
       name: "Sidebar",
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 280, maxWidth: 500 }),
-      subnode: { aspect: HubAspect.BENCH },
+      subnode: { aspect: SidebarAspect.BENCH },
     },
     {
       type: ViewType.HISTORY,
@@ -1347,12 +1344,12 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600 }),
     },
     {
-      type: ViewType.HELP,
-      name: "Secondary",
+      type: ViewType.CONTEXT,
+      name: "Context",
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 600 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 500, maxWidth: 900 }),
-      subnode: { aspect: HelpAspect.DETAIL },
+      subnode: { aspect: ContextAspect.DETAIL },
     },
   ]);
   return { primary: layout.viewsByName["Main"] };

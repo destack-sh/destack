@@ -949,7 +949,7 @@ class Runtime:
     ) -> Runner | None:
         """
         Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
-        Automatically lifts the Run into a higher or existing Run if needed.
+        Automatically lifts/joins the Run with a higher or existing Run if needed.
         """
         assert run.id is not None, f"missing id for {run!r}"
         if self._is_stop_requested:

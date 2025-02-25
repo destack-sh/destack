@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
-import { BlockType, HelpAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
+import { BlockType, ContextAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
@@ -79,20 +79,20 @@ function start() {
   if (startRef.value != null) {
     startRef.value.start();
   } else {
-    setAspect(HelpAspect.RUN);
+    setAspect(ContextAspect.RUN);
     nextTick(() => startRef.value?.start());
   }
 }
 
-// view
-const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.HELP, toRef(props, "subnodePacked"), "aspect");
-function setAspect(aspect: HelpAspect) {
-  state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
+// view :DefaultViewAspect
+const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.CONTEXT, toRef(props, "subnodePacked"), "aspect");
+function setAspect(aspect: ContextAspect) {
+  state.update({ metatype: NodeType.VIEW, type: ViewType.CONTEXT, subnode: { aspect } });
 }
-const visibleAspects = [HelpAspect.DETAIL, HelpAspect.RUN, HelpAspect.CHAT];
-function selectAspect(aspect: HelpAspect) {
-  state.update({ metatype: NodeType.VIEW, type: ViewType.HELP, subnode: { aspect } });
-  if (aspect == HelpAspect.CHAT) {
+const visibleAspects = [ContextAspect.DETAIL, ContextAspect.RUN, ContextAspect.CHAT];
+function selectAspect(aspect: ContextAspect) {
+  state.update({ metatype: NodeType.VIEW, type: ViewType.CONTEXT, subnode: { aspect } });
+  if (aspect == ContextAspect.CHAT) {
     nextTick(() => chatRef.value?.focus?.());
   }
 }
@@ -172,7 +172,7 @@ defineExpose<ViewExpose>({ self });
         ]"
         @click="selectAspect(a)"
       >
-        <span>{{ toCamelName(HelpAspect, a) }} </span>
+        <span>{{ toCamelName(ContextAspect, a) }} </span>
       </button>
     </div>
 
@@ -193,7 +193,7 @@ defineExpose<ViewExpose>({ self });
       >
         <!-- Detail -->
         <SomeObject
-          v-if="aspect == HelpAspect.DETAIL"
+          v-if="aspect == ContextAspect.DETAIL"
           id="detail"
           :node-ptr="delegatePtr ?? nodePtr"
           is-input
@@ -202,7 +202,7 @@ defineExpose<ViewExpose>({ self });
         />
         <!-- Run -->
         <Run
-          v-else-if="aspect == HelpAspect.RUN"
+          v-else-if="aspect == ContextAspect.RUN"
           id="start"
           ref="startRef"
           :node-ptr="delegatePtr ?? nodePtr"
@@ -211,7 +211,7 @@ defineExpose<ViewExpose>({ self });
         />
         <!-- Chat -->
         <Chat
-          v-else-if="aspect == HelpAspect.CHAT"
+          v-else-if="aspect == ContextAspect.CHAT"
           id="chat"
           ref="chatRef"
           :node-ptr="delegatePtr ?? nodePtr"
@@ -221,7 +221,7 @@ defineExpose<ViewExpose>({ self });
         />
         <!-- ... -->
         <div v-else class="mx-5">
-          <span class="text-red-600">{{ toCamelName(HelpAspect, aspect) }}</span>
+          <span class="text-red-600">{{ toCamelName(ContextAspect, aspect) }}</span>
         </div>
       </div>
 

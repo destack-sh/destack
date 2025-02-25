@@ -69,8 +69,8 @@ class ViewType(BuiltinEnum):
     EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
     CREATE = 20201, None, None, "fas fa-plus"
     CHAT = 20202, None, None, "fas fa-message"
-    HUB = 20205, None, None, "fas fa-object-group"
-    HELP = 20206, None, None, "fas fa-question"
+    SIDEBAR = 20205, None, None, "fas fa-object-group"
+    CONTEXT = 20206, None, None, "fas fa-question"
     ACTIVITY = 20207, None, None, "fas fa-list-timeline"
     CATALOG = 20208, None, None, "fas fa-th-large"
 
@@ -522,30 +522,35 @@ class ChatView(View):
     )
 
 
-@enum_(EnumType.HUB_ASPECT)
-class HubAspect(BuiltinEnum):
+# NOTE :Cleanup: Sidebar/Context :DefaultViewAspects should probably just be tabs?
+#  (we can still recommend/enforce a default structure, but more softly, and in a way
+#   that's more compatible with the configurable drag-n-drop nature of the other views)
+
+
+@enum_(EnumType.SIDEBAR_ASPECT)
+class SidebarAspect(BuiltinEnum):  # :DefaultViewAspects
     BENCH = 1
     ACTIVITY = 2
     CATALOG = 3
     LIBRARY = 4
 
 
-@subnode_(ViewType.HUB)
-class HubView(View):
-    aspect: HubAspect | None = p_regular(100, default=None)
+@subnode_(ViewType.SIDEBAR)
+class SidebarView(View):
+    aspect: SidebarAspect | None = p_regular(100, default=None)
 
 
-@enum_(EnumType.HELP_ASPECT)
-class HelpAspect(BuiltinEnum):
+@enum_(EnumType.CONTEXT_ASPECT)
+class ContextAspect(BuiltinEnum):  # :DefaultViewAspects
     DETAIL = 1
     RUN = 2
     CHAT = 3
     VERSION = 4
 
 
-@subnode_(ViewType.HELP)
-class HelpView(View):
-    aspect: HelpAspect | None = p_regular(100, default=None)
+@subnode_(ViewType.CONTEXT)
+class ContextView(View):
+    aspect: ContextAspect | None = p_regular(100, default=None)
 
 
 #
