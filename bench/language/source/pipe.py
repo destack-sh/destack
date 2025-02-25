@@ -43,9 +43,8 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(BuiltinEnum):
-    CALL = 1, "Call", "Always call", "fas fa-arrow-right"
-    # FAIL?
-    SELECT = 10, "Select", "Call only if selected", "fas fa-checkbox"
+    CALL = 1, "Call", "Call always", "fas fa-arrow-right"
+    SELECT = 10, "Select", "Call only if selected", "far fa-square-check"
     # MESSAGE?
     # WAIT?
     # STREAM?

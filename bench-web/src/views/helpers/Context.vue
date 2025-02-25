@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
+import { isInlineSourceNode, isSourceNode, toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
 import { BlockType, ContextAspect, NodeType, Orientation, RunData, ViewData, ViewType } from "@/proto/wire";
@@ -50,10 +50,19 @@ const delegatePtr = computed(() => {
   }
 });
 const { node: delegate, connection: delegateConnection } = supergraph.getLinkRef(delegatePtr);
-const scope = computed(() => {
+const target = computed(() => {
   if (delegate.value != null) {
     return delegate.value;
   } else if (isNode(inspection.value, NodeType.BLOCK) && inspection.value.type >= BlockType.PARAGRAPH) {
+    return parent.value;
+  } else {
+    return inspection.value;
+  }
+});
+const scope = computed(() => {
+  if (delegate.value != null) {
+    return delegate.value;
+  } else if (isSourceNode(inspection.value) && !isInlineSourceNode(inspection.value)) {
     return parent.value;
   } else {
     return inspection.value;
@@ -118,19 +127,20 @@ defineExpose<ViewExpose>({ self });
       }"
     >
       <!-- Node (path) -->
-      <NodeReference v-if="scope" :node="scope" :tx="() => inspectionConnection!.tx" size="regular" is-input />
+      <NodeReference v-if="target" :node="target" :tx="() => inspectionConnection!.tx" size="regular" is-input />
       <span v-else class="text-gray-400">Nothing</span>
-      <!-- Run status -->
-      <div v-if="containingRun != null" class="flex flex-row px-1.5">
-        <template v-if="selfRun != null && selfRun.id != containingRun.id">
-          <RunStatus :run="selfRun" icon="dot" />
-          <span class="ml-2 mr-2 text-gray-400">/</span>
-        </template>
-        <RunStatus :run="containingRun" icon="dot" />
-      </div>
+      <template v-if="scope != null && scope.id != target?.id">
+        <span class="mx-0.5 text-gray-400">in</span>
+        <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="regular" />
+      </template>
 
       <!-- Meta/Controls -->
-      <div class="ml-auto flex flex-row items-center">
+      <div class="ml-auto flex flex-row items-center gap-x-1">
+        <!-- Run status -->
+        <div v-if="containingRun != null" class="flex flex-row px-1.5">
+          <RunStatus :run="containingRun" icon="dot" />
+        </div>
+
         <!-- Controls -->
         <div
           class="flex flex-row items-center gap-x-0.5"
