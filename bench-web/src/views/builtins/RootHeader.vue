@@ -17,7 +17,6 @@ const props = defineProps<{
 </script>
 <template>
   <div
-    data-keep-inspection-in-base-view="true"
     class="group flex w-full max-w-full flex-row items-center px-2"
     :style="{ height: HEADER_HEIGHT + 'px' }"
   >

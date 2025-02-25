@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.24.1"
+VERSION = "2025.02.25.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -629,8 +629,8 @@ PACKAGE_TABLE = Table(
         Column("owned_by_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("default_channel_id", PrimitiveType.UUID, is_nullable=True),
-        Column("default_channel_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("main_channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_channel_ck", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
@@ -1336,12 +1336,11 @@ SPACE_TABLE = Table(
         Column("inspection_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("base_id", PrimitiveType.UUID, is_nullable=True),
-        Column("base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("base_type", PrimitiveType.INT16, is_nullable=True),
-        Column("base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("base_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("base_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),

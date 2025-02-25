@@ -912,6 +912,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
         },
       );
     } catch (error) {
+      // nocheckin: handle offline Transaction/connections (just keep buffering the edits)
       // failed
       const fail: CommitFailure = { id: this.bufferedTx!.id, edits: this.bufferedTx!.edits, error: error as RpcError };
       this.failedCommits.value[fail.id] = fail;

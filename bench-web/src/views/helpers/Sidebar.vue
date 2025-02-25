@@ -3,7 +3,16 @@ import { toCamelName } from "@/language/core/const";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
-import { SidebarAspect, IconData, NodeType, NodeTypeOptionInfo, Orientation, TreeViewPreset, ViewData, ViewType } from "@/proto/wire";
+import {
+  SidebarAspect,
+  IconData,
+  NodeType,
+  NodeTypeOptionInfo,
+  Orientation,
+  TreeViewPreset,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import {
   bench,
@@ -34,6 +43,14 @@ import { computed, Ref, ref, toRef } from "vue";
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 42;
+
+const ICON_BY_SIDEBAR_ASPECT: Record<SidebarAspect, IconData> = {
+  [SidebarAspect.UNSPECIFIED]: makeIcon("fas fa-question"),
+  [SidebarAspect.BENCH]: makeIcon("fas fa-box"),
+  [SidebarAspect.ACTIVITY]: makeIcon("fas fa-wave-pulse"),
+  [SidebarAspect.CATALOG]: makeIcon("fas fa-list"),
+  [SidebarAspect.LIBRARY]: makeIcon("fas fa-book"),
+};
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -103,14 +120,6 @@ const USER_MENU_ITEMS = computed(() => {
   return items;
 });
 
-const ICON_BY_HUB_ASPECT: Record<SidebarAspect, IconData> = {
-  [SidebarAspect.UNSPECIFIED]: makeIcon("fas fa-sitemap"),
-  [SidebarAspect.BENCH]: makeIcon("fas fa-sitemap"),
-  [SidebarAspect.ACTIVITY]: makeIcon("fas fa-chart-line"),
-  [SidebarAspect.CATALOG]: makeIcon("fas fa-list"),
-  [SidebarAspect.LIBRARY]: makeIcon("fas fa-book"),
-};
-
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
     ViewData,
@@ -129,7 +138,7 @@ const visibleAspectsOverflow = computed(() => visibleAspects.length * 75 > (prop
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
-const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT);
+const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - FOOTER_HEIGHT);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 
@@ -173,6 +182,7 @@ defineExpose<ViewExpose>({ self });
         height: `${HEADER_HEIGHT}px`,
       }"
     >
+      <!-- Tabs -->
       <button
         v-for="a in visibleAspects"
         :key="a"
@@ -188,10 +198,13 @@ defineExpose<ViewExpose>({ self });
           visibleAspectsOverflow ? 'flex-1 justify-center' : '',
         ]"
         @click="
-          state.update({ metatype: NodeType.VIEW, type: ViewType.SIDEBAR, subnode: { aspect: a } }, { debounce: 'short' })
+          state.update(
+            { metatype: NodeType.VIEW, type: ViewType.SIDEBAR, subnode: { aspect: a } },
+            { debounce: 'short' },
+          )
         "
       >
-        <IconInline v-if="visibleAspectsOverflow" v-bind="ICON_BY_HUB_ASPECT[a]" />
+        <IconInline v-if="visibleAspectsOverflow" v-bind="ICON_BY_SIDEBAR_ASPECT[a]" />
         <span v-else>{{ toCamelName(SidebarAspect, a) }} </span>
       </button>
     </div>

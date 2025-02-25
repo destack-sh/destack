@@ -545,7 +545,7 @@ class ContextAspect(BuiltinEnum):  # :DefaultViewAspects
     DETAIL = 1
     RUN = 2
     CHAT = 3
-    VERSION = 4
+    LOG = 4
 
 
 @subnode_(ViewType.CONTEXT)

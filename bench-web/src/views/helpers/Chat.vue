@@ -1,9 +1,12 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
+import { isInlineSourceNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, getTextLine, isTextEmpty, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
+import { newChangeId } from "@/language/runtime/transaction";
+import { createChannel } from "@/language/source/channel";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
@@ -23,10 +26,10 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
-import { bench, benchConnection, canvas, pkgGraph } from "@/system/space";
+import { bench, benchConnection, canvas, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { user } from "@/system/user";
 import {
   ActionMapImplementation,
@@ -98,9 +101,10 @@ const threadPtr = computed(() => {
 // Messages
 //
 
+const isEnabled = computed(() => channelPtr.value != null);
 const filter = computed(() => {
   const filters: ExpressionData[] = [];
-  // channel
+  // channel (must exist if enabled)
   if (channelPtr.value != null) {
     filters.push(
       makeExpression({
@@ -109,8 +113,6 @@ const filter = computed(() => {
         value: channelPtr.value,
       }),
     );
-  } else {
-    // channel must exist
   }
   // thread
   if (threadPtr.value != null) {
@@ -129,24 +131,6 @@ const filter = computed(() => {
       }),
     );
   }
-  // scope
-  // nocheckin: use Threads for scoping
-  // if (scopePtr.value != null) {
-  //   filters.push(
-  //     makeExpression({
-  //       type: ExpressionType.EQUALS,
-  //       propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
-  //       value: scopePtr.value,
-  //     }),
-  //   );
-  // } else {
-  //   filters.push(
-  //     makeExpression({
-  //       type: ExpressionType.NOT_EXISTS,
-  //       propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.scopePtr),
-  //     }),
-  //   );
-  // }
   return makeAndConditional(filters);
 });
 const {
@@ -163,13 +147,13 @@ const {
       scope: BENCH_SCOPE.value,
       nodeType: NodeType.MESSAGE,
       count: true,
-      isEnabled: channelPtr.value != null,
       filter: filter.value,
     }),
   ),
   {
     nodeType: NodeType.MESSAGE,
     chunkSize: CHUNK_SIZE,
+    isEnabled,
     onAdded: () => {
       // auto-scroll to end if we're at the end
       if (isAtEnd.value) {
@@ -381,18 +365,62 @@ function submitEdit() {
 // draft
 
 function submit() {
-  // create message
-  if (benchPtr.value == null) throw new Error("no bench");
-  if (channelPtr.value == null) throw new Error("no channel");
   const text = trimText(draftText.value ?? emptyText());
   if (isTextEmpty(text)) return; // don't create empty messages
-  createMessage(txFactory(), pkgGraph, {
+  if (benchPtr.value == null) throw new Error("no bench");
+  if (space.value == null) throw new Error("no space");
+
+  let tx = isEnabled.value ? txFactory() : pkgConnection.tx;
+  if (tx.change?.key == null) {
+    tx = tx.with({ change: { key: newChangeId(), title: "Submit" } });
+  }
+  let messageChannelPtr = channelPtr.value;
+  let messageThreadPtr = threadPtr.value;
+  let messageScopePtr = scopePtr.value;
+
+  // create channel/thread if needed
+  // (channelPtr is null means we're given just a scope,
+  //  so we need to create a thread for it in some channel)
+  if (messageChannelPtr == null) {
+    if (nodePtr.value == null) throw new Error("no scope");
+    const node = supergraph.get(nodePtr.value);
+    if (!isInlineSourceNode(node)) {
+      throw new Error(`cannot chat with ${node != null ? describeNode(node) : "???"}`);
+    }
+    messageScopePtr = toNodeRef(node);
+    // channel
+    if (space.value?.channelPtr == null) {
+      const newChannel =
+        pkgGraph.nodes.find((n) => isNode(n, NodeType.CHANNEL)) ??
+        createChannel(tx, pkgGraph, {
+          anchor: "inside",
+          target: pkg.value!,
+          channel: { name: "General" },
+        });
+      messageChannelPtr = toNodeRef(newChannel);
+      tx.update(space.value, { channelPtr: messageChannelPtr });
+    } else {
+      messageChannelPtr = space.value.channelPtr;
+    }
+    const newThread = tx.create({
+      metatype: NodeType.THREAD,
+      benchPtr: benchPtr.value,
+      parentPtr: messageChannelPtr,
+      channelPtr: messageChannelPtr,
+      scopePtr: messageScopePtr,
+    });
+    messageThreadPtr = toNodeRef(newThread);
+    tx.update(node, { threadPtr: messageThreadPtr });
+  }
+
+  // create message
+  createMessage(tx, pkgGraph, {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
-      parentPtr: threadPtr.value ?? channelPtr.value,
-      channelPtr: channelPtr.value,
-      threadPtr: threadPtr.value ?? undefined,
-      scopePtr: scopePtr.value ?? undefined,
+      parentPtr: messageThreadPtr ?? messageChannelPtr,
+      channelPtr: messageChannelPtr,
+      threadPtr: messageThreadPtr ?? undefined,
+      scopePtr: messageScopePtr ?? undefined,
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
       text,
@@ -549,7 +577,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         <!-- Top placeholder -->
         <div
           v-for="i in LOADING_SKELETON_COUNT"
-          v-if="!isAtStart"
+          v-if="!isAtStart && isEnabled"
           ref="topPlaceholderRef"
           :key="i"
           class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
@@ -563,8 +591,12 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           </div>
         </div>
 
+        <!-- Empty Chat -->
+        <div v-if="!isEnabled && messageViews.length == 0" class="mx-5">
+          <slot name="empty" />
+        </div>
         <!-- Beginning of Chat -->
-        <div v-if="isAtStart && $slots.beginning != null" class="mx-5 mb-2">
+        <div v-else-if="isAtStart && $slots.beginning != null" class="mx-5 mb-2">
           <slot name="beginning" />
         </div>
 
@@ -753,7 +785,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         <!-- Loading down 'skeleton' -->
         <div
           v-for="i in LOADING_SKELETON_COUNT"
-          v-if="!isAtEnd"
+          v-if="!isAtEnd && isEnabled"
           ref="bottomPlaceholderRef"
           :key="i"
           class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"

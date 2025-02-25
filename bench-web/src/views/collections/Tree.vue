@@ -18,7 +18,7 @@ import {
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
-import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
+import { canvas } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import {
   isDragging,
@@ -65,8 +65,6 @@ const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "su
 const nodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.PACKAGE) {
     return INLINE_SOURCE_NODE_TYPES;
-  } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return INLINE_SOURCE_NODE_TYPES;
   } else {
     return [];
   }
@@ -76,8 +74,6 @@ const rootPtr = computedValue(() => {
     return props.nodePtr;
   } else if (preset.value == TreeViewPreset.PACKAGE) {
     return packagePtr.value;
-  } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return inspectionBasePtr.value;
   } else {
     return null;
   }
@@ -85,8 +81,6 @@ const rootPtr = computedValue(() => {
 const focusPtr = computedValue(() => {
   if (preset.value == TreeViewPreset.PACKAGE) {
     return packagePtr.value;
-  } else if (preset.value == TreeViewPreset.OUTLINE) {
-    return inspectionPtr.value;
   } else {
     return null;
   }

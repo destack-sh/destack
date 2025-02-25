@@ -1877,7 +1877,7 @@ enum ContextAspect {
   CONTEXT_ASPECT_DETAIL = 1;
   CONTEXT_ASPECT_RUN = 2;
   CONTEXT_ASPECT_CHAT = 3;
-  CONTEXT_ASPECT_VERSION = 4;
+  CONTEXT_ASPECT_LOG = 4;
 }
 
 enum ButtonVariant {
@@ -1934,6 +1934,7 @@ enum MessageType {
   MESSAGE_TYPE_THREAD = 100;
   MESSAGE_TYPE_RUN = 110;
   MESSAGE_TYPE_INTERRUPTION = 120;
+  MESSAGE_TYPE_POLL = 130;
   MESSAGE_TYPE_EDIT = 200;
 }
 
@@ -3631,7 +3632,7 @@ message PackageData {
   optional IconData icon = 35;
   optional NodeReferenceData owned_by_ptr = 36;
   optional NodeReferenceData base_ptr = 40;
-  optional NodeReferenceData default_channel_ptr = 50;
+  optional NodeReferenceData main_channel_ptr = 50;
 }
 
 message PageData {
@@ -3864,8 +3865,9 @@ message SpaceData {
   optional NodeReferenceData owned_by_ptr = 36;
   optional SelectionData focus = 70;
   optional SelectionData selection = 71;
-  optional NodeReferenceData inspection_ptr = 75;
-  optional NodeReferenceData base_ptr = 76;
+  optional NodeReferenceData inspection_ptr = 73;
+  optional NodeReferenceData channel_ptr = 75;
+  optional NodeReferenceData thread_ptr = 76;
   optional NodeReferenceData run_ptr = 77;
 }
 

@@ -322,7 +322,7 @@ export type Connection<K extends GraphConnectionKind, T extends NodeType> = {
   /** Get notified on errors */
   onError: (handler: (status: GrpcStatusName) => void) => void;
   /** Waits for a result matching the predicate */
-  waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void>;
+  waitUntil(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void>;
 };
 
 type ConnectionInternalResult = { subs?: (() => void)[] };
@@ -418,7 +418,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     };
   }
 
-  async waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
+  async waitUntil(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
     return new Promise<void>((resolve) => {
       const stop = immediateStopWatch(this.result, () => {
         if (predicate(this.result.value)) {
@@ -874,7 +874,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     };
   }
 
-  async waitForResult(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
+  async waitUntil(predicate: (result: ConnectionResultMapping<T>[K] | null) => boolean): Promise<void> {
     return new Promise((resolve) => {
       immediateStopWatch(
         () => this.connection.value?.result.value,
@@ -1348,10 +1348,11 @@ export function useSearchConnection<T extends NodeType>(
  * */
 export function useInfiniteSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
-  params: MaybeRef<Omit<SearchConnectionParams<T>, "first" | "sort">>,
+  params: MaybeRef<Omit<SearchConnectionParams<T>, "first" | "sort" | "isEnabled">>,
   options: {
     nodeType: T;
     chunkSize: number;
+    isEnabled: Ref<boolean>;
     onAdded?: () => void;
   },
 ) {
@@ -1359,21 +1360,21 @@ export function useInfiniteSearchConnection<T extends NodeType>(
   const topSide: Ref<Side> = ref("main");
   const bottomSide: Ref<Side> = ref("main");
   const cursorStack: Ref<(Timestamp | null)[]> = ref([]);
-  const mainEnabled: Ref<boolean> = ref(true);
+  const mainActive: Ref<boolean> = ref(true);
   const mainCursor: Ref<Timestamp | null> = ref(null);
-  const otherEnabled: Ref<boolean> = ref(false);
+  const otherActive: Ref<boolean> = ref(false);
   const otherCursor: Ref<Timestamp | null> = ref(null);
   const sort = makeExpression({
     type: ExpressionType.DESCENDING,
     propertyPtr: propertyReference(options.nodeType, EmptyProperty.createdAt),
   });
 
-  function makeSearchParams(isEnabled: boolean, cursor: Timestamp | null) {
+  function makeSearchParams(isActive: boolean, cursor: Timestamp | null) {
     const paramsValue = toValue(params);
     const combinedParams: SearchConnectionParams<T> = {
       ...paramsValue,
       first: options.chunkSize,
-      isEnabled: isEnabled,
+      isEnabled: options.isEnabled.value && isActive,
       sort: [sort],
     };
     if (cursor != null) {
@@ -1389,11 +1390,11 @@ export function useInfiniteSearchConnection<T extends NodeType>(
   }
   const main = useSearchConnection(
     metaIn,
-    computed(() => makeSearchParams(mainEnabled.value, mainCursor.value)),
+    computed(() => makeSearchParams(mainActive.value, mainCursor.value)),
   );
   const other = useSearchConnection(
     metaIn,
-    computed(() => makeSearchParams(otherEnabled.value, otherCursor.value)),
+    computed(() => makeSearchParams(otherActive.value, otherCursor.value)),
   );
 
   function getTop() {
@@ -1442,7 +1443,7 @@ export function useInfiniteSearchConnection<T extends NodeType>(
 
   function go(direction: "up" | "down"): boolean {
     // can't go if we're loading
-    if ((mainEnabled.value && !main.isConnected.value) || (otherEnabled.value && !other.isConnected.value)) {
+    if ((mainActive.value && !main.isConnected.value) || (otherActive.value && !other.isConnected.value)) {
       return false;
     }
 
@@ -1455,13 +1456,13 @@ export function useInfiniteSearchConnection<T extends NodeType>(
       if (topSide.value == "main") {
         cursorStack.value.push(otherCursor.value);
         otherCursor.value = nextCursor;
-        otherEnabled.value = true;
+        otherActive.value = true;
         topSide.value = "other";
         bottomSide.value = "main";
       } else if (topSide.value == "other") {
         cursorStack.value.push(mainCursor.value);
         mainCursor.value = nextCursor;
-        mainEnabled.value = true;
+        mainActive.value = true;
         topSide.value = "main";
         bottomSide.value = "other";
       }
@@ -1472,12 +1473,12 @@ export function useInfiniteSearchConnection<T extends NodeType>(
       const nextCursor = cursorStack.value.pop() ?? null;
       if (bottomSide.value == "main") {
         otherCursor.value = nextCursor;
-        otherEnabled.value = true;
+        otherActive.value = true;
         bottomSide.value = "other";
         topSide.value = "main";
       } else if (bottomSide.value == "other") {
         mainCursor.value = nextCursor;
-        mainEnabled.value = true;
+        mainActive.value = true;
         bottomSide.value = "main";
         topSide.value = "other";
       }
@@ -1494,10 +1495,10 @@ export function useInfiniteSearchConnection<T extends NodeType>(
     topSide,
     bottomSide,
     main,
-    mainEnabled,
+    mainActive,
     mainCursor,
     other,
-    otherEnabled,
+    otherActive,
     otherCursor,
     cursorStack,
     go,

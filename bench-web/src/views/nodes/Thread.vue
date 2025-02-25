@@ -8,7 +8,6 @@ import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
-import Text from "@/views/content/Text.vue";
 import Chat from "@/views/helpers/Chat.vue";
 import { Ref, ref, toRef } from "vue";
 
@@ -39,6 +38,7 @@ defineExpose<ViewExpose>({ self, id });
     <!-- Root header -->
     <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="pkgGraph" />
 
+    <!-- Chat -->
     <Chat
       id="chat"
       :alignment="Alignment.END"

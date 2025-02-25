@@ -70,7 +70,8 @@ export const ownedSpacesInPkg = computed(() =>
 
 // selection
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
-export const inspectionBasePtr = computed(() => space.value?.basePtr);
+export const channelPtr = computed(() => space.value?.channelPtr);
+export const threadPtr = computed(() => space.value?.threadPtr);
 
 // spaceGraph should point to current space
 watch(
@@ -89,7 +90,7 @@ watch(
 watch(
   spacePtr,
   async () => {
-    await spaceConnection.waitForResult((result) => result?.graph.get({ id: spacePtr.value.id }) != null);
+    await spaceConnection.waitUntil((result) => result?.graph.get({ id: spacePtr.value.id }) != null);
     // NOTE :Robustness :Cleanup: why doesn't nextTick work to restoreComponentFocus on space change?
     //  (all the views should get rendered immediately, right..?)
     setTimeout(() => {
@@ -162,7 +163,7 @@ export async function goToBench(go: {
   });
 
   // figure out space once package is loaded
-  await pkgConnection.waitForResult((result) => result?.graph.get({ id: packagePtr.id }) != null);
+  await pkgConnection.waitUntil((result) => result?.graph.get({ id: packagePtr.id }) != null);
   const pkg = supergraph.get(packagePtr);
   if (!isNode(pkg, NodeType.PACKAGE)) {
     throw new Error(`could not load package: ${describeNode(packagePtr)}`);

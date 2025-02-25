@@ -50,13 +50,14 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
-    REGULAR = 1, "Standard Message"
-    REPLY = 2, "Reply to another Message"
-    FORWARDED = 3, "Forwarded Message"
-    THREAD = 100, "Begin a Thread"
-    RUN = 110, "Begin a Run"
-    INTERRUPTION = 120, "Interrupt a Run"
-    EDIT = 200, "Edited the Bench"
+    REGULAR = 1, "Regular", "Standard Message", "fas fa-envelope"
+    REPLY = 2, "Reply", "Reply to another Message", "fas fa-reply"
+    FORWARDED = 3, "Forwarded", "Forwarded Message", "fas fa-forward"
+    THREAD = 100, "Thread", "Begin a Thread", "fas fa-thread"
+    RUN = 110, "Run", "Begin a Run", "fas fa-play"
+    INTERRUPTION = 120, "Interruption", "Interrupt a Run", "fas fa-hand"
+    POLL = 130, "Poll", "Poll for a response", "fas fa-ballot"
+    EDIT = 200, "Edited", "Edited the Bench", "fas fa-pencil"
     # also see https://discord.com/developers/docs/resources/message
 
 
