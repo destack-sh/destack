@@ -25,7 +25,7 @@ import {
   TypeFormatOptionInfo,
   TypeKind,
   type AnyNodeData,
-  type IconData
+  type IconData,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
@@ -37,7 +37,7 @@ import type { FunctionalComponent } from "vue";
  *
  * fa-icons is generated with:
  * curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
- * | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
+ * | jq 'to_entries | map(select(.value.free | index("solid")) | {"id": .key, label: .value.label, unicode: .value.unicode, aliases: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
  * > src/assets/fa-icons.json
  */
 
@@ -58,9 +58,13 @@ export function fontAwesomeIcon(data: FontAwesomeIcon, color?: ColorData | undef
   };
 }
 export const AVAILABLE_FA_ICONS: FontAwesomeIcon[] = _AVAILABLE_FA_ICONS.map((i) => ({
-  ...i,
+  id: i.id,
+  title: i.label,
+  unicode: i.unicode,
+  aliases: i.aliases,
+  family: i.family as "fas" | "fab",
   faName: `${i.family} fa-${i.id}`,
-})) as FontAwesomeIcon[];
+})) satisfies FontAwesomeIcon[];
 
 /**
  * Emoji icons
