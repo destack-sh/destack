@@ -131,8 +131,8 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ALIGNMENT: _ClassVar[EnumType]
     ENUM_TYPE_USER_WIZARD_STAGE: _ClassVar[EnumType]
     ENUM_TYPE_TREE_VIEW_PRESET: _ClassVar[EnumType]
-    ENUM_TYPE_HUB_ASPECT: _ClassVar[EnumType]
-    ENUM_TYPE_HELP_ASPECT: _ClassVar[EnumType]
+    ENUM_TYPE_SIDEBAR_ASPECT: _ClassVar[EnumType]
+    ENUM_TYPE_CONTEXT_ASPECT: _ClassVar[EnumType]
     ENUM_TYPE_BUTTON_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_PICKER_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
@@ -581,8 +581,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ALIGNMENT: _ClassVar[BenchType]
     BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
     BENCH_TYPE_TREE_VIEW_PRESET: _ClassVar[BenchType]
-    BENCH_TYPE_HUB_ASPECT: _ClassVar[BenchType]
-    BENCH_TYPE_HELP_ASPECT: _ClassVar[BenchType]
+    BENCH_TYPE_SIDEBAR_ASPECT: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT_ASPECT: _ClassVar[BenchType]
     BENCH_TYPE_BUTTON_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_PICKER_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
@@ -1632,8 +1632,8 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_EMPTY: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
-    VIEW_TYPE_HUB: _ClassVar[ViewType]
-    VIEW_TYPE_HELP: _ClassVar[ViewType]
+    VIEW_TYPE_SIDEBAR: _ClassVar[ViewType]
+    VIEW_TYPE_CONTEXT: _ClassVar[ViewType]
     VIEW_TYPE_ACTIVITY: _ClassVar[ViewType]
     VIEW_TYPE_CATALOG: _ClassVar[ViewType]
     VIEW_TYPE_WINDOW: _ClassVar[ViewType]
@@ -1841,21 +1841,21 @@ class TreeViewPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TREE_VIEW_PRESET_PACKAGE: _ClassVar[TreeViewPreset]
     TREE_VIEW_PRESET_OUTLINE: _ClassVar[TreeViewPreset]
 
-class HubAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class SidebarAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    HUB_ASPECT_UNSPECIFIED: _ClassVar[HubAspect]
-    HUB_ASPECT_BENCH: _ClassVar[HubAspect]
-    HUB_ASPECT_ACTIVITY: _ClassVar[HubAspect]
-    HUB_ASPECT_CATALOG: _ClassVar[HubAspect]
-    HUB_ASPECT_LIBRARY: _ClassVar[HubAspect]
+    SIDEBAR_ASPECT_UNSPECIFIED: _ClassVar[SidebarAspect]
+    SIDEBAR_ASPECT_BENCH: _ClassVar[SidebarAspect]
+    SIDEBAR_ASPECT_ACTIVITY: _ClassVar[SidebarAspect]
+    SIDEBAR_ASPECT_CATALOG: _ClassVar[SidebarAspect]
+    SIDEBAR_ASPECT_LIBRARY: _ClassVar[SidebarAspect]
 
-class HelpAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ContextAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    HELP_ASPECT_UNSPECIFIED: _ClassVar[HelpAspect]
-    HELP_ASPECT_DETAIL: _ClassVar[HelpAspect]
-    HELP_ASPECT_RUN: _ClassVar[HelpAspect]
-    HELP_ASPECT_CHAT: _ClassVar[HelpAspect]
-    HELP_ASPECT_VERSION: _ClassVar[HelpAspect]
+    CONTEXT_ASPECT_UNSPECIFIED: _ClassVar[ContextAspect]
+    CONTEXT_ASPECT_DETAIL: _ClassVar[ContextAspect]
+    CONTEXT_ASPECT_RUN: _ClassVar[ContextAspect]
+    CONTEXT_ASPECT_CHAT: _ClassVar[ContextAspect]
+    CONTEXT_ASPECT_VERSION: _ClassVar[ContextAspect]
 
 class ButtonVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2071,8 +2071,8 @@ ENUM_TYPE_ORIENTATION: EnumType
 ENUM_TYPE_ALIGNMENT: EnumType
 ENUM_TYPE_USER_WIZARD_STAGE: EnumType
 ENUM_TYPE_TREE_VIEW_PRESET: EnumType
-ENUM_TYPE_HUB_ASPECT: EnumType
-ENUM_TYPE_HELP_ASPECT: EnumType
+ENUM_TYPE_SIDEBAR_ASPECT: EnumType
+ENUM_TYPE_CONTEXT_ASPECT: EnumType
 ENUM_TYPE_BUTTON_VARIANT: EnumType
 ENUM_TYPE_PICKER_VARIANT: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
@@ -2509,8 +2509,8 @@ BENCH_TYPE_ORIENTATION: BenchType
 BENCH_TYPE_ALIGNMENT: BenchType
 BENCH_TYPE_USER_WIZARD_STAGE: BenchType
 BENCH_TYPE_TREE_VIEW_PRESET: BenchType
-BENCH_TYPE_HUB_ASPECT: BenchType
-BENCH_TYPE_HELP_ASPECT: BenchType
+BENCH_TYPE_SIDEBAR_ASPECT: BenchType
+BENCH_TYPE_CONTEXT_ASPECT: BenchType
 BENCH_TYPE_BUTTON_VARIANT: BenchType
 BENCH_TYPE_PICKER_VARIANT: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
@@ -3284,8 +3284,8 @@ VIEW_TYPE_BENCH_WIZARD: ViewType
 VIEW_TYPE_EMPTY: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType
-VIEW_TYPE_HUB: ViewType
-VIEW_TYPE_HELP: ViewType
+VIEW_TYPE_SIDEBAR: ViewType
+VIEW_TYPE_CONTEXT: ViewType
 VIEW_TYPE_ACTIVITY: ViewType
 VIEW_TYPE_CATALOG: ViewType
 VIEW_TYPE_WINDOW: ViewType
@@ -3459,16 +3459,16 @@ USER_WIZARD_VIEW_STAGE_LOG_IN: UserWizardViewStage
 TREE_VIEW_PRESET_UNSPECIFIED: TreeViewPreset
 TREE_VIEW_PRESET_PACKAGE: TreeViewPreset
 TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
-HUB_ASPECT_UNSPECIFIED: HubAspect
-HUB_ASPECT_BENCH: HubAspect
-HUB_ASPECT_ACTIVITY: HubAspect
-HUB_ASPECT_CATALOG: HubAspect
-HUB_ASPECT_LIBRARY: HubAspect
-HELP_ASPECT_UNSPECIFIED: HelpAspect
-HELP_ASPECT_DETAIL: HelpAspect
-HELP_ASPECT_RUN: HelpAspect
-HELP_ASPECT_CHAT: HelpAspect
-HELP_ASPECT_VERSION: HelpAspect
+SIDEBAR_ASPECT_UNSPECIFIED: SidebarAspect
+SIDEBAR_ASPECT_BENCH: SidebarAspect
+SIDEBAR_ASPECT_ACTIVITY: SidebarAspect
+SIDEBAR_ASPECT_CATALOG: SidebarAspect
+SIDEBAR_ASPECT_LIBRARY: SidebarAspect
+CONTEXT_ASPECT_UNSPECIFIED: ContextAspect
+CONTEXT_ASPECT_DETAIL: ContextAspect
+CONTEXT_ASPECT_RUN: ContextAspect
+CONTEXT_ASPECT_CHAT: ContextAspect
+CONTEXT_ASPECT_VERSION: ContextAspect
 BUTTON_VARIANT_UNSPECIFIED: ButtonVariant
 BUTTON_VARIANT_PRIMARY: ButtonVariant
 BUTTON_VARIANT_SECONDARY: ButtonVariant
@@ -6790,17 +6790,17 @@ class ChatViewData(_message.Message):
     scope_ptr: NodeReferenceData
     def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
-class HubViewData(_message.Message):
+class SidebarViewData(_message.Message):
     __slots__ = ("aspect",)
     ASPECT_FIELD_NUMBER: _ClassVar[int]
-    aspect: HubAspect
-    def __init__(self, aspect: _Optional[_Union[HubAspect, str]] = ...) -> None: ...
+    aspect: SidebarAspect
+    def __init__(self, aspect: _Optional[_Union[SidebarAspect, str]] = ...) -> None: ...
 
-class HelpViewData(_message.Message):
+class ContextViewData(_message.Message):
     __slots__ = ("aspect",)
     ASPECT_FIELD_NUMBER: _ClassVar[int]
-    aspect: HelpAspect
-    def __init__(self, aspect: _Optional[_Union[HelpAspect, str]] = ...) -> None: ...
+    aspect: ContextAspect
+    def __init__(self, aspect: _Optional[_Union[ContextAspect, str]] = ...) -> None: ...
 
 class ListViewData(_message.Message):
     __slots__ = ("query_node_type", "filter", "sort")

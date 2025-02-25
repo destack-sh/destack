@@ -6203,24 +6203,24 @@ export interface ChatViewData {
 /**
  * A View is a graphical interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.HubViewData
+ * @generated from protobuf message symbolx.bench.SidebarViewData
  */
-export interface HubViewData {
+export interface SidebarViewData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.HubAspect aspect = 100;
+     * @generated from protobuf field: optional symbolx.bench.SidebarAspect aspect = 100;
      */
-    aspect?: HubAspect;
+    aspect?: SidebarAspect;
 }
 /**
  * A View is a graphical interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.HelpViewData
+ * @generated from protobuf message symbolx.bench.ContextViewData
  */
-export interface HelpViewData {
+export interface ContextViewData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.HelpAspect aspect = 100;
+     * @generated from protobuf field: optional symbolx.bench.ContextAspect aspect = 100;
      */
-    aspect?: HelpAspect;
+    aspect?: ContextAspect;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -7778,13 +7778,13 @@ export enum EnumType {
      */
     TREE_VIEW_PRESET = 22412,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_HUB_ASPECT = 22413;
+     * @generated from protobuf enum value: ENUM_TYPE_SIDEBAR_ASPECT = 22413;
      */
-    HUB_ASPECT = 22413,
+    SIDEBAR_ASPECT = 22413,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_HELP_ASPECT = 22414;
+     * @generated from protobuf enum value: ENUM_TYPE_CONTEXT_ASPECT = 22414;
      */
-    HELP_ASPECT = 22414,
+    CONTEXT_ASPECT = 22414,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_BUTTON_VARIANT = 22415;
      */
@@ -9550,13 +9550,13 @@ export enum BenchType {
      */
     TREE_VIEW_PRESET = 22412,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_HUB_ASPECT = 22413;
+     * @generated from protobuf enum value: BENCH_TYPE_SIDEBAR_ASPECT = 22413;
      */
-    HUB_ASPECT = 22413,
+    SIDEBAR_ASPECT = 22413,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_HELP_ASPECT = 22414;
+     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT_ASPECT = 22414;
      */
-    HELP_ASPECT = 22414,
+    CONTEXT_ASPECT = 22414,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_BUTTON_VARIANT = 22415;
      */
@@ -13162,13 +13162,13 @@ export enum ViewType {
      */
     CHAT = 20202,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HUB = 20205;
+     * @generated from protobuf enum value: VIEW_TYPE_SIDEBAR = 20205;
      */
-    HUB = 20205,
+    SIDEBAR = 20205,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_HELP = 20206;
+     * @generated from protobuf enum value: VIEW_TYPE_CONTEXT = 20206;
      */
-    HELP = 20206,
+    CONTEXT = 20206,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_ACTIVITY = 20207;
      */
@@ -13932,52 +13932,52 @@ export enum TreeViewPreset {
     OUTLINE = 3
 }
 /**
- * @generated from protobuf enum symbolx.bench.HubAspect
+ * @generated from protobuf enum symbolx.bench.SidebarAspect
  */
-export enum HubAspect {
+export enum SidebarAspect {
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: SIDEBAR_ASPECT_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_BENCH = 1;
+     * @generated from protobuf enum value: SIDEBAR_ASPECT_BENCH = 1;
      */
     BENCH = 1,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_ACTIVITY = 2;
+     * @generated from protobuf enum value: SIDEBAR_ASPECT_ACTIVITY = 2;
      */
     ACTIVITY = 2,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_CATALOG = 3;
+     * @generated from protobuf enum value: SIDEBAR_ASPECT_CATALOG = 3;
      */
     CATALOG = 3,
     /**
-     * @generated from protobuf enum value: HUB_ASPECT_LIBRARY = 4;
+     * @generated from protobuf enum value: SIDEBAR_ASPECT_LIBRARY = 4;
      */
     LIBRARY = 4
 }
 /**
- * @generated from protobuf enum symbolx.bench.HelpAspect
+ * @generated from protobuf enum symbolx.bench.ContextAspect
  */
-export enum HelpAspect {
+export enum ContextAspect {
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: CONTEXT_ASPECT_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_DETAIL = 1;
+     * @generated from protobuf enum value: CONTEXT_ASPECT_DETAIL = 1;
      */
     DETAIL = 1,
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_RUN = 2;
+     * @generated from protobuf enum value: CONTEXT_ASPECT_RUN = 2;
      */
     RUN = 2,
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_CHAT = 3;
+     * @generated from protobuf enum value: CONTEXT_ASPECT_CHAT = 3;
      */
     CHAT = 3,
     /**
-     * @generated from protobuf enum value: HELP_ASPECT_VERSION = 4;
+     * @generated from protobuf enum value: CONTEXT_ASPECT_VERSION = 4;
      */
     VERSION = 4
 }
@@ -29449,24 +29449,24 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
  */
 export const ChatViewData = new ChatViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class HubViewData$Type extends MessageType$<HubViewData> {
+class SidebarViewData$Type extends MessageType$<SidebarViewData> {
     constructor() {
-        super("symbolx.bench.HubViewData", [
-            { no: 100, name: "aspect", kind: "enum", opt: true, T: () => ["symbolx.bench.HubAspect", HubAspect, "HUB_ASPECT_"] }
+        super("symbolx.bench.SidebarViewData", [
+            { no: 100, name: "aspect", kind: "enum", opt: true, T: () => ["symbolx.bench.SidebarAspect", SidebarAspect, "SIDEBAR_ASPECT_"] }
         ]);
     }
-    create(value?: PartialMessage<HubViewData>): HubViewData {
+    create(value?: PartialMessage<SidebarViewData>): SidebarViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<HubViewData>(this, message, value);
+            reflectionMergePartial<SidebarViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HubViewData): HubViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SidebarViewData): SidebarViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.HubAspect aspect */ 100:
+                case /* optional symbolx.bench.SidebarAspect aspect */ 100:
                     message.aspect = reader.int32();
                     break;
                 default:
@@ -29480,8 +29480,8 @@ class HubViewData$Type extends MessageType$<HubViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: HubViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.HubAspect aspect = 100; */
+    internalBinaryWrite(message: SidebarViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.SidebarAspect aspect = 100; */
         if (message.aspect !== undefined)
             writer.tag(100, WireType.Varint).int32(message.aspect);
         let u = options.writeUnknownFields;
@@ -29491,28 +29491,28 @@ class HubViewData$Type extends MessageType$<HubViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.HubViewData
+ * @generated MessageType for protobuf message symbolx.bench.SidebarViewData
  */
-export const HubViewData = new HubViewData$Type();
+export const SidebarViewData = new SidebarViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class HelpViewData$Type extends MessageType$<HelpViewData> {
+class ContextViewData$Type extends MessageType$<ContextViewData> {
     constructor() {
-        super("symbolx.bench.HelpViewData", [
-            { no: 100, name: "aspect", kind: "enum", opt: true, T: () => ["symbolx.bench.HelpAspect", HelpAspect, "HELP_ASPECT_"] }
+        super("symbolx.bench.ContextViewData", [
+            { no: 100, name: "aspect", kind: "enum", opt: true, T: () => ["symbolx.bench.ContextAspect", ContextAspect, "CONTEXT_ASPECT_"] }
         ]);
     }
-    create(value?: PartialMessage<HelpViewData>): HelpViewData {
+    create(value?: PartialMessage<ContextViewData>): ContextViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<HelpViewData>(this, message, value);
+            reflectionMergePartial<ContextViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: HelpViewData): HelpViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ContextViewData): ContextViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.HelpAspect aspect */ 100:
+                case /* optional symbolx.bench.ContextAspect aspect */ 100:
                     message.aspect = reader.int32();
                     break;
                 default:
@@ -29526,8 +29526,8 @@ class HelpViewData$Type extends MessageType$<HelpViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: HelpViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.HelpAspect aspect = 100; */
+    internalBinaryWrite(message: ContextViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.ContextAspect aspect = 100; */
         if (message.aspect !== undefined)
             writer.tag(100, WireType.Varint).int32(message.aspect);
         let u = options.writeUnknownFields;
@@ -29537,9 +29537,9 @@ class HelpViewData$Type extends MessageType$<HelpViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.HelpViewData
+ * @generated MessageType for protobuf message symbolx.bench.ContextViewData
  */
-export const HelpViewData = new HelpViewData$Type();
+export const ContextViewData = new ContextViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListViewData$Type extends MessageType$<ListViewData> {
     constructor() {
@@ -32530,8 +32530,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
   [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
-  [EnumType.HUB_ASPECT]: HubAspect,
-  [EnumType.HELP_ASPECT]: HelpAspect,
+  [EnumType.SIDEBAR_ASPECT]: SidebarAspect,
+  [EnumType.CONTEXT_ASPECT]: ContextAspect,
   [EnumType.BUTTON_VARIANT]: ButtonVariant,
   [EnumType.PICKER_VARIANT]: PickerVariant,
   [EnumType.USER_STATUS]: UserStatus,
@@ -32706,14 +32706,14 @@ export interface TriggerSubtypeMapping extends Record<TriggerType, TriggerSubtyp
   [TriggerType.MESSAGE]: MessageTriggerData,
 }
 
-export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | HubViewData | HelpViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
+export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | SidebarViewData | ContextViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.RUN]: RunViewData,
   [ViewType.OBJECT]: ObjectViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.CHAT]: ChatViewData,
-  [ViewType.HUB]: HubViewData,
-  [ViewType.HELP]: HelpViewData,
+  [ViewType.SIDEBAR]: SidebarViewData,
+  [ViewType.CONTEXT]: ContextViewData,
   [ViewType.LIST]: ListViewData,
   [ViewType.TREE]: TreeViewData,
   [ViewType.FEED]: FeedViewData,
@@ -32948,8 +32948,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
   [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
-  [EnumType.HUB_ASPECT]: HubAspect,
-  [EnumType.HELP_ASPECT]: HelpAspect,
+  [EnumType.SIDEBAR_ASPECT]: SidebarAspect,
+  [EnumType.CONTEXT_ASPECT]: ContextAspect,
   [EnumType.BUTTON_VARIANT]: ButtonVariant,
   [EnumType.PICKER_VARIANT]: PickerVariant,
   [EnumType.USER_STATUS]: UserStatus,
@@ -34365,11 +34365,11 @@ export enum ChatViewProperty {
   scopePtr = 110,
 }
 
-export enum HubViewProperty {
+export enum SidebarViewProperty {
   aspect = 100,
 }
 
-export enum HelpViewProperty {
+export enum ContextViewProperty {
   aspect = 100,
 }
 
@@ -35260,8 +35260,8 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.OBJECT]: ObjectViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.CHAT]: ChatViewProperty,
-  [ViewType.HUB]: HubViewProperty,
-  [ViewType.HELP]: HelpViewProperty,
+  [ViewType.SIDEBAR]: SidebarViewProperty,
+  [ViewType.CONTEXT]: ContextViewProperty,
   [ViewType.LIST]: ListViewProperty,
   [ViewType.TREE]: TreeViewProperty,
   [ViewType.FEED]: FeedViewProperty,
@@ -35526,8 +35526,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35558,8 +35558,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.24.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36668,11 +36668,11 @@ export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
   [ChatViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ChatViewProperty.scopePtr]: { id: 110, name: 'scope_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
-export const HubViewDataInfo: Record<HubViewProperty, PropertyInfo> = {
-  [HubViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20205, enumType: EnumType.HUB_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+export const SidebarViewDataInfo: Record<SidebarViewProperty, PropertyInfo> = {
+  [SidebarViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20205, enumType: EnumType.SIDEBAR_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
-export const HelpViewDataInfo: Record<HelpViewProperty, PropertyInfo> = {
-  [HelpViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20206, enumType: EnumType.HELP_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+export const ContextViewDataInfo: Record<ContextViewProperty, PropertyInfo> = {
+  [ContextViewProperty.aspect]: { id: 100, name: 'aspect', component: ObjectType.VIEW, componentSubtype: 20206, enumType: EnumType.CONTEXT_ASPECT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
   [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 30300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -37368,8 +37368,8 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.OBJECT]: ObjectViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.CHAT]: ChatViewDataInfo,
-  [ViewType.HUB]: HubViewDataInfo,
-  [ViewType.HELP]: HelpViewDataInfo,
+  [ViewType.SIDEBAR]: SidebarViewDataInfo,
+  [ViewType.CONTEXT]: ContextViewDataInfo,
   [ViewType.LIST]: ListViewDataInfo,
   [ViewType.TREE]: TreeViewDataInfo,
   [ViewType.FEED]: FeedViewDataInfo,
@@ -37783,8 +37783,8 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.EMPTY]: { id: 20100, name: 'EMPTY', text: 'For debugging', title: 'Empty view', icon: 'fas fa-bug' },
   [ViewType.CREATE]: { id: 20201, name: 'CREATE', icon: 'fas fa-plus' },
   [ViewType.CHAT]: { id: 20202, name: 'CHAT', icon: 'fas fa-message' },
-  [ViewType.HUB]: { id: 20205, name: 'HUB', icon: 'fas fa-object-group' },
-  [ViewType.HELP]: { id: 20206, name: 'HELP', icon: 'fas fa-question' },
+  [ViewType.SIDEBAR]: { id: 20205, name: 'SIDEBAR', icon: 'fas fa-object-group' },
+  [ViewType.CONTEXT]: { id: 20206, name: 'CONTEXT', icon: 'fas fa-question' },
   [ViewType.ACTIVITY]: { id: 20207, name: 'ACTIVITY', icon: 'fas fa-list-timeline' },
   [ViewType.CATALOG]: { id: 20208, name: 'CATALOG', icon: 'fas fa-th-large' },
   [ViewType.WINDOW]: { id: 30001, name: 'WINDOW', text: 'Full window', title: 'Window', icon: 'fas fa-window' },
