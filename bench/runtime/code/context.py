@@ -23,7 +23,7 @@ from bench.language import (
     render,
     upload_file,
 )
-from bench.runtime.core import Runtime
+from bench.runtime.core import Runner, Runtime
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
@@ -63,6 +63,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "runtime": Runtime,
     "bench": Bench,
     "run": Run,
+    "runner": Runner,
     "aliasing": Aliasing,
     "variables": CustomObject,
     "inputs": CustomObject,

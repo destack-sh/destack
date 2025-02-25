@@ -137,6 +137,7 @@ class CodeRunner(Runner, ABC):
             "runtime": self.runtime,
             "bench": self.runtime.bench,
             "run": self.closest_tracked_run,
+            "runner": self,
             "aliasing": self.aliasing,
             "variables": self.variables or {},
             "inputs": self.inputs or {},

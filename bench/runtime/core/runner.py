@@ -406,6 +406,19 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         else:
             return None
 
+    def get_runs(self, runnable: RunnableNode) -> list[Run]:
+        """Find all Runs of a Node in this Runner."""
+        root_runner = self.root
+        root_run = root_runner.tracked_run
+        if root_run is None:
+            return []
+        return root_run.get_runs(runnable, recursive=True)
+
+    def get_latest_run(self, runnable: RunnableNode) -> Run | None:
+        """Find the latest Run of a Node in this Runner tree."""
+        matching_runs = self.get_runs(runnable)
+        return matching_runs[0] if matching_runs else None
+
     #
     # Hooks
     #
