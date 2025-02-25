@@ -1,7 +1,7 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
-from typing import Any, Callable, Mapping, Sequence, cast
+from typing import Any, Callable, Mapping, Sequence, assert_never, cast
 from uuid import UUID
 
 import structlog
@@ -988,7 +988,12 @@ class Runtime:
                     if (trigger := run.trigger) is not None
                     else TriggerEffect.START_RUN
                 )
-                if trigger_effect == TriggerEffect.START_RUN:
+                if (
+                    trigger_effect == TriggerEffect.START_RUN
+                    or trigger_effect == TriggerEffect.ENSURE_RUN
+                    or trigger_effect == TriggerEffect.REPLACE_RUN
+                ):
+                    # nocheckin: handle ENSURE_RUN/REPLACE_RUN Triggers
                     # lift into new flow
                     self.session.commit_optimistic()
                     outer_run = create_run_from_node(
@@ -1000,7 +1005,7 @@ class Runtime:
                     logger.debug("runtime.run.lift", inner_run=run, outer_run=outer_run)
                     runner, run = await self._load_runner(outer_run)
                 else:
-                    raise NotImplementedError(f"unsupported trigger {trigger_effect!r} for {run!r}")
+                    assert_never(trigger_effect)
 
             # actually run
             async with isolated_graph():

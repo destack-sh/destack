@@ -75,8 +75,7 @@ class TriggerEffect(BuiltinEnum):
 @node_(NodeType.TRIGGER, has_subtypes=True)
 class Trigger(SourceNode[TriggerData]):
     """
-    A Trigger is an event-driven condition that, once met, affects the runtime.
-    Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
+    A Trigger is an event-driven condition that, once met, affects the runtime somehow.
     """
 
     parent: Union["Action", "Run", None] = p_node_parent(4, NodeType.ACTION, NodeType.RUN)
@@ -174,3 +173,4 @@ class MessageTrigger(Trigger):
     thread: Optional["Thread"] = p_regular(
         101, require=False, array=False, references=NodeType.THREAD
     )
+    is_mentioned: Optional[bool] = p_regular(102, require=False, array=False, default=None)

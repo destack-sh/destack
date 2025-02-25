@@ -37,11 +37,8 @@ import {
   ActionType,
   AnyNodeData,
   BenchType,
-  ChannelProperty,
-  ChoiceProperty,
   ComputedValueData,
   CreateActionProperty,
-  DatabaseProperty,
   DeleteActionProperty,
   DuplicateActionProperty,
   EditOperationData,
@@ -75,6 +72,7 @@ import {
   RunOptionsProperty,
   RunProperty,
   ScrollActionProperty,
+  SendActionProperty,
   ToolFilter,
   ToolSelectionProperty,
   TypeActionProperty,
@@ -925,7 +923,7 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
     DuplicateActionProperty.duplicatedNodePtr,
   ],
   [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
-  // async
+  // communicate
   [ActionType.WAIT]: [WaitActionProperty.delay],
   // application
   [ActionType.CLICK]: [],
@@ -1165,6 +1163,16 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     } else if (node.type == ActionType.FAIL) {
       commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
+    } else if (node.type == ActionType.SEND) {
+      // nocheckin: why is this Sendaction.messageInPacked not working?
+      //  (should have Message type pre-filled and edits shown..)
+      commonRows.push(
+        this.rowObjectNested(
+          SendActionProperty.messageInPacked,
+          makeType({ kind: TypeKind.PARTIAL_OBJECT, benchType: BenchType.MESSAGE }),
+          { isComputable: true },
+        ),
+      );
     }
 
     // schema
@@ -1180,6 +1188,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       ...this.actionSubproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
     );
 
+    // tools
     if ((this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) && !this.isPartial) {
       this.sectionTools();
     }

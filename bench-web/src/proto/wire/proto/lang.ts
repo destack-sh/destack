@@ -4515,13 +4515,9 @@ export interface SendActionData {
      */
     messageInPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional bool is_blocking = 130;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 200;
      */
-    isBlocking?: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_out_ptr = 200;
-     */
-    messageOutPtr?: NodeReferenceData;
+    messagePtr?: NodeReferenceData;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -4530,13 +4526,9 @@ export interface SendActionData {
  */
 export interface ReceiveActionData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_in_ptr = 100;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 100;
      */
-    messageInPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_out_ptr = 200;
-     */
-    messageOutPtr?: NodeReferenceData;
+    messagePtr?: NodeReferenceData;
 }
 /**
  * A data or control flow node in a Flow. Actions are connected by Pipes.
@@ -6651,8 +6643,7 @@ export interface TriggerData {
     closedAt?: Timestamp;
 }
 /**
- * A Trigger is an event-driven condition that, once met, affects the runtime.
- * Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
+ * A Trigger is an event-driven condition that, once met, affects the runtime somehow.
  *
  * @generated from protobuf message symbolx.bench.ScheduleTriggerData
  */
@@ -6663,8 +6654,7 @@ export interface ScheduleTriggerData {
     schedule?: ScheduleData;
 }
 /**
- * A Trigger is an event-driven condition that, once met, affects the runtime.
- * Depending on its type and scope, it causes some effect (like starting a Run or interrupting a Task).
+ * A Trigger is an event-driven condition that, once met, affects the runtime somehow.
  *
  * @generated from protobuf message symbolx.bench.MessageTriggerData
  */
@@ -25519,8 +25509,7 @@ class SendActionData$Type extends MessageType$<SendActionData> {
     constructor() {
         super("symbolx.bench.SendActionData", [
             { no: 121, name: "message_in_packed", kind: "message", T: () => Value },
-            { no: 130, name: "is_blocking", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 200, name: "message_out_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 200, name: "message_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SendActionData>): SendActionData {
@@ -25537,11 +25526,8 @@ class SendActionData$Type extends MessageType$<SendActionData> {
                 case /* optional google.protobuf.Value message_in_packed */ 121:
                     message.messageInPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional bool is_blocking */ 130:
-                    message.isBlocking = reader.bool();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData message_out_ptr */ 200:
-                    message.messageOutPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messageOutPtr);
+                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 200:
+                    message.messagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messagePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25558,12 +25544,9 @@ class SendActionData$Type extends MessageType$<SendActionData> {
         /* optional google.protobuf.Value message_in_packed = 121; */
         if (message.messageInPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.messageInPacked), writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_blocking = 130; */
-        if (message.isBlocking !== undefined)
-            writer.tag(130, WireType.Varint).bool(message.isBlocking);
-        /* optional symbolx.bench.NodeReferenceData message_out_ptr = 200; */
-        if (message.messageOutPtr)
-            NodeReferenceData.internalBinaryWrite(message.messageOutPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData message_ptr = 200; */
+        if (message.messagePtr)
+            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25578,8 +25561,7 @@ export const SendActionData = new SendActionData$Type();
 class ReceiveActionData$Type extends MessageType$<ReceiveActionData> {
     constructor() {
         super("symbolx.bench.ReceiveActionData", [
-            { no: 100, name: "message_in_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 200, name: "message_out_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 100, name: "message_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ReceiveActionData>): ReceiveActionData {
@@ -25593,11 +25575,8 @@ class ReceiveActionData$Type extends MessageType$<ReceiveActionData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData message_in_ptr */ 100:
-                    message.messageInPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messageInPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData message_out_ptr */ 200:
-                    message.messageOutPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messageOutPtr);
+                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 100:
+                    message.messagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messagePtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -25611,12 +25590,9 @@ class ReceiveActionData$Type extends MessageType$<ReceiveActionData> {
         return message;
     }
     internalBinaryWrite(message: ReceiveActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData message_in_ptr = 100; */
-        if (message.messageInPtr)
-            NodeReferenceData.internalBinaryWrite(message.messageInPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData message_out_ptr = 200; */
-        if (message.messageOutPtr)
-            NodeReferenceData.internalBinaryWrite(message.messageOutPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData message_ptr = 100; */
+        if (message.messagePtr)
+            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -34263,13 +34239,11 @@ export enum WaitActionProperty {
 
 export enum SendActionProperty {
   messageInPacked = 121,
-  isBlocking = 130,
-  messageOutPtr = 200,
+  messagePtr = 200,
 }
 
 export enum ReceiveActionProperty {
-  messageInPtr = 100,
-  messageOutPtr = 200,
+  messagePtr = 100,
 }
 
 export enum YieldActionProperty {
@@ -35542,8 +35516,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35574,8 +35548,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.25.4", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36587,12 +36561,10 @@ export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
 }
 export const SendActionDataInfo: Record<SendActionProperty, PropertyInfo> = {
   [SendActionProperty.messageInPacked]: { id: 121, name: 'message_in_packed', component: ObjectType.ACTION, componentSubtype: 510, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-  [SendActionProperty.isBlocking]: { id: 130, name: 'is_blocking', component: ObjectType.ACTION, componentSubtype: 510, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [SendActionProperty.messageOutPtr]: { id: 200, name: 'message_out_ptr', component: ObjectType.ACTION, componentSubtype: 510, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SendActionProperty.messagePtr]: { id: 200, name: 'message_ptr', component: ObjectType.ACTION, componentSubtype: 510, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ReceiveActionDataInfo: Record<ReceiveActionProperty, PropertyInfo> = {
-  [ReceiveActionProperty.messageInPtr]: { id: 100, name: 'message_in_ptr', component: ObjectType.ACTION, componentSubtype: 511, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [ReceiveActionProperty.messageOutPtr]: { id: 200, name: 'message_out_ptr', component: ObjectType.ACTION, componentSubtype: 511, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ReceiveActionProperty.messagePtr]: { id: 100, name: 'message_ptr', component: ObjectType.ACTION, componentSubtype: 511, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const YieldActionDataInfo: Record<YieldActionProperty, PropertyInfo> = {
 

@@ -44,6 +44,7 @@ from bench.language import (
     RunType,
     ScrollAction,
     SelectAction,
+    SendAction,
     Text,
     ToolAction,
     TypeAction,
@@ -461,17 +462,16 @@ class WaitActionRunner(StaticActionRunner[WaitAction]):
             await asyncio.sleep(self.action.delay.total_seconds())
 
 
+class SendActionRunner(StaticActionRunner[SendAction]):
+    @override
+    async def run_static(self) -> None:
+        raise NotImplementedError
+
+
 class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
     @override
     async def run_static(self) -> None:
-        assert self.output_type is not None, f"no output type for {self!r}"
-
-        if (message_in := self.action.message_in) is not None:
-            self.outputs = coerce_custom_object_scalar(
-                {"message_out": message_in}, self.output_type
-            )
-        else:
-            raise RunImpossibleError("no message received")
+        pass  # nothing to do
 
 
 class YieldActionRunner(StaticActionRunner[YieldAction]):
@@ -676,8 +676,9 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.DELETE: DeleteActionRunner,
     # async
     ActionType.WAIT: WaitActionRunner,
-    ActionType.YIELD: YieldActionRunner,
+    ActionType.SEND: SendActionRunner,
     ActionType.RECEIVE: ReceiveActionRunner,
+    ActionType.YIELD: YieldActionRunner,
     # application
     ActionType.LOOK: LookActionRunner,
     ActionType.CLICK: ClickActionRunner,

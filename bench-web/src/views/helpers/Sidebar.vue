@@ -46,9 +46,9 @@ const FOOTER_HEIGHT = 42;
 
 const ICON_BY_SIDEBAR_ASPECT: Record<SidebarAspect, IconData> = {
   [SidebarAspect.UNSPECIFIED]: makeIcon("fas fa-question"),
-  [SidebarAspect.BENCH]: makeIcon("fas fa-box"),
+  [SidebarAspect.BENCH]: makeIcon("far fa-file"),
   [SidebarAspect.ACTIVITY]: makeIcon("fas fa-wave-pulse"),
-  [SidebarAspect.CATALOG]: makeIcon("fas fa-list"),
+  [SidebarAspect.CATALOG]: makeIcon("fas fa-album-collection"),
   [SidebarAspect.LIBRARY]: makeIcon("fas fa-book"),
 };
 
@@ -134,7 +134,6 @@ const state = canvas.registerView(self, id);
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.SIDEBAR, toRef(props, "subnodePacked"), "aspect");
 const visibleAspects = [SidebarAspect.BENCH, SidebarAspect.ACTIVITY, SidebarAspect.CATALOG]; // :DefaultViewAspect
-const visibleAspectsOverflow = computed(() => visibleAspects.length * 75 > (props.size?.width ?? 0));
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
@@ -148,13 +147,17 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-      class="mx-2 flex flex-shrink-0 cursor-pointer flex-row items-center rounded py-1.5 pl-2.5 pr-1 transition-colors duration-75 hover:bg-gray-100"
+      class="mx-2 flex max-w-full flex-shrink-0 flex-row items-center gap-x-2 py-1.5 pl-2.5 pr-1"
       :style="{
         height: `${BAR_HEADER_HEIGHT}px`,
       }"
+      role="button"
     >
-      <span class="flex flex-row items-center gap-x-2">
+      <!-- Bench button -->
+      <button
+        v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
+        class="flex flex-row items-center gap-x-2 truncate rounded transition-colors duration-75 hover:bg-gray-100"
+      >
         <AvatarInline
           v-tooltip="{ title: 'Change icon', small: true }"
           v-menu="
@@ -169,44 +172,35 @@ defineExpose<ViewExpose>({ self });
           "
           v-bind="bench != null ? getNodeIcon(bench) : makeIcon(NodeTypeOptionInfo[NodeType.BENCH]!.icon!)"
         />
-        <span v-if="bench" class="font-medium"> {{ bench.slug }}'s Bench </span>
+        <span v-if="bench" class="truncate font-medium">{{ bench.slug }}</span>
         <span v-else class="italic"> Bench </span>
-      </span>
-    </div>
-
-    <!-- Header -->
-    <div
-      class="mx-3 flex flex-shrink-0 flex-row items-center gap-x-2 py-1.5"
-      :class="[visibleAspectsOverflow ? 'justify-between' : '']"
-      :style="{
-        height: `${HEADER_HEIGHT}px`,
-      }"
-    >
-      <!-- Tabs -->
-      <button
-        v-for="a in visibleAspects"
-        :key="a"
-        v-tooltip="{
-          small: true,
-          text: toCamelName(SidebarAspect, a),
-          isEnabled: visibleAspectsOverflow,
-          group: 'hub-aspect',
-        }"
-        class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
-        :class="[
-          a == aspect ? 'bg-gray-100 font-medium text-gray-900' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
-          visibleAspectsOverflow ? 'flex-1 justify-center' : '',
-        ]"
-        @click="
-          state.update(
-            { metatype: NodeType.VIEW, type: ViewType.SIDEBAR, subnode: { aspect: a } },
-            { debounce: 'short' },
-          )
-        "
-      >
-        <IconInline v-if="visibleAspectsOverflow" v-bind="ICON_BY_SIDEBAR_ASPECT[a]" />
-        <span v-else>{{ toCamelName(SidebarAspect, a) }} </span>
       </button>
+      <!-- Tabs -->
+      <div class="ml-auto flex flex-shrink-0 flex-row items-center" @click.stop>
+        <button
+          v-for="a in visibleAspects"
+          :key="a"
+          v-tooltip="{
+            small: true,
+            text: toCamelName(SidebarAspect, a),
+            group: 'sidebar',
+          }"
+          class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
+          :class="[
+            a == aspect
+              ? 'bg-gray-100 font-medium text-gray-900'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
+          ]"
+          @click="
+            state.update(
+              { metatype: NodeType.VIEW, type: ViewType.SIDEBAR, subnode: { aspect: a } },
+              { debounce: 'short' },
+            )
+          "
+        >
+          <IconInline v-bind="ICON_BY_SIDEBAR_ASPECT[a]" />
+        </button>
+      </div>
     </div>
 
     <!-- Content -->
@@ -227,7 +221,7 @@ defineExpose<ViewExpose>({ self });
         <div v-if="aspect == SidebarAspect.BENCH">
           <!-- Package -->
           <div
-            class="group/header mx-4 flex flex-row items-center pt-1.5"
+            class="group/header mx-4 flex flex-row items-center"
             :style="{
               height: `${HEADER_HEIGHT}px`,
             }"
