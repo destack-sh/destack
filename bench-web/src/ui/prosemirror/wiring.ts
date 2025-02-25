@@ -100,7 +100,7 @@ export function useTextPageInterface(options: {
     for (const block of blocks.value) {
       const blockPtr = toNodeRef(block);
       if (block.type >= BlockType.PARAGRAPH) {
-        const text = block.text ?? emptyTextLine();
+        const text = block.line ?? emptyTextLine();
         lines.push({ type: "text", text, blockPtr });
       } else {
         lines.push({ type: "block", blockPtr, nodePtr: block.nodePtr });
@@ -185,7 +185,7 @@ export function differenceUpdateBlocks(
     const block = createBlock(tx, graph, {
       block: {
         type: (line.type === "text" ? line.text.type + 10_000 : undefined) as any,
-        text: line.type === "text" ? line.text : undefined,
+        line: line.type === "text" ? line.text : undefined,
       },
       anchor,
       target,
@@ -203,8 +203,8 @@ export function differenceUpdateBlocks(
     const line = lineByBlockId[block.id];
     if (line == null) continue;
     if (line.type == "text") {
-      if (!deepValueEquals(block.text, line.text)) {
-        const update: Partial<BlockData> = { text: line.text };
+      if (!deepValueEquals(block.line, line.text)) {
+        const update: Partial<BlockData> = { line: line.text };
         const blockType = (line.text.type + 10_000) as any;
         if (blockType != block.type) {
           update.type = blockType;

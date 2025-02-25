@@ -73,9 +73,9 @@ def test_get_set_non_existing_property(session: "Session"):
 def test_node_subtype_property_access(session: "Session"):
     # subtype -> regular property
     Text1 = Block.new(BlockType.PARAGRAPH, text=TextLine.plain("Hello!"))
-    assert Text1.text is not None and Text1.text.spans[0].content == "Hello!"
-    Text1.text = TextLine.plain("Hello, world!")
-    assert Text1.text is not None and Text1.text.spans[0].content == "Hello, world!"
+    assert Text1.line is not None and Text1.line.spans[0].content == "Hello!"
+    Text1.line = TextLine.plain("Hello, world!")
+    assert Text1.line is not None and Text1.line.spans[0].content == "Hello, world!"
 
     # subtype -> node ref property
     Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
@@ -100,7 +100,7 @@ def test_node_subtype_pack_unpack(session: "Session"):
         Block, unpack_builtin_object(block_data, expect=Block, supergraph=session._supergraph)
     )
     assert unpacked_block.equals(block)
-    assert unpacked_block.text is not None and unpacked_block.text.spans[0].content == "Hello!"
+    assert unpacked_block.line is not None and unpacked_block.line.spans[0].content == "Hello!"
 
 
 def test_node_pointers_consistency(session: "Session"):

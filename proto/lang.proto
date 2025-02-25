@@ -3394,7 +3394,7 @@ message BlockData {
   optional google.protobuf.Value subnode_packed = 29;
   BlockType type = 30;
   string order_key = 33;
-  optional TextLineData text = 40;
+  optional TextLineData line = 40;
   optional NodeReferenceData node_ptr = 41;
 }
 

@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
-import { Alignment, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
-import { TypedNodeReferenceData } from "@/proto/wiring";
+import { Alignment, ChannelData, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
+import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, pkgGraph } from "@/system/space";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Chat from "@/views/helpers/Chat.vue";
-import { Ref, ref, toRef } from "vue";
+import { computed, Ref, ref, toRef } from "vue";
 
 const props = defineProps<
   {
@@ -17,7 +17,7 @@ const props = defineProps<
     id: string;
     isRoot?: boolean;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
-  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus">>
+  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "alignment">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -27,6 +27,18 @@ const state = canvas.registerView(self, id);
 // state
 const nodePtr = toRef(props, "nodePtr");
 const { node, connection } = supergraph.getLinkRef(nodePtr);
+const channelPtr = computed(() => {
+  if (node.value == null) return null;
+  if (isNode(node.value, NodeType.THREAD)) return node.value.channelPtr;
+  else return null;
+});
+const channel = supergraph.getRef(channelPtr);
+const scopePtr = computed(() => {
+  if (node.value == null) return null;
+  if (isNode(node.value, NodeType.THREAD)) return node.value.scopePtr;
+  else return null;
+});
+const scope = supergraph.getRef(scopePtr);
 
 // view
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
@@ -41,7 +53,7 @@ defineExpose<ViewExpose>({ self, id });
     <!-- Chat -->
     <Chat
       id="chat"
-      :alignment="Alignment.END"
+      :alignment="alignment ?? Alignment.END"
       :node-ptr="nodePtr"
       :focus="focus"
       :graph="pkgGraph"
@@ -68,7 +80,13 @@ defineExpose<ViewExpose>({ self, id });
         />
         <!-- Beginning -->
         <div class="mt-1.5 px-0.5 text-base text-gray-400">
-          <span>This is the beginning of this {{ toCamelName(NodeType, nodePtr!.nodeType) }}.</span>
+          <span>
+            This is the beginning of this
+            {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???"
+            }}<span v-if="isNode(node, NodeType.THREAD)"> in #{{ (channel as ChannelData)?.name ?? "???" }}</span
+            ><span v-if="(scope as any)?.name != null"> on {{ (scope as any).name }}</span
+            >.
+          </span>
         </div>
       </template>
     </Chat>

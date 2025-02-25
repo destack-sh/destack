@@ -59,7 +59,7 @@ export function createPage(
     packagePtr,
     type: BlockType.PARAGRAPH,
     orderKey: generateOrderKey(null, null),
-    text: emptyTextLine(),
+    line: emptyTextLine(),
   });
 
   return page;
