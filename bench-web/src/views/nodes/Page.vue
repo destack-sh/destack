@@ -90,7 +90,7 @@ const widths = computed(() => {
   return { block: blockWidth, gutter: gutterWidth };
 });
 const isEmpty = computed(
-  () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.text == null),
+  () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.line == null),
 );
 
 //
@@ -325,7 +325,7 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
     const firstBlock = blocks.value[0];
     if (firstBlock == null) {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
-    } else if (firstBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(firstBlock.text?.type!)) {
+    } else if (firstBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(firstBlock.line?.type!)) {
       focus(firstBlock, "top");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
@@ -334,7 +334,7 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
     const lastBlock = blocks.value[blocks.value.length - 1];
     if (lastBlock == null) {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
-    } else if (lastBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(lastBlock.text?.type!)) {
+    } else if (lastBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(lastBlock.line?.type!)) {
       focus(lastBlock, "bottom");
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);

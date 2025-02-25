@@ -60,13 +60,13 @@ export function createBlock(
   }
 
   // text
-  let text = options.block.text;
+  let line = options.block.line;
   if (type >= BlockType.PARAGRAPH) {
-    if (text == null) {
-      text = makeStruct({ metatype: StructType.TEXT_LINE, type: type - 10_000 });
+    if (line == null) {
+      line = makeStruct({ metatype: StructType.TEXT_LINE, type: type - 10_000 });
     }
-    if (text.type != type - 10_000) {
-      throw new Error(`text type mismatch: ${text.type} != ${type - 10_000}`);
+    if (line.type != type - 10_000) {
+      throw new Error(`text type mismatch: ${line.type} != ${type - 10_000}`);
     }
   }
 
@@ -76,7 +76,7 @@ export function createBlock(
     parentPtr,
     packagePtr: target.packagePtr,
     ...options.block,
-    text,
+    line,
     orderKey,
   });
   if (INLINE_SOURCE_NODE_TYPES.includes(options.block.type as unknown as NodeType) && options.block.nodePtr == null) {

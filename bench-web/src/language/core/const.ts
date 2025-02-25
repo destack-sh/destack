@@ -242,7 +242,7 @@ export const BAD_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStat
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.HISTORY, ViewType.SPLIT]);
-export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 30000 && vt < 40000));
+export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 20000 && vt < 30000));
 
 export const NAME_CONSTRAINT = PageDataInfo[PageProperty.name].constraint!;
 export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;

@@ -109,7 +109,7 @@ class Block(SourceNode[BlockData]):
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # content
-    text: Optional["TextLine"] = p_regular(
+    line: Optional["TextLine"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )
     node: Optional["InlineSourceNode"] = p_regular(
@@ -125,7 +125,7 @@ class Block(SourceNode[BlockData]):
     def __content_str__(self):
         if self.node_ptr is not None and (node := self.node) is not None:
             return node.__content_str__()
-        elif (text := self.text) is not None:
+        elif (text := self.line) is not None:
             return text.__content_str__()
         else:
             return ""
