@@ -1,13 +1,33 @@
 import pytest
 
 from bench.language import (
+    Page,
+    Session,
     TextLine,
     TextLineType,
     TextSpan,
     TextSpanType,
     markdown_to_text,
+    text,
     text_to_markdown,
 )
+
+
+def test_text_mentions(session: Session):
+    Page1 = Page.new("Page1")
+    Page2 = Page.new("Page2")
+    my_text = text(
+        "Hello it's a [@Page1] and [@Page2]",
+        {"Page1": Page1, "Page2": Page2},
+    )
+    assert my_text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "Hello it's a ")
+    assert my_text.lines[0].spans[1] == TextSpan.new(TextSpanType.MENTION, "Page1", node=Page1)
+    assert my_text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and ")
+    assert my_text.lines[0].spans[3] == TextSpan.new(TextSpanType.MENTION, "Page2", node=Page2)
+    assert (
+        text_to_markdown(my_text, {"Page1": Page1, "Page2": Page2})
+        == "Hello it's a [@Page1] and [@Page2]"
+    )
 
 
 def test_text_prefix():

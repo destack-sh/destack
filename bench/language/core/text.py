@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, assert_never
+from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sequence, assert_never
 from uuid import UUID
 
 import regex
@@ -13,6 +13,7 @@ from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import Alignment, ColorType
+    from bench.language.source.render import Aliasing, AliasingIn
 
 
 @object_()
@@ -93,7 +94,8 @@ class TextSpan(TextOptionsBase, Struct):
     @staticmethod
     def new(
         type: TextSpanType,
-        content: str | Node | None = None,
+        content: str | None = None,
+        node: Node | None = None,
         url: str | None = None,
         is_bold: bool | None = None,
         is_italic: bool | None = None,
@@ -102,12 +104,6 @@ class TextSpan(TextOptionsBase, Struct):
         color: "ColorType | None" = None,
         background_color: "ColorType | None" = None,
     ) -> "TextSpan":
-        if isinstance(content, str):
-            assert content, "content must be non-empty"
-            node = None
-        else:
-            node = content
-            content = None
         return TextSpan(
             type=type,
             content=content,
@@ -292,7 +288,6 @@ class Text(Struct):
         return Text(lines=[])
 
 
-text = Text.plain
 #
 # Parsing
 #
@@ -323,12 +318,16 @@ def _parse_color(color: str) -> "ColorType":
 
 
 _marker_pattern = regex.compile(
-    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\*|\[\^[a-zA-Z0-9]+\]|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\])"
+    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\*|\[\^[a-zA-Z0-9]+\]|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\]|\[@[a-zA-Z0-9_]+\])"
 )
 
 
 def _parse_inline_raw(
-    text: str, pos: int = 0, end_marker: str | None = None, base: dict[str, Any] | None = None
+    text: str,
+    pos: int = 0,
+    end_marker: str | None = None,
+    base: dict[str, Any] | None = None,
+    aliasing: "Aliasing | None" = None,
 ) -> tuple[list[TextSpan], int]:
     """
     Parse a string of text into a list of TextSpans, with optional end marker.
@@ -361,10 +360,22 @@ def _parse_inline_raw(
                 continue
         # inline equation marker: $$...$$
         if marker == "$$":
-            inner, pos = _parse_inline_raw(text, pos, end_marker="$$", base=base.copy())
+            inner, pos = _parse_inline_raw(
+                text, pos, end_marker="$$", base=base.copy(), aliasing=aliasing
+            )
             merged = _merge_spans(inner)
             content = "".join(sp.content or "" for sp in merged)
             spans.append(TextSpan(type=TextSpanType.EQUATION, content=content, **base))
+            continue
+        # mention marker: [@identifier]
+        if marker.startswith("[@") and marker.endswith("]"):
+            identifier = marker[2:-1]
+            mention_span = TextSpan(type=TextSpanType.MENTION, content=identifier, **base)
+            if aliasing is not None:
+                node = aliasing.resolve(identifier)
+                if isinstance(node, Node):
+                    mention_span.node = node
+            spans.append(mention_span)
             continue
         # opening marker: could be a citation, link, or a color marker
         if marker.startswith("[") and marker.endswith("]") and not marker.startswith("[/"):
@@ -403,14 +414,18 @@ def _parse_inline_raw(
             else:
                 color = _parse_color(marker[1:-1])
                 closing = f"[/{marker[1:-1]}]"
-                inner, pos = _parse_inline_raw(text, pos, end_marker=closing, base=base.copy())
+                inner, pos = _parse_inline_raw(
+                    text, pos, end_marker=closing, base=base.copy(), aliasing=aliasing
+                )
                 for sp in inner:
                     sp.color = color
                 spans.extend(inner)
                 continue
         # <u> marker with explicit closing </u>
         if marker == "<u>":
-            inner, pos = _parse_inline_raw(text, pos, end_marker="</u>", base=base.copy())
+            inner, pos = _parse_inline_raw(
+                text, pos, end_marker="</u>", base=base.copy(), aliasing=aliasing
+            )
             for sp in inner:
                 sp.is_underline = True
             spans.extend(inner)
@@ -418,7 +433,9 @@ def _parse_inline_raw(
         # symmetric markers
         if marker in {"*", "**", "~~", "`"}:
             flag = MARKER_TO_FLAG[marker]
-            inner, pos = _parse_inline_raw(text, pos, end_marker=marker, base=base.copy())
+            inner, pos = _parse_inline_raw(
+                text, pos, end_marker=marker, base=base.copy(), aliasing=aliasing
+            )
             for sp in inner:
                 setattr(sp, flag, True)
             spans.extend(inner)
@@ -428,11 +445,11 @@ def _parse_inline_raw(
     return spans, pos
 
 
-def _parse_inline(text: str) -> list[TextSpan]:
+def _parse_inline(text: str, aliasing: "Aliasing | None" = None) -> list[TextSpan]:
     """
     Parse a string of text into a list of TextSpans.
     """
-    spans, _ = _parse_inline_raw(text, 0, None, {})
+    spans, _ = _parse_inline_raw(text, 0, None, {}, aliasing)
     return _merge_spans(spans)
 
 
@@ -482,7 +499,7 @@ def _is_table_start(lines: list[str], idx: int) -> bool:
     return regex.search(r"^\s*\|?( *:?-+:? *\|)+ *:?-*:?\|?\s*$", sep) is not None
 
 
-def _parse_line(line: str) -> TextLine:
+def _parse_line(line: str, aliasing: "Aliasing | None" = None) -> TextLine:
     """
     Parse a markdown line into a TextLine.
     """
@@ -530,7 +547,7 @@ def _parse_line(line: str) -> TextLine:
     elif content_stripped == "---" or content_stripped == "--":
         ttype = TextLineType.DIVIDER
         content = ""
-    spans = _parse_inline(content)
+    spans = _parse_inline(content, aliasing)
     line_obj = TextLine(type=ttype, spans=spans)
     if line_color:
         line_obj.color = ColorType[line_color]
@@ -551,7 +568,9 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
     return TextLine(type=TextLineType.CODE, content=content), i
 
 
-def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
+def _parse_table(
+    lines: list[str], start: int, aliasing: "Aliasing | None" = None
+) -> tuple[TextLine, int]:
     """
     Parse a markdown table.
     """
@@ -575,7 +594,7 @@ def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
     header_cells = [cell.strip() for cell in header_line.strip("|").split("|")]
     header_objs: list[TextCell] = []
     for j, txt in enumerate(header_cells):
-        spans = _parse_inline(txt)
+        spans = _parse_inline(txt, aliasing)
         alignment = alignments[j] if j < len(alignments) else None
         header_objs.append(TextCell(spans=spans, alignment=alignment))
     # body
@@ -588,7 +607,7 @@ def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
             row_cells_text += [""] * (len(alignments) - len(row_cells_text))
         row_cells: list[TextCell] = []
         for j, txt in enumerate(row_cells_text):
-            spans = _parse_inline(txt)
+            spans = _parse_inline(txt, aliasing)
             alignment = alignments[j] if j < len(alignments) else None
             row_cells.append(TextCell(spans=spans, alignment=alignment))
         body_rows.append(TextLine(type=TextLineType.TABLE_ROW, cells=row_cells))
@@ -601,12 +620,17 @@ def _parse_table(lines: list[str], start: int) -> tuple[TextLine, int]:
     return TextLine(type=TextLineType.TABLE, table=table), i
 
 
-def markdown_to_text(markdown: str) -> Text:
+def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Text:
     """
     Parse markdown as Text.
     """
+    from bench.language.source import Aliasing
+
     if not markdown:
         return Text.empty()
+    if isinstance(aliasing, Mapping):
+        aliasing = Aliasing.new(aliasing)
+
     lines_str = markdown.splitlines()
     lines: list[TextLine] = []
     i = 0
@@ -619,10 +643,10 @@ def markdown_to_text(markdown: str) -> Text:
             tl, i = _parse_code(lines_str, i)
             lines.append(tl)
         elif _is_table_start(lines_str, i):
-            tl, i = _parse_table(lines_str, i)
+            tl, i = _parse_table(lines_str, i, aliasing)
             lines.append(tl)
         else:
-            tl = _parse_line(line)
+            tl = _parse_line(line, aliasing)
             lines.append(tl)
             i += 1
     return Text(lines=lines)
@@ -670,7 +694,7 @@ def _render_color(color: "ColorType") -> str:
     return color.name.lower()
 
 
-def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
+def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None) -> str:
     """
     Render a list of TextSpan objects with inline markdown formatting.
     This function computes formatting state transitions between spans so that
@@ -702,6 +726,21 @@ def _render_inline_raw(spans: Sequence[TextSpan]) -> str:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
             result.append("<br>")
+            current_state = ()
+        elif span.type == TextSpanType.MENTION:
+            for flag in reversed(current_state):
+                result.append(MARKER_CLOSE[flag])
+
+            # If we have a node and aliasing, use the alias
+            if span.node is not None and aliasing is not None:
+                alias = aliasing.get_or_add(span.node)
+                result.append(f"[@{alias}]")
+            # Otherwise use the content
+            elif span.content:
+                result.append(f"[@{span.content}]")
+            else:
+                raise ValueError(f"empty mention span: {span!r}")
+
             current_state = ()
         else:
             new_state = _get_span_options(span)
@@ -813,8 +852,11 @@ def _render_line(line: TextLine) -> str:
         return prefix + content
 
 
-def text_to_markdown(text_obj: Text) -> str:
+def text_to_markdown(text: Text, aliasing: "AliasingIn | None" = None) -> str:
     """
     Render a Text object as markdown.
     """
-    return "\n".join(_render_line(line) for line in text_obj.lines)
+    return "\n".join(_render_line(line) for line in text.lines)
+
+
+text = markdown_to_text
