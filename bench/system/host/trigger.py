@@ -1,10 +1,9 @@
-from typing import Any, Sequence, cast, override
+from typing import Any, Sequence, override
 from uuid import UUID
 
 from bench.language import (
     Action,
     Message,
-    MessageTrigger,
     NodeType,
     Run,
     Session,
@@ -67,11 +66,19 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
             if not isinstance(message, Message):
                 continue
             for trigger in self._active_triggers_by_id.values():
-                if trigger.type == TriggerType.MESSAGE and message_trigger_matches(
-                    cast(MessageTrigger, trigger), message
-                ):
-                    inputs = {"message": message}
-                    fired_triggers.append((message.run, inputs, str(message.id), trigger))
+                if trigger.type == TriggerType.MESSAGE:
+                    trigger_parent = trigger.parent
+                    assert trigger_parent is not None, f"trigger {trigger!r} has no parent"
+                    # nocheckin: better MessageTrigger filtering / is_involved check
+                    #  (consider reply_to, what about multiple Runs of same Flow,
+                    #   ideally should route automatically somehow (when none mentioned?)?, ...)
+                    is_involved = False
+                    if isinstance(trigger_parent, Action):
+                        if (flow := trigger_parent.flow) is not None:
+                            is_involved = message.text is not None and flow in message.text
+                    if is_involved:
+                        inputs = {"message": message}
+                        fired_triggers.append((message.run, inputs, str(message.id), trigger))
 
         # fire triggers
         for trigger_run, inputs, trigger_key, trigger in fired_triggers:
@@ -91,14 +98,3 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
     @override
     async def on_commit_failed(self, session: Session, error: BaseException) -> None:
         self._collect_triggers()
-
-
-def message_trigger_matches(trigger: MessageTrigger, message: Message) -> bool:
-    """
-    Checks if a MessageTrigger matches a Message.
-    """
-    if (channel := trigger.channel) is not None and channel.id != message.channel_id:
-        return False
-    if (thread := trigger.thread) is not None and thread.id != message.thread_id:  # noqa: SIM103
-        return False
-    return True

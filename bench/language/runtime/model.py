@@ -78,12 +78,14 @@ class ModelType(BuiltinEnum):  # :ModelType
     # openai-gpt
     OPENAI_GPT4_0 = 201
     OPENAI_GPT4_O_MINI = 202
+    OPENAI_GPT4_5 = 203
     # openai-o
     OPENAI_O1 = 220
     OPENAI_O1_MINI = 221
     OPENAI_O3_MINI = 222
     # anthropic-claude
     ANTHROPIC_CLAUDE_3_5_SONNET = 301
+    ANTHROPIC_CLAUDE_3_7_SONNET = 302
     # google-gemini
     GOOGLE_GEMINI_2_0_FLASH = 400
     GOOGLE_GEMINI_2_0_FLASH_THINKING = 401

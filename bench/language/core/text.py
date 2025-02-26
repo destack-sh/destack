@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, assert_never
 from uuid import UUID
 
 import regex
@@ -158,18 +158,31 @@ class TextLine(TextOptionsBase, Struct):
     def __content_str__(self) -> str:
         return _render_line(self)
 
-    def __contains__(self, item: str) -> bool:
-        if (content := self.content) and item in content:
-            return True
-        for span in self.spans:
-            if (content := span.content) and item in content:
+    def __contains__(self, item: str | Node) -> bool:
+        if isinstance(item, str):
+            if (content := self.content) and item in content:
                 return True
-        if self.table:
-            for row in self.table.lines:
-                for cell in row.cells:
-                    for span in cell.spans:
-                        if (content := span.content) and item in content:
-                            return True
+            for span in self.spans:
+                if (content := span.content) and item in content:
+                    return True
+            if self.table:
+                for row in self.table.lines:
+                    for cell in row.cells:
+                        for span in cell.spans:
+                            if (content := span.content) and item in content:
+                                return True
+        elif isinstance(item, Node):
+            for span in self.spans:
+                if span.node_ck is not None and span.node_ck == item.ck:
+                    return True
+            if self.table:
+                for row in self.table.lines:
+                    for cell in row.cells:
+                        for span in cell.spans:
+                            if span.node_ck is not None and span.node_ck == item.ck:
+                                return True
+        else:
+            assert_never(item)
         return False
 
     @staticmethod
@@ -250,7 +263,7 @@ class Text(Struct):
 
     lines: List[TextLine] = p_regular(32, array=True, struct=StructType.TEXT_LINE)
 
-    def __contains__(self, item: str) -> bool:
+    def __contains__(self, item: str | Node) -> bool:
         return any(item in line for line in self.lines)
 
     def to_markdown(self) -> str:

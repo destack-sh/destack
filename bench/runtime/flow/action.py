@@ -136,7 +136,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         # static implementation
         await self.run_static()
 
-        # dynamic calls
+        # dynamic calls (if needed)
         has_plan = (
             not self.node.type.is_boundary
             and self.outputs is not None
@@ -146,10 +146,12 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         if (
             self.flow is not None
             and not has_plan
-            and (outgoing_pipes := [p for p in self.flow.node.pipes if p.source_id == self.node.id])
-            # NOTE :Incomplete: we could also generate calls for other missing Action inputs
-            #  (Sometimes..? Only for application actions like click? For all static actions?)
-            and any(p.type == PipeType.SELECT for p in outgoing_pipes)
+            and any(
+                p.source_id == self.node.id
+                and (target := p.target) is not None
+                and (p.type != PipeType.CALL or target.type != ActionType.CODE)
+                for p in self.flow.node.pipes
+            )
         ):
             model_developer = ModelDeveloper.OPENAI
             model_type = ModelType.OPENAI_GPT4_0

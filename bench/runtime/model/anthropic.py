@@ -29,7 +29,8 @@ anthropic_client = anthropic.AsyncClient(
     api_key=get_from_env("ANTHROPIC_API_KEY", description="Anthropic API key")
 )
 ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
-    ModelType.ANTHROPIC_CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022"
+    ModelType.ANTHROPIC_CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022",
+    ModelType.ANTHROPIC_CLAUDE_3_7_SONNET: "claude-3-7-sonnet-20250219",
 }
 ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
 

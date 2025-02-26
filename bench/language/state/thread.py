@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
+from uuid import UUID
 
 from bench.language.core import (
     OWNER_TYPES,
@@ -9,8 +10,10 @@ from bench.language.core import (
     HasTimeIdentity,
     InlineSourceNode,
     Node,
+    NodeReference,
     NodeType,
     Owner,
+    RemoteNodeList,
     StateNode,
     StructType,
     Text,
@@ -22,7 +25,6 @@ from bench.language.core import (
     p_system,
     timed_node_,
 )
-from bench.language.core.list import RemoteNodeList
 from bench.pb2 import ThreadData
 from bench.pb2.lang_pb2 import MessageData
 
@@ -80,6 +82,17 @@ class Thread(HasTimeIdentity, StateNode[ThreadData]):
         description="The Run this Thread is scoped to.",
     )
     owned_by: Optional[Owner] = p_system(38, require=False, array=False, references=OWNER_TYPES)
+    if TYPE_CHECKING:
+        channel_ptr: Optional[NodeReference] = None
+        channel_id: Optional[UUID] = None
+        scope_ptr: Optional[NodeReference] = None
+        scope_id: Optional[UUID] = None
+        run_root_ptr: Optional[NodeReference] = None
+        run_root_id: Optional[UUID] = None
+        run_ptr: Optional[NodeReference] = None
+        run_id: Optional[UUID] = None
+        owned_by_ptr: Optional[NodeReference] = None
+        owned_by_id: Optional[UUID] = None
 
     # status
     status: ThreadStatus = p_internal(40, default=ThreadStatus.OPEN)
