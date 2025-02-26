@@ -318,7 +318,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     @property
     def is_idle(self) -> bool:
         """Check if the plugin is idle (no pending requests or processing)."""
-        return self._commit_queue.empty()
+        return self._commit_queue._unfinished_tasks == 0  # type: ignore
 
     @override
     async def start(self) -> None:

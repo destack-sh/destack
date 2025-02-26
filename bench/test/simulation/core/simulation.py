@@ -325,6 +325,19 @@ class Simulation:
         for workload in self.spec.workloads:
             add_workload(workload)
 
+    async def wait_idle(self, min_idle_time: float = 0.1):
+        """Wait until all services are idle for at least min_idle_time."""
+        idle_since = None
+        while not self.has_error.is_set():
+            if all(service.is_idle for service in self.services_by_id.values()):
+                if idle_since is None:
+                    idle_since = self.oracle.utc()
+                elif (self.oracle.utc() - idle_since).total_seconds() >= min_idle_time:
+                    break
+            else:
+                idle_since = None
+            await asyncio.sleep(0.01)  # ('busy' waiting is easiest here)
+
     async def run(self):
         """Run the simulation."""
         # supervisor first (always needed)
@@ -364,11 +377,7 @@ class Simulation:
             with tracer.start_as_current_span("simulation.run"):
                 await asyncio.gather(*(workload.run() for workload in self.workloads))
                 # wait until services (and network?) are idle (at the same time)
-                while (  # noqa: ASYNC110
-                    not all(service.is_idle for service in self.services_by_id.values())
-                    and not self.has_error.is_set()
-                ):
-                    await asyncio.sleep(0.05)  # ('busy' waiting is easiest here)
+                await self.wait_idle()
                 logger.info("simulation.run", simulation=self, span="current")
             # and run checks
             with tracer.start_as_current_span("simulation.check"):

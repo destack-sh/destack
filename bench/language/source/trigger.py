@@ -27,13 +27,11 @@ from .schedule import Schedule
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Channel,
         Interruption,
         Node,
         Package,
         Page,
         Run,
-        Thread,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -167,10 +165,4 @@ class ScheduleTrigger(Trigger):
 
 @subnode_(TriggerType.MESSAGE)
 class MessageTrigger(Trigger):
-    channel: Optional["Channel"] = p_regular(
-        100, require=False, array=False, references=NodeType.CHANNEL
-    )
-    thread: Optional["Thread"] = p_regular(
-        101, require=False, array=False, references=NodeType.THREAD
-    )
-    is_mentioned: Optional[bool] = p_regular(102, require=False, array=False, default=None)
+    pass

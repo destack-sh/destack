@@ -10,6 +10,7 @@ from bench.language import (
     PipeType,
     Run,
     RunStatus,
+    Text,
     Trigger,
     code,
 )
@@ -73,7 +74,7 @@ message_in.parent.append(reply)
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
-    Message1 = Message.new(title="Hello, world!")
+    Message1 = Message.new(title="Hello, world!", text=Text(lines=[TextLine]))
     Channel1.messages.append(Message1)
     await runtime.commit()
 
