@@ -730,17 +730,16 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
         elif span.type == TextSpanType.MENTION:
             for flag in reversed(current_state):
                 result.append(MARKER_CLOSE[flag])
-
-            # If we have a node and aliasing, use the alias
-            if span.node is not None and aliasing is not None:
-                alias = aliasing.get_or_add(span.node)
+            if (node := span.node) is not None:
+                if aliasing is not None:
+                    alias = aliasing.get_or_add(node)
+                else:
+                    alias = node.code_name or "???"
                 result.append(f"[@{alias}]")
-            # Otherwise use the content
             elif span.content:
                 result.append(f"[@{span.content}]")
             else:
-                raise ValueError(f"empty mention span: {span!r}")
-
+                result.append("[@???]")
             current_state = ()
         else:
             new_state = _get_span_options(span)
