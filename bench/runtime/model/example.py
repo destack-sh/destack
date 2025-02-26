@@ -25,6 +25,7 @@ from bench.language import (
     CustomObject,
     Field,
     Flow,
+    Message,
     Node,
     NodeGraph,
     NodeReference,
@@ -411,6 +412,30 @@ def flow_implicit_transformation_in_call(package: Package):
         "Feed argument to Flow/Complete via plan",
         Start,
         {"plans": [call_serial(call(Complete, Greeting="Hello Alice!"))]},
+    )
+
+
+@example_("Send Message")
+def flow_send_message(package: Package):
+    """How to send a Message."""
+    Flow1 = Flow.new(name="Flow1")
+    Send1 = Action.new(ActionType.SEND, name="Send1")
+    Message1 = Message.new(text=text("Hey what's up?"))
+    ...
+    # ---
+    return [Flow1, *Flow1.actions, *Flow1.pipes], (
+        "Send a Message via a Send Message Action.",
+        Send1,
+        {
+            "plans": [
+                call_serial(
+                    call(
+                        Send1,
+                        message_in=Message.partial(reply_to=Message1, text="Not much, and you?"),
+                    )
+                )
+            ]
+        },
     )
 
 

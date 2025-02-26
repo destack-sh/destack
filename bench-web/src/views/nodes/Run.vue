@@ -91,7 +91,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
 </script>
 <template>
   <div v-if="node && nodeIsRunnable" class="h-full w-full">
-    <!-- TODO :UX: turn Run into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
+    <!-- NOTE :UX: turn Run into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-1">
       <!-- Variables/Inputs -->
@@ -109,7 +109,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
               const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'variablesPacked']: value };
               state.update(
                 { metatype: NodeType.VIEW, type: ViewType.RUN, subnode },
-                options != null ? getTransactionOptionsForType(options?.field) : { debounce: 'short' },
+                options?.field != null ? getTransactionOptionsForType(options.field) : { debounce: 'short' },
               );
             }
           "

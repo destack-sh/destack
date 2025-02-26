@@ -675,7 +675,13 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               }"
             >
               <!-- Author for new groups -->
-              <AvatarInline v-if="isNewGroup" class="mr-1 text-gray-700" size="medium" v-bind="authorIcon" />
+              <AvatarInline
+                v-if="isNewGroup"
+                class="mr-1 cursor-pointer text-gray-700"
+                size="medium"
+                v-bind="authorIcon"
+                @click="author && canvas.goToNode(author)"
+              />
               <!-- Time/edited otherwise -->
               <div v-else class="pt-[4px] text-xs text-gray-400">
                 <!-- Time -->
@@ -691,7 +697,10 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               <!-- Meta (if new group) -->
               <div v-if="isNewGroup" class="">
                 <!-- Author -->
-                <span class="text-base font-medium">
+                <span
+                  class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
+                  @click="author && canvas.goToNode(author)"
+                >
                   {{ authorName ?? "???" }}
                 </span>
                 <!-- Timestamp -->

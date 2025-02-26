@@ -1,20 +1,24 @@
 <script lang="ts" setup>
 import { isInlineSourceNode, isSourceNode, isStateNode, toCamelName } from "@/language/core/const";
-import { useSubnodeProperty } from "@/language/core/node";
+import { makeAndConditional, makeExpression } from "@/language/core/expression";
+import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
 import {
   BlockType,
   ContextAspect,
+  ExpressionType,
   IconData,
   NodeType,
   Orientation,
   PageData,
   PROPERTY_ENUM_BY_TYPE,
   RunData,
+  RunProperty,
+  RunType,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -25,6 +29,7 @@ import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import List from "@/views/collections/List.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Text from "@/views/content/Text.vue";
@@ -176,10 +181,6 @@ defineExpose<ViewExpose>({ self });
         <span class="mx-0.5 text-gray-400">in</span>
         <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="regular" />
       </template>
-      <!-- Run status -->
-      <div v-if="containingRun != null" class="flex flex-row px-1.5">
-        <RunStatus :run="containingRun" icon="dot" />
-      </div>
 
       <!-- Tabs -->
       <div class="ml-auto flex flex-row items-center">
@@ -232,6 +233,8 @@ defineExpose<ViewExpose>({ self });
         </div>
       </template>
       <template v-else-if="aspect == ContextAspect.RUN">
+        <!-- Run status -->
+        <RunStatus v-if="containingRun != null" :run="containingRun" icon="dot" />
         <!-- Run controls-->
         <button
           v-for="action in containingRun != null
@@ -285,14 +288,45 @@ defineExpose<ViewExpose>({ self });
           data-contextmenu="ignore"
         />
         <!-- Run -->
-        <Run
-          v-else-if="aspect == ContextAspect.RUN"
-          id="start"
-          ref="startRef"
-          :node-ptr="targetPtr"
-          v-bind="state.getChildState('scroll.start', { nodePtr: targetPtr })"
-          data-contextmenu="ignore"
-        />
+        <div v-else-if="aspect == ContextAspect.RUN">
+          <Run
+            id="run.run"
+            ref="startRef"
+            :node-ptr="targetPtr"
+            v-bind="state.getChildState('scroll.start', { nodePtr: targetPtr })"
+            data-contextmenu="ignore"
+          />
+          <!-- Prior -->
+          <div class="mx-4 mt-2 flex flex-row items-center gap-x-2" :style="{ height: `${HEADER_HEIGHT}px` }">
+            <span class="font-medium">Prior Runs</span>
+          </div>
+          <List
+            id="run.recent"
+            :subnode-packed="
+              packSubnode(NodeType.VIEW, ViewType.LIST, {
+                queryNodeType: NodeType.RUN,
+                filter: makeAndConditional([
+                  makeExpression({
+                    type: ExpressionType.EQUALS,
+                    propertyPtr: propertyReference(NodeType.RUN, RunProperty.type),
+                    value: RunType.FLOW,
+                  }),
+                  makeExpression({
+                    type: ExpressionType.EQUALS,
+                    propertyPtr: propertyReference(NodeType.RUN, RunProperty.flowPtr),
+                    value: scope != null ? toNodeRef(scope) : undefined,
+                  }),
+                ]),
+                sort: [
+                  makeExpression({
+                    type: ExpressionType.DESCENDING,
+                    propertyPtr: propertyReference(NodeType.RUN, RunProperty.createdAt),
+                  }),
+                ],
+              })
+            "
+          />
+        </div>
       </div>
 
       <!-- Selection overlay -->

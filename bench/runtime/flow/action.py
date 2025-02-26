@@ -178,11 +178,11 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
                     self.tracked.code = model_runner.code
                     if self.tracked_run is not None and self.tracked_run is not self.tracked:
                         self.tracked_run.code = model_runner.code
-                assert model_runner.outputs is not None, f"no outputs for {model_runner!r}"
-                if self.outputs is not None:
-                    self.outputs.set_default(model_runner.outputs)
-                else:
-                    self.outputs = model_runner.outputs
+                if model_runner.outputs is not None:
+                    if self.outputs is not None:
+                        self.outputs.set_default(model_runner.outputs)
+                    else:
+                        self.outputs = model_runner.outputs
 
     @abstractmethod
     async def run_static(self) -> None:

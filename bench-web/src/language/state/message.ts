@@ -29,7 +29,7 @@ export function getMessageAuthorPtr(message: MessageData): NodeReferenceData | n
   } else if (message.createdByPtr.nodeType == NodeType.RUN) {
     return getBaseFromNodeReference(message.createdByPtr);
   } else {
-    return null;
+    return message.createdByPtr;
   }
 }
 
