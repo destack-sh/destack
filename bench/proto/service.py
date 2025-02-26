@@ -90,6 +90,7 @@ class ServiceBase(abc.ABC):
         self.network = network
         self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
         self.oracle = oracle
+        self.active_unary_requests_count = 0
         self._on_error = on_error
 
     def __str__(self) -> str:
@@ -109,6 +110,12 @@ class ServiceBase(abc.ABC):
 
     def get_service_baggage(self) -> dict[str, Any]:
         return {}
+
+    @property
+    def is_idle(self) -> bool:
+        """Check if the service is idle (no pending requests or processing)."""
+        # streaming requests are not considered 'active' since they're open until close
+        return self.active_unary_requests_count <= 0
 
     async def start(self) -> None:  # noqa: B027
         """Start the service. Should be ready for service when returning."""
@@ -196,6 +203,7 @@ class ServiceBase(abc.ABC):
                         raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
                     self._validate_request(request)
                     if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
+                        self.active_unary_requests_count += 1
                         response = await func(request, stream.metadata)
                         await stream.send_message(response)
                     elif handler.cardinality == grpclib.const.Cardinality.UNARY_STREAM:
@@ -225,6 +233,9 @@ class ServiceBase(abc.ABC):
                     else:
                         details = e.__class__.__name__
                     raise GRPCError(GRPCStatus.INTERNAL, details) from e
+                finally:
+                    if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
+                        self.active_unary_requests_count -= 1
 
         return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
 

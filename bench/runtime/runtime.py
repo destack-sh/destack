@@ -83,6 +83,15 @@ class RuntimeThreadHandle:
         return f"<{self.__class__.__name__} {self}>"
 
     @property
+    def is_idle(self) -> bool:
+        """Check if the thread is idle (no pending requests or processing)."""
+        if self.mode == RuntimeThreadMode.LOCAL:
+            assert isinstance(self._thread, RuntimeThread), f"no thread for {self!r}"
+            return self._thread.runtime.is_idle
+        else:
+            raise NotImplementedError(f"cannot determine is_idle for {self.mode.name} in {self!r}")
+
+    @property
     def client(self):
         assert self._client is not None, f"no client for {self!r}"
         return self._client
@@ -275,6 +284,11 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         }
 
     @property
+    def is_idle(self) -> bool:
+        """Check if the service is idle (no pending requests or processing)."""
+        return all(t.is_idle for t in self._threads) and super().is_idle
+
+    @property
     def host(self) -> HostClient:
         assert self._host is not None, f"no host for {self!r}"
         return self._host
@@ -318,11 +332,6 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 logger.trace("runtime_service.acquire_thread", runtime=self, thread=run.thread)
             # run in thread
             try:
-                # schedule extra healthcheck to ensure consistent termination
-                extra_healthcheck = self.oracle.call_later(
-                    1,
-                    lambda: run.thread and asyncio.create_task(run.thread.healthcheck()),
-                )
                 # and run 'blocking'
                 request = RunRequest(run_ptr=run.run_ptr._to_data())
                 if isinstance(run.thread.client, RuntimeBase):
@@ -331,7 +340,6 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     _ = await run.thread.client.run(request)
                 else:
                     assert_never(run.thread.client)
-                extra_healthcheck.cancel()  # no longer needed
                 logger.info(
                     "runtime_service.run",
                     thread=run.thread,

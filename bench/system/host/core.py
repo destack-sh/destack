@@ -259,6 +259,11 @@ class HostPlugin[T: Node]:
     # Lifecycle
     #
 
+    @property
+    def is_idle(self) -> bool:
+        """Check if the plugin is idle (no pending requests or processing)."""
+        return True
+
     async def start(self) -> None:
         """Start any work for this plugin, returning when the plugin is ready."""
         pass
@@ -310,6 +315,11 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         super().__init__(host, bench)
         self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 
+    @property
+    def is_idle(self) -> bool:
+        """Check if the plugin is idle (no pending requests or processing)."""
+        return self._commit_queue.empty()
+
     @override
     async def start(self) -> None:
         await super().start()
@@ -323,7 +333,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     @final
     async def wait_idle(self, timeout: float) -> None:
         if self._commit_queue.empty():
-            return  # NOTE :Robustness: not sure why we need this early exit, otherwise we stall
+            return  # nothing to wait for
         try:
             await asyncio.wait_for(self._commit_queue.join(), timeout=timeout)
         except asyncio.TimeoutError as e:

@@ -363,6 +363,12 @@ class Simulation:
             self.started_at = REAL_ORACLE.utc()
             with tracer.start_as_current_span("simulation.run"):
                 await asyncio.gather(*(workload.run() for workload in self.workloads))
+                # wait until services (and network?) are idle (at the same time)
+                while (  # noqa: ASYNC110
+                    not all(service.is_idle for service in self.services_by_id.values())
+                    and not self.has_error.is_set()
+                ):
+                    await asyncio.sleep(0.05)  # ('busy' waiting is easiest here)
                 logger.info("simulation.run", simulation=self, span="current")
             # and run checks
             with tracer.start_as_current_span("simulation.check"):
