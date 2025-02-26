@@ -50,6 +50,7 @@ from bench.language.core import (
     reverse_path_element,
     reverse_type_scalar,
 )
+from bench.language.core.text import text_to_markdown
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.runtime import (
     Call,
@@ -164,10 +165,33 @@ class Aliasing:
             alias = self.add(obj)
         return alias
 
+    def get_name(self, node: Node | NodeReference) -> str:
+        """Gets the name for the given node."""
+        alias = self.get(node)
+        if alias is None:
+            raise LookupError(f"no alias for {node!r} in {self!r}")
+        return alias
+
     __getitem__ = get_or_error
 
     def __contains__(self, node: Node | NodeReference | UUID) -> bool:
         return self.get(node) is not None
+
+    def resolve(self, name: str) -> Node | NodeReference | None:
+        """Resolves the given name to a node."""
+        return self._node_by_alias.get(name)
+
+    @staticmethod
+    def new(aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
+        """Create a new Aliasing registry from a mapping of aliases to nodes."""
+        aliasing = Aliasing()
+        for alias, node in aliases.items():
+            aliasing._alias_by_node_id[cast(UUID, node.id)] = alias
+            aliasing._node_by_alias[alias] = node
+        return aliasing
+
+
+AliasingIn = Aliasing | Mapping[str, Node | NodeReference]
 
 
 class Renderer:
@@ -175,10 +199,7 @@ class Renderer:
 
     def __init__(self, options: RenderOptions):
         self.options = options
-        if options.aliasing is None:
-            self.aliasing = options.aliasing or Aliasing()
-        else:
-            self.aliasing = options.aliasing
+        self.aliasing = options.aliasing
 
     def __str__(self) -> str:
         return f"scope={self.scope!r}, aliases={', '.join(self.aliasing._node_by_alias)}"
@@ -937,7 +958,7 @@ class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
 class TextRenderer(BuiltinObjectRenderer[Text]):
     @override
     def render(self, renderer: "Renderer", obj: Text) -> str:
-        return f"md({obj.to_markdown()!r})"
+        return f"text({text_to_markdown(obj, renderer.aliasing)!r})"
 
 
 @_renderer(StructType.CODE)

@@ -10,9 +10,9 @@ from bench.language import (
     PipeType,
     Run,
     RunStatus,
-    Text,
     Trigger,
     code,
+    text,
 )
 from bench.runtime import create_run_from_node
 from bench.test.simulation.core import Simulation
@@ -44,7 +44,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
-    Message1 = Message.new(title="Hello, world!")
+    Message1 = Message.new(text=text("Hello, [@Flow1]!", {"Flow1": Flow1}))
     Channel1.messages.append(Message1)
     await runtime.commit()
 
@@ -74,7 +74,7 @@ message_in.parent.append(reply)
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
-    Message1 = Message.new(title="Hello, world!", text=Text(lines=[TextLine]))
+    Message1 = Message.new(text=text("Hello, [@Flow1]!", {"Flow1": Flow1}))
     Channel1.messages.append(Message1)
     await runtime.commit()
 
