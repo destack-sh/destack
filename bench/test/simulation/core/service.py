@@ -37,6 +37,11 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
         assert self._service is not None, f"f{self!r} not started yet"
         return self._service
 
+    @property
+    def is_idle(self) -> bool:
+        """Check if the service is idle (no pending requests or processing)."""
+        return self.service.is_idle
+
     @abc.abstractmethod
     async def start(self) -> S:
         """Start the service (*and* set self._service)."""

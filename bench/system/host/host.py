@@ -186,6 +186,11 @@ class HostService(GraphServiceBase, HostBase):
         return self._scope
 
     @property
+    def is_idle(self) -> bool:
+        """Check if the Host is idle (no pending requests or processing)."""
+        return all(plugin.is_idle for plugin in self._plugins) and super().is_idle
+
+    @property
     def bench(self) -> Bench:
         assert self._bench is not None, f"bench not loaded in {self}"
         return self._bench

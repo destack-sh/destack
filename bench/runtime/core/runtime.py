@@ -145,6 +145,11 @@ class Runtime:
         return f"<{self.__class__.__name__} {self}>"
 
     @property
+    def is_idle(self) -> bool:
+        """Check if the Runtime is idle (no pending requests or processing)."""
+        return len(self._active_runners_by_id) == 0
+
+    @property
     def active_runner(self) -> Runner | None:
         return self._active_runner.get(None)
 

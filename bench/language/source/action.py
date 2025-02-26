@@ -461,6 +461,7 @@ class ToolFilter(BuiltinEnum):
 @struct_(StructType.TOOL_SELECTION)
 class ToolSelection(Struct):
     # nocheckin: ToolSelection -> ??? (NodeSelection? just Selection?)
+    #  (also needs to include ActionTypes.. right?)
     filter: ToolFilter | None = p_regular(35, default=None)
     tool_nodes: list[Union["Flow", "Action"]] = p_regular(
         40, array=True, require=False, references=(NodeType.ACTION, NodeType.FLOW)

@@ -79,7 +79,6 @@ message_in.parent.append(reply)
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
     assert Run1.status == RunStatus.COMPLETED
-    # nocheckin
 
 
 @simulated_runtime(runtimes=True)
