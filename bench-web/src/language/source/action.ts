@@ -23,6 +23,14 @@ for (const type of ACTION_TYPES) {
   }
 }
 
+export function getActionCategory(action: ActionData | ActionType): ActionCategory {
+  if (typeof action == "number") {
+    return ACTION_CATEGORY_BY_TYPE[action] ?? ActionCategory.WORK;
+  } else {
+    return ACTION_CATEGORY_BY_TYPE[action.type] ?? ActionCategory.WORK;
+  }
+}
+
 /** Get the Type for an Action */
 export function actionToType(
   action: ActionData,

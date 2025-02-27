@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         NodeReference,
         Region,
         Scaler,
+        Tag,
         Text,
     )
 
@@ -191,9 +192,13 @@ class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     scaler: Optional["Scaler"] = p_system(
         38, require=False, array=False, references=NodeType.SCALER
     )
+    tags: list["Tag"] = p_internal(
+        39, require=False, array=True, same_bench=True, references=NodeType.TAG
+    )
     if TYPE_CHECKING:
         scaler_id: Optional[UUID] = None
         scaler_ptr: Optional[NodeReference] = None
+        tags_ptr: tuple[NodeReference, ...] = ()
 
     @classmethod
     def new(cls, *, name: str | None = None, **kwargs: Any) -> Self:

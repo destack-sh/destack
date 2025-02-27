@@ -56,6 +56,7 @@ from .render import (
 from .role import Role
 from .schedule import Schedule, ScheduleFrequency
 from .space import Space, SpaceType
+from .tag import Tag
 from .trigger import (
     MessageTrigger,
     ScheduleTrigger,
@@ -151,6 +152,7 @@ __all__ = [
     "SpaceType",
     "Spacing",
     "StartAction",
+    "Tag",
     "ToolAction",
     "TransformAction",
     "Trigger",

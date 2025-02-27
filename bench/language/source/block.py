@@ -40,6 +40,7 @@ class BlockType(BuiltinEnum):
     PAGE = 5020, "Page", "Page to write", "fas fa-page"
     CHOICE = 5030, "Choice", "Choice of options", "fas fa-check-circle"
     CLASS = 5031, "Class", "Class of Fields", "fas fa-boxes-stacked"
+    TAG = 5040, "Tag", "Tag to tag other Nodes", "fas fa-tag"
     FLOW = 5050, "Flow", "Flow to run", "fas fa-play"
     VIEW = 5080, "View", "Graphical Interface", "fas fa-eye"
     DATABASE = 5090, "Database", "Database to store", "fas fa-database"

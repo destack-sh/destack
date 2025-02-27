@@ -50,7 +50,6 @@ if TYPE_CHECKING:
         File,
         Flow,
         Icon,
-        Machine,
         Message,
         NodeReference,
         Pipe,
@@ -257,9 +256,6 @@ class Action(SourceNode[ActionData]):
     )
 
     # inputs
-    machine: Optional["Machine"] = p_regular(
-        51, require=False, references=(NodeType.MACHINE,), field_type=FieldType.INPUT
-    )
     code: Optional["Code"] = p_regular(
         52,
         default=None,
