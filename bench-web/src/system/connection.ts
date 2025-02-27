@@ -402,7 +402,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     });
   }
 
-  get operationMeta(): OperationMetadata<any> {
+  get operationMeta(): OperationMetadata {
     return {
       connectionId: this.meta.id,
       operationName: `${this.kind}:${this.meta.name}`,

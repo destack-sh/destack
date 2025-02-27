@@ -53,7 +53,7 @@ import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
-import type { RpcError } from "grpc-web";
+import { RpcError, StatusCode } from "grpc-web";
 import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
 export type DebounceLevel = "tick" | "short" | "long";
@@ -859,7 +859,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   private bufferSubs: Array<BufferCallback> = [];
   private acceptedSubs: Array<AcceptedCallback> = [];
   private currentTx: Transaction | null;
-  private bufferedTx: Transaction | null;
+  private committingTx: Transaction | null;
   private bufferedEditsById: Record<string, EditData> = {};
   private bufferedConnectionByEditId: Record<string, number> = {};
   failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
@@ -868,7 +868,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.id = id;
     this.scope = scope;
     this.currentTx = null;
-    this.bufferedTx = null;
+    this.committingTx = null;
     this.reset();
   }
 
@@ -879,55 +879,71 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   async commit() {
     if (this.currentTx == null) throw new Error("no active transaction");
-    if (this.bufferedTx != null) throw new Error(`transaction ${this.bufferedTx.id} is already committing`);
-    try {
-      log.trace("transaction.commit", { scope: this.scope, id: this.currentTx.id, edits: this.currentTx.edits });
+    if (this.committingTx != null) throw new Error(`transaction ${this.committingTx.id} is already committing`);
 
-      const client = getCachedGraphClient(this.scope);
-      if (client == null) throw new Error(`no client for ${this.scope}`);
+    const RECOVERABLE_ERRORS: StatusCode[] = [
+      StatusCode.UNAVAILABLE,
+      StatusCode.CANCELLED,
+      StatusCode.DEADLINE_EXCEEDED,
+    ];
+    const RETRY_TIMEOUT = 1000;
 
-      // swap
-      const edits = this.currentTx.edits;
-      this.bufferedTx = this.currentTx;
-      this.currentTx = this._makeCurrentTx();
+    // swap
+    this.committingTx = this.currentTx;
+    this.currentTx = this._makeCurrentTx();
 
-      // commit
-      const {
-        response: { epoch, cascadedEdits },
-      } = await client.commitTransaction(
-        { edits, id: this.bufferedTx.id, scope: this.scope },
-        {
-          suppressErrors: true,
-          retry: {
-            amendRetry: (request: CommitTransactionRequest) => {
-              // swap again to include new pending edits in next attempt
-              const pendingTx = this.currentTx;
-              if (pendingTx == null) throw new Error("no current transaction");
-              const newEdits = pendingTx.edits;
-              request = { ...request, id: pendingTx.id, edits: [...request.edits, ...newEdits] };
-              this.currentTx = this._makeCurrentTx();
-              return request;
-            },
-          },
-        },
-      );
-    } catch (error) {
-      // nocheckin: handle offline Transaction/connections (just keep buffering the edits)
-      // failed
-      const fail: CommitFailure = { id: this.bufferedTx!.id, edits: this.bufferedTx!.edits, error: error as RpcError };
-      this.failedCommits.value[fail.id] = fail;
-      triggerRef(this.failedCommits);
+    // retry util we succeed or encounter a fatal error
+    let attempt = 0;
+    const client = getCachedGraphClient(this.scope);
+    if (client == null) throw new Error(`no client for ${this.scope}`);
+    while (true) {
+      attempt++;
+      try {
+        log.trace("transaction.commit", {
+          scope: this.scope,
+          id: this.committingTx.id,
+          edits: this.committingTx.edits,
+        });
 
-      // rollback
-      log.error("transaction.commit.error", { scope: this.scope, error });
-      toaster.error({
-        title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
-        text: `Synchronizing ${this.bufferedTx?.edits.length ?? 0} edits failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
-      });
-      this.reset();
-    } finally {
-      this.bufferedTx = null;
+        // commit
+        await client.commitTransaction(
+          { edits: this.committingTx.edits, id: this.committingTx.id, scope: this.scope },
+          { suppressErrors: true },
+        );
+
+        // success
+        break;
+      } catch (error) {
+        // keep retrying
+        if (RECOVERABLE_ERRORS.includes(StatusCode[(error as RpcError).code])) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_TIMEOUT));
+          log.warn("transaction.commit.error.recoverable", { scope: this.scope, error });
+          this.committingTx.edits.push(...this.currentTx.edits);
+          continue;
+        }
+
+        // failed
+        const fail: CommitFailure = {
+          id: this.committingTx!.id,
+          edits: this.committingTx!.edits,
+          error: error as RpcError,
+        };
+        this.failedCommits.value[fail.id] = fail;
+        triggerRef(this.failedCommits);
+
+        // rollback
+        log.error("transaction.commit.error.unrecoverable", { scope: this.scope, error });
+        toaster.error({
+          title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
+          text: `Saving changes failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
+        });
+        this.reset();
+
+        // fatal error, stop retrying
+        break;
+      }
     }
+    this.committingTx = null;
   }
 
   async reset() {
@@ -935,7 +951,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     const oldEdits = Object.values(this.bufferedEditsById);
     this.bufferedEditsById = {};
     this.bufferedConnectionByEditId = {};
-    this.bufferedTx = null;
+    this.committingTx = null;
     this.bufferSubs.forEach((sub) =>
       sub({ type: "reset", meta: {}, connectionIdByEditId: {}, bufferedEdits: [], oldEdits }),
     );
@@ -1051,7 +1067,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 
   get isCommitting() {
-    return this.bufferedTx != null;
+    return this.committingTx != null;
   }
 }
 
