@@ -21,6 +21,7 @@ from bench.language import (
     Block,
     BlockType,
     CallTerminationMode,
+    Channel,
     Choice,
     CustomObject,
     Field,
@@ -195,11 +196,9 @@ def example_(title: str, weight: int = 1):
                 )
             if isinstance(response, CustomObject):
                 renderer = Renderer(
-                    options=RenderOptions(
-                        scope=EXAMPLE_PACKAGE, aliasing=Aliasing(), implicit_partials=True
-                    )
+                    options=RenderOptions(scope=EXAMPLE_PACKAGE, aliasing=Aliasing())
                 )
-                response = renderer.render_custom_object(response)
+                response = renderer.render_custom_object(response, implicit_partials=True)
                 response = f"return {response}"
                 if comment:
                     response = f"# {comment}\n{response}"
@@ -421,17 +420,21 @@ def flow_send_message(package: Package):
     Flow1 = Flow.new(name="Flow1")
     Send1 = Action.new(ActionType.SEND, name="Send1")
     Message1 = Message.new(text=text("Hey what's up?"))
+    Channel1 = Channel.new(name="Channel1")
+    Channel1.append(Message1)
     ...
     # ---
     return [Flow1, *Flow1.actions, *Flow1.pipes], (
-        "Send a Message via a Send Message Action.",
+        "Send a Message via the Send Message Action.",
         Send1,
         {
             "plans": [
                 call_serial(
                     call(
                         Send1,
-                        message_in=Message.partial(reply_to=Message1, text="Not much, and you?"),
+                        message_in=Message.partial(
+                            channel=Channel1, reply_to=Message1, text="Not much, and you?"
+                        ),
                     )
                 )
             ]
