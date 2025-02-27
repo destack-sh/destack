@@ -32,6 +32,7 @@ from bench.language import (
     HasNodeBase,
     InterruptionType,
     LookAction,
+    Message,
     ModelDeveloper,
     ModelType,
     NodeType,
@@ -399,7 +400,7 @@ class CreateActionRunner(StaticActionRunner[CreateAction]):
                 node.parent = node.base
         assert node.is_attached, f"node {node!r} must be attached"
         self.session._create(node)
-        logger.debug("action.create", action=self.node, node=node)
+        logger.debug("create_action.create", action=self.node, node=node)
 
         assert self.output_type is not None, f"no output type for {self!r}"
         self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
@@ -467,13 +468,31 @@ class WaitActionRunner(StaticActionRunner[WaitAction]):
 class SendActionRunner(StaticActionRunner[SendAction]):
     @override
     async def run_static(self) -> None:
-        raise NotImplementedError
+        message_partial = self.action.message_in
+        assert isinstance(
+            message_partial, CustomObject
+        ), f"bad message_partial: {message_partial!r}"
+
+        # create/send message
+        message = make_node_from_partial(message_partial)
+        assert isinstance(message, Message), f"bad message: {message!r}"
+        if message.parent is None:
+            if message.reply_to is not None:
+                message.parent = message.reply_to.parent
+            elif message.thread is not None:
+                message.parent = message.thread
+            elif message.channel is not None:
+                message.parent = message.channel
+            else:
+                raise ValidationError(message, "no parent for message")
+        self.session._create(message)
+        logger.debug("send_action.create", action=self.node, message=message)
 
 
 class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
     @override
     async def run_static(self) -> None:
-        pass  # nothing to do
+        pass  # nothing to do?
 
 
 class YieldActionRunner(StaticActionRunner[YieldAction]):
