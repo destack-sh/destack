@@ -6,9 +6,8 @@ import {
   ColorShade,
   NodeReferenceData,
   NodeType,
-  PrimitiveType,
   ViewType,
-  type ViewData,
+  type ViewData
 } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";

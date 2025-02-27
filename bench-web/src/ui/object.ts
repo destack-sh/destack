@@ -68,6 +68,7 @@ import {
   PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
+  ReceiveActionProperty,
   RecordProperty,
   RunOptionsProperty,
   RunProperty,
@@ -780,9 +781,6 @@ export class FlowLayout extends NodeLayout<NodeType.FLOW> {
 
     // schema
     if (!this.isPartial) {
-      this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-        actions: [this.actionAddField(FieldType.VARIABLE)],
-      });
       this.section(
         "Schema",
         [
@@ -925,6 +923,8 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
   [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
   // communicate
   [ActionType.WAIT]: [WaitActionProperty.delay],
+  [ActionType.RECEIVE]: [ReceiveActionProperty.messagePtr],
+  [ActionType.SEND]: [SendActionProperty.messagePtr],
   // application
   [ActionType.CLICK]: [],
   [ActionType.TYPE]: [TypeActionProperty.string],
@@ -1057,10 +1057,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         },
       );
     } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
-      // variables
-      this.section("Variables", [{ type: "fields-list", fieldType: FieldType.VARIABLE }], {
-        actions: [this.actionAddField(FieldType.VARIABLE)],
-      });
       // own schema
       this.section(
         "Schema",

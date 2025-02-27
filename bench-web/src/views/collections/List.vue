@@ -45,6 +45,7 @@ const { connection, graph, page, roots, isConnecting, isStale } = useSearchConne
     sort: [DEFAULT_SORT],
     filter: filter.value,
     isEnabled: nodeType.value != null,
+    first: 20,
   })),
 );
 const total = computed(() => page.value?.total);

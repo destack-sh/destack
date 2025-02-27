@@ -193,18 +193,18 @@ watchEffect(() => {
 // Views
 //
 
-const remoteAuthorsPtr: Ref<NodeReferenceData[]> = computed(() => {
+const authorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   const authorsPtrById: Record<string, NodeReferenceData> = {};
   for (const message of messages.value) {
-    if (message.createdByPtr != null && message.createdByPtr.nodeType == NodeType.USER) {
+    if (message.createdByPtr != null) {
       authorsPtrById[message.createdByPtr.id!] = message.createdByPtr;
     }
   }
   return Object.values(authorsPtrById);
 });
-const remoteAuthors = supergraph.getManyRef(remoteAuthorsPtr);
-const remoteAuthorsById: Ref<Record<string, EditSubject>> = computed(() =>
-  remoteAuthors.value.reduce(
+const authors = supergraph.getManyRef(authorsPtr);
+const authorsById: Ref<Record<string, EditSubject>> = computed(() =>
+  authors.value.reduce(
     (acc, author) => {
       acc[author.id!] = author as EditSubject;
       return acc;
@@ -234,7 +234,7 @@ const messageViews = computed(() => {
     const message = messages.value[i];
     const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
-    const author = authorPtr != null ? (remoteAuthorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
+    const author = authorPtr != null ? (authorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
     const authorIcon = author != null ? (getNodeIcon(author) ?? null) : null;
     const authorName = author != null ? (getNodeName(author) ?? null) : null;
     let isNewGroup;

@@ -10,9 +10,8 @@ import {
   isRunActive,
   isRunnable,
   isRunPaused,
-  isRunTerminal,
   RunnableNode,
-  RunnableNodeType,
+  RunnableNodeType
 } from "@/language/runtime/run";
 import { newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { actionToType } from "@/language/source/action";
@@ -416,15 +415,6 @@ export function getRunActions(run: RunData): RuntimeAction[] {
       icon: makeIcon("fas fa-stop"),
       action: () => {
         runtime.stop(run);
-      },
-    });
-  } else if (isRunTerminal(run) && run.rootPtr == null) {
-    actions.push({
-      title: "Replay",
-      isPrimary: true,
-      icon: makeIcon("fas fa-redo"),
-      action: () => {
-        runtime.replay(run);
       },
     });
   }
