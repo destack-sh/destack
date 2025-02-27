@@ -13,6 +13,7 @@ import {
   PickerVariant,
   PrimitiveType,
   SelectionData,
+  SelectionType,
   StructType,
   TransformData,
   TypeConstraintData,
@@ -323,6 +324,7 @@ export function makeSelection(
   nodes = Array.isArray(nodes) ? nodes : [nodes];
   return {
     metatype: ObjectType.SELECTION,
+    type: SelectionType.LIST,
     nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
     fieldsPtr: [],
     propertiesPtr: [],
@@ -343,6 +345,7 @@ export function expandSelection(
   const newNodes = nodes.filter((n) => !selection?.nodesPtr.some((m) => m.id == n.id));
   return {
     ...(selection ?? { metatype: ObjectType.SELECTION }),
+    type: SelectionType.LIST,
     nodesPtr: [
       ...(selection?.nodesPtr ?? []),
       ...newNodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),

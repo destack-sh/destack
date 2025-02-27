@@ -289,9 +289,12 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
   view.state.doc.descendants((node, pos) => {
     if (node.type.name === "orderedList" || node.type.name === "unorderedList") return true;
     if (node.type.isInGroup("line")) {
-      const line = mapPmNodeToLine(node);
-      const key = getLineKey(line);
-      oldItems.push({ key, node, pos, line });
+      if (node.attrs.blockPtr != null) {
+        // sometimes blockPtr might be temporarily null when undoing/redoing large chunks?
+        const line = mapPmNodeToLine(node);
+        const key = getLineKey(line);
+        oldItems.push({ key, node, pos, line });
+      }
       return false;
     }
     return true;
@@ -384,7 +387,7 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
     if (!targetDoc.eq(tr.doc)) {
       // TODO :Robustness: differenceUpdateLines should never have to fall back to full replace (ideally)
       if (IS_DEV || isDeveloperMode.value) {
-        log.error("differenceUpdateLines.mismatch", {
+        log.warn("differenceUpdateLines.mismatch", {
           ops,
           prevLines,
           newLines,
@@ -395,7 +398,7 @@ export function differenceUpdateLines(view: EditorView, prevLines: LineInterface
         });
       }
       const updatedState = EditorState.create({ doc: targetDoc, schema: PM_SCHEMA, plugins: view.state.plugins });
-      view.dispatch(updatedState.tr);
+      view.updateState(updatedState);
     } else {
       tr.setMeta("_ignoreDocChanged", true);
       view.dispatch(tr);
