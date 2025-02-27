@@ -1,5 +1,5 @@
 import { canvas, supergraph } from "@/globals";
-import { INVISIBLE_ACTION_TYPES, SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/core/const";
+import { SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNodeName, NodeIn, unpackSubnode } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
@@ -416,7 +416,6 @@ export class FlowContext {
     let x2 = actions[0].position?.x ?? 0;
     let y2 = actions[0].position?.y ?? 0;
     for (const action of actions) {
-      if (INVISIBLE_ACTION_TYPES.includes(action.type!)) continue;
       const state = this.actionsStates.value[action.id!];
       if (state == null) continue;
       x1 = Math.min(x1, action.position?.x ?? 0);
@@ -1007,10 +1006,7 @@ export class FlowContext {
                 action: { type: value },
                 tx,
               });
-              if (
-                action.type != ActionType.TEXT &&
-                this.canPortsConnect(sourcePort, { parent: action, side: PortSide.INCOMING })
-              ) {
+              if (this.canPortsConnect(sourcePort, { parent: action, side: PortSide.INCOMING })) {
                 this.createPipe({
                   parent: this.flow.value!,
                   pipe: {},
@@ -1333,7 +1329,6 @@ export function getOtherSide(side: PortSide): PortSide {
 
 /** Gets the sides that a Action has ports on */
 export function getActionSides(action: ActionData): PortSide[] {
-  if (action.type == ActionType.TEXT) return []; // no ports
   const sides: PortSide[] = [];
   if (!SOURCE_ACTION_TYPES.includes(action.type)) sides.push(PortSide.INCOMING);
   if (!SINK_ACTION_TYPES.includes(action.type)) sides.push(PortSide.OUTGOING);

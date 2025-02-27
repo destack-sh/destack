@@ -17,7 +17,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Field, Page, Pipe, Role, RunOptions
+    from bench.language import Action, Field, Page, Pipe, Role, RunOptions, Selection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,8 +28,17 @@ class Flow(InlineSourceNode[FlowData]):
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
+    # meta
     run_options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
+    tool_selection: Optional["Selection"] = p_regular(
+        41,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.SELECTION,
+        field_type=FieldType.INPUT,
     )
     roles: list["Role"] = p_regular(42, require=False, array=True, references=NodeType.ROLE)
 

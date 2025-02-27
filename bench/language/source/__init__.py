@@ -34,6 +34,7 @@ from .block import BLOCK_TYPES, NODE_BLOCK_TYPES, TEXT_BLOCK_TYPES, Block, Block
 from .channel import Channel, ChannelType
 from .choice import Choice
 from .clazz import Class
+from .collection import Collection
 from .database import Database
 from .dependency import Dependency
 from .field import Field
@@ -101,6 +102,7 @@ __all__ = [
     "Class",
     "ClickAction",
     "CodeAction",
+    "Collection",
     "CompleteAction",
     "CreateAction",
     "Database",
