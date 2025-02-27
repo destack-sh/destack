@@ -2,9 +2,7 @@ import _AVAILABLE_EMOJI_ICONS from "@/assets/emoji-icons.json";
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { supergraph } from "@/globals";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/core/const";
-import { unpackSubnodeProperty } from "@/language/core/node";
 import type { TypeIdentity } from "@/language/core/type";
-import { unpackPartialNode } from "@/language/core/value";
 import {
   ActionType,
   BenchType,
@@ -13,6 +11,7 @@ import {
   ColorData,
   ColorShade,
   ColorType,
+  ENUM_OPTION_INFO_BY_TYPE,
   FieldData,
   IconType,
   NodeReferenceData,
@@ -20,6 +19,8 @@ import {
   NodeTypeOptionInfo,
   ObjectType,
   PrimitiveTypeOptionInfo,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
   StructType,
   StructTypeOptionInfo,
   TypeFormatOptionInfo,
@@ -319,32 +320,27 @@ export function getNodeIcon(
       const icon = getNodeIcon(base, options);
       if (icon != null) return icon;
     }
-  } else if (isNode(node, NodeType.ACTION) && node.toolPtr != null && node.type == ActionType.TOOL) {
+  } else if (isNode(node, NodeType.ACTION) && node.type == ActionType.TOOL && node.toolPtr != null) {
     // tool node (delegate)
     const tool = supergraph.get(node.toolPtr);
     if (tool != null) {
       const icon = getNodeIcon(tool, options);
       if (icon != null) return icon;
     }
-  } else if (isNode(node, NodeType.ACTION) && node.type == ActionType.CREATE && node.subnodePacked != null) {
-    // create action
-    const nodePartialPacked = unpackSubnodeProperty(
-      NodeType.ACTION,
-      ActionType.CREATE,
-      node.subnodePacked,
-      "nodePartialPacked",
-    );
-    const nodePartialType = (nodePartialPacked as any)?.["1"] as NodeType | undefined;
-    if (nodePartialType != null) {
-      const { node: nodePartial } = unpackPartialNode(nodePartialPacked, nodePartialType, 0);
-      if (isNode(nodePartial, nodePartialType)) {
-        const icon = getNodeIcon(nodePartial, options);
-        if (icon != null) return icon;
-      }
-    }
   }
 
   const nodeType = (node as any).metatype as NodeType;
+
+  // subtype icon
+  if ((node as any).type != null) {
+    const nodeProperties = PROPERTY_INFOS_BY_TYPE[(node as any).metatype as ObjectType];
+    const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[(node as any).metatype as ObjectType];
+    const enumType = nodeProperties[(nodePropertiesEnum as any)?.type]?.enumType!;
+    const icon = ENUM_OPTION_INFO_BY_TYPE[enumType]?.[(node as any).type]?.icon;
+    if (icon != null) {
+      return makeIcon(icon);
+    }
+  }
 
   // generic icon for node type
   if (NodeTypeOptionInfo[nodeType]?.icon != null) {

@@ -79,7 +79,6 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
         is-input
         :tx="() => connection.tx"
         @navigate="(direction) => emit('navigate', direction)"
-        @click.stop.prevent="nameRef?.focusIdentifier('right')"
       />
     </div>
     <!-- Header "footer" -->

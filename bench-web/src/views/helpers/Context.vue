@@ -233,6 +233,7 @@ defineExpose<ViewExpose>({ self });
         </div>
       </template>
       <template v-else-if="aspect == ContextAspect.RUN">
+        <!-- nocheckin: proper Run view -->
         <!-- Run status -->
         <RunStatus v-if="containingRun != null" :run="containingRun" icon="dot" />
         <!-- Run controls-->

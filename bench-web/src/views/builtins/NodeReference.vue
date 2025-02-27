@@ -59,8 +59,8 @@ const identifier: Ref<string | undefined> = computed(() => (node.value as any)?.
 // :NodeReferenceStyle
 const iconClass = computed(() => [
   props.size == "regular" ? "w-5 mr-1" : "",
-  props.size == "large" ? "w-5 text-base mr-1.5" : "",
-  props.size == "title" ? "w-8 text-4xl mr-1.5" : "",
+  props.size == "large" ? "w-5 text-base mr-2" : "",
+  props.size == "title" ? "w-8 text-4xl mr-3.5" : "",
 ]);
 const identifierClass = computed(() => [
   props.size == "regular" ? [props.isLight ? "" : "font-medium"] : "",

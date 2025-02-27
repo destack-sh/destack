@@ -301,7 +301,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
       :is-root="isRoot"
       :is-inline="isInline"
       :is-minimal="isMinimal"
-      is-compact
       :focus="props.focus"
       :width="containerSize.width.value - GUTTER_WIDTH * 2"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
@@ -337,16 +336,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
       </template>
       <!-- Meta -->
       <template #right="{ style }">
-        <!-- Variables -->
-        <FieldList
-          v-if="style == 'page'"
-          id="type.input"
-          class="ml-auto"
-          :node="flow"
-          :prepared-connection="preparedConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.VARIABLE"
-        />
         <!-- Add action -->
         <button
           ref="createActionRef"

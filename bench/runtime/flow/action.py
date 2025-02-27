@@ -202,13 +202,13 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
         )
 
         # determine model
-        model_developer = self.options.model_developer or ModelDeveloper.OPENAI
+        model_developer = self.options.model_developer or ModelDeveloper.ANTHROPIC
         if model_developer == ModelDeveloper.OPENAI:
             model_runner_cls = OpenaiChatModelRunner
-            model_type = self.options.model_type or ModelType.OPENAI_GPT4_0
+            model_type = self.options.model_type or ModelType.OPENAI_O3_MINI
         elif model_developer == ModelDeveloper.ANTHROPIC:
             model_runner_cls = AnthropicChatModelRunner
-            model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
+            model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_7_SONNET
         elif model_developer == ModelDeveloper.GOOGLE:
             model_runner_cls = GeminiChatModelRunner
             model_type = self.options.model_type or ModelType.GOOGLE_GEMINI_2_0_FLASH
@@ -487,6 +487,11 @@ class SendActionRunner(StaticActionRunner[SendAction]):
                 raise ValidationError(message, "no parent for message")
         self.session._create(message)
         logger.debug("send_action.create", action=self.node, message=message)
+
+        assert self.output_type is not None, f"no output type for {self!r}"
+        self.outputs = coerce_custom_object_scalar(
+            {"message": message}, self.output_type, as_packed=True
+        )
 
 
 class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
