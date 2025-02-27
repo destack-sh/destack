@@ -48,19 +48,12 @@ export type Operation<I extends object, O extends object> = {
 export type OperationError = RpcError | Error;
 export type GrpcStatusName = keyof typeof GrpcStatusCode;
 
-type RetryOptions<T extends object> = {
-  retryOn?: GrpcStatusName[];
-  maxRetries?: number;
-  maxTimeMs?: number;
-  amendRetry?: (request: T, error: RpcError, numRetries: number) => T;
-};
-export type OperationMetadata<T extends object> = {
+export type OperationMetadata = {
   connectionId?: number;
   operationName?: string;
   suppressErrors?: boolean;
-  retry?: RetryOptions<T>;
 };
-export type OperationOptions = RpcOptions & OperationMetadata<any>;
+export type OperationOptions = RpcOptions & OperationMetadata;
 
 export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   INVALID_ARGUMENT: "Invalid request",
@@ -135,7 +128,7 @@ const operationsTracker = {
     };
     const onError = async (error: RpcError) => {
       const code = error.code;
-      const meta = op.options as OperationMetadata<any>;
+      const meta = op.options as OperationOptions;
       if (!meta.suppressErrors) {
         log.error(rpcName, { id, uri, code, error, op });
         toaster.error(humanizeError(error));
