@@ -45,6 +45,7 @@ if TYPE_CHECKING:
         Browser,
         CallPlan,
         Code,
+        Collection,
         DomNode,
         Field,
         File,
@@ -226,7 +227,9 @@ class Action(SourceNode[ActionData]):
     A data or control flow node in a Flow. Actions are connected by Pipes.
     """
 
-    parent: Union["Flow", "Action", None] = p_node_parent(4, NodeType.FLOW, NodeType.ACTION)
+    parent: Union["Flow", "Collection", "Action", None] = p_node_parent(
+        4, NodeType.FLOW, NodeType.COLLECTION, NodeType.ACTION
+    )
 
     # common
     type: ActionType = p_regular(
@@ -340,7 +343,7 @@ class Action(SourceNode[ActionData]):
         target: "Action",
         name: str | None = None,
         *,
-        parent: Union["Flow", "Action", None] = None,
+        parent: Union["Flow", "Collection", "Action", None] = None,
         run_options: "RunOptions | None" = None,
     ) -> "Pipe":
         """Connects a target Action to this Action."""
@@ -387,12 +390,14 @@ class Action(SourceNode[ActionData]):
                 if field_types and FieldType.OUTPUT not in field_types:
                     return None
                 base = self.parent
+                assert not isinstance(base, Collection), f"{self!r} is invalid inside {base!r}"
                 property_field_types = field_types
                 field_types = [FieldType.INPUT]  # remap to only input fields from Flow
             elif self.type == ActionType.COMPLETE:
                 if field_types and FieldType.INPUT not in field_types:
                     return None
                 base = self.parent
+                assert not isinstance(base, Collection), f"{self!r} is invalid inside {base!r}"
                 property_field_types = field_types
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.27.3"
+VERSION = "2025.02.27.5"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1009,6 +1009,7 @@ FLOW_TABLE = Table(
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("tags_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
+        Column("tool_selection", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
@@ -1162,6 +1163,47 @@ TRIGGER_TABLE = Table(
         Column("processed_count", PrimitiveType.INT32, default="0"),
         Column("processed_key", PrimitiveType.STRING, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
+    ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+COLLECTION_TABLE = Table(
+    "bench_collection",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID, is_nullable=True),
+        Column("package_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
+        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("name", PrimitiveType.STRING),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("block_id", PrimitiveType.UUID, is_nullable=True),
+        Column("block_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("tags_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

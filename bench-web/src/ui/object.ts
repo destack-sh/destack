@@ -2,13 +2,12 @@ import { canvas, supergraph } from "@/globals";
 import {
   APPLICATION_ACTION_TYPES,
   DYNAMIC_ACTION_TYPES,
-  FLOW_ACTION_TYPES,
   getBaseFromNode,
   getPropertyTitle,
   isNodeType,
   isSourceNode,
   SOURCE_NODE_TYPES,
-  toCamelName,
+  toCamelName
 } from "@/language/core/const";
 import { useComputedValues } from "@/language/core/expression";
 import { ReadNodeGraph } from "@/language/core/graph";
@@ -48,7 +47,6 @@ import {
   FieldData,
   FieldProperty,
   FieldType,
-  FlowProperty,
   GoToUrlActionProperty,
   IconData,
   LookActionProperty,
@@ -70,7 +68,6 @@ import {
   PropertyInfo,
   ReceiveActionProperty,
   RecordProperty,
-  RunOptionsProperty,
   RunProperty,
   ScrollActionProperty,
   SendActionProperty,
@@ -81,7 +78,7 @@ import {
   TypeKind,
   UpdateActionProperty,
   ViewType,
-  WaitActionProperty,
+  WaitActionProperty
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -735,13 +732,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
 
     return rows;
   }
-
-  /** Run options section */
-  sectionRunOptions(baseProperty: number) {
-    this.section("Run", [this.rowProperty([baseProperty, RunOptionsProperty.maxAttempts], { title: "Attempts" })], {
-      isDefaultCollapsed: true,
-    });
-  }
 }
 
 export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
@@ -795,7 +785,6 @@ export class FlowLayout extends NodeLayout<NodeType.FLOW> {
       );
     }
 
-    this.sectionRunOptions(FlowProperty.runOptions);
   }
 }
 
@@ -1168,11 +1157,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     // application options
     if (APPLICATION_ACTION_TYPES.includes(this.subtype as any) && !this.isPartial) {
       this.sectionApplication();
-    }
-
-    // run options
-    if (!FLOW_ACTION_TYPES.includes(this.subtype as any) && !this.isPartial) {
-      this.sectionRunOptions(ActionProperty.runOptions);
     }
   }
 }

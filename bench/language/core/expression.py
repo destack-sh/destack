@@ -77,9 +77,17 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
 }
 
 
+@enum_(EnumType.SELECTION_TYPE)
+class SelectionType(BuiltinEnum):
+    LIST = 10
+    # TAG, COMBINATION, ...
+
+
 @struct_(StructType.SELECTION)
 class Selection(Struct):
     """A selection of Nodes."""
+
+    type: SelectionType = p_regular(30, default=SelectionType.LIST)
 
     nodes: list[Node] = p_regular(40, require=False, array=True, references="any")
     fields: list["Field"] = p_regular(41, require=False, array=True, references=NodeType.FIELD)
@@ -97,7 +105,7 @@ class Expression(Struct):
     An Expression like a value, function, comparison or such.
     """
 
-    type: ExpressionType = p_regular(30, require=True)
+    type: ExpressionType = p_regular(30)
     property: Optional[Property] = p_regular(
         31, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
