@@ -11,7 +11,6 @@ import {
   BlockData,
   BlockProperty,
   ChangeCategory,
-  CommitTransactionRequest,
   EditOperationData,
   EditOperationType,
   EditType,
@@ -31,7 +30,7 @@ import {
   Timestamp,
   type AnyNodeData,
   type EditData,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
   arrayEquals,
@@ -915,7 +914,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
         break;
       } catch (error) {
         // keep retrying
-        if (RECOVERABLE_ERRORS.includes(StatusCode[(error as RpcError).code])) {
+        if (RECOVERABLE_ERRORS.includes(StatusCode[(error as RpcError).code] as any)) {
           await new Promise((resolve) => setTimeout(resolve, RETRY_TIMEOUT));
           log.warn("transaction.commit.error.recoverable", { scope: this.scope, error });
           this.committingTx.edits.push(...this.currentTx.edits);

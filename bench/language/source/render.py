@@ -305,13 +305,15 @@ class Renderer:
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def render_custom_object(self, value: "CustomObject") -> str:
+    def render_custom_object(self, value: "CustomObject", implicit_partials: bool = False) -> str:
         """Renders single Object into an expression."""
         # collect kwargs
         typ = value._type
         kwargs = _deconstruct_custom_object(value)
         rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
-        if value._type.kind == TypeKind.PARTIAL_OBJECT and not self.options.implicit_partials:
+        if value._type.kind == TypeKind.PARTIAL_OBJECT and not (
+            self.options.implicit_partials or implicit_partials
+        ):
             node_cls = (
                 NODE_CLASS_BY_TYPE[cast(NodeType, value._type.bench_type)]
                 if value._type.bench_type
@@ -527,7 +529,11 @@ def _render_custom_object_kwargs(
 ) -> dict[str, str]:
     rendered_kwargs: dict[str, str] = {}
     for prop, value in kwargs.items():
-        rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
+        if type(prop) is Property and prop.is_value_packed:
+            assert type(prop.value_runtime_ptr) is Property, f"no runtime ptr for {prop!r}"
+            rendered_kwargs[prop.value_runtime_ptr.name] = renderer.render_custom_object(value)
+        else:
+            rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
     return rendered_kwargs
 
 

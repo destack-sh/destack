@@ -1164,15 +1164,15 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
     } else if (node.type == ActionType.SEND) {
-      // nocheckin: why is this Sendaction.messageInPacked not working?
+      // TODO :Broken: why is this Sendaction.messageInPacked not working?
       //  (should have Message type pre-filled and edits shown..)
-      commonRows.push(
-        this.rowObjectNested(
-          SendActionProperty.messageInPacked,
-          makeType({ kind: TypeKind.PARTIAL_OBJECT, benchType: BenchType.MESSAGE }),
-          { isComputable: true },
-        ),
-      );
+      // commonRows.push(
+      //   this.rowObjectNested(
+      //     SendActionProperty.messageInPacked,
+      //     makeType({ kind: TypeKind.PARTIAL_OBJECT, benchType: BenchType.MESSAGE }),
+      //     { isComputable: true },
+      //   ),
+      // );
     }
 
     // schema
