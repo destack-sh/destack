@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.27.0"
+VERSION = "2025.02.27.3"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -531,6 +531,7 @@ class NodeType(BuiltinEnum):
     # UNION?
     FIELD = 5035, None, None, "fas fa-triangle"
     OPTION = 5036, None, None, "far fa-square-check"
+    TAG = 5040, None, None, "fas fa-tag"
     FLOW = 5050, None, None, "fas fa-diagram-project"
     ACTION = 5051, None, None, "fas fa-step-forward"
     PIPE = 5052, None, None, "fas fa-pipe-section"
@@ -676,6 +677,7 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.PAGE,
     NodeType.ROLE,
     NodeType.VIEW,
+    NodeType.TAG,
 )
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)

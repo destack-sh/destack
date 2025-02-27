@@ -123,6 +123,7 @@ if TYPE_CHECKING:
         Run,
         SearchConnection,
         Session,
+        Tag,
         Text,
         Thread,
         Type,
@@ -1583,12 +1584,16 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
         same_bench=True,
         description="The 'main' Thread associated with this Node.",
     )
+    tags: list["Tag"] = p_internal(
+        38, require=False, array=True, same_bench=True, references=NodeType.TAG
+    )
     if TYPE_CHECKING:
         block_id: Optional[UUID] = None
         block_ck: Optional[UUID] = None
         block_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
+        tags_ptr: tuple[NodeReference, ...] = ()
 
     @property
     def container(self) -> "Node | None":
