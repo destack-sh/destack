@@ -1,12 +1,34 @@
+import { ACTION_TYPES } from "@/language/core/const";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 
-import { BenchType, FieldType, TypeKind } from "@/proto/wire";
-import { ActionData, ActionType, TypeData } from "@/proto/wire";
+import { ActionCategory, ActionData, ActionType, BenchType, FieldType, TypeData, TypeKind } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 
+// NOTE: the default ActionCategory is WORK
+export const ACTION_CATEGORY_BY_TYPE: Partial<Record<ActionType, ActionCategory>> = {
+  [ActionType.THINK]: ActionCategory.THINK,
+  [ActionType.WAIT]: ActionCategory.WAIT,
+  [ActionType.SEND]: ActionCategory.TYPE,
+  [ActionType.RECEIVE]: ActionCategory.TYPE,
+  [ActionType.YIELD]: ActionCategory.WAIT,
+};
+for (const type of ACTION_TYPES) {
+  if (type >= 1000 && type < 1100) {
+    ACTION_CATEGORY_BY_TYPE[type] = ActionCategory.INTERACT;
+  } else if (type >= 1100 && type < 1200) {
+    ACTION_CATEGORY_BY_TYPE[type] = ActionCategory.READ;
+  } else if (type >= 1200 && type < 1300) {
+    ACTION_CATEGORY_BY_TYPE[type] = ActionCategory.BROWSE;
+  }
+}
+
 /** Get the Type for an Action */
-export function actionToType(action: ActionData, of: "instance" | "value", fieldTypes: FieldType[]): TypeData | undefined {
+export function actionToType(
+  action: ActionData,
+  of: "instance" | "value",
+  fieldTypes: FieldType[],
+): TypeData | undefined {
   if (of == "instance") {
     return makeType({ kind: TypeKind.BASED_NODE, benchType: BenchType.RUN, baseTypePtr: toNodeRef(action) });
   } else if (of == "value") {

@@ -102,10 +102,10 @@ enum EnumType {
   ENUM_TYPE_MODEL_PROVIDER = 22253;
   ENUM_TYPE_CODE_TYPE = 22300;
   ENUM_TYPE_ACTION_TYPE = 22350;
+  ENUM_TYPE_ACTION_CATEGORY = 22351;
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_PIPE_TYPE = 22353;
   ENUM_TYPE_PIPE_TRIGGER = 22354;
-  ENUM_TYPE_TOOL_FILTER = 22355;
   ENUM_TYPE_SPACE_TYPE = 22400;
   ENUM_TYPE_VIEW_TYPE = 22401;
   ENUM_TYPE_COLOR_TYPE = 22402;
@@ -233,7 +233,6 @@ enum StructType {
   STRUCT_TYPE_AUDIO_OPTIONS = 12801;
   STRUCT_TYPE_IMAGE_OPTIONS = 12802;
   STRUCT_TYPE_VIDEO_OPTIONS = 12803;
-  STRUCT_TYPE_TOOL_SELECTION = 12900;
   STRUCT_TYPE_COLOR = 13200;
   STRUCT_TYPE_FONT = 13201;
   STRUCT_TYPE_RECTANGLE = 13202;
@@ -341,7 +340,6 @@ enum ObjectType {
   OBJECT_TYPE_AUDIO_OPTIONS = 12801;
   OBJECT_TYPE_IMAGE_OPTIONS = 12802;
   OBJECT_TYPE_VIDEO_OPTIONS = 12803;
-  OBJECT_TYPE_TOOL_SELECTION = 12900;
   OBJECT_TYPE_COLOR = 13200;
   OBJECT_TYPE_FONT = 13201;
   OBJECT_TYPE_RECTANGLE = 13202;
@@ -449,7 +447,6 @@ enum BenchType {
   BENCH_TYPE_AUDIO_OPTIONS = 12801;
   BENCH_TYPE_IMAGE_OPTIONS = 12802;
   BENCH_TYPE_VIDEO_OPTIONS = 12803;
-  BENCH_TYPE_TOOL_SELECTION = 12900;
   BENCH_TYPE_COLOR = 13200;
   BENCH_TYPE_FONT = 13201;
   BENCH_TYPE_RECTANGLE = 13202;
@@ -552,10 +549,10 @@ enum BenchType {
   BENCH_TYPE_MODEL_PROVIDER = 22253;
   BENCH_TYPE_CODE_TYPE = 22300;
   BENCH_TYPE_ACTION_TYPE = 22350;
+  BENCH_TYPE_ACTION_CATEGORY = 22351;
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_PIPE_TYPE = 22353;
   BENCH_TYPE_PIPE_TRIGGER = 22354;
-  BENCH_TYPE_TOOL_FILTER = 22355;
   BENCH_TYPE_SPACE_TYPE = 22400;
   BENCH_TYPE_VIEW_TYPE = 22401;
   BENCH_TYPE_COLOR_TYPE = 22402;
@@ -1499,10 +1496,12 @@ enum ModelType {
   MODEL_TYPE_META_LLAMA_3_1_400B = 102;
   MODEL_TYPE_OPENAI_GPT4_0 = 201;
   MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
+  MODEL_TYPE_OPENAI_GPT4_5 = 203;
   MODEL_TYPE_OPENAI_O1 = 220;
   MODEL_TYPE_OPENAI_O1_MINI = 221;
   MODEL_TYPE_OPENAI_O3_MINI = 222;
   MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
+  MODEL_TYPE_ANTHROPIC_CLAUDE_3_7_SONNET = 302;
   MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 400;
   MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
   MODEL_TYPE_DEEPSEEK_R_1_0 = 701;
@@ -1545,7 +1544,7 @@ enum ActionType {
   ACTION_TYPE_FAIL = 11;
   ACTION_TYPE_TOOL = 100;
   ACTION_TYPE_CODE = 101;
-  ACTION_TYPE_ACT = 200;
+  ACTION_TYPE_DO = 200;
   ACTION_TYPE_THINK = 201;
   ACTION_TYPE_ROUTE = 202;
   ACTION_TYPE_GENERATE = 203;
@@ -1582,7 +1581,19 @@ enum ActionType {
   ACTION_TYPE_GRAPHQL = 1102;
   ACTION_TYPE_SQL = 1103;
   ACTION_TYPE_WEB = 1200;
-  ACTION_TYPE_TEXT = 29000;
+}
+
+enum ActionCategory {
+  ACTION_CATEGORY_UNSPECIFIED = 0;
+  ACTION_CATEGORY_READ = 1;
+  ACTION_CATEGORY_SEARCH = 2;
+  ACTION_CATEGORY_BROWSE = 3;
+  ACTION_CATEGORY_TYPE = 4;
+  ACTION_CATEGORY_SPEAK = 5;
+  ACTION_CATEGORY_THINK = 7;
+  ACTION_CATEGORY_WAIT = 8;
+  ACTION_CATEGORY_WORK = 10;
+  ACTION_CATEGORY_INTERACT = 11;
 }
 
 enum PortSide {
@@ -1602,14 +1613,6 @@ enum PipeTrigger {
   PIPE_TRIGGER_ON_COMPLETED = 1;
   PIPE_TRIGGER_ON_FAILED = 2;
   PIPE_TRIGGER_ON_TERMINATED = 3;
-}
-
-enum ToolFilter {
-  TOOL_FILTER_UNSPECIFIED = 0;
-  TOOL_FILTER_ANY = 10;
-  TOOL_FILTER_SELECT_BUILIN = 20;
-  TOOL_FILTER_SELECT_CUSTOM = 30;
-  TOOL_FILTER_SELECT = 40;
 }
 
 enum SpaceType {
@@ -2432,13 +2435,6 @@ message ContextData {
   optional NodeReferenceData user_ptr = 95;
 }
 
-message ToolSelectionData {
-  ObjectType metatype = 1;
-  optional ToolFilter filter = 35;
-  repeated NodeReferenceData tool_nodes_ptr = 40;
-  repeated ActionType tool_types = 41;
-}
-
 message FontData {
   ObjectType metatype = 1;
   optional FontType type = 31;
@@ -3193,12 +3189,13 @@ message ActionData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ActionType type = 30;
+  optional ActionCategory category = 31;
   string name = 32;
   string order_key = 33;
   optional IconData icon = 35;
   optional TextData text = 36;
   optional RunOptionsData run_options = 40;
-  optional ToolSelectionData tool_selection = 41;
+  optional SelectionData tool_selection = 41;
   optional NodeReferenceData machine_ptr = 51;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
@@ -3908,8 +3905,6 @@ message ScheduleTriggerData {
 
 // A Trigger is an event-driven condition that, once met, affects the runtime somehow.
 message MessageTriggerData {
-  optional NodeReferenceData channel_ptr = 100;
-  optional NodeReferenceData thread_ptr = 101;
 }
 
 message MessageData {

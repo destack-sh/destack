@@ -1,6 +1,7 @@
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from uuid import UUID
 
 import cachetools
 
@@ -18,7 +19,6 @@ from bench.language.core import (
     NodeType,
     RunType,
     SourceNode,
-    Struct,
     StructType,
     Type,
     TypeBase,
@@ -34,7 +34,6 @@ from bench.language.core import (
     p_regular,
     p_value_packed,
     p_value_runtime,
-    struct_,
     subnode_,
 )
 from bench.pb2.lang_pb2 import ActionData
@@ -57,6 +56,7 @@ if TYPE_CHECKING:
         Pipe,
         PipeType,
         RunOptions,
+        Selection,
         Text,
         Trigger,
         Vector2,
@@ -65,6 +65,19 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 _type = type
+
+
+@enum_(EnumType.ACTION_CATEGORY)
+class ActionCategory(BuiltinEnum):
+    READ = 1, "Read", "Reading", "fas fa-eye"
+    SEARCH = 2, "Search", "Searching", "fas fa-magnifying-glass"
+    BROWSE = 3, "Browse", "Browsing", "fas fa-globe"
+    TYPE = 4, "Type", "Typing", "fas fa-keyboard"
+    SPEAK = 5, "Speak", "Speaking", "fas fa-microphone"
+    THINK = 7, "Think", "Thinking", "fas fa-brain-circuit"
+    WAIT = 8, "Wait", "Waiting", "fas fa-clock"
+    WORK = 10, "Work", "Working", "fas fa-hammer"
+    INTERACT = 11, "Interact", "Interacting", "fas fa-hand-pointer"
 
 
 @enum_(EnumType.ACTION_TYPE)
@@ -76,12 +89,12 @@ class ActionType(BuiltinEnum):
     # ABORT?
 
     # tool
-    TOOL = 100, "Tool", "Delegate to a tool", "fas fa-screwdriver-wrench", ColorType.SKY
+    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.SKY
     CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.SKY
     # SHELL, ...
 
     # dynamic
-    ACT = 200, "Act", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
+    DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
     THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
     ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
     GENERATE = (
@@ -103,7 +116,7 @@ class ActionType(BuiltinEnum):
     SUMMARIZE = 207, "Summarize", "Condense media content", "fas fa-file-lines", ColorType.VIOLET
     COMPARE = 208, "Compare", "Compare multiple things", "fas fa-code-compare", ColorType.VIOLET
     TRANSLATE = 209, "Translate", "Translate between languages", "fas fa-language", ColorType.VIOLET
-    EDIT = 210, "Change", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
+    EDIT = 210, "Edit", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
 
     # read
     # AGGREGATE?
@@ -175,8 +188,9 @@ class ActionType(BuiltinEnum):
     # containers
     # GROUP, LOOP, ...
 
-    # misc
-    TEXT = 29000, "Text", "Just some documentation", "fas fa-align-left", ColorType.GRAY
+    @property
+    def category(self) -> ActionCategory:
+        return ACTION_CATEGORY_BY_TYPE.get(self) or ActionCategory.WORK
 
     @property
     def is_boundary(self) -> bool:
@@ -191,7 +205,20 @@ class ActionType(BuiltinEnum):
         return self >= 8000 and self < 9000
 
 
-DYNAMIC_ACTION_TYPES = [t for t in ActionType if t.is_dynamic]
+# NOTE: the default ActionCategory is WORK
+ACTION_CATEGORY_BY_TYPE = {
+    ActionType.THINK: ActionCategory.THINK,
+    ActionType.WAIT: ActionCategory.WAIT,
+    ActionType.SEND: ActionCategory.TYPE,
+    ActionType.RECEIVE: ActionCategory.TYPE,
+    ActionType.YIELD: ActionCategory.WAIT,
+    # application
+    **{t: ActionCategory.INTERACT for t in ActionType if t >= 1000 and t < 1100},
+    # data
+    **{t: ActionCategory.READ for t in ActionType if t >= 1100 and t < 1200},
+    # internet
+    **{t: ActionCategory.BROWSE for t in ActionType if t >= 1200 and t < 1300},
+}
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
@@ -206,6 +233,7 @@ class Action(SourceNode[ActionData]):
     type: ActionType = p_regular(
         30, description="Type of this Action. Only dynamic for tools.", field_type=FieldType.INPUT
     )
+    category: ActionCategory | None = p_regular(31, description="Category of this Action.")
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
@@ -219,15 +247,14 @@ class Action(SourceNode[ActionData]):
     run_options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    tool_selection: Optional["ToolSelection"] = p_regular(
+    tool_selection: Optional["Selection"] = p_regular(
         41,
         default=None,
         require=False,
         array=False,
-        struct=StructType.TOOL_SELECTION,
+        struct=StructType.SELECTION,
         field_type=FieldType.INPUT,
     )
-    # roles, identity, ...
 
     # inputs
     machine: Optional["Machine"] = p_regular(
@@ -242,16 +269,18 @@ class Action(SourceNode[ActionData]):
         description="The implementation code for this action.",
         field_type=FieldType.INPUT,
     )
-    tool: Union["Flow", None] = p_regular(
+    tool: Union["Flow", "Action", None] = p_regular(
         53,
         require=False,
         array=False,
-        references=(NodeType.FLOW,),
+        references=(NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
         field_type=FieldType.INPUT,
     )
     if TYPE_CHECKING:
         tool_ptr: "NodeReference | None" = None
+        tool_id: Optional[UUID] = None
+        tool_ck: Optional[UUID] = None
     # variables for tool
     variables_packed: Any = p_value_packed(55)
     variables: Any = p_value_runtime(
@@ -450,24 +479,9 @@ class Action(SourceNode[ActionData]):
         return cast(ActionT, action)
 
 
-@enum_(EnumType.TOOL_FILTER)
-class ToolFilter(BuiltinEnum):
-    ANY = 10, "Any Actions"
-    SELECT_BUILIN = 20, "Only Builtin Actions"
-    SELECT_CUSTOM = 30, "Only Custom Actions"
-    SELECT = 40, "Only Specific Actions"
-
-
-@struct_(StructType.TOOL_SELECTION)
-class ToolSelection(Struct):
-    # nocheckin: ToolSelection -> ??? (NodeSelection? just Selection?)
-    #  (also needs to include ActionTypes.. right?)
-    filter: ToolFilter | None = p_regular(35, default=None)
-    tool_nodes: list[Union["Flow", "Action"]] = p_regular(
-        40, array=True, require=False, references=(NodeType.ACTION, NodeType.FLOW)
-    )
-    tool_types: list[ActionType] = p_regular(41, array=True, require=False)
-    # tool_categories, ...?
+# nocheckin: ToolSelection -> ??? (NodeSelection? just Selection?)
+#  (also needs to include ActionTypes.. right?)
+# tool_categories, ...?
 
 
 #

@@ -74,8 +74,6 @@ import {
   RunProperty,
   ScrollActionProperty,
   SendActionProperty,
-  ToolFilter,
-  ToolSelectionProperty,
   TypeActionProperty,
   TypeBaseNodeData,
   TypeConstraintProperty,
@@ -948,31 +946,8 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   }
 
   toolRows() {
-    const filter = this.node?.toolSelection?.filter ?? ToolFilter.ANY;
-    const rows = [
-      this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.filter], {
-        title: "Selection",
-        default: ToolFilter.ANY,
-      }),
-    ];
-    if (filter == ToolFilter.SELECT || filter == ToolFilter.SELECT_BUILIN) {
-      rows.push(
-        this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.toolCategories], {
-          title: "Categories",
-        }),
-        this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.toolTypes], {
-          title: "Types",
-        }),
-      );
-    }
-    if (filter == ToolFilter.SELECT || filter == ToolFilter.SELECT_CUSTOM) {
-      rows.push(
-        this.rowProperty([ActionProperty.toolSelection, ToolSelectionProperty.toolNodesPtr], {
-          title: "Actions",
-        }),
-      );
-    }
-    return rows;
+    // nocheckin: ToolSelection..?
+    return [];
   }
 
   sectionTools() {
@@ -1139,6 +1114,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         }),
       );
     }
+    commonRows.push(this.rowProperty(ActionProperty.category));
 
     // common rows
     if (node.type == ActionType.CODE) {

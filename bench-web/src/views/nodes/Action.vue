@@ -14,10 +14,10 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ACTION_SIZE, FLOW_PORT_SIZE, getActionSides, useFlowContext } from "@/ui/flow";
 import { runtime } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
+import { ACTION_SIZE, FLOW_PORT_SIZE, getActionSides, useFlowContext } from "@/ui/flow";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
@@ -27,7 +27,6 @@ import RunStatus from "@/views/builtins/RunStatus.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
-import Text from "@/views/content/Text.vue";
 import { MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
@@ -65,7 +64,6 @@ const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: act
 const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"action"> = {
   // space
   "space.edit.rename": {
-    isEnabled: () => action.value?.type != ActionType.TEXT,
     action: () => {
       nextTick(() => focusInElement(nameRef.value as MaybeElement));
     },
@@ -100,7 +98,7 @@ defineExpose<ViewExpose>({ self, id, actions });
     <!-- Ports -->
     <div
       v-for="side in ['top', 'bottom', 'left', 'right']"
-      v-if="action.type != ActionType.TEXT && !SINK_ACTION_TYPES.includes(action.type)"
+      v-if="!SINK_ACTION_TYPES.includes(action.type)"
       aria-hidden
       class="absolute"
       :class="[
@@ -125,7 +123,6 @@ defineExpose<ViewExpose>({ self, id, actions });
 
     <!-- Regular action -->
     <div
-      v-if="action.type != ActionType.TEXT"
       ref="bodyRef"
       class="mx-1 flex w-full flex-row gap-x-2.5 py-1"
       :style="{
@@ -227,19 +224,6 @@ defineExpose<ViewExpose>({ self, id, actions });
           </span>
         </div>
       </div>
-    </div>
-    <!-- Text -->
-    <div v-else ref="bodyRef" class="relative px-3 py-1">
-      <!-- Content (:ActionHeight) -->
-      <Text
-        id="text"
-        class=""
-        is-input
-        is-minimal
-        placeholder="Text..."
-        :model-value="action.text"
-        @update:model-value="(newText) => flowCtx.tx.update(action!, { text: newText }, { debounce: 'long' })"
-      />
     </div>
 
     <!-- Floating Menu -->

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.25.4"
+VERSION = "2025.02.27.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -985,6 +985,7 @@ ACTION_TABLE = Table(
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
+        Column("category", PrimitiveType.INT16, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
@@ -996,6 +997,7 @@ ACTION_TABLE = Table(
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
         Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("tool_type", PrimitiveType.INT16, is_nullable=True),
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
