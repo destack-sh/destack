@@ -43,7 +43,6 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
-    ToolSelection,
     User,
     UserStatus,
     _is_setup_complete,
@@ -264,7 +263,7 @@ def action_simple(package: Package):
 def action_failing_impossible_request(package: Package):
     """How to fail an impossible request."""
     Act1 = Action.new(
-        ActionType.ACT,
+        ActionType.DO,
         name="Act1",
         text=text("Generate the solution to all the worlds problem in one go"),
     )

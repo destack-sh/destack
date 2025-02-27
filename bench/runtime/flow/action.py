@@ -72,7 +72,7 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.core.error import IncapableError, RefusedError
+from bench.runtime.core.error import IncapableError
 from bench.runtime.model.chat import get_chat_model_runner_cls
 
 if TYPE_CHECKING:
@@ -333,10 +333,7 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
     @override
     async def run_static(self) -> None:
         tool = self.action.tool
-        tool_selection = self.node.tool_selection
         tool_type = self.action.type
-        if tool_selection is not None and not tool_selection.supports(tool_type, tool):
-            raise RefusedError(f"tool {tool!r} not supported")
         if tool is not None:
             # delegate to tool node
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
@@ -682,7 +679,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
     # dynamic
-    ActionType.ACT: DynamicActionRunner,
+    ActionType.DO: DynamicActionRunner,
     ActionType.THINK: DynamicActionRunner,
     ActionType.ROUTE: DynamicActionRunner,
     ActionType.GENERATE: DynamicActionRunner,

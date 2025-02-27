@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.25.4"
+VERSION = "2025.02.27.0"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -412,10 +412,10 @@ class EnumType(BuiltinEnum):
 
     # flow (22350-22399)
     ACTION_TYPE = 22350
+    ACTION_CATEGORY = 22351
     PORT_SIDE = 22352
     PIPE_TYPE = 22353
     PIPE_TRIGGER = 22354
-    TOOL_FILTER = 22355
 
     # views (22400-22449)
     SPACE_TYPE = 22400
@@ -774,7 +774,6 @@ class StructType(BuiltinEnum):
     IMAGE_OPTIONS = 12802
     VIDEO_OPTIONS = 12803
     # action
-    TOOL_SELECTION = 12900
 
     # space/views (13200-13699)
     COLOR = 13200, None, None, "fas fa-palette"
