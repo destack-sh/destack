@@ -42,9 +42,9 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.LINK_TYPE)
 class LinkType(BuiltinEnum):
-    AUTO = 10, "Auto", "Auto-decide if and how to call", "far fa-square-check"
+    AUTO = 10, "Auto", "Auto-decide if and how to call", "far fa-shuffle"
     REQUIRE = 20, "Require", "Always call, auto-decide how", "fas fa-arrow-right"
-    MANUAL = 30, "Manual", "Always call, manually decide how", "fas fa-forward"
+    MANUAL = 30, "Manual", "Always call, manually decide how", "fas fa-arrow-right-long-to-line"
     # MESSAGE? WAIT? STREAM?
 
 
@@ -57,7 +57,7 @@ class LinkTrigger(BuiltinEnum):
 
 SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
     LinkType.AUTO: "-?>",
-    LinkType.REQUIRE: "-*>",
+    LinkType.REQUIRE: "-=>",
     LinkType.MANUAL: "-!>",
 }
 LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}

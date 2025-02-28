@@ -171,7 +171,7 @@ defineExpose({
         :class="[identifierClass]"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
       >
-        {{ identifier }}
+        {{ identifier ?? nodeTypeName }}
       </span>
       <!-- Metadata -->
       <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />

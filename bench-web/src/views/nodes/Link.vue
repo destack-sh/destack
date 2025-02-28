@@ -1,17 +1,14 @@
 <script lang="ts" setup>
-import { NAME_TYPE } from "@/language/core/type";
 import { isRunActive } from "@/language/runtime/run";
-import { ColorShade, ColorType, NodeType, LinkType, LinkTypeOptionInfo, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, LinkType, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
-import { canvas, pkgConnection } from "@/system/space";
+import { canvas } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { pathToSvg, LINK_WIDTH, useFlowContext } from "@/ui/flow";
-import { IconInline, makeIcon } from "@/ui/icon";
+import { LINK_WIDTH, pathToSvg, useFlowContext } from "@/ui/flow";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
-import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
 const props = defineProps<
@@ -119,42 +116,6 @@ defineExpose<ViewExpose>({ self, id, actions });
         :d="pathToSvg(path)"
       />
     </svg>
-
-    <!-- Midpoint meta -->
-    <div
-      class="group/meta pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer select-none flex-row items-center gap-x-1 rounded-2xl border px-1 py-0.5 transition-colors duration-150"
-      :class="[
-        isInspected ? 'bg-gray-100/80' : 'bg-gray-100/60',
-        isInspected || isHighlighted
-          ? 'border-gray-300 opacity-100 backdrop-blur-xs'
-          : 'border-gray-200 opacity-0 group-hover/meta:opacity-100',
-      ]"
-      :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
-      :data-node-type="link.metatype"
-      :data-node-id="link.id"
-      :data-node-ck="link.ck"
-      aria-hidden
-    >
-      <!-- Type -->
-      <IconInline
-        v-bind="makeIcon(LinkTypeOptionInfo[link.type]!.icon!)"
-        class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
-      />
-      <!-- Name -->
-      <NativeInput
-        id="name"
-        ref="nameRef"
-        class="w-full text-xs"
-        is-input
-        is-minimal
-        placeholder="Name..."
-        aria-hidden
-        :placeholder-color="pathColorHex"
-        :value-type="NAME_TYPE"
-        :model-value="link.name"
-        @update:model-value="(name) => pkgConnection.tx.update(link!, { name: name as string }, { debounce: 'long' })"
-      />
-    </div>
   </div>
   <div v-else>
     <!-- link without valid path, can't show anything meaningful here -->

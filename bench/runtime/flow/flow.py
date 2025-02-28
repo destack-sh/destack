@@ -297,7 +297,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         call_links = tuple(
             p
             for p in outgoing_links
-            if p.type == LinkType.REQUIRE and p.is_triggered_by(run.status)
+            if (p.type == LinkType.REQUIRE or p.type == LinkType.MANUAL)
+            and p.is_triggered_by(run.status)
         )
         uncalled_call_links = set(call_links)
 

@@ -10,6 +10,7 @@ import {
   EnumType,
   FieldData,
   InlineSourceNodeData,
+  LinkType,
   MessageData,
   ModelFamily,
   ModelProvider,
@@ -451,6 +452,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
+export const EXPOSED_LINK_TYPES = [LinkType.AUTO, LinkType.REQUIRE];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
@@ -461,6 +463,7 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
   [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
   [EnumType.REGION]: EXPOSED_REGIONS,
+  [EnumType.LINK_TYPE]: EXPOSED_LINK_TYPES,
 };
 
 export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
