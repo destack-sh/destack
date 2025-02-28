@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.27.5"
+VERSION = "2025.02.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1167,8 +1167,8 @@ TRIGGER_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-COLLECTION_TABLE = Table(
-    "bench_collection",
+IMPLEMENTATION_TABLE = Table(
+    "bench_implementation",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
@@ -1198,6 +1198,10 @@ COLLECTION_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("target_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("target_type", PrimitiveType.INT16, is_nullable=True),
+        Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),

@@ -196,6 +196,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     #  (as of Python 3.13, __slots__ always uses class-level descriptors, but we also
     #   want to use class level attributes for our own properties, like Block.type, ...
     #   - neglecting this conflict causes fun errors like 'X is a read-only attribute')
+    #  .. unless we just use Block.get_property('type') instead of Block.type everywhere?
 
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls

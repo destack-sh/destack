@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.27.5"
+VERSION = "2025.02.28.0"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -537,7 +537,7 @@ class NodeType(BuiltinEnum):
     ACTION = 5051, None, None, "fas fa-step-forward"
     PIPE = 5052, None, None, "fas fa-pipe-section"
     TRIGGER = 5053, None, None, "fas fa-bolt"
-    COLLECTION = 5060, None, None, "fas fa-screwdriver-wrench"
+    IMPLEMENTATION = 5060, None, None, "fas fa-screwdriver-wrench"
     VIEW = 5080, None, None, "fas fa-window-frame"
     DATABASE = 5090, None, None, "fas fa-database"
     CHANNEL = 5100, None, None, "fas fa-hashtag"
@@ -676,7 +676,7 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.CLASS,
     NodeType.DATABASE,
     NodeType.FLOW,
-    NodeType.COLLECTION,
+    NodeType.IMPLEMENTATION,
     NodeType.PAGE,
     NodeType.ROLE,
     NodeType.VIEW,

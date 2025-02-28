@@ -194,7 +194,7 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.CHOICE,
   NodeType.DATABASE,
   NodeType.FLOW,
-  NodeType.COLLECTION,
+  NodeType.IMPLEMENTATION,
   NodeType.VIEW,
   NodeType.ROLE,
   NodeType.TAG,

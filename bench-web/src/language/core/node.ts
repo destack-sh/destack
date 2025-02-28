@@ -409,6 +409,7 @@ export function cloneNode<T extends AnyNodeData>(
     includeChildren: true,
   },
 ): T {
+  // nocheckin: cloneNode doesn't considers blocks/definitions
   // ensure clone is bundled into a change
   if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Clone" } });
 

@@ -164,7 +164,7 @@ enum NodeType {
   NODE_TYPE_ACTION = 5051;
   NODE_TYPE_PIPE = 5052;
   NODE_TYPE_TRIGGER = 5053;
-  NODE_TYPE_COLLECTION = 5060;
+  NODE_TYPE_IMPLEMENTATION = 5060;
   NODE_TYPE_VIEW = 5080;
   NODE_TYPE_DATABASE = 5090;
   NODE_TYPE_CHANNEL = 5100;
@@ -277,7 +277,7 @@ enum ObjectType {
   OBJECT_TYPE_ACTION = 5051;
   OBJECT_TYPE_PIPE = 5052;
   OBJECT_TYPE_TRIGGER = 5053;
-  OBJECT_TYPE_COLLECTION = 5060;
+  OBJECT_TYPE_IMPLEMENTATION = 5060;
   OBJECT_TYPE_VIEW = 5080;
   OBJECT_TYPE_DATABASE = 5090;
   OBJECT_TYPE_CHANNEL = 5100;
@@ -386,7 +386,7 @@ enum BenchType {
   BENCH_TYPE_ACTION = 5051;
   BENCH_TYPE_PIPE = 5052;
   BENCH_TYPE_TRIGGER = 5053;
-  BENCH_TYPE_COLLECTION = 5060;
+  BENCH_TYPE_IMPLEMENTATION = 5060;
   BENCH_TYPE_VIEW = 5080;
   BENCH_TYPE_DATABASE = 5090;
   BENCH_TYPE_CHANNEL = 5100;
@@ -3491,7 +3491,7 @@ message ClassData {
   repeated NodeReferenceData tags_ptr = 38;
 }
 
-message CollectionData {
+message ImplementationData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -3512,6 +3512,7 @@ message CollectionData {
   string order_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
+  optional NodeReferenceData target_ptr = 35;
   optional NodeReferenceData block_ptr = 36;
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
@@ -4137,7 +4138,7 @@ message SomeNodeData {
     ActionData action = 24;
     PipeData pipe = 25;
     TriggerData trigger = 26;
-    CollectionData collection = 27;
+    ImplementationData implementation = 27;
     ViewData view = 28;
     DatabaseData database = 29;
     ChannelData channel = 30;

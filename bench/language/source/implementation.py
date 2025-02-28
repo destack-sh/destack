@@ -2,6 +2,7 @@ import typing
 from typing import Optional, Union
 
 from bench.language.core import (
+    INLINE_SOURCE_NODE_TYPES,
     NAME_CONSTRAINT,
     InlineSourceNode,
     NodeType,
@@ -11,7 +12,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.pb2 import CollectionData
+from bench.pb2 import ImplementationData
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
@@ -21,10 +22,10 @@ if typing.TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@node_(NodeType.COLLECTION)
-class Collection(InlineSourceNode[CollectionData]):
+@node_(NodeType.IMPLEMENTATION)
+class Implementation(InlineSourceNode[ImplementationData]):
     """
-    A Collection of related SourceNodes.
+    An Implementation of Actions for a SourceNode.
     """
 
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
@@ -35,6 +36,10 @@ class Collection(InlineSourceNode[CollectionData]):
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
 
+    target: Optional["InlineSourceNode"] = p_regular(
+        35, require=False, array=False, references=INLINE_SOURCE_NODE_TYPES.tuple
+    )
+
     @staticmethod
-    def new(name: str, **kwargs) -> "Collection":
-        return Collection(name=name, **kwargs)
+    def new(name: str, **kwargs) -> "Implementation":
+        return Implementation(name=name, **kwargs)
