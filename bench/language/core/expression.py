@@ -38,7 +38,17 @@ from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
-    from bench.language import Block, Code, ComputedValueMode, Field, Path, Text, Type, TypeBase
+    from bench.language import (
+        Block,
+        Code,
+        ComputedValueMode,
+        Field,
+        Path,
+        Tag,
+        Text,
+        Type,
+        TypeBase,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -79,8 +89,11 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalType, str] = {
 
 @enum_(EnumType.SELECTION_TYPE)
 class SelectionType(BuiltinEnum):
-    LIST = 10
-    # TAG, COMBINATION, ...
+    LIST = 1
+    RANGE = 2
+    SCOPE = 3
+    TAG = 4
+    COMBINATION = 10
 
 
 @struct_(StructType.SELECTION)
@@ -89,10 +102,18 @@ class Selection(Struct):
 
     type: SelectionType = p_regular(30, default=SelectionType.LIST)
 
-    nodes: list[Node] = p_regular(40, require=False, array=True, references="any")
-    fields: list["Field"] = p_regular(41, require=False, array=True, references=NodeType.FIELD)
+    selections: list["Selection"] = p_regular(
+        40, require=False, array=True, struct=StructType.SELECTION
+    )
+    node_types: list[NodeType] = p_regular(41, require=False, array=True)
+    nodes: list[Node] = p_regular(42, require=False, array=True, references="any")
+    scopes: list[Node] = p_regular(43, require=False, array=True, references="any")
+    tags: list["Tag"] = p_regular(44, require=False, array=True, references=NodeType.TAG)
+    from_node: Optional[Node] = p_regular(45, require=False, default=None, references="any")
+    to_node: Optional[Node] = p_regular(46, require=False, default=None, references="any")
+    fields: list["Field"] = p_regular(50, require=False, array=True, references=NodeType.FIELD)
     properties: list[Property] = p_regular(
-        42, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+        51, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
 

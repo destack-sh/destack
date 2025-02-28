@@ -480,11 +480,6 @@ class Action(SourceNode[ActionData]):
         return cast(ActionT, action)
 
 
-# nocheckin: ToolSelection -> ??? (NodeSelection? just Selection?)
-#  (also needs to include ActionTypes.. right?)
-# tool_categories, ...?
-
-
 #
 # Flow
 #
