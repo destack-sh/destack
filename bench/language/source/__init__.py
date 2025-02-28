@@ -34,11 +34,11 @@ from .block import BLOCK_TYPES, NODE_BLOCK_TYPES, TEXT_BLOCK_TYPES, Block, Block
 from .channel import Channel, ChannelType
 from .choice import Choice
 from .clazz import Class
-from .collection import Collection
 from .database import Database
 from .dependency import Dependency
 from .field import Field
 from .flow import Flow
+from .implementation import Implementation
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
@@ -102,7 +102,6 @@ __all__ = [
     "Class",
     "ClickAction",
     "CodeAction",
-    "Collection",
     "CompleteAction",
     "CreateAction",
     "Database",
@@ -123,6 +122,7 @@ __all__ = [
     "GoToTabAction",
     "GoToUrlAction",
     "HasApplicationContext",
+    "Implementation",
     "Line",
     "LookAction",
     "MessageTrigger",

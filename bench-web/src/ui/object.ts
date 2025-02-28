@@ -7,7 +7,7 @@ import {
   isNodeType,
   isSourceNode,
   SOURCE_NODE_TYPES,
-  toCamelName
+  toCamelName,
 } from "@/language/core/const";
 import { useComputedValues } from "@/language/core/expression";
 import { ReadNodeGraph } from "@/language/core/graph";
@@ -78,7 +78,7 @@ import {
   TypeKind,
   UpdateActionProperty,
   ViewType,
-  WaitActionProperty
+  WaitActionProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -784,7 +784,6 @@ export class FlowLayout extends NodeLayout<NodeType.FLOW> {
         },
       );
     }
-
   }
 }
 
@@ -1103,7 +1102,9 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         }),
       );
     }
-    commonRows.push(this.rowProperty(ActionProperty.category));
+    if (!this.isPartial) {
+      commonRows.push(this.rowProperty(ActionProperty.category));
+    }
 
     // common rows
     if (node.type == ActionType.CODE) {
