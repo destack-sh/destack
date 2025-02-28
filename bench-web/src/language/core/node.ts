@@ -8,9 +8,10 @@ import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
 import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime/transaction";
-import { unwrapBlockDefinition } from "@/language/source/block";
+import { createBlock, unwrapBlockDefinition } from "@/language/source/block";
 import {
   BlockData,
+  BlockType,
   ENUM_BY_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
@@ -18,6 +19,8 @@ import {
   NodeType,
   ObjectType,
   PackageData,
+  PageData,
+  PARENT_NODE_TYPES,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_SUBTYPE,
@@ -625,20 +628,43 @@ export function moveNode(
   }
   tx.move(node, { parentPtr }, { debounce: options.debounce ?? "tick" });
 
-  // move block and source node together
+  // move block and defined source node together
   if (isNode(node, NodeType.BLOCK)) {
     // for definition blocks, also move the source node
     const source = unwrapBlockDefinition(node);
     if (source?.blockPtr?.id == node.id) {
       tx.move(source, { parentPtr }, { debounce: options.debounce ?? "tick" });
     }
-  } else if (isInlineSourceNode(node) && node.blockPtr != null) {
-    // for inline source nodes, also move the block definition
-    const block = supergraph.getOrError(node.blockPtr) as BlockData;
-    if (isInlineSourceNode(target) && target.blockPtr != null) {
-      target = supergraph.getOrError(target.blockPtr) as BlockData;
+  } else if (isInlineSourceNode(node)) {
+    if (node.blockPtr != null) {
+      // for inline source nodes, also move the block definition
+      let block = supergraph.getOrError(node.blockPtr) as BlockData;
+      if (isInlineSourceNode(target) && target.blockPtr != null) {
+        target = supergraph.getOrError(target.blockPtr) as BlockData;
+      }
+      if (!PARENT_NODE_TYPES[NodeType.BLOCK].includes(parentPtr.nodeType)) {
+        // block no longer needed
+        block = { ...block, nodePtr: undefined }; // clear nodePtr to avoid deleting that too
+        tx.delete(block);
+        tx.update(node, { blockPtr: undefined });
+      } else {
+        moveNode(tx, graph, block, { anchor, target });
+      }
+    } else if (PARENT_NODE_TYPES[NodeType.BLOCK].includes(parentPtr.nodeType)) {
+      // create a new block to 'define' the inline source node
+      const parent = supergraph.getOrError(parentPtr) as PageData | BlockData;
+      const block = createBlock(tx, graph, {
+        block: {
+          metatype: NodeType.BLOCK,
+          packagePtr: node.packagePtr,
+          type: node.metatype as unknown as BlockType,
+          nodePtr: toNodeRef(node),
+        },
+        anchor: "inside",
+        target: parent,
+      });
+      tx.update(node, { blockPtr: toNodeRef(block) });
     }
-    moveNode(tx, graph, block, { anchor, target });
   }
 }
 
