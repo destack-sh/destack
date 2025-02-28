@@ -369,18 +369,21 @@ export function getRootNodes<T extends AnyNodeData>(nodes: T[]): T[] {
 }
 
 /** Replaces references in the BuiltinObject with their mapped values. */
-function replaceReferences(obj: AnyNodeData | AnyStructData | any, map: Record<string, NodeReferenceData>): any {
+function replaceBuiltinObjectReferences(
+  obj: AnyNodeData | AnyStructData | any,
+  map: Record<string, NodeReferenceData>,
+): any {
   if (Array.isArray(obj)) {
     for (let i = 0; i < obj.length; i++) {
-      obj[i] = replaceReferences(obj[i], map);
+      obj[i] = replaceBuiltinObjectReferences(obj[i], map);
     }
     return obj;
   } else if (obj && typeof obj === "object") {
     if (obj.id && typeof obj.id === "string" && map[obj.id]) {
-      return replaceReferences(map[obj.id], map);
+      return replaceBuiltinObjectReferences(map[obj.id], map);
     } else {
       for (const key in obj) {
-        obj[key] = replaceReferences(obj[key], map);
+        obj[key] = replaceBuiltinObjectReferences(obj[key], map);
       }
       return obj;
     }
@@ -403,13 +406,13 @@ export function cloneNode<T extends AnyNodeData>(
     set?: Partial<T>;
     keepProperties?: boolean;
     _isNested?: boolean;
+    _isDefinitionCounterpart?: boolean;
     _keepOrder?: boolean;
-    _map?: Record<string, NodeReferenceData>;
+    _identityMap?: Record<string, NodeReferenceData>;
   } = {
     includeChildren: true,
   },
 ): T {
-  // nocheckin: cloneNode doesn't considers blocks/definitions
   // ensure clone is bundled into a change
   if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Clone" } });
 
@@ -461,8 +464,39 @@ export function cloneNode<T extends AnyNodeData>(
   }
 
   // remember new identity
-  const map = options?._map ?? {};
-  map[node.id!] = toNodeRef(clone);
+  const identityMap = options?._identityMap ?? {};
+  identityMap[node.id!] = toNodeRef(clone);
+
+  // clone blocks/definitions together
+  if (!options?._isDefinitionCounterpart) {
+    if (isNode(node, NodeType.BLOCK)) {
+      // for definition blocks, also clone the source node
+      const source = unwrapBlockDefinition(node);
+      if (source?.blockPtr?.id == node.id) {
+        cloneNode(tx, graph, source, {
+          includeChildren: true,
+          now,
+          set: { parentPtr: clone.parentPtr },
+          _isNested: true,
+          _isDefinitionCounterpart: true,
+          _keepOrder: true,
+          _identityMap: identityMap,
+        });
+      }
+    } else if (isInlineSourceNode(node) && node.blockPtr != null) {
+      // for inline source nodes, also clone the block definition
+      const block = supergraph.getOrError(node.blockPtr) as BlockData;
+      cloneNode(tx, graph, block, {
+        includeChildren: true,
+        now,
+        set: { nodePtr: toNodeRef(clone) },
+        _isNested: true,
+        _isDefinitionCounterpart: true,
+        _keepOrder: true,
+        _identityMap: identityMap,
+      });
+    }
+  }
 
   // clone all children (recursively)
   if (options?.includeChildren) {
@@ -475,16 +509,16 @@ export function cloneNode<T extends AnyNodeData>(
         set: { parentPtr: clonePtr },
         _isNested: true,
         _keepOrder: true,
-        _map: map,
+        _identityMap: identityMap,
       });
     }
   }
 
   // map identities (recursively)
-  if (options?._map == null) {
-    for (const nodeId in map) {
+  if (options?._identityMap == null) {
+    for (const nodeId in identityMap) {
       const newNode = graph.getOrError({ id: nodeId });
-      replaceReferences(newNode, map);
+      replaceBuiltinObjectReferences(newNode, identityMap);
     }
   }
 
@@ -513,7 +547,7 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
     } else {
       after = nodesByParentId[parentId]?.at(-1);
     }
-    const clone = cloneNode(tx, graph, node, { after, includeChildren: true, _map: map });
+    const clone = cloneNode(tx, graph, node, { after, includeChildren: true, _identityMap: map });
     clonedNodes.push(clone);
     if (clonedNodesByParentId[parentId] == null) clonedNodesByParentId[parentId] = [];
     clonedNodesByParentId[parentId]?.push(clone);
@@ -523,7 +557,7 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
   for (const nodeId in map) {
     const clonedId = map[nodeId].id!;
     const newNode = graph.getOrError({ id: clonedId });
-    replaceReferences(newNode, map);
+    replaceBuiltinObjectReferences(newNode, map);
   }
 
   return clonedNodes;
