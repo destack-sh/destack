@@ -466,7 +466,6 @@ def make_chat_prompt(
                 PromptCustomObject(title="Inputs to this Flow", weight=1, object=flow_run.inputs)
             )
 
-        # nocheckin
         can_flow_be_empty = all(
             p.type == LinkType.REQUIRE or p.type == LinkType.MANUAL for p, a in connected_actions
         )

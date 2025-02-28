@@ -1165,9 +1165,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 export class LinkLayout extends NodeLayout<NodeType.LINK> {
   make() {
     const commonRows = [this.rowProperty(LinkProperty.type)];
-    if (this.node.type == LinkType.CALL) {
-      commonRows.push(this.rowProperty(LinkProperty.trigger));
-    }
     commonRows.push(this.rowProperty(LinkProperty.color), this.rowProperty(LinkProperty.delay));
     this.section(undefined, commonRows);
   }
