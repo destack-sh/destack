@@ -154,8 +154,8 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
                 for p in self.flow.node.pipes
             )
         ):
-            model_developer = ModelDeveloper.ANTHROPIC
-            model_type = ModelType.ANTHROPIC_CLAUDE_3_7_SONNET
+            model_developer = ModelDeveloper.OPENAI
+            model_type = ModelType.OPENAI_GPT4_0
             model_runner_cls = get_chat_model_runner_cls(
                 model_developer=model_developer, model_type=model_type
             )

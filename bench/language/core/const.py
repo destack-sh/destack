@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.28.0"
+VERSION = "2025.02.28.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -566,6 +566,7 @@ class NodeType(BuiltinEnum):
     INTERRUPTION = 6020, None, None, "fas fa-hand"
     LOG = 6030, None, None, "fas fa-file-alt"
     PLAN = 6040, None, None, "fas fa-diagram-project"
+    # nocheckin: PLAN_ITEM/PLAN_STEP/STEP/TASK?
 
     # sync
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?

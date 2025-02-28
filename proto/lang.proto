@@ -1653,6 +1653,7 @@ enum ViewType {
   VIEW_TYPE_ACTION = 5051;
   VIEW_TYPE_PIPE = 5052;
   VIEW_TYPE_TRIGGER = 5053;
+  VIEW_TYPE_IMPLEMENTATION = 5060;
   VIEW_TYPE_VIEW = 5080;
   VIEW_TYPE_DATABASE = 5090;
   VIEW_TYPE_CHANNEL = 5100;
@@ -1663,6 +1664,7 @@ enum ViewType {
   VIEW_TYPE_FIELD_LIST = 10003;
   VIEW_TYPE_PATH = 10004;
   VIEW_TYPE_COMPUTED_VALUE = 10005;
+  VIEW_TYPE_SELECTION = 10006;
   VIEW_TYPE_USER_WIZARD = 20001;
   VIEW_TYPE_BENCH_WIZARD = 20002;
   VIEW_TYPE_EMPTY = 20100;
@@ -3086,7 +3088,6 @@ message PlanData {
   optional TextData text = 51;
   repeated CallData calls = 52;
   optional ErrorData error = 53;
-  optional int32 step = 55;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData run_ptr = 91;
   optional NodeReferenceData client_ptr = 93;

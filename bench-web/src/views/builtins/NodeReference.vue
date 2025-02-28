@@ -115,7 +115,7 @@ defineExpose({
     data-contextmenu-items="space.navigate.open"
     @click="
       () => {
-        if (!isInput && IS_IN_ALT_MODE && node != null) {
+        if (!isInput && node != null) {
           canvas.goToNode(node);
         }
       }
@@ -167,11 +167,8 @@ defineExpose({
       />
       <span
         v-else
-        class="truncate"
-        :class="[
-          IS_IN_ALT_MODE ? 'underline decoration-gray-300 underline-offset-3 hover:decoration-gray-400' : '',
-          identifierClass,
-        ]"
+        class="truncate underline decoration-transparent underline-offset-3 transition-colors duration-150 hover:decoration-gray-300"
+        :class="[identifierClass]"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
       >
         {{ identifier }}
@@ -185,6 +182,6 @@ defineExpose({
     :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
   >
     <!-- Node not found -->
-    <span class="text-gray-400">???</span>
+    <span class="text-gray-400">[deleted]</span>
   </div>
 </template>

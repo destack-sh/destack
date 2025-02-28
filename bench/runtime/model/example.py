@@ -348,6 +348,7 @@ def basic_planning_with_tools(package: Package):
     # Inputs
     ...  # some application with obvious element ids provided
     # ---
+    # nocheckin: make Plans less nested? (the return is ugly verbose here)
     return [Flow1, *Flow1.actions, *Flow1.pipes], (
         "Route to the tool action.",
         Think1,

@@ -50,6 +50,7 @@ class ViewType(BuiltinEnum):
     ACTION = 5051
     PIPE = 5052
     TRIGGER = 5053
+    IMPLEMENTATION = 5060
     VIEW = 5080
     DATABASE = 5090
     CHANNEL = 5100
@@ -62,6 +63,7 @@ class ViewType(BuiltinEnum):
     FIELD_LIST = 10003
     PATH = 10004
     COMPUTED_VALUE = 10005
+    SELECTION = 10006
 
     # helpers (20000-30000)
     USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"

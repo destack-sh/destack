@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.28.0"
+VERSION = "2025.02.28.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1984,7 +1984,6 @@ PLAN_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("calls", PrimitiveType.JSON, is_array=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
-        Column("step", PrimitiveType.INT32, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_ck", PrimitiveType.UUID, is_nullable=True),
