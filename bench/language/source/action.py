@@ -386,14 +386,7 @@ class Action(SourceNode[ActionData]):
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
         else:
             property_field_types = field_types
-            if self.type == ActionType.START:
-                if field_types and FieldType.OUTPUT not in field_types:
-                    return None
-                base = self.parent
-                assert not isinstance(base, Implementation), f"{self!r} is invalid inside {base!r}"
-                property_field_types = field_types
-                field_types = [FieldType.INPUT]  # remap to only input fields from Flow
-            elif self.type == ActionType.COMPLETE:
+            if self.type == ActionType.COMPLETE:
                 if field_types and FieldType.INPUT not in field_types:
                     return None
                 base = self.parent
