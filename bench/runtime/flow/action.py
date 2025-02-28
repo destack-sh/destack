@@ -247,7 +247,7 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
 class StartActionRunner(StaticActionRunner):
     @override
     async def run_static(self) -> None:
-        self.outputs = self.inputs
+        pass  # nothing to do
 
 
 class CompleteActionRunner(ActionRunner[CompleteAction]):
