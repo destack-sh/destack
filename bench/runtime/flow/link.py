@@ -9,8 +9,8 @@ from bench.language import (
     BreakpointSite,
     CustomObject,
     HasContext,
-    Pipe,
-    PipeType,
+    Link,
+    LinkType,
     RunOptions,
     RunType,
     TypeBase,
@@ -23,19 +23,15 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-#
-# Pipes
-#
 
-
-class PipeRunner(Runner[Pipe], ABC):
-    runner_type: ClassVar[RunType] = RunType.PIPE
+class LinkRunner(Runner[Link], ABC):
+    runner_type: ClassVar[RunType] = RunType.LINK
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Pipe,
+        node: Link,
         options: RunOptions,
         context: HasContext,
         run: RunIn,
@@ -64,7 +60,7 @@ class PipeRunner(Runner[Pipe], ABC):
             return True
         if self.flow is not None:
             for bp in self.flow.breakpoints:
-                if bp.scope == BreakpointScope.PIPE and bp.site in sites:
+                if bp.scope == BreakpointScope.LINK and bp.site in sites:
                     return True
         return False
 
@@ -74,15 +70,8 @@ class PipeRunner(Runner[Pipe], ABC):
             await self.runtime.oracle.sleep(self.node.delay.total_seconds())
 
 
-class ForwardPipeRunner(PipeRunner):
-    pass
-
-
-class SelectPipeRunner(PipeRunner):
-    pass
-
-
-PIPE_RUNNER_BY_PIPE_TYPE: dict[PipeType, type[PipeRunner]] = {
-    PipeType.CALL: ForwardPipeRunner,
-    PipeType.SELECT: SelectPipeRunner,
+LINK_RUNNER_BY_LINK_TYPE: dict[LinkType, type[LinkRunner]] = {
+    LinkType.AUTO: LinkRunner,
+    LinkType.REQUIRE: LinkRunner,
+    LinkType.MANUAL: LinkRunner,
 }

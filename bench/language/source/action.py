@@ -51,10 +51,10 @@ if TYPE_CHECKING:
         Flow,
         Icon,
         Implementation,
+        Link,
+        LinkType,
         Message,
         NodeReference,
-        Pipe,
-        PipeType,
         RunOptions,
         Selection,
         Text,
@@ -224,7 +224,7 @@ ACTION_CATEGORY_BY_TYPE = {
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
 class Action(SourceNode[ActionData]):
     """
-    A data or control flow node in a Flow. Actions are connected by Pipes.
+    A data or control flow node in a Flow. Actions are connected by Links.
     """
 
     parent: Union["Flow", "Implementation", "Action", None] = p_node_parent(
@@ -315,7 +315,7 @@ class Action(SourceNode[ActionData]):
     )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    pipes: LocalNodeList["Pipe"] = p_node_children(NodeType.PIPE)
+    links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
 
@@ -339,15 +339,15 @@ class Action(SourceNode[ActionData]):
 
     def connect(
         self,
-        type: "PipeType",
+        type: "LinkType",
         target: "Action",
         name: str | None = None,
         *,
         parent: Union["Flow", "Implementation", "Action", None] = None,
         run_options: "RunOptions | None" = None,
-    ) -> "Pipe":
+    ) -> "Link":
         """Connects a target Action to this Action."""
-        from bench.language import Flow, Pipe
+        from bench.language import Flow, Link
 
         parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
@@ -355,14 +355,14 @@ class Action(SourceNode[ActionData]):
 
         # assign next name like Pipe1, .. in parent :AutoNaming
         if name is None:
-            siblings = parent.pipes.tolist()
+            siblings = parent.links.tolist()
             count = len(siblings) + 1
             name = f"{type.bench_name}{count}"
             while any(p.name == name for p in siblings):
                 count += 1
                 name = f"{type.bench_name}{count}"
 
-        pipe = Pipe(
+        link = Link(
             type=type,
             name=name,
             source=self,
@@ -370,8 +370,8 @@ class Action(SourceNode[ActionData]):
             parent=parent,
             run_options=run_options,
         )
-        parent.pipes.append(pipe)
-        return pipe
+        parent.links.append(link)
+        return link
 
     def to_type_maybe(
         self,

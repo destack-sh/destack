@@ -58,7 +58,7 @@ if typing.TYPE_CHECKING:
         Field,
         FileType,
         Flow,
-        Pipe,
+        Link,
     )
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -487,7 +487,7 @@ TypeIn = Union[
     "Choice",
     "Flow",
     "BuiltinEnum",
-    "Pipe",
+    "Link",
     "Action",
     "PrimitiveType",
     "BenchType",
@@ -502,14 +502,14 @@ TypeIn = Union[
 
 def to_type_scalar(type_in: TypeIn) -> "Type":
     """Converts a type-like object to a Type."""
-    from bench.language import Action, Block, Choice, Class, Database, FileType, Flow, Pipe
+    from bench.language import Action, Block, Choice, Class, Database, FileType, Flow, Link
 
     if isinstance(type_in, Block) and (node := type_in.node) is not None:
         type_in = cast(TypeIn, node)  # unpack inner node automatically
 
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
-    elif isinstance(type_in, (Class, Choice, Flow, Action, Pipe, Database)):
+    elif isinstance(type_in, (Class, Choice, Flow, Action, Link, Database)):
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"

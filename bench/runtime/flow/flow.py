@@ -18,8 +18,8 @@ from bench.language import (
     Flow,
     HasContext,
     Interruption,
-    Pipe,
-    PipeType,
+    Link,
+    LinkType,
     Plan,
     Run,
     RunnableNode,
@@ -45,7 +45,7 @@ from bench.runtime.core import (
 )
 
 from .action import ActionRunner
-from .pipe import PipeRunner
+from .link import LinkRunner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -60,7 +60,7 @@ class TickActionResult(NamedTuple):
     is_handled: bool
 
 
-class TickPipeResult(NamedTuple):
+class TickLinkResult(NamedTuple):
     new_runs: Sequence[Run]
     is_handled: bool
 
@@ -95,7 +95,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             outputs=outputs,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, PipeRunner | ActionRunner[Any]] = {}
+        self._active_runners_by_id: dict[UUID, LinkRunner | ActionRunner[Any]] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._events: Queue[RunnerEvent] = Queue()
 
@@ -156,7 +156,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     def _start(
         self,
-        node: Action | Pipe,
+        node: Action | Link,
         *,
         incoming: Sequence[Run],
         plan: Plan | None = None,
@@ -166,7 +166,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         title: str | None = None,
         text: Text | None = None,
     ) -> Run:
-        """Run an Action or Pipe in this Flow."""
+        """Run an Action or Link in this Flow."""
         runner = make_runner(
             runtime=self.runtime,
             node=node,
@@ -176,7 +176,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             parent=cast(Runner[RunnableNode], self),
             run="track",
         )
-        assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunner, LinkRunner)), f"unexpected {runner!r}"
         runner.flow = cast(FlowRunner, self)
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
@@ -196,7 +196,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         runner = run if isinstance(run, Runner) else self.runtime.restore_runner(run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
-        assert isinstance(runner, (ActionRunner, PipeRunner)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunner, LinkRunner)), f"unexpected {runner!r}"
         runner.flow = cast(FlowRunner, self)
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
@@ -206,7 +206,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         return runner.tracked_run
 
     def _process_event(self, event: RunnerEvent) -> None:
-        """Tick this Flow on an Action/Pipe event."""
+        """Tick this Flow on an Action/Link event."""
         runner = event.runner
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
@@ -219,8 +219,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             if not self._is_stopping:
                 if isinstance(runner.node, Action):
                     self._tick_action(cast(ActionRunner, runner), runner.node, event)
-                elif isinstance(runner.node, Pipe):
-                    self._tick_pipe(cast(PipeRunner, runner), runner.node, event)
+                elif isinstance(runner.node, Link):
+                    self._tick_link(cast(LinkRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
             self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
@@ -229,8 +229,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
                     if not tick.is_handled:
                         self._fail(runner.error)  # fail on unhandled action error
-                elif isinstance(runner.node, Pipe):
-                    self._fail(runner.error)  # fail on any pipe fail?
+                elif isinstance(runner.node, Link):
+                    self._fail(runner.error)  # fail on any link fail?
 
     def _tick_action(
         self,
@@ -260,13 +260,13 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 step = run.plan_step + 1
                 while next_run is None and step < len(plan.calls):
                     next_call = plan.calls[step]
-                    for pipe in self.node.pipes:
+                    for link in self.node.links:
                         if (
-                            pipe.target_id == next_call.node_id
-                            and pipe.source_id == parent_run.action_id
+                            link.target_id == next_call.node_id
+                            and link.source_id == parent_run.action_id
                         ):
                             next_run = self._start(
-                                pipe, plan=plan, plan_step=step, incoming=(parent_run,)
+                                link, plan=plan, plan_step=step, incoming=(parent_run,)
                             )
                             new_runs.append(next_run)
                             break
@@ -291,13 +291,15 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 new_runs.append(next_run)
 
         # own plans
-        outgoing_pipes = tuple(
-            p for p in self.node.pipes if p.source_id == action.id and p.is_extant
+        outgoing_links = tuple(
+            p for p in self.node.links if p.source_id == action.id and p.is_extant
         )
-        call_pipes = tuple(
-            p for p in outgoing_pipes if p.type == PipeType.CALL and p.is_triggered_by(run.status)
+        call_links = tuple(
+            p
+            for p in outgoing_links
+            if p.type == LinkType.REQUIRE and p.is_triggered_by(run.status)
         )
-        uncalled_call_pipes = set(call_pipes)
+        uncalled_call_links = set(call_links)
 
         # tick own plans (on success only)
         if is_completed:
@@ -311,7 +313,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 self.runtime._set_context(run_plan)
             self.session._create(*run_plans)
             for plan in run_plans:
-                # run calls via pipes
+                # run calls via links
                 if plan.execution == CallExecutionMode.PARALLEL:
                     next_calls = plan.calls
                 elif plan.execution == CallExecutionMode.SERIAL:
@@ -319,22 +321,22 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 else:
                     assert_never(plan.execution)
                 for step, call in enumerate(next_calls):
-                    pipe = next((p for p in outgoing_pipes if p.target_id == call.node_id), None)
-                    if pipe is None:
+                    link = next((p for p in outgoing_links if p.target_id == call.node_id), None)
+                    if link is None:
                         continue  # ignore, can't call arbitrary nodes
-                    pipe_run = self._start(pipe, plan=plan, plan_step=step, incoming=(run,))
-                    new_runs.append(pipe_run)
-                    uncalled_call_pipes.discard(pipe)
+                    link_run = self._start(link, plan=plan, plan_step=step, incoming=(run,))
+                    new_runs.append(link_run)
+                    uncalled_call_links.discard(link)
 
-        # call call pipes that were not called
-        for pipe in uncalled_call_pipes:
-            self._start(pipe, incoming=(run,))
+        # call call links that were not called
+        for link in uncalled_call_links:
+            self._start(link, incoming=(run,))
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
         return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or handled_fail)
 
-    def _tick_pipe(self, runner: PipeRunner, pipe: Pipe, event: RunnerEvent) -> TickPipeResult:
-        """Ticks the Pipe to progress the Flow."""
+    def _tick_link(self, runner: LinkRunner, link: Link, event: RunnerEvent) -> TickLinkResult:
+        """Ticks the Link to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
 
         # check plan for
@@ -343,9 +345,9 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         call = plan.calls[plan_step] if plan is not None and plan_step is not None else None
 
         # start next action
-        next_action = pipe.target
+        next_action = link.target
         if next_action is None or next_action.is_deleted:
-            return TickPipeResult(new_runs=(), is_handled=False)
+            return TickLinkResult(new_runs=(), is_handled=False)
         if call is not None:
             next_run = self._start(
                 next_action,
@@ -359,7 +361,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             )
         else:
             next_run = self._start(next_action, incoming=(runner.tracked_run,))
-        return TickPipeResult(new_runs=(next_run,), is_handled=True)
+        return TickLinkResult(new_runs=(next_run,), is_handled=True)
 
     @override
     async def run(self) -> None:

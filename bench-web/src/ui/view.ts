@@ -24,7 +24,7 @@ import {
   Vector4Data,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { isNodeRef, makeStruct, toNodeRef, typeNodeReferenceMaybe, type TypedNodeReferenceData } from "@/proto/wiring";
 import { isFocusableElement } from "@/utils/element";
@@ -326,6 +326,10 @@ export function makeSelection(
     metatype: ObjectType.SELECTION,
     type: SelectionType.LIST,
     nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
+    selections: [],
+    nodeTypes: [],
+    scopesPtr: [],
+    tagsPtr: [],
     fieldsPtr: [],
     propertiesPtr: [],
   };
@@ -350,6 +354,10 @@ export function expandSelection(
       ...(selection?.nodesPtr ?? []),
       ...newNodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
     ],
+    selections: [],
+    nodeTypes: [],
+    scopesPtr: [],
+    tagsPtr: [],
     fieldsPtr: [],
     propertiesPtr: [],
   };

@@ -8,7 +8,7 @@ from bench.language import (
     Browser,
     Field,
     Flow,
-    PipeType,
+    LinkType,
     ResourceStatus,
     RunStatus,
 )
@@ -42,10 +42,10 @@ async def test_run_flow_browser_go_to_url(simulation: Simulation, runtime: Runti
     Observe = Action.new(ActionType.LOOK, name="Observe")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow1.actions.extend(Start, GoToUrl, Wait, Observe, Complete)
-    Start.connect(PipeType.CALL, target=GoToUrl)
-    GoToUrl.connect(PipeType.CALL, target=Wait)
-    Wait.connect(PipeType.CALL, target=Observe)
-    Observe.connect(PipeType.CALL, target=Complete)
+    Start.connect(LinkType.MANUAL, target=GoToUrl)
+    GoToUrl.connect(LinkType.MANUAL, target=Wait)
+    Wait.connect(LinkType.MANUAL, target=Observe)
+    Observe.connect(LinkType.MANUAL, target=Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 

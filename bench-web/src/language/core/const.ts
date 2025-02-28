@@ -212,7 +212,7 @@ export const REGIONAL_NODE_TYPES = NODE_TYPES.filter(isRegionalNodeType);
 export const PUBLIC_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const USER_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE];
 
-export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.PIPE];
+export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
 export const TYPE_NODE_TYPES = [NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];
 export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES];
 
@@ -265,7 +265,7 @@ export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData |
   } else if (isNode(node, NodeType.FIELD)) {
     return node.parentPtr ?? null;
   } else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
-    return node.pipePtr ?? node.actionPtr ?? node.flowPtr ?? null;
+    return node.linkPtr ?? node.actionPtr ?? node.flowPtr ?? null;
   } else if (isNode(node, NodeType.MESSAGE)) {
     return node.clazzPtr ?? null;
   } else {

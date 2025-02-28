@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/core/type";
 import { isRunActive } from "@/language/runtime/run";
-import { ColorShade, ColorType, NodeType, PipeType, PipeTypeOptionInfo, ViewData } from "@/proto/wire";
+import { ColorShade, ColorType, NodeType, LinkType, LinkTypeOptionInfo, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { canvas, pkgConnection } from "@/system/space";
 import { ActionMapImplementation } from "@/ui/action";
-import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/ui/flow";
+import { pathToSvg, LINK_WIDTH, useFlowContext } from "@/ui/flow";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -24,12 +24,12 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
-const pipePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.PIPE>);
+const linkPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.LINK>);
 const flowCtx = useFlowContext();
-const pipeState = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
-const { pipe, source, target, path } = pipeState;
+const linkState = flowCtx.linksStates.value[linkPtr.value.id!]; // must exist
+const { link, source, target, path } = linkState;
 const pathColorHex = computed(() => {
-  const color = pipe.value?.color?.type ?? ColorType.GRAY;
+  const color = link.value?.color?.type ?? ColorType.GRAY;
   if (color == ColorType.GRAY) {
     return getColorHex(color, ColorShade.S400);
   } else {
@@ -37,18 +37,18 @@ const pathColorHex = computed(() => {
   }
 });
 
-const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: pipePtr.value?.ck }));
-const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: pipePtr.value?.ck }));
+const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: linkPtr.value?.ck }));
+const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: linkPtr.value?.ck }));
 
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 
-const isInspected = computed(() => canvas.isInspected(pipePtr.value));
-const isHighlighted = computed(() => canvas.isHighlighted(pipePtr.value));
-const isSelected = computed(() => state.isSelected(pipePtr.value));
+const isInspected = computed(() => canvas.isInspected(linkPtr.value));
+const isHighlighted = computed(() => canvas.isHighlighted(linkPtr.value));
+const isSelected = computed(() => state.isSelected(linkPtr.value));
 const strokeDashArray = computed(() => {
-  if (pipe.value?.type === PipeType.SELECT) {
+  if (link.value?.type === LinkType.AUTO) {
     // dashed
-    return `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}`;
+    return `${LINK_WIDTH * 3},${LINK_WIDTH * 2}`;
   } else {
     return undefined;
   }
@@ -59,7 +59,7 @@ const strokeDashArray = computed(() => {
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {
+const actions: Partial<ActionMapImplementation<"space" | "link">> = {
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
   },
@@ -68,7 +68,7 @@ const actions: Partial<ActionMapImplementation<"space" | "pipe">> = {
 defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
-  <div v-if="pipe != null && path != null" class="group pointer-events-none z-30" data-ignore-element="self">
+  <div v-if="link != null && path != null" class="group pointer-events-none z-30" data-ignore-element="self">
     <!-- Path -->
     <svg
       class="group pointer-events-none relative overflow-visible"
@@ -79,7 +79,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       <defs>
         <!-- Main Arrowhead Marker -->
         <marker
-          :id="'arrowhead-main-' + pipe.id"
+          :id="'arrowhead-main-' + link.id"
           markerWidth="12"
           markerHeight="8"
           refX="11"
@@ -93,27 +93,27 @@ defineExpose<ViewExpose>({ self, id, actions });
 
       <!-- Background Hit Target -->
       <path
-        :stroke-width="PIPE_WIDTH * 3"
+        :stroke-width="LINK_WIDTH * 3"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         fill="none"
         stroke="transparent"
         class="pointer-events-auto cursor-pointer"
-        :data-node-type="pipe.metatype"
-        :data-node-id="pipe.id"
-        :data-node-ck="pipe.ck"
+        :data-node-type="link.metatype"
+        :data-node-id="link.id"
+        :data-node-ck="link.ck"
         data-suppress-drag="select"
         :d="pathToSvg(path)"
       />
 
       <!-- Main Path -->
       <path
-        :stroke-width="isInspected || isHighlighted || isSelected ? PIPE_WIDTH * 1.5 : PIPE_WIDTH"
+        :stroke-width="isInspected || isHighlighted || isSelected ? LINK_WIDTH * 1.5 : LINK_WIDTH"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :marker-end="'url(#arrowhead-main-' + pipe.id + ')'"
+        :marker-end="'url(#arrowhead-main-' + link.id + ')'"
         class="pointer-events-none transition-colors duration-150"
         :stroke-dasharray="strokeDashArray"
         :d="pathToSvg(path)"
@@ -130,14 +130,14 @@ defineExpose<ViewExpose>({ self, id, actions });
           : 'border-gray-200 opacity-0 group-hover/meta:opacity-100',
       ]"
       :style="{ left: path.midpoint.x + 'px', top: path.midpoint.y + 'px' }"
-      :data-node-type="pipe.metatype"
-      :data-node-id="pipe.id"
-      :data-node-ck="pipe.ck"
+      :data-node-type="link.metatype"
+      :data-node-id="link.id"
+      :data-node-ck="link.ck"
       aria-hidden
     >
       <!-- Type -->
       <IconInline
-        v-bind="makeIcon(PipeTypeOptionInfo[pipe.type]!.icon!)"
+        v-bind="makeIcon(LinkTypeOptionInfo[link.type]!.icon!)"
         class="flex h-4 w-4 flex-col justify-center rounded-2xl text-center text-gray-700"
       />
       <!-- Name -->
@@ -151,12 +151,12 @@ defineExpose<ViewExpose>({ self, id, actions });
         aria-hidden
         :placeholder-color="pathColorHex"
         :value-type="NAME_TYPE"
-        :model-value="pipe.name"
-        @update:model-value="(name) => pkgConnection.tx.update(pipe!, { name: name as string }, { debounce: 'long' })"
+        :model-value="link.name"
+        @update:model-value="(name) => pkgConnection.tx.update(link!, { name: name as string }, { debounce: 'long' })"
       />
     </div>
   </div>
   <div v-else>
-    <!-- pipe without valid path, can't show anything meaningful here -->
+    <!-- link without valid path, can't show anything meaningful here -->
   </div>
 </template>

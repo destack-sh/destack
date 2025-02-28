@@ -5,8 +5,8 @@ from bench.language import (
     Database,
     Field,
     Flow,
+    LinkType,
     PathElementType,
-    PipeType,
     Record,
     Run,
     RunStatus,
@@ -26,7 +26,7 @@ async def test_run_flow_fail_action(simulation: Simulation, runtime: RuntimeLamb
         ActionType.FAIL, "Fail", error_title="Fail title", error_text=Text.plain("Fail text")
     )
     Flow1.actions.extend(Start, Fail)
-    Start.connect(PipeType.CALL, Fail)
+    Start.connect(LinkType.MANUAL, Fail)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -119,7 +119,7 @@ async def test_run_flow_create_action_dynamic(
         mode=ComputedValueMode.IF_SOURCE_SET,
     )
     Flow1.actions.extend(Start, Create)
-    Start.connect(PipeType.CALL, Create)
+    Start.connect(LinkType.MANUAL, Create)
     runtime.page().append(Database1)
     runtime.page().append(Flow1)
     await runtime.commit()

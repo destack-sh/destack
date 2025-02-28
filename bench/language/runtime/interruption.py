@@ -34,9 +34,9 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Flow,
+        Link,
         Message,
         Page,
-        Pipe,
         Run,
         RunnableNode,
         Text,
@@ -68,7 +68,7 @@ class BreakpointScope(BuiltinEnum):
     # DESCENDANT, ...?
     # flow
     ACTION = 20
-    PIPE = 21
+    LINK = 21
 
 
 @enum_(EnumType.BREAKPOINT_ACTION)
@@ -173,11 +173,11 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     action: Optional["Action"] = p_internal(
         34, require=False, array=False, references=NodeType.ACTION
     )
-    pipe: Optional["Pipe"] = p_internal(35, require=False, array=False, references=NodeType.PIPE)
+    link: Optional["Link"] = p_internal(35, require=False, array=False, references=NodeType.LINK)
     if TYPE_CHECKING:
         flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
-        pipe_ptr: Optional[NodeReference] = None
+        link_ptr: Optional[NodeReference] = None
     attempt: Optional[int] = p_internal(37, require=False, default=None)
     breakpoint_site: BreakpointSite | None = p_internal(38)
 
@@ -226,8 +226,8 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
 
     @property
     def runnable(self):
-        if self.pipe_ptr:
-            return self.pipe
+        if self.link_ptr:
+            return self.link
         elif self.action_ptr:
             return self.action
         else:
@@ -247,8 +247,8 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
 
     @property
     def base_ptr(self) -> Optional["NodeReference"]:
-        if self.pipe_ptr is not None:
-            return self.pipe_ptr
+        if self.link_ptr is not None:
+            return self.link_ptr
         elif self.action_ptr is not None:
             return self.action_ptr
         else:
@@ -256,8 +256,8 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
 
     @property
     def base(self) -> Optional["BenchNode"]:
-        if self.pipe_ptr is not None:
-            return self.pipe
+        if self.link_ptr is not None:
+            return self.link
         elif self.action_ptr is not None:
             return self.action
         else:
@@ -266,8 +266,8 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         run_data = cast(InterruptionData, data)
-        if run_data.pipe_ptr.metatype != 0:
-            return cast(InterruptionData, data).pipe_ptr
+        if run_data.link_ptr.metatype != 0:
+            return cast(InterruptionData, data).link_ptr
         elif run_data.action_ptr.metatype != 0:
             return cast(InterruptionData, data).action_ptr
         else:
@@ -275,8 +275,8 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
 
     @staticmethod
     def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
-        if "pipe" in data:
-            return data["pipe"]
+        if "link" in data:
+            return data["link"]
         elif "action" in data:
             return data["action"]
         elif "flow" in data:
@@ -331,7 +331,7 @@ class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
             page=run.page,
             flow=run.flow,
             action=run.action,
-            pipe=run.pipe,
+            link=run.link,
             attempt=attempt,
             breakpoint_site=breakpoint,
             mode=run.mode,

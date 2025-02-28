@@ -16,10 +16,9 @@ from bench.language.core import (
     p_internal,
     p_node_parent,
     p_regular,
-    subnode_,
 )
 from bench.language.core.const import RunStatus
-from bench.pb2 import PipeData
+from bench.pb2 import LinkData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -41,40 +40,39 @@ class PortSide(BuiltinEnum):
     OUTGOING = 2
 
 
-@enum_(EnumType.PIPE_TYPE)
-class PipeType(BuiltinEnum):
-    CALL = 1, "Call", "Call always", "fas fa-arrow-right"
-    SELECT = 10, "Select", "Call only if selected", "far fa-square-check"
-    # MESSAGE?
-    # WAIT?
-    # STREAM?
+@enum_(EnumType.LINK_TYPE)
+class LinkType(BuiltinEnum):
+    AUTO = 10, "Auto", "Auto-decide if and how to call", "far fa-square-check"
+    REQUIRE = 20, "Require", "Always call, auto-decide how", "fas fa-arrow-right"
+    MANUAL = 30, "Manual", "Always call, manually decide how", "fas fa-forward"
+    # MESSAGE? WAIT? STREAM?
 
 
-@enum_(EnumType.PIPE_TRIGGER)
-class PipeTrigger(BuiltinEnum):
+@enum_(EnumType.LINK_TRIGGER)
+class LinkTrigger(BuiltinEnum):
     ON_COMPLETED = 1, "On completed", "If the action succeeds", "fas fa-check"
     ON_FAILED = 2, "On failed", "If the action fails", "fas fa-xmark"
     ON_TERMINATED = 3, "On terminated", "Always, success or failure", "fas fa-check-double"
 
 
-SIGN_BY_PIPE_TYPE: dict[PipeType, str] = {
-    PipeType.CALL: "->",
-    PipeType.SELECT: "-?>",
+SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
+    LinkType.AUTO: "-?>",
+    LinkType.REQUIRE: "-*>",
+    LinkType.MANUAL: "-!>",
 }
-PIPE_TYPES_BY_SIGN: dict[str, PipeType] = {v: k for k, v in SIGN_BY_PIPE_TYPE.items()}
+LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
 
 
-@node_(NodeType.PIPE, has_subtypes=True)
-class Pipe(SourceNode[PipeData]):
+@node_(NodeType.LINK, has_subtypes=True)
+class Link(SourceNode[LinkData]):
     """
-    A connection between two Steps in a Flow (source = outgoing, target = incoming).
-    Pipes are stored in the containing Flow or containing Step.
+    A Link between Actions in a Flow (source = outgoing, target = incoming).
     """
 
     parent: Union["Flow", "Action", None] = p_node_parent(4, NodeType.FLOW, NodeType.ACTION)
 
     # meta
-    type: PipeType = p_internal(30)
+    type: LinkType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
@@ -94,7 +92,7 @@ class Pipe(SourceNode[PipeData]):
     )
 
     # trigger
-    trigger: PipeTrigger = p_regular(40, default=PipeTrigger.ON_COMPLETED)
+    trigger: LinkTrigger = p_regular(40, default=LinkTrigger.ON_COMPLETED)
 
     # modulation
     delay: Optional[timedelta] = p_regular(50, default=None)
@@ -109,14 +107,14 @@ class Pipe(SourceNode[PipeData]):
     )
 
     def __content_str__(self) -> str:
-        sign = SIGN_BY_PIPE_TYPE.get(self.type, "???")
+        sign = SIGN_BY_LINK_TYPE.get(self.type, "???")
         source = self.source
         target = self.target
         return f"{source.absolute_path if source else '???'} {sign} {target.absolute_path if target else '???'}"
 
     @property
     def run_type(self) -> RunType:
-        return RunType.PIPE
+        return RunType.LINK
 
     @property
     def flow(self) -> "Flow | None":
@@ -134,34 +132,27 @@ class Pipe(SourceNode[PipeData]):
 
     @property
     def variable_type(self) -> "TypeBase | None":
-        return None  # Pipes don't have variables (?)
+        return None  # Links don't have variables (?)
 
     @property
     def input_type(self) -> "TypeBase | None":
-        return None  # Pipes don't have inputs (?)
+        return None  # Links don't have inputs (?)
 
     @property
     def output_type(self) -> "TypeBase | None":
-        return None  # Pipes don't have outputs (?)
+        return None  # Links don't have outputs (?)
 
     def is_triggered_by(self, status: RunStatus):
-        """Whether this Pipe is triggered by the given status."""
-        if self.trigger == PipeTrigger.ON_COMPLETED:
+        """Whether this Link is triggered by the given status."""
+        if self.trigger == LinkTrigger.ON_COMPLETED:
             return status == RunStatus.COMPLETED
-        elif self.trigger == PipeTrigger.ON_FAILED:
+        elif self.trigger == LinkTrigger.ON_FAILED:
             return status == RunStatus.FAILED
-        elif self.trigger == PipeTrigger.ON_TERMINATED:
+        elif self.trigger == LinkTrigger.ON_TERMINATED:
             return status.is_terminal
         else:
             assert_never(self.trigger)
 
     @staticmethod
-    def new(type: PipeType, name: str, **kwargs) -> "Pipe":
-        return Pipe(type=type, name=name, **kwargs)
-
-
-@subnode_(PipeType.SELECT)
-class SelectPipe(Pipe):
-    text: Optional["Text"] = p_regular(
-        100, default=None, require=False, array=False, struct=StructType.TEXT
-    )
+    def new(type: LinkType, name: str, **kwargs) -> "Link":
+        return Link(type=type, name=name, **kwargs)

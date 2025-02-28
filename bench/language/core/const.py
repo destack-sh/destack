@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.28.1"
+VERSION = "2025.02.28.2"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -415,8 +415,8 @@ class EnumType(BuiltinEnum):
     ACTION_TYPE = 22350
     ACTION_CATEGORY = 22351
     PORT_SIDE = 22352
-    PIPE_TYPE = 22353
-    PIPE_TRIGGER = 22354
+    LINK_TYPE = 22353
+    LINK_TRIGGER = 22354
 
     # views (22400-22449)
     SPACE_TYPE = 22400
@@ -535,7 +535,7 @@ class NodeType(BuiltinEnum):
     TAG = 5040, None, None, "fas fa-tag"
     FLOW = 5050, None, None, "fas fa-diagram-project"
     ACTION = 5051, None, None, "fas fa-step-forward"
-    PIPE = 5052, None, None, "fas fa-pipe-section"
+    LINK = 5052, None, None, "fas fa-link"
     TRIGGER = 5053, None, None, "fas fa-bolt"
     IMPLEMENTATION = 5060, None, None, "fas fa-screwdriver-wrench"
     VIEW = 5080, None, None, "fas fa-window-frame"
@@ -1416,7 +1416,7 @@ class RunType(BuiltinEnum):
     CODE = 1
     ACTION = 10
     FLOW = 11
-    PIPE = 12
+    LINK = 12
 
 
 @enum_(EnumType.RUN_SPAN_TYPE)

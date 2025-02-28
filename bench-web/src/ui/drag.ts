@@ -660,7 +660,7 @@ const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
   [NodeType.VIEW]: 3,
   [NodeType.RECORD]: 4,
   [NodeType.ACTION]: 5,
-  [NodeType.PIPE]: 5,
+  [NodeType.LINK]: 5,
   [NodeType.BLOCK]: 20,
 };
 

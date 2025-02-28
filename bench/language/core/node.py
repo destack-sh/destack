@@ -112,13 +112,13 @@ if TYPE_CHECKING:
         Flow,
         GetConnection,
         Icon,
+        Link,
         Machine,
         NodeLink,
         NodeReference,
         Package,
         Page,
         PathIn,
-        Pipe,
         Query,
         Run,
         SearchConnection,
@@ -1647,8 +1647,8 @@ class RuntimeNode[NodeDataT: AnyNodeData](
     """A Node that exists only (conceptually) at/in a Runtime."""
 
 
-RunnableNode = Union["Flow", "Action", "Pipe"]
-RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.PIPE)
+RunnableNode = Union["Flow", "Action", "Link"]
+RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
 FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
 FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
 TypeBaseNode = Union[FieldBaseNode, "Choice"]

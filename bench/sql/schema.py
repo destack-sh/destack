@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.02.28.1"
+VERSION = "2025.02.28.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1065,8 +1065,8 @@ ACTION_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-PIPE_TABLE = Table(
-    "bench_pipe",
+LINK_TABLE = Table(
+    "bench_link",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
@@ -1766,8 +1766,8 @@ RUN_TABLE = Table(
         Column("flow_ck", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
-        Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("link_id", PrimitiveType.UUID, is_nullable=True),
+        Column("link_ck", PrimitiveType.UUID, is_nullable=True),
         Column("plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_step", PrimitiveType.INT32, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
@@ -1877,9 +1877,9 @@ INTERRUPTION_TABLE = Table(
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("action_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("pipe_id", PrimitiveType.UUID, is_nullable=True),
-        Column("pipe_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("pipe_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("link_id", PrimitiveType.UUID, is_nullable=True),
+        Column("link_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("link_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("attempt", PrimitiveType.INT32, is_nullable=True),
         Column("breakpoint_site", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="10"),
