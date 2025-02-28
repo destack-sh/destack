@@ -348,7 +348,7 @@ function startEdit(message: MessageData) {
   });
 }
 
-function stopEdit() {
+function stopEditing() {
   editingPtr.value = null;
   editingText.value = null;
 }
@@ -511,10 +511,6 @@ useEventListener(inputContainerRef, "paste", (event) => {
 // actions
 const actions: Partial<ActionMapImplementation<"chat">> = {
   "chat.message.reply": {
-    isEnabled: (action, ctx) => {
-      const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
-      return messages.length > 0;
-    },
     action: (action, ctx) => {
       const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
       startReplying(messages[0]);
@@ -676,12 +672,13 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             >
               <!-- Author for new groups -->
               <AvatarInline
-                v-if="isNewGroup"
+                v-if="isNewGroup && authorIcon"
                 class="mr-1 cursor-pointer text-gray-700"
                 size="medium"
                 v-bind="authorIcon"
                 @click="author && canvas.goToNode(author)"
               />
+              <div v-else-if="isNewGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
               <!-- Time/edited otherwise -->
               <div v-else class="pt-[4px] text-xs text-gray-400">
                 <!-- Time -->
@@ -701,7 +698,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                   class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
                   @click="author && canvas.goToNode(author)"
                 >
-                  {{ authorName ?? "???" }}
+                  {{ authorName ?? "[deleted]" }}
                 </span>
                 <!-- Timestamp -->
                 <span class="ml-1.5 text-xs text-gray-400">
@@ -719,8 +716,8 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                   v-for="action in MESSAGE_CONTEXT_ACTIONS.map(getAction)"
                   :key="action.id"
                   v-tooltip="{ small: true, title: action.title, group: 'message' }"
-                  class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
-                  :disabled="!isActionEnabled(action, { nodes: [message] })"
+                  class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-150 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
+                  :disabled="action.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
                   @click.stop.prevent="fireAction(action, { nodes: [message] })"
                 >
                   <IconInline v-bind="action.icon" />
@@ -754,16 +751,16 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                     (e: KeyboardEvent) => {
                       if (!e.shiftKey) {
                         submitEdit();
-                        stopEdit();
+                        stopEditing();
                       }
                     }
                   "
-                  @keydown.esc.stop.prevent="stopEdit()"
+                  @keydown.esc.stop.prevent="stopEditing()"
                 />
                 <div v-if="isEditing" class="mt-0.5 flex-row text-xs text-gray-400">
                   <span>
                     escape to
-                    <a href="#" class="text-primary-700 underline-offset-2 hover:underline" @click.stop="stopEdit()"
+                    <a href="#" class="text-primary-700 underline-offset-2 hover:underline" @click.stop="stopEditing()"
                       >cancel</a
                     >
                   </span>

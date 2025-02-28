@@ -40,7 +40,7 @@ class PlanType(BuiltinEnum):
 
 @timed_node_(NodeType.PLAN)
 class Plan(RuntimeNode[PlanData]):
-    """A Plan for a sequence of Runs."""
+    """A Plan for a sequence of Runs or something."""
 
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
@@ -66,7 +66,6 @@ class Plan(RuntimeNode[PlanData]):
     title: str | None = p_regular(50, default=None)
     text: Optional["Text"] = p_regular(51, default=None, struct=StructType.TEXT)
     calls: list["Call"] = p_internal(52, require=True, array=True, struct=StructType.CALL)
-    step: int | None = p_internal(55)
 
     def complete(self, by: "Run") -> None:
         self.terminated_by = by

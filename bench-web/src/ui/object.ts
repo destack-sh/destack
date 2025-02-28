@@ -1102,7 +1102,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         }),
       );
     }
-    if (!this.isPartial) {
+    if (!this.isPartial && this.node.parentPtr?.nodeType == NodeType.IMPLEMENTATION) {
       commonRows.push(this.rowProperty(ActionProperty.category));
     }
 

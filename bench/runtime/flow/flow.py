@@ -325,7 +325,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     pipe_run = self._start(pipe, plan=plan, plan_step=step, incoming=(run,))
                     new_runs.append(pipe_run)
                     uncalled_call_pipes.discard(pipe)
-                plan.step = len(next_calls)
 
         # call call pipes that were not called
         for pipe in uncalled_call_pipes:
