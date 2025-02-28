@@ -1296,7 +1296,11 @@ enum PathRunSelector {
 
 enum SelectionType {
   SELECTION_TYPE_UNSPECIFIED = 0;
-  SELECTION_TYPE_LIST = 10;
+  SELECTION_TYPE_LIST = 1;
+  SELECTION_TYPE_RANGE = 2;
+  SELECTION_TYPE_SCOPE = 3;
+  SELECTION_TYPE_TAG = 4;
+  SELECTION_TYPE_COMBINATION = 10;
 }
 
 enum RunStatus {
@@ -2171,9 +2175,15 @@ message PathData {
 message SelectionData {
   ObjectType metatype = 1;
   SelectionType type = 30;
-  repeated NodeReferenceData nodes_ptr = 40;
-  repeated NodeReferenceData fields_ptr = 41;
-  repeated PropertyReferenceData properties_ptr = 42;
+  repeated SelectionData selections = 40;
+  repeated NodeType node_types = 41;
+  repeated NodeReferenceData nodes_ptr = 42;
+  repeated NodeReferenceData scopes_ptr = 43;
+  repeated NodeReferenceData tags_ptr = 44;
+  optional NodeReferenceData from_node_ptr = 45;
+  optional NodeReferenceData to_node_ptr = 46;
+  repeated NodeReferenceData fields_ptr = 50;
+  repeated PropertyReferenceData properties_ptr = 51;
 }
 
 message ExpressionData {
@@ -3491,33 +3501,6 @@ message ClassData {
   repeated NodeReferenceData tags_ptr = 38;
 }
 
-message ImplementationData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  optional NodeReferenceData template_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
-  optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
-  string order_key = 32;
-  optional TextData text = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData target_ptr = 35;
-  optional NodeReferenceData block_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
-  repeated NodeReferenceData tags_ptr = 38;
-}
-
 message DatabaseData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3630,6 +3613,33 @@ message FlowData {
   optional RunOptionsData run_options = 40;
   optional SelectionData tool_selection = 41;
   repeated NodeReferenceData roles_ptr = 42;
+}
+
+message ImplementationData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  optional NodeReferenceData template_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
+  optional google.protobuf.Value subnode_packed = 29;
+  string name = 31;
+  string order_key = 32;
+  optional TextData text = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData target_ptr = 35;
+  optional NodeReferenceData block_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
+  repeated NodeReferenceData tags_ptr = 38;
 }
 
 message OptionData {

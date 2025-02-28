@@ -934,7 +934,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   }
 
   toolRows() {
-    // nocheckin: ToolSelection..?
+    // TODO :Incomplete: Selection for tool_selection..?
     return [];
   }
 
