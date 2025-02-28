@@ -11,11 +11,11 @@ import {
   FieldData,
   FieldType,
   FlowData,
+  LinkData,
+  LinkTrigger,
+  LinkType,
   NodeType,
   ObjectType,
-  PipeData,
-  PipeTrigger,
-  PipeType,
   PortSide,
   SelectionData,
   StructType,
@@ -51,8 +51,8 @@ export const FLOW_SCALE_MIN = 0.5;
 export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
-export const PIPE_WIDTH = 2;
-export const SELF_PIPE_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
+export const LINK_WIDTH = 2;
+export const SELF_LINK_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
 export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 
@@ -75,7 +75,7 @@ export type Port = {
 export function portEquals(a: Port, b: Port): boolean {
   return a.parent?.id == b.parent?.id && a.side == b.side;
 }
-export type PipePath = {
+export type LinkPath = {
   start: Vector2;
   control1?: Vector2;
   control2?: Vector2;
@@ -88,7 +88,7 @@ export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; widt
 export type FlowThing =
   | { kind: "canvas" }
   | { kind: "action"; action: ActionData }
-  | { kind: "pipe"; pipe: PipeData }
+  | { kind: "link"; link: LinkData }
   | { kind: "selection"; selection: SelectionData; nodes: AnyNodeData[] }
   | { kind: "port"; action: ActionData; side: PortSide };
 
@@ -150,28 +150,28 @@ export class ActionState {
   }
 }
 
-/** Pipe state in a Flow. */
-export class PipeState {
+/** Link state in a Flow. */
+export class LinkState {
   // self
   flow: FlowContext;
-  pipePtr: TypedNodeReferenceData<NodeType.PIPE>;
-  pipe: Ref<PipeData | null>;
+  linkPtr: TypedNodeReferenceData<NodeType.LINK>;
+  link: Ref<LinkData | null>;
   source: Ref<ActionData | null>;
   target: Ref<ActionData | null>;
 
   // layout
-  path: Ref<PipePath | null>;
+  path: Ref<LinkPath | null>;
   boundingBox: Ref<BoundingBox | null>;
 
-  constructor(flow: FlowContext, pipe: PipeData) {
+  constructor(flow: FlowContext, link: LinkData) {
     this.flow = flow;
-    this.pipePtr = toNodeRef(pipe);
-    this.pipe = flow.graph.getRef(this.pipePtr);
+    this.linkPtr = toNodeRef(link);
+    this.link = flow.graph.getRef(this.linkPtr);
     this.source = flow.graph.getRef(
-      computed(() => this.pipe.value?.sourcePtr as TypedNodeReferenceData<NodeType.ACTION> | null),
+      computed(() => this.link.value?.sourcePtr as TypedNodeReferenceData<NodeType.ACTION> | null),
     );
     this.target = flow.graph.getRef(
-      computed(() => this.pipe.value?.targetPtr as TypedNodeReferenceData<NodeType.ACTION> | null),
+      computed(() => this.link.value?.targetPtr as TypedNodeReferenceData<NodeType.ACTION> | null),
     );
 
     // layout
@@ -191,7 +191,7 @@ export class PipeState {
 }
 const mouse = useMouse();
 
-/** An entire flow canvas (including actions, sub-actions, pipes, etc.) */
+/** An entire flow canvas (including actions, sub-actions, links, etc.) */
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
   graph: ReadNodeGraph;
@@ -213,10 +213,10 @@ export class FlowContext {
   flow: Ref<FlowData | null>;
   fields: Ref<FieldData[]>;
   actions: Ref<ActionData[]>;
-  pipes: Ref<PipeData[]>;
+  links: Ref<LinkData[]>;
 
   actionsStates: Ref<Record<string, ActionState>> = shallowRef({});
-  pipesStates: Ref<Record<string, PipeState>> = shallowRef({});
+  linksStates: Ref<Record<string, LinkState>> = shallowRef({});
   contentBoundingBox: Ref<BoundingBox | null>;
 
   constructor(context: {
@@ -284,9 +284,9 @@ export class FlowContext {
     this.flow = this.graph.getRef(context.flowPtr);
     this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
     this.actions = this.graph.getChildrenRef(this.flow, NodeType.ACTION);
-    this.pipes = this.graph.getChildrenRef(this.flow, NodeType.PIPE);
+    this.links = this.graph.getChildrenRef(this.flow, NodeType.LINK);
 
-    // maintain action/pipe contexts
+    // maintain action/link contexts
     watch(
       this.actions,
       () => {
@@ -305,17 +305,17 @@ export class FlowContext {
       { immediate: true },
     );
     watch(
-      this.pipes,
+      this.links,
       () => {
-        const pipesIds = this.pipes.value.map((p) => p.id);
-        this.pipes.value
-          .filter((pipe) => this.pipesStates.value[pipe.id] == null)
+        const linksIds = this.links.value.map((p) => p.id);
+        this.links.value
+          .filter((link) => this.linksStates.value[link.id] == null)
           .forEach(
-            (pipe) => ((this.pipesStates.value[pipe.id] = new PipeState(this, pipe)), triggerRef(this.pipesStates)),
+            (link) => ((this.linksStates.value[link.id] = new LinkState(this, link)), triggerRef(this.linksStates)),
           );
-        Object.keys(this.pipesStates.value)
-          .filter((pipeId) => !pipesIds.includes(pipeId))
-          .forEach((pipeId) => (delete this.pipesStates.value[pipeId], triggerRef(this.pipesStates)));
+        Object.keys(this.linksStates.value)
+          .filter((linkId) => !linksIds.includes(linkId))
+          .forEach((linkId) => (delete this.linksStates.value[linkId], triggerRef(this.linksStates)));
       },
       { immediate: true },
     );
@@ -426,8 +426,8 @@ export class FlowContext {
     return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
-  /** Computes the Pipe path */
-  computePath(source: BoundingBox, target: BoundingBox): PipePath {
+  /** Computes the Link path */
+  computePath(source: BoundingBox, target: BoundingBox): LinkPath {
     const sides: Array<"top" | "right" | "bottom" | "left"> = ["top", "right", "bottom", "left"];
     const ANGLE_FACTOR = 1; // penalty for angle deviations
     const CONTROL_DISTANCE_FACTOR = 0.3; // control point distance factor
@@ -641,10 +641,10 @@ export class FlowContext {
       return this.contentBoundingBox.value;
     } else if (thing.kind == "action") {
       return this.actionsStates.value[thing.action.id!]?.boundingBox.value;
-    } else if (thing.kind == "pipe") {
-      const pipeState = this.pipesStates.value[thing.pipe.id!];
-      if (pipeState == null) return null;
-      return pipeState.boundingBox.value;
+    } else if (thing.kind == "link") {
+      const linkState = this.linksStates.value[thing.link.id!];
+      if (linkState == null) return null;
+      return linkState.boundingBox.value;
     } else {
       throw new Error(`no bounding box for ${thing.kind}`);
     }
@@ -861,7 +861,7 @@ export class FlowContext {
         this.dragging.value = { thing, viewOffsetByThing: { [thing.action.id]: viewOffsetToThing } };
       }
     } else if (thing.kind == "port") {
-      // create pending pipe
+      // create pending link
       const positionViewportVec = this.worldToViewportVec({
         x: thing.action.position?.x ?? 0,
         y: thing.action.position?.y ?? 0,
@@ -944,8 +944,8 @@ export class FlowContext {
     } else if (SOURCE_ACTION_TYPES.includes(targetPort?.parent.type)) {
       return "Cannot connect to ending Action.";
     } else if (
-      this.pipes.value.some(
-        (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
+      this.links.value.some(
+        (link) => link.sourcePtr?.ck == sourcePort.parent.ck && link.targetPtr?.ck == targetPort.parent.ck,
       )
     ) {
       return "Cannot connect same two Actions.";
@@ -959,7 +959,7 @@ export class FlowContext {
     if (this.flow.value == null) throw new Error("no flow to connect");
     if (this.dragging.value == null) return;
 
-    // (re-)connect pipes
+    // (re-)connect links
     try {
       if (this.draggable?.kind == "port") {
         const sourceAction = this.draggable.action;
@@ -975,7 +975,7 @@ export class FlowContext {
         if (
           (at.kind == "action" || at.kind == "port") &&
           at.action.id == sourceAction.id &&
-          distance < SELF_PIPE_CONNECTION_DISTANCE
+          distance < SELF_LINK_CONNECTION_DISTANCE
         ) {
           return null; // ignore self-connections that are too close to starting point
         }
@@ -1007,9 +1007,9 @@ export class FlowContext {
                 tx,
               });
               if (this.canPortsConnect(sourcePort, { parent: action, side: PortSide.INCOMING })) {
-                this.createPipe({
+                this.createLink({
                   parent: this.flow.value!,
-                  pipe: {},
+                  link: {},
                   source: sourcePort,
                   target: { parent: action, side: PortSide.INCOMING },
                   tx,
@@ -1022,32 +1022,32 @@ export class FlowContext {
         }
 
         const canConnect = this.canPortsConnect(sourcePort, targetPort);
-        const existingPipe = this.pipes.value.find(
-          (pipe) => pipe.sourcePtr?.ck == sourcePort.parent.ck && pipe.targetPtr?.ck == targetPort.parent.ck,
+        const existingLink = this.links.value.find(
+          (link) => link.sourcePtr?.ck == sourcePort.parent.ck && link.targetPtr?.ck == targetPort.parent.ck,
         );
-        if (existingPipe) {
+        if (existingLink) {
           // already connected
-          canvas.inspect({ node: existingPipe, view: this.view.value });
+          canvas.inspect({ node: existingLink, view: this.view.value });
         } else if (canConnect === true) {
           // connect it up
           log.trace("flow.drag.connect", { from: sourcePort, to: targetPort });
-          const pipe = this.createPipe({
+          const link = this.createLink({
             parent: this.flow.value,
-            pipe: {},
+            link: {},
             source: sourcePort,
             target: targetPort,
           });
-          canvas.inspect({ node: pipe, view: this.view.value });
+          canvas.inspect({ node: link, view: this.view.value });
         } else {
           // nothing to do?
           toaster.error({
-            title: "Invalid Pipe",
+            title: "Invalid Link",
             text: canConnect,
           });
         }
       }
     } catch (e) {
-      toaster.error({ title: "Invalid Pipe", text: (e as any)?.message ?? "Cannot pipe like that." });
+      toaster.error({ title: "Invalid Link", text: (e as any)?.message ?? "Cannot link like that." });
       log.error("flow.drag.connect.error", this.draggable, at, e);
     }
 
@@ -1074,8 +1074,8 @@ export class FlowContext {
     return hit ?? null;
   }
 
-  /** Gets the bounding box for a pipe path (in world coordinates). */
-  computePathBoundingBox(path: PipePath): BoundingBox | null {
+  /** Gets the bounding box for a link path (in world coordinates). */
+  computePathBoundingBox(path: LinkPath): BoundingBox | null {
     // (taking bezier control points into account)
     if (path.control1 == null || path.control2 == null) {
       const x1 = Math.min(path.start.x, path.end.x);
@@ -1092,16 +1092,16 @@ export class FlowContext {
     }
   }
 
-  /** Gets the pipes connected to the given port. */
-  getPipesAtPort(action: ActionData, side: PortSide): PipeData[] {
-    if (side == PortSide.INCOMING) return this.pipes.value.filter((pipe) => pipe.targetPtr?.ck == action.ck);
-    else return this.pipes.value.filter((pipe) => pipe.sourcePtr?.ck == action.ck);
+  /** Gets the links connected to the given port. */
+  getLinksAtPort(action: ActionData, side: PortSide): LinkData[] {
+    if (side == PortSide.INCOMING) return this.links.value.filter((link) => link.targetPtr?.ck == action.ck);
+    else return this.links.value.filter((link) => link.sourcePtr?.ck == action.ck);
   }
 
-  /** Gets the hex color of the given pipe. */
-  getPipeColorHex(pipe: PipeData): string | undefined {
-    if (pipe.color != null) {
-      return getColorHex(pipe.color, pipe.color?.shade ?? ColorShade.S600);
+  /** Gets the hex color of the given link. */
+  getLinkColorHex(link: LinkData): string | undefined {
+    if (link.color != null) {
+      return getColorHex(link.color, link.color?.shade ?? ColorShade.S600);
     } else {
       return undefined;
     }
@@ -1122,15 +1122,15 @@ export class FlowContext {
 
   /** Moves the thing */
   move(
-    thing: ActionData | PipeData,
+    thing: ActionData | LinkData,
     move: { x: number; y: number },
     options?: { tx?: Transaction } & TransactionOptions,
   ) {
     const tx = options?.tx ?? this.tx;
     if (isNode(thing, NodeType.ACTION)) {
       tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long", ...options });
-    } else if (isNode(thing, NodeType.PIPE)) {
-      throw new Error(":Incomplete: move pipe");
+    } else if (isNode(thing, NodeType.LINK)) {
+      throw new Error(":Incomplete: move link");
     } else {
       assertNever(thing);
     }
@@ -1198,12 +1198,12 @@ export class FlowContext {
     return null;
   }
 
-  getDefaultPipeType(source: Port, target: Port): PipeType {
-    // select if the source already has a select pipe
-    if (this.pipes.value.some((p) => p.sourcePtr?.ck == source.parent.ck && p.type == PipeType.SELECT)) {
-      return PipeType.SELECT;
+  getDefaultLinkType(source: Port, target: Port): LinkType {
+    // select if the source already has a select link
+    if (this.links.value.some((p) => p.sourcePtr?.ck == source.parent.ck && p.type == LinkType.AUTO)) {
+      return LinkType.AUTO;
     } else {
-      return PipeType.CALL;
+      return LinkType.AUTO;
     }
   }
 
@@ -1265,10 +1265,10 @@ export class FlowContext {
     return action;
   }
 
-  /** Creates a Pipe */
-  createPipe(options: {
+  /** Creates a Link */
+  createLink(options: {
     parent: ActionData | TypedNodeReferenceData<NodeType.ACTION> | FlowData | TypedNodeReferenceData<NodeType.FLOW>;
-    pipe: Partial<PipeData>;
+    link: Partial<LinkData>;
     source: Port;
     target: Port;
     tx?: Transaction;
@@ -1282,31 +1282,31 @@ export class FlowContext {
       [options.source, options.target] = [options.target, options.source];
     }
     const { source, target } = options;
-    if (source.side != PortSide.OUTGOING) throw new Error(`cannot pipe from incoming port`);
-    if (target.side != PortSide.INCOMING) throw new Error(`cannot pipe to outgoing port`);
+    if (source.side != PortSide.OUTGOING) throw new Error(`cannot link from incoming port`);
+    if (target.side != PortSide.INCOMING) throw new Error(`cannot link to outgoing port`);
 
     // position in graph
-    const siblings = this.graph.getChildren(parent, NodeType.PIPE);
+    const siblings = this.graph.getChildren(parent, NodeType.LINK);
     const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
 
-    // decide pipe type
-    const type = options.pipe.type ?? this.getDefaultPipeType(source, target);
+    // decide link type
+    const type = options.link.type ?? this.getDefaultLinkType(source, target);
 
     // create
-    const pipe = (options.tx ?? this.tx).create({
-      metatype: NodeType.PIPE,
-      name: makeNodeName(this.graph, { ...options.pipe, metatype: ObjectType.PIPE, type, parentPtr }),
+    const link = (options.tx ?? this.tx).create({
+      metatype: NodeType.LINK,
+      name: makeNodeName(this.graph, { ...options.link, metatype: ObjectType.LINK, type, parentPtr }),
       orderKey,
-      ...options.pipe,
+      ...options.link,
       type,
-      trigger: options.pipe.trigger ?? PipeTrigger.ON_COMPLETED,
+      trigger: options.link.trigger ?? LinkTrigger.ON_COMPLETED,
       parentPtr,
       packagePtr,
       sourcePtr: toNodeRef(source.parent),
       targetPtr: toNodeRef(target.parent),
     });
-    canvas.inspect({ node: pipe, view: this.view.value });
-    return pipe;
+    canvas.inspect({ node: link, view: this.view.value });
+    return link;
   }
 }
 export const FLOW_CONTEXT_KEY = Symbol("flow");
@@ -1416,7 +1416,7 @@ export function interpolatePath(points: Vector2[], factor: number = 2): Vector2[
   return interpolated;
 }
 
-export function pathToSvg(path: PipePath): string {
+export function pathToSvg(path: LinkPath): string {
   if (path.control1 == null || path.control2 == null) {
     return `M ${path.start.x} ${path.start.y} L ${path.end.x} ${path.end.y}`;
   } else {

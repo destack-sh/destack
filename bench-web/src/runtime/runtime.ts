@@ -29,7 +29,7 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PipeData,
+  LinkData,
   RunOptionsData,
   RunProperty,
   RunSpanData,
@@ -94,7 +94,7 @@ export class RunTree {
     });
     this.runBasePtr = computedValue(
       () =>
-        (this.runRef.value?.pipePtr ??
+        (this.runRef.value?.linkPtr ??
           this.runRef.value?.actionPtr ??
           this.runRef.value?.flowPtr) as TypedNodeReferenceData<RunnableNodeType>,
     );
@@ -351,7 +351,7 @@ export function makeRun(
   let benchPtr: NodeReferenceData | undefined = undefined;
   let flow: FlowData | undefined = undefined;
   let action: ActionData | undefined = undefined;
-  let pipe: PipeData | undefined = undefined;
+  let link: LinkData | undefined = undefined;
   if (isNode(runnable, NodeType.FLOW)) {
     flow = runnable;
     benchPtr = options?.benchPtr ?? runnable.benchPtr;
@@ -359,10 +359,10 @@ export function makeRun(
     action = runnable;
     flow = graph.getAncestors(action, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
     benchPtr = options?.benchPtr ?? action.benchPtr;
-  } else if (isNode(runnable, NodeType.PIPE)) {
-    pipe = runnable;
-    flow = graph.getAncestors(pipe, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
-    benchPtr = options?.benchPtr ?? pipe.benchPtr;
+  } else if (isNode(runnable, NodeType.LINK)) {
+    link = runnable;
+    flow = graph.getAncestors(link, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
+    benchPtr = options?.benchPtr ?? link.benchPtr;
   } else {
     assertNever(runnable);
   }
@@ -379,7 +379,7 @@ export function makeRun(
     pagePtr: toNodeRef(page),
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
-    pipePtr: isNode(runnable, NodeType.PIPE) ? toNodeRef(runnable) : undefined,
+    linkPtr: isNode(runnable, NodeType.LINK) ? toNodeRef(runnable) : undefined,
     variablesPacked: options?.variablesPacked ?? undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),

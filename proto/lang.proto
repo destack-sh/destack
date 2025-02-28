@@ -105,8 +105,8 @@ enum EnumType {
   ENUM_TYPE_ACTION_TYPE = 22350;
   ENUM_TYPE_ACTION_CATEGORY = 22351;
   ENUM_TYPE_PORT_SIDE = 22352;
-  ENUM_TYPE_PIPE_TYPE = 22353;
-  ENUM_TYPE_PIPE_TRIGGER = 22354;
+  ENUM_TYPE_LINK_TYPE = 22353;
+  ENUM_TYPE_LINK_TRIGGER = 22354;
   ENUM_TYPE_SPACE_TYPE = 22400;
   ENUM_TYPE_VIEW_TYPE = 22401;
   ENUM_TYPE_COLOR_TYPE = 22402;
@@ -162,7 +162,7 @@ enum NodeType {
   NODE_TYPE_TAG = 5040;
   NODE_TYPE_FLOW = 5050;
   NODE_TYPE_ACTION = 5051;
-  NODE_TYPE_PIPE = 5052;
+  NODE_TYPE_LINK = 5052;
   NODE_TYPE_TRIGGER = 5053;
   NODE_TYPE_IMPLEMENTATION = 5060;
   NODE_TYPE_VIEW = 5080;
@@ -275,7 +275,7 @@ enum ObjectType {
   OBJECT_TYPE_TAG = 5040;
   OBJECT_TYPE_FLOW = 5050;
   OBJECT_TYPE_ACTION = 5051;
-  OBJECT_TYPE_PIPE = 5052;
+  OBJECT_TYPE_LINK = 5052;
   OBJECT_TYPE_TRIGGER = 5053;
   OBJECT_TYPE_IMPLEMENTATION = 5060;
   OBJECT_TYPE_VIEW = 5080;
@@ -384,7 +384,7 @@ enum BenchType {
   BENCH_TYPE_TAG = 5040;
   BENCH_TYPE_FLOW = 5050;
   BENCH_TYPE_ACTION = 5051;
-  BENCH_TYPE_PIPE = 5052;
+  BENCH_TYPE_LINK = 5052;
   BENCH_TYPE_TRIGGER = 5053;
   BENCH_TYPE_IMPLEMENTATION = 5060;
   BENCH_TYPE_VIEW = 5080;
@@ -559,8 +559,8 @@ enum BenchType {
   BENCH_TYPE_ACTION_TYPE = 22350;
   BENCH_TYPE_ACTION_CATEGORY = 22351;
   BENCH_TYPE_PORT_SIDE = 22352;
-  BENCH_TYPE_PIPE_TYPE = 22353;
-  BENCH_TYPE_PIPE_TRIGGER = 22354;
+  BENCH_TYPE_LINK_TYPE = 22353;
+  BENCH_TYPE_LINK_TRIGGER = 22354;
   BENCH_TYPE_SPACE_TYPE = 22400;
   BENCH_TYPE_VIEW_TYPE = 22401;
   BENCH_TYPE_COLOR_TYPE = 22402;
@@ -1322,7 +1322,7 @@ enum RunType {
   RUN_TYPE_CODE = 1;
   RUN_TYPE_ACTION = 10;
   RUN_TYPE_FLOW = 11;
-  RUN_TYPE_PIPE = 12;
+  RUN_TYPE_LINK = 12;
 }
 
 enum RunSpanType {
@@ -1474,7 +1474,7 @@ enum BreakpointScope {
   BREAKPOINT_SCOPE_SELF = 1;
   BREAKPOINT_SCOPE_CHILD = 2;
   BREAKPOINT_SCOPE_ACTION = 20;
-  BREAKPOINT_SCOPE_PIPE = 21;
+  BREAKPOINT_SCOPE_LINK = 21;
 }
 
 enum InterruptionType {
@@ -1620,17 +1620,18 @@ enum PortSide {
   PORT_SIDE_OUTGOING = 2;
 }
 
-enum PipeType {
-  PIPE_TYPE_UNSPECIFIED = 0;
-  PIPE_TYPE_CALL = 1;
-  PIPE_TYPE_SELECT = 10;
+enum LinkType {
+  LINK_TYPE_UNSPECIFIED = 0;
+  LINK_TYPE_AUTO = 10;
+  LINK_TYPE_REQUIRE = 20;
+  LINK_TYPE_MANUAL = 30;
 }
 
-enum PipeTrigger {
-  PIPE_TRIGGER_UNSPECIFIED = 0;
-  PIPE_TRIGGER_ON_COMPLETED = 1;
-  PIPE_TRIGGER_ON_FAILED = 2;
-  PIPE_TRIGGER_ON_TERMINATED = 3;
+enum LinkTrigger {
+  LINK_TRIGGER_UNSPECIFIED = 0;
+  LINK_TRIGGER_ON_COMPLETED = 1;
+  LINK_TRIGGER_ON_FAILED = 2;
+  LINK_TRIGGER_ON_TERMINATED = 3;
 }
 
 enum SpaceType {
@@ -1651,7 +1652,7 @@ enum ViewType {
   VIEW_TYPE_FIELD = 5035;
   VIEW_TYPE_FLOW = 5050;
   VIEW_TYPE_ACTION = 5051;
-  VIEW_TYPE_PIPE = 5052;
+  VIEW_TYPE_LINK = 5052;
   VIEW_TYPE_TRIGGER = 5053;
   VIEW_TYPE_IMPLEMENTATION = 5060;
   VIEW_TYPE_VIEW = 5080;
@@ -1702,7 +1703,6 @@ enum ViewType {
   VIEW_TYPE_CHART = 31200;
   VIEW_TYPE_BUTTON = 32001;
   VIEW_TYPE_MULTI_BUTTON = 32002;
-  VIEW_TYPE_LINK = 32003;
   VIEW_TYPE_NUMBER = 35001;
   VIEW_TYPE_SLIDER = 35002;
   VIEW_TYPE_STRING = 35101;
@@ -3021,7 +3021,7 @@ message InterruptionData {
   optional NodeReferenceData page_ptr = 32;
   optional NodeReferenceData flow_ptr = 33;
   optional NodeReferenceData action_ptr = 34;
-  optional NodeReferenceData pipe_ptr = 35;
+  optional NodeReferenceData link_ptr = 35;
   optional int32 attempt = 37;
   optional BreakpointSite breakpoint_site = 38;
   InterruptionStatus status = 40;
@@ -3127,7 +3127,7 @@ message RunData {
   NodeReferenceData page_ptr = 60;
   optional NodeReferenceData flow_ptr = 61;
   optional NodeReferenceData action_ptr = 62;
-  optional NodeReferenceData pipe_ptr = 63;
+  optional NodeReferenceData link_ptr = 63;
   optional NodeReferenceData plan_ptr = 64;
   optional int32 plan_step = 65;
   optional NodeReferenceData trigger_ptr = 66;
@@ -3235,51 +3235,51 @@ message ActionData {
   optional Vector2Data position = 80;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message StartActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message CompleteActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message FailActionData {
   optional string error_title = 120;
   optional TextData error_text = 121;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message CodeActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message ToolActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message GenerateActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message TransformActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message RouteActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message EditActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message CreateActionData {
   optional google.protobuf.Value node_partial_packed = 120;
   optional NodeReferenceData node_ptr = 220;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message DuplicateActionData {
   optional NodeReferenceData node_ptr = 120;
   optional google.protobuf.Value node_partial_packed = 121;
@@ -3287,39 +3287,39 @@ message DuplicateActionData {
   optional NodeReferenceData duplicated_node_ptr = 123;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message UpdateActionData {
   optional NodeReferenceData node_ptr = 120;
   optional google.protobuf.Value node_partial_packed = 121;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message DeleteActionData {
   optional NodeReferenceData node_ptr = 120;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message WaitActionData {
   optional google.protobuf.Duration delay = 120;
   optional NodeReferenceData node_ptr = 200;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message SendActionData {
   optional google.protobuf.Value message_in_packed = 121;
   optional NodeReferenceData message_ptr = 200;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message ReceiveActionData {
   optional NodeReferenceData message_ptr = 100;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message YieldActionData {
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message LookActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3329,7 +3329,7 @@ message LookActionData {
   repeated DomNodeData dom_nodes = 201;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message ClickActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3337,7 +3337,7 @@ message ClickActionData {
   optional string button = 120;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message PressActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3346,7 +3346,7 @@ message PressActionData {
   optional google.protobuf.Duration delay = 121;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message TypeActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3355,7 +3355,7 @@ message TypeActionData {
   optional google.protobuf.Duration delay = 121;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message ScrollActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3363,28 +3363,28 @@ message ScrollActionData {
   optional Vector2Data amount = 120;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message SelectActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
   optional Vector2Data element_position = 111;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message GoBackwardActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
   optional Vector2Data element_position = 111;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message GoForwardActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
   optional Vector2Data element_position = 111;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message GoToUrlActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3392,7 +3392,7 @@ message GoToUrlActionData {
   optional string url = 120;
 }
 
-// A data or control flow node in a Flow. Actions are connected by Pipes.
+// A data or control flow node in a Flow. Actions are connected by Links.
 message GoToTabActionData {
   optional NodeReferenceData application_ptr = 100;
   optional string element_id = 110;
@@ -3719,7 +3719,7 @@ message PageData {
   repeated NodeReferenceData tags_ptr = 38;
 }
 
-message PipeData {
+message LinkData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -3736,21 +3736,16 @@ message PipeData {
   NodeMode mode = 20;
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
-  PipeType type = 30;
+  LinkType type = 30;
   string name = 32;
   string order_key = 33;
   optional TextData text = 34;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
   optional RunOptionsData run_options = 39;
-  PipeTrigger trigger = 40;
+  LinkTrigger trigger = 40;
   optional google.protobuf.Duration delay = 50;
   optional ColorData color = 80;
-}
-
-// A connection between two Steps in a Flow (source = outgoing, target = incoming).
-// Pipes are stored in the containing Flow or containing Step.
-message SelectPipeData {
 }
 
 message ViewData {
@@ -4147,7 +4142,7 @@ message SomeNodeData {
     TagData tag = 22;
     FlowData flow = 23;
     ActionData action = 24;
-    PipeData pipe = 25;
+    LinkData link = 25;
     TriggerData trigger = 26;
     ImplementationData implementation = 27;
     ViewData view = 28;

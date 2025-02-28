@@ -11,7 +11,7 @@ import {
   NodeReferenceData,
   NodeType,
   PickerVariant,
-  PipeData,
+  LinkData,
   PortSide,
   TypeKind,
   ViewData,
@@ -20,7 +20,7 @@ import {
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas, spaceGraph } from "@/system/space";
-import { ACTION_CONTEXT_ACTIONS, PIPE_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
+import { ACTION_CONTEXT_ACTIONS, LINK_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import {
   ACTION_SIZE,
@@ -30,9 +30,9 @@ import {
   FLOW_GRID_STEP,
   FlowContext,
   pathToSvg,
-  PIPE_WIDTH,
-  PipePath,
-  SELF_PIPE_CONNECTION_DISTANCE,
+  LINK_WIDTH,
+  LinkPath,
+  SELF_LINK_CONNECTION_DISTANCE,
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -42,7 +42,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
-import Pipe from "@/views/nodes/Pipe.vue";
+import Link from "@/views/nodes/Link.vue";
 import FieldList from "@/views/objects/FieldList.vue";
 import { MaybeElement, useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
@@ -71,7 +71,7 @@ const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
 const actionRefs: Ref<Record<string, InstanceType<typeof Action>>> = ref({});
-const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
+const linkRefs: Ref<Record<string, InstanceType<typeof Link>>> = ref({});
 const containerSize = useElementSize(containerRef);
 const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
 
@@ -94,9 +94,9 @@ const flowCtx = new FlowContext({
 provide(FLOW_CONTEXT_KEY, flowCtx);
 const flow = flowCtx.flow;
 const actions = flowCtx.actions;
-const pipes = flowCtx.pipes;
+const links = flowCtx.links;
 const fields = flowCtx.fields;
-const actionsAndPipes: Ref<(ActionData | PipeData)[]> = computed(() => [...actions.value, ...pipes.value]);
+const actionsAndLinks: Ref<(ActionData | LinkData)[]> = computed(() => [...actions.value, ...links.value]);
 
 const viewport = flowCtx.viewport;
 
@@ -105,7 +105,7 @@ const viewport = flowCtx.viewport;
 //
 
 // pending
-const pendingPath: Ref<PipePath | null> = computed(() => {
+const pendingPath: Ref<LinkPath | null> = computed(() => {
   // preview path between current dragged port and action (or point in canvas if nothing)
   if (flowCtx.draggable?.kind != "port") return null;
   const sourcePort = flowCtx.draggable;
@@ -119,7 +119,7 @@ const pendingPath: Ref<PipePath | null> = computed(() => {
   };
   const targetAction = flowCtx.getActionAt(cursor);
   const distance = lengthVector2(subVector2(sourcePos, cursor));
-  if (targetAction != null && targetAction.id === sourceAction.id && distance < SELF_PIPE_CONNECTION_DISTANCE) {
+  if (targetAction != null && targetAction.id === sourceAction.id && distance < SELF_LINK_CONNECTION_DISTANCE) {
     return null; // ignore self-connections that are too close to starting point
   }
 
@@ -189,11 +189,11 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
       context.event,
     );
   },
-  "flow.edit.splitPipe": (action, context) => {
+  "flow.edit.splitLink": (action, context) => {
     if (context.nodes?.length != 1) return;
-    const pipe = context.nodes[0];
-    if (!isNode(pipe, NodeType.PIPE)) return;
-    const oldTarget = graph.getOrError(pipe.targetPtr!) as ActionData;
+    const link = context.nodes[0];
+    if (!isNode(link, NodeType.LINK)) return;
+    const oldTarget = graph.getOrError(link.targetPtr!) as ActionData;
     pushPopover(
       {
         kind: "view",
@@ -205,23 +205,23 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
           subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
         },
         onApply: (value) => {
-          const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Pipe" } });
+          const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Link" } });
           // find position
-          const pipeMidpoint = flowCtx.pipesStates.value[pipe.id!].path.value?.midpoint;
-          if (pipeMidpoint == null) throw new Error("no pipe midpoint");
-          const position = subVector2(pipeMidpoint, { x: ACTION_SIZE_HALF.width, y: ACTION_SIZE_HALF.height });
+          const linkMidpoint = flowCtx.linksStates.value[link.id!].path.value?.midpoint;
+          if (linkMidpoint == null) throw new Error("no link midpoint");
+          const position = subVector2(linkMidpoint, { x: ACTION_SIZE_HALF.width, y: ACTION_SIZE_HALF.height });
           // create new action
           const newAction = flowCtx.createAction({ parent: flow.value!, action: { type: value, position }, tx });
-          // create new pipe from new action to old pipe target
-          const newPipe = flowCtx.createPipe({
+          // create new link from new action to old link target
+          const newLink = flowCtx.createLink({
             parent: flow.value!,
-            pipe: {},
+            link: {},
             source: { parent: newAction, side: PortSide.OUTGOING },
             target: { parent: oldTarget, side: PortSide.INCOMING },
             tx,
           });
-          // reconnect old pipe to new action
-          tx.update(pipe, { targetPtr: toNodeRef(newAction) }, { debounce: "long" });
+          // reconnect old link to new action
+          tx.update(link, { targetPtr: toNodeRef(newAction) }, { debounce: "long" });
           // and go to
           canvas.inspect({ node: newAction });
         },
@@ -251,7 +251,7 @@ const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "ru
   "space.navigate.zoomOut": () => flowCtx.zoom("out", "center", 10),
   "space.navigate.reset": () => flowCtx.resetViewport(),
   // select
-  "space.select.all": () => canvas.select(actionsAndPipes.value),
+  "space.select.all": () => canvas.select(actionsAndLinks.value),
 };
 
 // focus
@@ -266,12 +266,12 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
         flowCtx.panToCenter({ kind: "action", action: actionState.action.value! });
       }
       return actionRefs.value[anchor.id!].$el;
-    } else if (pipeRefs.value[anchor.id!] != null) {
-      const pipeState = flowCtx.pipesStates.value[anchor.id!];
-      if (pipeState.pipe.value != null && !flowCtx.isInViewport({ kind: "pipe", pipe: pipeState.pipe.value })) {
-        flowCtx.panToCenter({ kind: "pipe", pipe: pipeState.pipe.value! });
+    } else if (linkRefs.value[anchor.id!] != null) {
+      const linkState = flowCtx.linksStates.value[anchor.id!];
+      if (linkState.link.value != null && !flowCtx.isInViewport({ kind: "link", link: linkState.link.value })) {
+        flowCtx.panToCenter({ kind: "link", link: linkState.link.value! });
       }
-      return pipeRefs.value[anchor.id!].$el;
+      return linkRefs.value[anchor.id!].$el;
     }
   } else {
     headerRef.value?.focus?.(anchor ?? "top");
@@ -475,14 +475,14 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
             transform: `scale(${viewport.scale}, ${viewport.scale}) translate(${viewport.transform.translateX}px, ${viewport.transform.translateY}px) `,
           }"
         >
-          <!-- Pipes -->
-          <Pipe
-            v-for="pipe in pipes"
-            :id="pipe.id"
-            :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
-            :key="pipe.id"
-            :data-contextmenu-items="PIPE_CONTEXT_ACTIONS.join(',')"
-            :node-ptr="toNodeRef(pipe)"
+          <!-- Links -->
+          <Link
+            v-for="link in links"
+            :id="link.id"
+            :ref="(ref: any) => (ref != null ? (linkRefs[link.id] = ref) : delete linkRefs[link.id])"
+            :key="link.id"
+            :data-contextmenu-items="LINK_CONTEXT_ACTIONS.join(',')"
+            :node-ptr="toNodeRef(link)"
             class="absolute"
           />
           <!-- Actions -->
@@ -503,11 +503,11 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
             data-suppress-drag="select"
             @mousedown="(e: MouseEvent) => flowCtx.startDraggingIfAllowed(e, { kind: 'action', action: action! })"
           />
-          <!-- Pending Pipe (above Actions for clarity)-->
+          <!-- Pending Link (above Actions for clarity)-->
           <div v-if="flowCtx.draggable?.kind == 'port'" class="pointer-events-none absolute text-gray-700 opacity-50">
             <svg v-if="pendingPath" class="overflow-visible">
               <path
-                :stroke-width="PIPE_WIDTH * 2"
+                :stroke-width="LINK_WIDTH * 2"
                 stroke-linecap="round"
                 stroke-linejoin="bevel"
                 stroke="currentColor"

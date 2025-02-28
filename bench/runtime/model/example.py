@@ -26,6 +26,7 @@ from bench.language import (
     CustomObject,
     Field,
     Flow,
+    LinkType,
     Message,
     Node,
     NodeGraph,
@@ -37,7 +38,6 @@ from bench.language import (
     Package,
     PackageType,
     PathElementType,
-    PipeType,
     Region,
     Renderer,
     RenderOptions,
@@ -309,11 +309,11 @@ def flow_basic_planning(package: Package):
     Press1 = Action.new(ActionType.PRESS, name="Press1")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow1.actions.extend(Start, Look1, Click1, Type1, Press1, Complete)
-    Start.connect(PipeType.CALL, Look1)
-    Look1.connect(PipeType.CALL, Click1)
-    Look1.connect(PipeType.SELECT, Type1)
-    Look1.connect(PipeType.SELECT, Press1)
-    Look1.connect(PipeType.SELECT, Complete)
+    Start.connect(LinkType.REQUIRE, Look1)
+    Look1.connect(LinkType.REQUIRE, Click1)
+    Look1.connect(LinkType.AUTO, Type1)
+    Look1.connect(LinkType.AUTO, Press1)
+    Look1.connect(LinkType.AUTO, Complete)
     # Runs/Inputs
     ...  # some application with obvious element ids provided
     # We're at Look1, assume we know the next few steps
@@ -326,7 +326,7 @@ def flow_basic_planning(package: Package):
             on_terminate=CallTerminationMode.RETURN,  # back to Look when done
         )
     ]
-    return [Flow1, *Flow1.actions, *Flow1.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.links], (
         "Okay, we know the next few steps here before we need to look again.",
         Look1,
         {"plans": plans},
@@ -342,14 +342,14 @@ def basic_planning_with_tools(package: Package):
     Tool1 = Action.new(ActionType.TOOL, name="Tool1")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow1.actions.extend(Start, Think1, Tool1, Complete)
-    Start.connect(PipeType.CALL, Think1)
-    Think1.connect(PipeType.CALL, Tool1)
-    Tool1.connect(PipeType.CALL, Complete)
+    Start.connect(LinkType.REQUIRE, Think1)
+    Think1.connect(LinkType.REQUIRE, Tool1)
+    Tool1.connect(LinkType.REQUIRE, Complete)
     # Inputs
     ...  # some application with obvious element ids provided
     # ---
     # nocheckin: make Plans less nested? (the return is ugly verbose here)
-    return [Flow1, *Flow1.actions, *Flow1.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.links], (
         "Route to the tool action.",
         Think1,
         {
@@ -381,12 +381,12 @@ def flow_simple_extract_without_plan(package: Package):
         source=(Extract, PathElementType.RUN, Run.get_property("outputs"), Extract.fields.Names),
     )
     Flow1.actions.extend(Start, Extract, Complete)
-    Start.connect(PipeType.CALL, Extract)
-    Extract.connect(PipeType.CALL, Complete)
+    Start.connect(LinkType.REQUIRE, Extract)
+    Extract.connect(LinkType.REQUIRE, Complete)
     # Inputs
     {"Text": "And then Alice met Bob at the park."}
     # ---
-    return [Flow1, *Flow1.actions, *Flow1.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.links], (
         "No plan because the next Action is Call->Complete and its fields are computed.",
         Extract,
         {"Names": ["Alice", "Bob"], "plans": []},
@@ -403,11 +403,11 @@ def flow_implicit_transformation_in_call(package: Package):
     Start = Action.new(ActionType.START, name="Start")
     Complete = Action.new(ActionType.COMPLETE, name="Complete")
     Flow1.actions.extend(Start, Complete)
-    Start.connect(PipeType.CALL, Complete)
+    Start.connect(LinkType.REQUIRE, Complete)
     # Inputs
     {"Name": "Alice"}
     # ---
-    return [Flow1, *Flow1.actions, *Flow1.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.links], (
         "Feed argument to Flow/Complete via plan",
         Start,
         {"plans": [call_serial(call(Complete, Greeting="Hello Alice!"))]},
@@ -424,7 +424,7 @@ def flow_send_message(package: Package):
     Channel1.append(Message1)
     ...
     # ---
-    return [Flow1, *Flow1.actions, *Flow1.pipes], (
+    return [Flow1, *Flow1.actions, *Flow1.links], (
         "Send a Message via the Send Message Action.",
         Send1,
         {

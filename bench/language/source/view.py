@@ -48,7 +48,7 @@ class ViewType(BuiltinEnum):
     FIELD = 5035
     FLOW = 5050
     ACTION = 5051
-    PIPE = 5052
+    LINK = 5052
     TRIGGER = 5053
     IMPLEMENTATION = 5060
     VIEW = 5080
@@ -132,7 +132,6 @@ class ViewType(BuiltinEnum):
     # controls (32000-32100)
     BUTTON = 32001, "Button", "Button view", "fas fa-hand-pointer"
     MULTI_BUTTON = 32002, "Multi button", "Multi button view", "fas fa-hand-pointer"
-    LINK = 32003, "Link", "Link view", "fas fa-link"
 
     #
     # Content (35000-)

@@ -6,8 +6,8 @@ from bench.language import (
     ActionType,
     Channel,
     Flow,
+    LinkType,
     Message,
-    PipeType,
     Run,
     RunStatus,
     Trigger,
@@ -69,8 +69,8 @@ message_in.parent.append(reply)
     )
     Complete1 = Action.new(ActionType.COMPLETE, "Complete1")
     Flow1.extend(Receive1, Code1, Complete1)
-    Receive1.connect(PipeType.CALL, Code1)
-    Code1.connect(PipeType.CALL, Complete1)
+    Receive1.connect(LinkType.MANUAL, Code1)
+    Code1.connect(LinkType.MANUAL, Complete1)
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
@@ -90,8 +90,8 @@ async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWo
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Action1, Complete)
-    Start.connect(PipeType.CALL, Action1)
-    Action1.connect(PipeType.CALL, Complete)
+    Start.connect(LinkType.MANUAL, Action1)
+    Action1.connect(LinkType.MANUAL, Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 

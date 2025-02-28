@@ -57,8 +57,8 @@ import {
   PathData,
   PathElementType,
   PickerVariant,
-  PipeProperty,
-  PipeType,
+  LinkProperty,
+  LinkType,
   PressActionProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
@@ -1162,13 +1162,13 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   }
 }
 
-export class PipeLayout extends NodeLayout<NodeType.PIPE> {
+export class LinkLayout extends NodeLayout<NodeType.LINK> {
   make() {
-    const commonRows = [this.rowProperty(PipeProperty.type)];
-    if (this.node.type == PipeType.CALL) {
-      commonRows.push(this.rowProperty(PipeProperty.trigger));
+    const commonRows = [this.rowProperty(LinkProperty.type)];
+    if (this.node.type == LinkType.CALL) {
+      commonRows.push(this.rowProperty(LinkProperty.trigger));
     }
-    commonRows.push(this.rowProperty(PipeProperty.color), this.rowProperty(PipeProperty.delay));
+    commonRows.push(this.rowProperty(LinkProperty.color), this.rowProperty(LinkProperty.delay));
     this.section(undefined, commonRows);
   }
 }
@@ -1284,7 +1284,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.DATABASE]: DatabaseLayout,
   [NodeType.FLOW]: FlowLayout,
   [NodeType.ACTION]: ActionLayout,
-  [NodeType.PIPE]: PipeLayout,
+  [NodeType.LINK]: LinkLayout,
   [NodeType.RECORD]: RecordLayout,
   [NodeType.FIELD]: FieldLayout,
   [NodeType.CHANNEL]: ChannelLayout,

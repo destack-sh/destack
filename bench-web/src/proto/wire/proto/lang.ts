@@ -3571,9 +3571,9 @@ export interface InterruptionData {
      */
     actionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData pipe_ptr = 35;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData link_ptr = 35;
      */
-    pipePtr?: NodeReferenceData;
+    linkPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional int32 attempt = 37;
      */
@@ -3974,9 +3974,9 @@ export interface RunData {
      */
     actionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData pipe_ptr = 63;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData link_ptr = 63;
      */
-    pipePtr?: NodeReferenceData;
+    linkPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData plan_ptr = 64;
      */
@@ -4378,21 +4378,21 @@ export interface ActionData {
     position?: Vector2Data;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.StartActionData
  */
 export interface StartActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.CompleteActionData
  */
 export interface CompleteActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.FailActionData
  */
@@ -4407,49 +4407,49 @@ export interface FailActionData {
     errorText?: TextData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.CodeActionData
  */
 export interface CodeActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.ToolActionData
  */
 export interface ToolActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.GenerateActionData
  */
 export interface GenerateActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.TransformActionData
  */
 export interface TransformActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.RouteActionData
  */
 export interface RouteActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.EditActionData
  */
 export interface EditActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.CreateActionData
  */
@@ -4464,7 +4464,7 @@ export interface CreateActionData {
     nodePtr?: NodeReferenceData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.DuplicateActionData
  */
@@ -4487,7 +4487,7 @@ export interface DuplicateActionData {
     duplicatedNodePtr?: NodeReferenceData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.UpdateActionData
  */
@@ -4502,7 +4502,7 @@ export interface UpdateActionData {
     nodePartialPacked?: JsonValue;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.DeleteActionData
  */
@@ -4513,7 +4513,7 @@ export interface DeleteActionData {
     nodePtr?: NodeReferenceData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.WaitActionData
  */
@@ -4528,7 +4528,7 @@ export interface WaitActionData {
     nodePtr?: NodeReferenceData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.SendActionData
  */
@@ -4543,7 +4543,7 @@ export interface SendActionData {
     messagePtr?: NodeReferenceData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.ReceiveActionData
  */
@@ -4554,14 +4554,14 @@ export interface ReceiveActionData {
     messagePtr?: NodeReferenceData;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.YieldActionData
  */
 export interface YieldActionData {
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.LookActionData
  */
@@ -4592,7 +4592,7 @@ export interface LookActionData {
     domNodes: DomNodeData[];
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.ClickActionData
  */
@@ -4615,7 +4615,7 @@ export interface ClickActionData {
     button?: string;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.PressActionData
  */
@@ -4642,7 +4642,7 @@ export interface PressActionData {
     delay?: Duration;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.TypeActionData
  */
@@ -4669,7 +4669,7 @@ export interface TypeActionData {
     delay?: Duration;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.ScrollActionData
  */
@@ -4692,7 +4692,7 @@ export interface ScrollActionData {
     amount?: Vector2Data;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.SelectActionData
  */
@@ -4711,7 +4711,7 @@ export interface SelectActionData {
     elementPosition?: Vector2Data;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.GoBackwardActionData
  */
@@ -4730,7 +4730,7 @@ export interface GoBackwardActionData {
     elementPosition?: Vector2Data;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.GoForwardActionData
  */
@@ -4749,7 +4749,7 @@ export interface GoForwardActionData {
     elementPosition?: Vector2Data;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.GoToUrlActionData
  */
@@ -4772,7 +4772,7 @@ export interface GoToUrlActionData {
     url?: string;
 }
 /**
- * A data or control flow node in a Flow. Actions are connected by Pipes.
+ * A data or control flow node in a Flow. Actions are connected by Links.
  *
  * @generated from protobuf message symbolx.bench.GoToTabActionData
  */
@@ -5987,9 +5987,9 @@ export interface PageData {
     tagsPtr: NodeReferenceData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.PipeData
+ * @generated from protobuf message symbolx.bench.LinkData
  */
-export interface PipeData {
+export interface LinkData {
     /**
      * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
      */
@@ -6055,9 +6055,9 @@ export interface PipeData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.PipeType type = 30;
+     * @generated from protobuf field: symbolx.bench.LinkType type = 30;
      */
-    type: PipeType;
+    type: LinkType;
     /**
      * @generated from protobuf field: string name = 32;
      */
@@ -6083,9 +6083,9 @@ export interface PipeData {
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: symbolx.bench.PipeTrigger trigger = 40;
+     * @generated from protobuf field: symbolx.bench.LinkTrigger trigger = 40;
      */
-    trigger: PipeTrigger;
+    trigger: LinkTrigger;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration delay = 50;
      */
@@ -6094,14 +6094,6 @@ export interface PipeData {
      * @generated from protobuf field: optional symbolx.bench.ColorData color = 80;
      */
     color?: ColorData;
-}
-/**
- * A connection between two Steps in a Flow (source = outgoing, target = incoming).
- * Pipes are stored in the containing Flow or containing Step.
- *
- * @generated from protobuf message symbolx.bench.SelectPipeData
- */
-export interface SelectPipeData {
 }
 /**
  * @generated from protobuf message symbolx.bench.ViewData
@@ -7457,11 +7449,11 @@ export interface SomeNodeData {
          */
         action: ActionData;
     } | {
-        oneofKind: "pipe";
+        oneofKind: "link";
         /**
-         * @generated from protobuf field: symbolx.bench.PipeData pipe = 25;
+         * @generated from protobuf field: symbolx.bench.LinkData link = 25;
          */
-        pipe: PipeData;
+        link: LinkData;
     } | {
         oneofKind: "trigger";
         /**
@@ -7977,13 +7969,13 @@ export enum EnumType {
      */
     PORT_SIDE = 22352,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 22353;
+     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 22353;
      */
-    PIPE_TYPE = 22353,
+    LINK_TYPE = 22353,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TRIGGER = 22354;
+     * @generated from protobuf enum value: ENUM_TYPE_LINK_TRIGGER = 22354;
      */
-    PIPE_TRIGGER = 22354,
+    LINK_TRIGGER = 22354,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22400;
      */
@@ -8198,9 +8190,9 @@ export enum NodeType {
      */
     ACTION = 5051,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PIPE = 5052;
+     * @generated from protobuf enum value: NODE_TYPE_LINK = 5052;
      */
-    PIPE = 5052,
+    LINK = 5052,
     /**
      * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 5053;
      */
@@ -8636,9 +8628,9 @@ export enum ObjectType {
      */
     ACTION = 5051,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 5052;
+     * @generated from protobuf enum value: OBJECT_TYPE_LINK = 5052;
      */
-    PIPE = 5052,
+    LINK = 5052,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_TRIGGER = 5053;
      */
@@ -9065,9 +9057,9 @@ export enum BenchType {
      */
     ACTION = 5051,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 5052;
+     * @generated from protobuf enum value: BENCH_TYPE_LINK = 5052;
      */
-    PIPE = 5052,
+    LINK = 5052,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_TRIGGER = 5053;
      */
@@ -9765,13 +9757,13 @@ export enum BenchType {
      */
     PORT_SIDE = 22352,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 22353;
+     * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 22353;
      */
-    PIPE_TYPE = 22353,
+    LINK_TYPE = 22353,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TRIGGER = 22354;
+     * @generated from protobuf enum value: BENCH_TYPE_LINK_TRIGGER = 22354;
      */
-    PIPE_TRIGGER = 22354,
+    LINK_TRIGGER = 22354,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22400;
      */
@@ -12354,9 +12346,9 @@ export enum RunType {
      */
     FLOW = 11,
     /**
-     * @generated from protobuf enum value: RUN_TYPE_PIPE = 12;
+     * @generated from protobuf enum value: RUN_TYPE_LINK = 12;
      */
-    PIPE = 12
+    LINK = 12
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunSpanType
@@ -12828,9 +12820,9 @@ export enum BreakpointScope {
      */
     ACTION = 20,
     /**
-     * @generated from protobuf enum value: BREAKPOINT_SCOPE_PIPE = 21;
+     * @generated from protobuf enum value: BREAKPOINT_SCOPE_LINK = 21;
      */
-    PIPE = 21
+    LINK = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.InterruptionType
@@ -13323,40 +13315,44 @@ export enum PortSide {
     OUTGOING = 2
 }
 /**
- * @generated from protobuf enum symbolx.bench.PipeType
+ * @generated from protobuf enum symbolx.bench.LinkType
  */
-export enum PipeType {
+export enum LinkType {
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: LINK_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_CALL = 1;
+     * @generated from protobuf enum value: LINK_TYPE_AUTO = 10;
      */
-    CALL = 1,
+    AUTO = 10,
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_SELECT = 10;
+     * @generated from protobuf enum value: LINK_TYPE_REQUIRE = 20;
      */
-    SELECT = 10
+    REQUIRE = 20,
+    /**
+     * @generated from protobuf enum value: LINK_TYPE_MANUAL = 30;
+     */
+    MANUAL = 30
 }
 /**
- * @generated from protobuf enum symbolx.bench.PipeTrigger
+ * @generated from protobuf enum symbolx.bench.LinkTrigger
  */
-export enum PipeTrigger {
+export enum LinkTrigger {
     /**
-     * @generated from protobuf enum value: PIPE_TRIGGER_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: LINK_TRIGGER_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PIPE_TRIGGER_ON_COMPLETED = 1;
+     * @generated from protobuf enum value: LINK_TRIGGER_ON_COMPLETED = 1;
      */
     ON_COMPLETED = 1,
     /**
-     * @generated from protobuf enum value: PIPE_TRIGGER_ON_FAILED = 2;
+     * @generated from protobuf enum value: LINK_TRIGGER_ON_FAILED = 2;
      */
     ON_FAILED = 2,
     /**
-     * @generated from protobuf enum value: PIPE_TRIGGER_ON_TERMINATED = 3;
+     * @generated from protobuf enum value: LINK_TRIGGER_ON_TERMINATED = 3;
      */
     ON_TERMINATED = 3
 }
@@ -13426,9 +13422,9 @@ export enum ViewType {
      */
     ACTION = 5051,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PIPE = 5052;
+     * @generated from protobuf enum value: VIEW_TYPE_LINK = 5052;
      */
-    PIPE = 5052,
+    LINK = 5052,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TRIGGER = 5053;
      */
@@ -13629,10 +13625,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 32002;
      */
     MULTI_BUTTON = 32002,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_LINK = 32003;
-     */
-    LINK = 32003,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 35001;
      */
@@ -23574,7 +23566,7 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 32, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "flow_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "action_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "pipe_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 35, name: "link_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "attempt", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 38, name: "breakpoint_site", kind: "enum", opt: true, T: () => ["symbolx.bench.BreakpointSite", BreakpointSite, "BREAKPOINT_SITE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.InterruptionStatus", InterruptionStatus, "INTERRUPTION_STATUS_"] },
@@ -23659,8 +23651,8 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* optional symbolx.bench.NodeReferenceData action_ptr */ 34:
                     message.actionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.actionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData pipe_ptr */ 35:
-                    message.pipePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pipePtr);
+                case /* optional symbolx.bench.NodeReferenceData link_ptr */ 35:
+                    message.linkPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.linkPtr);
                     break;
                 case /* optional int32 attempt */ 37:
                     message.attempt = reader.int32();
@@ -23776,9 +23768,9 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional symbolx.bench.NodeReferenceData action_ptr = 34; */
         if (message.actionPtr)
             NodeReferenceData.internalBinaryWrite(message.actionPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData pipe_ptr = 35; */
-        if (message.pipePtr)
-            NodeReferenceData.internalBinaryWrite(message.pipePtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData link_ptr = 35; */
+        if (message.linkPtr)
+            NodeReferenceData.internalBinaryWrite(message.linkPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* optional int32 attempt = 37; */
         if (message.attempt !== undefined)
             writer.tag(37, WireType.Varint).int32(message.attempt);
@@ -24299,7 +24291,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 60, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "flow_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 62, name: "action_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 63, name: "pipe_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 63, name: "link_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 64, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 65, name: "plan_step", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 66, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24428,8 +24420,8 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData action_ptr */ 62:
                     message.actionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.actionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData pipe_ptr */ 63:
-                    message.pipePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pipePtr);
+                case /* optional symbolx.bench.NodeReferenceData link_ptr */ 63:
+                    message.linkPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.linkPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData plan_ptr */ 64:
                     message.planPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.planPtr);
@@ -24584,9 +24576,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData action_ptr = 62; */
         if (message.actionPtr)
             NodeReferenceData.internalBinaryWrite(message.actionPtr, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData pipe_ptr = 63; */
-        if (message.pipePtr)
-            NodeReferenceData.internalBinaryWrite(message.pipePtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData link_ptr = 63; */
+        if (message.linkPtr)
+            NodeReferenceData.internalBinaryWrite(message.linkPtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData plan_ptr = 64; */
         if (message.planPtr)
             NodeReferenceData.internalBinaryWrite(message.planPtr, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
@@ -29235,9 +29227,9 @@ class PageData$Type extends MessageType$<PageData> {
  */
 export const PageData = new PageData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PipeData$Type extends MessageType$<PipeData> {
+class LinkData$Type extends MessageType$<LinkData> {
     constructor() {
-        super("symbolx.bench.PipeData", [
+        super("symbolx.bench.LinkData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -29254,19 +29246,19 @@ class PipeData$Type extends MessageType$<PipeData> {
             { no: 20, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PipeType", PipeType, "PIPE_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.LinkType", LinkType, "LINK_TYPE_"] },
             { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 39, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 40, name: "trigger", kind: "enum", T: () => ["symbolx.bench.PipeTrigger", PipeTrigger, "PIPE_TRIGGER_"] },
+            { no: 40, name: "trigger", kind: "enum", T: () => ["symbolx.bench.LinkTrigger", LinkTrigger, "LINK_TRIGGER_"] },
             { no: 50, name: "delay", kind: "message", T: () => Duration },
             { no: 80, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
-    create(value?: PartialMessage<PipeData>): PipeData {
+    create(value?: PartialMessage<LinkData>): LinkData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
@@ -29278,10 +29270,10 @@ class PipeData$Type extends MessageType$<PipeData> {
         message.orderKey = "";
         message.trigger = 0;
         if (value !== undefined)
-            reflectionMergePartial<PipeData>(this, message, value);
+            reflectionMergePartial<LinkData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PipeData): PipeData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LinkData): LinkData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -29334,7 +29326,7 @@ class PipeData$Type extends MessageType$<PipeData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* symbolx.bench.PipeType type */ 30:
+                case /* symbolx.bench.LinkType type */ 30:
                     message.type = reader.int32();
                     break;
                 case /* string name */ 32:
@@ -29355,7 +29347,7 @@ class PipeData$Type extends MessageType$<PipeData> {
                 case /* optional symbolx.bench.RunOptionsData run_options */ 39:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* symbolx.bench.PipeTrigger trigger */ 40:
+                case /* symbolx.bench.LinkTrigger trigger */ 40:
                     message.trigger = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration delay */ 50:
@@ -29375,7 +29367,7 @@ class PipeData$Type extends MessageType$<PipeData> {
         }
         return message;
     }
-    internalBinaryWrite(message: PipeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: LinkData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -29424,7 +29416,7 @@ class PipeData$Type extends MessageType$<PipeData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PipeType type = 30; */
+        /* symbolx.bench.LinkType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
         /* string name = 32; */
@@ -29445,7 +29437,7 @@ class PipeData$Type extends MessageType$<PipeData> {
         /* optional symbolx.bench.RunOptionsData run_options = 39; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PipeTrigger trigger = 40; */
+        /* symbolx.bench.LinkTrigger trigger = 40; */
         if (message.trigger !== 0)
             writer.tag(40, WireType.Varint).int32(message.trigger);
         /* optional google.protobuf.Duration delay = 50; */
@@ -29461,34 +29453,9 @@ class PipeData$Type extends MessageType$<PipeData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.PipeData
+ * @generated MessageType for protobuf message symbolx.bench.LinkData
  */
-export const PipeData = new PipeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SelectPipeData$Type extends MessageType$<SelectPipeData> {
-    constructor() {
-        super("symbolx.bench.SelectPipeData", []);
-    }
-    create(value?: PartialMessage<SelectPipeData>): SelectPipeData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<SelectPipeData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectPipeData): SelectPipeData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: SelectPipeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SelectPipeData
- */
-export const SelectPipeData = new SelectPipeData$Type();
+export const LinkData = new LinkData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ViewData$Type extends MessageType$<ViewData> {
     constructor() {
@@ -32352,7 +32319,7 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 22, name: "tag", kind: "message", oneof: "node", T: () => TagData },
             { no: 23, name: "flow", kind: "message", oneof: "node", T: () => FlowData },
             { no: 24, name: "action", kind: "message", oneof: "node", T: () => ActionData },
-            { no: 25, name: "pipe", kind: "message", oneof: "node", T: () => PipeData },
+            { no: 25, name: "link", kind: "message", oneof: "node", T: () => LinkData },
             { no: 26, name: "trigger", kind: "message", oneof: "node", T: () => TriggerData },
             { no: 27, name: "implementation", kind: "message", oneof: "node", T: () => ImplementationData },
             { no: 28, name: "view", kind: "message", oneof: "node", T: () => ViewData },
@@ -32532,10 +32499,10 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         action: ActionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbolx.bench.PipeData pipe */ 25:
+                case /* symbolx.bench.LinkData link */ 25:
                     message.node = {
-                        oneofKind: "pipe",
-                        pipe: PipeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pipe)
+                        oneofKind: "link",
+                        link: LinkData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).link)
                     };
                     break;
                 case /* symbolx.bench.TriggerData trigger */ 26:
@@ -32748,9 +32715,9 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbolx.bench.ActionData action = 24; */
         if (message.node.oneofKind === "action")
             ActionData.internalBinaryWrite(message.node.action, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PipeData pipe = 25; */
-        if (message.node.oneofKind === "pipe")
-            PipeData.internalBinaryWrite(message.node.pipe, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.LinkData link = 25; */
+        if (message.node.oneofKind === "link")
+            LinkData.internalBinaryWrite(message.node.link, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.TriggerData trigger = 26; */
         if (message.node.oneofKind === "trigger")
             TriggerData.internalBinaryWrite(message.node.trigger, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
@@ -32836,13 +32803,13 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | TeamData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | PipeData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | SkipData | EmptyData
+export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | TeamData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | SkipData | EmptyData
 export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | CallData | CallPlanData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
-export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof TeamData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof PipeData | typeof TriggerData | typeof ImplementationData | typeof ViewData | typeof DatabaseData | typeof ChannelData | typeof RoleData | typeof SpaceData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof RecordData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof SkipData | typeof EmptyData
+export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof TeamData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof ImplementationData | typeof ViewData | typeof DatabaseData | typeof ChannelData | typeof RoleData | typeof SpaceData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof RecordData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof SkipData | typeof EmptyData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof CallData | typeof CallPlanData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
-export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | PipeData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData
+export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData
 export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
-export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | PipeData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData
+export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData
 export type InlineSourceNodeData = PageData | ChoiceData | ClassData | TagData | FlowData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData
 export type TypeBaseNodeData = ChoiceData | ClassData | FlowData | ActionData | DatabaseData
 export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData
@@ -32878,7 +32845,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.TAG]: [NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.FLOW]: [NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.FLOW, NodeType.ACTION, NodeType.IMPLEMENTATION],
-  [NodeType.PIPE]: [NodeType.FLOW, NodeType.ACTION],
+  [NodeType.LINK]: [NodeType.FLOW, NodeType.ACTION],
   [NodeType.TRIGGER]: [NodeType.RUN, NodeType.ACTION],
   [NodeType.IMPLEMENTATION]: [NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.VIEW]: [NodeType.SPACE, NodeType.PAGE, NodeType.VIEW],
@@ -32898,8 +32865,8 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.PLAN]: [NodeType.RUN],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -32926,9 +32893,9 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.OPTION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TAG]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.FLOW]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE],
-  [NodeType.ACTION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
-  [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.FLOW]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK],
+  [NodeType.ACTION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER],
+  [NodeType.LINK]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.IMPLEMENTATION]: [NodeType.SKIP, NodeType.ACTION, NodeType.EMPTY],
   [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
@@ -32978,7 +32945,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.TAG]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.FLOW]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
-  [NodeType.PIPE]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
+  [NodeType.LINK]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
   [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.RUN],
   [NodeType.IMPLEMENTATION]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.VIEW]: [NodeType.SPACE, NodeType.BENCH, NodeType.PACKAGE, NodeType.VIEW, NodeType.PAGE],
@@ -32998,13 +32965,13 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.INTERRUPTION]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH, NodeType.RUN],
   [NodeType.PLAN]: [NodeType.BENCH, NodeType.RUN],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.CLIENT, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.PIPE, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
-  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.EMPTY, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.SKIP, NodeType.CLIENT, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.PIPE, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.ROLE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.CLIENT, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.LINK, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.EMPTY, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.SKIP, NodeType.CLIENT, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.LINK, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.ROLE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.PIPE, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.ORGANIZATION]: [NodeType.MEMBERSHIP, NodeType.HANDLE, NodeType.SKIP, NodeType.INVITE, NodeType.EMPTY, NodeType.TEAM],
@@ -33017,20 +32984,20 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.SPACE, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.PACKAGE]: [NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.SPACE, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.THREAD, NodeType.MESSAGE],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.EMPTY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.PAGE]: [NodeType.EMPTY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.THREAD, NodeType.MESSAGE],
   [NodeType.BLOCK]: [NodeType.SKIP, NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.CHOICE]: [NodeType.SKIP, NodeType.OPTION, NodeType.EMPTY],
   [NodeType.CLASS]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
   [NodeType.FIELD]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.OPTION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TAG]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.FLOW]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
-  [NodeType.ACTION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
-  [NodeType.PIPE]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.FLOW]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER],
+  [NodeType.ACTION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER],
+  [NodeType.LINK]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.IMPLEMENTATION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER],
+  [NodeType.IMPLEMENTATION]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER],
   [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.SKIP, NodeType.FIELD, NodeType.RECORD, NodeType.EMPTY],
   [NodeType.CHANNEL]: [NodeType.SKIP, NodeType.THREAD, NodeType.MESSAGE, NodeType.EMPTY],
@@ -33079,7 +33046,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.TAG]: TagData,
   [ObjectType.FLOW]: FlowData,
   [ObjectType.ACTION]: ActionData,
-  [ObjectType.PIPE]: PipeData,
+  [ObjectType.LINK]: LinkData,
   [ObjectType.TRIGGER]: TriggerData,
   [ObjectType.IMPLEMENTATION]: ImplementationData,
   [ObjectType.VIEW]: ViewData,
@@ -33187,7 +33154,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.TagData"]: ObjectType.TAG,
   ["symbolx.bench.FlowData"]: ObjectType.FLOW,
   ["symbolx.bench.ActionData"]: ObjectType.ACTION,
-  ["symbolx.bench.PipeData"]: ObjectType.PIPE,
+  ["symbolx.bench.LinkData"]: ObjectType.LINK,
   ["symbolx.bench.TriggerData"]: ObjectType.TRIGGER,
   ["symbolx.bench.ImplementationData"]: ObjectType.IMPLEMENTATION,
   ["symbolx.bench.ViewData"]: ObjectType.VIEW,
@@ -33366,8 +33333,8 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.ACTION_CATEGORY]: ActionCategory,
   [EnumType.PORT_SIDE]: PortSide,
-  [EnumType.PIPE_TYPE]: PipeType,
-  [EnumType.PIPE_TRIGGER]: PipeTrigger,
+  [EnumType.LINK_TYPE]: LinkType,
+  [EnumType.LINK_TRIGGER]: LinkTrigger,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -33486,7 +33453,7 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.TAG]: TagData,
   [NodeType.FLOW]: FlowData,
   [NodeType.ACTION]: ActionData,
-  [NodeType.PIPE]: PipeData,
+  [NodeType.LINK]: LinkData,
   [NodeType.TRIGGER]: TriggerData,
   [NodeType.IMPLEMENTATION]: ImplementationData,
   [NodeType.VIEW]: ViewData,
@@ -33547,11 +33514,6 @@ export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> 
   [ActionType.GO_TO_TAB]: GoToTabActionData,
 }
 
-export type PipeSubtype = SelectPipeData;
-export interface PipeSubtypeMapping extends Record<PipeType, PipeSubtype> {
-  [PipeType.SELECT]: SelectPipeData,
-}
-
 export type TriggerSubtype = ScheduleTriggerData | MessageTriggerData;
 export interface TriggerSubtypeMapping extends Record<TriggerType, TriggerSubtype> {
   [TriggerType.SCHEDULE]: ScheduleTriggerData,
@@ -33578,7 +33540,6 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
 export interface NodeSubtypeMapping extends Record<NodeType, object> {
   [NodeType.SCALER]: ScalerSubtypeMapping,
   [NodeType.ACTION]: ActionSubtypeMapping,
-  [NodeType.PIPE]: PipeSubtypeMapping,
   [NodeType.TRIGGER]: TriggerSubtypeMapping,
   [NodeType.VIEW]: ViewSubtypeMapping,
 }
@@ -33608,7 +33569,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.TAG]: TagData,
   [ObjectType.FLOW]: FlowData,
   [ObjectType.ACTION]: ActionData,
-  [ObjectType.PIPE]: PipeData,
+  [ObjectType.LINK]: LinkData,
   [ObjectType.TRIGGER]: TriggerData,
   [ObjectType.IMPLEMENTATION]: ImplementationData,
   [ObjectType.VIEW]: ViewData,
@@ -33787,8 +33748,8 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.ACTION_CATEGORY]: ActionCategory,
   [EnumType.PORT_SIDE]: PortSide,
-  [EnumType.PIPE_TYPE]: PipeType,
-  [EnumType.PIPE_TRIGGER]: PipeTrigger,
+  [EnumType.LINK_TYPE]: LinkType,
+  [EnumType.LINK_TRIGGER]: LinkTrigger,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -34488,7 +34449,7 @@ export enum ActionProperty {
   position = 80,
 }
 
-export enum PipeProperty {
+export enum LinkProperty {
   metatype = 1,
   id = 2,
   ck = 3,
@@ -34926,7 +34887,7 @@ export enum RunProperty {
   pagePtr = 60,
   flowPtr = 61,
   actionPtr = 62,
-  pipePtr = 63,
+  linkPtr = 63,
   planPtr = 64,
   planStep = 65,
   triggerPtr = 66,
@@ -34995,7 +34956,7 @@ export enum InterruptionProperty {
   pagePtr = 32,
   flowPtr = 33,
   actionPtr = 34,
-  pipePtr = 35,
+  linkPtr = 35,
   attempt = 37,
   breakpointSite = 38,
   status = 40,
@@ -35248,10 +35209,6 @@ export enum GoToTabActionProperty {
   elementId = 110,
   elementPosition = 111,
   tabIndex = 120,
-}
-
-export enum SelectPipeProperty {
-
 }
 
 export enum ScheduleTriggerProperty {
@@ -35885,12 +35842,12 @@ export enum DomNodeProperty {
   isFocused = 36,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof PipeProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof SkipProperty | typeof EmptyProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof SkipProperty | typeof EmptyProperty
 export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof PipeProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof SkipProperty | typeof EmptyProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof SkipProperty | typeof EmptyProperty
 export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof PipeProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof CallProperty | typeof CallPlanProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -35916,7 +35873,7 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.TAG]: TagProperty,
   [ObjectType.FLOW]: FlowProperty,
   [ObjectType.ACTION]: ActionProperty,
-  [ObjectType.PIPE]: PipeProperty,
+  [ObjectType.LINK]: LinkProperty,
   [ObjectType.TRIGGER]: TriggerProperty,
   [ObjectType.IMPLEMENTATION]: ImplementationProperty,
   [ObjectType.VIEW]: ViewProperty,
@@ -36027,7 +35984,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.TAG]: TagProperty,
   [ObjectType.FLOW]: FlowProperty,
   [ObjectType.ACTION]: ActionProperty,
-  [ObjectType.PIPE]: PipeProperty,
+  [ObjectType.LINK]: LinkProperty,
   [ObjectType.TRIGGER]: TriggerProperty,
   [ObjectType.IMPLEMENTATION]: ImplementationProperty,
   [ObjectType.VIEW]: ViewProperty,
@@ -36166,8 +36123,7 @@ export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> =
   [ActionType.GO_TO_TAB]: GoToTabActionProperty,
 }
 
-export const PIPE_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<PipeType, any>> = {
-  [PipeType.SELECT]: SelectPipeProperty,
+export const LINK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<LinkType, any>> = {
 }
 
 export const TRIGGER_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<TriggerType, any>> = {
@@ -36213,7 +36169,7 @@ export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>
   [NodeType.BLOCK]: BLOCK_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.FIELD]: FIELD_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.ACTION]: ACTION_PROPERTY_ENUM_BY_SUBTYPE,
-  [NodeType.PIPE]: PIPE_PROPERTY_ENUM_BY_SUBTYPE,
+  [NodeType.LINK]: LINK_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.TRIGGER]: TRIGGER_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.VIEW]: VIEW_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.CHANNEL]: CHANNEL_PROPERTY_ENUM_BY_SUBTYPE,
@@ -36446,8 +36402,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36479,8 +36435,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.02.28.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36913,33 +36869,33 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.plans]: { id: 60, name: 'plans', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CALL_PLAN },
   [ActionProperty.position]: { id: 80, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
-export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
-  [PipeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PIPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PipeProperty.id]: { id: 2, name: 'id', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.templatePtr]: { id: 9, name: 'template_ptr', component: ObjectType.PIPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.PIPE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.PIPE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.mode]: { id: 20, name: 'mode', component: ObjectType.PIPE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
-  [PipeProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.name]: { id: 32, name: 'name', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.text]: { id: 34, name: 'text', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [PipeProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.runOptions]: { id: 39, name: 'run_options', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [PipeProperty.trigger]: { id: 40, name: 'trigger', component: ObjectType.PIPE, enumType: EnumType.PIPE_TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.delay]: { id: 50, name: 'delay', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.color]: { id: 80, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
+  [LinkProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [LinkProperty.id]: { id: 2, name: 'id', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.ck]: { id: 3, name: 'ck', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.templatePtr]: { id: 9, name: 'template_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.LINK], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.LINK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.LINK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.mode]: { id: 20, name: 'mode', component: ObjectType.LINK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
+  [LinkProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [LinkProperty.type]: { id: 30, name: 'type', component: ObjectType.LINK, enumType: EnumType.LINK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.name]: { id: 32, name: 'name', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.text]: { id: 34, name: 'text', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [LinkProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.LINK, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.LINK, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.runOptions]: { id: 39, name: 'run_options', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [LinkProperty.trigger]: { id: 40, name: 'trigger', component: ObjectType.LINK, enumType: EnumType.LINK_TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.delay]: { id: 50, name: 'delay', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.color]: { id: 80, name: 'color', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37336,7 +37292,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.pagePtr]: { id: 60, name: 'page_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.flowPtr]: { id: 61, name: 'flow_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.actionPtr]: { id: 62, name: 'action_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.pipePtr]: { id: 63, name: 'pipe_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.linkPtr]: { id: 63, name: 'link_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LINK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.planPtr]: { id: 64, name: 'plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.planStep]: { id: 65, name: 'plan_step', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.triggerPtr]: { id: 66, name: 'trigger_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
@@ -37403,7 +37359,7 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.pagePtr]: { id: 32, name: 'page_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.flowPtr]: { id: 33, name: 'flow_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.actionPtr]: { id: 34, name: 'action_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.pipePtr]: { id: 35, name: 'pipe_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
+  [InterruptionProperty.linkPtr]: { id: 35, name: 'link_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LINK], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.attempt]: { id: 37, name: 'attempt', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.breakpointSite]: { id: 38, name: 'breakpoint_site', component: ObjectType.INTERRUPTION, enumType: EnumType.BREAKPOINT_SITE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.status]: { id: 40, name: 'status', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -37477,7 +37433,7 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SkipProperty.id]: { id: 2, name: 'id', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.PLAN, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.PLAN, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -37490,7 +37446,7 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EmptyProperty.id]: { id: 2, name: 'id', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.PIPE, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.PLAN, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.PLAN, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -37623,9 +37579,6 @@ export const GoToTabActionDataInfo: Record<GoToTabActionProperty, PropertyInfo> 
   [GoToTabActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
   [GoToTabActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [GoToTabActionProperty.tabIndex]: { id: 120, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-}
-export const SelectPipeDataInfo: Record<SelectPipeProperty, PropertyInfo> = {
-
 }
 export const ScheduleTriggerDataInfo: Record<ScheduleTriggerProperty, PropertyInfo> = {
   [ScheduleTriggerProperty.schedule]: { id: 100, name: 'schedule', component: ObjectType.TRIGGER, componentSubtype: 10, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
@@ -38210,7 +38163,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.TAG]: TagDataInfo,
   [ObjectType.FLOW]: FlowDataInfo,
   [ObjectType.ACTION]: ActionDataInfo,
-  [ObjectType.PIPE]: PipeDataInfo,
+  [ObjectType.LINK]: LinkDataInfo,
   [ObjectType.TRIGGER]: TriggerDataInfo,
   [ObjectType.IMPLEMENTATION]: ImplementationDataInfo,
   [ObjectType.VIEW]: ViewDataInfo,
@@ -38340,8 +38293,7 @@ export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, P
   [ActionType.GO_TO_URL]: GoToUrlActionDataInfo,
   [ActionType.GO_TO_TAB]: GoToTabActionDataInfo,
 }
-export const PipeSubtypePropertyInfo: Partial<Record<PipeType, Record<any, PropertyInfo>>> = {
-  [PipeType.SELECT]: SelectPipeDataInfo,
+export const LinkSubtypePropertyInfo: Partial<Record<LinkType, Record<any, PropertyInfo>>> = {
 }
 export const TriggerSubtypePropertyInfo: Partial<Record<TriggerType, Record<any, PropertyInfo>>> = {
   [TriggerType.SCHEDULE]: ScheduleTriggerDataInfo,
@@ -38380,7 +38332,7 @@ export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Rec
   [NodeType.BLOCK]: BlockSubtypePropertyInfo,
   [NodeType.FIELD]: FieldSubtypePropertyInfo,
   [NodeType.ACTION]: ActionSubtypePropertyInfo,
-  [NodeType.PIPE]: PipeSubtypePropertyInfo,
+  [NodeType.LINK]: LinkSubtypePropertyInfo,
   [NodeType.TRIGGER]: TriggerSubtypePropertyInfo,
   [NodeType.VIEW]: ViewSubtypePropertyInfo,
   [NodeType.CHANNEL]: ChannelSubtypePropertyInfo,
@@ -38400,7 +38352,7 @@ export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {
   [NodeType.BLOCK]: 30,
   [NodeType.FIELD]: 30,
   [NodeType.ACTION]: 30,
-  [NodeType.PIPE]: 30,
+  [NodeType.LINK]: 30,
   [NodeType.TRIGGER]: 30,
   [NodeType.VIEW]: 30,
   [NodeType.CHANNEL]: 30,
@@ -38445,7 +38397,7 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.TAG]: { id: 5040, name: 'TAG', icon: 'fas fa-tag' },
   [NodeType.FLOW]: { id: 5050, name: 'FLOW', icon: 'fas fa-diagram-project' },
   [NodeType.ACTION]: { id: 5051, name: 'ACTION', icon: 'fas fa-step-forward' },
-  [NodeType.PIPE]: { id: 5052, name: 'PIPE', icon: 'fas fa-pipe-section' },
+  [NodeType.LINK]: { id: 5052, name: 'LINK', icon: 'fas fa-link' },
   [NodeType.TRIGGER]: { id: 5053, name: 'TRIGGER', icon: 'fas fa-bolt' },
   [NodeType.IMPLEMENTATION]: { id: 5060, name: 'IMPLEMENTATION', icon: 'fas fa-screwdriver-wrench' },
   [NodeType.VIEW]: { id: 5080, name: 'VIEW', icon: 'fas fa-window-frame' },
@@ -38768,15 +38720,16 @@ export const ActionCategoryOptionInfo: Partial<Record<ActionCategory, EnumOption
   [ActionCategory.INTERACT]: { id: 11, name: 'INTERACT', text: 'Interacting', title: 'Interact', icon: 'fas fa-hand-pointer' },
 }
 
-export const PipeTypeOptionInfo: Partial<Record<PipeType, EnumOptionInfo>> = {
-  [PipeType.CALL]: { id: 1, name: 'CALL', text: 'Call always', title: 'Call', icon: 'fas fa-arrow-right' },
-  [PipeType.SELECT]: { id: 10, name: 'SELECT', text: 'Call only if selected', title: 'Select', icon: 'far fa-square-check' },
+export const LinkTypeOptionInfo: Partial<Record<LinkType, EnumOptionInfo>> = {
+  [LinkType.AUTO]: { id: 10, name: 'AUTO', text: 'Auto-decide if and how to call', title: 'Auto', icon: 'far fa-square-check' },
+  [LinkType.REQUIRE]: { id: 20, name: 'REQUIRE', text: 'Always call, auto-decide how', title: 'Require', icon: 'fas fa-arrow-right' },
+  [LinkType.MANUAL]: { id: 30, name: 'MANUAL', text: 'Always call, manually decide how', title: 'Manual', icon: 'fas fa-forward' },
 }
 
-export const PipeTriggerOptionInfo: Partial<Record<PipeTrigger, EnumOptionInfo>> = {
-  [PipeTrigger.ON_COMPLETED]: { id: 1, name: 'ON_COMPLETED', text: 'If the action succeeds', title: 'On completed', icon: 'fas fa-check' },
-  [PipeTrigger.ON_FAILED]: { id: 2, name: 'ON_FAILED', text: 'If the action fails', title: 'On failed', icon: 'fas fa-xmark' },
-  [PipeTrigger.ON_TERMINATED]: { id: 3, name: 'ON_TERMINATED', text: 'Always, success or failure', title: 'On terminated', icon: 'fas fa-check-double' },
+export const LinkTriggerOptionInfo: Partial<Record<LinkTrigger, EnumOptionInfo>> = {
+  [LinkTrigger.ON_COMPLETED]: { id: 1, name: 'ON_COMPLETED', text: 'If the action succeeds', title: 'On completed', icon: 'fas fa-check' },
+  [LinkTrigger.ON_FAILED]: { id: 2, name: 'ON_FAILED', text: 'If the action fails', title: 'On failed', icon: 'fas fa-xmark' },
+  [LinkTrigger.ON_TERMINATED]: { id: 3, name: 'ON_TERMINATED', text: 'Always, success or failure', title: 'On terminated', icon: 'fas fa-check-double' },
 }
 
 export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
@@ -38817,7 +38770,6 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.CHART]: { id: 31200, name: 'CHART', text: 'Chart view', title: 'Chart', icon: 'fas fa-chart-pie' },
   [ViewType.BUTTON]: { id: 32001, name: 'BUTTON', text: 'Button view', title: 'Button', icon: 'fas fa-hand-pointer' },
   [ViewType.MULTI_BUTTON]: { id: 32002, name: 'MULTI_BUTTON', text: 'Multi button view', title: 'Multi button', icon: 'fas fa-hand-pointer' },
-  [ViewType.LINK]: { id: 32003, name: 'LINK', text: 'Link view', title: 'Link', icon: 'fas fa-link' },
   [ViewType.NUMBER]: { id: 35001, name: 'NUMBER', text: 'Number view', title: 'Number', icon: 'fas fa-hashtag' },
   [ViewType.SLIDER]: { id: 35002, name: 'SLIDER', text: 'Slider view', title: 'Slider', icon: 'fas fa-slider' },
   [ViewType.STRING]: { id: 35101, name: 'STRING', text: 'String view', title: 'String', icon: 'fas fa-font-case' },
@@ -38876,8 +38828,8 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.ACTION_CATEGORY]: ActionCategoryOptionInfo,
-  [EnumType.PIPE_TYPE]: PipeTypeOptionInfo,
-  [EnumType.PIPE_TRIGGER]: PipeTriggerOptionInfo,
+  [EnumType.LINK_TYPE]: LinkTypeOptionInfo,
+  [EnumType.LINK_TRIGGER]: LinkTriggerOptionInfo,
   [EnumType.VIEW_TYPE]: ViewTypeOptionInfo,
   [EnumType.MESSAGE_TYPE]: MessageTypeOptionInfo,
 }

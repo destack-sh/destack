@@ -39,10 +39,10 @@ from .dependency import Dependency
 from .field import Field
 from .flow import Flow
 from .implementation import Implementation
+from .link import Link, LinkType, PortSide
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
-from .pipe import Pipe, PipeType, PortSide
 from .project import Projection, ProjectOptions
 from .render import (
     Aliasing,
@@ -124,6 +124,8 @@ __all__ = [
     "HasApplicationContext",
     "Implementation",
     "Line",
+    "Link",
+    "LinkType",
     "LookAction",
     "MessageTrigger",
     "Offset",
@@ -132,8 +134,6 @@ __all__ = [
     "Package",
     "PackageType",
     "Page",
-    "Pipe",
-    "PipeType",
     "PortSide",
     "PressAction",
     "ProjectOptions",

@@ -16,9 +16,9 @@ from bench.language import (
     FieldType,
     File,
     HasContext,
+    LinkType,
     Node,
     Page,
-    PipeType,
     Projection,
     ProjectOptions,
     ReferenceKind,
@@ -116,8 +116,8 @@ Databases are Blocks representing real Postgres tables in the per-Bench Database
  with Record properties and Block Fields mapping to Postgres columns.
 
 5. Flows 
-Flows comprise Actions connected by Pipes. Flows are how things actually *happen* in a Bench. 
-When an Action in a Flow completes, it runs all CALL Pipes at least once, and then their connected Actions.
+Flows comprise Actions connected by Links. Flows are how things actually *happen* in a Bench. 
+When an Action in a Flow completes, it runs all CALL Links at least once, and then their connected Actions.
 Other behavior is determined by the CallPlans returned by the outgoing Action.
  - CALL is automatically called at least once, but you MAY specify arguments.
  - SELECT is only called when 'selected' by including the target Action.
@@ -157,7 +157,7 @@ For static actions, you SHOULD only generate the call plan given the *existing* 
 You MAY delegate to other Actions by 'calling' them (in Flows).
  - Actions 'call' other Actions they are connected by returning CallPlans.
    - You MUST NOT invoke Actions directly like a Python function.
- - You MAY call Actions that are connected by CALL Pipes.
+ - You MAY call Actions that are connected by CALL Links.
  - If you Action is connected to a Tool Action, you may call other Actions there
     via the ToolAction arguments (as defined by its tool selection).
  
@@ -304,7 +304,7 @@ STATE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(StateNode)
 RUNTIME_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(RuntimeNode)
 ACTION_TYPE_ENUM_PROMPT = render_builtin_enum(ActionType, compact=False)
 BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
-PIPE_TYPE_ENUM_PROMPT = render_builtin_enum(PipeType, compact=False)
+LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
 
 
 def make_chat_prompt(
@@ -359,7 +359,7 @@ def make_chat_prompt(
         for r in current_incoming:
             if r in seen_runs:
                 continue
-            if r.type != RunType.PIPE:  # skip pipes
+            if r.type != RunType.LINK:  # skip links
                 all_incoming.append(r)
             seen_runs.add(r)
             next_incoming.extend(r.incoming)
@@ -437,11 +437,11 @@ def make_chat_prompt(
         from bench.runtime.flow import FlowRunner
 
         connected_actions = [
-            (pipe, target)
-            for pipe in flow.pipes
-            if pipe.source_id == action.id
-            and (target := pipe.target) is not None
-            and pipe.is_extant
+            (link, target)
+            for link in flow.links
+            if link.source_id == action.id
+            and (target := link.target) is not None
+            and link.is_extant
             and target.is_extant
         ]
         flow_parts: list[PromptPart] = [
@@ -466,7 +466,10 @@ def make_chat_prompt(
                 PromptCustomObject(title="Inputs to this Flow", weight=1, object=flow_run.inputs)
             )
 
-        can_flow_be_empty = all(p.type == PipeType.CALL for p, a in connected_actions)
+        # nocheckin
+        can_flow_be_empty = all(
+            p.type == LinkType.REQUIRE or p.type == LinkType.MANUAL for p, a in connected_actions
+        )
         if len(connected_actions) == 0:
             flow_parts.append(
                 PromptText(
@@ -493,7 +496,7 @@ def make_chat_prompt(
             PromptText(
                 title=None,
                 text=f"""\
-Your outgoing Actions are (name: PipeType->ActionType):
+Your outgoing Actions are (name: LinkType->ActionType):
 {'\n'.join(f" - {renderer.render_node_ref(p.target)}: {p.type.bench_name}->{a.type.bench_name}" for p, a in connected_actions) or '<none>'}
 """,
             )

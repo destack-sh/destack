@@ -12,7 +12,7 @@ import {
   InterruptionData,
   NodeType,
   ObjectType,
-  PipeData,
+  LinkData,
   PropertyReferenceData,
   RunProperty,
   RunSpanData,
@@ -33,8 +33,8 @@ import {
   TimeUpdateInterval,
 } from "@/utils/time";
 
-export type RunnableNode = FlowData | ActionData | PipeData;
-export type RunnableNodeType = NodeType.FLOW | NodeType.ACTION | NodeType.PIPE;
+export type RunnableNode = FlowData | ActionData | LinkData;
+export type RunnableNodeType = NodeType.FLOW | NodeType.ACTION | NodeType.LINK;
 
 export const VERB_BY_RUN_STATUS: Partial<Record<RunStatus, string>> = {
   [RunStatus.UNSPECIFIED]: "???",
@@ -91,12 +91,12 @@ export function isRunTerminal(run: RunData | RunSpanData): boolean {
 export const RUN_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, RunType>> = {
   [NodeType.FLOW]: RunType.FLOW,
   [NodeType.ACTION]: RunType.ACTION,
-  [NodeType.PIPE]: RunType.PIPE,
+  [NodeType.LINK]: RunType.LINK,
 };
 export const NODE_TYPE_BY_RUN_TYPE: Partial<Record<RunType, NodeType>> = {
   [RunType.FLOW]: NodeType.FLOW,
   [RunType.ACTION]: NodeType.ACTION,
-  [RunType.PIPE]: NodeType.PIPE,
+  [RunType.LINK]: NodeType.LINK,
 };
 
 /** Determine the type of run for some runnable object */

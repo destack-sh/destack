@@ -28,11 +28,11 @@ from .action import (
     YieldActionRunner,
 )
 from .flow import FlowRunner
-from .pipe import PIPE_RUNNER_BY_PIPE_TYPE, PipeRunner
+from .link import LINK_RUNNER_BY_LINK_TYPE, LinkRunner
 
 __all__ = [
     "ACTION_RUNNER_BY_ACTION_TYPE",
-    "PIPE_RUNNER_BY_PIPE_TYPE",
+    "LINK_RUNNER_BY_LINK_TYPE",
     "ActionRunner",
     "ApplicationActionRunner",
     "ClickActionRunner",
@@ -48,8 +48,8 @@ __all__ = [
     "GoForwardActionRunner",
     "GoToTabActionRunner",
     "GoToUrlActionRunner",
+    "LinkRunner",
     "LookActionRunner",
-    "PipeRunner",
     "PressActionRunner",
     "ReceiveActionRunner",
     "ScrollActionRunner",

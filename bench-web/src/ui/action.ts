@@ -100,7 +100,7 @@ export const ACTION_BUILTIN_IDS = [
   "table.column.hide",
   // flow
   "flow.edit.createAction",
-  "flow.edit.splitPipe",
+  "flow.edit.splitLink",
   // chat
   "chat.message.reply",
   "chat.message.forward",
@@ -558,7 +558,7 @@ export function getNodesForAction<T extends NodeType>(
 //
 
 export const NON_DUPLICATABLE_NODE_TYPES = [
-  NodeType.PIPE,
+  NodeType.LINK,
   NodeType.MESSAGE,
   ...RUNTIME_NODE_TYPES,
   ...RESOURCE_NODE_TYPES,
@@ -582,7 +582,7 @@ export const INTERRUPTION_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "runtime.interruption.resume",
   "runtime.interruption.cancel",
 ];
-export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitPipe"];
+export const LINK_CONTEXT_ACTIONS: ActionBuiltinId[] = ["flow.edit.splitLink"];
 export const RESOURCE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "resource.status.activate",
   // "resource.status.suspend", // (not supported yet)
@@ -594,7 +594,7 @@ export const CONTEXT_ACTIONS_BY_TYPE: Partial<Record<NodeType, ActionBuiltinId[]
   [NodeType.BLOCK]: BLOCK_CONTEXT_ACTIONS,
   [NodeType.RECORD]: RECORD_CONTEXT_ACTIONS,
   [NodeType.ACTION]: ACTION_CONTEXT_ACTIONS,
-  [NodeType.PIPE]: PIPE_CONTEXT_ACTIONS,
+  [NodeType.LINK]: LINK_CONTEXT_ACTIONS,
   [NodeType.RUN]: RUN_CONTEXT_ACTIONS,
   [NodeType.INTERRUPTION]: INTERRUPTION_CONTEXT_ACTIONS,
 };
@@ -635,10 +635,10 @@ declareActions<"flow">({
     title: "Create Action",
     text: "Create a new action",
   },
-  "flow.edit.splitPipe": {
+  "flow.edit.splitLink": {
     icon: "fas fa-scissors",
-    title: "Split Pipe",
-    text: "Split this pipe",
+    title: "Split Link",
+    text: "Split this link",
   },
 });
 

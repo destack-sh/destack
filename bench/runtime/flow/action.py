@@ -31,12 +31,12 @@ from bench.language import (
     HasContext,
     HasNodeBase,
     InterruptionType,
+    LinkType,
     LookAction,
     Message,
     ModelDeveloper,
     ModelType,
     NodeType,
-    PipeType,
     PressAction,
     ReceiveAction,
     RunnableNode,
@@ -148,10 +148,8 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
             self.flow is not None
             and not has_plan
             and any(
-                p.source_id == self.node.id
-                and (target := p.target) is not None
-                and (p.type != PipeType.CALL or target.type != ActionType.CODE)
-                for p in self.flow.node.pipes
+                p.source_id == self.node.id and (p.type != LinkType.MANUAL)
+                for p in self.flow.node.links
             )
         ):
             model_developer = ModelDeveloper.OPENAI
