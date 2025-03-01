@@ -33,7 +33,6 @@ from .model import (
     TextOptions,
     VideoOptions,
 )
-from .plan import Plan
 from .run import Run, RunOptions
 from .session import Context, EditContext, Session
 from .span import RunSpan
@@ -79,7 +78,6 @@ __all__ = [
     "ModelFamily",
     "ModelProvider",
     "ModelType",
-    "Plan",
     "Run",
     "RunOptions",
     "RunSpan",

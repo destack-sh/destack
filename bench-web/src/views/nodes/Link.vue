@@ -43,7 +43,7 @@ const isInspected = computed(() => canvas.isInspected(linkPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(linkPtr.value));
 const isSelected = computed(() => state.isSelected(linkPtr.value));
 const strokeDashArray = computed(() => {
-  if (link.value?.type === LinkType.AUTO) {
+  if (link.value?.type === LinkType.AUTOMATIC) {
     // dashed
     return `${LINK_WIDTH * 3},${LINK_WIDTH * 2}`;
   } else {

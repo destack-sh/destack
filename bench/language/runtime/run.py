@@ -41,7 +41,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         AudioOptions,
-        Bench,
         Breakpoint,
         Code,
         CustomObject,
@@ -56,6 +55,7 @@ if TYPE_CHECKING:
         ModelFamily,
         ModelType,
         NodeReference,
+        Package,
         Page,
         Plan,
         RunnableNode,
@@ -156,7 +156,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     """
 
     # meta
-    parent: Union["Bench", "Run", None] = p_node_parent(4, NodeType.BENCH, NodeType.RUN)
+    parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
@@ -171,7 +171,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
     # status
-    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)
+    status: RunStatus = p_internal(40, default=RunStatus.CREATED)
     attempt: int | None = p_internal(41)
     duration: Optional[timedelta] = p_internal(
         42,
@@ -192,11 +192,23 @@ class Run(RuntimeNode[RunData], HasNodeBase):
         51, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
     )
     thread: Optional["Thread"] = p_internal(
-        52, require=False, array=False, references=NodeType.THREAD, same_bench=True
+        52,
+        require=False,
+        array=False,
+        references=NodeType.THREAD,
+        same_bench=True,
+        description="The Thread for communication with the Run",
+    )
+    page: Optional["Page"] = p_internal(
+        53,
+        require=False,
+        array=False,
+        references=NodeType.PAGE,
+        same_bench=True,
+        description="The main Page of the Run",
     )
 
     # flow
-    page: "Page" = p_internal(60, require=True, array=False, references=NodeType.PAGE)
     flow: Optional["Flow"] = p_internal(
         61, require=False, array=False, references=NodeType.FLOW, same_bench=True
     )

@@ -1200,10 +1200,10 @@ export class FlowContext {
 
   getDefaultLinkType(source: Port, target: Port): LinkType {
     // select if the source already has a select link
-    if (this.links.value.some((p) => p.sourcePtr?.ck == source.parent.ck && p.type == LinkType.AUTO)) {
-      return LinkType.AUTO;
+    if (this.links.value.some((p) => p.sourcePtr?.ck == source.parent.ck && p.type == LinkType.AUTOMATIC)) {
+      return LinkType.AUTOMATIC;
     } else {
-      return LinkType.AUTO;
+      return LinkType.AUTOMATIC;
     }
   }
 

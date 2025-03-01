@@ -311,9 +311,9 @@ def flow_basic_planning(package: Package):
     Flow1.actions.extend(Start, Look1, Click1, Type1, Press1, Complete)
     Start.connect(LinkType.REQUIRE, Look1)
     Look1.connect(LinkType.REQUIRE, Click1)
-    Look1.connect(LinkType.AUTO, Type1)
-    Look1.connect(LinkType.AUTO, Press1)
-    Look1.connect(LinkType.AUTO, Complete)
+    Look1.connect(LinkType.AUTOMATIC, Type1)
+    Look1.connect(LinkType.AUTOMATIC, Press1)
+    Look1.connect(LinkType.AUTOMATIC, Complete)
     # Runs/Inputs
     ...  # some application with obvious element ids provided
     # We're at Look1, assume we know the next few steps

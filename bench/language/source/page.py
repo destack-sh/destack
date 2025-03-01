@@ -12,7 +12,7 @@ from bench.language.core import (
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Channel, Field, Package
+    from bench.language import Block, Channel, Field, Package, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -22,7 +22,9 @@ class Page(InlineSourceNode[BlockData]):
     """A Page of Blocks."""
 
     # meta
-    parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
+    parent: Union["Package", "Page", "Run", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.RUN
+    )
 
     # identity, roles, ...?
 

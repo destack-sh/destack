@@ -49,6 +49,7 @@ import {
   FieldType,
   GoToUrlActionProperty,
   IconData,
+  LinkProperty,
   LookActionProperty,
   NodeReferenceData,
   NodeType,
@@ -57,8 +58,6 @@ import {
   PathData,
   PathElementType,
   PickerVariant,
-  LinkProperty,
-  LinkType,
   PressActionProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
@@ -78,7 +77,7 @@ import {
   TypeKind,
   UpdateActionProperty,
   ViewType,
-  WaitActionProperty,
+  WaitActionProperty
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -1475,7 +1474,7 @@ export function useObjectLayout(options: {
   const computer = useComputedValues({
     computedPrefix: options.computedPrefix,
     computedValues: computed(() =>
-      isSourceNode(node.value) ? node.value.computedValues : (options.computedValues?.value ?? []),
+      isSourceNode(node.value) ? (node.value as ActionData).computedValues : (options.computedValues?.value ?? []),
     ),
     update: (computedValues) => {
       if (isSourceNode(node.value) && kind.value != "partial") {

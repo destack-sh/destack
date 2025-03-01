@@ -37,6 +37,7 @@ from bench.language import (
     NodeMode,
     NodeReference,
     NodeType,
+    Package,
     PathElementType,
     PathError,
     PathOptions,
@@ -993,11 +994,7 @@ class Runtime:
                     if (trigger := run.trigger) is not None
                     else TriggerEffect.START_RUN
                 )
-                if (
-                    trigger_effect == TriggerEffect.START_RUN
-                    or trigger_effect == TriggerEffect.ENSURE_RUN
-                    or trigger_effect == TriggerEffect.REPLACE_RUN
-                ):
+                if trigger_effect == TriggerEffect.START_RUN:
                     # nocheckin: handle ENSURE_RUN/REPLACE_RUN Triggers
                     # lift into new flow
                     self.session.commit_optimistic()
@@ -1064,7 +1061,7 @@ class Runtime:
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
-        runs_by_parent: dict[Run | Bench | None, list[Run]] = group_by(
+        runs_by_parent: dict[Package | Run | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent
         )
         for parent, child_runs in runs_by_parent.items():

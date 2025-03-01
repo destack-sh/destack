@@ -20,6 +20,7 @@ from bench.language.core import (
     EnumType,
     FieldType,
     Icon,
+    IsComputable,
     Node,
     NodeReference,
     NodeType,
@@ -671,7 +672,7 @@ class SourceNodeRenderer[T: SourceNode](NodeRenderer[T]):
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        if computed_values := obj.computed_values:
+        if isinstance(obj, IsComputable) and (computed_values := obj.computed_values):
             kwargs[obj.get_property("computed_values")] = computed_values
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)

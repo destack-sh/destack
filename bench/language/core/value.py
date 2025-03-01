@@ -148,7 +148,7 @@ class CustomObject(Mapping[str, Any]):
         assert self._supergraph is not NULL_SUPERGRAPH, f"missing supergraph for {self!r}"
 
     def __str__(self) -> str:
-        from .node import StateNode
+        from .node import BenchNode
 
         set_fields: list[str] = []
         for prop in get_custom_object_properties(self._type, self._value):
@@ -160,7 +160,7 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{prop.name}[{len(prop_value)}]")
                 elif type(prop_value) is CustomObject:
                     set_fields.append(f"{prop.name}=<{prop_value._type_name} (...)>")
-                elif isinstance(prop_value, StateNode):
+                elif isinstance(prop_value, BenchNode):
                     set_fields.append(f"{prop.name}=<{prop_value.absolute_path}>")
                 else:
                     set_fields.append(f"{prop.name}={prop_value!r}")
@@ -171,7 +171,7 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{field.name}[{len(field_value)}]")
                 elif type(field_value) is CustomObject:
                     set_fields.append(f"{field.name}=<{field_value._type_name} (...)>")
-                elif isinstance(field_value, StateNode):
+                elif isinstance(field_value, BenchNode):
                     set_fields.append(f"{field.name}=<{field_value.absolute_path}>")
                 else:
                     set_fields.append(f"{field.name}={field_value!r}")

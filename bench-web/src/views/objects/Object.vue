@@ -1,7 +1,16 @@
 <script lang="ts" setup>
 import { isSourceNode, toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
-import { ComputedValueData, NodeType, Orientation, PathData, TypeData, ViewData, ViewType } from "@/proto/wire";
+import {
+  ActionData,
+  ComputedValueData,
+  NodeType,
+  Orientation,
+  PathData,
+  TypeData,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -219,7 +228,7 @@ defineExpose<ViewExpose>({ self, id });
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps as any"
             :is-computable="row.isComputable"
-            :computed-values="isSourceNode(node) ? node.computedValues : undefined"
+            :computed-values="isSourceNode(node) ? (node as ActionData).computedValues : undefined"
             :computed-prefix="row.computedPath"
             :computed-type="computedType"
             :model-value="row.read()"

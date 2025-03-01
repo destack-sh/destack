@@ -5,6 +5,7 @@ from uuid import UUID
 from bench.language.core import (
     OWNER_TYPES,
     TITLE_CONSTRAINT,
+    BenchNode,
     BuiltinEnum,
     EnumType,
     HasTimeIdentity,
@@ -14,7 +15,6 @@ from bench.language.core import (
     NodeType,
     Owner,
     RemoteNodeList,
-    StateNode,
     StructType,
     Text,
     enum_,
@@ -25,8 +25,7 @@ from bench.language.core import (
     p_system,
     timed_node_,
 )
-from bench.pb2 import ThreadData
-from bench.pb2.lang_pb2 import MessageData
+from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
     from bench.language import Channel, Message, Package, Run
@@ -47,7 +46,7 @@ class ThreadStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)
-class Thread(HasTimeIdentity, StateNode[ThreadData]):
+class Thread(HasTimeIdentity, BenchNode[ThreadData]):
     """
     A Thread for communicating with Messages on something.
     """

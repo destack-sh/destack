@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 from bench.language.core import (
     FieldType,
     InlineSourceNode,
+    IsComputable,
     LocalNodeList,
     NodeType,
     StructType,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.FLOW, passthrough_get=("fields",))
-class Flow(InlineSourceNode[FlowData]):
+class Flow(InlineSourceNode[FlowData], IsComputable):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 import structlog
 
 from bench.language.core import (
+    BenchNode,
     FieldType,
     HasNodeBase,
     Node,
     NodeType,
-    StateNode,
     StructType,
     TypeBase,
     node_,
@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
     passthrough_set=("value",),
     stored_value_unraveled=True,
 )
-class Record(StateNode[RecordData], HasNodeBase):
+class Record(BenchNode[RecordData], HasNodeBase):
     """
     A Record from a Database.
     """

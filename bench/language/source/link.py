@@ -6,7 +6,9 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    IsComputable,
     NodeType,
+    RunStatus,
     RunType,
     SourceNode,
     StructType,
@@ -17,7 +19,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.const import RunStatus
 from bench.pb2 import LinkData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -42,9 +43,9 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.LINK_TYPE)
 class LinkType(BuiltinEnum):
-    AUTO = 10, "Auto", "Auto-decide if and how to call", "far fa-shuffle"
-    REQUIRE = 20, "Require", "Always call, auto-decide how", "fas fa-arrow-right"
-    MANUAL = 30, "Manual", "Always call, manually decide how", "fas fa-arrow-right-long-to-line"
+    MANUAL = 10, "Manual", "Always call, manually decide how", "fas fa-arrow-right-long-to-line"
+    AUTOMATIC = 20, "Automatic", "Auto-decide if and how to call", "far fa-shuffle"
+    REQUIRE = 30, "Require", "Always call, auto-decide how", "fas fa-arrow-right"
     # MESSAGE? WAIT? STREAM?
 
 
@@ -56,15 +57,15 @@ class LinkTrigger(BuiltinEnum):
 
 
 SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
-    LinkType.AUTO: "-?>",
-    LinkType.REQUIRE: "-=>",
     LinkType.MANUAL: "-!>",
+    LinkType.AUTOMATIC: "-?>",
+    LinkType.REQUIRE: "-=>",
 }
 LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
 
 
 @node_(NodeType.LINK, has_subtypes=True)
-class Link(SourceNode[LinkData]):
+class Link(SourceNode[LinkData], IsComputable):
     """
     A Link between Actions in a Flow (source = outgoing, target = incoming).
     """

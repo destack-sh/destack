@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         Package,
         Page,
         Run,
+        Task,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -68,15 +69,19 @@ class TriggerEffect(BuiltinEnum):
     )
     # interruption
     # CANCEL_INTERRUPTION, COMPLETE_INTERRUPTION, ...?
+    # task
+    CREATE_TASK = 50, "Create Task", "Create a new Task", "fas fa-tasks"
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
 class Trigger(SourceNode[TriggerData]):
     """
-    A Trigger is an event-driven condition that, once met, affects the runtime somehow.
+    A Trigger is an event-driven condition that, once met, affects the Bench somehow.
     """
 
-    parent: Union["Action", "Run", None] = p_node_parent(4, NodeType.ACTION, NodeType.RUN)
+    parent: Union["Action", "Task", "Run", None] = p_node_parent(
+        4, NodeType.ACTION, NodeType.TASK, NodeType.RUN
+    )
 
     # meta
     type: TriggerType = p_system(30, require=True)
