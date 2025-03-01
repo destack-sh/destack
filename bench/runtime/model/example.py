@@ -20,7 +20,6 @@ from bench.language import (
     BenchStatus,
     Block,
     BlockType,
-    CallTerminationMode,
     Channel,
     Choice,
     CustomObject,
@@ -46,8 +45,6 @@ from bench.language import (
     User,
     UserStatus,
     _is_setup_complete,
-    call,
-    call_serial,
     coerce_custom_object_scalar,
     format_code,
     text,
@@ -348,7 +345,7 @@ def basic_planning_with_tools(package: Package):
     # Inputs
     ...  # some application with obvious element ids provided
     # ---
-    # nocheckin: make Plans less nested? (the return is ugly verbose here)
+    # nocheckin: Plans
     return [Flow1, *Flow1.actions, *Flow1.links], (
         "Route to the tool action.",
         Think1,

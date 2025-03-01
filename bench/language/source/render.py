@@ -53,13 +53,6 @@ from bench.language.core import (
 )
 from bench.language.core.text import text_to_markdown
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
-from bench.language.runtime import (
-    Call,
-    CallExecutionMode,
-    CallFailureMode,
-    CallPlan,
-    CallTerminationMode,
-)
 from bench.utils.time import timedelta_to_isoformat
 
 from .action import Action
@@ -86,7 +79,12 @@ class RenderOptions:
     scope: Node
     aliasing: "Aliasing"
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
+    inline_node_types: Collection[NodeType] = (
+        NodeType.FIELD,
+        NodeType.OPTION,
+        NodeType.TRIGGER,
+        NodeType.TASK,
+    )
     use_code_paths: bool = True
     implicit_partials: bool = False
     # formatting
@@ -1041,56 +1039,6 @@ class ComputedValueRenderer(BuiltinObjectRenderer[ComputedValue]):
         if obj.mode != ComputedValueMode.ALWAYS:
             rendered_kwargs["mode"] = f"ComputedValueMode.{obj.mode.name}"
         return f"ComputedValue.new({renderer._render_kwargs(**rendered_kwargs)})"
-
-
-def _render_call_in(renderer: "Renderer", obj: Call) -> str:
-    kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-    node = kwargs.pop(Call.get_property("node"))
-    node_str = renderer.render_node_ref(node)
-    value = kwargs.pop(Call.get_property("value"))
-    value_kwargs = _deconstruct_custom_object(value)
-    # render
-    rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-    rendered_value_kwargs = _render_custom_object_kwargs(renderer, value, value_kwargs)
-    rendered_kwargs.update(rendered_value_kwargs)
-    args = renderer._render_args(node_str, renderer._render_kwargs(**rendered_kwargs) or None)
-    return args
-
-
-@_renderer(StructType.CALL)
-class CallRenderer(BuiltinObjectRenderer[Call]):
-    @override
-    def render(self, renderer: "Renderer", obj: Call) -> str:
-        return f"call({_render_call_in(renderer, obj)})"
-
-
-@_renderer(StructType.CALL_PLAN)
-class CallPlanRenderer(BuiltinObjectRenderer[CallPlan]):
-    @override
-    def render(self, renderer: "Renderer", obj: CallPlan) -> str:
-        if not obj.calls:
-            return "call_none()"
-        # defaults
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        kwargs.pop(CallPlan.get_property("execution"), None)
-        calls = kwargs.pop(CallPlan.get_property("calls"), ())
-        if kwargs.get(CallPlan.get_property("on_error")) == CallFailureMode.FAIL:
-            kwargs.pop(CallPlan.get_property("on_error"), None)
-        if kwargs.get(CallPlan.get_property("on_terminate")) == CallTerminationMode.PASS:
-            kwargs.pop(CallPlan.get_property("on_terminate"), None)
-        # execution mode
-        if obj.execution == CallExecutionMode.PARALLEL:
-            func = "call_parallel"
-        elif obj.execution == CallExecutionMode.SERIAL:
-            func = "call_serial"
-        else:
-            assert_never(obj.execution)
-        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        calls_strs = [f"call({_render_call_in(renderer, call)})" for call in calls]
-        args = renderer._render_args(
-            *calls_strs, renderer._render_kwargs(**rendered_kwargs) or None
-        )
-        return f"{func}({args})"
 
 
 #

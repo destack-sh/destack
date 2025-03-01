@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Browser,
-        CallPlan,
         Code,
         DomNode,
         Field,
@@ -297,14 +296,6 @@ class Action(SourceNode[ActionData], IsComputable):
     )
 
     # outputs
-    plans: list["CallPlan"] = p_regular(
-        60,
-        default=None,
-        require=False,
-        array=True,
-        struct=StructType.CALL_PLAN,
-        field_type=FieldType.OUTPUT,
-    )
     # fanout/fanin, ...?
 
     # flags

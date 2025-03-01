@@ -1095,7 +1095,6 @@ register_coercion(date, {str: date.fromisoformat}, {str: date.isoformat})
 @_on_completing_setup
 def _register_other_coercions():
     from bench.language.core import Code, Text
-    from bench.language.runtime import Call, CallPlan
 
     register_coercion(Code, coerce_from={str: Code.from_string}, coerce_to={str: Code.to_string})
     register_coercion(
@@ -1103,7 +1102,6 @@ def _register_other_coercions():
         coerce_from={str: Text.from_markdown, Code: Text.code},
         coerce_to={str: Text.to_markdown},
     )
-    register_coercion(CallPlan, coerce_from={Call: CallPlan.from_call})
 
 
 def _do_coerce(

@@ -9,10 +9,6 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     ActionType,
-    CallExecutionMode,
-    CallFailureMode,
-    CallPlan,
-    CallTerminationMode,
     CustomObject,
     Error,
     Flow,
@@ -21,11 +17,15 @@ from bench.language import (
     Link,
     LinkType,
     Plan,
+    PlanFailureMode,
+    PlanTerminationMode,
+    PlanType,
     Run,
     RunnableNode,
     RunOptions,
     RunStatus,
     RunType,
+    Task,
     Text,
     TypeBase,
     coerce_custom_object_scalar,
@@ -160,7 +160,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         *,
         incoming: Sequence[Run],
         plan: Plan | None = None,
-        plan_step: int | None = None,
+        task: Task | None = None,
         variables: CustomObject | None = None,
         inputs: CustomObject | None = None,
         title: str | None = None,
@@ -183,7 +183,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run.title = title
         run.text = text
         run.plan = plan
-        run.plan_step = plan_step
+        run.task = task
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
@@ -247,43 +247,47 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         handled_fail = False
 
         # tick caller plan
-        if (plan := run.plan) is not None and plan.status == RunStatus.RUNNING:
+        if (
+            (task := run.task) is not None
+            and (plan := run.plan) is not None
+            and plan.status == RunStatus.RUNNING
+        ):
             parent_run = plan.parent
-            assert parent_run is not None, f"{plan!r} has no parent"
-            assert run.plan_step is not None, f"{run!r} has no step for {plan!r}"
+            assert isinstance(parent_run, Run), f"{plan!r} is not from a Run"
+            assert run.task is not None, f"{run!r} has no task for {plan!r}"
 
-            # try to start next call
-            if plan.execution == CallExecutionMode.SERIAL and (
-                is_completed or plan.on_error == CallFailureMode.CONTINUE
+            # try to start next task
+            if plan.type == PlanType.SERIAL and (
+                is_completed or plan.failure_mode == PlanFailureMode.CONTINUE
             ):
                 next_run = None
-                step = run.plan_step + 1
-                while next_run is None and step < len(plan.calls):
-                    next_call = plan.calls[step]
+                tasks = plan.tasks.tolist()
+                step = tasks.index(task)
+                while next_run is None and step < (len(tasks) - 1):
+                    next_task = tasks[step + 1]
                     for link in self.node.links:
                         if (
-                            link.target_id == next_call.node_id
+                            link.target_id == next_task.node_id
                             and link.source_id == parent_run.action_id
                         ):
                             next_run = self._start(
-                                link, plan=plan, plan_step=step, incoming=(parent_run,)
+                                link, plan=plan, task=task, incoming=(parent_run,)
                             )
                             new_runs.append(next_run)
                             break
-                    step += 1
                 if next_run is None:  # nothing left to call, complete plan
                     plan.complete(by=run)
 
             # terminate plan on failure
             if is_failed:
-                if plan.on_error == CallFailureMode.FAIL:
+                if plan.failure_mode == PlanFailureMode.FAIL:
                     plan.fail(by=run)
-                elif plan.on_error == CallFailureMode.COMPLETE:
+                elif plan.failure_mode == PlanFailureMode.COMPLETE:
                     plan.complete(by=run)
                     handled_fail = True
 
             # handle plan termination
-            if plan.status.is_terminal and plan.on_terminate == CallTerminationMode.RETURN:
+            if plan.status.is_terminal and plan.termination_mode == PlanTerminationMode.RETURN:
                 parent_action = parent_run.action
                 if parent_action is None:
                     raise RunImpossibleError(f"no action to return to for {plan!r}")
@@ -294,43 +298,40 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         outgoing_links = tuple(
             p for p in self.node.links if p.source_id == action.id and p.is_extant
         )
-        call_links = tuple(
+        required_links = tuple(
             p
             for p in outgoing_links
             if (p.type == LinkType.REQUIRE or p.type == LinkType.MANUAL)
             and p.is_triggered_by(run.status)
         )
-        uncalled_call_links = set(call_links)
+        optional_links = set(required_links)
 
-        # tick own plans (on success only)
+        # begin own plans (on success only)
         if is_completed:
-            call_plans: Sequence[CallPlan] = getattr(runner.outputs, "plans", None) or ()
-            run_plans: list[Plan] = []
-            for plan in call_plans:
-                if not plan.calls:
-                    continue
-                run_plan = Plan.from_call(run, plan, status=RunStatus.RUNNING)
-                run_plans.append(run_plan)
-                self.runtime._set_context(run_plan)
-            self.session._create(*run_plans)
-            for plan in run_plans:
+            plans: list[Plan] = list(run.plans)
+            for new_plan in plans:
+                self.runtime._set_context(new_plan)
+            self.session._create(*plans)
+            for plan in plans:
                 # run calls via links
-                if plan.execution == CallExecutionMode.PARALLEL:
-                    next_calls = plan.calls
-                elif plan.execution == CallExecutionMode.SERIAL:
-                    next_calls = (plan.calls[0],)
+                if plan.type == PlanType.PARALLEL:
+                    next_tasks = plan.tasks
+                elif plan.type == PlanType.SERIAL:
+                    next_tasks = (plan.tasks[0],)
                 else:
-                    assert_never(plan.execution)
-                for step, call in enumerate(next_calls):
-                    link = next((p for p in outgoing_links if p.target_id == call.node_id), None)
+                    next_tasks = ()
+                for next_task in next_tasks:
+                    link = next(
+                        (p for p in outgoing_links if p.target_id == next_task.node_id), None
+                    )
                     if link is None:
                         continue  # ignore, can't call arbitrary nodes
-                    link_run = self._start(link, plan=plan, plan_step=step, incoming=(run,))
+                    link_run = self._start(link, plan=plan, task=next_task, incoming=(run,))
                     new_runs.append(link_run)
-                    uncalled_call_links.discard(link)
+                    optional_links.discard(link)
 
-        # call call links that were not called
-        for link in uncalled_call_links:
+        # call required links that were not called
+        for link in optional_links:
             self._start(link, incoming=(run,))
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
@@ -342,23 +343,22 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
         # check plan for
         plan = runner.tracked_run.plan
-        plan_step = runner.tracked_run.plan_step
-        call = plan.calls[plan_step] if plan is not None and plan_step is not None else None
+        task = runner.tracked_run.task
 
         # start next action
         next_action = link.target
         if next_action is None or next_action.is_deleted:
             return TickLinkResult(new_runs=(), is_handled=False)
-        if call is not None:
+        if task is not None:
             next_run = self._start(
                 next_action,
                 incoming=(runner.tracked_run,),
                 plan=plan,
-                plan_step=plan_step,
-                variables=call.value,
-                inputs=call.value,
-                title=call.title,
-                text=call.text,
+                task=task,
+                variables=task.value,
+                inputs=task.value,
+                title=task.name,
+                text=task.text,
             )
         else:
             next_run = self._start(next_action, incoming=(runner.tracked_run,))
