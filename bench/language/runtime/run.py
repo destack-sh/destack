@@ -60,6 +60,7 @@ if TYPE_CHECKING:
         Plan,
         RunnableNode,
         RunSpan,
+        Task,
         TextOptions,
         Thread,
         Trigger,
@@ -221,7 +222,9 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     plan: Optional["Plan"] = p_internal(
         64, require=False, array=False, references=NodeType.PLAN, same_bench=True
     )
-    plan_step: int | None = p_internal(65)
+    task: Optional["Task"] = p_internal(
+        65, require=False, array=False, references=NodeType.TASK, same_bench=True
+    )
     trigger: Optional["Trigger"] = p_regular(
         66, require=False, array=False, references=NodeType.TRIGGER, same_bench=True
     )
@@ -270,6 +273,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
     logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
+    plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
 
     def __content_str__(self):
         node = self.runnable

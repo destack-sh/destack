@@ -43,7 +43,6 @@ from .link import Link, LinkType, PortSide
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
-from .plan import Plan, PlanStatus, PlanType
 from .project import Projection, ProjectOptions
 from .render import (
     Aliasing,
@@ -136,9 +135,6 @@ __all__ = [
     "Package",
     "PackageType",
     "Page",
-    "Plan",
-    "PlanStatus",
-    "PlanType",
     "PortSide",
     "PressAction",
     "ProjectOptions",

@@ -182,7 +182,7 @@ class PromptPlan(PromptCompound):
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
         plan_code = prompt.renderer.render_statement(self.plan, format=True)
         return [
-            PromptText(title=self.title, text=f"You are at step {self.run.plan_step} of this plan"),
+            PromptText(title=self.title, text=f"You are at Task {self.run.task} of this Plan"),
             PromptCode(title=None, code=plan_code),
         ]
 

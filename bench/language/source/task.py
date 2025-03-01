@@ -7,6 +7,7 @@ from bench.language.core import (
     OWNER_TYPES,
     BuiltinEnum,
     ColorType,
+    CustomObject,
     EnumType,
     FieldType,
     HasTimeIdentity,
@@ -15,7 +16,9 @@ from bench.language.core import (
     NodeType,
     Owner,
     StructType,
+    Text,
     TypeBase,
+    coerce_custom_object_scalar,
     enum_,
     p_internal,
     p_node_children,
@@ -131,3 +134,24 @@ class Task(HasTimeIdentity, InlineSourceNode[TaskData]):
             if node is not None
             else None
         )
+
+    @staticmethod
+    def run(
+        node: "Flow | Action",
+        value: CustomObject | None = None,
+        *,
+        name: str | None = None,
+        text: "Text | None" = None,
+        **kwargs,
+    ) -> "Task":
+        from bench.language import Action, Block
+
+        if not isinstance(node, (Block, Action)):
+            raise ValueError(f"invalid node type for Call: {type(node)}")
+
+        value_type = node.to_type_maybe(
+            of="value", field_types=[FieldType.VARIABLE, FieldType.INPUT]
+        )
+        assert value_type is not None, f"no call value type for {node!r}"
+        value = coerce_custom_object_scalar(value or kwargs, value_type)
+        return Task(node=node, name=name, text=text, value=value, **kwargs)

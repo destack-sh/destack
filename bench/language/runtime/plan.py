@@ -7,11 +7,10 @@ from bench.language.core import (
     BuiltinEnum,
     ColorType,
     EnumType,
-    HasTimeIdentity,
-    InlineSourceNode,
-    NodeList,
+    LocalNodeList,
     NodeType,
     Owner,
+    RuntimeNode,
     StructType,
     enum_,
     p_internal,
@@ -24,9 +23,6 @@ from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
     from bench.language import (
-        CallExecutionMode,
-        CallFailureMode,
-        CallTerminationMode,
         Error,
         NodeReference,
         Package,
@@ -40,7 +36,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PLAN_TYPE)
 class PlanType(BuiltinEnum):
-    CALL = 1, "Run"
+    SERIAL = 10, "Serial"
+    PARALLEL = 20, "Parallel"
+    # QUEUE = 30, "Queue"
 
 
 @enum_(EnumType.PLAN_STATUS)
@@ -55,19 +53,35 @@ class PlanStatus(BuiltinEnum):
     FAILED = 32, None, None, "fas fa-circle-exclamation", ColorType.RED
     COMPLETED = 33, None, None, "fas fa-circle-check", ColorType.GREEN
 
+    @property
+    def is_terminal(self) -> bool:
+        return self >= 30
+
+
+@enum_(EnumType.PLAN_TERMINATION_MODE)
+class PlanTerminationMode(BuiltinEnum):
+    PASS = 10, "Pass", "Do nothing"
+    RETURN = 20, "Return", "Return to caller"
+
+
+@enum_(EnumType.PLAN_FAILURE_MODE)
+class PlanFailureMode(BuiltinEnum):
+    FAIL = 10, "Fail", "Fail the entire plan"
+    COMPLETE = 20, "Complete", "Complete the entire plan"
+    CONTINUE = 30, "Continue", "Continue the plan (skip failures)"
+
 
 @timed_node_(NodeType.PLAN)
-class Plan(HasTimeIdentity, InlineSourceNode[PlanData]):
-    """A Plan for a sequence of Runs or something."""
+class Plan(RuntimeNode[PlanData]):
+    """A Plan for something like a sequence of Tasks."""
 
     # meta
-    parent: Union["Package", "Page", "Run", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.RUN
+    parent: Union["Package", "Page", "Plan", "Run", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
-    execution: "CallExecutionMode" = p_internal(40)
-    on_terminate: "CallTerminationMode" = p_internal(41)
-    on_error: "CallFailureMode" = p_internal(42)
+    termination_mode: "PlanTerminationMode" = p_internal(41)
+    failure_mode: "PlanFailureMode" = p_internal(42)
 
     # status
     status: PlanStatus = p_internal(50, default=PlanStatus.CREATED)
@@ -80,7 +94,8 @@ class Plan(HasTimeIdentity, InlineSourceNode[PlanData]):
         owned_by_ptr: Optional[NodeReference] = None
         owned_by_id: Optional[UUID] = None
 
-    tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
+    plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
+    tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
 
     def complete(self, by: "Run") -> None:
         self.status = PlanStatus.COMPLETED
@@ -88,3 +103,15 @@ class Plan(HasTimeIdentity, InlineSourceNode[PlanData]):
     def fail(self, by: "Run") -> None:
         self.error = by.error
         self.status = PlanStatus.FAILED
+
+    @staticmethod
+    def serial(*tasks: "Task") -> "Plan":
+        plan = Plan(type=PlanType.SERIAL)
+        plan.tasks.extend(*tasks)
+        return plan
+
+    @staticmethod
+    def parallel(*tasks: "Task") -> "Plan":
+        plan = Plan(type=PlanType.PARALLEL)
+        plan.tasks.extend(*tasks)
+        return plan
