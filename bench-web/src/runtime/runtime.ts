@@ -11,7 +11,7 @@ import {
   isRunnable,
   isRunPaused,
   RunnableNode,
-  RunnableNodeType
+  RunnableNodeType,
 } from "@/language/runtime/run";
 import { newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { actionToType } from "@/language/source/action";
@@ -343,26 +343,26 @@ export function makeRun(
   options?: {
     variablesPacked?: Record<string, any>;
     inputsPacked?: Record<string, any>;
-    benchPtr?: NodeReferenceData;
+    packagePtr?: NodeReferenceData;
     options?: RunOptionsData;
     mode?: NodeMode;
   },
 ): RunData {
-  let benchPtr: NodeReferenceData | undefined = undefined;
+  let packagePtr: NodeReferenceData | undefined = undefined;
   let flow: FlowData | undefined = undefined;
   let action: ActionData | undefined = undefined;
   let link: LinkData | undefined = undefined;
   if (isNode(runnable, NodeType.FLOW)) {
     flow = runnable;
-    benchPtr = options?.benchPtr ?? runnable.benchPtr;
+    packagePtr = options?.packagePtr ?? runnable.packagePtr;
   } else if (isNode(runnable, NodeType.ACTION)) {
     action = runnable;
     flow = graph.getAncestors(action, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
-    benchPtr = options?.benchPtr ?? action.benchPtr;
+    packagePtr = options?.packagePtr ?? action.packagePtr;
   } else if (isNode(runnable, NodeType.LINK)) {
     link = runnable;
     flow = graph.getAncestors(link, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
-    benchPtr = options?.benchPtr ?? link.benchPtr;
+    packagePtr = options?.packagePtr ?? link.packagePtr;
   } else {
     assertNever(runnable);
   }
@@ -372,7 +372,7 @@ export function makeRun(
   }
   const run = makeNode({
     metatype: NodeType.RUN,
-    parentPtr: benchPtr,
+    parentPtr: packagePtr,
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,

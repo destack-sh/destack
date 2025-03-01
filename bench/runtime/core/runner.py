@@ -20,7 +20,6 @@ from opentelemetry import trace
 from bench.language import (
     RUNTIME_NODE_TYPES,
     Action,
-    Bench,
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
@@ -39,7 +38,7 @@ from bench.language import (
     NodeGraph,
     NodeMode,
     NodeType,
-    Page,
+    Package,
     Plan,
     Resource,
     ResourceStatus,
@@ -238,11 +237,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if type(run) is Run or run == "track":
             # Runner = Run
             if run == "track":
-                page, flow, action, link, typ = _get_runnable_container(node)
+                package, flow, action, link, typ = _get_runnable_container(node)
                 tracked_run = Run(
-                    parent=parent_run or self.runtime.bench,
+                    parent=parent_run or package,
                     type=typ,
-                    page=page,
                     flow=flow,
                     action=action,
                     link=link,
@@ -614,34 +612,28 @@ RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
 
 def _get_runnable_container(
     node: "RunnableNode",
-) -> tuple[Page, Flow | None, Action | None, Link | None, RunType]:
-    """Gets the containing ancestor Page, Flow, Action, Link, and RunKind for a RunnableNode."""
-    page: Page | None = None
+) -> tuple[Package, Flow | None, Action | None, Link | None, RunType]:
+    """Gets the containing ancestor Package, Flow, Action, Link, and RunKind for a RunnableNode."""
+    package: Package = node.package
     flow: Flow | None = None
     action: Action | None = None
     link: Link | None = None
 
     if isinstance(node, Flow):
         flow = node
-        page = node.parent
         typ = RunType.FLOW
     elif isinstance(node, Action):
         action = node
         flow = node.flow
-        page = flow.parent if flow is not None else node.page
         typ = RunType.ACTION
     elif isinstance(node, Link):
         link = node
         flow = node.flow
-        page = flow.parent if flow is not None else node.page
         typ = RunType.LINK
     else:
         assert_never(node)
 
-    if page is None:
-        raise RuntimeError(f"no page for {node!r}")
-
-    return page, flow, action, link, typ
+    return package, flow, action, link, typ
 
 
 def make_run_from_node(
@@ -652,7 +644,7 @@ def make_run_from_node(
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
-    parent: "Run | Bench | None" = None,
+    parent: "Package | Run | None" = None,
     session: "Session | None" = None,
     graph: NodeGraph | None = None,
 ) -> "Run":
@@ -662,10 +654,10 @@ def make_run_from_node(
     # context
     if session is None:
         session = active_session()
-    page, flow, action, link, typ = _get_runnable_container(node)
+    _, flow, action, link, typ = _get_runnable_container(node)
 
     # graph
-    parent = parent or node.bench
+    parent = parent or node.package
     assert parent is not None, f"no parent for {node!r}"
     if graph is None:
         if isolate:  # new graph for isolated run
@@ -682,7 +674,6 @@ def make_run_from_node(
     run = Run(
         parent=parent,
         type=typ,
-        page=page,
         flow=flow,
         action=action,
         link=link,
@@ -728,7 +719,7 @@ def create_run_from_node(
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
-    parent: "Run | Bench | None" = None,
+    parent: "Package | Run | None" = None,
     session: "Session | None" = None,
     graph: NodeGraph | None = None,
 ) -> "Run":

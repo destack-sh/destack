@@ -7,6 +7,7 @@ import structlog
 from bench.language.core import (
     INLINE_SOURCE_NODE_TYPES,
     TITLE_CONSTRAINT,
+    BenchNode,
     BuiltinEnum,
     EnumType,
     FieldType,
@@ -15,7 +16,6 @@ from bench.language.core import (
     InlineSourceNode,
     Node,
     NodeType,
-    StateNode,
     StructType,
     Text,
     TypeBase,
@@ -81,7 +81,7 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
+class Message(HasTimeIdentity, BenchNode[MessageData], HasNodeBase):
     """
     A Message about something.
     """

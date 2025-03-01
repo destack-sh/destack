@@ -5,12 +5,12 @@ import structlog
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
+    BenchNode,
     BuiltinEnum,
     EnumType,
     HasTimeIdentity,
     Node,
     NodeType,
-    StateNode,
     StructType,
     enum_,
     p_internal,
@@ -44,7 +44,7 @@ class NotificationStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.NOTIFICATION)
-class Notification(HasTimeIdentity, StateNode[NotificationData]):
+class Notification(HasTimeIdentity, BenchNode[NotificationData]):
     """
     A Notification about something.
     """

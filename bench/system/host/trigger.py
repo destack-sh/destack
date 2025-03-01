@@ -73,7 +73,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                     trigger_parent = trigger.parent
                     if isinstance(trigger_parent, Run):
                         trigger_parent = trigger_parent.action
-                    assert trigger_parent is not None, f"trigger {trigger!r} has no parent"
+                    assert isinstance(trigger_parent, Action), f"unexpected parent for {trigger!r}"
                     flow = trigger_parent.flow
                     assert flow is not None, f"trigger {trigger!r} has no flow"
                     # if we're in the scope of the flow, always trigger, otherwise only if mentioned

@@ -26,10 +26,8 @@ from bench.language import (
     RenderOptions,
     Resource,
     Run,
-    RuntimeNode,
     RunType,
     SourceNode,
-    StateNode,
     TypeBase,
     _is_setup_complete,
 )
@@ -300,8 +298,6 @@ def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
 
 RESOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(Resource)
 SOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(SourceNode)
-STATE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(StateNode)
-RUNTIME_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(RuntimeNode)
 ACTION_TYPE_ENUM_PROMPT = render_builtin_enum(ActionType, compact=False)
 BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
 LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
@@ -604,7 +600,7 @@ outputs: CustomObject
                     context_parts.append(PromptFile(title=None, file=node, weight=weight))
                 else:
                     remote_nodes.append(node)
-            elif isinstance(node, StateNode):
+            elif node.metatype.is_state:
                 remote_nodes.append(node)
         if remote_nodes:
             context_parts.append(PromptNodes(title=None, weight=1, nodes=remote_nodes))

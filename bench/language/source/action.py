@@ -12,6 +12,7 @@ from bench.language.core import (
     ColorType,
     EnumType,
     FieldType,
+    IsComputable,
     LocalNodeList,
     Node,
     NodeReference,
@@ -222,7 +223,7 @@ ACTION_CATEGORY_BY_TYPE = {
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
-class Action(SourceNode[ActionData]):
+class Action(SourceNode[ActionData], IsComputable):
     """
     A data or control flow node in a Flow. Actions are connected by Links.
     """

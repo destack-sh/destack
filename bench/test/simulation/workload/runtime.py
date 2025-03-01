@@ -47,7 +47,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
                 inputs=inputs,
                 options=options,
                 mode=mode,
-                parent=self.bench,
+                parent=self.main_package,
                 session=self.session,
             )
         runner = await self.runtime.run(run, return_error=return_error)

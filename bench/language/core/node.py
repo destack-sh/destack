@@ -1488,42 +1488,36 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 
 @node_component_()
-class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
-    """
-    A Node in a Package with a persistent identity that can be instanced (with computed values).
-    Sometimes, SourceNodes are attached directly ro Runs (like for Triggers) instead of a Package.
-    """
+class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
+    """A Node in a Package."""
 
-    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
-    package: "Package | None" = p_node_ancestor_with_self(
-        8, NodeType.PACKAGE, require=False, store=True, wire=True, is_bench_implicit=True
+    package: "Package" = p_node_ancestor_with_self(
+        8, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
-    template: Optional["Node"] = p_node_template(9)
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
+
+
+@node_component_()
+class IsTemplatable(BuiltinObject):
+    """A Node that can be instanced and templated."""
+
+    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
+    template: Optional["Node"] = p_node_template(9)
+    if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
     template_at: datetime | None = p_system(16, default=None, autoset=True)
+
+
+@node_component_()
+class IsComputable(BuiltinObject):
+    """A Node that can be computed at runtime."""
+
     computed_values: list["ComputedValue"] = p_internal(
         28, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.package is not None
-
-    @property
-    def page(self) -> "Page | None":
-        """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page, SourceNode
-
-        parent = self.parent
-        while isinstance(parent, SourceNode):
-            if isinstance(parent, Page):
-                return parent
-            parent = parent.parent
-        return None
 
     def set_computed(
         self,
@@ -1552,6 +1546,29 @@ class SourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC
         self.computed_values = [
             *(cv for cv in self.computed_values if cv.target_path != target),
         ]
+
+
+@node_component_()
+class SourceNode[NodeDataT: AnyNodeData](IsTemplatable, HasTrace, PackageNode[NodeDataT], abc.ABC):
+    """
+    A Node in a Package with a persistent identity that can be instanced.
+    """
+
+    @property
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.package is not None
+
+    @property
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page, SourceNode
+
+        parent = self.parent
+        while isinstance(parent, SourceNode):
+            if isinstance(parent, Page):
+                return parent
+            parent = parent.parent
+        return None
 
 
 @node_component_()
@@ -1623,13 +1640,6 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
         from bench.language import Block
 
         return Block.wrap(self)
-
-
-@node_component_()
-class StateNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
-    """A Node in a Bench with a persistent stable identity."""
-
-    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
 
 
 @node_component_()

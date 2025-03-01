@@ -199,6 +199,8 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.VIEW,
   NodeType.ROLE,
   NodeType.TAG,
+  NodeType.PLAN,
+  NodeType.TASK,
 ];
 INLINE_SOURCE_NODE_TYPES.sort();
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
@@ -452,7 +454,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
-export const EXPOSED_LINK_TYPES = [LinkType.AUTO, LinkType.REQUIRE];
+export const EXPOSED_LINK_TYPES = [LinkType.AUTOMATIC, LinkType.REQUIRE];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,

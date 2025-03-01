@@ -43,6 +43,7 @@ from .link import Link, LinkType, PortSide
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
+from .plan import Plan, PlanStatus, PlanType
 from .project import Projection, ProjectOptions
 from .render import (
     Aliasing,
@@ -58,6 +59,7 @@ from .role import Role
 from .schedule import Schedule, ScheduleFrequency
 from .space import Space, SpaceType
 from .tag import Tag
+from .task import Task, TaskStatus, TaskType
 from .trigger import (
     MessageTrigger,
     ScheduleTrigger,
@@ -134,6 +136,9 @@ __all__ = [
     "Package",
     "PackageType",
     "Page",
+    "Plan",
+    "PlanStatus",
+    "PlanType",
     "PortSide",
     "PressAction",
     "ProjectOptions",
@@ -155,6 +160,9 @@ __all__ = [
     "Spacing",
     "StartAction",
     "Tag",
+    "Task",
+    "TaskStatus",
+    "TaskType",
     "ToolAction",
     "TransformAction",
     "Trigger",

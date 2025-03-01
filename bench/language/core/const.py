@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.02.28.2"
+VERSION = "2025.03.01.0"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -373,22 +373,25 @@ class EnumType(BuiltinEnum):
     # Local (22000-23000)
     #
 
-    # runtime core (22000-22049)
+    # runtime core (22000-22100)
     RUN_STATUS = 22000
     RUN_TYPE = 22001
     RUN_SPAN_TYPE = 22002
-    PLAN_TYPE = 220010
+    PLAN_TYPE = 22003
+    PLAN_STATUS = 22004
+    TASK_TYPE = 22005
+    TASK_STATUS = 22006
     SESSION_STATUS = 22020
-    TRIGGER_TYPE = 22030
-    TRIGGER_EFFECT = 22031
-    TRIGGER_STATUS = 22032
     CACHE_MODE = 22040
-    SCHEDULE_FREQUENCY = 22041
     CALL_EXECUTION_MODE = 22050
     CALL_FAILURE_MODE = 22051
     CALL_TERMINATION_MODE = 22052
     LOG_TYPE = 22060
     SEVERITY = 22070
+    TRIGGER_TYPE = 22030
+    TRIGGER_EFFECT = 22031
+    TRIGGER_STATUS = 22032
+    SCHEDULE_FREQUENCY = 22041
 
     # error (22100-22149)
     ERROR_KIND = 22100
@@ -544,6 +547,10 @@ class NodeType(BuiltinEnum):
     ROLE = 5110, None, None, "fas fa-user-tag"
     # IDENTITY?
     # BADGE? POLICY? (POLICY_)RULE?
+    PLAN = 5120, None, None, "fas fa-diagram-project"
+    TASK = 5121, None, None, "far fa-square-check"
+
+    # space
     SPACE = 5200, None, None, "fas fa-space-between"
 
     # state
@@ -565,8 +572,6 @@ class NodeType(BuiltinEnum):
     # RUN_GROUP, RUN_QUEUE, ...?
     INTERRUPTION = 6020, None, None, "fas fa-hand"
     LOG = 6030, None, None, "fas fa-file-alt"
-    PLAN = 6040, None, None, "fas fa-diagram-project"
-    # nocheckin: PLAN_ITEM/PLAN_STEP/STEP/TASK?
 
     # sync
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
@@ -682,6 +687,8 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.VIEW,
     NodeType.TAG,
+    NodeType.PLAN,
+    NodeType.TASK,
 )
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
@@ -1452,8 +1459,9 @@ class ErrorKind(BuiltinEnum):
 @enum_(EnumType.RUN_STATUS)
 class RunStatus(BuiltinEnum):
     # pre
-    SCHEDULED = 1, None, None, "fas fa-clock", ColorType.GRAY
-    QUEUED = 2, None, None, "fas fa-hourglass", ColorType.GRAY
+    CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
+    SCHEDULED = 2, None, None, "fas fa-clock", ColorType.GRAY
+    QUEUED = 3, None, None, "fas fa-hourglass", ColorType.GRAY
     # active
     RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.GREEN
     # interrupted
