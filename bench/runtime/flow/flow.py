@@ -180,7 +180,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         runner.flow = cast(FlowRunner, self)
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
-        run.title = title
+        run.name = title
         run.text = text
         run.plan = plan
         run.task = task

@@ -79,13 +79,12 @@ enum EnumType {
   ENUM_TYPE_RUN_SPAN_TYPE = 22002;
   ENUM_TYPE_PLAN_TYPE = 22003;
   ENUM_TYPE_PLAN_STATUS = 22004;
-  ENUM_TYPE_TASK_TYPE = 22005;
-  ENUM_TYPE_TASK_STATUS = 22006;
+  ENUM_TYPE_PLAN_TERMINATION_MODE = 22005;
+  ENUM_TYPE_PLAN_FAILURE_MODE = 22006;
+  ENUM_TYPE_TASK_TYPE = 22010;
+  ENUM_TYPE_TASK_STATUS = 22011;
   ENUM_TYPE_SESSION_STATUS = 22020;
   ENUM_TYPE_CACHE_MODE = 22040;
-  ENUM_TYPE_CALL_EXECUTION_MODE = 22050;
-  ENUM_TYPE_CALL_FAILURE_MODE = 22051;
-  ENUM_TYPE_CALL_TERMINATION_MODE = 22052;
   ENUM_TYPE_LOG_TYPE = 22060;
   ENUM_TYPE_SEVERITY = 22070;
   ENUM_TYPE_TRIGGER_TYPE = 22030;
@@ -233,8 +232,6 @@ enum StructType {
   STRUCT_TYPE_RUN_OPTIONS = 12701;
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
-  STRUCT_TYPE_CALL = 12730;
-  STRUCT_TYPE_CALL_PLAN = 12731;
   STRUCT_TYPE_BREAKPOINT = 12740;
   STRUCT_TYPE_TEXT_OPTIONS = 12800;
   STRUCT_TYPE_AUDIO_OPTIONS = 12801;
@@ -343,8 +340,6 @@ enum ObjectType {
   OBJECT_TYPE_RUN_OPTIONS = 12701;
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
-  OBJECT_TYPE_CALL = 12730;
-  OBJECT_TYPE_CALL_PLAN = 12731;
   OBJECT_TYPE_BREAKPOINT = 12740;
   OBJECT_TYPE_TEXT_OPTIONS = 12800;
   OBJECT_TYPE_AUDIO_OPTIONS = 12801;
@@ -453,8 +448,6 @@ enum BenchType {
   BENCH_TYPE_RUN_OPTIONS = 12701;
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
-  BENCH_TYPE_CALL = 12730;
-  BENCH_TYPE_CALL_PLAN = 12731;
   BENCH_TYPE_BREAKPOINT = 12740;
   BENCH_TYPE_TEXT_OPTIONS = 12800;
   BENCH_TYPE_AUDIO_OPTIONS = 12801;
@@ -539,13 +532,12 @@ enum BenchType {
   BENCH_TYPE_RUN_SPAN_TYPE = 22002;
   BENCH_TYPE_PLAN_TYPE = 22003;
   BENCH_TYPE_PLAN_STATUS = 22004;
-  BENCH_TYPE_TASK_TYPE = 22005;
-  BENCH_TYPE_TASK_STATUS = 22006;
+  BENCH_TYPE_PLAN_TERMINATION_MODE = 22005;
+  BENCH_TYPE_PLAN_FAILURE_MODE = 22006;
+  BENCH_TYPE_TASK_TYPE = 22010;
+  BENCH_TYPE_TASK_STATUS = 22011;
   BENCH_TYPE_SESSION_STATUS = 22020;
   BENCH_TYPE_CACHE_MODE = 22040;
-  BENCH_TYPE_CALL_EXECUTION_MODE = 22050;
-  BENCH_TYPE_CALL_FAILURE_MODE = 22051;
-  BENCH_TYPE_CALL_TERMINATION_MODE = 22052;
   BENCH_TYPE_LOG_TYPE = 22060;
   BENCH_TYPE_SEVERITY = 22070;
   BENCH_TYPE_TRIGGER_TYPE = 22030;
@@ -1353,7 +1345,8 @@ enum RunSpanType {
 
 enum PlanType {
   PLAN_TYPE_UNSPECIFIED = 0;
-  PLAN_TYPE_CALL = 1;
+  PLAN_TYPE_SERIAL = 10;
+  PLAN_TYPE_PARALLEL = 20;
 }
 
 enum PlanStatus {
@@ -1364,6 +1357,19 @@ enum PlanStatus {
   PLAN_STATUS_ABORTED = 31;
   PLAN_STATUS_FAILED = 32;
   PLAN_STATUS_COMPLETED = 33;
+}
+
+enum PlanTerminationMode {
+  PLAN_TERMINATION_MODE_UNSPECIFIED = 0;
+  PLAN_TERMINATION_MODE_PASS = 10;
+  PLAN_TERMINATION_MODE_RETURN = 20;
+}
+
+enum PlanFailureMode {
+  PLAN_FAILURE_MODE_UNSPECIFIED = 0;
+  PLAN_FAILURE_MODE_FAIL = 10;
+  PLAN_FAILURE_MODE_COMPLETE = 20;
+  PLAN_FAILURE_MODE_CONTINUE = 30;
 }
 
 enum TaskType {
@@ -1401,28 +1407,6 @@ enum CacheMode {
   CACHE_MODE_ALWAYS = 2;
 }
 
-// How to execute Calls.
-enum CallExecutionMode {
-  CALL_EXECUTION_MODE_UNSPECIFIED = 0;
-  CALL_EXECUTION_MODE_SERIAL = 1;
-  CALL_EXECUTION_MODE_PARALLEL = 2;
-}
-
-// What to do when a Call fails.
-enum CallFailureMode {
-  CALL_FAILURE_MODE_UNSPECIFIED = 0;
-  CALL_FAILURE_MODE_FAIL = 1;
-  CALL_FAILURE_MODE_CONTINUE = 2;
-  CALL_FAILURE_MODE_COMPLETE = 3;
-}
-
-// What to do when a Call terminates.
-enum CallTerminationMode {
-  CALL_TERMINATION_MODE_UNSPECIFIED = 0;
-  CALL_TERMINATION_MODE_PASS = 1;
-  CALL_TERMINATION_MODE_RETURN = 2;
-}
-
 enum LogType {
   LOG_TYPE_UNSPECIFIED = 0;
   LOG_TYPE_PRINT = 100;
@@ -1448,10 +1432,9 @@ enum TriggerType {
 
 enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
-  TRIGGER_EFFECT_START_RUN = 1;
-  TRIGGER_EFFECT_ENSURE_RUN = 2;
-  TRIGGER_EFFECT_REPLACE_RUN = 3;
-  TRIGGER_EFFECT_CREATE_TASK = 50;
+  TRIGGER_EFFECT_START_RUN = 10;
+  TRIGGER_EFFECT_ENSURE_RUN = 11;
+  TRIGGER_EFFECT_REPLACE_RUN = 12;
 }
 
 enum TriggerStatus {
@@ -2360,22 +2343,6 @@ message ClientOriginData {
   optional string nonce = 32;
 }
 
-message CallData {
-  ObjectType metatype = 1;
-  NodeReferenceData node_ptr = 33;
-  optional google.protobuf.Value value_packed = 34;
-  optional string title = 40;
-  optional TextData text = 41;
-}
-
-message CallPlanData {
-  ObjectType metatype = 1;
-  CallExecutionMode execution = 31;
-  CallFailureMode on_error = 33;
-  CallTerminationMode on_terminate = 34;
-  repeated CallData calls = 40;
-}
-
 message RunTraceData {
   ObjectType metatype = 1;
   repeated RunFrameData frames = 30;
@@ -3107,6 +3074,34 @@ message LogData {
   optional NodeReferenceData user_ptr = 95;
 }
 
+message PlanData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  PlanType type = 30;
+  PlanTerminationMode termination_mode = 41;
+  PlanFailureMode failure_mode = 42;
+  PlanStatus status = 50;
+  optional google.protobuf.Duration duration = 51;
+  optional google.protobuf.Timestamp started_at = 52;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional ErrorData error = 56;
+  optional NodeReferenceData owned_by_ptr = 57;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData run_ptr = 91;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3141,14 +3136,14 @@ message RunData {
   optional NodeReferenceData action_ptr = 62;
   optional NodeReferenceData link_ptr = 63;
   optional NodeReferenceData plan_ptr = 64;
-  optional int32 plan_step = 65;
+  optional NodeReferenceData task_ptr = 65;
   optional NodeReferenceData trigger_ptr = 66;
   optional string trigger_key = 67;
   optional NodeReferenceData trigger_run_ptr = 68;
   optional google.protobuf.Value variables_packed = 70;
   optional google.protobuf.Value inputs_packed = 71;
   optional google.protobuf.Value outputs_packed = 72;
-  optional string title = 74;
+  optional string name = 74;
   optional TextData text = 75;
   optional CodeData code = 76;
   optional NodeReferenceData session_ptr = 90;
@@ -3243,7 +3238,6 @@ message ActionData {
   optional NodeReferenceData tool_ptr = 53;
   optional google.protobuf.Value variables_packed = 55;
   optional google.protobuf.Value inputs_packed = 56;
-  repeated CallPlanData plans = 60;
   optional Vector2Data position = 80;
 }
 
@@ -3747,41 +3741,6 @@ message PageData {
   optional NodeReferenceData block_ptr = 36;
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
-}
-
-message PlanData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  optional NodeReferenceData template_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  PlanType type = 30;
-  string name = 32;
-  string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  optional NodeReferenceData block_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
-  repeated NodeReferenceData tags_ptr = 38;
-  CallExecutionMode execution = 40;
-  CallTerminationMode on_terminate = 41;
-  CallFailureMode on_error = 42;
-  PlanStatus status = 50;
-  optional google.protobuf.Duration duration = 51;
-  optional google.protobuf.Timestamp started_at = 52;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional ErrorData error = 56;
-  optional NodeReferenceData owned_by_ptr = 57;
 }
 
 message ViewData {

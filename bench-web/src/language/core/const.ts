@@ -199,7 +199,6 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.VIEW,
   NodeType.ROLE,
   NodeType.TAG,
-  NodeType.PLAN,
   NodeType.TASK,
 ];
 INLINE_SOURCE_NODE_TYPES.sort();

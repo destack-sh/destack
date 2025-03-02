@@ -59,10 +59,10 @@ class TriggerStatus(BuiltinEnum):
 @enum_(EnumType.TRIGGER_EFFECT)
 class TriggerEffect(BuiltinEnum):
     # run
-    START_RUN = 1, "Start Run", "Start a new Run", "fas fa-play"
-    ENSURE_RUN = 2, "Ensure Run", "Continue an existing or start a new Run", "fas fa-forward-step"
+    START_RUN = 10, "Start Run", "Start a new Run", "fas fa-play"
+    ENSURE_RUN = 11, "Ensure Run", "Continue an existing or start a new Run", "fas fa-forward-step"
     REPLACE_RUN = (
-        3,
+        12,
         "Replace Run",
         "Replace/restart (part of) the current Run",
         "fas fa-backward-step",
@@ -70,7 +70,7 @@ class TriggerEffect(BuiltinEnum):
     # interruption
     # CANCEL_INTERRUPTION, COMPLETE_INTERRUPTION, ...?
     # task
-    CREATE_TASK = 50, "Create Task", "Create a new Task", "fas fa-tasks"
+    # CREATE_TASK = 50, "Create Task", "Create a new Task", "fas fa-tasks"
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)

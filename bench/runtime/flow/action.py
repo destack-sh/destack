@@ -214,6 +214,7 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
             raise NotSupportedError(f"unsupported model developer {model_developer!r}")
 
         # run model
+        # nocheckin: implicit Flow for 'dynamic' Actions
         model_runner = model_runner_cls(
             runtime=self.runtime,
             node=self.node,

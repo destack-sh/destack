@@ -46,8 +46,8 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
 
 
 @simulated_runtime()
-async def test_run_flow_call_none(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Runs a Flow with no calls selected."""
+async def test_run_flow_plan_none(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Runs a Flow with no Plans/Tasks."""
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
@@ -56,16 +56,14 @@ async def test_run_flow_call_none(simulation: Simulation, runtime: RuntimeLambda
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Route, Code2, Code3, Complete)
     Start.connect(LinkType.MANUAL, Route)
-    Route.connect(LinkType.AUTOMATIC, Complete)
-    Route.connect(LinkType.AUTOMATIC, Code2)
-    Route.connect(LinkType.AUTOMATIC, Code3)
+    Route.connect(LinkType.MANUAL, Complete)
+    Route.connect(LinkType.MANUAL, Code2)
+    Route.connect(LinkType.MANUAL, Code3)
     runtime.page().append(Flow1)
     await runtime.commit()
 
     Route.code = code("""
-return {
-    "plans": [call_none()],
-}
+pass
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
@@ -73,8 +71,8 @@ return {
 
 
 @simulated_runtime()
-async def test_run_flow_call_tool(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with a tool call."""
+async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Run a Flow with a tool call Tasks in Plans."""
     Flow1 = Flow.new("Flow1", fields=[Field.input("Input1", str), Field.output("Output1", str)])
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
@@ -103,17 +101,18 @@ async def test_run_flow_call_tool(simulation: Simulation, runtime: RuntimeLambda
 
     # run tool within flow via calls
     Code1.code = code("""\
-return {
-    "plans": [call(Tool1, type=ActionType.CODE, code=code("pass"))],
-}
+plan = Plan.serial(
+    Task.run(Tool1, type=ActionType.CODE, code=code("pass")),
+)
+run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
 
 
 @simulated_runtime()
-async def test_run_flow_call_route(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Runs a Flow with some basic routing plans."""
+async def test_run_flow_plan_route(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Runs a Flow with some basic routing Plans."""
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
@@ -124,19 +123,18 @@ async def test_run_flow_call_route(simulation: Simulation, runtime: RuntimeLambd
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Route, Code2, Code3, Code4, Code5, Complete)
     Start.connect(LinkType.MANUAL, Route)
-    Route.connect(LinkType.AUTOMATIC, Complete)
-    Route.connect(LinkType.AUTOMATIC, Code2)
-    Route.connect(LinkType.AUTOMATIC, Code3)
-    Route.connect(LinkType.AUTOMATIC, Code4)
+    Route.connect(LinkType.MANUAL, Complete)
+    Route.connect(LinkType.MANUAL, Code2)
+    Route.connect(LinkType.MANUAL, Code3)
+    Route.connect(LinkType.MANUAL, Code4)
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    # Route: Code2, Code3git st
+    # Route: Code2, Code3
     Route.code = code("""\
-return {
-    "plans": [call_serial(call(Code2), call(Code3))],
-}
-    """)
+plan = Plan.serial(Task.run(Code2), Task.run(Code3))
+run.plans.append(plan)
+""")
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
     assert runner.tracked_run.has(Code2)
@@ -146,9 +144,8 @@ return {
 
     # Route: Code4
     Route.code = code("""\
-return {
-    "plans": [call_serial(call(Code4))],
-}
+plan = Plan.serial(Task.run(Code4))
+run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
@@ -159,9 +156,8 @@ return {
 
     # Route: Code2 & Complete
     Route.code = code("""\
-return {
-    "plans": [call_parallel(call(Code2), call(Complete))],
-}
+plan = Plan.parallel(Task.run(Code2), Task.run(Complete))
+run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
@@ -172,9 +168,8 @@ return {
 
     # Route: Code5 (is not connected, so should be skipped)
     Route.code = code("""\
-return {
-    "plans": [call_serial(call(Code5))],
-}
+plan = Plan.serial(Task.run(Code5))
+run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
@@ -182,8 +177,8 @@ return {
 
 
 @simulated_runtime()
-async def test_run_flow_call_plan(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with more complex call plans."""
+async def test_run_flow_plan_multiple(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Run a Flow with multiple Plans."""
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Plan1 = Action.new(ActionType.CODE, "Plan1", code=code("pass"))
@@ -207,13 +202,10 @@ async def test_run_flow_call_plan(simulation: Simulation, runtime: RuntimeLambda
 
     # Plan: Code1 + Code1, Code2 + Code2
     Plan1.code = code("""\
-return {
-    "plans": [
-        call_serial(call(Code1), call(Code1)),
-        call_serial(call(Code2), call(Code2)),
-        call_parallel(call(Code1), call(Code2)),
-    ],
-}
+plan1 = Plan.serial(Task.run(Code1), Task.run(Code1))
+plan2 = Plan.serial(Task.run(Code2), Task.run(Code2))
+plan3 = Plan.parallel(Task.run(Code1), Task.run(Code2))
+run.plans.extend(plan1, plan2, plan3)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
@@ -223,11 +215,14 @@ return {
     # Plan: Code1, Code2, Fail, Code3
     #  -> Code3 should be skipped after fail
     Plan1.code = code("""\
-return {
-    "plans": [
-        call_serial(call(Code1), call(Code2), call(Fail), call(Code3), on_error=CallFailureMode.COMPLETE),
-    ],
-}
+plan = Plan.serial(
+    Task.run(Code1),
+    Task.run(Code2),
+    Task.run(Fail),
+    Task.run(Code3),
+    on_error=PlanFailureMode.COMPLETE,
+)
+run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
@@ -239,9 +234,12 @@ return {
     # Plan: Code1, Complete (return on terminate)
     # -> should terminate (and not loop endlessly..)
     Plan1.code = code("""\
-return {
-    "plans": [call_serial(call(Code1), call(Complete), on_terminate=CallTerminationMode.RETURN)],
-}
+plan = Plan.serial(
+    Task.run(Code1),
+    Task.run(Complete),
+    on_terminate=PlanTerminationMode.RETURN,
+)
+run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
