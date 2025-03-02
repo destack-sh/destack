@@ -301,7 +301,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         required_links = tuple(
             p
             for p in outgoing_links
-            if (p.type == LinkType.REQUIRE or p.type == LinkType.MANUAL)
+            if (p.type == LinkType.REQUIRE or p.type == LinkType.FORCE)
             and p.is_triggered_by(run.status)
         )
         optional_links = set(required_links)

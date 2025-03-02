@@ -49,17 +49,16 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    MANUAL = 10, "Manual", "Implement manually"
-    AUTOMATIC = 20, "Automatic", "Implement automatically"
-    STATE = 30, "State", "Track progress inside a Run"
-    RUN = 40, "Run", "Run a specific Runnable"
+    AUTOMATIC = 10, "Automatic", "Implement automatically"
+    STATE = 20, "State", "Track progress inside a Run"
+    RUN = 30, "Run", "Run a specific Runnable"
 
 
 @enum_(EnumType.TASK_STATUS)
 class TaskStatus(BuiltinEnum):
     # pre
     CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
-    ASSIGNED = 2, None, None, "fas fa-user", ColorType.GRAY
+    ASSIGNED = 2, None, None, "far fa-rhombus", ColorType.GRAY
     # active
     RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.GREEN
     # waiting

@@ -148,7 +148,8 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
             self.flow is not None
             and not has_plan
             and any(
-                p.source_id == self.node.id and (p.type != LinkType.MANUAL)
+                p.source_id == self.node.id
+                and (p.type != LinkType.SELECT and p.type != LinkType.FORCE)
                 for p in self.flow.node.links
             )
         ):
