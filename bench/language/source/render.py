@@ -50,8 +50,8 @@ from bench.language.core import (
     reverse_icon,
     reverse_path_element,
     reverse_type_scalar,
+    text_to_markdown,
 )
-from bench.language.core.text import text_to_markdown
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -65,10 +65,11 @@ from .flow import Flow
 from .link import Link
 from .option import Option
 from .page import Page
+from .task import Task
 from .view import View
 
 if TYPE_CHECKING:
-    pass
+    from bench.language import Plan
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -329,18 +330,18 @@ class Renderer:
                 subtype = subtype_cls(value._type.constraint.node_subtypes[0])
                 args = (
                     subtype_cls.__name__ + "." + subtype.name,
-                    self._render_kwargs(**rendered_kwargs) or None,
+                    self.render_kwargs(**rendered_kwargs) or None,
                 )
-                return f"{node_cls.__name__}.partial({self._render_args(*args)})"
+                return f"{node_cls.__name__}.partial({self.render_args(*args)})"
             else:
-                return f"{node_cls.__name__}.partial({self._render_kwargs(**rendered_kwargs)})"
+                return f"{node_cls.__name__}.partial({self.render_kwargs(**rendered_kwargs)})"
         elif (
             typ.base_field_types
             and FieldType.MEMBER in typ.base_field_types
             and (base_type := typ.base_type) is not None
         ):
             # object representation
-            kwargs_str = f"{base_type.code_name}({self._render_kwargs(**rendered_kwargs)})"
+            kwargs_str = f"{base_type.code_name}({self.render_kwargs(**rendered_kwargs)})"
             return kwargs_str
         else:
             # default dict representation
@@ -367,11 +368,11 @@ class Renderer:
             else:
                 return f"[{', '.join(self.render_value_scalar(v, typ) for v in cast(list, value))}]"
 
-    def _render_kwargs(self, **kwargs: Any) -> str:
+    def render_kwargs(self, **kwargs: Any) -> str:
         """Renders kwargs into a string."""
         return ", ".join(f"{k}={v}" for k, v in kwargs.items())
 
-    def _render_args(self, *args: Any) -> str:
+    def render_args(self, *args: Any) -> str:
         """Renders args into a string."""
         return ", ".join(a for a in args if a is not None)
 
@@ -618,7 +619,7 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         """Render the given object to a Python expression (string)."""
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
+        return f"{obj.__class__.__name__}({renderer.render_kwargs(**rendered_kwargs)})"
 
 
 #
@@ -654,7 +655,7 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         """Create the constructor expression for a BuiltinObject (for the default .render)."""
-        return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
+        return f"{obj.__class__.__name__}({renderer.render_kwargs(**rendered_kwargs)})"
 
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
@@ -697,10 +698,10 @@ class BlockRenderer(SourceNodeRenderer[Block]):
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        block_args = renderer._render_args(
+        block_args = renderer.render_args(
             rendered_kwargs.pop("type"),
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Block.new({block_args})"
 
@@ -715,10 +716,10 @@ class ViewRenderer(SourceNodeRenderer[View]):
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        view_args = renderer._render_args(
+        view_args = renderer.render_args(
             rendered_kwargs.pop("type"),
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"View.new({view_args})"
 
@@ -736,9 +737,9 @@ class FlowRenderer(SourceNodeRenderer[Flow]):
         # inline name only for now
         args = (
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Flow.new({renderer._render_args(*args)})"
+        return f"Flow.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.ACTION)
@@ -751,10 +752,10 @@ class ActionRenderer(SourceNodeRenderer[Action]):
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        action_args = renderer._render_args(
+        action_args = renderer.render_args(
             rendered_kwargs.pop("type"),
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Action.new({action_args})"
 
@@ -784,16 +785,16 @@ class LinkRenderer(SourceNodeRenderer[Link]):
                 f"LinkType.{obj.type.name}",
                 target_ref,
                 repr(obj.name),
-                renderer._render_kwargs(**rendered_kwargs) or None,
+                renderer.render_kwargs(**rendered_kwargs) or None,
             )
-            return f"{source_ref}.connect({renderer._render_args(*args)})"
+            return f"{source_ref}.connect({renderer.render_args(*args)})"
         else:
             args = (
                 rendered_kwargs.pop("type"),
                 rendered_kwargs.pop("name"),
-                renderer._render_kwargs(**rendered_kwargs) or None,
+                renderer.render_kwargs(**rendered_kwargs) or None,
             )
-            return f"Link.new({renderer._render_args(*args)})"
+            return f"Link.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.CHOICE)
@@ -812,9 +813,9 @@ class ChoiceRenderer(SourceNodeRenderer[Choice]):
         args = (
             rendered_kwargs.pop("name"),
             *options_refs,
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Choice.new({renderer._render_args(*args)})"
+        return f"Choice.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.CLASS)
@@ -833,9 +834,9 @@ class ClassRenderer(SourceNodeRenderer[Class]):
         args = (
             rendered_kwargs.pop("name"),
             *fields_refs,
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Class.new({renderer._render_args(*args)})"
+        return f"Class.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.DATABASE)
@@ -854,9 +855,9 @@ class DatabaseRenderer(SourceNodeRenderer[Database]):
         args = (
             rendered_kwargs.pop("name"),
             *fields_refs,
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Database.new({renderer._render_args(*args)})"
+        return f"Database.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.PAGE)
@@ -872,9 +873,9 @@ class PageRenderer(SourceNodeRenderer[Page]):
         # inline name only for now
         args = (
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Page.new({renderer._render_args(*args)})"
+        return f"Page.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.FIELD)
@@ -896,14 +897,14 @@ class FieldRenderer(SourceNodeRenderer[Field]):
         constructor_name = obj.type.name.lower()
         rendered_kwargs.pop("type", None)
         if type_in is not None:
-            field_args = renderer._render_args(
+            field_args = renderer.render_args(
                 rendered_kwargs.pop("name"),
                 type_in,
-                renderer._render_kwargs(**rendered_kwargs) or None,
+                renderer.render_kwargs(**rendered_kwargs) or None,
             )
         else:
-            field_args = renderer._render_args(
-                rendered_kwargs.pop("name"), renderer._render_kwargs(**rendered_kwargs) or None
+            field_args = renderer.render_args(
+                rendered_kwargs.pop("name"), renderer.render_kwargs(**rendered_kwargs) or None
             )
         return f"Field.{constructor_name}({field_args})"
 
@@ -921,9 +922,49 @@ class OptionRenderer(SourceNodeRenderer[Option]):
         # inline name only for now
         args = (
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs) or None,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Option.new({renderer._render_args(*args)})"
+        return f"Option.new({renderer.render_args(*args)})"
+
+
+@_renderer(NodeType.PLAN)
+class PlanRenderer(NodeRenderer["Plan"]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: "Plan",
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline tasks like in Class.new
+        tasks_refs = [renderer.render_builtin_object(task) for task in obj.tasks]
+        rendered_kwargs.pop("type", None)
+        rendered_kwargs.pop("tasks", None)
+        args = (
+            rendered_kwargs.pop("name"),
+            *tasks_refs,
+            renderer.render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Plan.{obj.type.name.lower()}({renderer.render_args(*args)})"
+
+
+@_renderer(NodeType.TASK)
+class TaskRenderer(SourceNodeRenderer[Task]):
+    @override
+    def render(self, renderer: "Renderer", obj: Task) -> str:
+        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        node = kwargs.pop(Task.get_property("node"))
+        node_str = renderer.render_node_ref(node)
+        value = kwargs.pop(Task.get_property("value"))
+        value_kwargs = _deconstruct_custom_object(value)
+        kwargs.pop(Task.get_property("type"), None)
+        # render
+        rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
+        rendered_value_kwargs = _render_custom_object_kwargs(renderer, value, value_kwargs)
+        rendered_kwargs.update(rendered_value_kwargs)
+        args = renderer.render_args(node_str, renderer.render_kwargs(**rendered_kwargs) or None)
+        return f"Task.{obj.type.name.lower()}({args})"
 
 
 #
@@ -937,16 +978,16 @@ class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
     def render(self, renderer: "Renderer", obj: TypeBase) -> str:
         if obj.kind == TypeKind.PARTIAL_OBJECT:
             node_cls, rendered_kwargs = _desconstruct_partial_type(renderer, obj)
-            return f"{node_cls.__name__}.partial_type({renderer._render_kwargs(**rendered_kwargs)})"
+            return f"{node_cls.__name__}.partial_type({renderer.render_kwargs(**rendered_kwargs)})"
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
         if type_in is not None:
-            type_args = renderer._render_args(
-                type_in, renderer._render_kwargs(**rendered_kwargs) or None
+            type_args = renderer.render_args(
+                type_in, renderer.render_kwargs(**rendered_kwargs) or None
             )
         else:
-            type_args = renderer._render_args(renderer._render_kwargs(**rendered_kwargs) or None)
+            type_args = renderer.render_args(renderer.render_kwargs(**rendered_kwargs) or None)
         return f"to_type({type_args})"
 
 
@@ -956,7 +997,7 @@ class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
     def render(self, renderer: "Renderer", obj: TypeConstraint) -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        return f"constraint({renderer._render_kwargs(**rendered_kwargs)})"
+        return f"constraint({renderer.render_kwargs(**rendered_kwargs)})"
 
 
 @_renderer(StructType.TEXT)
@@ -1038,7 +1079,7 @@ class ComputedValueRenderer(BuiltinObjectRenderer[ComputedValue]):
                 rendered_kwargs["source"] = renderer.render_expression(source)
         if obj.mode != ComputedValueMode.ALWAYS:
             rendered_kwargs["mode"] = f"ComputedValueMode.{obj.mode.name}"
-        return f"ComputedValue.new({renderer._render_kwargs(**rendered_kwargs)})"
+        return f"ComputedValue.new({renderer.render_kwargs(**rendered_kwargs)})"
 
 
 #
