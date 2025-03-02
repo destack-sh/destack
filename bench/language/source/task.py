@@ -49,9 +49,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    MANUAL = 10, "Manual", "Manually run it"
-    AUTOMATIC = 20, "Automatic", "Automatically run it"
-    STATE = 30, "State", "Track the progress inside a Run"
+    MANUAL = 10, "Manual", "Implement manually"
+    AUTOMATIC = 20, "Automatic", "Implement automatically"
+    STATE = 30, "State", "Track progress inside a Run"
     RUN = 40, "Run", "Run a specific Runnable"
 
 
@@ -137,10 +137,10 @@ class Task(HasTimeIdentity, InlineSourceNode[TaskData]):
 
     @staticmethod
     def run(
+        name: str,
         node: "Flow | Action",
         value: CustomObject | None = None,
         *,
-        name: str | None = None,
         text: "Text | None" = None,
         **kwargs,
     ) -> "Task":
@@ -154,7 +154,5 @@ class Task(HasTimeIdentity, InlineSourceNode[TaskData]):
         )
         assert value_type is not None, f"no call value type for {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
-        task = Task(node=node, text=text, value=value, **kwargs)
-        if name is not None:
-            task.name = name
+        task = Task(type=TaskType.RUN, name=name, node=node, text=text, value=value)
         return task

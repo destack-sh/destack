@@ -19,6 +19,7 @@ from bench.language.core import (
     p_regular,
     timed_node_,
 )
+from bench.language.core.validation import NAME_CONSTRAINT
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
@@ -78,6 +79,7 @@ class Plan(RuntimeNode[PlanData]):
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
+    name: str = p_regular(40, constraint=NAME_CONSTRAINT)
     termination_mode: "PlanTerminationMode" = p_internal(41, default=PlanTerminationMode.RETURN)
     failure_mode: "PlanFailureMode" = p_internal(42, default=PlanFailureMode.COMPLETE)
 
@@ -104,20 +106,29 @@ class Plan(RuntimeNode[PlanData]):
 
     @staticmethod
     def serial(
+        name: str,
         *tasks: "Task",
         on_terminate: PlanTerminationMode = PlanTerminationMode.RETURN,
         on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
     ) -> "Plan":
-        plan = Plan(type=PlanType.SERIAL, termination_mode=on_terminate, failure_mode=on_failure)
+        plan = Plan(
+            type=PlanType.SERIAL, name=name, termination_mode=on_terminate, failure_mode=on_failure
+        )
         plan.tasks.extend(*tasks)
         return plan
 
     @staticmethod
     def parallel(
+        name: str,
         *tasks: "Task",
         on_terminate: PlanTerminationMode = PlanTerminationMode.RETURN,
         on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
     ) -> "Plan":
-        plan = Plan(type=PlanType.PARALLEL, termination_mode=on_terminate, failure_mode=on_failure)
+        plan = Plan(
+            type=PlanType.PARALLEL,
+            name=name,
+            termination_mode=on_terminate,
+            failure_mode=on_failure,
+        )
         plan.tasks.extend(*tasks)
         return plan

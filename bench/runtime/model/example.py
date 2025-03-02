@@ -7,6 +7,8 @@ from typing import Any, Callable, NamedTuple, Sequence, override
 from uuid import UUID
 
 import pytz
+import structlog
+from opentelemetry import trace
 
 from bench.language import (
     ACTIVE_SESSION,
@@ -59,6 +61,9 @@ from .prompt import Prompt, PromptCode, PromptCompound, PromptPart, PromptRegion
 
 # ruff: noqa: F401,B018
 # pyright: reportUnusedExpression=false
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # NOTE: only import this file after import is complete
 assert _is_setup_complete(), "import this file after import is complete"
@@ -205,7 +210,13 @@ def example_(title: str, weight: int = 1):
 
             # plans
             if response_in.plans:
-                plans_code = f"run.plans.extend({', '.join(renderer.render_object(p) for p in response_in.plans)})"
+                plans_code = []
+                for i, plan in enumerate(response_in.plans):
+                    plans_code.append(f"next_plan{i + 1} = {renderer.render_object(plan)}")
+                plans_code.append(
+                    f"run.plans.extend({', '.join(f'next_plan{i + 1}' for i in range(len(response_in.plans)))})"
+                )
+                plans_code = "\n".join(plans_code)
             else:
                 plans_code = None
 
@@ -216,14 +227,18 @@ def example_(title: str, weight: int = 1):
             if response_in.comment:
                 response_code = f"# {response_in.comment}\n{response_code}"
             response_code = format_code(response_code)
+
+            # example
+            example = PromptExample(
+                title=title, text=text, request=request, response=response_code, weight=weight
+            )
+            EXAMPLES.append(example)
+            logger.trace("example.generate", title=title)
+        except Exception as e:
+            logger.exception("example.generate.error", title=title, exc_info=e)
+            raise
         finally:
             ACTIVE_SESSION.reset(token)
-
-        # example
-        example = PromptExample(
-            title=title, text=text, request=request, response=response_code, weight=weight
-        )
-        EXAMPLES.append(example)
 
     return decorator
 
@@ -347,9 +362,10 @@ def flow_basic_planning(package: Package):
     # ---
     plans = [
         Plan.serial(
-            Task.run(Click1, element_id="7", button="left"),
-            Task.run(Type1, element_id="2", string="florian@symbolx.com"),
-            Task.run(Press1, element_id="3", combination="Enter"),
+            "Enter email",
+            Task.run("Click button", Click1, element_id="7", button="left"),
+            Task.run("Type email", Type1, element_id="2", string="florian@symbolx.com"),
+            Task.run("Press enter", Press1, element_id="3", combination="Enter"),
         )
     ]
     return ExampleIn(
@@ -380,8 +396,9 @@ def basic_planning_with_tools(package: Package):
     # ---
     plans = [
         Plan.serial(
-            Task.run(Tool1, type=ActionType.TYPE, string="Hello World!"),
-            Task.run(Tool1, type=ActionType.PRESS, combination="Enter"),
+            "Enter query",
+            Task.run("Type text", Tool1, type=ActionType.TYPE, string="Hello World!"),
+            Task.run("Press enter", Tool1, type=ActionType.PRESS, combination="Enter"),
         )
     ]
     return ExampleIn(
@@ -391,38 +408,6 @@ def basic_planning_with_tools(package: Package):
             comment="Route to the tool action.",
             plans=plans,
             outputs={},
-        ),
-    )
-
-
-@example_("Optional Plan")
-def flow_simple_extract_without_plan(package: Package):
-    """No plans needed when the Flow is done and the outputs are set."""
-    Flow1 = Flow.new(
-        name="Flow1",
-        fields=[Field.input("Text", str), Field.output("Names", str, is_list=True)],
-    )
-    Start = Action.new(ActionType.START, name="Start")
-    Extract = Action.new(
-        ActionType.EXTRACT, name="Extract", fields=[Field.output("Names", str, is_list=True)]
-    )
-    Complete = Action.new(ActionType.COMPLETE, name="Complete")
-    Complete.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Names),
-        source=(Extract, PathElementType.RUN, Run.get_property("outputs"), Extract.fields.Names),
-    )
-    Flow1.actions.extend(Start, Extract, Complete)
-    Start.connect(LinkType.REQUIRE, Extract)
-    Extract.connect(LinkType.REQUIRE, Complete)
-    # Inputs
-    {"Text": "And then Alice met Bob at the park."}
-    # ---
-    return ExampleIn(
-        nodes=[Flow1, *Flow1.actions, *Flow1.links],
-        response=ExampleResponseIn(
-            node=Extract,
-            comment="No plan because the next Action is Call->Complete and its fields are computed.",
-            outputs={"Names": ["Alice", "Bob"]},
         ),
     )
 
@@ -443,7 +428,8 @@ def flow_implicit_transformation_in_call(package: Package):
     # ---
     plans = [
         Plan.serial(
-            Task.run(Complete, Greeting="Hello Alice!"),
+            "Complete",
+            Task.run("Complete", Complete, Greeting="Hello Alice!"),
         )
     ]
     return ExampleIn(
@@ -469,12 +455,14 @@ def flow_send_message(package: Package):
     # ---
     plans = [
         Plan.serial(
+            "Send message",
             Task.run(
+                "Send message",
                 Send1,
                 message_in=Message.partial(
                     channel=Channel1, reply_to=Message1, text="Not much, and you?"
                 ),
-            )
+            ),
         )
     ]
     return ExampleIn(
