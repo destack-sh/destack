@@ -29,12 +29,12 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, Complete)
-    Start.connect(LinkType.MANUAL, Race1)
-    Start.connect(LinkType.MANUAL, Race2)
-    Start.connect(LinkType.MANUAL, Race3)
-    Race1.connect(LinkType.MANUAL, Complete)
-    Race2.connect(LinkType.MANUAL, Complete)
-    Race3.connect(LinkType.MANUAL, Complete)
+    Start.connect(LinkType.FORCE, Race1)
+    Start.connect(LinkType.FORCE, Race2)
+    Start.connect(LinkType.FORCE, Race3)
+    Race1.connect(LinkType.FORCE, Complete)
+    Race2.connect(LinkType.FORCE, Complete)
+    Race3.connect(LinkType.FORCE, Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -55,10 +55,10 @@ async def test_run_flow_plan_none(simulation: Simulation, runtime: RuntimeLambda
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Route, Code2, Code3, Complete)
-    Start.connect(LinkType.MANUAL, Route)
-    Route.connect(LinkType.MANUAL, Complete)
-    Route.connect(LinkType.MANUAL, Code2)
-    Route.connect(LinkType.MANUAL, Code3)
+    Start.connect(LinkType.FORCE, Route)
+    Route.connect(LinkType.SELECT, Complete)
+    Route.connect(LinkType.SELECT, Code2)
+    Route.connect(LinkType.SELECT, Code3)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -79,9 +79,9 @@ async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambda
     Tool1 = Action.new(ActionType.TOOL, "Tool1")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Tool1, Complete)
-    Start.connect(LinkType.MANUAL, Code1)
-    Code1.connect(LinkType.MANUAL, Tool1)
-    Tool1.connect(LinkType.MANUAL, Complete)
+    Start.connect(LinkType.FORCE, Code1)
+    Code1.connect(LinkType.SELECT, Tool1)
+    Tool1.connect(LinkType.SELECT, Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -122,11 +122,11 @@ async def test_run_flow_plan_route(simulation: Simulation, runtime: RuntimeLambd
     Code5 = Action.new(ActionType.CODE, "Code5", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Route, Code2, Code3, Code4, Code5, Complete)
-    Start.connect(LinkType.MANUAL, Route)
-    Route.connect(LinkType.MANUAL, Complete)
-    Route.connect(LinkType.MANUAL, Code2)
-    Route.connect(LinkType.MANUAL, Code3)
-    Route.connect(LinkType.MANUAL, Code4)
+    Start.connect(LinkType.FORCE, Route)
+    Route.connect(LinkType.SELECT, Complete)
+    Route.connect(LinkType.SELECT, Code2)
+    Route.connect(LinkType.SELECT, Code3)
+    Route.connect(LinkType.SELECT, Code4)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -189,14 +189,14 @@ async def test_run_flow_plan_multiple(simulation: Simulation, runtime: RuntimeLa
     Fail = Action.new(ActionType.FAIL, "Fail")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Plan1, Code1, Code2, Code3, Code4, Fail, Complete)
-    Start.connect(LinkType.MANUAL, Plan1)
+    Start.connect(LinkType.FORCE, Plan1)
     # Plan1 -?> Code1, Code2, Code3, Code4, Complete, Fail
-    Plan1.connect(LinkType.AUTOMATIC, Code1)
-    Plan1.connect(LinkType.AUTOMATIC, Code2)
-    Plan1.connect(LinkType.AUTOMATIC, Code3)
-    Plan1.connect(LinkType.AUTOMATIC, Code4)
-    Plan1.connect(LinkType.AUTOMATIC, Complete)
-    Plan1.connect(LinkType.AUTOMATIC, Fail)
+    Plan1.connect(LinkType.SELECT, Code1)
+    Plan1.connect(LinkType.SELECT, Code2)
+    Plan1.connect(LinkType.SELECT, Code3)
+    Plan1.connect(LinkType.SELECT, Code4)
+    Plan1.connect(LinkType.SELECT, Complete)
+    Plan1.connect(LinkType.SELECT, Fail)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -255,8 +255,8 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Complete)
-    Start.connect(LinkType.MANUAL, Yield)
-    Yield.connect(LinkType.MANUAL, Complete)
+    Start.connect(LinkType.FORCE, Yield)
+    Yield.connect(LinkType.FORCE, Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -295,8 +295,8 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     YieldInner = Action.new(ActionType.YIELD, "YieldInner")
     CompleteInner = Action.new(ActionType.COMPLETE, "CompleteInner")
     FlowInner.actions.extend(StartInner, YieldInner, CompleteInner)
-    StartInner.connect(LinkType.MANUAL, YieldInner)
-    YieldInner.connect(LinkType.MANUAL, CompleteInner)
+    StartInner.connect(LinkType.FORCE, YieldInner)
+    YieldInner.connect(LinkType.FORCE, CompleteInner)
 
     # outer flow
     FlowOuter = Flow.new("FlowOuter")
@@ -304,8 +304,8 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     ActionOuter = Action.new(ActionType.TOOL, "Action", tool=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
-    StartOuter.connect(LinkType.MANUAL, ActionOuter)
-    ActionOuter.connect(LinkType.MANUAL, CompleteOuter)
+    StartOuter.connect(LinkType.FORCE, ActionOuter)
+    ActionOuter.connect(LinkType.FORCE, CompleteOuter)
 
     runtime.page().extend(FlowInner, FlowOuter)
     await runtime.commit()
@@ -337,8 +337,8 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Complete)
-    Start.connect(LinkType.MANUAL, Yield)
-    Yield.connect(LinkType.MANUAL, Complete)
+    Start.connect(LinkType.FORCE, Yield)
+    Yield.connect(LinkType.FORCE, Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -374,13 +374,13 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Action1, Complete)
     StartToYield = Start.connect(
-        LinkType.MANUAL,
+        LinkType.FORCE,
         Yield,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
     )
-    Yield.connect(LinkType.MANUAL, Action1)
+    Yield.connect(LinkType.FORCE, Action1)
     Action1ToComplete = Action1.connect(
-        LinkType.MANUAL,
+        LinkType.FORCE,
         Complete,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
@@ -432,9 +432,9 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Action1, Action2, Complete)
-    Start.connect(LinkType.MANUAL, Action1)
-    Action1.connect(LinkType.MANUAL, Action2)
-    Action2.connect(LinkType.MANUAL, Complete)
+    Start.connect(LinkType.FORCE, Action1)
+    Action1.connect(LinkType.FORCE, Action2)
+    Action2.connect(LinkType.FORCE, Complete)
     runtime.page().append(Flow1)
     await runtime.commit()
 

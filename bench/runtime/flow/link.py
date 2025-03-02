@@ -71,7 +71,8 @@ class LinkRunner(Runner[Link], ABC):
 
 
 LINK_RUNNER_BY_LINK_TYPE: dict[LinkType, type[LinkRunner]] = {
-    LinkType.MANUAL: LinkRunner,
-    LinkType.AUTOMATIC: LinkRunner,
+    LinkType.DECIDE: LinkRunner,
     LinkType.REQUIRE: LinkRunner,
+    LinkType.SELECT: LinkRunner,
+    LinkType.FORCE: LinkRunner,
 }

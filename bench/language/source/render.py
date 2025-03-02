@@ -963,7 +963,9 @@ class TaskRenderer(SourceNodeRenderer[Task]):
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_value_kwargs = _render_custom_object_kwargs(renderer, value, value_kwargs)
         rendered_kwargs.update(rendered_value_kwargs)
-        args = renderer.render_args(node_str, renderer.render_kwargs(**rendered_kwargs) or None)
+        args = renderer.render_args(
+            rendered_kwargs.pop("name"), node_str, renderer.render_kwargs(**rendered_kwargs) or None
+        )
         return f"Task.{obj.type.name.lower()}({args})"
 
 
