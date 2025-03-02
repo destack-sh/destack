@@ -3,7 +3,7 @@ import inspect
 import textwrap
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Sequence, override
+from typing import Any, Callable, NamedTuple, Sequence, override
 from uuid import UUID
 
 import pytz
@@ -37,11 +37,14 @@ from bench.language import (
     Package,
     PackageType,
     PathElementType,
+    Plan,
     Region,
     Renderer,
     RenderOptions,
     Run,
+    RunnableNode,
     Session,
+    Task,
     User,
     UserStatus,
     _is_setup_complete,
@@ -84,7 +87,7 @@ class PromptExample(PromptCompound):
         )
 
 
-def make_example_bench() -> tuple[Bench, Package, Session, User]:
+def _make_example_bench() -> tuple[Bench, Package, Session, User]:
     bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(name="Global", root_ptr=bench_ptr)
     graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
@@ -130,11 +133,11 @@ def make_example_bench() -> tuple[Bench, Package, Session, User]:
         ACTIVE_SESSION.reset(token)
 
 
-EXAMPLE_BENCH, EXAMPLE_PACKAGE, EXAMPLE_SESSION, EXAMPLE_USER = make_example_bench()
+EXAMPLE_BENCH, EXAMPLE_PACKAGE, EXAMPLE_SESSION, EXAMPLE_USER = _make_example_bench()
 EXAMPLES: list[PromptExample] = []
 
 
-def get_function_body(func) -> str:
+def _get_function_body(func) -> str:
     """Extract the body of a function as a nicely formatted string."""
     lines, _ = inspect.getsourcelines(func)
     src = "".join(lines)
@@ -153,23 +156,33 @@ def get_function_body(func) -> str:
     return textwrap.dedent("".join(body_lines))
 
 
+class ExampleIn(NamedTuple):
+    nodes: Sequence[Node]
+    response: "ExampleResponseIn"
+
+
+class ExampleResponseIn(NamedTuple):
+    node: RunnableNode
+    code: str | None = None
+    outputs: dict[str, Any] | None = None
+    plans: list[Plan] | None = None
+    comment: str | None = None
+
+
 def example_(title: str, weight: int = 1):
     """Register an example."""
 
     def decorator(
         func: Callable[
             [Package],
-            tuple[
-                Sequence[Node] | str,
-                CustomObject | tuple[Action, dict] | tuple[str, Action, dict] | str,
-            ],
+            ExampleIn,
         ],
     ):
         text = func.__doc__
         assert text, f"example {func!r} has no docstring"
 
         # request
-        raw_source = get_function_body(func)
+        raw_source = _get_function_body(func)
         if "# ---" in raw_source:
             request = raw_source.split("# ---")[0]
         else:
@@ -178,33 +191,37 @@ def example_(title: str, weight: int = 1):
         # response
         token = ACTIVE_SESSION.set(EXAMPLE_SESSION)
         try:
-            response = func(EXAMPLE_PACKAGE)[1]
-            comment: str | None = None
-            if isinstance(response, tuple):
-                if len(response) == 3:
-                    comment, action, output = response
-                else:
-                    action, output = response
-                output_type = action.output_type
-                assert output_type is not None, f"example {func!r} has no output type"
-                response = coerce_custom_object_scalar(
-                    output, typ=output_type, supergraph=EXAMPLE_PACKAGE._supergraph
-                )
-            if isinstance(response, CustomObject):
-                renderer = Renderer(
-                    options=RenderOptions(scope=EXAMPLE_PACKAGE, aliasing=Aliasing())
-                )
-                response = renderer.render_custom_object(response, implicit_partials=True)
-                response = f"return {response}"
-                if comment:
-                    response = f"# {comment}\n{response}"
-                response = format_code(response)
+            example_in = func(EXAMPLE_PACKAGE)
+            response_in = example_in.response
+
+            # outputs
+            output_type = response_in.node.output_type
+            assert output_type is not None, f"example {func!r} has no output type"
+            outputs = coerce_custom_object_scalar(
+                response_in.outputs, typ=output_type, supergraph=EXAMPLE_PACKAGE._supergraph
+            )
+            renderer = Renderer(options=RenderOptions(scope=EXAMPLE_PACKAGE, aliasing=Aliasing()))
+            outputs_code = renderer.render_custom_object(outputs, implicit_partials=True)
+
+            # plans
+            if response_in.plans:
+                plans_code = f"run.plans.extend({', '.join(renderer.render_object(p) for p in response_in.plans)})"
+            else:
+                plans_code = None
+
+            # response code
+            response_code = response_in.code or f"return {outputs_code}"
+            if plans_code:
+                response_code = f"{plans_code}\n{response_code}"
+            if response_in.comment:
+                response_code = f"# {response_in.comment}\n{response_code}"
+            response_code = format_code(response_code)
         finally:
             ACTIVE_SESSION.reset(token)
 
         # example
         example = PromptExample(
-            title=title, text=text, request=request, response=response, weight=weight
+            title=title, text=text, request=request, response=response_code, weight=weight
         )
         EXAMPLES.append(example)
 
@@ -235,7 +252,11 @@ def basic_field_reference(package: Package):
     )
     # Input
     {"Text": "Feeling pretty good today."}
-    return [Sentiment, Action1], (Action1, {"Sentiment": Sentiment.options.Happy})
+    # ---
+    return ExampleIn(
+        nodes=[Sentiment, Action1],
+        response=ExampleResponseIn(node=Action1, outputs={"Sentiment": Sentiment.options.Happy}),
+    )
 
 
 #
@@ -253,7 +274,10 @@ def action_simple(package: Package):
         fields=[Field.output("Output1", str), Field.output("Output2", str, is_required=True)],
     )
     # ---
-    return [Action1], (Action1, {"Output2": "Hello World!"})
+    return ExampleIn(
+        nodes=[Action1],
+        response=ExampleResponseIn(node=Action1, outputs={"Output2": "Hello World!"}),
+    )
 
 
 @example_("Failing an Impossible Request")
@@ -265,11 +289,14 @@ def action_failing_impossible_request(package: Package):
         text=text("Generate the solution to all the worlds problem in one go"),
     )
     # ---
-    return (
-        [Act1],
-        """\
+    return ExampleIn(
+        nodes=[Act1],
+        response=ExampleResponseIn(
+            node=Act1,
+            code="""\
 raise ModelIncapableError("I'm afraid I cannot do that.")
 """,
+        ),
     )
 
 
@@ -282,11 +309,14 @@ def action_refusing_illegal_request(package: Package):
         text=text("Implement some obviously terrible logic for nefarious purposes"),
     )
     # ---
-    return (
-        [Generate1],
-        """\
+    return ExampleIn(
+        nodes=[Generate1],
+        response=ExampleResponseIn(
+            node=Generate1,
+            code="""\
 raise ModelRefusedError("I'm afraid I cannot do that.")
 """,
+        ),
     )
 
 
@@ -316,17 +346,20 @@ def flow_basic_planning(package: Package):
     # We're at Look1, assume we know the next few steps
     # ---
     plans = [
-        call_serial(
-            call(Click1, element_id="7", button="left"),
-            call(Type1, element_id="2", string="florian@symbolx.com"),
-            call(Press1, element_id="3", combination="Enter"),
-            on_terminate=CallTerminationMode.RETURN,  # back to Look when done
+        Plan.serial(
+            Task.run(Click1, element_id="7", button="left"),
+            Task.run(Type1, element_id="2", string="florian@symbolx.com"),
+            Task.run(Press1, element_id="3", combination="Enter"),
         )
     ]
-    return [Flow1, *Flow1.actions, *Flow1.links], (
-        "Okay, we know the next few steps here before we need to look again.",
-        Look1,
-        {"plans": plans},
+    return ExampleIn(
+        nodes=[Flow1, *Flow1.actions, *Flow1.links],
+        response=ExampleResponseIn(
+            node=Look1,
+            comment="Okay, we know the next few steps here before we need to look again.",
+            plans=plans,
+            outputs={},
+        ),
     )
 
 
@@ -345,19 +378,20 @@ def basic_planning_with_tools(package: Package):
     # Inputs
     ...  # some application with obvious element ids provided
     # ---
-    # nocheckin: Plans
-    return [Flow1, *Flow1.actions, *Flow1.links], (
-        "Route to the tool action.",
-        Think1,
-        {
-            "plans": [
-                call_serial(
-                    call(Tool1, type=ActionType.TYPE, string="Hello World!"),
-                    call(Tool1, type=ActionType.PRESS, combination="Enter"),
-                    on_terminate=CallTerminationMode.RETURN,
-                )
-            ]
-        },
+    plans = [
+        Plan.serial(
+            Task.run(Tool1, type=ActionType.TYPE, string="Hello World!"),
+            Task.run(Tool1, type=ActionType.PRESS, combination="Enter"),
+        )
+    ]
+    return ExampleIn(
+        nodes=[Flow1, *Flow1.actions, *Flow1.links],
+        response=ExampleResponseIn(
+            node=Think1,
+            comment="Route to the tool action.",
+            plans=plans,
+            outputs={},
+        ),
     )
 
 
@@ -383,10 +417,13 @@ def flow_simple_extract_without_plan(package: Package):
     # Inputs
     {"Text": "And then Alice met Bob at the park."}
     # ---
-    return [Flow1, *Flow1.actions, *Flow1.links], (
-        "No plan because the next Action is Call->Complete and its fields are computed.",
-        Extract,
-        {"Names": ["Alice", "Bob"], "plans": []},
+    return ExampleIn(
+        nodes=[Flow1, *Flow1.actions, *Flow1.links],
+        response=ExampleResponseIn(
+            node=Extract,
+            comment="No plan because the next Action is Call->Complete and its fields are computed.",
+            outputs={"Names": ["Alice", "Bob"]},
+        ),
     )
 
 
@@ -404,10 +441,19 @@ def flow_implicit_transformation_in_call(package: Package):
     # Inputs
     {"Name": "Alice"}
     # ---
-    return [Flow1, *Flow1.actions, *Flow1.links], (
-        "Feed argument to Flow/Complete via plan",
-        Start,
-        {"plans": [call_serial(call(Complete, Greeting="Hello Alice!"))]},
+    plans = [
+        Plan.serial(
+            Task.run(Complete, Greeting="Hello Alice!"),
+        )
+    ]
+    return ExampleIn(
+        nodes=[Flow1, *Flow1.actions, *Flow1.links],
+        response=ExampleResponseIn(
+            node=Start,
+            comment="Feed argument to Flow/Complete via plan",
+            plans=plans,
+            outputs={},
+        ),
     )
 
 
@@ -421,21 +467,24 @@ def flow_send_message(package: Package):
     Channel1.append(Message1)
     ...
     # ---
-    return [Flow1, *Flow1.actions, *Flow1.links], (
-        "Send a Message via the Send Message Action.",
-        Send1,
-        {
-            "plans": [
-                call_serial(
-                    call(
-                        Send1,
-                        message_in=Message.partial(
-                            channel=Channel1, reply_to=Message1, text="Not much, and you?"
-                        ),
-                    )
-                )
-            ]
-        },
+    plans = [
+        Plan.serial(
+            Task.run(
+                Send1,
+                message_in=Message.partial(
+                    channel=Channel1, reply_to=Message1, text="Not much, and you?"
+                ),
+            )
+        )
+    ]
+    return ExampleIn(
+        nodes=[Flow1, *Flow1.actions, *Flow1.links],
+        response=ExampleResponseIn(
+            node=Send1,
+            comment="Send a Message via the Send Message Action.",
+            plans=plans,
+            outputs={},
+        ),
     )
 
 

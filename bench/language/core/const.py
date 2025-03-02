@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.01.0"
+VERSION = "2025.03.01.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -686,7 +686,6 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.VIEW,
     NodeType.TAG,
-    NodeType.PLAN,
     NodeType.TASK,
 )
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
@@ -777,8 +776,6 @@ class StructType(BuiltinEnum):
     RUN_OPTIONS = 12701
     RUN_TRACE = 12703
     RUN_FRAME = 12704
-    CALL = 12730
-    CALL_PLAN = 12731
     BREAKPOINT = 12740
     # model
     TEXT_OPTIONS = 12800

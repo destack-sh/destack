@@ -264,7 +264,7 @@ class Run(RuntimeNode[RunData], HasNodeBase):
     outputs: "CustomObject | None" = p_value_runtime(
         72, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
-    title: str | None = p_regular(74, default=None)
+    name: str | None = p_regular(74, default=None)
     text: Optional["Text"] = p_regular(75, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(76, default=None, struct=StructType.CODE)
 

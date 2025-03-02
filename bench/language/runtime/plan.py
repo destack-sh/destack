@@ -25,8 +25,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Error,
         NodeReference,
-        Package,
-        Page,
         Run,
         Task,
     )
@@ -76,12 +74,12 @@ class Plan(RuntimeNode[PlanData]):
     """A Plan for something like a sequence of Tasks."""
 
     # meta
-    parent: Union["Package", "Page", "Plan", "Run", None] = p_node_parent(
+    parent: Union["Plan", "Run", None] = p_node_parent(
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
-    termination_mode: "PlanTerminationMode" = p_internal(41)
-    failure_mode: "PlanFailureMode" = p_internal(42)
+    termination_mode: "PlanTerminationMode" = p_internal(41, default=PlanTerminationMode.RETURN)
+    failure_mode: "PlanFailureMode" = p_internal(42, default=PlanFailureMode.COMPLETE)
 
     # status
     status: PlanStatus = p_internal(50, default=PlanStatus.CREATED)
@@ -105,13 +103,21 @@ class Plan(RuntimeNode[PlanData]):
         self.status = PlanStatus.FAILED
 
     @staticmethod
-    def serial(*tasks: "Task") -> "Plan":
-        plan = Plan(type=PlanType.SERIAL)
+    def serial(
+        *tasks: "Task",
+        on_terminate: PlanTerminationMode = PlanTerminationMode.RETURN,
+        on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
+    ) -> "Plan":
+        plan = Plan(type=PlanType.SERIAL, termination_mode=on_terminate, failure_mode=on_failure)
         plan.tasks.extend(*tasks)
         return plan
 
     @staticmethod
-    def parallel(*tasks: "Task") -> "Plan":
-        plan = Plan(type=PlanType.PARALLEL)
+    def parallel(
+        *tasks: "Task",
+        on_terminate: PlanTerminationMode = PlanTerminationMode.RETURN,
+        on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
+    ) -> "Plan":
+        plan = Plan(type=PlanType.PARALLEL, termination_mode=on_terminate, failure_mode=on_failure)
         plan.tasks.extend(*tasks)
         return plan

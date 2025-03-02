@@ -154,4 +154,7 @@ class Task(HasTimeIdentity, InlineSourceNode[TaskData]):
         )
         assert value_type is not None, f"no call value type for {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
-        return Task(node=node, name=name, text=text, value=value, **kwargs)
+        task = Task(node=node, text=text, value=value, **kwargs)
+        if name is not None:
+            task.name = name
+        return task

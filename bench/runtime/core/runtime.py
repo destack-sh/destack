@@ -994,7 +994,11 @@ class Runtime:
                     if (trigger := run.trigger) is not None
                     else TriggerEffect.START_RUN
                 )
-                if trigger_effect == TriggerEffect.START_RUN:
+                if trigger_effect in (
+                    TriggerEffect.START_RUN,
+                    TriggerEffect.ENSURE_RUN,
+                    TriggerEffect.REPLACE_RUN,
+                ):
                     # nocheckin: handle ENSURE_RUN/REPLACE_RUN Triggers
                     # lift into new flow
                     self.session.commit_optimistic()
