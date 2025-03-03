@@ -1591,19 +1591,6 @@ class IsInlinable(BuiltinObject):
         references=NodeType.BLOCK,
         description="The Block where this Node is 'defined'.",
     )
-    if TYPE_CHECKING:
-        definition_id: Optional[UUID] = None
-        definition_ck: Optional[UUID] = None
-        definition_ptr: Optional[NodeReference] = None
-
-
-@node_component_()
-class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT], abc.ABC):
-    """A named SourceNode that can be defined inline in a Page."""
-
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-
-    # content
     thread: Optional["Thread"] = p_internal(
         37,
         require=False,
@@ -1615,6 +1602,22 @@ class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT
     tags: list["Tag"] = p_internal(
         38, require=False, array=True, same_bench=True, references=NodeType.TAG
     )
+    if TYPE_CHECKING:
+        definition_id: Optional[UUID] = None
+        definition_ck: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
+        thread_id: Optional[UUID] = None
+        thread_ptr: Optional[NodeReference] = None
+        tags_ptr: tuple[NodeReference, ...] = ()
+
+
+@node_component_()
+class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT], abc.ABC):
+    """A named SourceNode that can be defined inline in a Page."""
+
+    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+
+    # content
     if TYPE_CHECKING:
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None

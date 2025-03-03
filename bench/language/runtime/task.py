@@ -51,9 +51,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    AUTOMATIC = 10, "Automatic", "Implement automatically"
-    STATE = 20, "State", "Track progress inside a Run"
-    RUN = 30, "Run", "Run a specific Runnable"
+    GENERIC = 10, "Generic", "Describe a general purpose task", "fas fa-star-sharp"
+    RUN = 30, "Run", "Run a specific Node", "fas fa-play"
 
 
 @enum_(EnumType.TASK_STATUS)
@@ -83,17 +82,9 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
     )
     type: TaskType = p_regular(30)
     # priority?
-
-    # status
-    status: TaskStatus = p_regular(50, default=TaskStatus.CREATED)
-    duration: Optional[timedelta] = p_internal(51, default=None)
-    due_at: Optional[datetime] = p_regular(52, default=None)
-    started_at: Optional[datetime] = p_internal(53, default=None)
-    terminated_at: Optional[datetime] = p_internal(56, default=None)
-    error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
-    owned_by: Optional[Owner] = p_internal(58, require=False, array=False, references=OWNER_TYPES)
+    owned_by: Optional[Owner] = p_internal(40, require=False, array=False, references=OWNER_TYPES)
     implemented_by: Optional["Run"] = p_internal(
-        59,
+        41,
         require=False,
         array=False,
         same_bench=True,
@@ -105,6 +96,14 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
         owned_by_id: Optional[UUID] = None
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
+
+    # status
+    status: TaskStatus = p_regular(50, default=TaskStatus.CREATED)
+    duration: Optional[timedelta] = p_internal(51, default=None)
+    due_at: Optional[datetime] = p_regular(52, default=None)
+    started_at: Optional[datetime] = p_internal(53, default=None)
+    terminated_at: Optional[datetime] = p_internal(56, default=None)
+    error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
 
     # content
     node: Union["Flow", "Action", None] = p_regular(
@@ -127,6 +126,11 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
         clazz_ptr: Optional[NodeReference] = None
         clazz_id: Optional[UUID] = None
 
+    # flags
+    is_manual: bool = p_regular(
+        70, default=False, description="Whether to implement this Task manually."
+    )
+
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
@@ -145,6 +149,25 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
             if node is not None
             else None
         )
+
+    @staticmethod
+    def generic(
+        name: str, text: "Text | None", clazz: "Class | None", is_manual: bool = False, **kwargs
+    ) -> "Task":
+        if clazz is not None:
+            value_type = clazz.to_type_maybe(of="value")
+            value = coerce_custom_object_scalar(kwargs, value_type)
+        else:
+            value = None
+        task = Task(
+            type=TaskType.GENERIC,
+            name=name,
+            text=text,
+            clazz=clazz,
+            value=value,
+            is_manual=is_manual,
+        )
+        return task
 
     @staticmethod
     def run(
