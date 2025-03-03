@@ -102,7 +102,8 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
             parent._session._move(node, old_parent=old_parent, new_parent=parent)
         elif parent.is_attached:
             # 'create' node in session if it's attached
-            parent._session._create(*moved)
+            for n in moved:
+                parent._session._create(n)
             parent._session._track_many(*moved)
 
     # move and definition together

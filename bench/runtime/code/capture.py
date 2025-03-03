@@ -79,7 +79,6 @@ class LogSink:
             text=text,
             _skip_validate_self=True,
         )
-        self.runtime._set_context(log)
         self.runtime.session._create(log)
         self.logs.append(log)
 

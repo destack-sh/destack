@@ -69,6 +69,7 @@ if TYPE_CHECKING:
         CustomObject,
         Field,
         Flow,
+        Link,
         Machine,
         Node,
         NodeReference,
@@ -97,12 +98,13 @@ EDIT_SUBJECT_TYPES = (
     NodeType.RUN,
 )
 
-Owner = Union["User", "Organization", "Flow", "Action", "Run", "Machine"]
+Owner = Union["User", "Organization", "Flow", "Action", "Run", "Machine", "Link"]
 OWNER_TYPES = (
     NodeType.USER,
     NodeType.ORGANIZATION,
     NodeType.FLOW,
     NodeType.ACTION,
+    NodeType.LINK,
     NodeType.RUN,
     NodeType.MACHINE,
 )

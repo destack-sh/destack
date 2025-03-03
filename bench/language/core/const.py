@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.03.4"
+VERSION = "2025.03.03.5"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -546,8 +546,6 @@ class NodeType(BuiltinEnum):
     ROLE = 5110, None, None, "fas fa-user-tag"
     # IDENTITY?
     # BADGE? POLICY? (POLICY_)RULE?
-    PLAN = 5120, None, None, "fas fa-diagram-project"
-    TASK = 5121, None, None, "far fa-square-check"
 
     # space
     SPACE = 5200, None, None, "fas fa-space-between"
@@ -571,6 +569,8 @@ class NodeType(BuiltinEnum):
     # RUN_GROUP, RUN_QUEUE, ...?
     INTERRUPTION = 6020, None, None, "fas fa-hand"
     LOG = 6030, None, None, "fas fa-file-alt"
+    PLAN = 6040, None, None, "fas fa-diagram-project"
+    TASK = 6041, None, None, "far fa-square-check"
 
     # sync
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
@@ -1728,7 +1728,6 @@ def run_span(
             started_at=runtime.oracle.utc(),
             _skip_validate_self=True,
         )
-        runtime._set_context(span)
         run.spans.append(span)
         try:
             with tracer.start_as_current_span(key):

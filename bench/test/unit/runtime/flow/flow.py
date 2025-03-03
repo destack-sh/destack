@@ -104,6 +104,7 @@ async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambda
 plan = Plan.serial(
     "Plan",
     Task.run("Tool1", Tool1, type=ActionType.CODE, code=code("pass")),
+    on_terminate=PlanTerminationMode.PASS,
 )
 run.plans.append(plan)
 """)
@@ -117,24 +118,29 @@ async def test_run_flow_plan_route(simulation: Simulation, runtime: RuntimeLambd
     """Runs a Flow with some basic routing Plans."""
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Route = Action.new(ActionType.CODE, "Router", code=code("pass"))
+    Router = Action.new(ActionType.CODE, "Router", code=code("pass"))
     Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
     Code5 = Action.new(ActionType.CODE, "Code5", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Route, Code2, Code3, Code4, Code5, Complete)
-    Start.connect(LinkType.REQUIRE, Route, is_manual=True)
-    Route.connect(LinkType.DECIDE, Complete, is_manual=True)
-    Route.connect(LinkType.DECIDE, Code2, is_manual=True)
-    Route.connect(LinkType.DECIDE, Code3, is_manual=True)
-    Route.connect(LinkType.DECIDE, Code4, is_manual=True)
+    Flow1.actions.extend(Start, Router, Code2, Code3, Code4, Code5, Complete)
+    Start.connect(LinkType.REQUIRE, Router, is_manual=True)
+    Router.connect(LinkType.DECIDE, Complete, is_manual=True)
+    Router.connect(LinkType.DECIDE, Code2, is_manual=True)
+    Router.connect(LinkType.DECIDE, Code3, is_manual=True)
+    Router.connect(LinkType.DECIDE, Code4, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    # Route: Code2, Code3
-    Route.code = code("""\
-plan = Plan.serial(Task.run(Code2), Task.run(Code3))
+    # Router: Code2, Code3
+    Router.code = code("""\
+plan = Plan.serial(
+    "Plan",
+    Task.run("Code2", Code2),
+    Task.run("Code3", Code3),
+    on_terminate=PlanTerminationMode.PASS,
+)
 run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
@@ -144,9 +150,13 @@ run.plans.append(plan)
     assert not runner.tracked_run.has(Complete)
     assert not runner.tracked_run.has(Code4)
 
-    # Route: Code4
-    Route.code = code("""\
-plan = Plan.serial(Task.run(Code4))
+    # Router: Code4
+    Router.code = code("""\
+plan = Plan.serial(
+    "Plan",
+    Task.run("Code4", Code4),
+    on_terminate=PlanTerminationMode.PASS,
+)
 run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
@@ -156,9 +166,14 @@ run.plans.append(plan)
     assert not runner.tracked_run.has(Code2)
     assert not runner.tracked_run.has(Code3)
 
-    # Route: Code2 & Complete
-    Route.code = code("""\
-plan = Plan.parallel(Task.run(Code2), Task.run(Complete))
+    # Router: Code2 & Complete
+    Router.code = code("""\
+plan = Plan.parallel(
+    "Plan",
+    Task.run("Code2", Code2),
+    Task.run("Complete", Complete),
+    on_terminate=PlanTerminationMode.PASS,
+)
 run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
@@ -168,9 +183,13 @@ run.plans.append(plan)
     assert not runner.tracked_run.has(Code3)
     assert not runner.tracked_run.has(Code4)
 
-    # Route: Code5 (is not connected, so should be skipped)
-    Route.code = code("""\
-plan = Plan.serial(Task.run(Code5))
+    # Router: Code5 (is not connected, so should be skipped)
+    Router.code = code("""\
+plan = Plan.serial(
+    "Plan",
+    Task.run("Code5", Code5),
+    on_terminate=PlanTerminationMode.PASS,
+)
 run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
@@ -204,9 +223,21 @@ async def test_run_flow_plan_multiple(simulation: Simulation, runtime: RuntimeLa
 
     # Plan: Code1 + Code1, Code2 + Code2
     Plan1.code = code("""\
-plan1 = Plan.serial(Task.run(Code1), Task.run(Code1))
-plan2 = Plan.serial(Task.run(Code2), Task.run(Code2))
-plan3 = Plan.parallel(Task.run(Code1), Task.run(Code2))
+plan1 = Plan.serial("Plan1", 
+    Task.run("Code1", Code1),
+    Task.run("Code1", Code1),
+    on_terminate=PlanTerminationMode.PASS,
+)
+plan2 = Plan.serial("Plan2", 
+    Task.run("Code2", Code2),
+    Task.run("Code2", Code2),
+    on_terminate=PlanTerminationMode.PASS,
+)
+plan3 = Plan.parallel("Plan3", 
+    Task.run("Code1", Code1),
+    Task.run("Code2", Code2),
+    on_terminate=PlanTerminationMode.PASS,
+)
 run.plans.extend(plan1, plan2, plan3)
 """)
     runner = await runtime.run_in_runtime(Flow1)
@@ -218,11 +249,13 @@ run.plans.extend(plan1, plan2, plan3)
     #  -> Code3 should be skipped after fail
     Plan1.code = code("""\
 plan = Plan.serial(
-    Task.run(Code1),
-    Task.run(Code2),
-    Task.run(Fail),
-    Task.run(Code3),
-    on_error=PlanFailureMode.COMPLETE,
+    "Plan", 
+    Task.run("Code1", Code1),
+    Task.run("Code2", Code2),
+    Task.run("Fail", Fail),
+    Task.run("Code3", Code3),
+    on_failure=PlanFailureMode.COMPLETE,
+    on_terminate=PlanTerminationMode.PASS,
 )
 run.plans.append(plan)
 """)
@@ -237,8 +270,9 @@ run.plans.append(plan)
     # -> should terminate (and not loop endlessly..)
     Plan1.code = code("""\
 plan = Plan.serial(
-    Task.run(Code1),
-    Task.run(Complete),
+    "Plan", 
+    Task.run("Code1", Code1),
+    Task.run("Complete", Complete),
     on_terminate=PlanTerminationMode.RETURN,
 )
 run.plans.append(plan)
