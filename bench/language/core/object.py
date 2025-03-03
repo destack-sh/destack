@@ -98,14 +98,13 @@ EDIT_SUBJECT_TYPES = (
     NodeType.RUN,
 )
 
-Owner = Union["User", "Organization", "Flow", "Action", "Run", "Machine", "Link"]
+Owner = Union["User", "Organization", "Flow", "Action", "Machine", "Link"]
 OWNER_TYPES = (
     NodeType.USER,
     NodeType.ORGANIZATION,
     NodeType.FLOW,
     NodeType.ACTION,
     NodeType.LINK,
-    NodeType.RUN,
     NodeType.MACHINE,
 )
 

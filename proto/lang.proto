@@ -1374,8 +1374,7 @@ enum PlanFailureMode {
 
 enum TaskType {
   TASK_TYPE_UNSPECIFIED = 0;
-  TASK_TYPE_AUTOMATIC = 10;
-  TASK_TYPE_STATE = 20;
+  TASK_TYPE_GENERIC = 10;
   TASK_TYPE_RUN = 30;
 }
 
@@ -3088,12 +3087,13 @@ message PlanData {
   string name = 40;
   PlanTerminationMode termination_mode = 41;
   PlanFailureMode failure_mode = 42;
+  optional NodeReferenceData implemented_by_ptr = 43;
+  optional NodeReferenceData owned_by_ptr = 44;
   PlanStatus status = 50;
   optional google.protobuf.Duration duration = 51;
   optional google.protobuf.Timestamp started_at = 52;
   optional google.protobuf.Timestamp terminated_at = 55;
   optional ErrorData error = 56;
-  optional NodeReferenceData owned_by_ptr = 57;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
@@ -3225,17 +3225,20 @@ message TaskData {
   optional IconData icon = 33;
   optional TextData text = 34;
   optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData thread_ptr = 37;
+  repeated NodeReferenceData tags_ptr = 38;
+  optional NodeReferenceData owned_by_ptr = 40;
+  optional NodeReferenceData implemented_by_ptr = 41;
   TaskStatus status = 50;
   optional google.protobuf.Duration duration = 51;
   optional google.protobuf.Timestamp due_at = 52;
   optional google.protobuf.Timestamp started_at = 53;
   optional google.protobuf.Timestamp terminated_at = 56;
   optional ErrorData error = 57;
-  optional NodeReferenceData owned_by_ptr = 58;
-  optional NodeReferenceData implemented_by_ptr = 59;
   NodeReferenceData node_ptr = 60;
   optional NodeReferenceData clazz_ptr = 61;
   optional google.protobuf.Value value_packed = 62;
+  bool is_manual = 70;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;

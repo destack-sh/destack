@@ -45,6 +45,7 @@ from bench.language import (
     TypeConstraintIn,
     TypeFormat,
 )
+from bench.language.core.node import IsInlinable
 from bench.utils.string import Casing, to_casing
 
 from .engine import generate_proto_schema
@@ -233,6 +234,7 @@ DynamicResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NOD
 StaticResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, StaticResource)])}]
 SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode)])}]
 InlineSourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineSourceNode)])}]
+InlineNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsInlinable)])}]
 TypeBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES])}]
 FieldBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES])}]
 StateNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_state])}]
@@ -767,6 +769,7 @@ export type BenchNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CL
 export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
 export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, SourceNode))}
 export type InlineSourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineSourceNode))}
+export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, IsInlinable))}
 export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
 export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
 export type StateNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_state)}

@@ -214,26 +214,66 @@ class Run(HasTimeIdentity, PackageNode[RunData], HasRuntimeContext, HasTrace, Ha
 
     # flow
     flow: Optional["Flow"] = p_internal(
-        61, require=False, array=False, references=NodeType.FLOW, same_bench=True
+        61,
+        require=False,
+        array=False,
+        references=NodeType.FLOW,
+        same_bench=True,
+        description="The Flow this Run is in.",
     )
     action: Optional["Action"] = p_internal(
-        62, require=False, array=False, references=NodeType.ACTION, same_bench=True
+        62,
+        require=False,
+        array=False,
+        references=NodeType.ACTION,
+        same_bench=True,
+        description="The Action this Run is executing.",
     )
     link: Optional["Link"] = p_internal(
-        63, require=False, array=False, references=NodeType.LINK, same_bench=True
+        63,
+        require=False,
+        array=False,
+        references=NodeType.LINK,
+        same_bench=True,
+        description="The Link this Run is executing.",
     )
     plan: Optional["Plan"] = p_internal(
-        64, require=False, array=False, references=NodeType.PLAN, same_bench=True
+        64,
+        require=False,
+        array=False,
+        references=NodeType.PLAN,
+        same_bench=True,
+        description="The Plan this Run is following (leaf).",
     )
     task: Optional["Task"] = p_internal(
-        65, require=False, array=False, references=NodeType.TASK, same_bench=True
+        65,
+        require=False,
+        array=False,
+        references=NodeType.TASK,
+        same_bench=True,
+        description="The Task this Run is implementing.",
     )
     trigger: Optional["Trigger"] = p_regular(
-        66, require=False, array=False, references=NodeType.TRIGGER, same_bench=True
+        66,
+        require=False,
+        array=False,
+        references=NodeType.TRIGGER,
+        same_bench=True,
+        description="The Trigger this Run is triggered by.",
     )
-    trigger_key: Optional[str] = p_internal(67, require=False, default=None)
+    trigger_key: Optional[str] = p_internal(
+        67,
+        require=False,
+        default=None,
+        description="A unique key for this invocation of the Trigger.",
+    )
     trigger_run: Optional["Run"] = p_regular(
-        68, require=False, array=False, references=NodeType.RUN, same_bench=True
+        68,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
+        same_bench=True,
+        description="The Run the Trigger is associated with.",
     )
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None

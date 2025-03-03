@@ -43,8 +43,8 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.LINK_TYPE)
 class LinkType(BuiltinEnum):
-    DECIDE = 10, "Decide", "Determine when and how to call automatically", "far fa-shuffle"
-    REQUIRE = 20, "Require", "Determine how to call automatically", "fas fa-arrow-right-long"
+    DECIDE = 10, "Decide", "Determine when and how to call", "far fa-shuffle"
+    REQUIRE = 20, "Require", "Determine how to call", "fas fa-arrow-right-long"
     # MESSAGE? WAIT? STREAM?
 
 

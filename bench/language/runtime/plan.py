@@ -89,6 +89,15 @@ class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     name: str = p_regular(40, constraint=NAME_CONSTRAINT)
     termination_mode: "PlanTerminationMode" = p_internal(41, default=PlanTerminationMode.RETURN)
     failure_mode: "PlanFailureMode" = p_internal(42, default=PlanFailureMode.COMPLETE)
+    owned_by: Optional[Owner] = p_internal(44, require=False, array=False, references=OWNER_TYPES)
+    implemented_by: Optional["Run"] = p_internal(
+        43, require=False, array=False, references=NodeType.RUN, same_bench=True
+    )
+    if TYPE_CHECKING:
+        owned_by_ptr: Optional[NodeReference] = None
+        owned_by_id: Optional[UUID] = None
+        implemented_by_ptr: Optional[NodeReference] = None
+        implemented_by_id: Optional[UUID] = None
 
     # status
     status: PlanStatus = p_internal(50, default=PlanStatus.CREATED)
@@ -96,10 +105,6 @@ class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     started_at: Optional[datetime] = p_internal(52, default=None)
     terminated_at: Optional[datetime] = p_internal(55, default=None)
     error: Optional["Error"] = p_internal(56, require=False, array=False, struct=StructType.ERROR)
-    owned_by: Optional[Owner] = p_internal(57, require=False, array=False, references=OWNER_TYPES)
-    if TYPE_CHECKING:
-        owned_by_ptr: Optional[NodeReference] = None
-        owned_by_id: Optional[UUID] = None
 
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
