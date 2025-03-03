@@ -15,7 +15,7 @@ from bench.language import (
     CustomObject,
     FieldType,
     File,
-    HasContext,
+    HasRuntimeContext,
     LinkType,
     Node,
     Page,
@@ -306,7 +306,7 @@ LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
 def make_chat_prompt(
     action: Action,
     runner: "Runner",
-    context: "HasContext",
+    context: "HasRuntimeContext",
     variables: CustomObject | None,
     inputs: CustomObject | None,
     outputs: CustomObject | None,

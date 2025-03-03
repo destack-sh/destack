@@ -120,7 +120,6 @@ if TYPE_CHECKING:
         Page,
         PathIn,
         Query,
-        Run,
         SearchConnection,
         Session,
         Tag,
@@ -1412,16 +1411,13 @@ class NodeSubtypeStub[NodeT: Node]:
 
 
 @object_()
-class HasContext(BuiltinObject):
+class HasRuntimeContext(BuiltinObject):
     """Context for a Node."""
 
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
     session: Optional["Session"] = p_internal(
         90, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    run: "Run | None" = p_internal(
-        91, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
         93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
@@ -1433,8 +1429,6 @@ class HasContext(BuiltinObject):
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
-        run_ptr: Optional[NodeReference] = None
-        run_id: Optional[UUID] = None
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
@@ -1659,13 +1653,6 @@ class HasTimeIdentity(BuiltinObject, abc.ABC):
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
     __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-
-
-@node_component_()
-class RuntimeNode[NodeDataT: AnyNodeData](
-    HasTimeIdentity, BenchNode[NodeDataT], HasContext, HasTrace, abc.ABC
-):
-    """A Node that exists only (conceptually) at/in a Runtime."""
 
 
 RunnableNode = Union["Flow", "Action", "Link"]

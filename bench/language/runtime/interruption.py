@@ -3,18 +3,21 @@ from typing import Any, Optional, cast
 
 from git import TYPE_CHECKING
 
-from bench.language import TITLE_CONSTRAINT
 from bench.language.core import (
+    TITLE_CONSTRAINT,
     BenchNode,
     BuiltinEnum,
     CustomObject,
     EnumType,
     FieldType,
     HasNodeBase,
+    HasRuntimeContext,
+    HasTimeIdentity,
+    HasTrace,
     NodeReference,
     NodeType,
+    PackageNode,
     RunStatus,
-    RuntimeNode,
     Struct,
     StructType,
     enum_,
@@ -27,8 +30,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.pb2 import AnyNodeData
-from bench.pb2.lang_pb2 import InterruptionData, NodeReferenceData
+from bench.pb2 import AnyNodeData, InterruptionData, NodeReferenceData
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -157,7 +159,9 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
-class Interruption(RuntimeNode[InterruptionData], HasNodeBase):
+class Interruption(
+    HasTimeIdentity, PackageNode[InterruptionData], HasRuntimeContext, HasTrace, HasNodeBase
+):
     """An Interruption in the execution of a Run."""
 
     # meta

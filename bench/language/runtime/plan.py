@@ -3,14 +3,18 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    NAME_CONSTRAINT,
     OWNER_TYPES,
     BuiltinEnum,
     ColorType,
     EnumType,
+    HasRuntimeContext,
+    HasTimeIdentity,
+    HasTrace,
     LocalNodeList,
     NodeType,
     Owner,
-    RuntimeNode,
+    PackageNode,
     StructType,
     enum_,
     p_internal,
@@ -19,7 +23,6 @@ from bench.language.core import (
     p_regular,
     timed_node_,
 )
-from bench.language.core.validation import NAME_CONSTRAINT
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
@@ -71,7 +74,9 @@ class PlanFailureMode(BuiltinEnum):
 
 
 @timed_node_(NodeType.PLAN)
-class Plan(RuntimeNode[PlanData]):
+class Plan(
+    HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace
+):
     """A Plan for something like a sequence of Tasks."""
 
     # meta

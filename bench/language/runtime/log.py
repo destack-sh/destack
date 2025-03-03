@@ -3,9 +3,12 @@ from typing import TYPE_CHECKING, Optional, Union
 import structlog
 
 from bench.language.core import (
+    HasRuntimeContext,
+    HasTimeIdentity,
+    HasTrace,
     LogType,
     NodeType,
-    RuntimeNode,
+    PackageNode,
     Severity,
     StructType,
     Text,
@@ -25,7 +28,7 @@ logger = structlog.get_logger(__name__)
 
 
 @timed_node_(NodeType.LOG)
-class Log(RuntimeNode[LogData]):
+class Log(HasTimeIdentity, PackageNode[LogData], HasRuntimeContext, HasTrace):
     """
     A Log of something happening in a Bench.
     """

@@ -34,16 +34,16 @@ from bench.language.core import (
     BenchNode,
     EditSubject,
     EditType,
-    HasContext,
+    HasRuntimeContext,
+    HasTrace,
     Node,
     NodeDataGraph,
     NodeGraph,
     NodeMode,
     NodeReference,
     NodeType,
-    RuntimeNode,
+    PackageNode,
     SessionStatus,
-    SourceNode,
     Struct,
     StructType,
     bittuple,
@@ -126,7 +126,7 @@ CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 
 
 @timed_node_(NodeType.SESSION)
-class Session(RuntimeNode[SessionData]):
+class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
     """
     A managed Session for interacting with and running a Bench.
     """
@@ -254,7 +254,7 @@ class Session(RuntimeNode[SessionData]):
         scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
-        if isinstance(n, SourceNode):
+        if isinstance(n, PackageNode):
             scope.package_id = uuid_to_str(n.package_id) or self._default_scope.package_id
         return scope
 
@@ -656,7 +656,7 @@ class Session(RuntimeNode[SessionData]):
         """Whether this is a runtime node tied to the current session."""
         if node.metatype == NodeType.SESSION:
             return self.id == node.id
-        elif isinstance(node, RuntimeNode):
+        elif isinstance(node, HasRuntimeContext):
             return node.session_id == self.id
         else:
             return False
@@ -896,7 +896,7 @@ class EditContext(Struct):
 
 
 @struct_(StructType.CONTEXT)
-class Context(Struct, HasContext):
+class Context(Struct, HasRuntimeContext):
     """Context information for runtime nodes created in a session."""
 
     pass
