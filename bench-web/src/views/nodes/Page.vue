@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isInlineSourceNode, toCamelName } from "@/language/core/const";
+import { isInlineNode, toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
@@ -210,8 +210,8 @@ const { activeDropZone } = useMultiDropZone({
     if (targetId == null) return; // need target
     // unwrap into blocks
     let targetNode = graph.getOrError({ id: targetId });
-    if (isInlineSourceNode(targetNode) && targetNode.blockPtr != null) {
-      targetNode = graph.getOrError(targetNode.blockPtr);
+    if (isInlineNode(targetNode) && targetNode.definitionPtr != null) {
+      targetNode = graph.getOrError(targetNode.definitionPtr);
     }
 
     if (dragged.kind == "file") {

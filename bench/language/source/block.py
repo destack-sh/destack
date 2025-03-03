@@ -42,10 +42,13 @@ class BlockType(BuiltinEnum):
     CLASS = 5031, "Class", "Class of Fields", "fas fa-boxes-stacked"
     TAG = 5040, "Tag", "Tag to tag other Nodes", "fas fa-tag"
     FLOW = 5050, "Flow", "Flow to run", "fas fa-play"
+    IMPLEMENTATION = 5060, "Implementation", "Implementation of a Node", "fas fa-screwdriver-wrench"
     VIEW = 5080, "View", "Graphical Interface", "fas fa-eye"
     DATABASE = 5090, "Database", "Database to store", "fas fa-database"
     CHANNEL = 5100, "Channel", "Channel to send", "fas fa-envelope"
     ROLE = 5110, "Role", "Role to assign", "fas fa-user-shield"
+    PLAN = 6040, "Plan", "Plan to execute", "fas fa-list-check"
+    TASK = 6041, "Task", "Task to accomplish", "fas fa-square-check"
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

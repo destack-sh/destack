@@ -11443,6 +11443,10 @@ export enum BlockType {
      */
     FLOW = 5050,
     /**
+     * @generated from protobuf enum value: BLOCK_TYPE_IMPLEMENTATION = 5060;
+     */
+    IMPLEMENTATION = 5060,
+    /**
      * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 5080;
      */
     VIEW = 5080,
@@ -11458,6 +11462,14 @@ export enum BlockType {
      * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 5110;
      */
     ROLE = 5110,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_PLAN = 6040;
+     */
+    PLAN = 6040,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_TASK = 6041;
+     */
+    TASK = 6041,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_PARAGRAPH = 10001;
      */
@@ -38555,7 +38567,7 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.RUN_SPAN]: { id: 6011, name: 'RUN_SPAN', icon: 'fas fa-play' },
   [NodeType.INTERRUPTION]: { id: 6020, name: 'INTERRUPTION', icon: 'fas fa-hand' },
   [NodeType.LOG]: { id: 6030, name: 'LOG', icon: 'fas fa-file-alt' },
-  [NodeType.PLAN]: { id: 6040, name: 'PLAN', icon: 'fas fa-diagram-project' },
+  [NodeType.PLAN]: { id: 6040, name: 'PLAN', icon: 'fas fa-list-check' },
   [NodeType.TASK]: { id: 6041, name: 'TASK', icon: 'far fa-square-check' },
 }
 
@@ -38664,10 +38676,13 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.CLASS]: { id: 5031, name: 'CLASS', text: 'Class of Fields', title: 'Class', icon: 'fas fa-boxes-stacked' },
   [BlockType.TAG]: { id: 5040, name: 'TAG', text: 'Tag to tag other Nodes', title: 'Tag', icon: 'fas fa-tag' },
   [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Flow to run', title: 'Flow', icon: 'fas fa-play' },
+  [BlockType.IMPLEMENTATION]: { id: 5060, name: 'IMPLEMENTATION', text: 'Implementation of a Node', title: 'Implementation', icon: 'fas fa-screwdriver-wrench' },
   [BlockType.VIEW]: { id: 5080, name: 'VIEW', text: 'Graphical Interface', title: 'View', icon: 'fas fa-eye' },
   [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database to store', title: 'Database', icon: 'fas fa-database' },
   [BlockType.CHANNEL]: { id: 5100, name: 'CHANNEL', text: 'Channel to send', title: 'Channel', icon: 'fas fa-envelope' },
   [BlockType.ROLE]: { id: 5110, name: 'ROLE', text: 'Role to assign', title: 'Role', icon: 'fas fa-user-shield' },
+  [BlockType.PLAN]: { id: 6040, name: 'PLAN', text: 'Plan to execute', title: 'Plan', icon: 'fas fa-list-check' },
+  [BlockType.TASK]: { id: 6041, name: 'TASK', text: 'Task to accomplish', title: 'Task', icon: 'fas fa-square-check' },
   [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Line of rich Text', title: 'Paragraph', icon: 'fas fa-align-left' },
   [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
   [BlockType.HEADING_2]: { id: 10011, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2', icon: 'fas fa-heading' },
@@ -38919,8 +38934,8 @@ export const ActionCategoryOptionInfo: Partial<Record<ActionCategory, EnumOption
 }
 
 export const LinkTypeOptionInfo: Partial<Record<LinkType, EnumOptionInfo>> = {
-  [LinkType.DECIDE]: { id: 10, name: 'DECIDE', text: 'Determine when and how to call automatically', title: 'Decide', icon: 'far fa-shuffle' },
-  [LinkType.REQUIRE]: { id: 20, name: 'REQUIRE', text: 'Determine how to call automatically', title: 'Require', icon: 'fas fa-arrow-right-long' },
+  [LinkType.DECIDE]: { id: 10, name: 'DECIDE', text: 'Determine when and how to call', title: 'Decide', icon: 'far fa-shuffle' },
+  [LinkType.REQUIRE]: { id: 20, name: 'REQUIRE', text: 'Determine how to call', title: 'Require', icon: 'fas fa-arrow-right-long' },
 }
 
 export const LinkTriggerOptionInfo: Partial<Record<LinkTrigger, EnumOptionInfo>> = {

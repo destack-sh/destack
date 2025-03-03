@@ -11,7 +11,7 @@ export function createDatabase(
   graph: ReadNodeGraph,
   options: { database: Partial<DatabaseData> },
 ): DatabaseData {
-  if (options.database.blockPtr == null) {
+  if (options.database.definitionPtr == null) {
     throw new Error("cannot create inline database without block");
   }
   const siblings = graph.getChildren(options.database.parentPtr!, NodeType.DATABASE);

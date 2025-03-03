@@ -1,5 +1,5 @@
 import { supergraph } from "@/globals";
-import { INLINE_SOURCE_NODE_TYPES, isInlineSourceNode, toCamelName } from "@/language/core/const";
+import { INLINE_SOURCE_NODE_TYPES, isInlineNode, toCamelName } from "@/language/core/const";
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -8,12 +8,14 @@ import { choiceToType, createChoice } from "@/language/source/choice";
 import { classToType, createClass } from "@/language/source/class";
 import { createDatabase, databaseToType } from "@/language/source/database";
 import { createFlow, flowToType } from "@/language/source/flow";
+import { createImplementation } from "@/language/source/implementation";
 import { createPage } from "@/language/source/page";
 import {
   AnyNodeData,
   BlockData,
   BlockType,
   FieldType,
+  InlineNodeData,
   InlineSourceNodeData,
   NodeReferenceData,
   NodeType,
@@ -84,7 +86,7 @@ export function createBlock(
       block.nodePtr = toNodeRef(options.node as AnyNodeData);
     } else {
       // new inline node
-      const node = createInlineSourceNode(tx, graph, {
+      const node = createInlineNode(tx, graph, {
         node: {
           metatype: block.type,
           ...options.node,
@@ -100,12 +102,12 @@ export function createBlock(
   return block;
 }
 
-/** Create an InlineSourceNode for a Block. */
-export function createInlineSourceNode(
+/** Create an InlineNode for a Block. */
+export function createInlineNode(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: { node: Partial<NodeIn<any>> },
-): InlineSourceNodeData {
+): InlineNodeData {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
@@ -124,16 +126,18 @@ export function createInlineSourceNode(
     return createClass(tx, graph, { class: options.node });
   } else if (options.node.metatype == NodeType.CHOICE) {
     return createChoice(tx, graph, { choice: options.node });
+  } else if (options.node.metatype == NodeType.IMPLEMENTATION) {
+    return createImplementation(tx, graph, { implementation: options.node });
   } else {
     throw new Error(`unexpected node type: ${toCamelName(NodeType, options.node.metatype)}`);
   }
 }
 
 /** Unwrap a Block into its inner source node, if it has one. */
-export function unwrapBlockDefinition(block: BlockData): InlineSourceNodeData | undefined {
+export function unwrapBlockDefinition(block: BlockData): InlineNodeData | undefined {
   if (block.nodePtr == null) return undefined;
   const node = supergraph.get(block.nodePtr);
-  if (!isInlineSourceNode(node)) {
+  if (!isInlineNode(node)) {
     return undefined; // may be other node type
   }
   return node;
@@ -141,8 +145,15 @@ export function unwrapBlockDefinition(block: BlockData): InlineSourceNodeData | 
 
 /** Unwrap an InlineSourceNode into its Block. */
 export function unwrapInlineSourceNode(node: InlineSourceNodeData): BlockData | undefined {
-  if (node.blockPtr == null) return undefined;
-  const block = supergraph.getOrError(node.blockPtr);
+  if (node.definitionPtr == null) return undefined;
+  const block = supergraph.getOrError(node.definitionPtr);
+  return block as BlockData;
+}
+
+/** Unwrap an InlineNode into its Block. */
+export function unwrapInlineNode(node: InlineNodeData): BlockData | undefined {
+  if (node.definitionPtr == null) return undefined;
+  const block = supergraph.getOrError(node.definitionPtr);
   return block as BlockData;
 }
 

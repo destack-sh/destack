@@ -6,6 +6,7 @@ import {
   EditType,
   EmptyProperty,
   EnumType,
+  InlineNodeData,
   InlineSourceNodeData,
   ModelType,
   NodeReferenceData,
@@ -69,6 +70,10 @@ export function isInlineSourceNodeType(nodeType: NodeType): boolean {
   return INLINE_SOURCE_NODE_TYPES.includes(nodeType);
 }
 
+export function isInlineNodeType(nodeType: NodeType): boolean {
+  return INLINE_NODE_TYPES.includes(nodeType);
+}
+
 export function isTypeBaseNodeType(nodeType: NodeType): boolean {
   return TYPE_BASE_NODE_TYPES.includes(nodeType);
 }
@@ -81,6 +86,11 @@ export function isSourceNode(node: any): node is SourceNodeData {
 export function isInlineSourceNode(node: any): node is InlineSourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isInlineSourceNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isInlineNode(node: any): node is InlineNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isInlineNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isTypeBaseNode(node: any): node is TypeBaseNodeData {
@@ -191,6 +201,8 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.TASK,
 ];
 INLINE_SOURCE_NODE_TYPES.sort();
+export const INLINE_NODE_TYPES = [...INLINE_SOURCE_NODE_TYPES, NodeType.TASK];
+INLINE_NODE_TYPES.sort();
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];
@@ -381,6 +393,8 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.FLOW,
   BlockType.PAGE,
   BlockType.CHOICE,
+  BlockType.TASK,
+  BlockType.IMPLEMENTATION,
   ...TEXT_BLOCK_TYPES,
 ];
 export const EXPOSED_STRUCT_TYPES = [
