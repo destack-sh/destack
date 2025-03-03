@@ -984,7 +984,7 @@ class Runtime:
             # lift run into existing / higher flow
             if (
                 run.type == RunType.ACTION
-                and run.parent_type == NodeType.BENCH
+                and run.parent_type == NodeType.PACKAGE
                 and (action := run.action) is not None
                 and (flow := action.flow) is not None
             ):
