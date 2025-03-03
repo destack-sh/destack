@@ -1308,6 +1308,10 @@ export function useFlowContext(): FlowContext {
   return flowContext;
 }
 
+export function useFlowContextMaybe(): FlowContext | null {
+  return inject<FlowContext | null>(FLOW_CONTEXT_KEY, null);
+}
+
 /** Gets the containing flow flow. */
 export function getContainingFlow(graph: ReadNodeGraph, node: AnyNodeData): FlowData | null {
   const ancestors = graph.getAncestors(node, { includeSelf: true });

@@ -1,5 +1,5 @@
 import { supergraph } from "@/globals";
-import { isInlineSourceNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
+import { isInlineNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/core/graph";
 import { makeNode, NodeIn } from "@/language/core/node";
 import { getPropertyType, TypeIdentity } from "@/language/core/type";
@@ -424,12 +424,12 @@ export class TransactionBuilder implements Transaction {
     if (isNode(node, NodeType.BLOCK)) {
       // for definition blocks, also delete the source node
       const source = unwrapBlockDefinition(node);
-      if (source?.blockPtr?.id == node.id) {
+      if (source?.definitionPtr?.id == node.id) {
         tx._addSimpleEdit(EditType.DELETE, source, null);
       }
-    } else if (isInlineSourceNode(node) && node.blockPtr != null) {
+    } else if (isInlineNode(node) && node.definitionPtr != null) {
       // for inline source nodes, also delete the block definition
-      const block = supergraph.getOrError(node.blockPtr) as BlockData;
+      const block = supergraph.getOrError(node.definitionPtr) as BlockData;
       tx._addSimpleEdit(EditType.DELETE, block, null);
     }
   }
@@ -445,12 +445,12 @@ export class TransactionBuilder implements Transaction {
     if (isNode(node, NodeType.BLOCK)) {
       // for definition blocks, also restore the source node
       const source = unwrapBlockDefinition(node);
-      if (source?.blockPtr?.id == node.id) {
+      if (source?.definitionPtr?.id == node.id) {
         tx._addSimpleEdit(EditType.RESTORE, source, null);
       }
-    } else if (isInlineSourceNode(node) && node.blockPtr != null) {
+    } else if (isInlineNode(node) && node.definitionPtr != null) {
       // for inline source nodes, also restore the block definition
-      const block = supergraph.getOrError(node.blockPtr) as BlockData;
+      const block = supergraph.getOrError(node.definitionPtr) as BlockData;
       tx._addSimpleEdit(EditType.RESTORE, block, null);
     }
   }

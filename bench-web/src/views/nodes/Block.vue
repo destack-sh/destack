@@ -13,6 +13,7 @@ import File from "@/views/content/File.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
+import Implementation from "@/views/nodes/Implementation.vue";
 import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
 const MAX_INLINE_HEIGHT = 400;
@@ -150,6 +151,18 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       v-bind="state.getChildState('database')"
       :node-ptr="nodePtr"
       :container-gutter-width="pageContext.gutterWidth.value"
+      is-minimal
+      is-inline
+      is-input
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
+    <Implementation
+      v-else-if="block.type == BlockType.IMPLEMENTATION"
+      id="implementation"
+      ref="nodeRef"
+      v-bind="state.getChildState('implementation')"
+      :node-ptr="nodePtr"
+      :prepared-connection="preparedConnection"
       is-minimal
       is-inline
       is-input

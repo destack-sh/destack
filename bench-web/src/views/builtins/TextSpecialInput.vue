@@ -2,7 +2,7 @@
 import { canvas } from "@/globals";
 import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
-import { createInlineSourceNode } from "@/language/source/block";
+import { createInlineNode } from "@/language/source/block";
 import {
   BenchType,
   BlockType,
@@ -184,7 +184,7 @@ function apply(item: SearchItem) {
       const block = graph.get(lineNode.attrs.blockPtr);
       if (!isNode(block, NodeType.BLOCK)) throw new Error("block not found");
       // create inline node
-      const node = createInlineSourceNode(tx, graph, {
+      const node = createInlineNode(tx, graph, {
         node: {
           metatype: blockType as unknown as NodeType,
           parentPtr: toNodeRef(page),

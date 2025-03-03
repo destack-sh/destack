@@ -39,7 +39,7 @@ export function createPage(
   }
 
   // create
-  if (isNode(target, NodeType.PAGE) && options.page.blockPtr == null) {
+  if (isNode(target, NodeType.PAGE) && options.page.definitionPtr == null) {
     throw new Error("cannot create inline page without block");
   }
   const name = options.page.name ?? generateNodeName({ metatype: ObjectType.PAGE, ...options.page }, siblings);

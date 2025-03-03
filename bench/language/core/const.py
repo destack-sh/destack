@@ -569,7 +569,7 @@ class NodeType(BuiltinEnum):
     # RUN_GROUP, RUN_QUEUE, ...?
     INTERRUPTION = 6020, None, None, "fas fa-hand"
     LOG = 6030, None, None, "fas fa-file-alt"
-    PLAN = 6040, None, None, "fas fa-diagram-project"
+    PLAN = 6040, None, None, "fas fa-list-check"
     TASK = 6041, None, None, "far fa-square-check"
 
     # sync

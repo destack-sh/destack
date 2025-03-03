@@ -1,12 +1,10 @@
 <script lang="ts" setup>
-import { FieldType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
-import FieldList from "@/views/objects/FieldList.vue";
 import { computed, ref, toRef } from "vue";
 
 const props = defineProps<

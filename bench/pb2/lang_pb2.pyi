@@ -1045,10 +1045,13 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_CLASS: _ClassVar[BlockType]
     BLOCK_TYPE_TAG: _ClassVar[BlockType]
     BLOCK_TYPE_FLOW: _ClassVar[BlockType]
+    BLOCK_TYPE_IMPLEMENTATION: _ClassVar[BlockType]
     BLOCK_TYPE_VIEW: _ClassVar[BlockType]
     BLOCK_TYPE_DATABASE: _ClassVar[BlockType]
     BLOCK_TYPE_CHANNEL: _ClassVar[BlockType]
     BLOCK_TYPE_ROLE: _ClassVar[BlockType]
+    BLOCK_TYPE_PLAN: _ClassVar[BlockType]
+    BLOCK_TYPE_TASK: _ClassVar[BlockType]
     BLOCK_TYPE_PARAGRAPH: _ClassVar[BlockType]
     BLOCK_TYPE_HEADING_1: _ClassVar[BlockType]
     BLOCK_TYPE_HEADING_2: _ClassVar[BlockType]
@@ -2902,10 +2905,13 @@ BLOCK_TYPE_CHOICE: BlockType
 BLOCK_TYPE_CLASS: BlockType
 BLOCK_TYPE_TAG: BlockType
 BLOCK_TYPE_FLOW: BlockType
+BLOCK_TYPE_IMPLEMENTATION: BlockType
 BLOCK_TYPE_VIEW: BlockType
 BLOCK_TYPE_DATABASE: BlockType
 BLOCK_TYPE_CHANNEL: BlockType
 BLOCK_TYPE_ROLE: BlockType
+BLOCK_TYPE_PLAN: BlockType
+BLOCK_TYPE_TASK: BlockType
 BLOCK_TYPE_PARAGRAPH: BlockType
 BLOCK_TYPE_HEADING_1: BlockType
 BLOCK_TYPE_HEADING_2: BlockType

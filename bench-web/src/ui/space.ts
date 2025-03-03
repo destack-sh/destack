@@ -1029,7 +1029,7 @@ export class SpaceCanvas {
     else if (
       isNode(node, NodeType.PAGE) ||
       isNode(node, NodeType.BLOCK) ||
-      (isInlineSourceNode(node) && node.blockPtr != null)
+      (isInlineSourceNode(node) && node.definitionPtr != null)
     ) {
       const containingPage = graph
         .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })

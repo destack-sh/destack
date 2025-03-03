@@ -3,7 +3,7 @@
  */
 
 import { supergraph } from "@/globals";
-import { isInlineSourceNode, TIMED_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { isInlineNode, isInlineSourceNode, TIMED_NODE_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
@@ -11,7 +11,6 @@ import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime
 import { createBlock, unwrapBlockDefinition } from "@/language/source/block";
 import {
   BlockData,
-  BlockType,
   ENUM_BY_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
@@ -30,7 +29,7 @@ import {
   Timestamp,
   type AnyNodeData,
   type AnyStructData,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
   describeNode,
@@ -475,7 +474,7 @@ export function cloneNode<T extends AnyNodeData>(
     if (isNode(node, NodeType.BLOCK)) {
       // for definition blocks, also clone the source node
       const source = unwrapBlockDefinition(node);
-      if (source?.blockPtr?.id == node.id) {
+      if (source?.definitionPtr?.id == node.id) {
         cloneNode(tx, graph, source, {
           includeChildren: true,
           now,
@@ -486,9 +485,9 @@ export function cloneNode<T extends AnyNodeData>(
           _identityMap: identityMap,
         });
       }
-    } else if (isInlineSourceNode(node) && node.blockPtr != null) {
+    } else if (isInlineSourceNode(node) && node.definitionPtr != null) {
       // for inline source nodes, also clone the block definition
-      const block = supergraph.getOrError(node.blockPtr) as BlockData;
+      const block = supergraph.getOrError(node.definitionPtr) as BlockData;
       cloneNode(tx, graph, block, {
         includeChildren: true,
         now,
@@ -632,21 +631,21 @@ export function moveNode(
   if (isNode(node, NodeType.BLOCK)) {
     // for definition blocks, also move the source node
     const source = unwrapBlockDefinition(node);
-    if (source?.blockPtr?.id == node.id) {
+    if (source?.definitionPtr?.id == node.id) {
       tx.move(source, { parentPtr }, { debounce: options.debounce ?? "tick" });
     }
-  } else if (isInlineSourceNode(node)) {
-    if (node.blockPtr != null) {
+  } else if (isInlineNode(node)) {
+    if (node.definitionPtr != null) {
       // for inline source nodes, also move the block definition
-      let block = supergraph.getOrError(node.blockPtr) as BlockData;
-      if (isInlineSourceNode(target) && target.blockPtr != null) {
-        target = supergraph.getOrError(target.blockPtr) as BlockData;
+      let block = supergraph.getOrError(node.definitionPtr) as BlockData;
+      if (isInlineSourceNode(target) && target.definitionPtr != null) {
+        target = supergraph.getOrError(target.definitionPtr) as BlockData;
       }
       if (!PARENT_NODE_TYPES[NodeType.BLOCK].includes(parentPtr.nodeType)) {
         // block no longer needed
         block = { ...block, nodePtr: undefined }; // clear nodePtr to avoid deleting that too
         tx.delete(block);
-        tx.update(node, { blockPtr: undefined });
+        tx.update(node, { definitionPtr: undefined });
       } else {
         moveNode(tx, graph, block, { anchor, target });
       }
@@ -657,13 +656,13 @@ export function moveNode(
         block: {
           metatype: NodeType.BLOCK,
           packagePtr: node.packagePtr,
-          type: node.metatype as unknown as BlockType,
+          type: node.metatype as any,
           nodePtr: toNodeRef(node),
         },
         anchor: "inside",
         target: parent,
       });
-      tx.update(node, { blockPtr: toNodeRef(block) });
+      tx.update(node, { definitionPtr: toNodeRef(block) });
     }
   }
 }
