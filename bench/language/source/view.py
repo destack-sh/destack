@@ -15,7 +15,6 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -24,7 +23,6 @@ from bench.language.core import (
     subnode_,
 )
 from bench.pb2 import ViewData
-from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Expression, Message, Page, Space, Text, Type
@@ -393,7 +391,6 @@ class View(InlineSourceNode[ViewData]):
 
     # meta
     type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
     subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content

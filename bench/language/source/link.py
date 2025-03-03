@@ -43,11 +43,9 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.LINK_TYPE)
 class LinkType(BuiltinEnum):
-    DECIDE = 10, "Automatic", "Auto-decide if and how to call", "far fa-shuffle"
-    REQUIRE = 20, "Require", "Always call, auto-decide how", "fas fa-arrow-right"
+    DECIDE = 10, "Decide", "Determine when and how to call automatically", "far fa-shuffle"
+    REQUIRE = 20, "Require", "Determine how to call automatically", "fas fa-arrow-right-long"
     # MESSAGE? WAIT? STREAM?
-    SELECT = 100, "Select", "Call if manually selected"
-    FORCE = 101, "Force", "Always call, no arguments"
 
 
 @enum_(EnumType.LINK_TRIGGER)
@@ -60,8 +58,6 @@ class LinkTrigger(BuiltinEnum):
 SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
     LinkType.DECIDE: "-*>",
     LinkType.REQUIRE: "-=>",
-    LinkType.SELECT: "-?>",
-    LinkType.FORCE: "-!>",
 }
 LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
 
@@ -101,6 +97,9 @@ class Link(SourceNode[LinkData], IsComputable):
     delay: Optional[timedelta] = p_regular(50, default=None)
 
     # flags
+    is_manual: bool = p_regular(
+        60, default=False, description="Whether to link this automatically."
+    )
     # is_automap? (dynamically generate inputs?)
     # is_streaming: bool = p_regular(80, default=False)
 

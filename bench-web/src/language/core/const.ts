@@ -1,19 +1,12 @@
 import {
   ActionType,
   Anchor,
-  BlockDataInfo,
-  BlockProperty,
   BlockType,
   DynamicResourceNodeData,
   EditType,
   EmptyProperty,
   EnumType,
-  FieldData,
   InlineSourceNodeData,
-  LinkType,
-  MessageData,
-  ModelFamily,
-  ModelProvider,
   ModelType,
   NodeReferenceData,
   NodeType,
@@ -24,23 +17,19 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
   PropertyReferenceData,
-  RecordData,
   Region,
   ResourceNodeData,
-  RunData,
   RunStatus,
   RuntimeNodeData,
   SourceNodeData,
   StateNodeData,
   StaticResourceNodeData,
   StructType,
-  TextLineType,
   TypeBaseNodeData,
-  TypeFormat,
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -365,7 +354,6 @@ export const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it'
 
 //
 // Enums
-// TODO :Architecture: get enum names/titles/icons/colors/... from backend (generated in proto)
 //
 
 export const EDIT_TYPE_PRESENT_VERB: Partial<Record<EditType, string>> = {
@@ -453,7 +441,6 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
-export const EXPOSED_LINK_TYPES = [LinkType.AUTOMATIC, LinkType.REQUIRE];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
@@ -464,52 +451,6 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
   [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
   [EnumType.REGION]: EXPOSED_REGIONS,
-  [EnumType.LINK_TYPE]: EXPOSED_LINK_TYPES,
-};
-
-export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
-  [EnumType.PRIMITIVE_TYPE]: {
-    [PrimitiveType.INT64]: "Integer",
-    [PrimitiveType.FLOAT64]: "Number",
-    [PrimitiveType.UUID]: "UUID",
-    [PrimitiveType.JSON]: "JSON",
-    [PrimitiveType.DATETIME]: "Date and Time",
-  },
-  [EnumType.BLOCK_TYPE]: {
-    [BlockType.HEADING_1]: "Heading 1",
-    [BlockType.HEADING_2]: "Heading 2",
-    [BlockType.HEADING_3]: "Heading 3",
-    [BlockType.HEADING_4]: "Heading 4",
-  },
-  [EnumType.TEXT_LINE_TYPE]: {
-    [TextLineType.HEADING_1]: "Heading 1",
-    [TextLineType.HEADING_2]: "Heading 2",
-    [TextLineType.HEADING_3]: "Heading 3",
-    [TextLineType.HEADING_4]: "Heading 4",
-  },
-  [EnumType.TYPE_FORMAT]: {
-    [TypeFormat.URL]: "URL",
-  },
-  [EnumType.MODEL_PROVIDER]: {
-    [ModelProvider.OPENAI]: "OpenAI",
-  },
-  [EnumType.MODEL_FAMILY]: {
-    [ModelFamily.OPENAI_GPT]: "OpenAI GPT",
-    [ModelFamily.OPENAI_O]: "OpenAI O",
-    [ModelFamily.ANTHROPIC_CLAUDE]: "Anthropic Claude",
-    [ModelFamily.GOOGLE_GEMINI]: "Google Gemini",
-    [ModelFamily.META_LLAMA]: "Meta Llama",
-  },
-  [EnumType.MODEL_TYPE]: {
-    // :ModelType
-    [ModelType.OPENAI_GPT4_0]: "OpenAI GPT-4o",
-    [ModelType.OPENAI_GPT4_O_MINI]: "OpenAI GPT-4o Mini",
-    [ModelType.OPENAI_O1_MINI]: "OpenAI O1 Mini",
-    [ModelType.OPENAI_O1]: "OpenAI O1",
-    [ModelType.ANTHROPIC_CLAUDE_3_5_SONNET]: "Anthropic Claude 3.5 Sonnet",
-    [ModelType.META_LLAMA_3_1_80B]: "Meta Llama 3.1",
-    [ModelType.META_LLAMA_3_1_400B]: "Meta Llama 3.1 (400B)",
-  },
 };
 
 export function getPropertyTitle(property: PropertyInfo | PropertyReferenceData): string {

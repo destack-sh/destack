@@ -65,11 +65,10 @@ from .flow import Flow
 from .link import Link
 from .option import Option
 from .page import Page
-from .task import Task
 from .view import View
 
 if TYPE_CHECKING:
-    from bench.language import Plan
+    from bench.language import Plan, Task
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -950,9 +949,9 @@ class PlanRenderer(NodeRenderer["Plan"]):
 
 
 @_renderer(NodeType.TASK)
-class TaskRenderer(SourceNodeRenderer[Task]):
+class TaskRenderer(NodeRenderer["Task"]):
     @override
-    def render(self, renderer: "Renderer", obj: Task) -> str:
+    def render(self, renderer: "Renderer", obj: "Task") -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         node = kwargs.pop(Task.get_property("node"))
         node_str = renderer.render_node_ref(node)

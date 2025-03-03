@@ -902,7 +902,7 @@ class Runtime:
 
         # load run
         run = await Run.include_descendants(
-            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.INTERRUPTION
+            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.TASK, NodeType.INTERRUPTION
         ).get(run_ptr, live=True)
         run._graph.add_types(*RUNTIME_NODE_TYPES)
         assert run.root_ptr is None, f"{run!r} is not a root Run"

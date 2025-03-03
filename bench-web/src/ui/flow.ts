@@ -1198,15 +1198,6 @@ export class FlowContext {
     return null;
   }
 
-  getDefaultLinkType(source: Port, target: Port): LinkType {
-    // select if the source already has a select link
-    if (this.links.value.some((p) => p.sourcePtr?.ck == source.parent.ck && p.type == LinkType.AUTOMATIC)) {
-      return LinkType.AUTOMATIC;
-    } else {
-      return LinkType.AUTOMATIC;
-    }
-  }
-
   /** Creates a Action */
   createAction(options: {
     action: { type: ActionType } & Partial<ActionData>;
@@ -1290,7 +1281,7 @@ export class FlowContext {
     const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
 
     // decide link type
-    const type = options.link.type ?? this.getDefaultLinkType(source, target);
+    const type = options.link.type ?? LinkType.DECIDE;
 
     // create
     const link = (options.tx ?? this.tx).create({

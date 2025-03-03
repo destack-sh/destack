@@ -38,7 +38,7 @@ class TextOptionsBase(BuiltinObject):
 @enum_(EnumType.TEXT_LINE_TYPE)
 class TextLineType(BuiltinEnum):  # :TextLineType
     # basic
-    PARAGRAPH = 1, "Paragraph", "Plain paragraph", "fas fa-align-left   "
+    PARAGRAPH = 1, "Paragraph", "Plain paragraph", "fas fa-align-left"
     # heading
     HEADING_1 = 10, "Heading 1", "Very big heading", "fas fa-heading"
     HEADING_2 = 11, "Heading 2", "Big heading", "fas fa-heading"

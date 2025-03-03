@@ -222,7 +222,7 @@ def test_render_flow_simple(session: Session, package: Package):
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Complete)
-    Forward1 = Start.connect(LinkType.SELECT, Complete, "Forward1")
+    Forward1 = Start.connect(LinkType.REQUIRE, Complete, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
 
 
@@ -256,7 +256,7 @@ def test_render_flow_computed_value(session: Session, package: Package):
         ],
     )
     Flow1.actions.extend(Start, Complete)
-    Forward1 = Start.connect(LinkType.SELECT, Complete, "Forward1")
+    Forward1 = Start.connect(LinkType.REQUIRE, Complete, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
 
 

@@ -16,7 +16,7 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.registry import NODE_CLASS_BY_TYPE
+from bench.language.registry import DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.pb2.lang_pb2 import RecordData
 from bench.utils.fractional import get_key_bounds, get_order_key
 
@@ -112,12 +112,12 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
         if isinstance(node, Block):
             if (
                 (inner_node := node.node) is not None
-                and inner_node.block_id == node.id
+                and inner_node.definition_id == node.id
                 and inner_node.parent_id != parent.id
             ):
                 attach_node(inner_node, parent, graph, move=True)
         elif isinstance(node, InlineSourceNode):
-            if (block := node.block) is not None and block.parent_id != parent.id:
+            if (block := node.definition) is not None and block.parent_id != parent.id:
                 attach_node(block, parent, graph, move=True)
 
     return node
@@ -168,7 +168,7 @@ class NodeList[V: Node](abc.ABC):
             # make new graph for child node :IsolatedGraph
             graph = NodeGraph(
                 scope=parent._graph.scope,
-                node_types=(self._child_node_type,),
+                node_types=(self._child_node_type, *DESCENDANT_NODE_TYPES[self._child_node_type]),
                 supergraph=parent._supergraph,
             )
             graph.supergraph.add_graph(graph)

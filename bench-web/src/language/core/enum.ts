@@ -1,7 +1,7 @@
-import { ENUM_TYPES, ENUM_TITLE_BY_TYPE, FILTERED_ENUMS, toCamelName } from "@/language/core/const";
-import { EnumType, IconData, EnumTypeMapping, ENUM_BY_TYPE, ColorType, ENUM_OPTION_INFO_BY_TYPE } from "@/proto/wire";
+import { ENUM_TYPES, FILTERED_ENUMS, toCamelName } from "@/language/core/const";
+import { ColorType, ENUM_BY_TYPE, ENUM_OPTION_INFO_BY_TYPE, EnumType, EnumTypeMapping, IconData } from "@/proto/wire";
 import { makeIcon } from "@/ui/icon";
-import { toCasing, Casing } from "@/utils/string";
+import { Casing, toCasing } from "@/utils/string";
 
 export type EnumOption<T extends EnumType = EnumType> = {
   id: string;
@@ -23,17 +23,16 @@ export const ENUM_OPTIONS_BY_VALUE: Record<EnumType, Record<number, EnumOption>>
 /** Get the EnumOptions for an enum type */
 function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
-  const icons = ENUM_OPTION_INFO_BY_TYPE[enumType];
-  const titles = ENUM_TITLE_BY_TYPE[enumType];
+  const info = ENUM_OPTION_INFO_BY_TYPE[enumType];
   const availableEnums =
     FILTERED_ENUMS[enumType] ?? Object.values(protoEnum).filter((v) => typeof v == "number" && v > 0);
   const options: EnumOption<T>[] = availableEnums.map((value) => {
-    const icon = icons?.[value]?.icon != null ? makeIcon(icons[value].icon) : undefined;
+    const icon = info?.[value]?.icon != null ? makeIcon(info[value].icon) : undefined;
     const name = protoEnum[value] as string;
     if (name == null) throw new Error(`missing enum option ${value} in ${EnumType[enumType]}`);
-    const title = titles?.[value] ?? toCasing(name, Casing.CAMEL, true);
-    const color = ENUM_OPTION_INFO_BY_TYPE[enumType]?.[value]?.color;
-    const text = ENUM_OPTION_INFO_BY_TYPE[enumType]?.[value]?.text;
+    const title = info?.[value]?.title ?? toCasing(name, Casing.CAMEL, true);
+    const color = info?.[value]?.color;
+    const text = info?.[value]?.text;
     const option: EnumOption<T> = {
       id: value.toString(),
       icon,
@@ -59,5 +58,5 @@ export function getEnumOption<T extends EnumType>(enumType: T, enumValue: EnumTy
 
 /** Get the title for an enum type and value */
 export function getEnumTitle<T extends EnumType>(enumType: T, enumValue: EnumTypeMapping[T]): string {
-  return ENUM_TITLE_BY_TYPE[enumType]?.[enumValue] ?? toCamelName(ENUM_BY_TYPE[enumType], enumValue);
+  return ENUM_OPTION_INFO_BY_TYPE[enumType]?.[enumValue]?.title ?? toCamelName(ENUM_BY_TYPE[enumType], enumValue);
 }

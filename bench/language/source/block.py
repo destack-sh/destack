@@ -154,14 +154,18 @@ class Block(SourceNode[BlockData]):
     def delete(self, _now: datetime | None = None):
         super().delete(_now=_now)
         # also delete linked Node (if any)
-        if (node := self.node) is not None and node.block_id == self.id and not node.is_deleted:
+        if (
+            (node := self.node) is not None
+            and node.definition_id == self.id
+            and not node.is_deleted
+        ):
             node.delete(_now=_now)
 
     @override
     def restore(self, _now: datetime | None = None):
         super().restore(_now=_now)
         # also restore linked Node (if any)
-        if (node := self.node) is not None and node.block_id == self.id and node.is_deleted:
+        if (node := self.node) is not None and node.definition_id == self.id and node.is_deleted:
             node.restore(_now=_now)
 
     def node_as[T: InlineSourceNode](self, node_cls: _type[T]) -> T:
@@ -177,8 +181,8 @@ class Block(SourceNode[BlockData]):
         except ValueError as exc:
             raise TypeError(f"cannot wrap {node!r} as a Block") from exc
         block = Block.new(block_type, node=node)
-        if node.block_id is None:
-            node.block = block
+        if node.definition_id is None:
+            node.definition = block
         return block
 
     @staticmethod
@@ -198,6 +202,6 @@ class Block(SourceNode[BlockData]):
         if node is not None:
             if not isinstance(node, InlineSourceNode):
                 raise TypeError(f"expected InlineSourceNode, got {node!r}")
-            if node.block is None:
-                node.block = block
+            if node.definition is None:
+                node.definition = block
         return block  # type: ignore
