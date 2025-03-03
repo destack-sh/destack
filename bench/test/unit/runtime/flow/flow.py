@@ -283,6 +283,10 @@ run.plans.append(plan)
     assert runner.tracked_run.has(Code1)
 
 
+# nocheckin: track Plan/Task status
+# (this feels related to closing Interruptions and other cascading runtime stuff?)
+
+
 @simulated_runtime()
 async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then resume from the Yield."""

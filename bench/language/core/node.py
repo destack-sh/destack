@@ -1020,6 +1020,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         self._session = None
 
     @final
+    def _walk_ancestors(self) -> Iterable["Node"]:
+        current = self.parent
+        while current is not None:
+            yield current
+            current = current.parent
+
+    @final
     def _walk_descendants(self) -> Iterable["Node"]:
         yield self
         if self.metatype in HAS_CHILD_NODE_TYPES:

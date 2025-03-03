@@ -490,8 +490,15 @@ class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node.is_attached:  # ignore detached create (is created on attach)
             self._pending_nodes_by_id[node.id] = node
-            if isinstance(node, HasRuntimeContext) and (runtime := self._runtime) is not None:
-                # NOTE: autoset runtime context on all (?) new runtime nodes
+            if (
+                isinstance(node, HasRuntimeContext)
+                and (runtime := self._runtime) is not None
+                and any(
+                    isinstance(ancestor, HasRuntimeContext) and ancestor.session_id == self.id
+                    for ancestor in node._walk_ancestors()
+                )
+            ):
+                # autoset runtime context on new runtime nodes
                 runtime._set_context(node)
             self._tx.record_edit_event(EditType.CREATE, node)
 
