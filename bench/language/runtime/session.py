@@ -484,22 +484,23 @@ class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
             self._context_data = context
         return self._context_data
 
-    def _create(self, *nodes: Node):
+    def _create(self, node: Node):
         """Creates a new Node. The operation *is not* applied directly."""
-        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-        for node in nodes:
-            if node.is_attached:  # ignore detached create (is created on attach)
-                self._pending_nodes_by_id[node.id] = node
-                self._tx.record_edit_event(EditType.CREATE, node)
+        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
+        if node.is_attached:  # ignore detached create (is created on attach)
+            self._pending_nodes_by_id[node.id] = node
+            if isinstance(node, HasRuntimeContext) and (runtime := self._runtime) is not None:
+                # NOTE: autoset runtime context on all (?) new runtime nodes
+                runtime._set_context(node)
+            self._tx.record_edit_event(EditType.CREATE, node)
 
-    def _upsert(self, *nodes: Node):
+    def _upsert(self, node: Node):
         """Creates or updates a Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
-        now = self._oracle.utc()
-        for node in nodes:
-            assert node.is_attached, f"cannot upsert detached node {node!r}"
+        assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
+        if node.is_attached:  # ignore detached upsert (is upserted on attach)
+            now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPSERT, node, now=now)
 
@@ -667,6 +668,7 @@ class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
         """
         Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
         This means any new edits won't be debounced after this point (e.g. to create before update).
+        Runtime nodes from the *current* runtime are not flushed.
         """
         assert self._tx is not None, f"no active transaction in {self!r}"
 

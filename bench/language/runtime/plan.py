@@ -56,6 +56,10 @@ class PlanStatus(BuiltinEnum):
     COMPLETED = 33, None, None, "fas fa-circle-check", ColorType.GREEN
 
     @property
+    def is_active(self) -> bool:
+        return self >= 10 and self < 20
+
+    @property
     def is_terminal(self) -> bool:
         return self >= 30
 
@@ -68,15 +72,13 @@ class PlanTerminationMode(BuiltinEnum):
 
 @enum_(EnumType.PLAN_FAILURE_MODE)
 class PlanFailureMode(BuiltinEnum):
-    FAIL = 10, "Fail", "Fail the entire plan"
-    COMPLETE = 20, "Complete", "Complete the entire plan"
-    CONTINUE = 30, "Continue", "Continue the plan (skip failures)"
+    FAIL = 10, "Fail", "Fail the entire Plan"
+    COMPLETE = 20, "Complete", "Complete the entire Plan"
+    CONTINUE = 30, "Continue", "Continue the Plan (skip failures)"
 
 
 @timed_node_(NodeType.PLAN)
-class Plan(
-    HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace
-):
+class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     """A Plan for something like a sequence of Tasks."""
 
     # meta
@@ -102,11 +104,11 @@ class Plan(
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
 
-    def complete(self, by: "Run") -> None:
+    def complete(self) -> None:
         self.status = PlanStatus.COMPLETED
 
-    def fail(self, by: "Run") -> None:
-        self.error = by.error
+    def fail(self, error: "Error | None") -> None:
+        self.error = error
         self.status = PlanStatus.FAILED
 
     @staticmethod

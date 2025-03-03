@@ -18,6 +18,7 @@ from bench.language import (
     LinkType,
     Plan,
     PlanFailureMode,
+    PlanStatus,
     PlanTerminationMode,
     PlanType,
     Run,
@@ -250,7 +251,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         if (
             (task := run.task) is not None
             and (plan := run.plan) is not None
-            and plan.status == RunStatus.RUNNING
+            and plan.status.is_active
         ):
             parent_run = plan.parent
             assert isinstance(parent_run, Run), f"{plan!r} is not from a Run"
@@ -271,19 +272,19 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                             and link.source_id == parent_run.action_id
                         ):
                             next_run = self._start(
-                                link, plan=plan, task=task, incoming=(parent_run,)
+                                link, plan=plan, task=next_task, incoming=(parent_run,)
                             )
                             new_runs.append(next_run)
                             break
                 if next_run is None:  # nothing left to call, complete plan
-                    plan.complete(by=run)
+                    plan.complete()
 
             # terminate plan on failure
             if is_failed:
                 if plan.failure_mode == PlanFailureMode.FAIL:
-                    plan.fail(by=run)
+                    plan.fail(run.error)
                 elif plan.failure_mode == PlanFailureMode.COMPLETE:
-                    plan.complete(by=run)
+                    plan.complete()
                     handled_fail = True
 
             # handle plan termination
@@ -307,11 +308,10 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
         # begin own plans (on success only)
         if is_completed:
-            plans: list[Plan] = list(run.plans)
-            for new_plan in plans:
-                self.runtime._set_context(new_plan)
-            self.session._create(*plans)
-            for plan in plans:
+            for plan in run.plans:
+                # start plan
+                plan.status = PlanStatus.RUNNING
+                plan.started_at = self.runtime.oracle.utc()
                 # run calls via links
                 if plan.type == PlanType.PARALLEL:
                     next_tasks = plan.tasks

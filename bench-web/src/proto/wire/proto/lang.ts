@@ -4295,6 +4295,10 @@ export interface TaskData {
      */
     ownedByPtr?: NodeReferenceData;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 59;
+     */
+    implementedByPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 60;
      */
     nodePtr?: NodeReferenceData;
@@ -7498,89 +7502,89 @@ export interface SomeNodeData {
          */
         role: RoleData;
     } | {
-        oneofKind: "plan";
-        /**
-         * @generated from protobuf field: symbolx.bench.PlanData plan = 32;
-         */
-        plan: PlanData;
-    } | {
-        oneofKind: "task";
-        /**
-         * @generated from protobuf field: symbolx.bench.TaskData task = 33;
-         */
-        task: TaskData;
-    } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbolx.bench.SpaceData space = 34;
+         * @generated from protobuf field: symbolx.bench.SpaceData space = 32;
          */
         space: SpaceData;
     } | {
         oneofKind: "thread";
         /**
-         * @generated from protobuf field: symbolx.bench.ThreadData thread = 35;
+         * @generated from protobuf field: symbolx.bench.ThreadData thread = 33;
          */
         thread: ThreadData;
     } | {
         oneofKind: "message";
         /**
-         * @generated from protobuf field: symbolx.bench.MessageData message = 36;
+         * @generated from protobuf field: symbolx.bench.MessageData message = 34;
          */
         message: MessageData;
     } | {
         oneofKind: "notification";
         /**
-         * @generated from protobuf field: symbolx.bench.NotificationData notification = 37;
+         * @generated from protobuf field: symbolx.bench.NotificationData notification = 35;
          */
         notification: NotificationData;
     } | {
         oneofKind: "record";
         /**
-         * @generated from protobuf field: symbolx.bench.RecordData record = 38;
+         * @generated from protobuf field: symbolx.bench.RecordData record = 36;
          */
         record: RecordData;
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbolx.bench.MembershipData membership = 39;
+         * @generated from protobuf field: symbolx.bench.MembershipData membership = 37;
          */
         membership: MembershipData;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbolx.bench.InviteData invite = 40;
+         * @generated from protobuf field: symbolx.bench.InviteData invite = 38;
          */
         invite: InviteData;
     } | {
         oneofKind: "session";
         /**
-         * @generated from protobuf field: symbolx.bench.SessionData session = 41;
+         * @generated from protobuf field: symbolx.bench.SessionData session = 39;
          */
         session: SessionData;
     } | {
         oneofKind: "run";
         /**
-         * @generated from protobuf field: symbolx.bench.RunData run = 42;
+         * @generated from protobuf field: symbolx.bench.RunData run = 40;
          */
         run: RunData;
     } | {
         oneofKind: "runSpan";
         /**
-         * @generated from protobuf field: symbolx.bench.RunSpanData run_span = 43;
+         * @generated from protobuf field: symbolx.bench.RunSpanData run_span = 41;
          */
         runSpan: RunSpanData;
     } | {
         oneofKind: "interruption";
         /**
-         * @generated from protobuf field: symbolx.bench.InterruptionData interruption = 44;
+         * @generated from protobuf field: symbolx.bench.InterruptionData interruption = 42;
          */
         interruption: InterruptionData;
     } | {
         oneofKind: "log";
         /**
-         * @generated from protobuf field: symbolx.bench.LogData log = 45;
+         * @generated from protobuf field: symbolx.bench.LogData log = 43;
          */
         log: LogData;
+    } | {
+        oneofKind: "plan";
+        /**
+         * @generated from protobuf field: symbolx.bench.PlanData plan = 44;
+         */
+        plan: PlanData;
+    } | {
+        oneofKind: "task";
+        /**
+         * @generated from protobuf field: symbolx.bench.TaskData task = 45;
+         */
+        task: TaskData;
     } | {
         oneofKind: "skip";
         /**
@@ -8239,14 +8243,6 @@ export enum NodeType {
      */
     ROLE = 5110,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PLAN = 5120;
-     */
-    PLAN = 5120,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_TASK = 5121;
-     */
-    TASK = 5121,
-    /**
      * @generated from protobuf enum value: NODE_TYPE_SPACE = 5200;
      */
     SPACE = 5200,
@@ -8294,6 +8290,14 @@ export enum NodeType {
      * @generated from protobuf enum value: NODE_TYPE_LOG = 6030;
      */
     LOG = 6030,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_PLAN = 6040;
+     */
+    PLAN = 6040,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_TASK = 6041;
+     */
+    TASK = 6041,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SKIP = 9000;
      */
@@ -8673,14 +8677,6 @@ export enum ObjectType {
      */
     ROLE = 5110,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PLAN = 5120;
-     */
-    PLAN = 5120,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TASK = 5121;
-     */
-    TASK = 5121,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_SPACE = 5200;
      */
     SPACE = 5200,
@@ -8728,6 +8724,14 @@ export enum ObjectType {
      * @generated from protobuf enum value: OBJECT_TYPE_LOG = 6030;
      */
     LOG = 6030,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PLAN = 6040;
+     */
+    PLAN = 6040,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TASK = 6041;
+     */
+    TASK = 6041,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_SKIP = 9000;
      */
@@ -9098,14 +9102,6 @@ export enum BenchType {
      */
     ROLE = 5110,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PLAN = 5120;
-     */
-    PLAN = 5120,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TASK = 5121;
-     */
-    TASK = 5121,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE = 5200;
      */
     SPACE = 5200,
@@ -9153,6 +9149,14 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_LOG = 6030;
      */
     LOG = 6030,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PLAN = 6040;
+     */
+    PLAN = 6040,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TASK = 6041;
+     */
+    TASK = 6041,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SKIP = 9000;
      */
@@ -25026,6 +25030,7 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 56, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 57, name: "error", kind: "message", T: () => ErrorData },
             { no: 58, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 59, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 62, name: "value_packed", kind: "message", T: () => Value },
@@ -25127,6 +25132,9 @@ class TaskData$Type extends MessageType$<TaskData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 58:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 59:
+                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData node_ptr */ 60:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
@@ -25236,6 +25244,9 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 58; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(58, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 59; */
+        if (message.implementedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(59, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData node_ptr = 60; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -32389,20 +32400,20 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
             { no: 29, name: "database", kind: "message", oneof: "node", T: () => DatabaseData },
             { no: 30, name: "channel", kind: "message", oneof: "node", T: () => ChannelData },
             { no: 31, name: "role", kind: "message", oneof: "node", T: () => RoleData },
-            { no: 32, name: "plan", kind: "message", oneof: "node", T: () => PlanData },
-            { no: 33, name: "task", kind: "message", oneof: "node", T: () => TaskData },
-            { no: 34, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
-            { no: 35, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
-            { no: 36, name: "message", kind: "message", oneof: "node", T: () => MessageData },
-            { no: 37, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
-            { no: 38, name: "record", kind: "message", oneof: "node", T: () => RecordData },
-            { no: 39, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
-            { no: 40, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
-            { no: 41, name: "session", kind: "message", oneof: "node", T: () => SessionData },
-            { no: 42, name: "run", kind: "message", oneof: "node", T: () => RunData },
-            { no: 43, name: "run_span", kind: "message", oneof: "node", T: () => RunSpanData },
-            { no: 44, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
-            { no: 45, name: "log", kind: "message", oneof: "node", T: () => LogData },
+            { no: 32, name: "space", kind: "message", oneof: "node", T: () => SpaceData },
+            { no: 33, name: "thread", kind: "message", oneof: "node", T: () => ThreadData },
+            { no: 34, name: "message", kind: "message", oneof: "node", T: () => MessageData },
+            { no: 35, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
+            { no: 36, name: "record", kind: "message", oneof: "node", T: () => RecordData },
+            { no: 37, name: "membership", kind: "message", oneof: "node", T: () => MembershipData },
+            { no: 38, name: "invite", kind: "message", oneof: "node", T: () => InviteData },
+            { no: 39, name: "session", kind: "message", oneof: "node", T: () => SessionData },
+            { no: 40, name: "run", kind: "message", oneof: "node", T: () => RunData },
+            { no: 41, name: "run_span", kind: "message", oneof: "node", T: () => RunSpanData },
+            { no: 42, name: "interruption", kind: "message", oneof: "node", T: () => InterruptionData },
+            { no: 43, name: "log", kind: "message", oneof: "node", T: () => LogData },
+            { no: 44, name: "plan", kind: "message", oneof: "node", T: () => PlanData },
+            { no: 45, name: "task", kind: "message", oneof: "node", T: () => TaskData },
             { no: 46, name: "skip", kind: "message", oneof: "node", T: () => SkipData },
             { no: 47, name: "empty", kind: "message", oneof: "node", T: () => EmptyData }
         ]);
@@ -32605,88 +32616,88 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
                         role: RoleData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbolx.bench.PlanData plan */ 32:
-                    message.node = {
-                        oneofKind: "plan",
-                        plan: PlanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).plan)
-                    };
-                    break;
-                case /* symbolx.bench.TaskData task */ 33:
-                    message.node = {
-                        oneofKind: "task",
-                        task: TaskData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).task)
-                    };
-                    break;
-                case /* symbolx.bench.SpaceData space */ 34:
+                case /* symbolx.bench.SpaceData space */ 32:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbolx.bench.ThreadData thread */ 35:
+                case /* symbolx.bench.ThreadData thread */ 33:
                     message.node = {
                         oneofKind: "thread",
                         thread: ThreadData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).thread)
                     };
                     break;
-                case /* symbolx.bench.MessageData message */ 36:
+                case /* symbolx.bench.MessageData message */ 34:
                     message.node = {
                         oneofKind: "message",
                         message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
                     };
                     break;
-                case /* symbolx.bench.NotificationData notification */ 37:
+                case /* symbolx.bench.NotificationData notification */ 35:
                     message.node = {
                         oneofKind: "notification",
                         notification: NotificationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
                     };
                     break;
-                case /* symbolx.bench.RecordData record */ 38:
+                case /* symbolx.bench.RecordData record */ 36:
                     message.node = {
                         oneofKind: "record",
                         record: RecordData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).record)
                     };
                     break;
-                case /* symbolx.bench.MembershipData membership */ 39:
+                case /* symbolx.bench.MembershipData membership */ 37:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbolx.bench.InviteData invite */ 40:
+                case /* symbolx.bench.InviteData invite */ 38:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbolx.bench.SessionData session */ 41:
+                case /* symbolx.bench.SessionData session */ 39:
                     message.node = {
                         oneofKind: "session",
                         session: SessionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).session)
                     };
                     break;
-                case /* symbolx.bench.RunData run */ 42:
+                case /* symbolx.bench.RunData run */ 40:
                     message.node = {
                         oneofKind: "run",
                         run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
                     };
                     break;
-                case /* symbolx.bench.RunSpanData run_span */ 43:
+                case /* symbolx.bench.RunSpanData run_span */ 41:
                     message.node = {
                         oneofKind: "runSpan",
                         runSpan: RunSpanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runSpan)
                     };
                     break;
-                case /* symbolx.bench.InterruptionData interruption */ 44:
+                case /* symbolx.bench.InterruptionData interruption */ 42:
                     message.node = {
                         oneofKind: "interruption",
                         interruption: InterruptionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).interruption)
                     };
                     break;
-                case /* symbolx.bench.LogData log */ 45:
+                case /* symbolx.bench.LogData log */ 43:
                     message.node = {
                         oneofKind: "log",
                         log: LogData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).log)
+                    };
+                    break;
+                case /* symbolx.bench.PlanData plan */ 44:
+                    message.node = {
+                        oneofKind: "plan",
+                        plan: PlanData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).plan)
+                    };
+                    break;
+                case /* symbolx.bench.TaskData task */ 45:
+                    message.node = {
+                        oneofKind: "task",
+                        task: TaskData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).task)
                     };
                     break;
                 case /* symbolx.bench.SkipData skip */ 46:
@@ -32806,48 +32817,48 @@ class SomeNodeData$Type extends MessageType$<SomeNodeData> {
         /* symbolx.bench.RoleData role = 31; */
         if (message.node.oneofKind === "role")
             RoleData.internalBinaryWrite(message.node.role, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PlanData plan = 32; */
-        if (message.node.oneofKind === "plan")
-            PlanData.internalBinaryWrite(message.node.plan, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.TaskData task = 33; */
-        if (message.node.oneofKind === "task")
-            TaskData.internalBinaryWrite(message.node.task, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SpaceData space = 34; */
+        /* symbolx.bench.SpaceData space = 32; */
         if (message.node.oneofKind === "space")
-            SpaceData.internalBinaryWrite(message.node.space, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ThreadData thread = 35; */
+            SpaceData.internalBinaryWrite(message.node.space, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ThreadData thread = 33; */
         if (message.node.oneofKind === "thread")
-            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MessageData message = 36; */
+            ThreadData.internalBinaryWrite(message.node.thread, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MessageData message = 34; */
         if (message.node.oneofKind === "message")
-            MessageData.internalBinaryWrite(message.node.message, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NotificationData notification = 37; */
+            MessageData.internalBinaryWrite(message.node.message, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NotificationData notification = 35; */
         if (message.node.oneofKind === "notification")
-            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RecordData record = 38; */
+            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RecordData record = 36; */
         if (message.node.oneofKind === "record")
-            RecordData.internalBinaryWrite(message.node.record, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MembershipData membership = 39; */
+            RecordData.internalBinaryWrite(message.node.record, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MembershipData membership = 37; */
         if (message.node.oneofKind === "membership")
-            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.InviteData invite = 40; */
+            MembershipData.internalBinaryWrite(message.node.membership, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.InviteData invite = 38; */
         if (message.node.oneofKind === "invite")
-            InviteData.internalBinaryWrite(message.node.invite, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SessionData session = 41; */
+            InviteData.internalBinaryWrite(message.node.invite, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SessionData session = 39; */
         if (message.node.oneofKind === "session")
-            SessionData.internalBinaryWrite(message.node.session, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunData run = 42; */
+            SessionData.internalBinaryWrite(message.node.session, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RunData run = 40; */
         if (message.node.oneofKind === "run")
-            RunData.internalBinaryWrite(message.node.run, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunSpanData run_span = 43; */
+            RunData.internalBinaryWrite(message.node.run, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RunSpanData run_span = 41; */
         if (message.node.oneofKind === "runSpan")
-            RunSpanData.internalBinaryWrite(message.node.runSpan, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.InterruptionData interruption = 44; */
+            RunSpanData.internalBinaryWrite(message.node.runSpan, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.InterruptionData interruption = 42; */
         if (message.node.oneofKind === "interruption")
-            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.LogData log = 45; */
+            InterruptionData.internalBinaryWrite(message.node.interruption, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.LogData log = 43; */
         if (message.node.oneofKind === "log")
-            LogData.internalBinaryWrite(message.node.log, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+            LogData.internalBinaryWrite(message.node.log, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PlanData plan = 44; */
+        if (message.node.oneofKind === "plan")
+            PlanData.internalBinaryWrite(message.node.plan, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.TaskData task = 45; */
+        if (message.node.oneofKind === "task")
+            TaskData.internalBinaryWrite(message.node.task, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.SkipData skip = 46; */
         if (message.node.oneofKind === "skip")
             SkipData.internalBinaryWrite(message.node.skip, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
@@ -32876,18 +32887,18 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 //
 
 // Any...
-export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | TeamData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | PlanData | TaskData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | SkipData | EmptyData
+export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | TeamData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData | SkipData | EmptyData
 export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
-export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof TeamData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof ImplementationData | typeof ViewData | typeof DatabaseData | typeof ChannelData | typeof RoleData | typeof PlanData | typeof TaskData | typeof SpaceData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof RecordData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof InterruptionData | typeof LogData | typeof SkipData | typeof EmptyData
+export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof TeamData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof ImplementationData | typeof ViewData | typeof DatabaseData | typeof ChannelData | typeof RoleData | typeof SpaceData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof RecordData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof SkipData | typeof EmptyData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
-export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | PlanData | TaskData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData
+export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData
 export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
 export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData
 export type InlineSourceNodeData = PageData | ChoiceData | ClassData | TagData | FlowData | ImplementationData | ViewData | DatabaseData | ChannelData | RoleData
 export type TypeBaseNodeData = ChoiceData | ClassData | FlowData | ActionData | DatabaseData
 export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData
 export type StateNodeData = ThreadData | MessageData | NotificationData | RecordData | MembershipData | InviteData
-export type RuntimeNodeData = SessionData | RunData | RunSpanData | InterruptionData | LogData
+export type RuntimeNodeData = SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData
 export type StaticResourceNodeData = ScalerData | StoreData
 export type DynamicResourceNodeData = MachineData | BrowserData | FileData | StreamData | SecretData
 
@@ -32925,8 +32936,6 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DATABASE]: [NodeType.PAGE],
   [NodeType.CHANNEL]: [NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.ROLE]: [NodeType.PAGE],
-  [NodeType.PLAN]: [NodeType.PACKAGE, NodeType.PLAN, NodeType.RUN, NodeType.PAGE],
-  [NodeType.TASK]: [NodeType.PLAN, NodeType.TASK, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE],
   [NodeType.THREAD]: [NodeType.CHANNEL, NodeType.THREAD],
   [NodeType.MESSAGE]: [NodeType.CHANNEL, NodeType.THREAD],
@@ -32939,8 +32948,10 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN_SPAN]: [NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.RUN],
   [NodeType.LOG]: [NodeType.BENCH, NodeType.RUN],
-  [NodeType.SKIP]: [NodeType.PLAN, NodeType.BENCH, NodeType.HANDLE, NodeType.TASK, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
-  [NodeType.EMPTY]: [NodeType.PLAN, NodeType.BENCH, NodeType.HANDLE, NodeType.TASK, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.PLAN]: [NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE, NodeType.PLAN],
+  [NodeType.TASK]: [NodeType.PLAN, NodeType.TASK, NodeType.RUN, NodeType.PAGE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.STREAM, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.SECRET, NodeType.IMPLEMENTATION, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -32958,9 +32969,9 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.PLAN, NodeType.TASK, NodeType.IMPLEMENTATION, NodeType.SKIP, NodeType.CHANNEL, NodeType.EMPTY, NodeType.SPACE, NodeType.TAG, NodeType.DEPENDENCY, NodeType.RUN, NodeType.PAGE],
+  [NodeType.PACKAGE]: [NodeType.IMPLEMENTATION, NodeType.SKIP, NodeType.CHANNEL, NodeType.EMPTY, NodeType.SPACE, NodeType.TAG, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.RUN, NodeType.PAGE],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.PLAN, NodeType.TASK, NodeType.DATABASE, NodeType.IMPLEMENTATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.CHANNEL, NodeType.EMPTY, NodeType.TAG, NodeType.ROLE, NodeType.VIEW, NodeType.FLOW, NodeType.PAGE, NodeType.BLOCK],
+  [NodeType.PAGE]: [NodeType.DATABASE, NodeType.IMPLEMENTATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.CHANNEL, NodeType.EMPTY, NodeType.TAG, NodeType.ROLE, NodeType.VIEW, NodeType.PLAN, NodeType.TASK, NodeType.FLOW, NodeType.PAGE, NodeType.BLOCK],
   [NodeType.BLOCK]: [NodeType.SKIP, NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.CHOICE]: [NodeType.SKIP, NodeType.OPTION, NodeType.EMPTY],
   [NodeType.CLASS]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
@@ -32976,8 +32987,6 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DATABASE]: [NodeType.SKIP, NodeType.FIELD, NodeType.RECORD, NodeType.EMPTY],
   [NodeType.CHANNEL]: [NodeType.SKIP, NodeType.THREAD, NodeType.MESSAGE, NodeType.EMPTY],
   [NodeType.ROLE]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PLAN]: [NodeType.SKIP, NodeType.PLAN, NodeType.TASK, NodeType.EMPTY],
-  [NodeType.TASK]: [NodeType.SKIP, NodeType.TASK, NodeType.TRIGGER, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.EMPTY],
   [NodeType.THREAD]: [NodeType.SKIP, NodeType.THREAD, NodeType.MESSAGE, NodeType.EMPTY],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32986,10 +32995,12 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.MEMBERSHIP]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.INVITE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SESSION]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.RUN]: [NodeType.PLAN, NodeType.TASK, NodeType.INTERRUPTION, NodeType.SKIP, NodeType.LOG, NodeType.EMPTY, NodeType.RUN, NodeType.RUN_SPAN, NodeType.PAGE, NodeType.TRIGGER],
+  [NodeType.RUN]: [NodeType.INTERRUPTION, NodeType.SKIP, NodeType.LOG, NodeType.EMPTY, NodeType.PLAN, NodeType.TASK, NodeType.RUN, NodeType.RUN_SPAN, NodeType.PAGE, NodeType.TRIGGER],
   [NodeType.RUN_SPAN]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.INTERRUPTION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.LOG]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.PLAN]: [NodeType.SKIP, NodeType.TASK, NodeType.PLAN, NodeType.EMPTY],
+  [NodeType.TASK]: [NodeType.SKIP, NodeType.TASK, NodeType.TRIGGER, NodeType.EMPTY],
   [NodeType.SKIP]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.EMPTY]: [NodeType.SKIP, NodeType.EMPTY],
 }
@@ -33021,14 +33032,12 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FLOW]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.RUN],
   [NodeType.LINK]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.RUN],
-  [NodeType.TRIGGER]: [NodeType.PLAN, NodeType.BENCH, NodeType.TASK, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.RUN],
+  [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.IMPLEMENTATION, NodeType.PACKAGE, NodeType.PLAN, NodeType.TASK, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE, NodeType.RUN],
   [NodeType.IMPLEMENTATION]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
   [NodeType.VIEW]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.VIEW, NodeType.RUN, NodeType.PAGE],
   [NodeType.DATABASE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
   [NodeType.CHANNEL]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
   [NodeType.ROLE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
-  [NodeType.PLAN]: [NodeType.PLAN, NodeType.BENCH, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
-  [NodeType.TASK]: [NodeType.PLAN, NodeType.BENCH, NodeType.TASK, NodeType.PACKAGE, NodeType.RUN, NodeType.PAGE],
   [NodeType.SPACE]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.THREAD]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE, NodeType.THREAD],
   [NodeType.MESSAGE]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE, NodeType.THREAD],
@@ -33041,13 +33050,15 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.RUN_SPAN]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.RUN],
   [NodeType.INTERRUPTION]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.RUN],
   [NodeType.LOG]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.RUN],
-  [NodeType.SKIP]: [NodeType.PLAN, NodeType.BENCH, NodeType.TASK, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.CLIENT, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.LINK, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
-  [NodeType.EMPTY]: [NodeType.PLAN, NodeType.BENCH, NodeType.TASK, NodeType.HANDLE, NodeType.USER, NodeType.EMPTY, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.SKIP, NodeType.CLIENT, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.LINK, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.ROLE],
+  [NodeType.PLAN]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.PLAN, NodeType.RUN, NodeType.PAGE],
+  [NodeType.TASK]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN, NodeType.PAGE],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.USER, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.ORGANIZATION, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.TEAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.CLIENT, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.LINK, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.EMPTY]: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.EMPTY, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.SKIP, NodeType.CLIENT, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FILE, NodeType.FLOW, NodeType.ACTION, NodeType.STREAM, NodeType.TRIGGER, NodeType.LINK, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.ROLE],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.PLAN, NodeType.TASK, NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.FLOW, NodeType.STREAM, NodeType.LINK, NodeType.TRIGGER, NodeType.ACTION, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.PACKAGE, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.FILE, NodeType.TAG, NodeType.CLIENT, NodeType.FLOW, NodeType.STREAM, NodeType.LINK, NodeType.TRIGGER, NodeType.ACTION, NodeType.IMPLEMENTATION, NodeType.SECRET, NodeType.MACHINE, NodeType.SPACE, NodeType.BROWSER, NodeType.VIEW, NodeType.MEMBERSHIP, NodeType.DATABASE, NodeType.SCALER, NodeType.STORE, NodeType.INVITE, NodeType.CHANNEL, NodeType.SESSION, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.ORGANIZATION]: [NodeType.MEMBERSHIP, NodeType.HANDLE, NodeType.SKIP, NodeType.INVITE, NodeType.EMPTY, NodeType.TEAM],
@@ -33060,9 +33071,9 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.PLAN, NodeType.TASK, NodeType.INTERRUPTION, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.SPACE, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.PACKAGE]: [NodeType.INTERRUPTION, NodeType.LOG, NodeType.EMPTY, NodeType.DEPENDENCY, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.SPACE, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.RUN, NodeType.RUN_SPAN, NodeType.THREAD, NodeType.MESSAGE],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.PLAN, NodeType.TASK, NodeType.EMPTY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.THREAD, NodeType.MESSAGE],
+  [NodeType.PAGE]: [NodeType.EMPTY, NodeType.PLAN, NodeType.TASK, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.RECORD, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.THREAD, NodeType.MESSAGE],
   [NodeType.BLOCK]: [NodeType.SKIP, NodeType.BLOCK, NodeType.EMPTY],
   [NodeType.CHOICE]: [NodeType.SKIP, NodeType.OPTION, NodeType.EMPTY],
   [NodeType.CLASS]: [NodeType.SKIP, NodeType.FIELD, NodeType.EMPTY],
@@ -33078,8 +33089,6 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DATABASE]: [NodeType.SKIP, NodeType.FIELD, NodeType.RECORD, NodeType.EMPTY],
   [NodeType.CHANNEL]: [NodeType.SKIP, NodeType.THREAD, NodeType.MESSAGE, NodeType.EMPTY],
   [NodeType.ROLE]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PLAN]: [NodeType.PLAN, NodeType.TASK, NodeType.SKIP, NodeType.TRIGGER, NodeType.EMPTY],
-  [NodeType.TASK]: [NodeType.TASK, NodeType.SKIP, NodeType.TRIGGER, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.THREAD]: [NodeType.SKIP, NodeType.THREAD, NodeType.MESSAGE, NodeType.EMPTY],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
@@ -33088,10 +33097,12 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.MEMBERSHIP]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.INVITE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SESSION]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.RUN]: [NodeType.PLAN, NodeType.TASK, NodeType.IMPLEMENTATION, NodeType.INTERRUPTION, NodeType.LOG, NodeType.EMPTY, NodeType.VIEW, NodeType.PAGE, NodeType.BLOCK, NodeType.THREAD, NodeType.RUN, NodeType.DATABASE, NodeType.RUN_SPAN, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.CHANNEL, NodeType.RECORD, NodeType.TAG, NodeType.ROLE, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.MESSAGE],
+  [NodeType.RUN]: [NodeType.IMPLEMENTATION, NodeType.INTERRUPTION, NodeType.LOG, NodeType.EMPTY, NodeType.PLAN, NodeType.TASK, NodeType.VIEW, NodeType.PAGE, NodeType.BLOCK, NodeType.THREAD, NodeType.RUN, NodeType.DATABASE, NodeType.RUN_SPAN, NodeType.CHOICE, NodeType.CLASS, NodeType.SKIP, NodeType.FIELD, NodeType.OPTION, NodeType.CHANNEL, NodeType.RECORD, NodeType.TAG, NodeType.ROLE, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.MESSAGE],
   [NodeType.RUN_SPAN]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.INTERRUPTION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.LOG]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.PLAN]: [NodeType.SKIP, NodeType.EMPTY, NodeType.PLAN, NodeType.TASK, NodeType.TRIGGER],
+  [NodeType.TASK]: [NodeType.SKIP, NodeType.TASK, NodeType.TRIGGER, NodeType.EMPTY],
   [NodeType.SKIP]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.EMPTY]: [NodeType.SKIP, NodeType.EMPTY],
 }
@@ -33130,8 +33141,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.DATABASE]: DatabaseData,
   [ObjectType.CHANNEL]: ChannelData,
   [ObjectType.ROLE]: RoleData,
-  [ObjectType.PLAN]: PlanData,
-  [ObjectType.TASK]: TaskData,
   [ObjectType.SPACE]: SpaceData,
   [ObjectType.THREAD]: ThreadData,
   [ObjectType.MESSAGE]: MessageData,
@@ -33144,6 +33153,8 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.RUN_SPAN]: RunSpanData,
   [ObjectType.INTERRUPTION]: InterruptionData,
   [ObjectType.LOG]: LogData,
+  [ObjectType.PLAN]: PlanData,
+  [ObjectType.TASK]: TaskData,
   [ObjectType.SKIP]: SkipData,
   [ObjectType.EMPTY]: EmptyData,
   [ObjectType.CONTEXT]: ContextData,
@@ -33237,8 +33248,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.DatabaseData"]: ObjectType.DATABASE,
   ["symbolx.bench.ChannelData"]: ObjectType.CHANNEL,
   ["symbolx.bench.RoleData"]: ObjectType.ROLE,
-  ["symbolx.bench.PlanData"]: ObjectType.PLAN,
-  ["symbolx.bench.TaskData"]: ObjectType.TASK,
   ["symbolx.bench.SpaceData"]: ObjectType.SPACE,
   ["symbolx.bench.ThreadData"]: ObjectType.THREAD,
   ["symbolx.bench.MessageData"]: ObjectType.MESSAGE,
@@ -33251,6 +33260,8 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.RunSpanData"]: ObjectType.RUN_SPAN,
   ["symbolx.bench.InterruptionData"]: ObjectType.INTERRUPTION,
   ["symbolx.bench.LogData"]: ObjectType.LOG,
+  ["symbolx.bench.PlanData"]: ObjectType.PLAN,
+  ["symbolx.bench.TaskData"]: ObjectType.TASK,
   ["symbolx.bench.SkipData"]: ObjectType.SKIP,
   ["symbolx.bench.EmptyData"]: ObjectType.EMPTY,
   ["symbolx.bench.ContextData"]: ObjectType.CONTEXT,
@@ -33535,8 +33546,6 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.DATABASE]: DatabaseData,
   [NodeType.CHANNEL]: ChannelData,
   [NodeType.ROLE]: RoleData,
-  [NodeType.PLAN]: PlanData,
-  [NodeType.TASK]: TaskData,
   [NodeType.SPACE]: SpaceData,
   [NodeType.THREAD]: ThreadData,
   [NodeType.MESSAGE]: MessageData,
@@ -33549,6 +33558,8 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.RUN_SPAN]: RunSpanData,
   [NodeType.INTERRUPTION]: InterruptionData,
   [NodeType.LOG]: LogData,
+  [NodeType.PLAN]: PlanData,
+  [NodeType.TASK]: TaskData,
   [NodeType.SKIP]: SkipData,
   [NodeType.EMPTY]: EmptyData,
 }
@@ -33652,8 +33663,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.DATABASE]: DatabaseData,
   [ObjectType.CHANNEL]: ChannelData,
   [ObjectType.ROLE]: RoleData,
-  [ObjectType.PLAN]: PlanData,
-  [ObjectType.TASK]: TaskData,
   [ObjectType.SPACE]: SpaceData,
   [ObjectType.THREAD]: ThreadData,
   [ObjectType.MESSAGE]: MessageData,
@@ -33666,6 +33675,8 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.RUN_SPAN]: RunSpanData,
   [ObjectType.INTERRUPTION]: InterruptionData,
   [ObjectType.LOG]: LogData,
+  [ObjectType.PLAN]: PlanData,
+  [ObjectType.TASK]: TaskData,
   [ObjectType.SKIP]: SkipData,
   [ObjectType.EMPTY]: EmptyData,
   [ObjectType.CONTEXT]: ContextData,
@@ -34726,70 +34737,6 @@ export enum RoleProperty {
   color = 40,
 }
 
-export enum PlanProperty {
-  metatype = 1,
-  id = 2,
-  parentPtr = 4,
-  benchPtr = 5,
-  packagePtr = 8,
-  createdAt = 10,
-  createdByPtr = 11,
-  updatedAt = 12,
-  updatedByPtr = 13,
-  deletedAt = 14,
-  mode = 20,
-  subnodePacked = 29,
-  type = 30,
-  name = 40,
-  terminationMode = 41,
-  failureMode = 42,
-  status = 50,
-  duration = 51,
-  startedAt = 52,
-  terminatedAt = 55,
-  error = 56,
-  ownedByPtr = 57,
-  sessionPtr = 90,
-  clientPtr = 93,
-  machinePtr = 94,
-  userPtr = 95,
-}
-
-export enum TaskProperty {
-  metatype = 1,
-  id = 2,
-  parentPtr = 4,
-  benchPtr = 5,
-  packagePtr = 8,
-  createdAt = 10,
-  createdByPtr = 11,
-  updatedAt = 12,
-  updatedByPtr = 13,
-  deletedAt = 14,
-  mode = 20,
-  subnodePacked = 29,
-  type = 30,
-  name = 31,
-  orderKey = 32,
-  icon = 33,
-  text = 34,
-  definitionPtr = 35,
-  status = 50,
-  duration = 51,
-  dueAt = 52,
-  startedAt = 53,
-  terminatedAt = 56,
-  error = 57,
-  ownedByPtr = 58,
-  nodePtr = 60,
-  clazzPtr = 61,
-  valuePacked = 62,
-  sessionPtr = 90,
-  clientPtr = 93,
-  machinePtr = 94,
-  userPtr = 95,
-}
-
 export enum SpaceProperty {
   metatype = 1,
   id = 2,
@@ -35118,6 +35065,71 @@ export enum LogProperty {
   severity = 31,
   title = 32,
   text = 33,
+  sessionPtr = 90,
+  clientPtr = 93,
+  machinePtr = 94,
+  userPtr = 95,
+}
+
+export enum PlanProperty {
+  metatype = 1,
+  id = 2,
+  parentPtr = 4,
+  benchPtr = 5,
+  packagePtr = 8,
+  createdAt = 10,
+  createdByPtr = 11,
+  updatedAt = 12,
+  updatedByPtr = 13,
+  deletedAt = 14,
+  mode = 20,
+  subnodePacked = 29,
+  type = 30,
+  name = 40,
+  terminationMode = 41,
+  failureMode = 42,
+  status = 50,
+  duration = 51,
+  startedAt = 52,
+  terminatedAt = 55,
+  error = 56,
+  ownedByPtr = 57,
+  sessionPtr = 90,
+  clientPtr = 93,
+  machinePtr = 94,
+  userPtr = 95,
+}
+
+export enum TaskProperty {
+  metatype = 1,
+  id = 2,
+  parentPtr = 4,
+  benchPtr = 5,
+  packagePtr = 8,
+  createdAt = 10,
+  createdByPtr = 11,
+  updatedAt = 12,
+  updatedByPtr = 13,
+  deletedAt = 14,
+  mode = 20,
+  subnodePacked = 29,
+  type = 30,
+  name = 31,
+  orderKey = 32,
+  icon = 33,
+  text = 34,
+  definitionPtr = 35,
+  status = 50,
+  duration = 51,
+  dueAt = 52,
+  startedAt = 53,
+  terminatedAt = 56,
+  error = 57,
+  ownedByPtr = 58,
+  implementedByPtr = 59,
+  nodePtr = 60,
+  clazzPtr = 61,
+  valuePacked = 62,
   sessionPtr = 90,
   clientPtr = 93,
   machinePtr = 94,
@@ -35919,12 +35931,12 @@ export enum DomNodeProperty {
   isFocused = 36,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof PlanProperty | typeof TaskProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof SkipProperty | typeof EmptyProperty
 export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof PlanProperty | typeof TaskProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof SkipProperty | typeof EmptyProperty
 export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof PlanProperty | typeof TaskProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof ImplementationProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof RecordProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -35957,8 +35969,6 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.DATABASE]: DatabaseProperty,
   [ObjectType.CHANNEL]: ChannelProperty,
   [ObjectType.ROLE]: RoleProperty,
-  [ObjectType.PLAN]: PlanProperty,
-  [ObjectType.TASK]: TaskProperty,
   [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.THREAD]: ThreadProperty,
   [ObjectType.MESSAGE]: MessageProperty,
@@ -35971,6 +35981,8 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.RUN_SPAN]: RunSpanProperty,
   [ObjectType.INTERRUPTION]: InterruptionProperty,
   [ObjectType.LOG]: LogProperty,
+  [ObjectType.PLAN]: PlanProperty,
+  [ObjectType.TASK]: TaskProperty,
   [ObjectType.SKIP]: SkipProperty,
   [ObjectType.EMPTY]: EmptyProperty,
 }
@@ -36067,8 +36079,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.DATABASE]: DatabaseProperty,
   [ObjectType.CHANNEL]: ChannelProperty,
   [ObjectType.ROLE]: RoleProperty,
-  [ObjectType.PLAN]: PlanProperty,
-  [ObjectType.TASK]: TaskProperty,
   [ObjectType.SPACE]: SpaceProperty,
   [ObjectType.THREAD]: ThreadProperty,
   [ObjectType.MESSAGE]: MessageProperty,
@@ -36081,6 +36091,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.RUN_SPAN]: RunSpanProperty,
   [ObjectType.INTERRUPTION]: InterruptionProperty,
   [ObjectType.LOG]: LogProperty,
+  [ObjectType.PLAN]: PlanProperty,
+  [ObjectType.TASK]: TaskProperty,
   [ObjectType.SKIP]: SkipProperty,
   [ObjectType.EMPTY]: EmptyProperty,
   [ObjectType.CONTEXT]: ContextProperty,
@@ -36477,8 +36489,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36501,7 +36513,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.tagsPtr]: { id: 39, name: 'tags_ptr', component: ObjectType.MACHINE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36510,8 +36522,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.03.4", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36537,7 +36549,7 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.text]: { id: 34, name: 'text', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BrowserProperty.region]: { id: 35, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [BrowserProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.tagsPtr]: { id: 39, name: 'tags_ptr', component: ObjectType.BROWSER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36577,7 +36589,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.text]: { id: 34, name: 'text', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FileProperty.region]: { id: 35, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.FILE, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.tagsPtr]: { id: 39, name: 'tags_ptr', component: ObjectType.FILE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36618,7 +36630,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.text]: { id: 34, name: 'text', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StreamProperty.region]: { id: 35, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.tagsPtr]: { id: 39, name: 'tags_ptr', component: ObjectType.STREAM, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36645,7 +36657,7 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.text]: { id: 34, name: 'text', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SecretProperty.region]: { id: 35, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.occupancy]: { id: 36, name: 'occupancy', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_OCCUPANCY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [SecretProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.ownedByPtr]: { id: 37, name: 'owned_by_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.scalerPtr]: { id: 38, name: 'scaler_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.tagsPtr]: { id: 39, name: 'tags_ptr', component: ObjectType.SECRET, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.activatedAt]: { id: 40, name: 'activated_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36678,7 +36690,7 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.slug]: { id: 33, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [PackageProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.basePtr]: { id: 40, name: 'base_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.mainChannelPtr]: { id: 50, name: 'main_channel_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -37137,68 +37149,6 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.ROLE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [RoleProperty.color]: { id: 40, name: 'color', component: ObjectType.ROLE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
-export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
-  [PlanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PLAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PlanProperty.id]: { id: 2, name: 'id', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.PLAN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.PLAN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.mode]: { id: 20, name: 'mode', component: ObjectType.PLAN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [PlanProperty.type]: { id: 30, name: 'type', component: ObjectType.PLAN, enumType: EnumType.PLAN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.name]: { id: 40, name: 'name', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.terminationMode]: { id: 41, name: 'termination_mode', component: ObjectType.PLAN, enumType: EnumType.PLAN_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.failureMode]: { id: 42, name: 'failure_mode', component: ObjectType.PLAN, enumType: EnumType.PLAN_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.status]: { id: 50, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PLAN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.duration]: { id: 51, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.startedAt]: { id: 52, name: 'started_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.terminatedAt]: { id: 55, name: 'terminated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.error]: { id: 56, name: 'error', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [PlanProperty.ownedByPtr]: { id: 57, name: 'owned_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.machinePtr]: { id: 94, name: 'machine_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
-  [TaskProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TASK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TaskProperty.id]: { id: 2, name: 'id', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TASK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.TASK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.TASK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.TASK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.TASK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TASK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TaskProperty.type]: { id: 30, name: 'type', component: ObjectType.TASK, enumType: EnumType.TASK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.name]: { id: 31, name: 'name', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.icon]: { id: 33, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [TaskProperty.text]: { id: 34, name: 'text', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [TaskProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.status]: { id: 50, name: 'status', component: ObjectType.TASK, enumType: EnumType.TASK_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.dueAt]: { id: 52, name: 'due_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.startedAt]: { id: 53, name: 'started_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.terminatedAt]: { id: 56, name: 'terminated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.error]: { id: 57, name: 'error', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [TaskProperty.ownedByPtr]: { id: 58, name: 'owned_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.nodePtr]: { id: 60, name: 'node_ptr', component: ObjectType.TASK, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.clazzPtr]: { id: 61, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.valuePacked]: { id: 62, name: 'value_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TaskProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.machinePtr]: { id: 94, name: 'machine_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-}
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SpaceProperty.id]: { id: 2, name: 'id', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -37219,7 +37169,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.ownedByPtr]: { id: 36, name: 'owned_by_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [SpaceProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [SpaceProperty.inspectionPtr]: { id: 73, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -37243,7 +37193,7 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.scopePtr]: { id: 35, name: 'scope_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.runRootPtr]: { id: 36, name: 'run_root_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.runPtr]: { id: 37, name: 'run_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.ownedByPtr]: { id: 38, name: 'owned_by_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.ownedByPtr]: { id: 38, name: 'owned_by_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.status]: { id: 40, name: 'status', component: ObjectType.THREAD, enumType: EnumType.THREAD_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.closedAt]: { id: 45, name: 'closed_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.createdFromPtr]: { id: 50, name: 'created_from_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37521,10 +37471,73 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.machinePtr]: { id: 94, name: 'machine_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
 }
+export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
+  [PlanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PLAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PlanProperty.id]: { id: 2, name: 'id', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.PLAN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.PLAN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.mode]: { id: 20, name: 'mode', component: ObjectType.PLAN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [PlanProperty.type]: { id: 30, name: 'type', component: ObjectType.PLAN, enumType: EnumType.PLAN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.name]: { id: 40, name: 'name', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.terminationMode]: { id: 41, name: 'termination_mode', component: ObjectType.PLAN, enumType: EnumType.PLAN_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.failureMode]: { id: 42, name: 'failure_mode', component: ObjectType.PLAN, enumType: EnumType.PLAN_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.status]: { id: 50, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PLAN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.duration]: { id: 51, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.startedAt]: { id: 52, name: 'started_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.terminatedAt]: { id: 55, name: 'terminated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.error]: { id: 56, name: 'error', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [PlanProperty.ownedByPtr]: { id: 57, name: 'owned_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.machinePtr]: { id: 94, name: 'machine_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+}
+export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
+  [TaskProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TASK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TaskProperty.id]: { id: 2, name: 'id', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TASK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.TASK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.TASK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.TASK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.TASK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TASK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TaskProperty.type]: { id: 30, name: 'type', component: ObjectType.TASK, enumType: EnumType.TASK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.name]: { id: 31, name: 'name', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.icon]: { id: 33, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
+  [TaskProperty.text]: { id: 34, name: 'text', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [TaskProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.status]: { id: 50, name: 'status', component: ObjectType.TASK, enumType: EnumType.TASK_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.dueAt]: { id: 52, name: 'due_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.startedAt]: { id: 53, name: 'started_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.terminatedAt]: { id: 56, name: 'terminated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.error]: { id: 57, name: 'error', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [TaskProperty.ownedByPtr]: { id: 58, name: 'owned_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.RUN, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.implementedByPtr]: { id: 59, name: 'implemented_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.nodePtr]: { id: 60, name: 'node_ptr', component: ObjectType.TASK, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.clazzPtr]: { id: 61, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.valuePacked]: { id: 62, name: 'value_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [TaskProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.machinePtr]: { id: 94, name: 'machine_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+}
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SkipProperty.id]: { id: 2, name: 'id', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.PLAN, NodeType.TASK, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.PLAN, NodeType.TASK, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -37537,7 +37550,7 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
 export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EMPTY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EmptyProperty.id]: { id: 2, name: 'id', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.PLAN, NodeType.TASK, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
+  [EmptyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.EMPTY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CLIENT, NodeType.SCALER, NodeType.STORE, NodeType.MACHINE, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.IMPLEMENTATION, NodeType.VIEW, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE, NodeType.SPACE, NodeType.THREAD, NodeType.MESSAGE, NodeType.NOTIFICATION, NodeType.RECORD, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION, NodeType.LOG, NodeType.PLAN, NodeType.TASK, NodeType.SKIP, NodeType.EMPTY], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -38246,8 +38259,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.DATABASE]: DatabaseDataInfo,
   [ObjectType.CHANNEL]: ChannelDataInfo,
   [ObjectType.ROLE]: RoleDataInfo,
-  [ObjectType.PLAN]: PlanDataInfo,
-  [ObjectType.TASK]: TaskDataInfo,
   [ObjectType.SPACE]: SpaceDataInfo,
   [ObjectType.THREAD]: ThreadDataInfo,
   [ObjectType.MESSAGE]: MessageDataInfo,
@@ -38260,6 +38271,8 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.RUN_SPAN]: RunSpanDataInfo,
   [ObjectType.INTERRUPTION]: InterruptionDataInfo,
   [ObjectType.LOG]: LogDataInfo,
+  [ObjectType.PLAN]: PlanDataInfo,
+  [ObjectType.TASK]: TaskDataInfo,
   [ObjectType.SKIP]: SkipDataInfo,
   [ObjectType.EMPTY]: EmptyDataInfo,
   [ObjectType.CONTEXT]: ContextDataInfo,
@@ -38479,8 +38492,6 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.DATABASE]: { id: 5090, name: 'DATABASE', icon: 'fas fa-database' },
   [NodeType.CHANNEL]: { id: 5100, name: 'CHANNEL', icon: 'fas fa-hashtag' },
   [NodeType.ROLE]: { id: 5110, name: 'ROLE', icon: 'fas fa-user-tag' },
-  [NodeType.PLAN]: { id: 5120, name: 'PLAN', icon: 'fas fa-diagram-project' },
-  [NodeType.TASK]: { id: 5121, name: 'TASK', icon: 'far fa-square-check' },
   [NodeType.SPACE]: { id: 5200, name: 'SPACE', icon: 'fas fa-space-between' },
   [NodeType.THREAD]: { id: 5501, name: 'THREAD', icon: 'fas fa-reel' },
   [NodeType.MESSAGE]: { id: 5502, name: 'MESSAGE', icon: 'fas fa-message' },
@@ -38493,6 +38504,8 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.RUN_SPAN]: { id: 6011, name: 'RUN_SPAN', icon: 'fas fa-play' },
   [NodeType.INTERRUPTION]: { id: 6020, name: 'INTERRUPTION', icon: 'fas fa-hand' },
   [NodeType.LOG]: { id: 6030, name: 'LOG', icon: 'fas fa-file-alt' },
+  [NodeType.PLAN]: { id: 6040, name: 'PLAN', icon: 'fas fa-diagram-project' },
+  [NodeType.TASK]: { id: 6041, name: 'TASK', icon: 'far fa-square-check' },
 }
 
 export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> = {

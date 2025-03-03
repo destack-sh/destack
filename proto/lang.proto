@@ -171,8 +171,6 @@ enum NodeType {
   NODE_TYPE_DATABASE = 5090;
   NODE_TYPE_CHANNEL = 5100;
   NODE_TYPE_ROLE = 5110;
-  NODE_TYPE_PLAN = 5120;
-  NODE_TYPE_TASK = 5121;
   NODE_TYPE_SPACE = 5200;
   NODE_TYPE_THREAD = 5501;
   NODE_TYPE_MESSAGE = 5502;
@@ -185,6 +183,8 @@ enum NodeType {
   NODE_TYPE_RUN_SPAN = 6011;
   NODE_TYPE_INTERRUPTION = 6020;
   NODE_TYPE_LOG = 6030;
+  NODE_TYPE_PLAN = 6040;
+  NODE_TYPE_TASK = 6041;
   NODE_TYPE_SKIP = 9000;
   NODE_TYPE_EMPTY = 9999;
 }
@@ -283,8 +283,6 @@ enum ObjectType {
   OBJECT_TYPE_DATABASE = 5090;
   OBJECT_TYPE_CHANNEL = 5100;
   OBJECT_TYPE_ROLE = 5110;
-  OBJECT_TYPE_PLAN = 5120;
-  OBJECT_TYPE_TASK = 5121;
   OBJECT_TYPE_SPACE = 5200;
   OBJECT_TYPE_THREAD = 5501;
   OBJECT_TYPE_MESSAGE = 5502;
@@ -297,6 +295,8 @@ enum ObjectType {
   OBJECT_TYPE_RUN_SPAN = 6011;
   OBJECT_TYPE_INTERRUPTION = 6020;
   OBJECT_TYPE_LOG = 6030;
+  OBJECT_TYPE_PLAN = 6040;
+  OBJECT_TYPE_TASK = 6041;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_EMPTY = 9999;
   OBJECT_TYPE_CONTEXT = 10001;
@@ -391,8 +391,6 @@ enum BenchType {
   BENCH_TYPE_DATABASE = 5090;
   BENCH_TYPE_CHANNEL = 5100;
   BENCH_TYPE_ROLE = 5110;
-  BENCH_TYPE_PLAN = 5120;
-  BENCH_TYPE_TASK = 5121;
   BENCH_TYPE_SPACE = 5200;
   BENCH_TYPE_THREAD = 5501;
   BENCH_TYPE_MESSAGE = 5502;
@@ -405,6 +403,8 @@ enum BenchType {
   BENCH_TYPE_RUN_SPAN = 6011;
   BENCH_TYPE_INTERRUPTION = 6020;
   BENCH_TYPE_LOG = 6030;
+  BENCH_TYPE_PLAN = 6040;
+  BENCH_TYPE_TASK = 6041;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_EMPTY = 9999;
   BENCH_TYPE_CONTEXT = 10001;
@@ -3232,6 +3232,7 @@ message TaskData {
   optional google.protobuf.Timestamp terminated_at = 56;
   optional ErrorData error = 57;
   optional NodeReferenceData owned_by_ptr = 58;
+  optional NodeReferenceData implemented_by_ptr = 59;
   NodeReferenceData node_ptr = 60;
   optional NodeReferenceData clazz_ptr = 61;
   optional google.protobuf.Value value_packed = 62;
@@ -4172,20 +4173,20 @@ message SomeNodeData {
     DatabaseData database = 29;
     ChannelData channel = 30;
     RoleData role = 31;
-    PlanData plan = 32;
-    TaskData task = 33;
-    SpaceData space = 34;
-    ThreadData thread = 35;
-    MessageData message = 36;
-    NotificationData notification = 37;
-    RecordData record = 38;
-    MembershipData membership = 39;
-    InviteData invite = 40;
-    SessionData session = 41;
-    RunData run = 42;
-    RunSpanData run_span = 43;
-    InterruptionData interruption = 44;
-    LogData log = 45;
+    SpaceData space = 32;
+    ThreadData thread = 33;
+    MessageData message = 34;
+    NotificationData notification = 35;
+    RecordData record = 36;
+    MembershipData membership = 37;
+    InviteData invite = 38;
+    SessionData session = 39;
+    RunData run = 40;
+    RunSpanData run_span = 41;
+    InterruptionData interruption = 42;
+    LogData log = 43;
+    PlanData plan = 44;
+    TaskData task = 45;
     SkipData skip = 46;
     EmptyData empty = 47;
   };

@@ -40,7 +40,6 @@ if TYPE_CHECKING:
         Error,
         Flow,
         NodeReference,
-        Package,
         Page,
         Plan,
         Run,
@@ -79,8 +78,8 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
     """A Task to accomplish something."""
 
     # meta
-    parent: Union["Package", "Page", "Plan", "Task", "Run", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
+    parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
+        4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
     type: TaskType = p_regular(30)
     # priority?
@@ -93,9 +92,19 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
     terminated_at: Optional[datetime] = p_internal(56, default=None)
     error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
     owned_by: Optional[Owner] = p_internal(58, require=False, array=False, references=OWNER_TYPES)
+    implemented_by: Optional["Run"] = p_internal(
+        59,
+        require=False,
+        array=False,
+        same_bench=True,
+        references=NodeType.RUN,
+        description="The Run that implements this Task.",
+    )
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
         owned_by_id: Optional[UUID] = None
+        implemented_by_ptr: Optional[NodeReference] = None
+        implemented_by_id: Optional[UUID] = None
 
     # content
     node: Union["Flow", "Action", None] = p_regular(

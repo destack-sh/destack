@@ -231,7 +231,9 @@ async def test_cascade_edits(omni_session: Session):
             seen_at=session._oracle.utc(),
             name="Rabbit's Android",
         )
-        session._create(client_1_a, client_1_b, client_1_c)
+        session._create(client_1_a)
+        session._create(client_1_b)
+        session._create(client_1_c)
         await session.commit()
 
         # delete non-cascading
