@@ -37,7 +37,7 @@ class Implementation(InlineSourceNode[ImplementationData]):
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
 
     target: Optional["InlineSourceNode"] = p_regular(
-        35, require=False, array=False, references=INLINE_SOURCE_NODE_TYPES.tuple
+        40, require=False, array=False, references=INLINE_SOURCE_NODE_TYPES.tuple
     )
 
     @staticmethod

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.03.01.1"
+VERSION = "2025.03.03.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -196,7 +196,6 @@ SourceNodeData = Union[
     DatabaseData,
     ChannelData,
     RoleData,
-    TaskData,
     SpaceData,
 ]
 InlineSourceNodeData = Union[
@@ -210,7 +209,6 @@ InlineSourceNodeData = Union[
     DatabaseData,
     ChannelData,
     RoleData,
-    TaskData,
 ]
 TypeBaseNodeData = Union[ChoiceData, ClassData, FlowData, ActionData, DatabaseData]
 FieldBaseNodeData = Union[ClassData, FlowData, ActionData, DatabaseData]

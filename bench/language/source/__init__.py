@@ -58,7 +58,6 @@ from .role import Role
 from .schedule import Schedule, ScheduleFrequency
 from .space import Space, SpaceType
 from .tag import Tag
-from .task import Task, TaskStatus, TaskType
 from .trigger import (
     MessageTrigger,
     ScheduleTrigger,
@@ -156,9 +155,6 @@ __all__ = [
     "Spacing",
     "StartAction",
     "Tag",
-    "Task",
-    "TaskStatus",
-    "TaskType",
     "ToolAction",
     "TransformAction",
     "Trigger",

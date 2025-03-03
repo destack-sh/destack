@@ -31,7 +31,6 @@ from bench.language import (
     HasContext,
     HasNodeBase,
     InterruptionType,
-    LinkType,
     LookAction,
     Message,
     ModelDeveloper,
@@ -147,11 +146,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         if (
             self.flow is not None
             and not has_plan
-            and any(
-                p.source_id == self.node.id
-                and (p.type != LinkType.SELECT and p.type != LinkType.FORCE)
-                for p in self.flow.node.links
-            )
+            and any(p.source_id == self.node.id and not p.is_manual for p in self.flow.node.links)
         ):
             model_developer = ModelDeveloper.OPENAI
             model_type = ModelType.OPENAI_GPT4_0

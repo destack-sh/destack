@@ -462,9 +462,7 @@ def make_chat_prompt(
                 PromptCustomObject(title="Inputs to this Flow", weight=1, object=flow_run.inputs)
             )
 
-        can_flow_be_empty = all(
-            p.type == LinkType.REQUIRE or p.type == LinkType.SELECT for p, a in connected_actions
-        )
+        can_flow_be_empty = all(p.type == LinkType.REQUIRE for p, a in connected_actions)
         if len(connected_actions) == 0:
             flow_parts.append(
                 PromptText(

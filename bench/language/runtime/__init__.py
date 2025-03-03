@@ -26,6 +26,7 @@ from .plan import Plan, PlanFailureMode, PlanStatus, PlanTerminationMode, PlanTy
 from .run import Run, RunOptions
 from .session import Context, EditContext, Session
 from .span import RunSpan
+from .task import Task, TaskStatus, TaskType
 from .transaction import (
     Change,
     ChangeVignette,
@@ -73,6 +74,9 @@ __all__ = [
     "RunSpan",
     "Session",
     "Severity",
+    "Task",
+    "TaskStatus",
+    "TaskType",
     "TextOptions",
     "Transaction",
     "VideoOptions",

@@ -29,12 +29,12 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, Complete)
-    Start.connect(LinkType.FORCE, Race1)
-    Start.connect(LinkType.FORCE, Race2)
-    Start.connect(LinkType.FORCE, Race3)
-    Race1.connect(LinkType.FORCE, Complete)
-    Race2.connect(LinkType.FORCE, Complete)
-    Race3.connect(LinkType.FORCE, Complete)
+    Start.connect(LinkType.REQUIRE, Race1, is_manual=True)
+    Start.connect(LinkType.REQUIRE, Race2, is_manual=True)
+    Start.connect(LinkType.REQUIRE, Race3, is_manual=True)
+    Race1.connect(LinkType.REQUIRE, Complete, is_manual=True)
+    Race2.connect(LinkType.REQUIRE, Complete, is_manual=True)
+    Race3.connect(LinkType.REQUIRE, Complete, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -55,10 +55,10 @@ async def test_run_flow_plan_none(simulation: Simulation, runtime: RuntimeLambda
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Route, Code2, Code3, Complete)
-    Start.connect(LinkType.FORCE, Route)
-    Route.connect(LinkType.SELECT, Complete)
-    Route.connect(LinkType.SELECT, Code2)
-    Route.connect(LinkType.SELECT, Code3)
+    Start.connect(LinkType.REQUIRE, Route, is_manual=True)
+    Route.connect(LinkType.DECIDE, Complete, is_manual=True)
+    Route.connect(LinkType.DECIDE, Code2, is_manual=True)
+    Route.connect(LinkType.DECIDE, Code3, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -79,9 +79,9 @@ async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambda
     Tool1 = Action.new(ActionType.TOOL, "Tool1")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Code1, Tool1, Complete)
-    Start.connect(LinkType.FORCE, Code1)
-    Code1.connect(LinkType.SELECT, Tool1)
-    Tool1.connect(LinkType.SELECT, Complete)
+    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
+    Code1.connect(LinkType.REQUIRE, Tool1, is_manual=True)
+    Tool1.connect(LinkType.REQUIRE, Complete, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -102,11 +102,13 @@ async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambda
     # run tool within flow via calls
     Code1.code = code("""\
 plan = Plan.serial(
-    Task.run(Tool1, type=ActionType.CODE, code=code("pass")),
+    "Plan",
+    Task.run("Tool1", Tool1, type=ActionType.CODE, code=code("pass")),
 )
 run.plans.append(plan)
 """)
     runner = await runtime.run_in_runtime(Flow1)
+    assert runner.status == RunStatus.COMPLETED
     assert runner.tracked_run
 
 
@@ -122,11 +124,11 @@ async def test_run_flow_plan_route(simulation: Simulation, runtime: RuntimeLambd
     Code5 = Action.new(ActionType.CODE, "Code5", code=code("pass"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Route, Code2, Code3, Code4, Code5, Complete)
-    Start.connect(LinkType.FORCE, Route)
-    Route.connect(LinkType.SELECT, Complete)
-    Route.connect(LinkType.SELECT, Code2)
-    Route.connect(LinkType.SELECT, Code3)
-    Route.connect(LinkType.SELECT, Code4)
+    Start.connect(LinkType.REQUIRE, Route, is_manual=True)
+    Route.connect(LinkType.DECIDE, Complete, is_manual=True)
+    Route.connect(LinkType.DECIDE, Code2, is_manual=True)
+    Route.connect(LinkType.DECIDE, Code3, is_manual=True)
+    Route.connect(LinkType.DECIDE, Code4, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -189,14 +191,14 @@ async def test_run_flow_plan_multiple(simulation: Simulation, runtime: RuntimeLa
     Fail = Action.new(ActionType.FAIL, "Fail")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Plan1, Code1, Code2, Code3, Code4, Fail, Complete)
-    Start.connect(LinkType.FORCE, Plan1)
+    Start.connect(LinkType.REQUIRE, Plan1, is_manual=True)
     # Plan1 -?> Code1, Code2, Code3, Code4, Complete, Fail
-    Plan1.connect(LinkType.SELECT, Code1)
-    Plan1.connect(LinkType.SELECT, Code2)
-    Plan1.connect(LinkType.SELECT, Code3)
-    Plan1.connect(LinkType.SELECT, Code4)
-    Plan1.connect(LinkType.SELECT, Complete)
-    Plan1.connect(LinkType.SELECT, Fail)
+    Plan1.connect(LinkType.DECIDE, Code1, is_manual=True)
+    Plan1.connect(LinkType.DECIDE, Code2, is_manual=True)
+    Plan1.connect(LinkType.DECIDE, Code3, is_manual=True)
+    Plan1.connect(LinkType.DECIDE, Code4, is_manual=True)
+    Plan1.connect(LinkType.DECIDE, Complete, is_manual=True)
+    Plan1.connect(LinkType.DECIDE, Fail, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -255,8 +257,8 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Complete)
-    Start.connect(LinkType.FORCE, Yield)
-    Yield.connect(LinkType.FORCE, Complete)
+    Start.connect(LinkType.REQUIRE, Yield, is_manual=True)
+    Yield.connect(LinkType.REQUIRE, Complete, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -295,8 +297,8 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     YieldInner = Action.new(ActionType.YIELD, "YieldInner")
     CompleteInner = Action.new(ActionType.COMPLETE, "CompleteInner")
     FlowInner.actions.extend(StartInner, YieldInner, CompleteInner)
-    StartInner.connect(LinkType.FORCE, YieldInner)
-    YieldInner.connect(LinkType.FORCE, CompleteInner)
+    StartInner.connect(LinkType.REQUIRE, YieldInner, is_manual=True)
+    YieldInner.connect(LinkType.REQUIRE, CompleteInner, is_manual=True)
 
     # outer flow
     FlowOuter = Flow.new("FlowOuter")
@@ -304,8 +306,8 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     ActionOuter = Action.new(ActionType.TOOL, "Action", tool=FlowInner)
     CompleteOuter = Action.new(ActionType.COMPLETE, "Complete")
     FlowOuter.actions.extend(StartOuter, ActionOuter, CompleteOuter)
-    StartOuter.connect(LinkType.FORCE, ActionOuter)
-    ActionOuter.connect(LinkType.FORCE, CompleteOuter)
+    StartOuter.connect(LinkType.REQUIRE, ActionOuter, is_manual=True)
+    ActionOuter.connect(LinkType.REQUIRE, CompleteOuter, is_manual=True)
 
     runtime.page().extend(FlowInner, FlowOuter)
     await runtime.commit()
@@ -337,8 +339,8 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     Yield = Action.new(ActionType.YIELD, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Complete)
-    Start.connect(LinkType.FORCE, Yield)
-    Yield.connect(LinkType.FORCE, Complete)
+    Start.connect(LinkType.REQUIRE, Yield, is_manual=True)
+    Yield.connect(LinkType.REQUIRE, Complete, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -374,14 +376,16 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Action1, Complete)
     StartToYield = Start.connect(
-        LinkType.FORCE,
+        LinkType.REQUIRE,
         Yield,
+        is_manual=True,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
     )
-    Yield.connect(LinkType.FORCE, Action1)
+    Yield.connect(LinkType.REQUIRE, Action1, is_manual=True)
     Action1ToComplete = Action1.connect(
-        LinkType.FORCE,
+        LinkType.REQUIRE,
         Complete,
+        is_manual=True,
         run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
     runtime.page().append(Flow1)
@@ -432,9 +436,9 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Action1, Action2, Complete)
-    Start.connect(LinkType.FORCE, Action1)
-    Action1.connect(LinkType.FORCE, Action2)
-    Action2.connect(LinkType.FORCE, Complete)
+    Start.connect(LinkType.REQUIRE, Action1, is_manual=True)
+    Action1.connect(LinkType.REQUIRE, Action2, is_manual=True)
+    Action2.connect(LinkType.REQUIRE, Complete, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 

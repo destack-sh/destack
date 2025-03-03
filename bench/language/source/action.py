@@ -337,6 +337,7 @@ class Action(SourceNode[ActionData], IsComputable):
         *,
         parent: Union["Flow", "Implementation", "Action", None] = None,
         run_options: "RunOptions | None" = None,
+        is_manual: bool = False,
     ) -> "Link":
         """Connects a target Action to this Action."""
         from bench.language import Flow, Link
@@ -361,6 +362,7 @@ class Action(SourceNode[ActionData], IsComputable):
             target=target,
             parent=parent,
             run_options=run_options,
+            is_manual=is_manual,
         )
         parent.links.append(link)
         return link

@@ -575,7 +575,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
                 self._graph = NodeGraph(
                     scope=parent._graph.scope,
-                    node_types=(self.metatype,),
+                    node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype]),
                     supergraph=self._supergraph,
                 )
                 self._supergraph.add_graph(self._graph)
@@ -1180,7 +1180,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 # have parent graph but it's not the right one :IsolatedGraph
                 graph = NodeGraph(
                     scope=self._graph.scope,
-                    node_types=(child.metatype,),
+                    node_types=(child.metatype, *DESCENDANT_NODE_TYPES[child.metatype]),
                     supergraph=self._supergraph,
                 )
                 self._supergraph.add_graph(graph)
@@ -1572,27 +1572,37 @@ class SourceNode[NodeDataT: AnyNodeData](IsTemplatable, HasTrace, PackageNode[No
 
 
 @node_component_()
-class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
-    """A named SourceNode that can be defined inline in a Page."""
+class IsInlinable(BuiltinObject):
+    """A Node that can be defined 'inline' in a Block/Page."""
 
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-
-    # content
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(33, default=INTEGER_ZERO)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(32, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.ICON
+        33, default=None, require=False, array=False, struct=StructType.ICON
     )
     text: Optional["Text"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
+        34, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    block: "Block | None" = p_regular(
-        36,
+    definition: "Block | None" = p_regular(
+        35,
         require=False,
         array=False,
         references=NodeType.BLOCK,
         description="The Block where this Node is 'defined'.",
     )
+    if TYPE_CHECKING:
+        definition_id: Optional[UUID] = None
+        definition_ck: Optional[UUID] = None
+        definition_ptr: Optional[NodeReference] = None
+
+
+@node_component_()
+class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT], abc.ABC):
+    """A named SourceNode that can be defined inline in a Page."""
+
+    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+
+    # content
     thread: Optional["Thread"] = p_internal(
         37,
         require=False,
@@ -1605,9 +1615,6 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
         38, require=False, array=True, same_bench=True, references=NodeType.TAG
     )
     if TYPE_CHECKING:
-        block_id: Optional[UUID] = None
-        block_ck: Optional[UUID] = None
-        block_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
         tags_ptr: tuple[NodeReference, ...] = ()
@@ -1625,14 +1632,18 @@ class InlineSourceNode[NodeDataT: AnyNodeData](SourceNode[NodeDataT], abc.ABC):
     def delete(self, _now: datetime | None = None):
         super().delete(_now=_now)
         # also delete linked Block (if any)
-        if (block := self.block) is not None and block.node_id == self.id and not block.is_deleted:
+        if (
+            (block := self.definition) is not None
+            and block.node_id == self.id
+            and not block.is_deleted
+        ):
             block.delete(_now=_now)
 
     @override
     def restore(self, _now: datetime | None = None):
         super().restore(_now=_now)
         # also restore linked Block (if any)
-        if (block := self.block) is not None and block.node_id == self.id and block.is_deleted:
+        if (block := self.definition) is not None and block.node_id == self.id and block.is_deleted:
             block.restore(_now=_now)
 
     def to_block(self) -> "Block":
