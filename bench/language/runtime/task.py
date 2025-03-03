@@ -10,9 +10,14 @@ from bench.language.core import (
     CustomObject,
     EnumType,
     FieldType,
+    HasRuntimeContext,
+    HasTimeIdentity,
+    HasTrace,
+    IsInlinable,
     NodeList,
     NodeType,
     Owner,
+    PackageNode,
     StructType,
     Text,
     TypeBase,
@@ -26,7 +31,6 @@ from bench.language.core import (
     p_value_runtime,
     timed_node_,
 )
-from bench.language.core.node import IsInlinable, RuntimeNode
 from bench.pb2 import TaskData
 
 if TYPE_CHECKING:
@@ -71,7 +75,7 @@ class TaskStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.TASK)
-class Task(IsInlinable, RuntimeNode[TaskData]):
+class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContext, HasTrace):
     """A Task to accomplish something."""
 
     # meta

@@ -28,7 +28,7 @@ from bench.language import (
     Error,
     Flow,
     GetConnection,
-    HasContext,
+    HasRuntimeContext,
     Interruption,
     InterruptionStatus,
     InterruptionType,
@@ -179,7 +179,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         runtime: "Runtime",
         node: N,
         options: RunOptions,
-        context: HasContext,
+        context: HasRuntimeContext,
         run: RunIn,
         parent: "Runner[Any] | None" = None,
         variables: CustomObject | None = None,
@@ -190,7 +190,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.node = node
         self.status = RunStatus.QUEUED
         self.options = options
-        self.context: HasContext = context
+        self.context: HasRuntimeContext = context
         self.parent = parent or runtime.active_runner
         self.runners: list[Runner] = []
         self.task: asyncio.Task | None = None
@@ -778,7 +778,7 @@ def make_runner(
     run: RunIn,
     *,
     type: RunType | None = None,
-    context: HasContext | None = None,
+    context: HasRuntimeContext | None = None,
     variables: CustomObject | None = None,
     inputs: Any | None = None,
     outputs: TypeBase | CustomObject | None = None,

@@ -29,7 +29,7 @@ from bench.language import (
     ErrorKind,
     Field,
     GetConnection,
-    HasContext,
+    HasRuntimeContext,
     Interruption,
     InterruptionType,
     Node,
@@ -411,7 +411,7 @@ class Runtime:
                 logger.debug("runtime.acquire_resources.new", resource=resource)
         return resources_to_acquire
 
-    def _set_context(self, node: HasContext):
+    def _set_context(self, node: HasRuntimeContext):
         """Sets the current context on a RunSpan."""
         if node.session_id != self.session.id:
             node.session_ptr = self.session_ptr
