@@ -77,7 +77,7 @@ import {
   TypeKind,
   UpdateActionProperty,
   ViewType,
-  WaitActionProperty
+  WaitActionProperty,
 } from "@/proto/wire";
 import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -1018,7 +1018,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
           ],
         },
       );
-    } else if (DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
+    } else if (node.type == ActionType.CODE || DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
       // own schema
       this.section(
         "Schema",
@@ -1101,7 +1101,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         }),
       );
     }
-    if (!this.isPartial && this.node.parentPtr?.nodeType == NodeType.IMPLEMENTATION) {
+    if (!this.isPartial && (this.node.type == ActionType.CODE || this.node.type == ActionType.TOOL)) {
       commonRows.push(this.rowProperty(ActionProperty.category));
     }
 

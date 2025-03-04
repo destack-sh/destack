@@ -1,7 +1,20 @@
 <script lang="ts" setup>
-import { makeNodeName } from "@/language/core/node";
+import { cloneNode, makeNodeName, moveNode, packSubnode } from "@/language/core/node";
+import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
-import { ActionType, ImplementationData, NodeReferenceData, NodeType, ObjectType, ViewData } from "@/proto/wire";
+import {
+  ActionData,
+  ActionType,
+  BenchType,
+  ImplementationData,
+  NodeReferenceData,
+  NodeType,
+  ObjectType,
+  PickerVariant,
+  TypeKind,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -49,14 +62,38 @@ const { activeDropZone } = useMultiDropZone({
   kinds: ["node", "selection"],
   metatypes: [NodeType.ACTION],
   fallbackToClosest: true,
-  allowDrop: (dragged, anchor, targetId) => {
-    return true;
+  onDrop: (dragged, anchor, targetId, event) => {
+    if (targetId == null) return;
+    const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
+    const targetNode = graph.getOrError({ id: targetId });
+
+    if (dragged.kind == "node") {
+      // move node
+      let node = graph.getOrError(dragged.node);
+      if (event.altKey) {
+        // clone node before moving
+        node = cloneNode(tx, graph, node, { keepProperties: true });
+      }
+      moveNode(tx, graph, node, { anchor, target: targetNode });
+    } else if (dragged.kind == "selection") {
+      // move nodes
+      for (let i = 0; i < dragged.nodes.length; i++) {
+        let node = graph.getOrError(dragged.nodes[i]);
+        if (event.altKey) {
+          // clone node before moving
+          node = cloneNode(tx, graph, node, { keepProperties: true });
+        }
+        moveNode(tx, graph, node, {
+          anchor: i == 0 ? anchor : "after",
+          target: i == 0 ? targetNode : graph.getOrError(dragged.nodes[i - 1]),
+        });
+      }
+    }
   },
-  onDrop: (dragged, anchor, targetId, event) => {},
 });
 
 /** Creates a new Action. */
-function createAction() {
+function createAction(actionIn: Partial<ActionData>) {
   if (implementation.value == null) throw new Error("no implementation");
   const orderKey = generateOrderKey(actions.value[actions.value.length - 1]?.orderKey ?? null, null);
 
@@ -65,21 +102,40 @@ function createAction() {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
+  const type: ActionType = actionIn.type ?? ActionType.CODE;
   const action = tx.create({
     metatype: NodeType.ACTION,
-    name: makeNodeName(graph, {
-      metatype: ObjectType.ACTION,
-      type: ActionType.CODE,
-      parentPtr: nodePtr.value,
-    }),
+    name: makeNodeName(graph, { metatype: ObjectType.ACTION, type, parentPtr: nodePtr.value }),
+    type: type as any,
+    ...actionIn,
     parentPtr: nodePtr.value,
     benchPtr: implementation.value.benchPtr,
     packagePtr: implementation.value.packagePtr,
-    type: ActionType.CODE,
     orderKey,
   });
   canvas.inspect({ node: action });
   return action;
+}
+
+function createActionPopover(e: MouseEvent) {
+  canvas.pushPopover({
+    kind: "view",
+    trigger: e.target as HTMLElement,
+    reference: e.target as HTMLElement,
+    component: ViewType.PICKER,
+    title: "Add Action",
+    placement: "bottom-left",
+    offset: "referenceWidth",
+    props: {
+      valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
+      subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
+        variant: PickerVariant.DROPDOWN_LARGE,
+      }),
+    },
+    onApply: (value) => {
+      createAction({ type: value });
+    },
+  });
 }
 
 defineExpose<ViewExpose>({ self, id, focus });
@@ -99,7 +155,18 @@ defineExpose<ViewExpose>({ self, id, focus });
       :is-inline="isInline"
       :is-minimal="isMinimal"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-    />
+    >
+      <template #right="{ style }">
+        <button
+          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
+          @click.stop.prevent="createActionPopover"
+        >
+          <i class="fas fa-plus mr-1.5 text-center" />
+          <span class="">Action</span>
+        </button>
+      </template>
+    </InlineHeader>
     <!-- Action grid -->
     <div
       ref="containerRef"
@@ -133,7 +200,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       <button
         class="group/action flex w-full flex-row items-center gap-x-2.5 rounded border border-dashed border-gray-200 px-1 py-1 text-left transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100"
         :style="{ height: ACTION_SIZE.height + 'px' }"
-        @click.stop.prevent="createAction"
+        @click.stop.prevent="(e) => createActionPopover(e)"
       >
         <div class="flex h-10 w-10 items-center justify-center rounded bg-gray-100">
           <i
