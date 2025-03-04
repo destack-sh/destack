@@ -1,16 +1,7 @@
 <script lang="ts" setup>
-import { isSourceNode, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
-import {
-  ActionData,
-  ComputedValueData,
-  NodeType,
-  Orientation,
-  PathData,
-  TypeData,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
+import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
@@ -18,7 +9,6 @@ import { ObjectSection, useObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
-import ComputedValue from "@/views/objects/ComputedValue.vue";
 import FieldList from "@/views/objects/FieldList.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { toRef } from "vue";
@@ -30,15 +20,11 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    isComputable?: boolean;
-    computedType?: TypeData;
-    computedPrefix?: PathData;
   } & Partial<
     Pick<ViewData, "icon" | "size" | "nodePtr" | "subnodePacked" | "valueType" | "isMinimal" | "isInput" | "isDisabled">
   >
 >();
 const modelValue = defineModel<any>("modelValue");
-const computedValues = defineModel<ComputedValueData[] | undefined>("computedValues");
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
@@ -47,19 +33,13 @@ const subnodePacked = toRef(props, "subnodePacked");
 
 // node / layout
 const nodePtr = computedValue(() => props.nodePtr);
-const { node, connection, layout, computer, computedType } = useObjectLayout({
+const { node, connection, layout } = useObjectLayout({
   isInput: toRef(props, "isInput"),
   nodePtr: toRef(props, "nodePtr"),
   valueType: toRef(props, "valueType"),
   valuePacked: modelValue,
-  computedPrefix: toRef(props, "computedPrefix"),
-  computedValues,
-  computedType: toRef(props, "computedType"),
   updateValuePacked: (update: any, options: any) => {
     emit("update:modelValue", { ...modelValue.value, ...update }, options);
-  },
-  updateComputedValues: (computedValues: ComputedValueData[] | undefined) => {
-    emit("update:computedValues", computedValues);
   },
 });
 
@@ -163,22 +143,7 @@ defineExpose<ViewExpose>({ self, id });
             <Field v-else :id="i + '.value'" :node-ptr="toNodeRef(row.field)" is-minimal />
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
             <!-- Actions -->
-            <div class="ml-auto pr-1">
-              <!-- Computed actions -->
-              <button
-                v-if="(row.type == 'property' || row.type == 'field') && row.isComputable"
-                v-tooltip="{ title: `Set ${row.title} dynamically`, small: true, group: 'section.header' }"
-                class="rounded px-0.5 transition-colors duration-75"
-                :class="
-                  computer.has(row.computedPathKey)
-                    ? 'text-primary-700 hover:bg-gray-100'
-                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
-                "
-                @click="() => computer.toggle(row.computedPath!)"
-              >
-                <i class="fas fa-percent" />
-              </button>
-            </div>
+            <!-- ... -->
           </div>
 
           <!-- Body -->
@@ -192,17 +157,6 @@ defineExpose<ViewExpose>({ self, id });
               is-minimal
             />
           </div>
-          <!-- Computed View -->
-          <ComputedValue
-            v-else-if="(row.type == 'property' || row.type == 'field') && computer.has(row.computedPathKey)"
-            :id="i + '.computed.value'"
-            class="w-full"
-            :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
-            is-input
-            :model-value="computer.get(row.computedPathKey)"
-            :value-type="computedType"
-            @update:model-value="(value: any) => computer.set(row.computedPath!, value)"
-          />
           <!-- Dynamic View -->
           <component
             :is="getViewComponent(row.viewType)"
@@ -226,22 +180,9 @@ defineExpose<ViewExpose>({ self, id });
             :id="i + '.object.value'"
             class=""
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
-            v-bind="row.viewProps as any"
-            :is-computable="row.isComputable"
-            :computed-values="isSourceNode(node) ? (node as ActionData).computedValues : undefined"
-            :computed-prefix="row.computedPath"
-            :computed-type="computedType"
+            v-bind="(row.viewProps as any)"
             :model-value="row.read()"
             @update:model-value="(value: any, path?: ModelValueOptions) => row.write(value, path)"
-            @update:computed-values="
-              (computedValues: ComputedValueData[] | undefined) => {
-                if (isSourceNode(node) && layout?.kind != 'partial') {
-                  connection?.tx.update(node, { computedValues });
-                } else {
-                  emit('update:computedValues', computedValues);
-                }
-              }
-            "
           />
           <!-- Icon -->
           <div v-else-if="row.type == 'icon'" class="w-full text-center">

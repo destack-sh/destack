@@ -25,7 +25,6 @@ from bench.language.core import (
     TypeBase,
     TypeConstraint,
     TypeKind,
-    coerce_custom_object_scalar,
     enum_,
     node_,
     object_,
@@ -280,20 +279,6 @@ class Action(SourceNode[ActionData], IsComputable):
         tool_ptr: "NodeReference | None" = None
         tool_id: Optional[UUID] = None
         tool_ck: Optional[UUID] = None
-    # variables for tool
-    variables_packed: Any = p_value_packed(55)
-    variables: Any = p_value_runtime(
-        55,
-        type=FieldType.VARIABLE,
-        typ=lambda self: cast("Action", self).variable_type_field_only,
-    )
-    # inputs for tool
-    inputs_packed: Any = p_value_packed(56)
-    inputs: Any = p_value_runtime(
-        56,
-        type=FieldType.INPUT,
-        typ=lambda self: cast("Action", self).input_type_field_only,
-    )
 
     # outputs
     # fanout/fanin, ...?
@@ -446,8 +431,6 @@ class Action(SourceNode[ActionData], IsComputable):
     def new[ActionT: "Action" = "Action"](
         typ: ActionType | _type[ActionT] | NodeSubtypeStub[ActionT],
         name: str,
-        variables: dict[str, Any] | None = None,
-        inputs: dict[str, Any] | None = None,
         **kwargs,
     ) -> ActionT:
         """Creates a new Action of the given type."""
@@ -456,14 +439,6 @@ class Action(SourceNode[ActionData], IsComputable):
         elif isinstance(typ, NodeSubtypeStub):
             typ = cast(ActionType, typ._node_subtype)
         action = Action(type=cast(ActionType, typ), name=name, **kwargs)
-        if variables is not None:
-            variable_type = action.variable_type
-            assert variable_type is not None, f"no variable_type for {action!r}"
-            action.variables = coerce_custom_object_scalar(variables, variable_type)
-        if inputs is not None:
-            input_type = action.input_type
-            assert input_type is not None, f"no input_type for {action!r}"
-            action.inputs = coerce_custom_object_scalar(inputs, input_type)
         return cast(ActionT, action)
 
 

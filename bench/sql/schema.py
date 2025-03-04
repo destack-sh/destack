@@ -1047,8 +1047,6 @@ ACTION_TABLE = Table(
         Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tool_type", PrimitiveType.INT16, is_nullable=True),
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),

@@ -85,6 +85,7 @@ import { getNodeName, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
+import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewProps } from "@/views/common";
 import { computed, Ref } from "vue";
@@ -124,23 +125,16 @@ export type ViewRow = RowBase & {
 export type ObjectRow = Omit<ViewRow, "type"> & {
   type: "object";
   isComputable: boolean;
-  computedPath?: PathData;
-  computedPathKey?: string;
-  computedType?: TypeData;
   prop: PropertyInfo;
 };
 export type PropertyRow = Omit<ViewRow, "type"> & {
   type: "property";
   isComputable: boolean;
-  computedPath?: PathData;
-  computedPathKey?: string;
   prop: PropertyInfo;
 };
 export type FieldRow = Omit<ViewRow, "type"> & {
   type: "field";
   isComputable: boolean;
-  computedPath?: PathData;
-  computedPathKey?: string;
   field: FieldData;
   options: ModelValueOptions;
 };
@@ -185,15 +179,11 @@ type PartialNodeInfo = BaseObjectInfo & {
   subnode: any | null;
   valuePacked: Record<string, any>;
   valueType: TypeData;
-  computedType: TypeData | null | undefined;
-  computedPath?: PathData;
 };
 type CustomObjectInfo = BaseObjectInfo & {
   kind: "custom";
   valuePacked: Record<string, any>;
   valueType: TypeData;
-  computedType: TypeData | null | undefined;
-  computedPath?: PathData;
 };
 type ObjectInfo = NodeInfo<any> | PartialNodeInfo | CustomObjectInfo;
 
@@ -271,7 +261,6 @@ export abstract class BaseObjectLayout {
   rowFieldsInline(
     valuePacked: Record<string, any>,
     fields: FieldData[],
-    computedPrefix: PathData | undefined,
     write: (field: FieldData, value: any, options?: ModelValueOptions) => void,
     options?: { title?: string | false; subtitle?: string; isComputable?: boolean; isFullWidth?: boolean },
   ): Row[] {
@@ -287,22 +276,12 @@ export abstract class BaseObjectLayout {
       const fieldValuePacked = valuePacked[fieldKey];
       const fieldValue = unpackValue(fieldValuePacked, field);
 
-      // computable
-      let computedPath: PathData | undefined = undefined;
-      let computedPathKey: string | undefined = undefined;
-      if (options?.isComputable) {
-        computedPath = makePath(...(computedPrefix?.elements ?? []), field);
-        computedPathKey = getPathKey(computedPath);
-      }
-
       // row
       const row: FieldRow = {
         type: "field",
         field,
         title: title === false ? undefined : title,
         isComputable: options?.isComputable ?? false,
-        computedPath,
-        computedPathKey,
         viewType: view.type!,
         viewProps: { ...view, isInput: this.isInput },
         isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
@@ -337,8 +316,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   protected valuePacked: Record<string, any> | null;
   protected valueType: TypeData | null;
   protected propertyFieldTypes: FieldType[];
-  protected computedType: TypeData | null;
-  protected computedPath: PathData | null;
 
   constructor(options: NodeInfo<T> | PartialNodeInfo) {
     super(options);
@@ -369,14 +346,10 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       this.valuePacked = options.valuePacked;
       this.valueType = options.valueType;
       this.propertyFieldTypes = options.valueType.propertyFieldTypes ?? [];
-      this.computedType = options.computedType ?? null;
-      this.computedPath = options.computedPath ?? null;
     } else {
       this.valuePacked = null;
       this.valueType = null;
       this.propertyFieldTypes = [];
-      this.computedType = null;
-      this.computedPath = null;
     }
   }
 
@@ -469,22 +442,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   ): Row {
     const { path, prop, propNames, rootProp, rootPropName, isSubnode } = this.getPropertyPath(pathIn);
 
-    // computed
-    let computedPath: PathData | undefined = undefined;
-    let computedPathKey: string | undefined = undefined;
-    if (options?.isComputable) {
-      if (this.computedPath != null) {
-        computedPath = makePath(...this.computedPath.elements, toPropertyRef(prop));
-      } else {
-        computedPath = makePath(
-          PathElementType.RUN, // :RunComputedValue
-          propertyReference(NodeType.RUN, RunProperty.inputsPacked),
-          toPropertyRef(prop),
-        );
-      }
-      computedPathKey = getPathKey(computedPath);
-    }
-
     // view
     const title = options?.title ?? getPropertyTitle(prop);
     const propType = options?.props?.valueType ?? getPropertyType(prop);
@@ -498,8 +455,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       title: title === false ? undefined : title,
       subtitle: options?.subtitle,
       isComputable: options?.isComputable ?? false,
-      computedPath,
-      computedPathKey,
       isFullWidth: options?.isFullWidth || FULL_WIDTH_VIEW_TYPES.includes(view.type!),
       viewType: view.type!,
       viewProps: { ...view, ...options?.props, isInput: this.isInput && !options?.isDisabled },
@@ -602,22 +557,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
   ): ObjectRow {
     const { prop, path, propNames, isSubnode } = this.getPropertyPath(propertyId);
 
-    // computed
-    let computedPath: PathData | undefined = undefined;
-    let computedPathKey: string | undefined = undefined;
-    if (options?.isComputable) {
-      if (this.computedPath != null) {
-        computedPath = makePath(...this.computedPath.elements, toPropertyRef(prop));
-      } else {
-        computedPath = makePath(
-          PathElementType.RUN, // :RunComputedValue
-          propertyReference(NodeType.RUN, RunProperty.inputsPacked),
-          toPropertyRef(prop),
-        );
-      }
-      computedPathKey = getPathKey(computedPath);
-    }
-
     // content
     const title = options?.title ?? getPropertyTitle(prop);
     const valuePacked = this.readProperty(propNames, isSubnode);
@@ -630,9 +569,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       isComputable: options?.isComputable ?? false,
       prop,
       viewType: ViewType.OBJECT,
-      computedPath,
-      computedPathKey,
-      computedType: this.computedType ?? undefined,
       viewProps: { valueType: makeType(valueType), isInput: true, isInline: true, isMinimal: true },
       isFullWidth: true,
       read: () => valuePacked,
@@ -677,25 +613,11 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       return true;
     });
 
-    // computed
-    let computedPrefix: PathData | undefined;
-    if (options?.isComputable) {
-      if (this.computedPath != null) {
-        computedPrefix = this.computedPath;
-      } else {
-        computedPrefix = makePath(
-          PathElementType.RUN, // :RunComputedValue
-          propertyReference(NodeType.RUN, RunProperty[propName as any as keyof typeof RunProperty]),
-        );
-      }
-    }
-
     // rows
     const valuePacked = this.isPartial ? this.valuePacked : (this.node as any)?.[propName];
     const rows = this.rowFieldsInline(
       valuePacked ?? {},
       fields,
-      computedPrefix,
       (field, newValue) => {
         const fieldKey = getStorageKey(field);
         const newFieldValuePacked = packValue(newValue, field);
@@ -959,52 +881,23 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       });
     } else if (node.type == ActionType.COMPLETE) {
       // ƒlow outputs as action inputs
-      this.section(
-        "Schema",
-        [
-          ...this.rowObjectInline(
-            ActionProperty.inputsPacked,
-            makeType({
-              kind: TypeKind.CUSTOM_OBJECT,
-              baseFieldTypes: [FieldType.OUTPUT],
-              baseTypePtr: node.parentPtr,
-            }),
-            { isComputable: true },
-          ),
+      this.section("Schema", [{ type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: node.parentPtr }], {
+        subtitle: "(Flow)",
+        actions: [
+          this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up"), {
+            toolPtr: node.parentPtr,
+          }),
         ],
-        {
-          subtitle: "(Flow)",
-          actions: [
-            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up"), {
-              toolPtr: node.parentPtr,
-            }),
-          ],
-        },
-      );
+      });
     } else if (node.type == ActionType.TOOL && delegatePtr != null) {
       // own schema with tool schema
       this.section(
         "Schema",
         [
           // tool variables & inputs
-          ...this.rowObjectInline(
-            ActionProperty.variablesPacked,
-            makeType({
-              kind: TypeKind.CUSTOM_OBJECT,
-              baseFieldTypes: [FieldType.VARIABLE],
-              baseTypePtr: delegatePtr,
-            }),
-            { isComputable: true },
-          ),
-          ...this.rowObjectInline(
-            ActionProperty.inputsPacked,
-            makeType({
-              kind: TypeKind.CUSTOM_OBJECT,
-              baseFieldTypes: [FieldType.INPUT],
-              baseTypePtr: delegatePtr,
-            }),
-            { isComputable: true },
-          ),
+          { type: "fields-list", fieldType: FieldType.VARIABLE, toolPtr: delegatePtr },
+          this.rowIcon("fas fa-arrow-down"),
+          { type: "fields-list", fieldType: FieldType.INPUT, toolPtr: delegatePtr },
           // arrow
           this.rowIcon("fas fa-arrow-down"),
           // outputs
@@ -1099,7 +992,9 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
     // common rows
     if (node.type == ActionType.CODE) {
-      commonRows.push(this.rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
+      if (IS_DEVELOPER_MODE.value) {
+        commonRows.push(this.rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
+      }
     } else if (node.type == ActionType.TOOL) {
       commonRows.push(
         this.rowProperty(ActionProperty.toolPtr, {
@@ -1117,7 +1012,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
       commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
     } else if (node.type == ActionType.SEND) {
-      // TODO :Broken: why is this Sendaction.messageInPacked not working?
+      // NOTE :Broken: why is this Sendaction.messageInPacked not working?
       //  (should have Message type pre-filled and edits shown..)
       // commonRows.push(
       //   this.rowObjectNested(
@@ -1131,9 +1026,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     // schema
     if (!this.isPartial) {
       this.sectionActionSchema();
-    } else {
-      // we can just use ActionProperty.inputsPacked since the exact property doesn't matter for partials (we use field storage keys)
-      commonRows.push(...this.rowObjectInline(ActionProperty.inputsPacked, this.valueType!));
     }
 
     // default subproperties
@@ -1204,14 +1096,12 @@ export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
 export class CustomLayout extends BaseObjectLayout {
   valuePacked: Record<string, any>;
   valueType: TypeData;
-  computedPath: PathData | undefined;
 
   constructor(info: CustomObjectInfo) {
     super(info);
     this.valuePacked = info.valuePacked;
     this.valueType = info.valueType;
     this.delegateFields = info.delegateFields;
-    this.computedPath = info.computedPath;
   }
 
   make() {
@@ -1220,7 +1110,7 @@ export class CustomLayout extends BaseObjectLayout {
       return true;
     });
     this.section(undefined, [
-      ...this.rowFieldsInline(this.valuePacked, fields, this.computedPath, (field, newValue, options) => {
+      ...this.rowFieldsInline(this.valuePacked, fields, (field, newValue, options) => {
         const fieldKey = getStorageKey(field);
         const newFieldValuePacked = packValue(newValue, field);
         this.update({ [fieldKey]: newFieldValuePacked }, { ...getTransactionOptionsForType(field), ...options });
@@ -1285,11 +1175,7 @@ export function useObjectLayout(options: {
   nodePtr: Ref<NodeReferenceData | undefined>;
   valueType: Ref<TypeData | undefined>;
   valuePacked: Ref<any>;
-  computedType?: Ref<TypeData | undefined>;
-  computedPrefix?: Ref<PathData | undefined>;
-  computedValues?: Ref<ComputedValueData[] | undefined>;
   updateValuePacked: (update: any, options: any) => void;
-  updateComputedValues: (computedValues: ComputedValueData[] | undefined) => void;
   /** Optionally extend or modify partial node layouts after they're built */
   extendPartialLayout?: (layout: BaseObjectLayout, info: ObjectInfo) => BaseObjectLayout;
 }) {
@@ -1408,8 +1294,6 @@ export function useObjectLayout(options: {
         subnode: nodeInfo.value.subnode,
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
-        computedType: computedType.value,
-        computedPath: options.computedPrefix?.value,
         fields: fields.value,
         delegate: delegate.value,
         delegateFields: delegateFields.value,
@@ -1444,8 +1328,6 @@ export function useObjectLayout(options: {
         isInput: options.isInput.value,
         valueType: options.valueType.value!,
         valuePacked: valuePacked,
-        computedType: computedType.value,
-        computedPath: options.computedPrefix?.value,
         fields: fields.value,
         delegate: delegate.value,
         delegateFields: delegateFields.value,
@@ -1462,31 +1344,7 @@ export function useObjectLayout(options: {
     return null;
   });
 
-  // computed
-  const computer = useComputedValues({
-    computedPrefix: options.computedPrefix,
-    computedValues: computed(() =>
-      isSourceNode(node.value) ? (node.value as ActionData).computedValues : (options.computedValues?.value ?? []),
-    ),
-    update: (computedValues) => {
-      if (isSourceNode(node.value) && kind.value != "partial") {
-        connection.value?.tx.update(node.value, { computedValues });
-      } else {
-        options.updateComputedValues(computedValues);
-      }
-    },
-  });
-  const computedType = computed<TypeData | undefined>(() => {
-    if (options.computedType?.value != null) return options.computedType.value;
-    if (node.value == null) return undefined;
-    return makeType({
-      benchType: BenchType.COMPUTED_VALUE,
-      isRequired: true,
-      constraint: makeTypeConstraint({ nodeScopePtr: [node.value.parentPtr!] }),
-    });
-  });
-
-  return { layout, node, computer, connection, computedType };
+  return { layout, node, connection };
 }
 
 /** Handle an 'add Field' button (either directly or by spawning a Popover) */

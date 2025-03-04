@@ -3275,8 +3275,6 @@ message ActionData {
   optional SelectionData selection = 41;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
-  optional google.protobuf.Value variables_packed = 55;
-  optional google.protobuf.Value inputs_packed = 56;
   optional Vector2Data position = 80;
 }
 

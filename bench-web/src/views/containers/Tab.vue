@@ -1,9 +1,9 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
 import { cloneNode } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
 import { NodeType, NodeTypeOptionInfo, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/globals";
 import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
@@ -74,6 +74,7 @@ const tabsRef: Ref<Record<string, HTMLElement>> = ref({});
 const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
   name: "tab.header",
   container: headerRef,
+  targetsInOrder: computed(() => tabs.value.map((t) => t.id)),
   targetsById: tabsRef,
   kinds: ["node", "selection"],
   metatypes: [NodeType.VIEW],
