@@ -36,7 +36,7 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        variables: CustomObject | None = None,
+        resources: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
@@ -46,7 +46,7 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
             context=context,
             parent=parent,
             inputs=inputs,
-            variables=variables,
+            resources=resources,
             outputs=outputs,
             run=run,
         )

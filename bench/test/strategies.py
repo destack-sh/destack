@@ -384,7 +384,7 @@ def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
 def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     type_info_base_dict = draw_type_info_base_dict(draw, kinds)
     naive_base_dict = get_naive_object_strategy(NodeType.FIELD)
-    naive_base_dict["type"] = st.just(FieldType.VARIABLE)
+    naive_base_dict["type"] = st.just(FieldType.RESOURCE)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set

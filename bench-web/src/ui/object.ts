@@ -683,6 +683,17 @@ export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
   }
 }
 
+export class ImplementationLayout extends NodeLayout<NodeType.IMPLEMENTATION> {
+  make() {
+    const commonRows: Row[] = [];
+    this.section(undefined, commonRows);
+
+    this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
+      actions: [this.actionAddField(FieldType.RESOURCE)],
+    });
+  }
+}
+
 export class FlowLayout extends NodeLayout<NodeType.FLOW> {
   make() {
     const commonRows: Row[] = [];
@@ -690,6 +701,9 @@ export class FlowLayout extends NodeLayout<NodeType.FLOW> {
 
     // schema
     if (!this.isPartial) {
+      this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
+        actions: [this.actionAddField(FieldType.RESOURCE)],
+      });
       this.section(
         "Schema",
         [
@@ -725,7 +739,7 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
     );
 
     // default value
-    if ((!this.isPartial && this.subtype == FieldType.VARIABLE) || this.subtype == FieldType.MEMBER) {
+    if ((!this.isPartial && this.subtype == FieldType.RESOURCE) || this.subtype == FieldType.MEMBER) {
       const defaultView = getViewForType(node as FieldData, { forcePickerDropdown: true });
       if (defaultView?.type != null) {
         commonRows.push({
@@ -895,7 +909,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         "Schema",
         [
           // tool variables & inputs
-          { type: "fields-list", fieldType: FieldType.VARIABLE, toolPtr: delegatePtr },
+          { type: "fields-list", fieldType: FieldType.RESOURCE, toolPtr: delegatePtr },
           this.rowIcon("fas fa-arrow-down"),
           { type: "fields-list", fieldType: FieldType.INPUT, toolPtr: delegatePtr },
           // arrow
@@ -912,7 +926,9 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
         },
       );
     } else if (node.type == ActionType.CODE || DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
-      // own schema
+      this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
+        actions: [this.actionAddField(FieldType.RESOURCE)],
+      });
       this.section(
         "Schema",
         [
@@ -1162,6 +1178,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.DATABASE]: DatabaseLayout,
   [NodeType.FLOW]: FlowLayout,
   [NodeType.ACTION]: ActionLayout,
+  [NodeType.IMPLEMENTATION]: ImplementationLayout,
   [NodeType.LINK]: LinkLayout,
   [NodeType.RECORD]: RecordLayout,
   [NodeType.FIELD]: FieldLayout,
@@ -1370,7 +1387,7 @@ export function onAddFieldAction(
       subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
     },
     onApply: (typeInfo: TypeIdentity) => {
-      if (fieldType == FieldType.VARIABLE) {
+      if (fieldType == FieldType.RESOURCE) {
         typeInfo = { ...typeInfo, isRequired: true }; // variables are required by default
       }
       const field = createField(txFactory(), graph, {

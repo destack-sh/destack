@@ -50,7 +50,7 @@ export const VERB_BY_RUN_STATUS: Partial<Record<RunStatus, string>> = {
 };
 
 export const RUN_PROPERTY_BY_FIELD_TYPE: Partial<Record<FieldType, PropertyReferenceData>> = {
-  [FieldType.VARIABLE]: propertyReference(ObjectType.RUN, RunProperty.variablesPacked),
+  [FieldType.RESOURCE]: propertyReference(ObjectType.RUN, RunProperty.resourcesPacked),
   [FieldType.OUTPUT]: propertyReference(ObjectType.RUN, RunProperty.outputsPacked),
   [FieldType.INPUT]: propertyReference(ObjectType.RUN, RunProperty.inputsPacked),
 };

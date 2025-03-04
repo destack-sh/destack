@@ -314,7 +314,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           v-if="style == 'page'"
           id="type.input"
           class=""
-          :node="flow"
           :prepared-connection="preparedConnection"
           :node-ptr="props.nodePtr"
           :field-type="FieldType.INPUT"
@@ -328,7 +327,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           v-if="style == 'page'"
           id="type.output"
           class=""
-          :node="flow"
           :prepared-connection="preparedConnection"
           :node-ptr="props.nodePtr"
           :field-type="FieldType.OUTPUT"
@@ -336,6 +334,15 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
       </template>
       <!-- Meta -->
       <template #right="{ style }">
+        <!-- Resources -->
+        <FieldList
+          v-if="style == 'page'"
+          id="type.resource"
+          class=""
+          :prepared-connection="preparedConnection"
+          :node-ptr="props.nodePtr"
+          :field-type="FieldType.RESOURCE"
+        />
         <!-- Add action -->
         <button
           ref="createActionRef"

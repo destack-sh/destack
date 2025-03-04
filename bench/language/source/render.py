@@ -889,9 +889,6 @@ class FieldRenderer(SourceNodeRenderer[Field]):
     ) -> str:
         # remap back to type in if possible
         type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
-        # is_required=True is implicit if variable
-        if obj.type == FieldType.VARIABLE and obj.is_required is True:
-            rendered_kwargs.pop("is_required", None)
 
         constructor_name = obj.type.name.lower()
         rendered_kwargs.pop("type", None)

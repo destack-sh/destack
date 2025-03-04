@@ -180,7 +180,7 @@ def test_render_partial_object(session: Session, package: Package):
 
 @_render_test
 def test_render_bad_names(session: Session, package: Package):
-    _F_1 = Field.variable("-F_1", str)
+    _F_1 = Field.resource("-F_1", str)
     Page_with_Spa_se = Page.new("Page with Spa se")
     return {"_F_1": _F_1, "Page_with_Spa_se": Page_with_Spa_se}
 

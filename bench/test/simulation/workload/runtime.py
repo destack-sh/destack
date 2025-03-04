@@ -32,7 +32,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
         self,
         run: Run | RunnableNode,
         *,
-        variables: Any | None = None,
+        resources: Any | None = None,
         inputs: Any | None = None,
         options: RunOptions | None = None,
         mode: NodeMode | None = None,
@@ -43,7 +43,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
             run = create_run_from_node(
                 run,
                 isolate=True,
-                variables=variables,
+                resources=resources,
                 inputs=inputs,
                 options=options,
                 mode=mode,

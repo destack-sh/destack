@@ -43,7 +43,7 @@ const nodeValueType = computed(() =>
     isRequired: props.valueType?.isRequired ?? false,
     constraint: makeTypeConstraint({
       nodeScopePtr: props.valueType?.constraint?.nodeScopePtr,
-      nodeSubtypes: [FieldType.INPUT, FieldType.OUTPUT, FieldType.VARIABLE],
+      nodeSubtypes: [FieldType.INPUT, FieldType.OUTPUT, FieldType.RESOURCE],
     }),
   }),
 );

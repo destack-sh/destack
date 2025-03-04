@@ -30,7 +30,7 @@ import {
   ViewDataInfo,
   ViewProperty,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -221,7 +221,7 @@ export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES]
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const CANVAS_BLOCK_TYPES = [BlockType.FLOW, BlockType.DATABASE];
+export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.IMPLEMENTATION, BlockType.FLOW, BlockType.DATABASE];
 export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
 export const NODE_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt < BlockType.PARAGRAPH);
 

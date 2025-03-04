@@ -307,7 +307,7 @@ def make_chat_prompt(
     action: Action,
     runner: "Runner",
     context: "HasRuntimeContext",
-    variables: CustomObject | None,
+    resources: CustomObject | None,
     inputs: CustomObject | None,
     outputs: CustomObject | None,
     output_type: TypeBase,
@@ -400,12 +400,12 @@ def make_chat_prompt(
         PromptBreak(title=None),
     ]
     projection.collect_node(action, depth=0)
-    if variables is not None and variables.any():
-        projection.collect_custom_object(variables, depth=0)
+    if resources is not None and resources.any():
+        projection.collect_custom_object(resources, depth=0)
         action_parts.append(
             prompt_region(
-                PromptCustomObject(title="Variables to this Action", weight=1, object=variables),
-                title="Variables to this Action",
+                PromptCustomObject(title="Resources to this Action", weight=1, object=resources),
+                title="Resources to this Action",
                 weight=1,
             )
         )
@@ -447,14 +447,14 @@ def make_chat_prompt(
             ),
         ]
         projection.collect_node(flow, depth=1)
-        # repeat flow variables/inputs
+        # repeat flow resources/inputs
         flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
         assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
         flow_parts.append(PromptBreak(title=None))
-        if flow_run.variables is not None and flow_run.variables.any():
+        if flow_run.resources is not None and flow_run.resources.any():
             flow_parts.append(
                 PromptCustomObject(
-                    title="Variables to this Flow", weight=1, object=flow_run.variables
+                    title="Resources to this Flow", weight=1, object=flow_run.resources
                 )
             )
         if flow_run.inputs is not None and flow_run.inputs.any():
@@ -558,12 +558,12 @@ self: Action
 session: Session
 bench: Bench
 run: Run
-variables: CustomObject
+resources: CustomObject
 inputs: CustomObject
 outputs: CustomObject
 """,
             ),
-            title="Context variables (available inline)",
+            title="Context resources (available inline)",
             weight=1,
         ),
     ]
@@ -628,7 +628,7 @@ outputs: CustomObject
         ),
         PromptRegion(
             title="Run",
-            text="The Run you're in (with all the parent and incoming Runs and their inputs/variables)",
+            text="The Run you're in (with all the parent and incoming Runs and their inputs/resources)",
             weight=5,
             content=run_items,
         ),

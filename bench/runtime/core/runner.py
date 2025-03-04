@@ -160,6 +160,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "output_type",
         "outputs",
         "parent",
+        "resource_type",
+        "resources",
         "runners",
         "runtime",
         "status",
@@ -167,8 +169,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         "tracked",
         "tracked_run",
         "tracked_span",
-        "variable_type",
-        "variables",
     )
 
     runner_type: ClassVar[RunType]
@@ -182,7 +182,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         context: HasRuntimeContext,
         run: RunIn,
         parent: "Runner[Any] | None" = None,
-        variables: CustomObject | None = None,
+        resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
@@ -197,12 +197,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.outer_task: asyncio.Task | None = None
         self.is_stopped = False
 
-        # variables/inputs/outputs
-        self.variables = variables
-        self.variable_type = node.variable_type
+        # resources/inputs/outputs
+        self.resources = resources
+        self.resource_type = node.resource_type
         assert (
-            self.variable_type is None or self.variables is not None
-        ), f"{self!r} has no variables"
+            self.resource_type is None or self.resources is not None
+        ), f"{self!r} has no resources"
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
         assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
@@ -248,7 +248,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     status=self.status,
                     mode=self.mode,
                     inputs=self.inputs,
-                    variables=self.variables,
+                    resources=self.resources,
                     session=self.session,
                     _skip_validate_self=True,
                 )
@@ -260,14 +260,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             # get objects from Run (Node may copy them if they're from a different parent,
             #  like when we re-use a Flow's inputs for the StartAction.inputs)
             self.inputs = tracked_run.inputs
-            self.variables = tracked_run.variables
+            self.resources = tracked_run.resources
             self.options = tracked_run.options
             self.tracked_run = tracked_run
             self.tracked_span = None
             self.tracked = tracked_run
             assert (
-                tracked_run.variables is self.variables
-            ), f"{tracked_run!r} has other variables than {self!r}"
+                tracked_run.resources is self.resources
+            ), f"{tracked_run!r} has other resources than {self!r}"
             assert (
                 tracked_run.inputs is self.inputs
             ), f"{tracked_run!r} has other inputs than {self!r}"
@@ -640,7 +640,7 @@ def make_run_from_node(
     node: "RunnableNode",
     *,
     isolate: bool = True,
-    variables: Any | None = None,
+    resources: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
@@ -682,12 +682,12 @@ def make_run_from_node(
         _skip_validate_self=True,
     )
 
-    # variables
-    if variables is None:
-        variables = {}
-    if (variable_type := run.variable_type) is not None:
-        variables = coerce_custom_object_scalar(variables, variable_type)
-        run.variables = variables
+    # resources
+    if resources is None:
+        resources = {}
+    if (variable_type := run.resource_type) is not None:
+        resources = coerce_custom_object_scalar(resources, variable_type)
+        run.resources = resources
 
     # inputs
     if inputs is None:
@@ -715,7 +715,7 @@ def create_run_from_node(
     *,
     isolate: bool = True,
     status: RunStatus | None = None,
-    variables: Any | None = None,
+    resources: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
@@ -727,7 +727,7 @@ def create_run_from_node(
     run = make_run_from_node(
         node,
         isolate=isolate,
-        variables=variables,
+        resources=resources,
         inputs=inputs,
         options=options,
         mode=mode,
@@ -749,11 +749,11 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
     if node is None:
         raise RunImpossibleError(f"no node for {run!r}")
 
-    # variables
-    if run.variables is None and (variable_type := run.variable_type) is not None:
-        variables = CustomObject.new({}, typ=variable_type, supergraph=runtime.session._supergraph)
+    # resources
+    if run.resources is None and (variable_type := run.resource_type) is not None:
+        resources = CustomObject.new({}, typ=variable_type, supergraph=runtime.session._supergraph)
     else:
-        variables = run.variables
+        resources = run.resources
 
     # inputs
     if run.inputs is None and (input_type := run.input_type) is not None:
@@ -767,7 +767,7 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         run=run,
         type=run.type,
         context=run,
-        variables=variables,
+        resources=resources,
         inputs=inputs,
     )
 
@@ -779,7 +779,7 @@ def make_runner(
     *,
     type: RunType | None = None,
     context: HasRuntimeContext | None = None,
-    variables: CustomObject | None = None,
+    resources: CustomObject | None = None,
     inputs: Any | None = None,
     outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
@@ -790,10 +790,10 @@ def make_runner(
     RUN_TYPE = type or RUN_TYPE_BY_NODE_TYPE.get(node.metatype)
     assert RUN_TYPE is not None, f"no run kind for {node!r}"
 
-    # variables
-    variable_type = node.variable_type
-    if variables is None and variable_type is not None:
-        variables = CustomObject.new({}, typ=variable_type, supergraph=runtime.session._supergraph)
+    # resources
+    resource_type = node.resource_type
+    if resources is None and resource_type is not None:
+        resources = CustomObject.new({}, typ=resource_type, supergraph=runtime.session._supergraph)
 
     # inputs
     input_type = node.input_type
@@ -815,7 +815,7 @@ def make_runner(
         "runtime": runtime,
         "options": options,
         "context": context or run,
-        "variables": variables,
+        "resources": resources,
         "inputs": inputs,
         "outputs": outputs,
         "run": run,

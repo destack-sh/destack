@@ -131,7 +131,7 @@ def prompt_region(
 
 @dataclass
 class PromptRun(PromptCompound):
-    """A Run. Expands to Runs variables, inputs and outputs."""
+    """A Run. Expands to Runs resources, inputs and outputs."""
 
     node: Run
 
@@ -140,9 +140,9 @@ class PromptRun(PromptCompound):
         parts: list[PromptPart] = [
             PromptText(title="Run", text=f"Run {self.node.base!r} ({self.node.status.bench_name})"),
         ]
-        if self.node.variables and self.node.variables.any():
+        if self.node.resources and self.node.resources.any():
             parts.append(
-                PromptCustomObject(title="Variables", weight=1, object=self.node.variables)
+                PromptCustomObject(title="Resources", weight=1, object=self.node.resources)
             )
         if (
             self.node.inputs
@@ -157,7 +157,7 @@ class PromptRun(PromptCompound):
 
 @dataclass
 class PromptRunAttempt(PromptCompound):
-    """An attempt. Expands to attempt variables."""
+    """An attempt."""
 
     attempt: RunSpan
 
@@ -173,7 +173,7 @@ class PromptRunAttempt(PromptCompound):
 
 @dataclass
 class PromptPlan(PromptCompound):
-    """A Plan. Expands to Plan variables, inputs and outputs."""
+    """A Plan. Expands to Plan resources, inputs and outputs."""
 
     plan: Plan
     run: Run

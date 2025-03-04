@@ -57,11 +57,11 @@ const run = computed(() => {
 const runBasePtr = computed(() => (run.value != null ? getBaseFromNode(run.value) : nodePtr.value));
 const runBase = pkgGraph.getRef(runBasePtr);
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
-const variablesPacked = useSubnodeProperty(
+const resourcesPacked = useSubnodeProperty(
   NodeType.VIEW,
   ViewType.RUN,
   toRef(props, "subnodePacked"),
-  "variablesPacked",
+  "resourcesPacked",
 );
 // schema
 const fields = pkgGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
@@ -71,7 +71,7 @@ const variableType = computed(() =>
     ? makeType({
         kind: TypeKind.CUSTOM_OBJECT,
         baseTypePtr: runBasePtr.value,
-        baseFieldTypes: [FieldType.VARIABLE],
+        baseFieldTypes: [FieldType.RESOURCE],
       })
     : undefined,
 );
@@ -81,7 +81,7 @@ const outputType = computed(() => (runBase.value != null ? getOutputType(runBase
 function start() {
   if (node.value == null || !isRunnable(node.value)) return;
   const run = runtime.start(node.value, {
-    variablesPacked: variablesPacked.value as any,
+    resourcesPacked: resourcesPacked.value as any,
     inputsPacked: inputsPacked.value as any,
     focus: true,
   });
@@ -95,7 +95,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-1">
       <!-- Variables/Inputs -->
-      <div v-for="fieldType in [FieldType.VARIABLE, FieldType.INPUT]" :key="fieldType" class="px-5">
+      <div v-for="fieldType in [FieldType.RESOURCE, FieldType.INPUT]" :key="fieldType" class="px-5">
         <SomeObject
           :id="`fields-${fieldType}`"
           class="w-full"
@@ -103,10 +103,10 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
           is-inline
           is-input
           is-minimal
-          :model-value="fieldType == FieldType.INPUT ? inputsPacked : variablesPacked"
+          :model-value="fieldType == FieldType.INPUT ? inputsPacked : resourcesPacked"
           @update:model-value="
             (value: any, options?: ModelValueOptions) => {
-              const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'variablesPacked']: value };
+              const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'resourcesPacked']: value };
               state.update(
                 { metatype: NodeType.VIEW, type: ViewType.RUN, subnode },
                 options?.field != null ? getTransactionOptionsForType(options.field) : { debounce: 'short' },
@@ -147,13 +147,13 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
       </div>
       <!-- Variables/Inputs/Outputs -->
       <SomeObject
-        v-if="run?.variablesPacked != null"
+        v-if="run?.resourcesPacked != null"
         id="fields-variables"
         class="w-full px-5"
         :value-type="variableType"
         is-inline
         is-minimal
-        :model-value="run?.variablesPacked"
+        :model-value="run?.resourcesPacked"
       />
       <SomeObject
         v-if="run?.inputsPacked != null"

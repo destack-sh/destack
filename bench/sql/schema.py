@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.04.0"
+VERSION = "2025.03.04.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -860,7 +860,7 @@ FIELD_TABLE = Table(
         Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16, default="1"),
+        Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
@@ -1752,7 +1752,7 @@ RUN_TABLE = Table(
         Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
         Column("trigger_run_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("variables_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("resources_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),

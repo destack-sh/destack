@@ -51,7 +51,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       isSelected ? 'border-gray-400 bg-orange-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
-      field.type == FieldType.VARIABLE
+      field.type == FieldType.RESOURCE
         ? !isMinimal
           ? 'rounded-2xl pr-2.5'
           : 'rounded'

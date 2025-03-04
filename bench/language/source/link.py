@@ -133,8 +133,8 @@ class Link(SourceNode[LinkData], IsComputable):
         return None
 
     @property
-    def variable_type(self) -> "TypeBase | None":
-        return None  # Links don't have variables (?)
+    def resource_type(self) -> "TypeBase | None":
+        return None  # Links don't have resources (?)
 
     @property
     def input_type(self) -> "TypeBase | None":

@@ -358,13 +358,13 @@ class Runtime:
         resource_type = to_type_scalar(resource_type)
         assert resource_type.bench_type is not None, f"no bench_type for {resource_type!r}"
 
-        # traverse variables up
+        # traverse resources up
         parent = runner
         while parent is not None:
-            if parent.variables is not None:
-                for field in parent.variables.fields:
+            if parent.resources is not None:
+                for field in parent.resources.fields:
                     if field.bench_type == resource_type.bench_type:
-                        field_value = parent.variables._do_get(field)
+                        field_value = parent.resources._do_get(field)
                         if is_value(field_value, resource_type):
                             return cast(R, field_value)
             parent = parent.parent
@@ -512,9 +512,9 @@ class Runtime:
           but then that Run completes, so we unload it again while the other dependent Run runs?)
         """
 
-        # gather inputs, variables & outputs
+        # gather inputs, resources & outputs
         nodes_ptr_by_id: dict[UUID, NodeReference] = {}
-        for obj in (runner.inputs, runner.variables, runner.outputs):
+        for obj in (runner.inputs, runner.resources, runner.outputs):
             if obj is None:
                 continue
             # properties
@@ -561,9 +561,9 @@ class Runtime:
         """Prepare the Run for execution (only for Runs, not RunSpans)"""
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
 
-        # compute variables/inputs/options from context
+        # compute resources/inputs/options from context
         if isinstance(runner.node, Action):
-            # init variables/inputs from action
+            # init inputs from action (Action partial becomes inputs)
             if runner.inputs is not None:
                 runner.inputs.set_default(runner.node, _skip_validate=True)
         # apply computed values
@@ -577,17 +577,17 @@ class Runtime:
                 runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
                 raise
 
-        # check variables
-        if runner.variable_type is not None and (variable_fields := runner.variable_type._fields):
-            with tracer.start_as_current_span("runtime.check_variables"):
-                variables = runner.variables
-                assert variables is not None, f"missing variables in {runner!r}"
+        # check resources
+        if runner.resource_type is not None and (resource_fields := runner.resource_type._fields):
+            with tracer.start_as_current_span("runtime.check_resources"):
+                resources = runner.resources
+                assert resources is not None, f"missing resources in {runner!r}"
                 try:
                     missing_resource_fields: list[Field] = []
-                    for field in variable_fields:
-                        variable_value = variables._do_get(field)
+                    for field in resource_fields:
+                        resource_value = resources._do_get(field)
                         if (
-                            variable_value is None
+                            resource_value is None
                             and is_node_type(field.bench_type)
                             and NodeType(field.bench_type).is_resource
                         ):
@@ -595,7 +595,7 @@ class Runtime:
                             continue
                         else:
                             check_value(
-                                variable_value,
+                                resource_value,
                                 field,
                                 options=DEFAULT_CHECK_OPTIONS,
                                 invalid=on_invalid_raise,
@@ -605,22 +605,22 @@ class Runtime:
                     runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
                     raise
 
-            # acquire missing resource variables
+            # acquire missing resources
             if missing_resource_fields:
                 with run_span(
                     tracer, "runtime.acquire_resources", RunSpanType.ACQUIRE, runner=runner
                 ) as span:
-                    resources = await self._get_or_create_resources(
+                    resources_nodes = await self._get_or_create_resources(
                         runner=runner, resources=missing_resource_fields
                     )
                     if span is not None:
-                        span.nodes = cast(list["Node"], resources)
-                    for field, resource in zip(missing_resource_fields, resources):
-                        variables._do_set(field, resource, validate=False)
+                        span.nodes = cast(list["Node"], resources_nodes)
+                    for field, resource in zip(missing_resource_fields, resources_nodes):
+                        resources._do_set(field, resource, validate=False)
                     await self.wait_for(
-                        nodes=resources,
+                        nodes=resources_nodes,
                         condition=lambda: all(
-                            resource.status == ResourceStatus.UP for resource in resources
+                            resource.status == ResourceStatus.UP for resource in resources_nodes
                         ),
                         timeout=DEFAULT_RESOURCE_TIMEOUT,
                     )
@@ -803,8 +803,8 @@ class Runtime:
             if span.status != runner.status:
                 span.status = runner.status
             if type(span) is Run:
-                if span.variables is not runner.variables:
-                    span.variables = runner.variables
+                if span.resources is not runner.resources:
+                    span.resources = runner.resources
                 if span.inputs is not runner.inputs:
                     span.inputs = runner.inputs
                 if span.outputs is not runner.outputs:
@@ -996,6 +996,8 @@ class Runtime:
                     TriggerEffect.REPLACE_RUN,
                 ):
                     # nocheckin: handle ENSURE_RUN/REPLACE_RUN Triggers
+                    #  (how are we going to route that when there are multiple Runtimes?
+                    #   need to deterministically shard or otherwise decide where to put Run..)
                     # lift into new flow
                     self.session.commit_optimistic()
                     outer_run = create_run_from_node(

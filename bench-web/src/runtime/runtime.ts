@@ -246,7 +246,7 @@ export class Runtime {
     options?: {
       focus?: boolean;
       options?: RunOptionsData;
-      variablesPacked?: Record<string, any>;
+      resourcesPacked?: Record<string, any>;
       inputsPacked?: Record<string, any>;
       benchPtr?: NodeReferenceData;
       tx?: Transaction;
@@ -268,20 +268,20 @@ export class Runtime {
     if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
     const node = supergraph.get(basePtr);
     if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
-    let variablesPacked: Record<string, any> | undefined = undefined;
-    for (const [key, valuePacked] of Object.entries(run.variablesPacked ?? {})) {
+    let resourcesPacked: Record<string, any> | undefined = undefined;
+    for (const [key, valuePacked] of Object.entries(run.resourcesPacked ?? {})) {
       const type = decodeTypeIdentity(key.slice(TK_LENGTH_B64 + 1));
       const value = unpackValue(valuePacked, type);
       if (!(isStruct(value, StructType.NODE_REFERENCE) && isResourceNodeType(value.nodeType))) {
         // ignore resources
-        if (variablesPacked == null) variablesPacked = {};
-        variablesPacked[key] = valuePacked;
+        if (resourcesPacked == null) resourcesPacked = {};
+        resourcesPacked[key] = valuePacked;
       }
     }
     this.start(node, {
       focus: true,
       benchPtr: run.benchPtr,
-      variablesPacked,
+      resourcesPacked,
       inputsPacked: run.inputsPacked as Record<string, any> | undefined,
       options: run.options,
       tx: options?.tx,
@@ -341,7 +341,7 @@ export function makeRun(
   graph: ReadNodeGraph,
   runnable: RunnableNode,
   options?: {
-    variablesPacked?: Record<string, any>;
+    resourcesPacked?: Record<string, any>;
     inputsPacked?: Record<string, any>;
     packagePtr?: NodeReferenceData;
     options?: RunOptionsData;
@@ -380,7 +380,7 @@ export function makeRun(
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     linkPtr: isNode(runnable, NodeType.LINK) ? toNodeRef(runnable) : undefined,
-    variablesPacked: options?.variablesPacked ?? undefined,
+    resourcesPacked: options?.resourcesPacked ?? undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),
   });

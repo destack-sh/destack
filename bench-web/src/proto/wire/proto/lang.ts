@@ -3948,9 +3948,9 @@ export interface RunData {
      */
     triggerRunPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 70;
+     * @generated from protobuf field: optional google.protobuf.Value resources_packed = 70;
      */
-    variablesPacked?: JsonValue;
+    resourcesPacked?: JsonValue;
     /**
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 71;
      */
@@ -6318,9 +6318,9 @@ export interface ViewData {
  */
 export interface RunViewData {
     /**
-     * @generated from protobuf field: optional google.protobuf.Value variables_packed = 100;
+     * @generated from protobuf field: optional google.protobuf.Value resources_packed = 100;
      */
-    variablesPacked?: JsonValue;
+    resourcesPacked?: JsonValue;
     /**
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 101;
      */
@@ -11316,21 +11316,21 @@ export enum FieldType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FIELD_TYPE_VARIABLE = 1;
+     * @generated from protobuf enum value: FIELD_TYPE_MEMBER = 10;
      */
-    VARIABLE = 1,
+    MEMBER = 10,
     /**
-     * @generated from protobuf enum value: FIELD_TYPE_MEMBER = 2;
+     * @generated from protobuf enum value: FIELD_TYPE_INPUT = 20;
      */
-    MEMBER = 2,
+    INPUT = 20,
     /**
-     * @generated from protobuf enum value: FIELD_TYPE_INPUT = 3;
+     * @generated from protobuf enum value: FIELD_TYPE_OUTPUT = 30;
      */
-    INPUT = 3,
+    OUTPUT = 30,
     /**
-     * @generated from protobuf enum value: FIELD_TYPE_OUTPUT = 4;
+     * @generated from protobuf enum value: FIELD_TYPE_RESOURCE = 40;
      */
-    OUTPUT = 4
+    RESOURCE = 40
 }
 /**
  * The 'kind' of a Type.
@@ -24253,7 +24253,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 66, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 67, name: "trigger_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 68, name: "trigger_run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 70, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 70, name: "resources_packed", kind: "message", T: () => Value },
             { no: 71, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 72, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 74, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -24396,8 +24396,8 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData trigger_run_ptr */ 68:
                     message.triggerRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerRunPtr);
                     break;
-                case /* optional google.protobuf.Value variables_packed */ 70:
-                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                case /* optional google.protobuf.Value resources_packed */ 70:
+                    message.resourcesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional google.protobuf.Value inputs_packed */ 71:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -24552,9 +24552,9 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData trigger_run_ptr = 68; */
         if (message.triggerRunPtr)
             NodeReferenceData.internalBinaryWrite(message.triggerRunPtr, writer.tag(68, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value variables_packed = 70; */
-        if (message.variablesPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(70, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value resources_packed = 70; */
+        if (message.resourcesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.resourcesPacked), writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value inputs_packed = 71; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(71, WireType.LengthDelimited).fork(), options).join();
@@ -29960,7 +29960,7 @@ export const ViewData = new ViewData$Type();
 class RunViewData$Type extends MessageType$<RunViewData> {
     constructor() {
         super("symbolx.bench.RunViewData", [
-            { no: 100, name: "variables_packed", kind: "message", T: () => Value },
+            { no: 100, name: "resources_packed", kind: "message", T: () => Value },
             { no: 101, name: "inputs_packed", kind: "message", T: () => Value }
         ]);
     }
@@ -29975,8 +29975,8 @@ class RunViewData$Type extends MessageType$<RunViewData> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional google.protobuf.Value variables_packed */ 100:
-                    message.variablesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                case /* optional google.protobuf.Value resources_packed */ 100:
+                    message.resourcesPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional google.protobuf.Value inputs_packed */ 101:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -29993,9 +29993,9 @@ class RunViewData$Type extends MessageType$<RunViewData> {
         return message;
     }
     internalBinaryWrite(message: RunViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value variables_packed = 100; */
-        if (message.variablesPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.variablesPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Value resources_packed = 100; */
+        if (message.resourcesPacked !== undefined)
+            Value.internalBinaryWrite(Value.fromJson(message.resourcesPacked), writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value inputs_packed = 101; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(101, WireType.LengthDelimited).fork(), options).join();
@@ -34996,7 +34996,7 @@ export enum RunProperty {
   triggerPtr = 66,
   triggerKey = 67,
   triggerRunPtr = 68,
-  variablesPacked = 70,
+  resourcesPacked = 70,
   inputsPacked = 71,
   outputsPacked = 72,
   name = 74,
@@ -35361,7 +35361,7 @@ export enum MessageTriggerProperty {
 }
 
 export enum RunViewProperty {
-  variablesPacked = 100,
+  resourcesPacked = 100,
   inputsPacked = 101,
 }
 
@@ -36524,8 +36524,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36557,8 +36557,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.04.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36857,7 +36857,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FIELD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.type]: { id: 30, name: 'type', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.type]: { id: 30, name: 'type', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.name]: { id: 31, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -37402,7 +37402,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.triggerPtr]: { id: 66, name: 'trigger_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.triggerKey]: { id: 67, name: 'trigger_key', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.triggerRunPtr]: { id: 68, name: 'trigger_run_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.variablesPacked]: { id: 70, name: 'variables_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.resourcesPacked]: { id: 70, name: 'resources_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.inputsPacked]: { id: 71, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 72, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.name]: { id: 74, name: 'name', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -37728,7 +37728,7 @@ export const MessageTriggerDataInfo: Record<MessageTriggerProperty, PropertyInfo
 
 }
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
-  [RunViewProperty.variablesPacked]: { id: 100, name: 'variables_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunViewProperty.resourcesPacked]: { id: 100, name: 'resources_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ObjectViewDataInfo: Record<ObjectViewProperty, PropertyInfo> = {
@@ -38635,6 +38635,13 @@ export const PrimitiveTypeOptionInfo: Partial<Record<PrimitiveType, EnumOptionIn
   [PrimitiveType.DURATION]: { id: 33, name: 'DURATION', text: 'Duration', title: 'Duration', icon: 'fas fa-stopwatch' },
 }
 
+export const FieldTypeOptionInfo: Partial<Record<FieldType, EnumOptionInfo>> = {
+  [FieldType.MEMBER]: { id: 10, name: 'MEMBER', text: 'Member of an object', title: 'Member', icon: 'fas objects-columns' },
+  [FieldType.INPUT]: { id: 20, name: 'INPUT', text: 'fas fa-arrow-down', title: 'Input to a runnable' },
+  [FieldType.OUTPUT]: { id: 30, name: 'OUTPUT', text: 'fas fa-arrow-up', title: 'Output from a runnable' },
+  [FieldType.RESOURCE]: { id: 40, name: 'RESOURCE', text: 'Resource slot', title: 'Resource', icon: 'fas fa-album-colection' },
+}
+
 export const TypeFormatOptionInfo: Partial<Record<TypeFormat, EnumOptionInfo>> = {
   [TypeFormat.URL]: { id: 2000, name: 'URL', title: 'fas fa-link' },
   [TypeFormat.EMAIL]: { id: 2001, name: 'EMAIL', title: 'fas fa-at' },
@@ -38996,6 +39003,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.RESOURCE_STATUS]: ResourceStatusOptionInfo,
   [EnumType.FILE_TYPE]: FileTypeOptionInfo,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveTypeOptionInfo,
+  [EnumType.FIELD_ZONE]: FieldTypeOptionInfo,
   [EnumType.TYPE_FORMAT]: TypeFormatOptionInfo,
   [EnumType.BLOCK_TYPE]: BlockTypeOptionInfo,
   [EnumType.TEXT_LINE_TYPE]: TextLineTypeOptionInfo,
