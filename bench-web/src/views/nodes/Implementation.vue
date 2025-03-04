@@ -3,17 +3,17 @@ import { cloneNode, makeNodeName, moveNode, packSubnode } from "@/language/core/
 import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
 import {
-	ActionData,
-	ActionType,
-	BenchType,
-	ImplementationData,
-	NodeReferenceData,
-	NodeType,
-	ObjectType,
-	PickerVariant,
-	TypeKind,
-	ViewData,
-	ViewType
+  ActionData,
+  ActionType,
+  BenchType,
+  ImplementationData,
+  NodeReferenceData,
+  NodeType,
+  ObjectType,
+  PickerVariant,
+  TypeKind,
+  ViewData,
+  ViewType,
 } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
@@ -224,8 +224,6 @@ defineExpose<ViewExpose>({ self, id, focus });
           />
         </div>
         <div class="flex flex-1 flex-col">
-          <span class="text-gray-400 transition-colors duration-150 group-hover/action:text-gray-700">Action</span>
-          <span class="text-gray-400">...</span>
         </div>
       </button>
     </div>
