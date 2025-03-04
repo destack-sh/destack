@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.03.6"
+VERSION = "2025.03.04.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -999,7 +999,7 @@ FLOW_TABLE = Table(
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("tags_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
-        Column("tool_selection", PrimitiveType.JSON, is_nullable=True),
+        Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
@@ -1041,7 +1041,7 @@ ACTION_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
-        Column("tool_selection", PrimitiveType.JSON, is_nullable=True),
+        Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
         Column("tool_ck", PrimitiveType.UUID, is_nullable=True),

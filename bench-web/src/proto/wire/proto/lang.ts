@@ -4440,9 +4440,9 @@ export interface ActionData {
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData tool_selection = 41;
+     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 41;
      */
-    toolSelection?: SelectionData;
+    selection?: SelectionData;
     /**
      * @generated from protobuf field: optional symbolx.bench.CodeData code = 52;
      */
@@ -5653,9 +5653,9 @@ export interface FlowData {
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData tool_selection = 41;
+     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 41;
      */
-    toolSelection?: SelectionData;
+    selection?: SelectionData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 42;
      */
@@ -25359,7 +25359,7 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
             { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 41, name: "tool_selection", kind: "message", T: () => SelectionData },
+            { no: 41, name: "selection", kind: "message", T: () => SelectionData },
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 55, name: "variables_packed", kind: "message", T: () => Value },
@@ -25455,8 +25455,8 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbolx.bench.RunOptionsData run_options */ 40:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* optional symbolx.bench.SelectionData tool_selection */ 41:
-                    message.toolSelection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.toolSelection);
+                case /* optional symbolx.bench.SelectionData selection */ 41:
+                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
                     break;
                 case /* optional symbolx.bench.CodeData code */ 52:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
@@ -25554,9 +25554,9 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.RunOptionsData run_options = 40; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SelectionData tool_selection = 41; */
-        if (message.toolSelection)
-            SelectionData.internalBinaryWrite(message.toolSelection, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SelectionData selection = 41; */
+        if (message.selection)
+            SelectionData.internalBinaryWrite(message.selection, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.CodeData code = 52; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
@@ -28392,7 +28392,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 41, name: "tool_selection", kind: "message", T: () => SelectionData },
+            { no: 41, name: "selection", kind: "message", T: () => SelectionData },
             { no: 42, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
@@ -28488,8 +28488,8 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbolx.bench.RunOptionsData run_options */ 40:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* optional symbolx.bench.SelectionData tool_selection */ 41:
-                    message.toolSelection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.toolSelection);
+                case /* optional symbolx.bench.SelectionData selection */ 41:
+                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 42:
                     message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -28578,9 +28578,9 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.RunOptionsData run_options = 40; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SelectionData tool_selection = 41; */
-        if (message.toolSelection)
-            SelectionData.internalBinaryWrite(message.toolSelection, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SelectionData selection = 41; */
+        if (message.selection)
+            SelectionData.internalBinaryWrite(message.selection, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData roles_ptr = 42; */
         for (let i = 0; i < message.rolesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -34546,7 +34546,7 @@ export enum FlowProperty {
   threadPtr = 37,
   tagsPtr = 38,
   runOptions = 40,
-  toolSelection = 41,
+  selection = 41,
   rolesPtr = 42,
 }
 
@@ -34574,7 +34574,7 @@ export enum ActionProperty {
   icon = 35,
   text = 36,
   runOptions = 40,
-  toolSelection = 41,
+  selection = 41,
   code = 52,
   toolPtr = 53,
   variablesPacked = 55,
@@ -36971,7 +36971,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [FlowProperty.toolSelection]: { id: 41, name: 'tool_selection', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [FlowProperty.selection]: { id: 41, name: 'selection', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [FlowProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
@@ -36998,7 +36998,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionProperty.runOptions]: { id: 40, name: 'run_options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [ActionProperty.toolSelection]: { id: 41, name: 'tool_selection', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [ActionProperty.selection]: { id: 41, name: 'selection', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.variablesPacked]: { id: 55, name: 'variables_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },

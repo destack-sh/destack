@@ -249,13 +249,13 @@ class Action(SourceNode[ActionData], IsComputable):
     run_options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    tool_selection: Optional["Selection"] = p_regular(
+    selection: Optional["Selection"] = p_regular(
         41,
         default=None,
         require=False,
         array=False,
         struct=StructType.SELECTION,
-        field_type=FieldType.INPUT,
+        description="The selection of Tools to use.",
     )
 
     # inputs
@@ -287,7 +287,7 @@ class Action(SourceNode[ActionData], IsComputable):
         type=FieldType.VARIABLE,
         typ=lambda self: cast("Action", self).variable_type_field_only,
     )
-    # inputs for delegate
+    # inputs for tool
     inputs_packed: Any = p_value_packed(56)
     inputs: Any = p_value_runtime(
         56,

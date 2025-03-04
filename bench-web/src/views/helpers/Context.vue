@@ -36,6 +36,7 @@ import Text from "@/views/content/Text.vue";
 import Chat from "@/views/helpers/Chat.vue";
 import Run from "@/views/nodes/Run.vue";
 import SomeObject from "@/views/objects/Object.vue";
+import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
@@ -158,7 +159,11 @@ function selectAspect(aspect: ContextAspect) {
 const bodyRef = ref<HTMLElement | null>(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const startRef: Ref<InstanceType<typeof Run> | null> = ref(null);
-const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT);
+const headerRef: Ref<HTMLDivElement | null> = ref(null);
+const headerSize = useElementSize(headerRef);
+const bodyHeight = computed(
+  () => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - headerSize.height.value - FOOTER_HEIGHT,
+);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
@@ -203,9 +208,10 @@ defineExpose<ViewExpose>({ self });
 
     <!-- Header -->
     <div
+      ref="headerRef"
       class="mx-3 flex flex-row items-center gap-x-2"
       :style="{
-        height: `${HEADER_HEIGHT}px`,
+        minHeight: `${HEADER_HEIGHT}px`,
       }"
     >
       <template v-if="aspect == ContextAspect.DETAIL">
@@ -216,7 +222,7 @@ defineExpose<ViewExpose>({ self });
           is-small
           is-input
           placeholder="Text"
-          class="mx-1 w-full"
+          class="mx-1 my-1 w-full"
           :model-value="(target as any).text"
           @update:model-value="
             inspectionConnection?.tx.update(target as PageData, { text: $event }, { debounce: 'long' })

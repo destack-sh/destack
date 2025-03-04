@@ -33,13 +33,13 @@ class Flow(InlineSourceNode[FlowData], IsComputable):
     run_options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    tool_selection: Optional["Selection"] = p_regular(
+    selection: Optional["Selection"] = p_regular(
         41,
         default=None,
         require=False,
         array=False,
         struct=StructType.SELECTION,
-        field_type=FieldType.INPUT,
+        description="The selection of Tools to use.",
     )
     roles: list["Role"] = p_regular(42, require=False, array=True, references=NodeType.ROLE)
 

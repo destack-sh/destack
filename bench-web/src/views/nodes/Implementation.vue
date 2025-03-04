@@ -143,6 +143,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 
 <template>
   <div>
+    <!-- Header -->
     <InlineHeader
       v-if="nodePtr"
       ref="headerRef"
@@ -156,7 +157,11 @@ defineExpose<ViewExpose>({ self, id, focus });
       :is-minimal="isMinimal"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     >
+      <template #left="{ style }">
+        <!-- For ...? -->
+      </template>
       <template #right="{ style }">
+        <!-- Create Action -->
         <button
           class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
           :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
@@ -167,6 +172,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         </button>
       </template>
     </InlineHeader>
+
     <!-- Action grid -->
     <div
       ref="containerRef"

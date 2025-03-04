@@ -59,7 +59,9 @@ export function getTextLine(text: TextData, maxLines: number = 3): string | unde
       if (lines.length >= maxLines) break;
     }
   }
-  return lines.length > 0 ? lines.join(" ") : undefined;
+  const line = lines.join(" ");
+  if (line.length == 0) return undefined;
+  return line;
 }
 
 /** Rough estimate of the height of a Text */

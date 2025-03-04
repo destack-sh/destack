@@ -1023,15 +1023,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       this.section(
         "Schema",
         [
-          ...this.rowObjectInline(
-            ActionProperty.inputsPacked,
-            makeType({
-              kind: TypeKind.CUSTOM_OBJECT,
-              baseFieldTypes: [FieldType.INPUT],
-              baseTypePtr: nodePtr ?? undefined,
-            }),
-            { isComputable: true },
-          ),
+          { type: "fields-list", fieldType: FieldType.INPUT },
           this.rowIcon("fas fa-arrow-down"),
           { type: "fields-list", fieldType: FieldType.OUTPUT },
         ],
@@ -1526,7 +1518,7 @@ export function onAddFieldAction(
       const field = createField(txFactory(), graph, {
         anchor: "inside",
         target: parent,
-        field: { ...typeInfo, icon: undefined, type: fieldType },
+        field: { ...typeInfo, metatype: undefined, icon: undefined, type: fieldType },
       });
       if (!options?.dontFocus) {
         canvas.inspect({ node: field });

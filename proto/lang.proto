@@ -3272,7 +3272,7 @@ message ActionData {
   optional IconData icon = 35;
   optional TextData text = 36;
   optional RunOptionsData run_options = 40;
-  optional SelectionData tool_selection = 41;
+  optional SelectionData selection = 41;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
   optional google.protobuf.Value variables_packed = 55;
@@ -3650,7 +3650,7 @@ message FlowData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   optional RunOptionsData run_options = 40;
-  optional SelectionData tool_selection = 41;
+  optional SelectionData selection = 41;
   repeated NodeReferenceData roles_ptr = 42;
 }
 
