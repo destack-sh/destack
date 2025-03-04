@@ -129,13 +129,13 @@ defineExpose<ViewExpose>({ self, id, actions });
 
     <!-- Main -->
     <div
-      class="flex flex-1 flex-col"
+      class="flex flex-1 flex-col gap-y-0.5"
       :style="{
         maxWidth: `calc(100% - 60px)`,
       }"
     >
       <!-- Header -->
-      <div class="flex flex-row gap-x-1.5">
+      <div class="flex h-5 flex-row gap-x-1.5">
         <!-- Name -->
         <NativeInput
           id="name"
@@ -169,7 +169,7 @@ defineExpose<ViewExpose>({ self, id, actions });
         </div>
       </div>
       <!-- Content -->
-      <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
+      <div class="flex h-5 max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
         <!-- NOTE :Incomplete: better Action body -->
         <!-- Fields -->
         <span
