@@ -564,12 +564,8 @@ class Runtime:
         # compute variables/inputs/options from context
         if isinstance(runner.node, Action):
             # init variables/inputs from action
-            if runner.variables is not None and runner.node.variables_packed is not None:
-                runner.variables.set_default(runner.node.variables, _skip_validate=True)
             if runner.inputs is not None:
                 runner.inputs.set_default(runner.node, _skip_validate=True)
-                if runner.node.inputs_packed is not None:
-                    runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
         # apply computed values
         if runner.tracked_run is not None:  # (only in tracked runs)
             try:
