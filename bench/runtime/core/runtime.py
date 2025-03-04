@@ -562,8 +562,8 @@ class Runtime:
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
 
         # compute variables/inputs/options from context
-        # init variables/inputs from action
         if isinstance(runner.node, Action):
+            # init variables/inputs from action
             if runner.variables is not None and runner.node.variables_packed is not None:
                 runner.variables.set_default(runner.node.variables, _skip_validate=True)
             if runner.inputs is not None:

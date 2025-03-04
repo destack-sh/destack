@@ -103,7 +103,7 @@ export function createField(
   if (fieldIn?.icon == null) {
     fieldIn = {
       ...fieldIn,
-      icon: getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn }, { defaultToUndefined: true }),
+      icon: getNodeIcon({ ...fieldIn, metatype: ObjectType.FIELD }, { defaultToUndefined: true }),
     };
   }
 

@@ -114,7 +114,7 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
             outputs=outputs,
             run=run,
         )
-        self.action = cast(A, self.inputs)
+        self.action_inputs = cast(A, self.inputs)
         self.flow = flow
 
     @override
@@ -256,8 +256,8 @@ class CompleteActionRunner(ActionRunner[CompleteAction]):
 class FailActionRunner(ActionRunner[FailAction]):
     @override
     async def run(self) -> None:
-        title = self.action.error_title or "Flow failed"
-        text = self.action.error_text or Text.plain(f"Flow failed at {self.node!r}")
+        title = self.action_inputs.error_title or "Flow failed"
+        text = self.action_inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
         raise RetryableError(title=title, text=text)
 
 
@@ -274,7 +274,7 @@ class CodeActionRunner(ActionRunner[CodeAction]):
     async def run(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
 
-        code = self.action.code or CODE_PASS
+        code = self.action_inputs.code or CODE_PASS
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
@@ -327,8 +327,8 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 
     @override
     async def run_static(self) -> None:
-        tool = self.action.tool
-        tool_type = self.action.type
+        tool = self.action_inputs.tool
+        tool_type = self.action_inputs.type
         if tool is not None:
             # delegate to tool node
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
@@ -369,7 +369,7 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 class CreateActionRunner(StaticActionRunner[CreateAction]):
     @override
     async def run_static(self) -> None:
-        node_partial = self.action.node_partial
+        node_partial = self.action_inputs.node_partial
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # create node from partial
@@ -401,13 +401,13 @@ class CreateActionRunner(StaticActionRunner[CreateAction]):
 class DuplicateActionRunner(StaticActionRunner[DuplicateAction]):
     @override
     async def run_static(self) -> None:
-        node = self.action.node
-        node_partial = self.action.node_partial
+        node = self.action_inputs.node
+        node_partial = self.action_inputs.node_partial
         assert node is not None, "no node to clone"
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # clone node with partial override
-        cloned_node = node.clone(recursive=not self.action.is_shallow, detach=True)
+        cloned_node = node.clone(recursive=not self.action_inputs.is_shallow, detach=True)
         patch_node_from_partial(cloned_node, node_partial)
         cloned_node_parent = cloned_node.parent or node.parent
         assert cloned_node_parent is not None, f"cloned node {cloned_node!r} must be attached"
@@ -423,9 +423,9 @@ class DuplicateActionRunner(StaticActionRunner[DuplicateAction]):
 class UpdateActionRunner(StaticActionRunner[UpdateAction]):
     @override
     async def run_static(self) -> None:
-        node = self.action.node
+        node = self.action_inputs.node
         assert node is not None, "no node to update"
-        node_partial = self.action.node_partial
+        node_partial = self.action_inputs.node_partial
         assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
 
         # update with partial patch
@@ -436,7 +436,7 @@ class UpdateActionRunner(StaticActionRunner[UpdateAction]):
 class DeleteActionRunner(StaticActionRunner[DeleteAction]):
     @override
     async def run_static(self) -> None:
-        node = self.action.node
+        node = self.action_inputs.node
         assert node is not None, "no node to delete"
 
         # delete
@@ -453,14 +453,14 @@ class WaitActionRunner(StaticActionRunner[WaitAction]):
     @override
     async def run_static(self) -> None:
         # NOTE :Incomplete: obviously WaitStep should be Interruption/Trigger-driven
-        if self.action.delay is not None:
-            await asyncio.sleep(self.action.delay.total_seconds())
+        if self.action_inputs.delay is not None:
+            await asyncio.sleep(self.action_inputs.delay.total_seconds())
 
 
 class SendActionRunner(StaticActionRunner[SendAction]):
     @override
     async def run_static(self) -> None:
-        message_partial = self.action.message_in
+        message_partial = self.action_inputs.message_in
         assert isinstance(
             message_partial, CustomObject
         ), f"bad message_partial: {message_partial!r}"
@@ -507,7 +507,7 @@ class YieldActionRunner(StaticActionRunner[YieldAction]):
 
 class ApplicationActionRunner[A: Action = Action](StaticActionRunner[A]):
     def _get_application(self) -> Browser:
-        if (application := cast(HasApplicationContext, self.action).application) is not None:
+        if (application := cast(HasApplicationContext, self.action_inputs).application) is not None:
             return application
         else:
             return self._get_ready_resource_or_error(Browser)
@@ -560,13 +560,13 @@ class ClickActionRunner(ApplicationActionRunner[ClickAction]):
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        button = self.action.button or "left"
+        button = self.action_inputs.button or "left"
         if button not in ("left", "right", "middle"):
             raise ValidationError(None, f"invalid button: {button!r}")
-        if (element_id := self.action.element_id) is not None:
+        if (element_id := self.action_inputs.element_id) is not None:
             selector = f"[data-bench-highlight-id='{element_id}']"
             await pw_page.click(selector)
-        elif (element_position := self.action.element_position) is not None:
+        elif (element_position := self.action_inputs.element_position) is not None:
             await pw_page.mouse.click(element_position.x, element_position.y, button=button)
         else:
             raise IncapableError("no element to focus")
@@ -576,14 +576,14 @@ class ClickActionRunner(ApplicationActionRunner[ClickAction]):
 class PressActionRunner(ApplicationActionRunner[PressAction]):
     @override
     async def run_static(self) -> None:
-        combination = self.action.combination
+        combination = self.action_inputs.combination
         if not isinstance(combination, str):
             raise ValidationError(None, f"bad keys to press: {combination!r}")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action, pw_page)
-        delay_seconds = self.action.delay.total_seconds() if self.action.delay else 0
+        await self._focus_element(self.action_inputs, pw_page)
+        delay_seconds = self.action_inputs.delay.total_seconds() if self.action_inputs.delay else 0
         await pw_page.keyboard.press(combination, delay=delay_seconds)
         await self.runtime.playwright.wait_for_idle(pw_page)
 
@@ -591,27 +591,27 @@ class PressActionRunner(ApplicationActionRunner[PressAction]):
 class TypeActionRunner(ApplicationActionRunner[TypeAction]):
     @override
     async def run_static(self) -> None:
-        string = self.action.string
+        string = self.action_inputs.string
         if not isinstance(string, str):
             raise ValidationError(None, f"bad string to type: {string!r}")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action, pw_page)
-        delay_seconds = self.action.delay.total_seconds() if self.action.delay else 0
+        await self._focus_element(self.action_inputs, pw_page)
+        delay_seconds = self.action_inputs.delay.total_seconds() if self.action_inputs.delay else 0
         await pw_page.keyboard.type(string, delay=delay_seconds)
 
 
 class ScrollActionRunner(ApplicationActionRunner[ScrollAction]):
     @override
     async def run_static(self) -> None:
-        amount = self.action.amount
+        amount = self.action_inputs.amount
         if amount is None:
             raise ValidationError(None, "no amount to scroll")
         browser = self._get_application()
         pw_browser = await self.runtime.playwright.get_client(browser)
         pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action, pw_page)
+        await self._focus_element(self.action_inputs, pw_page)
         await pw_page.mouse.wheel(delta_x=amount.x, delta_y=amount.y)
 
 
@@ -644,7 +644,7 @@ class GoForwardActionRunner(ApplicationActionRunner[GoForwardAction]):
 class GoToUrlActionRunner(ApplicationActionRunner[GoToUrlAction]):
     @override
     async def run_static(self) -> None:
-        url = self.action.url
+        url = self.action_inputs.url
         if url is None:
             raise ValidationError(None, "no url to go to")
         browser = self._get_application()
@@ -657,7 +657,7 @@ class GoToUrlActionRunner(ApplicationActionRunner[GoToUrlAction]):
 class GoToTabActionRunner(ApplicationActionRunner[GoToTabAction]):
     @override
     async def run_static(self) -> None:
-        tab_index = self.action.tab_index
+        tab_index = self.action_inputs.tab_index
         if tab_index is None:
             raise ValidationError(None, "no tab index to go to")
         browser = self._get_application()
