@@ -19,7 +19,7 @@ import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
 import { ViewComponent } from "@/views/common";
 import { MaybeElement, tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, shallowRef, toRef, triggerRef, unref, watch, type MaybeRef, type Ref } from "vue";
+import { computed, ref, shallowRef, toRef, toValue, triggerRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
 //
 // Drag
@@ -332,75 +332,128 @@ export function useSingleDropZone(
 }
 
 export type MultiAnchor = "start" | "center" | "end";
+
 /**
- * Track certain drop zone events across dynamic target regions in a single parent container.
+ * Track multi drop zone events across ordered targets.
+ * Supports grid-like layout when orientation is null.
  */
 export function useMultiDropZone(
   options: DropOptions & {
+    targetsInOrder: Ref<string[]>;
     targetsById: Ref<Record<string, MaybeElement | any>>;
-    orientation: MaybeRef<Orientation>;
+    orientation?: MaybeRef<Orientation | null>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
     allowDrop?: (dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) => boolean;
     onDrop?: (dragged: DragContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
   },
-): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } | null> } {
-  const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
+): {
+  activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } | null>;
+} {
+  // use container drop zone for global enable/disable
+  const { isInDropZone } = useDropZone({
     ...options,
-    orientation: options.orientation,
-    onDrop: (dragged, _, event) => {
-      const { anchor, targetId } = getActiveDropZone()!;
+    onDrop: (dragged, event) => {
+      const { anchor, targetId } = getActiveDropZone();
       if (targetId == null || options.allowDrop?.(dragged, anchor, targetId, event) !== false) {
         options.onDrop?.(dragged, anchor, targetId, event);
       }
     },
   });
 
+  const position = useMouse();
+
+  // get active drop zone based on cursor position and ordered targets
   function getActiveDropZone(): { anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } {
-    // find directly hit zone (and closest as fallback)
     const cursor = { x: position.x.value, y: position.y.value };
-    let closest: { anchor: MultiAnchor; targetId: string; distance: number; targetRect: DOMRect | null } | null = null;
-    for (const [targetId, targetEl] of Object.entries(options.targetsById.value)) {
-      const targetRect = getElement(targetEl)!.getBoundingClientRect();
-      const cursorP = options.orientation == Orientation.HORIZONTAL ? cursor.x : cursor.y;
-      const targetStart = options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
-      const targetEnd = options.orientation == Orientation.HORIZONTAL ? targetRect.right : targetRect.bottom;
-      if (cursorP >= targetStart && cursorP <= targetEnd) {
-        // if hasCenterAnchor we consider edges only like in useSplitDropZone, otherwise just 50/50
-        if (options.hasCenterAnchor) {
-          const edgeZone = options.orientation == Orientation.HORIZONTAL ? targetRect.width : targetRect.height;
-          const centerZone = edgeZone * SPLIT_EDGE_ZONE_FRACTION;
-          const anchor =
-            cursorP <= targetStart + centerZone ? "start" : cursorP >= targetEnd - centerZone ? "end" : "center";
-          return { targetId, anchor, targetRect };
-        } else {
-          const anchor = cursorP <= (targetStart + targetEnd) / 2 ? "start" : "end";
-          return { targetId, anchor, targetRect };
+    const orderedTargets = options.targetsInOrder.value;
+    let closest: { anchor: MultiAnchor; targetId: string; distance: number; targetRect: DOMRect } | null = null;
+
+    for (const targetId of orderedTargets) {
+      const targetEl = options.targetsById.value[targetId];
+      const el = getElement(targetEl);
+      if (!el) continue;
+      const targetRect = el.getBoundingClientRect();
+
+      // check containment based on orientation
+      let contained = false;
+      if (options.orientation != null) {
+        if (options.orientation == Orientation.HORIZONTAL) {
+          contained = cursor.x >= targetRect.left && cursor.x <= targetRect.right;
+        } else if (options.orientation == Orientation.VERTICAL) {
+          contained = cursor.y >= targetRect.top && cursor.y <= targetRect.bottom;
         }
       } else {
-        // check if it's new closest
-        const distance = Math.min(Math.abs(cursorP - targetStart), Math.abs(cursorP - targetEnd));
+        // grid mode: check full containment
+        contained =
+          cursor.x >= targetRect.left &&
+          cursor.x <= targetRect.right &&
+          cursor.y >= targetRect.top &&
+          cursor.y <= targetRect.bottom;
+      }
+
+      if (contained) {
+        let anchor: MultiAnchor = "center";
+        if (options.orientation != null) {
+          if (options.orientation == Orientation.HORIZONTAL) {
+            const centerX = (targetRect.left + targetRect.right) / 2;
+            const delta = Math.abs(cursor.x - centerX);
+            if (options.hasCenterAnchor && delta < targetRect.width * 0.2) {
+              anchor = "center";
+            } else {
+              anchor = cursor.x < centerX ? "start" : "end";
+            }
+          } else if (options.orientation == Orientation.VERTICAL) {
+            const centerY = (targetRect.top + targetRect.bottom) / 2;
+            const delta = Math.abs(cursor.y - centerY);
+            if (options.hasCenterAnchor && delta < targetRect.height * 0.2) {
+              anchor = "center";
+            } else {
+              anchor = cursor.y < centerY ? "start" : "end";
+            }
+          }
+        } else {
+          // grid mode: use horizontal center for anchor
+          const centerX = (targetRect.left + targetRect.right) / 2;
+          const delta = Math.abs(cursor.x - centerX);
+          if (options.hasCenterAnchor && delta < targetRect.width * 0.2) {
+            anchor = "center";
+          } else {
+            anchor = cursor.x < centerX ? "start" : "end";
+          }
+        }
+        return { targetId, anchor, targetRect };
+      } else {
+        // compute distance from cursor to target center
+        const centerX = (targetRect.left + targetRect.right) / 2;
+        const centerY = (targetRect.top + targetRect.bottom) / 2;
+        const distance = Math.hypot(cursor.x - centerX, cursor.y - centerY);
+        let anchor: MultiAnchor = "center";
+        if (options.orientation != null) {
+          if (options.orientation == Orientation.HORIZONTAL) {
+            anchor = cursor.x < centerX ? "start" : "end";
+          } else if (options.orientation == Orientation.VERTICAL) {
+            anchor = cursor.y < centerY ? "start" : "end";
+          }
+        } else {
+          anchor = cursor.x < centerX ? "start" : "end";
+        }
         if (closest == null || distance < closest.distance) {
-          const anchor = cursorP < targetStart ? "start" : "end";
           closest = { anchor, targetId, distance, targetRect };
         }
       }
     }
 
-    // fallback to closest if possible
-    if (options?.fallbackToClosest && closest != null) return closest;
-    // else we attribute to entire container
-    return { targetId: null, anchor: getSingleActiveDropZone().anchor, targetRect: null };
+    if (options.fallbackToClosest && closest != null) return closest;
+    return { targetId: null, anchor: "center", targetRect: null };
   }
 
-  const position = useMouse();
-  const activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null; targetRect: DOMRect | null } | null> =
-    computed(() => {
-      if (singleDropZone.value == null) return null;
-      const activeDropZone = getActiveDropZone();
-      if (options.allowDrop?.(activeDrag.value!, activeDropZone.anchor, activeDropZone.targetId) === false) return null;
-      return activeDropZone;
-    });
+  const activeDropZone = computed(() => {
+    if (!isInDropZone.value) return null;
+    const activeZone = getActiveDropZone();
+    if (options.allowDrop?.(activeDrag.value!, activeZone.anchor, activeZone.targetId) === false) return null;
+    return activeZone;
+  });
 
   return { activeDropZone };
 }

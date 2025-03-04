@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { SINK_ACTION_TYPES, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
+import { getTextLine } from "@/language/core/text";
 import { NAME_TYPE } from "@/language/core/type";
 import { isRunActive } from "@/language/runtime/run";
 import {
   ActionType,
   ActionTypeOptionInfo,
   ColorShade,
-  FailActionData,
   FieldType,
   NodeType,
   Orientation,
@@ -15,9 +15,10 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
+import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type ActionMapImplementation } from "@/ui/action";
-import { ACTION_SIZE, FLOW_PORT_SIZE, getActionSides, useFlowContext } from "@/ui/flow";
+import { getActionSides, useFlowContextMaybe } from "@/ui/flow";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
@@ -31,7 +32,7 @@ import { MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform">
   >
 >();
@@ -41,9 +42,13 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const actionPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.ACTION>);
-const flowCtx = useFlowContext();
-const actionState = flowCtx.actionsStates.value[actionPtr.value.id!]; // must exist
-const { action, subnode, fields, toolPtr, tool: tool, toolFields: toolFields } = actionState;
+const { connection, graph } = props.preparedConnection ?? useExistingConnection(actionPtr);
+const flowCtx = useFlowContextMaybe();
+const actionState = flowCtx?.actionsStates.value[actionPtr.value.id!]; // must exist
+const action = actionState?.action ?? graph.getRef(actionPtr.value);
+const toolPtr = actionState?.toolPtr ?? computed(() => action.value?.toolPtr);
+const tool = actionState?.tool ?? graph.getRef(toolPtr.value);
+const fields = actionState?.fields ?? graph.getChildrenRef(actionPtr.value, NodeType.FIELD);
 const isInspected = computed(() => canvas.isInspected(actionPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(actionPtr.value));
 const isSelected = computed(() => state.isSelected(actionPtr.value));
@@ -76,8 +81,9 @@ defineExpose<ViewExpose>({ self, id, actions });
   <div
     v-if="action"
     ref="containerRef"
-    class="group/action rounded border outline outline-2 transition-colors duration-150"
+    class="group/action flex flex-row items-center gap-x-2.5 rounded border px-1 py-1 outline outline-2 transition-colors duration-150"
     :class="[
+      flowCtx != null ? '' : 'relative',
       isSelected ? 'border-gray-400 bg-orange-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
@@ -88,146 +94,117 @@ defineExpose<ViewExpose>({ self, id, actions });
       outlineColor: lastRun != null && isRunActive(lastRun) ? getRunColorHex(lastRun.status) : '',
     }"
     aria-role="button"
-    @mouseup="(e) => flowCtx.endDragging(e, { kind: 'action', action: action! })"
+    @mouseup="(e) => flowCtx?.endDragging(e, { kind: 'action', action: action! })"
     @mousedown.alt="
       (e) => {
-        flowCtx.startDragging(e, { kind: 'port', action: action!, side: PortSide.OUTGOING });
+        flowCtx?.startDragging(e, { kind: 'port', action: action!, side: PortSide.OUTGOING });
       }
     "
   >
-    <!-- Ports -->
+    <!-- Icon -->
     <div
-      v-for="side in ['top', 'bottom', 'left', 'right']"
-      v-if="!SINK_ACTION_TYPES.includes(action.type)"
-      aria-hidden
-      class="absolute"
-      :class="[
-        side == 'top' ? '-top-2.5 left-1/2 -translate-x-1/2' : '',
-        side == 'bottom' ? '-bottom-2.5 left-1/2 -translate-x-1/2' : '',
-        side == 'left' ? '-left-1.5 top-1/2 -translate-y-1/2' : '',
-        side == 'right' ? '-right-1.5 top-1/2 -translate-y-1/2' : '',
-      ]"
+      v-menu="
+        (): PopoverInfoIn => ({
+          kind: 'view',
+          component: Icon,
+          placement: 'bottom-right',
+          offset: '-referenceWidth',
+          props: { modelValue: action?.icon, isInput: true },
+          isEnabled: true,
+          onApply: (newIcon) => connection.tx.update(action!, { icon: newIcon }),
+        })
+      "
+      v-tooltip="{ small: true, text: `Change icon` }"
+      class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer hover:saturate-200"
+      :style="{
+        backgroundColor: getNodeColorHex(action, ColorShade.S300),
+      }"
     >
-      <button
-        class="relative cursor-crosshair rounded-2xl border bg-white opacity-0 outline-none transition-colors duration-150 hover:bg-gray-100 hover:opacity-100"
-        :class="[isInspected || isHighlighted ? 'border-gray-400' : 'border-gray-200']"
-        :style="{
-          width: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE * 2 : FLOW_PORT_SIZE) + 'px',
-          height: (side == 'top' || side == 'bottom' ? FLOW_PORT_SIZE : FLOW_PORT_SIZE * 2) + 'px',
-        }"
-        aria-hidden
-        @mousedown="(e) => flowCtx.startDragging(e, { kind: 'port', action: action!, side: PortSide.OUTGOING })"
-        @mouseup="(e) => flowCtx.endDragging(e, { kind: 'port', action: action!, side: PortSide.INCOMING })"
+      <IconInline
+        ref="iconRef"
+        v-bind="getNodeIcon(action, { base: tool })"
+        class="rounded text-center text-lg text-gray-700"
       />
     </div>
 
-    <!-- Regular action -->
+    <!-- Main -->
     <div
-      ref="bodyRef"
-      class="mx-1 flex w-full flex-row gap-x-2.5 py-1"
+      class="flex flex-1 flex-col"
       :style="{
-        height: ACTION_SIZE.height + 'px',
+        maxWidth: `calc(100% - 60px)`,
       }"
     >
-      <!-- Icon -->
-      <div
-        v-menu="
-          (): PopoverInfoIn => ({
-            kind: 'view',
-            component: Icon,
-            placement: 'bottom-right',
-            offset: '-referenceWidth',
-            props: { modelValue: action?.icon, isInput: true },
-            isEnabled: true,
-            onApply: (newIcon) => flowCtx.tx.update(action!, { icon: newIcon }),
-          })
-        "
-        v-tooltip="{ small: true, text: `Change icon` }"
-        class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer hover:saturate-200"
-        :style="{
-          backgroundColor: getNodeColorHex(action, ColorShade.S300),
-        }"
-      >
-        <IconInline
-          ref="iconRef"
-          v-bind="getNodeIcon(action, { base: tool })"
-          class="rounded text-center text-lg text-gray-700"
+      <!-- Header -->
+      <div class="flex flex-row gap-x-1.5">
+        <!-- Name -->
+        <NativeInput
+          id="name"
+          ref="nameRef"
+          class="flex-shrink-0 font-medium transition-colors duration-150"
+          :placeholder="toCamelName(ActionType, action.type)"
+          is-input
+          is-minimal
+          :value-type="NAME_TYPE"
+          :model-value="action.name"
+          @update:model-value="
+            (newValue) => connection.tx.update(action!, { name: newValue as string }, { debounce: 'long' })
+          "
         />
-      </div>
-      <!-- Main -->
-      <div
-        class="flex flex-1 flex-col"
-        :style="{
-          maxWidth: `calc(100% - 60px)`,
-        }"
-      >
-        <!-- Header -->
-        <div class="flex flex-row gap-x-1.5">
-          <!-- Name -->
-          <NativeInput
-            id="name"
-            ref="nameRef"
-            class="flex-shrink-0 font-medium transition-colors duration-150"
-            :placeholder="toCamelName(ActionType, action.type)"
-            is-input
-            is-minimal
-            :value-type="NAME_TYPE"
-            :model-value="action.name"
-            @update:model-value="
-              (newValue) => flowCtx.tx.update(action!, { name: newValue as string }, { debounce: 'long' })
-            "
-          />
-          <!-- Link (if tool) -->
-          <button
-            v-if="tool"
-            class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click.stop="canvas.goToNode(tool)"
-          >
-            <i class="fas fa-arrow-up-right" />
+        <!-- Link (if tool) -->
+        <button
+          v-if="tool"
+          class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          @click.stop="canvas.goToNode(tool)"
+        >
+          <i class="fas fa-arrow-up-right" />
+        </button>
+        <!-- Metadata -->
+        <NodeMetadata :node="action" size="regular" />
+        <!-- Controls/Meta -->
+        <div class="ml-auto flex flex-row pl-2 pr-1.5">
+          <!-- Run status -->
+          <button v-if="lastRun != null" class="rounded hover:bg-gray-100" aria-hidden>
+            <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
           </button>
-          <!-- Metadata -->
-          <NodeMetadata :node="action" size="regular" />
-          <!-- Controls/Meta -->
-          <div class="ml-auto flex flex-row pl-2 pr-1.5">
-            <!-- Run status -->
-            <button v-if="lastRun != null" class="rounded hover:bg-gray-100" aria-hidden>
-              <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
-            </button>
-          </div>
-        </div>
-        <!-- Body -->
-        <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
-          <!-- NOTE :Incomplete: better Action body -->
-          <!-- Fields -->
-          <span
-            v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
-            :key="field.id"
-            class="truncate transition-colors duration-75"
-            :class="canvas.isHighlighted(field) ? 'text-gray-700' : 'text-gray-400'"
-          >
-            {{ field.name }}
-          </span>
-          <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
-          <span
-            v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
-            :key="field.id"
-            class="truncate transition-colors duration-75"
-            :class="canvas.isHighlighted(field) ? 'text-gray-700' : 'text-gray-400'"
-          >
-            {{ field.name }}
-          </span>
-          <span v-if="fields.length == 0" class="text-gray-400">
-            <template v-if="action.type == ActionType.FAIL && (subnode as FailActionData).errorTitle != null">
-              {{ (subnode as FailActionData).errorTitle }}
-            </template>
-            <template v-else>{{ ActionTypeOptionInfo[action.type]?.text ?? "No fields" }}</template>
-          </span>
         </div>
       </div>
+      <!-- Content -->
+      <div class="flex max-w-full flex-row items-center gap-x-1 truncate text-gray-700">
+        <!-- NOTE :Incomplete: better Action body -->
+        <!-- Fields -->
+        <span
+          v-for="field in fields.filter((f) => f.type == FieldType.INPUT)"
+          :key="field.id"
+          class="truncate transition-colors duration-75"
+          :class="canvas.isHighlighted(field) ? 'text-gray-700' : 'text-gray-400'"
+        >
+          {{ field.name }}
+        </span>
+        <i v-if="fields.length != 0" class="fas fa-arrow-right text-xs text-gray-400" />
+        <span
+          v-for="field in fields.filter((f) => f.type == FieldType.OUTPUT)"
+          :key="field.id"
+          class="truncate transition-colors duration-75"
+          :class="canvas.isHighlighted(field) ? 'text-gray-700' : 'text-gray-400'"
+        >
+          {{ field.name }}
+        </span>
+        <span v-if="fields.length == 0" class="truncate text-gray-400">
+          {{ action.text != null ? getTextLine(action.text) : ActionTypeOptionInfo[action.type]?.text }}
+        </span>
+      </div>
+      <!-- Tools/Tags -->
+      <!-- nocheckin ? -->
+      <!-- <div class="flex max-w-full flex-row items-center gap-x-1 truncate">
+      taggy tag
+      </div> -->
     </div>
 
     <!-- Floating Menu -->
-    <div class="absolute -left-5 top-0 flex -translate-x-1 flex-row gap-x-1.5">
+    <div
+      class="absolute flex flex-row gap-x-1.5"
+      :class="[flowCtx != null ? '-left-5 top-0 -translate-x-1' : 'right-0 top-0 -translate-x-1']"
+    >
       <button
         aria-hidden
         class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/action:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"

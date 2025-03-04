@@ -481,8 +481,9 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
             :id="link.id"
             :ref="(ref: any) => (ref != null ? (linkRefs[link.id] = ref) : delete linkRefs[link.id])"
             :key="link.id"
-            :data-contextmenu-items="LINK_CONTEXT_ACTIONS.join(',')"
+            :prepared-connection="preparedConnection"
             :node-ptr="toNodeRef(link)"
+            :data-contextmenu-items="LINK_CONTEXT_ACTIONS.join(',')"
             class="absolute"
           />
           <!-- Actions -->
@@ -495,9 +496,11 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
             :class="[flowCtx?.isDraggingAction(action) ? 'cursor-grabbing' : flowCtx.isDragging ? '' : 'cursor-grab']"
             :style="{
               width: ACTION_SIZE.width + 'px',
+              height: ACTION_SIZE.height + 'px',
               left: (action.position?.x ?? 0) + 'px',
               top: (action.position?.y ?? 0) + 'px',
             }"
+            :prepared-connection="preparedConnection"
             :node-ptr="toNodeRef(action)"
             :data-contextmenu-items="ACTION_CONTEXT_ACTIONS.join(',')"
             data-suppress-drag="select"
