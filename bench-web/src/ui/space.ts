@@ -176,6 +176,13 @@ export class SpaceCanvas {
         this.highlightedPtr.value = nodePtr;
       }
     });
+    // inspect node on double click (sometimes single click is overridden by other events)
+    useEventListener(document, "dblclick", (e) => {
+      const nodePtr = this.getNodeAt(e.target as HTMLElement);
+      if (nodePtr != null && this.inspection?.id != nodePtr.id) {
+        this.inspect({ node: nodePtr });
+      }
+    });
 
     // update selection with space selection
     watch(
@@ -871,6 +878,7 @@ export class SpaceCanvas {
         }
         siblings = siblings.slice(0, focusedTabIdx + 1);
       }
+      // nocheckin: duplicate tab to front of history?
 
       // create & focus
       const newView = makeNode({
@@ -961,6 +969,22 @@ export class SpaceCanvas {
           focus: makeSelection([node]),
           ...options?.props,
         },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+      this.inspect({ node: nodePtr, view });
+    }
+
+    // open implementation
+    else if (
+      isNode(node, NodeType.IMPLEMENTATION) ||
+      (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.IMPLEMENTATION)
+    ) {
+      if (isNode(node, NodeType.ACTION)) {
+        node = supergraph.getOrError(node.parentPtr!);
+        nodePtr = toNodeRef(node);
+      }
+      const view = this.addView(
+        { type: ViewType.IMPLEMENTATION, nodePtr: toNodeRef(node), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });

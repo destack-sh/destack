@@ -65,7 +65,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "run": Run,
     "runner": Runner,
     "aliasing": Aliasing,
-    "variables": CustomObject,
+    "resources": CustomObject,
     "inputs": CustomObject,
     "outputs": CustomObject,
     "get_node": get_node,

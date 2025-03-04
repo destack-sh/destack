@@ -63,7 +63,7 @@ class Class(InlineSourceNode[BlockData]):
 
     @cached_property  # :CachedTypeInfo
     def variable_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.VARIABLE])
+        return self.to_type_maybe(field_types=[FieldType.RESOURCE])
 
     @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":

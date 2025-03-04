@@ -408,12 +408,12 @@ class Action(SourceNode[ActionData], IsComputable):
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def variable_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE])
+    def resource_type(self) -> "TypeBase | None":
+        return self.to_type_maybe(of="value", field_types=[FieldType.RESOURCE])
 
     @cached_property
     def variable_type_field_only(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.VARIABLE], field_only=True)
+        return self.to_type_maybe(of="value", field_types=[FieldType.RESOURCE], field_only=True)
 
     @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":

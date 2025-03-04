@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.04.0"
+VERSION = "2025.03.04.1"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1365,10 +1365,10 @@ class TypeKind(BuiltinEnum):
 class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
 
-    VARIABLE = 1
-    MEMBER = 2
-    INPUT = 3
-    OUTPUT = 4
+    MEMBER = 10, "Member", "Member of an object", "fas objects-columns"
+    INPUT = 20, "Input to a runnable", "fas fa-arrow-down"
+    OUTPUT = 30, "Output from a runnable", "fas fa-arrow-up"
+    RESOURCE = 40, "Resource", "Resource slot", "fas fa-album-colection"
 
 
 @enum_(EnumType.TIME_INTERVAL)

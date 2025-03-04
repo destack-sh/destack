@@ -194,16 +194,13 @@ defineExpose<ViewExpose>({ self, id, actions });
         </span>
       </div>
       <!-- Tools/Tags -->
-      <!-- nocheckin ? -->
-      <!-- <div class="flex max-w-full flex-row items-center gap-x-1 truncate">
-      taggy tag
-      </div> -->
+      <!-- nocheckin Action tools/tags? -->
     </div>
 
     <!-- Floating Menu -->
     <div
       class="absolute flex flex-row gap-x-1.5"
-      :class="[flowCtx != null ? '-left-5 top-0 -translate-x-1' : 'right-0 top-0 -translate-x-1']"
+      :class="[flowCtx != null ? '-left-5 top-0 -translate-x-1' : 'right-0 top-0']"
     >
       <button
         aria-hidden

@@ -295,9 +295,9 @@ class Run(HasTimeIdentity, PackageNode[RunData], HasRuntimeContext, HasTrace, Ha
         trigger_run_id: Optional[UUID] = None
 
     # content
-    variables_packed: Any = p_value_packed(70)
-    variables: "CustomObject | None" = p_value_runtime(
-        70, type=FieldType.VARIABLE, typ=lambda self: cast("Run", self).variable_type
+    resources_packed: Any = p_value_packed(70)
+    resources: "CustomObject | None" = p_value_runtime(
+        70, type=FieldType.RESOURCE, typ=lambda self: cast("Run", self).resource_type
     )
     inputs_packed: Any = p_value_packed(71)
     inputs: "CustomObject | None" = p_value_runtime(
@@ -350,13 +350,13 @@ class Run(HasTimeIdentity, PackageNode[RunData], HasRuntimeContext, HasTrace, Ha
         return self.status not in TERMINAL_RUN_STATUSES
 
     @property
-    def variable_type(self) -> "TypeBase | None":
+    def resource_type(self) -> "TypeBase | None":
         if (link := self.link) is not None:
-            return link.variable_type
+            return link.resource_type
         elif (action := self.action) is not None:
-            return action.variable_type
+            return action.resource_type
         elif (flow := self.flow) is not None:
-            return flow.variable_type
+            return flow.resource_type
         else:
             return None
 

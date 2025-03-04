@@ -57,7 +57,7 @@ class CodeRunner(Runner, ABC):
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        variables: CustomObject | None = None,
+        resources: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
@@ -67,7 +67,7 @@ class CodeRunner(Runner, ABC):
             context=context,
             parent=parent,
             inputs=inputs,
-            variables=variables,
+            resources=resources,
             outputs=outputs,
             run=run,
         )
@@ -139,7 +139,7 @@ class CodeRunner(Runner, ABC):
             "run": self.closest_tracked_run,
             "runner": self,
             "aliasing": self.aliasing,
-            "variables": self.variables or {},
+            "resources": self.resources or {},
             "inputs": self.inputs or {},
             "outputs": self.outputs or {},
             "get_node": _get_node,

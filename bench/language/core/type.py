@@ -188,16 +188,16 @@ def decode_type_identity(key: str) -> "TypeIdentity":
 
 
 LETTER_BY_FIELD_TYPE: dict[FieldType, str] = {
+    FieldType.MEMBER: "M",
     FieldType.INPUT: "I",
     FieldType.OUTPUT: "O",
-    FieldType.VARIABLE: "V",
-    FieldType.MEMBER: "M",
+    FieldType.RESOURCE: "R",
 }
 FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
+    "M": FieldType.MEMBER,
     "I": FieldType.INPUT,
     "O": FieldType.OUTPUT,
-    "V": FieldType.VARIABLE,
-    "M": FieldType.MEMBER,
+    "R": FieldType.RESOURCE,
 }
 
 STORAGE_KEY_PREFIX_LENGTH = TK_LENGTH_B64 + 1

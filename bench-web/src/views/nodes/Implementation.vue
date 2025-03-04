@@ -3,17 +3,17 @@ import { cloneNode, makeNodeName, moveNode, packSubnode } from "@/language/core/
 import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
 import {
-  ActionData,
-  ActionType,
-  BenchType,
-  ImplementationData,
-  NodeReferenceData,
-  NodeType,
-  ObjectType,
-  PickerVariant,
-  TypeKind,
-  ViewData,
-  ViewType,
+	ActionData,
+	ActionType,
+	BenchType,
+	ImplementationData,
+	NodeReferenceData,
+	NodeType,
+	ObjectType,
+	PickerVariant,
+	TypeKind,
+	ViewData,
+	ViewType
 } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
@@ -24,7 +24,10 @@ import { generateOrderKey } from "@/utils/fractional";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
+import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef } from "vue";
+
+const GUTTER_WIDTH = 60;
 
 const props = defineProps<
   {
@@ -39,14 +42,18 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// state
 const nodePtr = toRef(props, "nodePtr");
 const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const implementation = graph.getRef(nodePtr) as Ref<ImplementationData | null>;
 const actions = graph.getChildrenRef(nodePtr, NodeType.ACTION);
 
-const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
+// view
 const containerRef = ref<HTMLElement | null>(null);
+const containerSize = useElementSize(containerRef);
+const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
+const gridRef = ref<HTMLElement | null>(null);
 const actionRefs: Ref<Record<string, InstanceType<typeof Action> | null>> = ref({});
 
 function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
@@ -56,7 +63,7 @@ function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
 // drag and drop
 const { activeDropZone } = useMultiDropZone({
   name: "action",
-  container: containerRef,
+  container: gridRef,
   targetsInOrder: computed(() => actions.value.map((action) => action.id)),
   targetsById: actionRefs,
   kinds: ["node", "selection"],
@@ -142,7 +149,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 </script>
 
 <template>
-  <div>
+  <div ref="containerRef" class="">
     <!-- Header -->
     <InlineHeader
       v-if="nodePtr"
@@ -155,6 +162,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       :is-root="isRoot"
       :is-inline="isInline"
       :is-minimal="isMinimal"
+      :width="containerSize.width.value - GUTTER_WIDTH * 2"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     >
       <template #left="{ style }">
@@ -175,11 +183,13 @@ defineExpose<ViewExpose>({ self, id, focus });
 
     <!-- Action grid -->
     <div
-      ref="containerRef"
+      ref="gridRef"
       class="relative gap-x-2 gap-y-2 py-2"
       :style="{
         display: 'grid',
         gridTemplateColumns: `repeat(auto-fill, minmax(${ACTION_SIZE.width}px, 1fr))`,
+        marginLeft: isRoot ? `${GUTTER_WIDTH}px` : undefined,
+        marginRight: isRoot ? `${GUTTER_WIDTH}px` : undefined,
       }"
     >
       <!-- Actions -->

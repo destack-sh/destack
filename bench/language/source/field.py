@@ -24,7 +24,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
     p_runtime,
-    to_type,
     to_type_scalar,
 )
 from bench.pb2 import AnyNodeData, FieldData, NodeReferenceData
@@ -44,7 +43,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
     """
 
     parent: Union[FieldBaseNode, None] = p_node_parent(4, *FIELD_BASE_NODE_TYPES)
-    type: FieldType = p_internal(30, default=FieldType.VARIABLE)
+    type: FieldType = p_internal(30)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
@@ -115,14 +114,13 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
         return field
 
     @staticmethod
-    def variable(
+    def resource(
         name: str,
         typ: TypeIn,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        typ = to_type(typ, is_required=True, is_list=False)  # Variables are required by default
-        return Field.new(name, typ, type=FieldType.VARIABLE, constraint=constraint, **kwargs)
+        return Field.new(name, typ, type=FieldType.RESOURCE, constraint=constraint, **kwargs)
 
     @staticmethod
     def member(

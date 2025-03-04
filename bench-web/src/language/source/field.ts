@@ -52,7 +52,7 @@ export function createField(
     } else if (RUNNABLE_NODE_TYPES.includes(target.metatype as unknown as NodeType)) {
       type = FieldType.INPUT;
     } else {
-      type = FieldType.VARIABLE;
+      type = FieldType.RESOURCE;
     }
   } else if (isNode(target, NodeType.ACTION)) {
     if (fieldIn?.type == null) throw new Error(`missing type for action field: ${describeNode(target)}`);

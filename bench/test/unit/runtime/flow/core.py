@@ -152,7 +152,7 @@ async def test_run_flow_computed_value_chain(
     Flow1 = Flow.new(
         "Flow1",
         fields=(
-            Field.variable("BoolIn", bool),
+            Field.input("BoolIn", bool),
             Field.input("IntIn", int),
             Field.output("BoolOut", bool),
             Field.output("IntOut", int),
@@ -220,7 +220,7 @@ async def test_run_flow_computed_value_chain(
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    runner = await runtime.run_in_runtime(Flow1, variables={"BoolIn": True}, inputs={"IntIn": 0})
+    runner = await runtime.run_in_runtime(Flow1, inputs={"BoolIn": True, "IntIn": 0})
     assert runner.outputs and runner.outputs.BoolOut is False
     assert runner.outputs and runner.outputs.IntOut == 4
 
@@ -340,7 +340,7 @@ async def test_run_flow_code_dynamic(simulation: Simulation, runtime: RuntimeLam
     """Run a Code action with Action.code set dynamically in a Variable."""
     Flow1 = Flow.new(
         "Flow1",
-        fields=(Field.variable("Code", Code), Field.output("Output", int)),
+        fields=(Field.input("Code", Code), Field.output("Output", int)),
     )
     Start = Action.new(ActionType.START, "Start")
     Flow1.actions.append(Start)
@@ -354,7 +354,7 @@ async def test_run_flow_code_dynamic(simulation: Simulation, runtime: RuntimeLam
     Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
     Code1.set_computed(
         target=(PathElementType.RUN, Run.get_property("inputs"), Code1.get_property("code")),
-        source=(Flow1, PathElementType.RUN, Run.get_property("variables"), Flow1.fields.Code),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Code),
     )
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Complete.set_computed(
@@ -367,7 +367,7 @@ async def test_run_flow_code_dynamic(simulation: Simulation, runtime: RuntimeLam
     await runtime.commit()
 
     # override the code to return 2
-    runner = await runtime.run_in_runtime(Flow1, variables={"Code": code("return {'Output': 2}")})
+    runner = await runtime.run_in_runtime(Flow1, inputs={"Code": code("return {'Output': 2}")})
     assert runner.outputs and runner.outputs.Output == 2
 
 
@@ -412,7 +412,7 @@ async def test_run_flow_computed_run_options(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Run a Flow with computed run options."""
-    Flow1 = Flow.new("Flow1", fields=(Field.variable("Attempts", int),))
+    Flow1 = Flow.new("Flow1", fields=(Field.input("Attempts", int),))
     Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
         ActionType.CODE,
@@ -437,11 +437,11 @@ else:
             Run.get_property("options"),
             RunOptions.get_property("max_attempts"),
         ),
-        source=(Flow1, PathElementType.RUN, Run.get_property("variables"), Flow1.fields.Attempts),
+        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Attempts),
     )
     await runtime.commit()
 
-    runner = await runtime.run_in_runtime(Flow1, variables={"Attempts": 6})
+    runner = await runtime.run_in_runtime(Flow1, inputs={"Attempts": 6})
     assert runner.status == RunStatus.COMPLETED
 
 

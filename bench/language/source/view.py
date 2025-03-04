@@ -477,7 +477,7 @@ class View(InlineSourceNode[ViewData]):
 
 @subnode_(ViewType.RUN)
 class RunView(View):
-    variables_packed: Any = p_value_packed(100)
+    resources_packed: Any = p_value_packed(100)
     inputs_packed: Any = p_value_packed(101)
 
 

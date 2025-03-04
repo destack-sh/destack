@@ -1016,10 +1016,10 @@ enum PrimitiveType {
 // The type of a Field within its Block. Overlaps with ObjectKind.
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
-  FIELD_TYPE_VARIABLE = 1;
-  FIELD_TYPE_MEMBER = 2;
-  FIELD_TYPE_INPUT = 3;
-  FIELD_TYPE_OUTPUT = 4;
+  FIELD_TYPE_MEMBER = 10;
+  FIELD_TYPE_INPUT = 20;
+  FIELD_TYPE_OUTPUT = 30;
+  FIELD_TYPE_RESOURCE = 40;
 }
 
 // The 'kind' of a Type.
@@ -3142,7 +3142,7 @@ message RunData {
   optional NodeReferenceData trigger_ptr = 66;
   optional string trigger_key = 67;
   optional NodeReferenceData trigger_run_ptr = 68;
-  optional google.protobuf.Value variables_packed = 70;
+  optional google.protobuf.Value resources_packed = 70;
   optional google.protobuf.Value inputs_packed = 71;
   optional google.protobuf.Value outputs_packed = 72;
   optional string name = 74;
@@ -3829,7 +3829,7 @@ message ViewData {
 
 // A View is a graphical interface in a Bench.
 message RunViewData {
-  optional google.protobuf.Value variables_packed = 100;
+  optional google.protobuf.Value resources_packed = 100;
   optional google.protobuf.Value inputs_packed = 101;
 }
 

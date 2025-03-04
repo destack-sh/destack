@@ -272,16 +272,16 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
 }
 
 export const LETTER_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
+  [FieldType.MEMBER]: "M",
   [FieldType.INPUT]: "I",
   [FieldType.OUTPUT]: "O",
-  [FieldType.VARIABLE]: "V",
-  [FieldType.MEMBER]: "M",
+  [FieldType.RESOURCE]: "R",
 };
 export const FIELD_TYPE_BY_LETTER: Record<string, FieldType> = {
+  M: FieldType.MEMBER,
   I: FieldType.INPUT,
   O: FieldType.OUTPUT,
-  V: FieldType.VARIABLE,
-  M: FieldType.MEMBER,
+  R: FieldType.RESOURCE,
 };
 
 /** Gets the eternal storage key for values of this type identity. :FieldStorageKey */

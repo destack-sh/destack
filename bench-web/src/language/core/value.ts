@@ -381,7 +381,7 @@ export function unpackCustomObject(
 const PROPERTY_NAME_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
   [FieldType.INPUT]: "inputsPacked",
   [FieldType.OUTPUT]: "outputsPacked",
-  [FieldType.VARIABLE]: "variablesPacked",
+  [FieldType.RESOURCE]: "resourcesPacked",
   [FieldType.MEMBER]: "valuePacked",
 };
 
