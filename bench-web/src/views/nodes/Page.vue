@@ -222,13 +222,13 @@ const { activeDropZone } = useMultiDropZone({
         throw new Error(`unexpected target node type: ${describeNode(targetNode)}`);
       addFiles(dragged.files, anchor == "start" ? "before" : "after", targetNode);
     } else if (dragged.kind == "node") {
+      // move node
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       let node = graph.getOrError(dragged.node);
       if (event.altKey) {
         // clone node before moving
         node = cloneNode(tx, graph, node, { keepProperties: true });
       }
-      // move node
       moveNode(tx, graph, node, { anchor, target: targetNode });
     } else if (dragged.kind == "selection") {
       // move nodes
