@@ -1222,9 +1222,9 @@ export class FlowContext {
       );
 
     // create
-    const tx = options.tx ?? this.tx;
+    let tx = options.tx ?? this.tx;
     if (tx.change?.key == null) {
-      options.tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
+      tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
     }
     const action = tx.create({
       metatype: NodeType.ACTION,

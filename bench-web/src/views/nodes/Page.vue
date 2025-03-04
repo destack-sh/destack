@@ -188,6 +188,7 @@ const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: sel
 const { activeDropZone } = useMultiDropZone({
   name: "page",
   container: contentRef,
+  targetsInOrder: computed(() => blocks.value.map((block) => block.id)),
   targetsById: lineRefsById,
   orientation: Orientation.VERTICAL,
   kinds: ["node", "selection", "file"],

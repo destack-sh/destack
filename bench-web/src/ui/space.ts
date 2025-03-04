@@ -943,7 +943,7 @@ export class SpaceCanvas {
     else if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
       isNode(node, NodeType.FLOW) ||
-      isNode(node, NodeType.ACTION) ||
+      (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.FLOW) ||
       isNode(node, NodeType.LINK) ||
       (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
     ) {

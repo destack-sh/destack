@@ -228,6 +228,7 @@ watch(
 const { activeDropZone } = useMultiDropZone({
   name: "explore",
   container: listRef,
+  targetsInOrder: computed(() => expandedItems.value.map((item) => item.node.id)),
   targetsById: expandedNodesRefs,
   orientation: Orientation.VERTICAL,
   hasCenterAnchor: true,
