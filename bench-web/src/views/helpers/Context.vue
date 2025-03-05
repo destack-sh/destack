@@ -28,7 +28,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunStatus from "@/views/builtins/RunStatus.vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import List from "@/views/collections/List.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";

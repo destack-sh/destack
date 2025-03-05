@@ -16,7 +16,7 @@ import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import List from "@/views/collections/List.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";

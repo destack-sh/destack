@@ -15,7 +15,7 @@ import { getElement, getElementRef } from "@/utils/element";
 import { groupByList } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
-import SelectionZone from "@/views/builtins/SelectionOverlay.vue";
+import SelectionZone from "@/views/overlays/SelectionOverlay.vue";
 import { ViewComponent } from "@/views/common";
 import { MaybeElement, tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement } from "@vueuse/core";
 import { DateTime } from "luxon";

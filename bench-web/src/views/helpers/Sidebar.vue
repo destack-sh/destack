@@ -31,7 +31,7 @@ import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import Tree from "@/views/collections/Tree.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";

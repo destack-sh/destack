@@ -71,7 +71,7 @@ import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
