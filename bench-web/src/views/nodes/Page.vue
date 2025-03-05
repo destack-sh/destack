@@ -21,7 +21,7 @@ import {
 import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas } from "@/system/space";
-import { type ActionMapImplementation } from "@/ui/action";
+import { type ActionMapKit } from "@/ui/action";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
@@ -287,7 +287,7 @@ useEventListener(contentRef, "paste", (event) => {
 });
 
 // actions
-const actions: Partial<ActionMapImplementation<"list" | "space">> = {
+const actions: Partial<ActionMapKit<"list" | "space">> = {
   // edit
   "space.edit.rename": () => {
     pageHeaderRef.value?.focusIdentifier("left");

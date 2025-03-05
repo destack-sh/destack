@@ -17,7 +17,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { type ActionMapImplementation } from "@/ui/action";
+import { type ActionMapKit } from "@/ui/action";
 import { getActionSides, useFlowContextMaybe } from "@/ui/flow";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
@@ -66,7 +66,7 @@ const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: act
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"action"> = {
+const actions: Partial<ActionMapKit<"space">> & ActionMapKit<"action"> = {
   // space
   "space.edit.rename": {
     action: () => {

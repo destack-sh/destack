@@ -45,7 +45,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { ActionMapImplementation, fireActionById } from "@/ui/action";
+import { ActionMapKit, fireActionById } from "@/ui/action";
 import {
   DragContent,
   MultiAnchor,
@@ -540,7 +540,7 @@ function navigateFromHeader(direction: NavigationDirection) {
 // Actions
 //
 
-const actions: Partial<ActionMapImplementation<"space" | "table" | "list">> = {
+const actions: Partial<ActionMapKit<"space" | "table" | "list">> = {
   // edit
   "space.edit.rename": () => {
     headerRef.value?.focusIdentifier("left");

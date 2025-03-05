@@ -149,7 +149,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
             and any(p.source_id == self.node.id and not p.is_manual for p in self.flow.node.links)
         ):
             model_developer = ModelDeveloper.OPENAI
-            model_type = ModelType.OPENAI_GPT4_0
+            model_type = ModelType.OPENAI_GPT4_5
             model_runner_cls = get_chat_model_runner_cls(
                 model_developer=model_developer, model_type=model_type
             )
@@ -173,11 +173,6 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
                     self.tracked.code = model_runner.code
                     if self.tracked_run is not None and self.tracked_run is not self.tracked:
                         self.tracked_run.code = model_runner.code
-                if model_runner.outputs is not None:
-                    if self.outputs is not None:
-                        self.outputs.set_default(model_runner.outputs)
-                    else:
-                        self.outputs = model_runner.outputs
 
     @abstractmethod
     async def run_static(self) -> None:
@@ -196,10 +191,10 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
         )
 
         # determine model
-        model_developer = self.options.model_developer or ModelDeveloper.ANTHROPIC
+        model_developer = self.options.model_developer or ModelDeveloper.OPENAI
         if model_developer == ModelDeveloper.OPENAI:
             model_runner_cls = OpenaiChatModelRunner
-            model_type = self.options.model_type or ModelType.OPENAI_O3_MINI
+            model_type = self.options.model_type or ModelType.OPENAI_GPT4_5
         elif model_developer == ModelDeveloper.ANTHROPIC:
             model_runner_cls = AnthropicChatModelRunner
             model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_7_SONNET

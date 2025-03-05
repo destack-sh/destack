@@ -3,7 +3,7 @@ import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import type { ActionMapImplementation } from "@/ui/action";
+import type { ActionMapKit } from "@/ui/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -30,7 +30,7 @@ const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 const isSelected = computed(() => state.isSelected(nodePtr.value));
 
 // actions
-const actions: Partial<ActionMapImplementation<"space">> = {
+const actions: Partial<ActionMapKit<"space">> = {
   // space
   "space.edit.rename": {
     action: () => {

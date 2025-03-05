@@ -676,7 +676,7 @@ export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
   }
 }
 
-export class ImplementationLayout extends NodeLayout<NodeType.IMPLEMENTATION> {
+export class KitLayout extends NodeLayout<NodeType.KIT> {
   make() {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
@@ -853,21 +853,9 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
  * NOTE: ActionLayout is a bit complex because we need to support the default view, regular partials *and* input/output partials.
  */
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
-  sectionApplication() {
-    this.section("Application", this.applicationRows(), { isDefaultCollapsed: true });
-  }
-
-  applicationRows() {
-    return [this.rowProperty(LookActionProperty.applicationPtr, { isComputable: true })];
-  }
-
   toolRows() {
-    // TODO :Incomplete: Selection for tool_selection..?
+    // nocheckin: Selection for tool_selection..?
     return [];
-  }
-
-  sectionTools() {
-    this.section("Tools", this.toolRows());
   }
 
   /** The schema(s) for this Action (for full node) */
@@ -1044,12 +1032,7 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
 
     // tools
     if ((this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) && !this.isPartial) {
-      this.sectionTools();
-    }
-
-    // application options
-    if (APPLICATION_ACTION_TYPES.includes(this.subtype as any) && !this.isPartial) {
-      this.sectionApplication();
+      commonRows.push(...this.toolRows());
     }
   }
 }
@@ -1171,7 +1154,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.DATABASE]: DatabaseLayout,
   [NodeType.FLOW]: FlowLayout,
   [NodeType.ACTION]: ActionLayout,
-  [NodeType.IMPLEMENTATION]: ImplementationLayout,
+  [NodeType.KIT]: KitLayout,
   [NodeType.LINK]: LinkLayout,
   [NodeType.RECORD]: RecordLayout,
   [NodeType.FIELD]: FieldLayout,

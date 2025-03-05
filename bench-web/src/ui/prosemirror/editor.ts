@@ -1,7 +1,7 @@
 import { canvas, supergraph } from "@/globals";
 import { newChangeId } from "@/language/runtime/transaction";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
-import { type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { type ActionKit, type ActionMapKit } from "@/ui/action";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
@@ -813,7 +813,7 @@ export function useTextEditor(options: {
   });
 
   // formatting
-  function markFormatAction(mark: TextMarkType): ActionImplementation {
+  function markFormatAction(mark: TextMarkType): ActionKit {
     return {
       isEnabled: () => toValue(isInput),
       isChecked: () => view != null && hasTextMark(view.state, view.state.selection, mark) !== false,
@@ -825,7 +825,7 @@ export function useTextEditor(options: {
   }
 
   // actions
-  const actions: ActionMapImplementation<"text"> & Partial<ActionMapImplementation<"space">> = {
+  const actions: ActionMapKit<"text"> & Partial<ActionMapKit<"space">> = {
     // text
     "text.format.bold": markFormatAction("bold"),
     "text.format.italic": markFormatAction("italic"),

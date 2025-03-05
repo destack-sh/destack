@@ -20,7 +20,7 @@ import {
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas, spaceGraph } from "@/system/space";
-import { ACTION_CONTEXT_ACTIONS, LINK_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
+import { ACTION_CONTEXT_ACTIONS, LINK_CONTEXT_ACTIONS, type ActionMapKit } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import {
   ACTION_SIZE,
@@ -166,7 +166,7 @@ function pushPopover(popover: PopoverInfoIn, e?: MouseEvent | KeyboardEvent) {
     ...popover,
   });
 }
-const implementedActions: Partial<ActionMapImplementation<"flow" | "space" | "runtime">> = {
+const implementedActions: Partial<ActionMapKit<"flow" | "space" | "runtime">> = {
   // edit
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();

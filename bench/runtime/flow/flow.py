@@ -186,6 +186,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run.plan = plan
         run.task = task
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
+        if task is not None:
+            task.implemented_by = run
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(self._events.put_nowait)
@@ -245,7 +247,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         new_runs: list[Run] = []
         is_completed = isinstance(event, RunnerCompletedEvent)
         is_failed = isinstance(event, RunnerFailedEvent)
-        handled_fail = False
+        suppressed_fail = False
 
         # tick caller plan
         if (
@@ -255,17 +257,17 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         ):
             parent_run = plan.parent
             assert isinstance(parent_run, Run), f"{plan!r} is not from a Run"
-            assert run.task is not None, f"{run!r} has no task for {plan!r}"
 
-            # try to start next task
+            # start next task
             if plan.type == PlanType.SERIAL and (
-                is_completed or plan.failure_mode == PlanFailureMode.CONTINUE
+                is_completed or (is_failed and plan.on_failure == PlanFailureMode.CONTINUE)
             ):
                 next_run = None
                 tasks = plan.tasks.tolist()
                 step = tasks.index(task)
                 while next_run is None and step < (len(tasks) - 1):
-                    next_task = tasks[step + 1]
+                    step += 1
+                    next_task = tasks[step]
                     for link in self.node.links:
                         if (
                             link.target_id == next_task.node_id
@@ -276,19 +278,20 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                             )
                             new_runs.append(next_run)
                             break
-                if next_run is None:  # nothing left to call, complete plan
+                if next_run is None:
+                    # no next task, complete plan
                     plan.complete()
 
             # terminate plan on failure
             if is_failed:
-                if plan.failure_mode == PlanFailureMode.FAIL:
+                if plan.on_failure == PlanFailureMode.FAIL:
                     plan.fail(run.error)
-                elif plan.failure_mode == PlanFailureMode.COMPLETE:
+                elif plan.on_failure == PlanFailureMode.COMPLETE:
                     plan.complete()
-                    handled_fail = True
+                    suppressed_fail = True
 
             # handle plan termination
-            if plan.status.is_terminal and plan.termination_mode == PlanTerminationMode.RETURN:
+            if plan.status.is_terminal and plan.on_terminate == PlanTerminationMode.RETURN:
                 parent_action = parent_run.action
                 if parent_action is None:
                     raise RunImpossibleError(f"no action to return to for {plan!r}")
@@ -304,7 +307,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             for p in outgoing_links
             if p.type == LinkType.REQUIRE and p.is_triggered_by(run.status)
         )
-        optional_links = set(required_links)
+        uncalled_required_links = set(required_links)
 
         # begin own plans (on success only)
         if is_completed:
@@ -316,7 +319,10 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 if plan.type == PlanType.PARALLEL:
                     next_tasks = plan.tasks
                 elif plan.type == PlanType.SERIAL:
-                    next_tasks = (plan.tasks[0],)
+                    plan_tasks = plan.tasks.tolist()
+                    if not plan_tasks:
+                        continue  # no tasks in plan
+                    next_tasks = (plan_tasks[0],)
                 else:
                     next_tasks = ()
                 for next_task in next_tasks:
@@ -327,14 +333,14 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                         continue  # ignore, can't call arbitrary nodes
                     link_run = self._start(link, plan=plan, task=next_task, incoming=(run,))
                     new_runs.append(link_run)
-                    optional_links.discard(link)
+                    uncalled_required_links.discard(link)
 
         # call required links that were not called
-        for link in optional_links:
+        for link in uncalled_required_links:
             self._start(link, incoming=(run,))
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
-        return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or handled_fail)
+        return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or suppressed_fail)
 
     def _tick_link(self, runner: LinkRunner, link: Link, event: RunnerEvent) -> TickLinkResult:
         """Ticks the Link to progress the Flow."""

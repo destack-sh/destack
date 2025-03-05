@@ -66,8 +66,8 @@ class PlanStatus(BuiltinEnum):
 
 @enum_(EnumType.PLAN_TERMINATION_MODE)
 class PlanTerminationMode(BuiltinEnum):
-    PASS = 10, "Pass", "Do nothing"
-    RETURN = 20, "Return", "Return to caller"
+    PASS = 10, "Pass", "Do nothing (finish here)"
+    RETURN = 20, "Return", "Return to caller (for more planning)"
 
 
 @enum_(EnumType.PLAN_FAILURE_MODE)
@@ -87,8 +87,8 @@ class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     )
     type: PlanType = p_regular(30)
     name: str = p_regular(40, constraint=NAME_CONSTRAINT)
-    termination_mode: "PlanTerminationMode" = p_internal(41, default=PlanTerminationMode.RETURN)
-    failure_mode: "PlanFailureMode" = p_internal(42, default=PlanFailureMode.COMPLETE)
+    on_terminate: "PlanTerminationMode" = p_internal(41)
+    on_failure: "PlanFailureMode" = p_internal(42)
     owned_by: Optional[Owner] = p_internal(44, require=False, array=False, references=OWNER_TYPES)
     implemented_by: Optional["Run"] = p_internal(
         43, require=False, array=False, references=NodeType.RUN, same_bench=True
@@ -120,11 +120,11 @@ class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     def serial(
         name: str,
         *tasks: "Task",
-        on_terminate: PlanTerminationMode = PlanTerminationMode.RETURN,
+        on_terminate: PlanTerminationMode,
         on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
     ) -> "Plan":
         plan = Plan(
-            type=PlanType.SERIAL, name=name, termination_mode=on_terminate, failure_mode=on_failure
+            type=PlanType.SERIAL, name=name, on_terminate=on_terminate, on_failure=on_failure
         )
         plan.tasks.extend(*tasks)
         return plan
@@ -133,14 +133,14 @@ class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     def parallel(
         name: str,
         *tasks: "Task",
-        on_terminate: PlanTerminationMode = PlanTerminationMode.RETURN,
+        on_terminate: PlanTerminationMode,
         on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
     ) -> "Plan":
         plan = Plan(
             type=PlanType.PARALLEL,
             name=name,
-            termination_mode=on_terminate,
-            failure_mode=on_failure,
+            on_terminate=on_terminate,
+            on_failure=on_failure,
         )
         plan.tasks.extend(*tasks)
         return plan

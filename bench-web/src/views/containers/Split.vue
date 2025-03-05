@@ -2,7 +2,7 @@
 import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, spaceGraph } from "@/system/space";
-import type { ActionMapImplementation } from "@/ui/action";
+import type { ActionMapKit } from "@/ui/action";
 import type { SplitLayout } from "@/ui/layout";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
 import Empty from "@/views/builtins/Empty.vue";
@@ -51,7 +51,7 @@ const containerRef: Ref<HTMLElement | null> = ref(null);
 const { sizedViews, draggingIdx } = useSplitView(splits, toRef(props, "size"), containerRef, splitLayout, canvas.tx);
 
 // actions
-const actions: Partial<ActionMapImplementation<"view">> = {
+const actions: Partial<ActionMapKit<"view">> = {
   // navigate
   "view.navigate.closeFrame": {
     action: (action, ctx) => {

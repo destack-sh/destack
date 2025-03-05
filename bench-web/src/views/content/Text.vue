@@ -2,7 +2,7 @@
 import { NodeType, TextData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { ActionMapImplementation } from "@/ui/action";
+import { ActionMapKit } from "@/ui/action";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextModelValueInterface } from "@/ui/prosemirror/wiring";
@@ -54,7 +54,7 @@ const { focus, actions: textActions } = useTextEditor({
 // NOTE :Performance: maybe render simple Text into static DOM node (if readonly)?
 //  (see https://discuss.prosemirror.net/t/render-doc-content-to-html/4193)
 
-const actions: Partial<ActionMapImplementation<"space">> = {
+const actions: Partial<ActionMapKit<"space">> = {
   ...textActions,
 };
 

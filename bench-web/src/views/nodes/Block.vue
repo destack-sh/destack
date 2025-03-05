@@ -3,9 +3,8 @@ import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/core/const";
 import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import type { ActionMapImplementation } from "@/ui/action";
+import type { ActionMapKit } from "@/ui/action";
 import { usePageContext } from "@/ui/prosemirror/page";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
@@ -13,7 +12,7 @@ import File from "@/views/content/File.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
-import Implementation from "@/views/nodes/Implementation.vue";
+import Kit from "@/views/nodes/Kit.vue";
 import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
 const MAX_INLINE_HEIGHT = 400;
@@ -71,7 +70,7 @@ const isSelected = computed(() => state.isSelected(blockPtr.value));
 // Interaction
 //
 
-const actions: Partial<ActionMapImplementation<"space">> & ActionMapImplementation<"block"> = {};
+const actions: Partial<ActionMapKit<"space">> & ActionMapKit<"block"> = {};
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
@@ -156,11 +155,11 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
-    <Implementation
-      v-else-if="block.type == BlockType.IMPLEMENTATION"
-      id="implementation"
+    <Kit
+      v-else-if="block.type == BlockType.KIT"
+      id="kit"
       ref="nodeRef"
-      v-bind="state.getChildState('implementation')"
+      v-bind="state.getChildState('kit')"
       :node-ptr="nodePtr"
       :prepared-connection="preparedConnection"
       is-minimal

@@ -194,7 +194,7 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.CHOICE,
   NodeType.DATABASE,
   NodeType.FLOW,
-  NodeType.IMPLEMENTATION,
+  NodeType.KIT,
   NodeType.VIEW,
   NodeType.ROLE,
   NodeType.TAG,
@@ -221,7 +221,7 @@ export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES]
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.IMPLEMENTATION, BlockType.FLOW, BlockType.DATABASE];
+export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.KIT, BlockType.FLOW, BlockType.DATABASE];
 export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
 export const NODE_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt < BlockType.PARAGRAPH);
 
@@ -394,7 +394,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.PAGE,
   BlockType.CHOICE,
   BlockType.TASK,
-  BlockType.IMPLEMENTATION,
+  BlockType.KIT,
   ...TEXT_BLOCK_TYPES,
 ];
 export const EXPOSED_STRUCT_TYPES = [
