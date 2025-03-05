@@ -979,6 +979,7 @@ class Runtime:
 
             # nocheckin: create Thread for top-level (?) Run
             #  (and create Message for some? events like Interruption)
+            #  (related to tracking Task & Plan somehow?)
 
             # lift run into existing / higher flow
             if (

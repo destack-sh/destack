@@ -238,8 +238,7 @@ defineExpose<ViewExpose>({ self });
           </span>
         </div>
       </template>
-      <template v-else-if="aspect == ContextAspect.RUN">
-        <!-- nocheckin: proper Run view -->
+      <div v-else-if="aspect == ContextAspect.RUN" class="flex flex-row items-center gap-x-2 px-1">
         <!-- Run status -->
         <RunStatus v-if="containingRun != null" :run="containingRun" icon="dot" />
         <!-- Run controls-->
@@ -256,7 +255,7 @@ defineExpose<ViewExpose>({ self });
           <IconInline class="w-5 text-center" v-bind="action.icon" />
           <span v-if="action.isPrimary" class="ml-1">{{ action.title }}</span>
         </button>
-      </template>
+      </div>
     </div>
 
     <!-- Content -->
