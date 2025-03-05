@@ -2,7 +2,7 @@ import { NodeTypeMapping } from "@/proto/wire";
 import { ViewData } from "@/proto/wire";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeType } from "@/proto/wire";
-import { ActionMapImplementation, declareActions } from "@/ui/action";
+import { ActionMapKit, declareActions } from "@/ui/action";
 import { useNodeListActions } from "@/ui/list";
 import { Ref } from "vue";
 import { Transaction } from "@/language/runtime/transaction";
@@ -54,7 +54,7 @@ export function useNodeTableActions<T extends NodeType>(options: {
   create?: (anchor: "before" | "after", node: NodeTypeMapping[T] | null) => NodeTypeMapping[T];
   enabled?: Ref<boolean>;
   ignoreOrder?: boolean;
-}): Partial<ActionMapImplementation<"space.move" | "space.navigate" | "space.select" | "list.create">> {
+}): Partial<ActionMapKit<"space.move" | "space.navigate" | "space.select" | "list.create">> {
   return useNodeListActions({
     ...options,
     graph: options.graph,

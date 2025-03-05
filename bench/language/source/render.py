@@ -949,6 +949,8 @@ class PlanRenderer(NodeRenderer["Plan"]):
 class TaskRenderer(NodeRenderer["Task"]):
     @override
     def render(self, renderer: "Renderer", obj: "Task") -> str:
+        from bench.language import Task
+
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         node = kwargs.pop(Task.get_property("node"))
         node_str = renderer.render_node_ref(node)

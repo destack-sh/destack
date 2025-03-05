@@ -5,7 +5,7 @@ import { FieldType, NodeType, Orientation, TypeBaseNodeData, ViewData } from "@/
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { FIELD_CONTEXT_ACTIONS, type ActionMapImplementation } from "@/ui/action";
+import { FIELD_CONTEXT_ACTIONS, type ActionMapKit } from "@/ui/action";
 import {
   isDragging,
   startDraggingIfAllowed,
@@ -71,7 +71,7 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
-const actions: Partial<ActionMapImplementation<"list">> = {
+const actions: Partial<ActionMapKit<"list">> = {
   // list
   ...useNodeListActions({
     nodeType: NodeType.FIELD,

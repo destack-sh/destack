@@ -5,7 +5,7 @@ import { NodeTypeMapping, ObjectType, PROPERTY_ENUM_BY_TYPE, ViewData } from "@/
 
 import { NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
-import { ActionContext, ActionMapImplementation, declareActions } from "@/ui/action";
+import { ActionContext, ActionMapKit, declareActions } from "@/ui/action";
 import { computed, Ref } from "vue";
 
 // list
@@ -33,7 +33,7 @@ export function useNodeListActions<T extends NodeType>(options: {
   create?: (anchor: "before" | "after", node: NodeTypeMapping[T] | null) => NodeTypeMapping[T];
   enabled?: Ref<boolean>;
   ignoreOrder?: boolean;
-}): Partial<ActionMapImplementation<"space.move" | "space.navigate" | "space.select" | "list.create">> {
+}): Partial<ActionMapKit<"space.move" | "space.navigate" | "space.select" | "list.create">> {
   const { nodeType, self, graph, list, txFactory, enabled, create, ignoreOrder } = options;
 
   const nodeProperties = PROPERTY_ENUM_BY_TYPE[nodeType as unknown as ObjectType];
@@ -48,7 +48,7 @@ export function useNodeListActions<T extends NodeType>(options: {
   }
 
   const implementation: Partial<
-    ActionMapImplementation<"space.move" | "space.navigate" | "space.select" | "list.create">
+    ActionMapKit<"space.move" | "space.navigate" | "space.select" | "list.create">
   > = {
     // navigate
     "space.navigate.up": {

@@ -49,7 +49,7 @@ if TYPE_CHECKING:
         File,
         Flow,
         Icon,
-        Implementation,
+        Kit,
         Link,
         LinkType,
         Message,
@@ -226,8 +226,8 @@ class Action(SourceNode[ActionData], IsComputable):
     A data or control flow node in a Flow. Actions are connected by Links.
     """
 
-    parent: Union["Flow", "Implementation", "Action", None] = p_node_parent(
-        4, NodeType.FLOW, NodeType.IMPLEMENTATION, NodeType.ACTION
+    parent: Union["Flow", "Kit", "Action", None] = p_node_parent(
+        4, NodeType.FLOW, NodeType.KIT, NodeType.ACTION
     )
 
     # common
@@ -320,7 +320,7 @@ class Action(SourceNode[ActionData], IsComputable):
         target: "Action",
         name: str | None = None,
         *,
-        parent: Union["Flow", "Implementation", "Action", None] = None,
+        parent: Union["Flow", "Kit", "Action", None] = None,
         run_options: "RunOptions | None" = None,
         is_manual: bool = False,
     ) -> "Link":
@@ -359,7 +359,7 @@ class Action(SourceNode[ActionData], IsComputable):
         field_only: bool | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language import Implementation, Type
+        from bench.language import Kit, Type
 
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -369,7 +369,7 @@ class Action(SourceNode[ActionData], IsComputable):
                 if field_types and FieldType.INPUT not in field_types:
                     return None
                 base = self.parent
-                assert not isinstance(base, Implementation), f"{self!r} is invalid inside {base!r}"
+                assert not isinstance(base, Kit), f"{self!r} is invalid inside {base!r}"
                 property_field_types = field_types
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:

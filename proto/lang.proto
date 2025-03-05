@@ -166,7 +166,7 @@ enum NodeType {
   NODE_TYPE_ACTION = 5051;
   NODE_TYPE_LINK = 5052;
   NODE_TYPE_TRIGGER = 5053;
-  NODE_TYPE_IMPLEMENTATION = 5060;
+  NODE_TYPE_KIT = 5060;
   NODE_TYPE_VIEW = 5080;
   NODE_TYPE_DATABASE = 5090;
   NODE_TYPE_CHANNEL = 5100;
@@ -278,7 +278,7 @@ enum ObjectType {
   OBJECT_TYPE_ACTION = 5051;
   OBJECT_TYPE_LINK = 5052;
   OBJECT_TYPE_TRIGGER = 5053;
-  OBJECT_TYPE_IMPLEMENTATION = 5060;
+  OBJECT_TYPE_KIT = 5060;
   OBJECT_TYPE_VIEW = 5080;
   OBJECT_TYPE_DATABASE = 5090;
   OBJECT_TYPE_CHANNEL = 5100;
@@ -386,7 +386,7 @@ enum BenchType {
   BENCH_TYPE_ACTION = 5051;
   BENCH_TYPE_LINK = 5052;
   BENCH_TYPE_TRIGGER = 5053;
-  BENCH_TYPE_IMPLEMENTATION = 5060;
+  BENCH_TYPE_KIT = 5060;
   BENCH_TYPE_VIEW = 5080;
   BENCH_TYPE_DATABASE = 5090;
   BENCH_TYPE_CHANNEL = 5100;
@@ -1052,7 +1052,7 @@ enum BlockType {
   BLOCK_TYPE_CLASS = 5031;
   BLOCK_TYPE_TAG = 5040;
   BLOCK_TYPE_FLOW = 5050;
-  BLOCK_TYPE_IMPLEMENTATION = 5060;
+  BLOCK_TYPE_KIT = 5060;
   BLOCK_TYPE_VIEW = 5080;
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_CHANNEL = 5100;
@@ -1679,7 +1679,7 @@ enum ViewType {
   VIEW_TYPE_ACTION = 5051;
   VIEW_TYPE_LINK = 5052;
   VIEW_TYPE_TRIGGER = 5053;
-  VIEW_TYPE_IMPLEMENTATION = 5060;
+  VIEW_TYPE_KIT = 5060;
   VIEW_TYPE_VIEW = 5080;
   VIEW_TYPE_DATABASE = 5090;
   VIEW_TYPE_CHANNEL = 5100;
@@ -3088,8 +3088,8 @@ message PlanData {
   optional google.protobuf.Value subnode_packed = 29;
   PlanType type = 30;
   string name = 40;
-  PlanTerminationMode termination_mode = 41;
-  PlanFailureMode failure_mode = 42;
+  PlanTerminationMode on_terminate = 41;
+  PlanFailureMode on_failure = 42;
   optional NodeReferenceData implemented_by_ptr = 43;
   optional NodeReferenceData owned_by_ptr = 44;
   PlanStatus status = 50;
@@ -3652,7 +3652,7 @@ message FlowData {
   repeated NodeReferenceData roles_ptr = 42;
 }
 
-message ImplementationData {
+message KitData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -4172,7 +4172,7 @@ message SomeNodeData {
     ActionData action = 24;
     LinkData link = 25;
     TriggerData trigger = 26;
-    ImplementationData implementation = 27;
+    KitData kit = 27;
     ViewData view = 28;
     DatabaseData database = 29;
     ChannelData channel = 30;

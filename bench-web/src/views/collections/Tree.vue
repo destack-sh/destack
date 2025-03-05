@@ -19,7 +19,7 @@ import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import type { ActionMapImplementation } from "@/ui/action";
+import type { ActionMapKit } from "@/ui/action";
 import {
   isDragging,
   startDraggingIfAllowed,
@@ -271,7 +271,7 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-const actions: Partial<ActionMapImplementation<"space">> = {
+const actions: Partial<ActionMapKit<"space">> = {
   // navigate
   "space.navigate.open": (action, ctx) => {
     if (ctx.nodes?.[0] == null) return false;

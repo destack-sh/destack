@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.04.1"
+VERSION = "2025.03.05.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1154,8 +1154,8 @@ TRIGGER_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-IMPLEMENTATION_TABLE = Table(
-    "bench_implementation",
+KIT_TABLE = Table(
+    "bench_kit",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
@@ -1948,8 +1948,8 @@ PLAN_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING),
-        Column("termination_mode", PrimitiveType.INT16, default="20"),
-        Column("failure_mode", PrimitiveType.INT16, default="20"),
+        Column("on_terminate", PrimitiveType.INT16),
+        Column("on_failure", PrimitiveType.INT16),
         Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),

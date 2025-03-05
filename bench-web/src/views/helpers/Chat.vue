@@ -32,7 +32,7 @@ import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/co
 import { bench, benchConnection, canvas, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { user } from "@/system/user";
 import {
-  ActionMapImplementation,
+  ActionMapKit,
   fireAction,
   getAction,
   getNodesForAction,
@@ -509,7 +509,7 @@ useEventListener(inputContainerRef, "paste", (event) => {
 });
 
 // actions
-const actions: Partial<ActionMapImplementation<"chat">> = {
+const actions: Partial<ActionMapKit<"chat">> = {
   "chat.message.reply": {
     action: (action, ctx) => {
       const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);

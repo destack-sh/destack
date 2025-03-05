@@ -8,7 +8,7 @@ import { choiceToType, createChoice } from "@/language/source/choice";
 import { classToType, createClass } from "@/language/source/class";
 import { createDatabase, databaseToType } from "@/language/source/database";
 import { createFlow, flowToType } from "@/language/source/flow";
-import { createImplementation } from "@/language/source/implementation";
+import { createKit } from "@/language/source/kit";
 import { createPage } from "@/language/source/page";
 import {
   AnyNodeData,
@@ -126,8 +126,8 @@ export function createInlineNode(
     return createClass(tx, graph, { class: options.node });
   } else if (options.node.metatype == NodeType.CHOICE) {
     return createChoice(tx, graph, { choice: options.node });
-  } else if (options.node.metatype == NodeType.IMPLEMENTATION) {
-    return createImplementation(tx, graph, { implementation: options.node });
+  } else if (options.node.metatype == NodeType.KIT) {
+    return createKit(tx, graph, { kit: options.node });
   } else {
     throw new Error(`unexpected node type: ${toCamelName(NodeType, options.node.metatype)}`);
   }

@@ -5,7 +5,7 @@ import { newChangeId } from "@/language/runtime/transaction";
 import { NodeType, NodeTypeOptionInfo, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, spaceGraph } from "@/system/space";
-import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { type Action, type ActionContext, type ActionMapKit } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { getNodeIcon, getNodeName, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -130,7 +130,7 @@ const splitAction = (anchor: SplitAnchor) => ({
     return true;
   },
 });
-const actions: Partial<ActionMapImplementation<"view">> = {
+const actions: Partial<ActionMapKit<"view">> = {
   "view.navigate.duplicateTab": {
     isEnabled: computed(() => focusedTabIdx.value != null),
     action: (action, ctx) => {

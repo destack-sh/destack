@@ -977,15 +977,15 @@ export class SpaceCanvas {
 
     // open implementation
     else if (
-      isNode(node, NodeType.IMPLEMENTATION) ||
-      (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.IMPLEMENTATION)
+      isNode(node, NodeType.KIT) ||
+      (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.KIT)
     ) {
       if (isNode(node, NodeType.ACTION)) {
         node = supergraph.getOrError(node.parentPtr!);
         nodePtr = toNodeRef(node);
       }
       const view = this.addView(
-        { type: ViewType.IMPLEMENTATION, nodePtr: toNodeRef(node), ...options?.props },
+        { type: ViewType.KIT, nodePtr: toNodeRef(node), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });

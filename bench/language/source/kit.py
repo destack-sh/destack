@@ -14,7 +14,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.pb2 import ImplementationData
+from bench.pb2 import KitData
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
@@ -24,10 +24,10 @@ if typing.TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@node_(NodeType.IMPLEMENTATION)
-class Implementation(InlineSourceNode[ImplementationData]):
+@node_(NodeType.KIT)
+class Kit(InlineSourceNode[KitData]):
     """
-    An Implementation of Actions for a SourceNode.
+    A Kit of Actions for a SourceNode.
     """
 
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
@@ -45,5 +45,5 @@ class Implementation(InlineSourceNode[ImplementationData]):
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
 
     @staticmethod
-    def new(name: str, **kwargs) -> "Implementation":
-        return Implementation(name=name, **kwargs)
+    def new(name: str, **kwargs) -> "Kit":
+        return Kit(name=name, **kwargs)

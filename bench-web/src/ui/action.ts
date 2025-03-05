@@ -209,12 +209,12 @@ type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "isEnabled" | "act
 };
 export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action"> & { action?: ActionCallable };
 export type ActionMapDeclaration<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionDeclaration>;
-export type ActionImplementation = Pick<Action, "isEnabled" | "action" | "isChecked">;
-export type ActionMapImplementation<T extends string> = Record<
+export type ActionKit = Pick<Action, "isEnabled" | "action" | "isChecked">;
+export type ActionMapKit<T extends string> = Record<
   FilterPrefix<ActionBuiltinId, T>,
-  ActionImplementation | ActionCallable
+  ActionKit | ActionCallable
 >;
-export type ActionContribution = ActionDeclaration & ActionImplementation;
+export type ActionContribution = ActionDeclaration & ActionKit;
 export type ActionMapContribution<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionContribution>;
 
 /** Adds an action (declaration or declaration+implementation) directly . */
@@ -378,7 +378,7 @@ export function getImplementingAction(
   action: Action,
   viewsInContext: ViewComponent[],
   context: ActionContext,
-): ActionImplementation | null {
+): ActionKit | null {
   if (action.kind == "static") {
     if (isActionEnabled(action, context)) {
       return action;

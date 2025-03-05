@@ -48,7 +48,7 @@ class ViewType(BuiltinEnum):
     ACTION = 5051
     LINK = 5052
     TRIGGER = 5053
-    IMPLEMENTATION = 5060
+    KIT = 5060
     VIEW = 5080
     DATABASE = 5090
     CHANNEL = 5100

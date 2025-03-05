@@ -7,7 +7,7 @@ import {
   ActionType,
   BenchType,
   FieldType,
-  ImplementationData,
+  KitData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -48,7 +48,7 @@ const state = canvas.registerView(self, id);
 const nodePtr = toRef(props, "nodePtr");
 const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph, connection } = preparedConnection;
-const implementation = graph.getRef(nodePtr) as Ref<ImplementationData | null>;
+const implementation = graph.getRef(nodePtr) as Ref<KitData | null>;
 const actions = graph.getChildrenRef(nodePtr, NodeType.ACTION);
 
 // view

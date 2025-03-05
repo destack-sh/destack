@@ -4,7 +4,7 @@ import { ColorShade, ColorType, LinkType, NodeType, ViewData } from "@/proto/wir
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
-import { ActionMapImplementation } from "@/ui/action";
+import { ActionMapKit } from "@/ui/action";
 import { LINK_WIDTH, pathToSvg, useFlowContext } from "@/ui/flow";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -56,7 +56,7 @@ const strokeDashArray = computed(() => {
 //
 
 // actions
-const actions: Partial<ActionMapImplementation<"space" | "link">> = {
+const actions: Partial<ActionMapKit<"space" | "link">> = {
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
   },

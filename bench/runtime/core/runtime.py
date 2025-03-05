@@ -977,6 +977,8 @@ class Runtime:
                     runner = self.restore_runner(run)
             inner_runner = runner
 
+            # nocheckin: create Thread for top-level (?) Run
+
             # lift run into existing / higher flow
             if (
                 run.type == RunType.ACTION

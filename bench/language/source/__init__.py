@@ -38,7 +38,7 @@ from .database import Database
 from .dependency import Dependency
 from .field import Field
 from .flow import Flow
-from .implementation import Implementation
+from .kit import Kit
 from .link import Link, LinkType, PortSide
 from .option import Option
 from .package import Package, PackageType
@@ -122,7 +122,7 @@ __all__ = [
     "GoToTabAction",
     "GoToUrlAction",
     "HasApplicationContext",
-    "Implementation",
+    "Kit",
     "Line",
     "Link",
     "LinkType",

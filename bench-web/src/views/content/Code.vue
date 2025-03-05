@@ -3,7 +3,7 @@ import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/core/code";
 import { CodeData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import type { ActionMapImplementation } from "@/ui/action";
+import type { ActionMapKit } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { copy, cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
@@ -136,7 +136,7 @@ const { isInDropZone } = useDropZone({
 });
 
 // actions
-const actions: Partial<ActionMapImplementation<"space" | "code">> = {
+const actions: Partial<ActionMapKit<"space" | "code">> = {
   "space.edit.copy": {
     isEnabled: () => false,
     action: () => {

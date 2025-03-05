@@ -40,6 +40,7 @@ from bench.language import (
     PackageType,
     PathElementType,
     Plan,
+    PlanTerminationMode,
     Region,
     Renderer,
     RenderOptions,
@@ -309,7 +310,7 @@ def action_failing_impossible_request(package: Package):
         response=ExampleResponseIn(
             node=Act1,
             code="""\
-raise ModelIncapableError("I'm afraid I cannot do that.")
+raise IncapableError("I'm afraid I cannot do that.")
 """,
         ),
     )
@@ -329,7 +330,7 @@ def action_refusing_illegal_request(package: Package):
         response=ExampleResponseIn(
             node=Generate1,
             code="""\
-raise ModelRefusedError("I'm afraid I cannot do that.")
+raise RefusedError("I cannot assist with that.")
 """,
         ),
     )
@@ -366,6 +367,7 @@ def flow_basic_planning(package: Package):
             Task.run("Click button", Click1, element_id="7", button="left"),
             Task.run("Type email", Type1, element_id="2", string="florian@symbolx.com"),
             Task.run("Press enter", Press1, element_id="3", combination="Enter"),
+            on_terminate=PlanTerminationMode.RETURN,
         )
     ]
     return ExampleIn(
@@ -397,15 +399,20 @@ def basic_planning_with_tools(package: Package):
     plans = [
         Plan.serial(
             "Enter query",
-            Task.run("Type text", Tool1, type=ActionType.TYPE, string="Hello World!"),
-            Task.run("Press enter", Tool1, type=ActionType.PRESS, combination="Enter"),
+            Task.run(
+                "Type text", Tool1, type=ActionType.TYPE, element_id="1", string="Hello World!"
+            ),
+            Task.run(
+                "Press enter", Tool1, type=ActionType.PRESS, element_id="2", combination="Enter"
+            ),
+            on_terminate=PlanTerminationMode.RETURN,
         )
     ]
     return ExampleIn(
         nodes=[Flow1, *Flow1.actions, *Flow1.links],
         response=ExampleResponseIn(
             node=Think1,
-            comment="Route to the tool action.",
+            comment="Route to the tool action. Then return for further planning.",
             plans=plans,
             outputs={},
         ),
@@ -430,13 +437,14 @@ def flow_implicit_transformation_in_call(package: Package):
         Plan.serial(
             "Complete",
             Task.run("Complete", Complete, Greeting="Hello Alice!"),
+            on_terminate=PlanTerminationMode.PASS,
         )
     ]
     return ExampleIn(
         nodes=[Flow1, *Flow1.actions, *Flow1.links],
         response=ExampleResponseIn(
             node=Start,
-            comment="Feed argument to Flow/Complete via plan",
+            comment="Feed argument to Flow/Complete via plan. Pass since we're done.",
             plans=plans,
             outputs={},
         ),
@@ -463,13 +471,14 @@ def flow_send_message(package: Package):
                     channel=Channel1, reply_to=Message1, text="Not much, and you?"
                 ),
             ),
+            on_terminate=PlanTerminationMode.PASS,
         )
     ]
     return ExampleIn(
         nodes=[Flow1, *Flow1.actions, *Flow1.links],
         response=ExampleResponseIn(
             node=Send1,
-            comment="Send a Message via the Send Message Action.",
+            comment="Send a Message via the Send Message Action. Pass since we're done.",
             plans=plans,
             outputs={},
         ),
