@@ -851,8 +851,10 @@ export class SpaceCanvas {
 
   /** Add a new view to the canvas at the current root.  */
   addView(view: ViewIn, options?: OpenViewOptions) {
-    const tx = this.tx();
-    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, filter: options?.filter });
+    let tx = this.tx();
+    // NOTE :UX: should we always ignore inactive views? would it be useful to consider them sometimes? 
+    //  (like when there's an inactive view like the one you want in history, maybe we should duplicate that)
+    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, filter: options?.filter, isActive: true });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find root
@@ -867,18 +869,17 @@ export class SpaceCanvas {
 
       log.trace("canvas.addView.create", view, { existing, options, parent });
       let siblings = this.graph.getChildren(parent, NodeType.VIEW);
-      const change = this.tx().with({ change: { key: newChangeId() } });
+      tx = tx.with({ change: { key: newChangeId() } });
 
       // prune history from current focused tab
       if (isNode(parent, NodeType.VIEW) && parent.type == ViewType.HISTORY) {
         const focusedId = parent.focus?.nodesPtr[0].id;
         const focusedTabIdx = siblings.findIndex((tab) => tab.id == focusedId) ?? -1;
         for (let i = focusedTabIdx + 1; i < siblings.length; i++) {
-          change.delete(siblings[i]);
+          tx.delete(siblings[i]);
         }
         siblings = siblings.slice(0, focusedTabIdx + 1);
       }
-      // nocheckin: duplicate tab to front of history?
 
       // create & focus
       const newView = makeNode({
@@ -896,7 +897,7 @@ export class SpaceCanvas {
           this.graph.getDescendants(this.spacePtr.value!, { metatypes: [NodeType.VIEW] }),
         );
       }
-      change.create(newView);
+      tx.create(newView);
       this.focus({ node: newView });
       return newView;
     } else if (options?.ifPresent == "focus") {
