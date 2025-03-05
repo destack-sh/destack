@@ -36,7 +36,7 @@ import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";

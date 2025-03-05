@@ -11,7 +11,7 @@ import { CONTEXT_ACTIONS_BY_TYPE, getAction, isActionEnabled } from "@/ui/action
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
 

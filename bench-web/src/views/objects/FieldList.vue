@@ -15,7 +15,7 @@ import {
 } from "@/ui/drag";
 import { useNodeListActions } from "@/ui/list";
 import { addFieldPopover } from "@/ui/object";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";

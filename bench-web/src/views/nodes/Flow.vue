@@ -39,7 +39,7 @@ import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Link from "@/views/nodes/Link.vue";
@@ -331,9 +331,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           :node-ptr="props.nodePtr"
           :field-type="FieldType.OUTPUT"
         />
-      </template>
-      <!-- Meta -->
-      <template #right="{ style }">
         <!-- Resources -->
         <FieldList
           v-if="style == 'page'"
@@ -343,6 +340,9 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           :node-ptr="props.nodePtr"
           :field-type="FieldType.RESOURCE"
         />
+      </template>
+      <!-- Meta -->
+      <template #right="{ style }">
         <!-- Add action -->
         <button
           ref="createActionRef"
@@ -373,6 +373,34 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           <i class="fas fa-plus mr-1.5 text-center" />
           <span class="">Action</span>
         </button>
+        <div class="flex flex-row items-center gap-x-0.5">
+          <!-- Zoom -->
+          <button
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="() => flowCtx.zoom('out', flowCtx.centerVec!, 10)"
+          >
+            <i class="fas fa-minus w-5 text-center" />
+          </button>
+          <button
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
+          >
+            {{ Math.round(viewport.scale * 100) }}%
+          </button>
+          <button
+            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
+          >
+            <i class="fas fa-plus w-5 text-center" />
+          </button>
+          <!-- Auto/Reset -->
+          <button
+            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click="flowCtx.resetViewport()"
+          >
+            <i class="fas fa-arrows-to-dot w-5 text-center" />
+          </button>
+        </div>
       </template>
     </InlineHeader>
 
@@ -526,50 +554,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
               />
             </svg>
           </div>
-        </div>
-      </div>
-
-      <!-- Overlay -->
-      <div
-        v-if="flow && !isMinimal"
-        class="pointer-events-none absolute bottom-0 left-0 flex w-full flex-row items-center justify-center"
-      >
-        <!-- Menu -->
-        <div
-          class="pointer-events-auto z-20 mb-3 flex w-fit flex-row items-center gap-x-1 rounded-2xl border border-gray-200 bg-white px-2.5 py-1.5"
-          data-suppress-drag="both"
-          :class="
-            !isMinimal
-              ? 'opacity-100'
-              : 'opacity-0 transition-colors duration-150 group-hover/block:opacity-100 group-hover/flow:opacity-100'
-          "
-        >
-          <!-- Zoom -->
-          <button
-            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="() => flowCtx.zoom('out', flowCtx.centerVec!, 10)"
-          >
-            <i class="fas fa-minus w-5 text-center" />
-          </button>
-          <button
-            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
-          >
-            {{ Math.round(viewport.scale * 100) }}%
-          </button>
-          <button
-            class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
-          >
-            <i class="fas fa-plus w-5 text-center" />
-          </button>
-          <!-- Auto/Reset -->
-          <button
-            class="rounded px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            @click="flowCtx.resetViewport()"
-          >
-            <i class="fas fa-arrows-to-dot w-5 text-center" />
-          </button>
         </div>
       </div>
 

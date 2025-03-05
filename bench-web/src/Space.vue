@@ -8,14 +8,15 @@ import { IS_IN_ALT_MODE } from "@/ui/action";
 import { keytrap } from "@/ui/keymap";
 import { isDraggingGlobal } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
-import DragOverlay from "@/views/builtins/DragOverlay.vue";
 import EmptySpace from "@/views/builtins/EmptySpace.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import Omnibar from "@/views/builtins/Omnibar.vue";
-import PopoverOverlay from "@/views/builtins/PopoverOverlay.vue";
-import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
-import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
 import Split from "@/views/containers/Split.vue";
+import DragOverlay from "@/views/overlays/DragOverlay.vue";
+import PopoverOverlay from "@/views/overlays/PopoverOverlay.vue";
+import RunOverlay from "@/views/overlays/RunOverlay.vue";
+import ToastOverlay from "@/views/overlays/ToastOverlay.vue";
+import TooltipOverlay from "@/views/overlays/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 
@@ -80,6 +81,7 @@ watch(
     <EmptySpace v-else class="absolute flex h-full w-full flex-col justify-center bg-white text-center" />
 
     <!-- Overlays -->
+    <RunOverlay />
     <DragOverlay />
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />
