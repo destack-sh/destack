@@ -1337,11 +1337,11 @@ class TypeFormat(BuiltinEnum):  # :TypeFormat
     """The fine-grained format of some Type."""
 
     # strings
-    URL = 2000, "fas fa-link"
-    EMAIL = 2001, "fas fa-at"
-    EMOJI = 2002, "fas fa-smile"
-    PHONE_NUMBER = 2003, "fas fa-phone"
-    SLUG = 2004, "fas fa-hashtag"
+    URL = 2000, "Url", "Web address", "fas fa-link"
+    EMAIL = 2001, "Email", "Email address", "fas fa-at"
+    EMOJI = 2002, "Emoji", "Emoji", "fas fa-smile"
+    PHONE_NUMBER = 2003, "Phone number", "Phone number", "fas fa-phone"
+    SLUG = 2004, "Slug", "Slug", "fas fa-at"
 
     @property
     def primitive_type(self) -> PrimitiveType:

@@ -12,6 +12,7 @@ import { makeExpression } from "@/language/core/expression";
 import type { NodeSuperGraph, ReadNodeGraph, TypedNodeKey } from "@/language/core/graph";
 import {
   getSubtypeEnum,
+  makeType,
   makeTypeConstraint,
   nodeToType,
   typeIdentityEquals,
@@ -25,6 +26,7 @@ import {
   EnumType,
   ExpressionData,
   ExpressionType,
+  FieldType,
   FileType,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeType,
@@ -433,6 +435,7 @@ const VALUE_SEARCH_DEBOUNCE = 100;
 export function useValueSearch(options: {
   query: Ref<string>;
   valueType: Ref<TypeIdentity | undefined | null>;
+  index?: MaybeRef<SearchIndex<any> | undefined | null>;
   isEnabled?: MaybeRef<boolean>;
   first?: number;
   debounce?: number;
@@ -514,7 +517,9 @@ export function useValueSearch(options: {
 
   // figure out index
   const index: Ref<SearchIndex<any> | null> = computed(() => {
-    if (isEnumType(options.valueType.value?.benchType)) {
+    if (toValue(options.index) != null) {
+      return toValue(options.index)!;
+    } else if (isEnumType(options.valueType.value?.benchType)) {
       // regular enum
       return enumIndex({ id: "enum", enumType: options.valueType.value.benchType });
     } else if (options.valueType.value?.kind == TypeKind.NODE || isNodeType(options.valueType.value?.benchType)) {
@@ -840,6 +845,7 @@ export function typeIndex(idx: {
   graph: ReadNodeGraph;
   skipDepth?: number;
   maxDepth?: number;
+  fieldType?: FieldType;
 }): SearchIndex<TypeItem> {
   function typeItemFromTypeIdentity(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
@@ -939,6 +945,19 @@ export function typeIndex(idx: {
     getItemFromValue: typeItemFromTypeIdentity,
     getValueFromItem: (candidate: TypeItem) => candidate,
     candidates: () => {
+      // NOTE :Cleanup: typeIndex and resource type filter seems clumsy
+      // (but typeIndex in general seems like a mess, probably shouldn't be in regular search/Picker anyway..)
+      if (idx.fieldType == FieldType.RESOURCE) {
+        const allItems: TypeItem[] = [];
+        for (const nodeType of [NodeType.BROWSER, NodeType.MACHINE]) {
+          const item = typeItemFromTypeIdentity(
+            makeType({ kind: TypeKind.NODE, benchType: nodeType as unknown as BenchType }),
+          );
+          if (item != null) allItems.push(item);
+        }
+        return allItems;
+      }
+
       // primitives
       const primitiveItems = getIntrinsicOptions(EnumType.PRIMITIVE_TYPE);
       const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
@@ -963,6 +982,7 @@ export function typeIndex(idx: {
         ...graphItems,
         ...nodeItems,
       ];
+
       return allItems;
     },
   };

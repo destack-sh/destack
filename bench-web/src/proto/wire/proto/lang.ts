@@ -38643,11 +38643,11 @@ export const FieldTypeOptionInfo: Partial<Record<FieldType, EnumOptionInfo>> = {
 }
 
 export const TypeFormatOptionInfo: Partial<Record<TypeFormat, EnumOptionInfo>> = {
-  [TypeFormat.URL]: { id: 2000, name: 'URL', title: 'fas fa-link' },
-  [TypeFormat.EMAIL]: { id: 2001, name: 'EMAIL', title: 'fas fa-at' },
-  [TypeFormat.EMOJI]: { id: 2002, name: 'EMOJI', title: 'fas fa-smile' },
-  [TypeFormat.PHONE_NUMBER]: { id: 2003, name: 'PHONE_NUMBER', title: 'fas fa-phone' },
-  [TypeFormat.SLUG]: { id: 2004, name: 'SLUG', title: 'fas fa-hashtag' },
+  [TypeFormat.URL]: { id: 2000, name: 'URL', text: 'Web address', title: 'Url', icon: 'fas fa-link' },
+  [TypeFormat.EMAIL]: { id: 2001, name: 'EMAIL', text: 'Email address', title: 'Email', icon: 'fas fa-at' },
+  [TypeFormat.EMOJI]: { id: 2002, name: 'EMOJI', text: 'Emoji', title: 'Emoji', icon: 'fas fa-smile' },
+  [TypeFormat.PHONE_NUMBER]: { id: 2003, name: 'PHONE_NUMBER', text: 'Phone number', title: 'Phone number', icon: 'fas fa-phone' },
+  [TypeFormat.SLUG]: { id: 2004, name: 'SLUG', text: 'Slug', title: 'Slug', icon: 'fas fa-hashtag' },
 }
 
 export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {

@@ -14,7 +14,7 @@ import {
   useSelectionZone
 } from "@/ui/drag";
 import { useNodeListActions } from "@/ui/list";
-import { onAddFieldAction } from "@/ui/object";
+import { addFieldPopover } from "@/ui/object";
 import SelectionOverlay from "@/views/builtins/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
@@ -152,7 +152,7 @@ defineExpose<ViewExpose>({ self, id, actions });
         v-if="!isMinimal || fields.length == 0"
         class="h-[28px] rounded px-1 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
         :class="isHorizontal ? '' : 'mx-1.5'"
-        @click="(e) => onAddFieldAction(e, fieldType, base!, graph, () => connection.tx)"
+        @click="(e) => addFieldPopover(e, fieldType, base!, graph, () => connection.tx)"
       >
         <i class="fas fa-plus mr-1.5" />
         <span> {{ toCamelName(FieldType, props.fieldType) }} </span>

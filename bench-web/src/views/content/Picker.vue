@@ -24,7 +24,7 @@ import { canvas } from "@/system/space";
 import { getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
-import type { SearchItem } from "@/ui/search";
+import type { SearchIndex, SearchItem } from "@/ui/search";
 import { useValueSearch } from "@/ui/search";
 import { getColorHex } from "@/ui/style";
 import { computedValue, toValueRef } from "@/utils/ref";
@@ -46,6 +46,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     placeholder?: string;
     isPopover?: boolean;
+    index?: SearchIndex<any>;
   } & Partial<
     Pick<
       ViewData,
@@ -162,6 +163,7 @@ const { index, candidates, results, resultsTotal, isLoading, update, getItemFrom
   useValueSearch({
     query,
     valueType: toValueRef(toRef(props, "valueType")),
+    index: toRef(props, "index"),
     isEnabled: toRef(props, "isInline"),
   });
 const resultsRefs: Ref<Record<string, HTMLElement | null>> = ref({});
@@ -284,7 +286,7 @@ defineExpose<ViewExpose>({
     class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
     :class="[!isMinimal ? 'border px-2.5 py-1' : '']"
   >
-    <!-- TODO :Incomplete: Picker.isDisabled/... -->
+    <!-- NOTE :Incomplete: Picker.isDisabled/... -->
     <!-- Dropdown -->
     <!-- NOTE: dropdown button style should match inline combobox header style since we overlay them -->
     <!-- Current value -->
