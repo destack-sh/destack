@@ -373,6 +373,7 @@ export function makeRun(
   const run = makeNode({
     metatype: NodeType.RUN,
     parentPtr: packagePtr,
+    packagePtr,
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
