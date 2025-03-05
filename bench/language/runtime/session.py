@@ -547,6 +547,23 @@ class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
                 old_value_packed=pack_proto_json(old_value_packed),
             )
             self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
+            # also update any computed ancestor properties
+            for prop in node.__node_ancestor_properties__.values():
+                if prop.reference_source is not None:
+                    prop = prop.reference_source
+                new_value = getattr(node, prop.name)
+                if new_value is not None:
+                    assert isinstance(new_value, Node), f"bad {prop!r}: {new_value!r}"
+                    new_value_packed = pack_value(new_value, prop.type_info)  # type: ignore
+                else:
+                    new_value_packed = None
+                operation = EditOperationData(
+                    metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
+                    type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
+                    path=[prop.key],
+                    new_value_packed=pack_proto_json(new_value_packed),
+                )
+                self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
     def _delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""

@@ -174,19 +174,26 @@ def node_component_(
         cls.__passthrough_set__ = passthrough_set
 
         # register node properties
-        list_properties: dict[str, Property] = {}
-        list_properties_by_child: dict[NodeType, list[Property]] = defaultdict(list)
+        child_properties: dict[str, Property] = {}
+        child_properties_by_type: dict[NodeType, list[Property]] = defaultdict(list)
+        ancestor_properties: dict[str, Property] = {}
         for prop in properties.values():
             if prop.reference_kind == ReferenceKind.NODE_CHILDREN:
                 if cls.__name__ != "Node" and not issubclass(cls, Node) and node_type is not None:
                     raise ValueError(f"{cls} is not a Node for {prop}")
-                list_properties[prop.name] = prop
+                child_properties[prop.name] = prop
                 assert isinstance(
                     prop.reference_nodes, tuple
                 ), f"unexpected {prop.reference_nodes!r} for {prop!r}"
-                list_properties_by_child[prop.reference_nodes[0]].append(prop)
-        cls.__node_child_properties__ = frozendict(list_properties)
-
+                child_properties_by_type[prop.reference_nodes[0]].append(prop)
+            elif (
+                prop.reference_kind == ReferenceKind.NODE_ANCESTOR
+                or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
+            ):
+                ancestor_properties[prop.name] = prop
+        cls.__node_child_properties__ = frozendict(child_properties)
+        cls.__node_child_properties_by_type__ = frozendict(child_properties_by_type)
+        cls.__node_ancestor_properties__ = frozendict(ancestor_properties)
         # subtypes for every final node base
         if is_final and not is_subtype:
             cls.__subclass_by_subtype__ = {}
@@ -356,70 +363,6 @@ def timed_node_(
     )
 
 
-def _node_ancestor_ref(prop: Property) -> property:
-    """The computer get property for Node ancestors."""
-
-    # NOTE :Performance: _node_ancestor_ref could just walk in the graph directly?
-
-    assert prop.reference_nodes != "any", f"unexpected {prop.reference_nodes!r} for {prop!r}"
-
-    if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF:
-
-        def get_ancestor_first_self(self: Node) -> Optional[Node]:
-            parent = self
-            while parent is not None:
-                if prop.reference_nodes and parent.metatype in cast(
-                    tuple[NodeType, ...], prop.reference_nodes
-                ):
-                    return parent
-                parent = parent.parent
-            return None
-
-        get = get_ancestor_first_self
-
-    elif prop.reference_kind == ReferenceKind.NODE_ANCESTOR:
-
-        def get_ancestor_first_other(self: Node) -> Optional[Node]:
-            parent = self.parent
-            farthest = None
-            while parent is not None:
-                if prop.reference_nodes and parent.metatype in cast(
-                    tuple[NodeType, ...], prop.reference_nodes
-                ):
-                    farthest = parent
-                parent = parent.parent
-            return farthest
-
-        get = get_ancestor_first_other
-
-    else:
-        raise ValueError(f"unexpected ancestor reference kind: {prop.reference_kind}")
-
-    def set(self: Node, value: Node):
-        raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
-
-    return property(get, set)
-
-
-def _node_ancestor_ptr_ref(prop: Property) -> property:
-    """The computed get property for Node ancestor pointers (computed because ancestors are computed)."""
-
-    wired_prop = prop.reference_wired_ptr
-    assert wired_prop is not None, f"no wired prop for {prop!r}"
-
-    def get_ancestor_ptr(self: "Node") -> Optional["NodeReference"]:
-        ancestor = getattr(self, cast(Property, wired_prop.reference_source).name)
-        if ancestor is None:
-            return None
-        else:
-            return ancestor.to_ref()
-
-    def set(self: Node, value: "NodeReference"):
-        raise NotImplementedError(f"cannot set computed property {wired_prop!r}: {value!r}")
-
-    return property(get_ancestor_ptr, set)
-
-
 @node_component_()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
@@ -440,6 +383,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __node_child_properties__: ClassVar[dict[str, Property]] = frozendict()
+    __node_child_properties_by_type__: ClassVar[dict[NodeType, list[Property]]] = frozendict()
+    __node_ancestor_properties__: ClassVar[dict[str, Property]] = frozendict()
     __subclass_by_subtype__: ClassVar[dict[BuiltinEnum, type["Node"]]] = frozendict()
     __subtype_by_subclass__: ClassVar[dict[type["Node"], BuiltinEnum]] = frozendict()
     __has_subtypes__: ClassVar[bool] = False

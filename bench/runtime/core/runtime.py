@@ -978,6 +978,7 @@ class Runtime:
             inner_runner = runner
 
             # nocheckin: create Thread for top-level (?) Run
+            #  (and create Message for some? events like Interruption)
 
             # lift run into existing / higher flow
             if (
