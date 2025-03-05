@@ -98,6 +98,7 @@ class EditOperation(Struct):
     path: list[str] = p_system(31, array=True)
 
     new_value_packed: Any | None = p_value_packed(40)
+    # TODO :Performance: do we even need EditOperation.old_value_packed?
     old_value_packed: Any | None = p_value_packed(41)
 
     @property
