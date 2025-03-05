@@ -5,20 +5,16 @@ import {
   getBaseFromNode,
   getPropertyTitle,
   isNodeType,
-  isSourceNode,
   SOURCE_NODE_TYPES,
   toCamelName,
 } from "@/language/core/const";
-import { useComputedValues } from "@/language/core/expression";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
-import { getPathKey, makePath } from "@/language/core/path";
 import {
   getPropertyType,
   getStorageKey,
   getTypeName,
   makeType,
-  makeTypeConstraint,
   TypeIdentity,
   typeIsNumeric,
 } from "@/language/core/type";
@@ -36,7 +32,6 @@ import {
   ActionType,
   AnyNodeData,
   BenchType,
-  ComputedValueData,
   CreateActionProperty,
   DeleteActionProperty,
   DuplicateActionProperty,
@@ -55,8 +50,6 @@ import {
   NodeType,
   NodeTypeMapping,
   ObjectType,
-  PathData,
-  PathElementType,
   PickerVariant,
   PressActionProperty,
   PrimitiveType,
@@ -67,7 +60,6 @@ import {
   PropertyInfo,
   ReceiveActionProperty,
   RecordProperty,
-  RunProperty,
   ScrollActionProperty,
   SendActionProperty,
   TypeActionProperty,
@@ -79,10 +71,11 @@ import {
   ViewType,
   WaitActionProperty,
 } from "@/proto/wire";
-import { isNode, makeStruct, propertyReference, toNodeRef, toPropertyRef } from "@/proto/wiring";
+import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { getNodeName, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
+import { SearchIndex, typeIndex } from "@/ui/search";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
@@ -542,7 +535,7 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
       icon: makeIcon(icon),
       action: (e) => {
         const tool = options?.toolPtr != null ? this.graph.get(options.toolPtr) : null;
-        onAddFieldAction(e, fieldType, (tool ?? this.node) as TypeBaseNodeData, this.graph, this.txFactory, {
+        addFieldPopover(e, fieldType, (tool ?? this.node) as TypeBaseNodeData, this.graph, this.txFactory, {
           dontFocus: true,
         });
       },
@@ -1364,8 +1357,8 @@ export function useObjectLayout(options: {
   return { layout, node, connection };
 }
 
-/** Handle an 'add Field' button (either directly or by spawning a Popover) */
-export function onAddFieldAction(
+/** Handle an 'add Field' button */
+export function addFieldPopover(
   e: MouseEvent,
   fieldType: FieldType,
   parent: TypeBaseNodeData,
@@ -1374,6 +1367,7 @@ export function onAddFieldAction(
   options?: { dontFocus?: boolean },
 ) {
   const button = (e.target as HTMLElement).closest("button")!;
+
   pushPopover({
     kind: "view",
     trigger: button,
@@ -1385,11 +1379,10 @@ export function onAddFieldAction(
     props: {
       valueType: makeType({ benchType: BenchType.TYPE }),
       subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+      // @ts-expect-error index is only for Picker props
+      index: typeIndex({ id: "type", graph, fieldType }),
     },
     onApply: (typeInfo: TypeIdentity) => {
-      if (fieldType == FieldType.RESOURCE) {
-        typeInfo = { ...typeInfo, isRequired: true }; // variables are required by default
-      }
       const field = createField(txFactory(), graph, {
         anchor: "inside",
         target: parent,
