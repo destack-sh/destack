@@ -4,16 +4,15 @@ from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    OWNER_TYPES,
     BuiltinEnum,
     ColorType,
     EnumType,
-    HasRuntimeContext,
-    HasTimeIdentity,
-    HasTrace,
+    IsOwnable,
+    IsRuntime,
+    IsTimed,
+    IsTraceable,
     LocalNodeList,
     NodeType,
-    Owner,
     PackageNode,
     StructType,
     enum_,
@@ -26,12 +25,7 @@ from bench.language.core import (
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Error,
-        NodeReference,
-        Run,
-        Task,
-    )
+    from bench.language import Error, NodeReference, Run, Task
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -78,7 +72,7 @@ class PlanFailureMode(BuiltinEnum):
 
 
 @timed_node_(NodeType.PLAN)
-class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
+class Plan(IsTimed, IsOwnable, IsRuntime, IsTraceable, PackageNode[PlanData]):
     """A Plan for something like a sequence of Tasks."""
 
     # meta
@@ -89,13 +83,10 @@ class Plan(HasTimeIdentity, PackageNode[PlanData], HasRuntimeContext, HasTrace):
     name: str = p_regular(40, constraint=NAME_CONSTRAINT)
     on_terminate: "PlanTerminationMode" = p_internal(41)
     on_failure: "PlanFailureMode" = p_internal(42)
-    owned_by: Optional[Owner] = p_internal(44, require=False, array=False, references=OWNER_TYPES)
     implemented_by: Optional["Run"] = p_internal(
         43, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     if TYPE_CHECKING:
-        owned_by_ptr: Optional[NodeReference] = None
-        owned_by_id: Optional[UUID] = None
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 

@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    HasRuntimeContext,
-    HasTimeIdentity,
-    HasTrace,
+    IsRuntime,
+    IsTimed,
+    IsTraceable,
     Node,
     NodeType,
     PackageNode,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.RUN_SPAN)
-class RunSpan(HasTimeIdentity, PackageNode[RunSpanData], HasRuntimeContext, HasTrace):
+class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsTraceable):
     """A RunSpan is a specific not-individually-controllable part of a Run."""
 
     # meta

@@ -3,14 +3,13 @@ from typing import TYPE_CHECKING, Optional
 from bench.language import SourceNode
 from bench.language.core import (
     NAME_CONSTRAINT,
-    OWNER_TYPES,
     SLUG_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     IndexIn,
+    IsOwnable,
     LocalNodeList,
     NodeType,
-    Owner,
     StructType,
     enum_,
     node_,
@@ -38,7 +37,7 @@ class PackageType(BuiltinEnum):
 
 
 @node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
-class Package(SourceNode[PackageData]):
+class Package(IsOwnable, SourceNode[PackageData]):
     """A Package is an isolated segment of a Bench."""
 
     # meta
@@ -48,7 +47,6 @@ class Package(SourceNode[PackageData]):
     slug: str = p_regular(33, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    owned_by: Optional[Owner] = p_regular(36, require=False, array=False, references=OWNER_TYPES)
 
     base: Optional["Package"] = p_system(
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True

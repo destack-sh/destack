@@ -9,11 +9,11 @@ from bench.language.core import (
     EnumType,
     Expression,
     FieldType,
-    HasNodeBase,
-    HasRuntimeContext,
-    HasTimeIdentity,
-    HasTrace,
     IndexIn,
+    IsBased,
+    IsRuntime,
+    IsTimed,
+    IsTraceable,
     LocalNodeList,
     Node,
     NodeType,
@@ -154,7 +154,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(HasTimeIdentity, PackageNode[RunData], HasRuntimeContext, HasTrace, HasNodeBase):
+class Run(IsTimed, PackageNode[RunData], IsRuntime, IsTraceable, IsBased):
     """
     Run something somewhere, somehow.
     """

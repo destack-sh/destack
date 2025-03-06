@@ -28,7 +28,7 @@ from .const import (
 )
 from .node import (
     BenchNode,
-    HasRuntimeContext,
+    IsRuntime,
     Node,
     NodeReference,
     RunnableNode,
@@ -602,7 +602,7 @@ DEFAULT_EVALUATE_OPTIONS = PathOptions()
 def evaluate_path(
     current: Node | Any,
     scope: Node,
-    context: "HasRuntimeContext",
+    context: "IsRuntime",
     path: str | Path | Sequence[PathElement],
     *,
     options: PathOptions = DEFAULT_EVALUATE_OPTIONS,
@@ -732,7 +732,7 @@ def evaluate_path(
     return current
 
 
-def get_node(scope: Node, context: "HasRuntimeContext", path: str | Path) -> Node | None:
+def get_node(scope: Node, context: "IsRuntime", path: str | Path) -> Node | None:
     """
     Resolves a Node against the given scope.
     We try to be forgiving and just return None if we can't find the Node / the Path is weird.
@@ -755,7 +755,7 @@ def get_node(scope: Node, context: "HasRuntimeContext", path: str | Path) -> Nod
     return target
 
 
-def get_node_or_error(scope: Node, context: "HasRuntimeContext", path: str | Path) -> Node:
+def get_node_or_error(scope: Node, context: "IsRuntime", path: str | Path) -> Node:
     """Resolves a Node against the given scope or raises an error."""
     node = get_node(scope, context, path)
     if node is None:

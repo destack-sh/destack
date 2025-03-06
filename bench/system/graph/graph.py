@@ -38,7 +38,7 @@ from bench.language import (
     EngineUnavailableError,
     Expression,
     GetOptions,
-    HasRuntimeContext,
+    IsRuntime,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -278,7 +278,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         )
 
     def _parse_commit(
-        self, subject: Subject, context: HasRuntimeContext, edits: Sequence[EditData]
+        self, subject: Subject, context: IsRuntime, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
         area = extract_commit_area(edits, base_graph=None)
@@ -310,7 +310,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         session: Session,
         graph: NodeGraph,
         data_graph: NodeDataGraph,
-        context: HasRuntimeContext | None,
+        context: IsRuntime | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> None:
@@ -366,7 +366,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         area: "CommitArea",
         scope: GraphScopeData,
         subject: Subject,
-        context: HasRuntimeContext,
+        context: IsRuntime,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
         """Commit some Edits."""

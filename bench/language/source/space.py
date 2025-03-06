@@ -2,13 +2,12 @@ from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    OWNER_TYPES,
     BuiltinEnum,
     EnumType,
+    IsOwnable,
     LocalNodeList,
     Node,
     NodeType,
-    Owner,
     Selection,
     SourceNode,
     StructType,
@@ -43,7 +42,7 @@ class SpaceType(BuiltinEnum):
 
 
 @node_(NodeType.SPACE)
-class Space(SourceNode[SpaceData]):
+class Space(IsOwnable, SourceNode[SpaceData]):
     """A Space for someone/something to interact with the Bench using Views."""
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
@@ -52,7 +51,6 @@ class Space(SourceNode[SpaceData]):
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    owned_by: Optional[Owner] = p_regular(36, require=False, array=False, references=OWNER_TYPES)
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION

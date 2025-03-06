@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, ClassVar, Sequence
 
 from bench.language import (
     CustomObject,
-    HasRuntimeContext,
+    IsRuntime,
     ModelType,
     RunnableNode,
     RunOptions,
@@ -32,7 +32,7 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
         node: R,
         model_type: ModelType,
         options: RunOptions,
-        context: HasRuntimeContext,
+        context: IsRuntime,
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,

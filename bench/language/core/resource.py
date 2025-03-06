@@ -1,6 +1,5 @@
-import abc
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar
 from uuid import UUID
 
 from bench.pb2 import AnyNodeData
@@ -17,8 +16,7 @@ from .const import (
     bittuple,
     enum_,
 )
-from .node import BenchNode, HasTrace, Node, node_component_
-from .object import OWNER_TYPES, Owner
+from .node import BenchNode, IsOwnable, IsTraceable, Node, node_component_
 from .property import (
     p_internal,
     p_node_parent,
@@ -32,7 +30,6 @@ if TYPE_CHECKING:
         Bench,
         NodeReference,
         Region,
-        Run,
         Scaler,
         Tag,
         Text,
@@ -77,7 +74,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component_()
-class Resource[NodeDataT: AnyNodeData](BenchNode[NodeDataT], HasTrace, abc.ABC):
+class Resource[NodeDataT: AnyNodeData](IsTraceable, BenchNode[NodeDataT]):
     """
     A Resource in a Bench.
     Resources generally work on the 'desired state' principle.
@@ -179,7 +176,7 @@ class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
 
 
 @node_component_()
-class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
+class DynamicResource[NodeDataT: AnyNodeData](IsOwnable, Resource[NodeDataT]):
     """
     A 'dynamic' Resource in a Bench.
     """
@@ -188,9 +185,6 @@ class DynamicResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
 
     occupancy: ResourceOccupancy = p_system(
         36, default=ResourceOccupancy.RESERVED, default_sql=None
-    )
-    owned_by: Optional[Union[Owner, "Run"]] = p_system(
-        37, require=False, array=False, references=(*OWNER_TYPES, NodeType.RUN)
     )
     scaler: Optional["Scaler"] = p_system(
         38, require=False, array=False, references=NodeType.SCALER

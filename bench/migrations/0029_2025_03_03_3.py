@@ -40,7 +40,6 @@ async def downgrade_regional(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-
     # bench_plan
     await cur.execute('ALTER TABLE "bench_plan" ADD COLUMN "package_id" uuid NOT NULL')
     await cur.execute('ALTER TABLE "bench_plan" ADD COLUMN "package_ck" uuid NOT NULL')

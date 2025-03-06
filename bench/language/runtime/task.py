@@ -4,19 +4,19 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
-    OWNER_TYPES,
     BuiltinEnum,
     ColorType,
     CustomObject,
     EnumType,
     FieldType,
-    HasRuntimeContext,
-    HasTimeIdentity,
-    HasTrace,
     IsInlinable,
+    IsOwnable,
+    IsRuntime,
+    IsTemplatable,
+    IsTimed,
+    IsTraceable,
     NodeList,
     NodeType,
-    Owner,
     PackageNode,
     StructType,
     Text,
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
     GENERIC = 10, "Generic", "Describe a general purpose task", "fas fa-star-sharp"
+    SCHEDULED = 20, "Scheduled", "Schedule a task", "fas fa-calendar-days"
     RUN = 30, "Run", "Run a specific Node", "fas fa-play"
 
 
@@ -73,16 +74,23 @@ class TaskStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.TASK)
-class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContext, HasTrace):
+class Task(
+    IsTimed,
+    IsInlinable,
+    IsTemplatable,
+    IsOwnable,
+    IsRuntime,
+    IsTraceable,
+    PackageNode[TaskData],
+):
     """A Task to accomplish something."""
 
     # meta
     parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
-    type: TaskType = p_regular(30)
+    type: TaskType = p_regular(30, default=TaskType.GENERIC)
     # priority?
-    owned_by: Optional[Owner] = p_internal(40, require=False, array=False, references=OWNER_TYPES)
     implemented_by: Optional["Run"] = p_internal(
         41,
         require=False,
@@ -92,8 +100,6 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
         description="The Run that implements this Task.",
     )
     if TYPE_CHECKING:
-        owned_by_ptr: Optional[NodeReference] = None
-        owned_by_id: Optional[UUID] = None
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 
@@ -107,7 +113,7 @@ class Task(HasTimeIdentity, IsInlinable, PackageNode[TaskData], HasRuntimeContex
 
     # content
     node: Union["Flow", "Action", None] = p_regular(
-        60, require=True, references=(NodeType.FLOW, NodeType.ACTION)
+        60, require=False, references=(NodeType.FLOW, NodeType.ACTION)
     )
     clazz: Optional["Class"] = p_internal(
         61,
