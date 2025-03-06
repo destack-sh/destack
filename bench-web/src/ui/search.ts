@@ -853,29 +853,29 @@ export function typeIndex(idx: {
       if (nodeItem != null) return typeItemFromNode(nodeItem);
     } else if (value.primitiveType != null) {
       if (value.format != null) {
-        const option = getEnumOptions(EnumType.TYPE_FORMAT).find((option) => option.value == value.format);
-        if (option != null) return typeItemFromIntrinsic(EnumType.TYPE_FORMAT, option);
+        const option = ENUM_OPTIONS_BY_VALUE[EnumType.TYPE_FORMAT][value.format];
+        if (option != null) return typeItemFromEnumOption(EnumType.TYPE_FORMAT, option);
       }
-      const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
-      if (option != null) return typeItemFromIntrinsic(EnumType.PRIMITIVE_TYPE, option);
+      const option = ENUM_OPTIONS_BY_VALUE[EnumType.PRIMITIVE_TYPE][value.primitiveType];
+      if (option != null) return typeItemFromEnumOption(EnumType.PRIMITIVE_TYPE, option);
     } else if (isStructType(value.benchType)) {
-      const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
-      if (option != null) return typeItemFromIntrinsic(EnumType.BENCH_TYPE, option);
+      const option = ENUM_OPTIONS_BY_VALUE[EnumType.STRUCT_TYPE][value.benchType];
+      if (option != null) return typeItemFromEnumOption(EnumType.STRUCT_TYPE, option);
     } else if (isNodeType(value.benchType)) {
       const subtypeEnum = getSubtypeEnum(value.benchType);
       if (subtypeEnum != null && value.constraint?.nodeSubtypes?.length == 1) {
-        const option = getEnumOptions(subtypeEnum).find((option) => option.value == value.constraint!.nodeSubtypes[0]);
-        if (option != null) return typeItemFromIntrinsic(subtypeEnum, option);
+        const option = ENUM_OPTIONS_BY_VALUE[subtypeEnum][value.constraint!.nodeSubtypes[0]];
+        if (option != null) return typeItemFromEnumOption(subtypeEnum, option);
       }
-      const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
-      if (option != null) return typeItemFromIntrinsic(EnumType.BENCH_TYPE, option);
+      const option = ENUM_OPTIONS_BY_VALUE[EnumType.NODE_TYPE][value.benchType];
+      if (option != null) return typeItemFromEnumOption(EnumType.NODE_TYPE, option);
     } else if (value.kind == TypeKind.NODE) {
       return anyNodeTypeItem(idx.id);
     }
     return null;
   }
 
-  function typeItemFromIntrinsic(enumType: EnumType, option: EnumOption): TypeItem {
+  function typeItemFromEnumOption(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
       kind: TypeKind.ENUM,
       id: `${enumType}-${option.id}`,
@@ -895,7 +895,12 @@ export function typeIndex(idx: {
       item.primitiveType = Math.floor((option.value as number) / 100) as PrimitiveType;
       item.kind = TypeKind.PRIMITIVE;
       item.format = option.value as TypeFormat;
-    } else if (enumType == EnumType.NODE_TYPE || enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE) {
+    } else if (
+      enumType == EnumType.NODE_TYPE ||
+      enumType == EnumType.OBJECT_TYPE ||
+      enumType == EnumType.BENCH_TYPE ||
+      enumType == EnumType.STRUCT_TYPE
+    ) {
       item.benchType = option.value as BenchType;
       item.kind = isStructType(option.value) ? TypeKind.STRUCT : TypeKind.NODE;
     } else if (enumType == EnumType.FILE_TYPE) {
@@ -924,8 +929,8 @@ export function typeIndex(idx: {
     return item;
   }
 
-  function getIntrinsicOptions(enumType: EnumType) {
-    return getEnumOptions(enumType).map((option) => typeItemFromIntrinsic(enumType, option));
+  function getTypeItemEnumOptions(enumType: EnumType) {
+    return getEnumOptions(enumType).map((option) => typeItemFromEnumOption(enumType, option));
   }
 
   function typeItemFromNode(nodeItem: NodeItem): TypeItem {
@@ -959,10 +964,10 @@ export function typeIndex(idx: {
       }
 
       // primitives
-      const primitiveItems = getIntrinsicOptions(EnumType.PRIMITIVE_TYPE);
-      const typeFormatItems = getIntrinsicOptions(EnumType.TYPE_FORMAT);
-      const fileItems = getIntrinsicOptions(EnumType.FILE_TYPE);
-      const nodeItems = getIntrinsicOptions(EnumType.NODE_TYPE);
+      const primitiveItems = getTypeItemEnumOptions(EnumType.PRIMITIVE_TYPE);
+      const typeFormatItems = getTypeItemEnumOptions(EnumType.TYPE_FORMAT);
+      const fileItems = getTypeItemEnumOptions(EnumType.FILE_TYPE);
+      const nodeItems = getTypeItemEnumOptions(EnumType.NODE_TYPE);
 
       // and any type definitions from blocks
       const graphItems: TypeItem[] = walkGraph({
@@ -975,8 +980,8 @@ export function typeIndex(idx: {
 
       const allItems = [
         ...primitiveItems,
-        typeItemFromIntrinsic(EnumType.BENCH_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.BENCH_TYPE][StructType.TEXT]),
-        typeItemFromIntrinsic(EnumType.BENCH_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.BENCH_TYPE][StructType.CODE]),
+        typeItemFromEnumOption(EnumType.STRUCT_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.STRUCT_TYPE][StructType.TEXT]),
+        typeItemFromEnumOption(EnumType.STRUCT_TYPE, ENUM_OPTIONS_BY_VALUE[EnumType.STRUCT_TYPE][StructType.CODE]),
         ...typeFormatItems,
         ...fileItems,
         ...graphItems,

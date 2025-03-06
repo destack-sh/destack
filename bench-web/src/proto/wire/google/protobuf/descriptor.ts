@@ -986,7 +986,7 @@ export interface MessageOptions {
      *     }
      *     repeated MapFieldEntry map_field = 1;
      *
-     * Kits may choose not to generate the map_entry=true message, but
+     * Implementations may choose not to generate the map_entry=true message, but
      * use a native map in the target language to hold the keys and values.
      * The reflection APIs in such implementations still need to work as
      * if the field is a repeated message field.
@@ -1076,7 +1076,7 @@ export interface FieldOptions {
      * inner message's contents will not be parsed but instead stored in encoded
      * form.  The inner message will actually be parsed when it is first accessed.
      *
-     * This is only a hint.  Kits are free to choose whether to use
+     * This is only a hint.  Implementations are free to choose whether to use
      * eager or lazy parsing regardless of the value of this option.  However,
      * setting this option true suggests that the protocol author believes that
      * using lazy parsing on this field is worth the additional bookkeeping

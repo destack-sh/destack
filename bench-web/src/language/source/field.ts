@@ -13,7 +13,7 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  TypeKind
+  TypeKind,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 import { DragContent, MultiAnchor } from "@/ui/drag";
@@ -97,14 +97,6 @@ export function createField(
     while (siblings.some((s) => s.name == name)) {
       name = `${name}${i++}`;
     }
-  }
-
-  // assign color icon if it's an option :FieldIcon
-  if (fieldIn?.icon == null) {
-    fieldIn = {
-      ...fieldIn,
-      icon: getNodeIcon({ ...fieldIn, metatype: ObjectType.FIELD }, { defaultToUndefined: true }),
-    };
   }
 
   const field = tx.create({
