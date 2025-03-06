@@ -8,7 +8,7 @@ import { toNodeRef } from "@/proto/wiring";
 /** Create a Flow. */
 export function createFlow(tx: Transaction, graph: ReadNodeGraph, options: { flow: Partial<FlowData> }): FlowData {
   if (options.flow.definitionPtr == null) {
-    throw new Error("cannot create inline flow without block");
+    throw new Error("cannot create inline Flow without block");
   }
 
   // create

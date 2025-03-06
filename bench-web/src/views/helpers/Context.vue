@@ -207,13 +207,8 @@ defineExpose<ViewExpose>({ self });
     </div>
 
     <!-- Header -->
-    <div
-      ref="headerRef"
-      class="mx-3 flex flex-row items-center gap-x-2"
-      :style="{
-        minHeight: `${HEADER_HEIGHT}px`,
-      }"
-    >
+    <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-2" :style="{}">
+      <!-- NOTE :UX: the Context header thing is ugly -->
       <template v-if="aspect == ContextAspect.DETAIL">
         <!-- Detail text -->
         <Text
@@ -230,32 +225,6 @@ defineExpose<ViewExpose>({ self });
         />
         <span v-else class="mx-1 text-gray-400">No text available.</span>
       </template>
-      <template v-else-if="aspect == ContextAspect.CHAT">
-        <div class="flex flex-row items-center px-4 text-gray-400">
-          <span
-            >This is the Thread for
-            {{ (scope as any)?.name ?? "this " + (scope != null ? toCamelName(NodeType, scope.metatype) : "Node") }}.
-          </span>
-        </div>
-      </template>
-      <div v-else-if="aspect == ContextAspect.RUN" class="flex flex-row items-center gap-x-2 px-1">
-        <!-- Run status -->
-        <RunStatus v-if="containingRun != null" :run="containingRun" icon="dot" />
-        <!-- Run controls-->
-        <button
-          v-for="action in containingRun != null
-            ? [...getRunActions(containingRun), CLEAR_RUN_ACTION]
-            : [{ title: 'Start', isPrimary: true, icon: makeIcon('fas fa-play'), action: () => start() }]"
-          v-if="isNodeRunnable"
-          :key="action.title"
-          v-tooltip="{ title: action.title, small: true, group: 'run' }"
-          class="rounded px-0.5 py-0.5 text-gray-700 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-900"
-          @click.stop="action.action()"
-        >
-          <IconInline class="w-5 text-center" v-bind="action.icon" />
-          <span v-if="action.isPrimary" class="ml-1">{{ action.title }}</span>
-        </button>
-      </div>
     </div>
 
     <!-- Content -->
