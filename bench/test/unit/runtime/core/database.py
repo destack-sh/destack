@@ -179,6 +179,7 @@ async def test_update_database_and_record(simulation: Simulation, runtime: Runti
 
     # update
     for field, record in zip(Database1.fields, stored_records):
+        assert field.name is not None, f"field {field!r} has no name"
         sample_field_value = sampler.generate(field)
         setattr(record, field.name, sample_field_value)
     await runtime.commit()

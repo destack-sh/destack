@@ -1537,7 +1537,7 @@ class SourceNode[NodeDataT: AnyNodeData](
 class IsInlinable(BuiltinObject):
     """A Node that can be defined 'inline' in a Block/Page."""
 
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.ICON

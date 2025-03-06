@@ -44,7 +44,7 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
 
     parent: Union[FieldBaseNode, None] = p_node_parent(4, *FIELD_BASE_NODE_TYPES)
     type: FieldType = p_internal(30)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT

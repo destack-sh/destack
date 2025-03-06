@@ -223,9 +223,10 @@ class CodeFunctionRunner(CodeRunner):
         if self.inputs is not None:
             for field in self.inputs.fields:
                 value = self.inputs._do_get(field)
-                glbls[field.name] = value
-                if field.code_name:
-                    glbls[field.code_name] = value
+                if name := field.name:
+                    glbls[name] = value
+                if code_name := field.code_name:
+                    glbls[code_name] = value
 
         # run
         exec(compiled.body_co, glbls)  # shouldn't error

@@ -80,7 +80,7 @@ class Plan(IsTimed, IsOwnable, IsRuntime, IsTraceable, PackageNode[PlanData]):
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
-    name: str = p_regular(40, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(40, constraint=NAME_CONSTRAINT)
     on_terminate: "PlanTerminationMode" = p_internal(41)
     on_failure: "PlanFailureMode" = p_internal(42)
     implemented_by: Optional["Run"] = p_internal(

@@ -805,7 +805,9 @@ def get_drive_bucket(bench: Bench) -> str:
     return bucket_name
 
 
-def get_file_key(bench: Bench, sha256: str, name: str) -> str:
+def get_file_key(bench: Bench, sha256: str, name: str | None) -> str:
     """Gets the key for a file in the given bucket."""
-    file_key = f"{bench.id}/{sha256}/{name}"
-    return file_key
+    if name is None:
+        return f"{bench.id}/{sha256}/__UNNAMED__"
+    else:
+        return f"{bench.id}/{sha256}/{name}"

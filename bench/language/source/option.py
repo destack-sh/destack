@@ -32,7 +32,7 @@ class Option(SourceNode[OptionData], IsBased, _IntoQuery):
     """
 
     parent: Union["Choice", None] = p_node_parent(4, NodeType.CHOICE)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.TEXT

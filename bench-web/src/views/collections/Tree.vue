@@ -183,46 +183,9 @@ function doFocus(node: AnyNodeData | NodeReferenceData) {
   expandedNodesRefs.value[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
-function clear() {
-  query.value = "";
-}
-
 function fire(node: AnyNodeData) {
   canvas.goToNode(node, { skipSelf: preset.value == TreeViewPreset.OUTLINE });
 }
-
-/** Navigate horizontally to expand/collapse */
-function onNavigateHorizontal(direction: "left" | "right") {
-  if (!focusedItem.value?.hasChildren) return;
-  else if (direction == "left") {
-    if (isExpanded(focusedNode.value!)) toggleExpanded(focusedNode.value!);
-  } else {
-    if (!isExpanded(focusedNode.value!)) toggleExpanded(focusedNode.value!);
-  }
-}
-
-// highlight and focus best match when typing
-const nodeTitlesMarked: Ref<(string | null)[]> = ref([]);
-const uf = new uFuzzy({ intraMode: 1 });
-watch(
-  [query],
-  () => {
-    nodeTitlesMarked.value = [];
-    if (!query.value) return;
-
-    // highlight
-    const { markedResults, bestMatches } = highlightMatches({
-      uf,
-      query: query.value,
-      candidates: expandedItems.value.map((item) => (item.node as any).name ?? ""),
-    });
-    nodeTitlesMarked.value = markedResults;
-
-    // auto-select best match
-    if (bestMatches.length > 0) focus(bestMatches[0]);
-  },
-  { immediate: true },
-);
 
 // dragging
 const { activeDropZone } = useMultiDropZone({
@@ -289,33 +252,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     :class="size == null ? '' : 'h-full w-full'"
     @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
   >
-    <!-- Magic floating query -->
-    <!-- Captures focus for navigation & typing for search/highlight -->
-    <div class="relative">
-      <div class="absolute -top-4 left-0 px-2 pl-4">
-        <input
-          ref="queryRef"
-          v-model="query"
-          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
-          spellcheck="false"
-          aria-hidden
-          :data-suppress-actions="'space.navigate' /* allow select & move */"
-          @keydown.enter.stop.prevent="
-            () => {
-              if (focusedNode != null) {
-                query = '';
-                fire(focusedNode);
-              }
-            }
-          "
-          @keydown.up.stop.prevent="focus('previous')"
-          @keydown.down.stop.prevent="focus('next')"
-          @keydown.right.stop.prevent="onNavigateHorizontal('right')"
-          @keydown.left.stop.prevent="onNavigateHorizontal('left')"
-        />
-      </div>
-    </div>
-
     <!-- Content -->
     <component
       :is="size == null ? 'div' : Scroll"
@@ -394,8 +330,14 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           </button>
           <!-- Name -->
           <span
+            v-if="(node as any).name != null && (node as any).name != ''"
             class="max-w-full select-none truncate"
-            v-html="nodeTitlesMarked[i] ?? (node as any).name ?? toCamelName(NodeType, node.metatype)"
+            v-html="(node as any).name"
+          />
+          <span
+            v-else
+            class="max-w-full select-none truncate text-gray-400"
+            v-html="toCamelName(NodeType, node.metatype)"
           />
           <!-- Metadata -->
           <NodeMetadata class="ml-1.5" size="regular" :node="node" />

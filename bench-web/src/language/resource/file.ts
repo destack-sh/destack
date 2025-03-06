@@ -458,7 +458,7 @@ async function doDownloadFile(getUrl: string, file: FileData): Promise<File> {
     throw new Error(`failed to download file from ${getUrl}: ${response.status} ${response.statusText}`);
   }
   const content = await response.blob();
-  return new File([content], file.name, { type: file.mimeType });
+  return new File([content], file.name ?? "File", { type: file.mimeType });
 }
 
 type SomeFile = FileData | NodeReferenceData;

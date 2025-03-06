@@ -207,6 +207,8 @@ class CustomObject(Mapping[str, Any]):
                 return False
         # fields
         for field in self._type._base_fields:
+            if not field.name:
+                continue
             self_value = self._do_get(field)
             other_value = other.get(field.name)
             if not value_equals(field, self_value, other_value, identity_map):
@@ -362,7 +364,7 @@ class CustomObject(Mapping[str, Any]):
             if self.is_set(prop):
                 yield prop.name
         for field in self.fields:
-            if self.is_set(field):
+            if field.name and self.is_set(field):
                 yield field.name
 
     def __len__(self) -> int:
@@ -905,8 +907,8 @@ def check_value_scalar(
             check_value_scalar_constraint(
                 value, typ, TYPE_CONSTRAINT_BY_FORMAT[typ.format], options=options, invalid=invalid
             )
-        # strings cannot be empty (because of protobuf we must disambiguate unset from empty)
-        if type(value) is str and len(value) == 0:
+        # required strings cannot be empty (because of protobuf we must disambiguate unset from empty)
+        if type(value) is str and len(value) == 0 and typ.is_required:
             invalid(value, "empty string", typ)
         # check bounds
         min_value = MIN_VALUE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
@@ -1205,6 +1207,8 @@ def coerce_custom_object_scalar(
     #  (for ToolAction, but also for Record and such would be nice to get the base from the value)
     for field in typ._base_fields:
         # try getting value by storage key, name and ident
+        if not field.name:
+            continue
         field_value = value.pop(field.storage_key, None)
         if field_value is None:
             field_value = value.pop(field.name, None)

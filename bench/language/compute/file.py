@@ -22,7 +22,7 @@ from opentelemetry import trace
 from PIL import Image
 
 from bench.language.core import (
-    TITLE_CONSTRAINT,
+    NAME_CONSTRAINT,
     BuiltinEnum,
     BuiltinObject,
     EnumType,
@@ -484,7 +484,7 @@ class FileBase(BuiltinObject):
     # common
     type: FileType = p_internal(30)
     kind: FileKind = p_internal(31)
-    name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
 
     # meta
     mime_type: str | None = p_internal(50, constraint=MIME_TYPE_CONSTRAINT)

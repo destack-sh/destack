@@ -141,7 +141,7 @@ export function getFieldTypeUpdate(
   if (type != null) {
     // update name if it was generated
     const oldName = getTypeName(field);
-    if (field.name.startsWith(oldName)) {
+    if (field.name?.startsWith(oldName)) {
       // make it unique (bumping number if needed)
       update.name = getTypeName(type);
       const siblings = graph.getChildren(field.parentPtr!, NodeType.FIELD);

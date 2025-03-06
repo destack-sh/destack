@@ -351,7 +351,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
     column({
       kind: "field",
       id: field.id,
-      title: field.name,
+      title: field.name ?? "Field",
       icon: getNodeIcon(field),
       type: field,
       field,

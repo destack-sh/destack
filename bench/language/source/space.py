@@ -48,7 +48,7 @@ class Space(IsOwnable, SourceNode[SpaceData]):
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
 
     type: SpaceType = p_regular(30)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
