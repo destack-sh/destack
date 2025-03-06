@@ -75,6 +75,7 @@ class ViewType(BuiltinEnum):
     CONTEXT = 20206, None, None, "fas fa-question"
     ACTIVITY = 20207, None, None, "fas fa-list-timeline"
     CATALOG = 20208, None, None, "fas fa-th-large"
+    INBOX = 20209, None, None, "fas fa-inbox"
 
     #
     # Organization (30000-31000)

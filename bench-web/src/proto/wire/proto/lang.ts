@@ -12571,7 +12571,11 @@ export enum TaskType {
     /**
      * @generated from protobuf enum value: TASK_TYPE_RUN = 30;
      */
-    RUN = 30
+    RUN = 30,
+    /**
+     * @generated from protobuf enum value: TASK_TYPE_INTERRUPTION = 40;
+     */
+    INTERRUPTION = 40
 }
 /**
  * @generated from protobuf enum symbolx.bench.TaskStatus
@@ -38800,9 +38804,10 @@ export const PlanFailureModeOptionInfo: Partial<Record<PlanFailureMode, EnumOpti
 }
 
 export const TaskTypeOptionInfo: Partial<Record<TaskType, EnumOptionInfo>> = {
-  [TaskType.GENERIC]: { id: 10, name: 'GENERIC', text: 'Describe a general purpose task', title: 'Generic', icon: 'fas fa-star-sharp' },
+  [TaskType.GENERIC]: { id: 10, name: 'GENERIC', text: 'Describe a general purpose task', title: 'Generic', icon: 'far fa-square-check' },
   [TaskType.SCHEDULED]: { id: 20, name: 'SCHEDULED', text: 'Schedule a task', title: 'Scheduled', icon: 'fas fa-calendar-days' },
   [TaskType.RUN]: { id: 30, name: 'RUN', text: 'Run a specific Node', title: 'Run', icon: 'fas fa-play' },
+  [TaskType.INTERRUPTION]: { id: 40, name: 'INTERRUPTION', text: 'Handle an Interruption', title: 'Interruption', icon: 'fas fa-hand' },
 }
 
 export const TaskStatusOptionInfo: Partial<Record<TaskStatus, EnumOptionInfo>> = {

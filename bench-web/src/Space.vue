@@ -277,7 +277,8 @@ mark {
 .pm-text .line-block > .line-handle {
   @apply mt-[7px];
 }
-.pm-text .line-block.page > .line-handle {
+.pm-text .line-block.page > .line-handle,
+.pm-text .line-block.task > .line-handle {
   @apply mt-0;
 }
 .pm-text .line-block:hover .line-handle,

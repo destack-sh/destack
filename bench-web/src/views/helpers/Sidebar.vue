@@ -4,11 +4,11 @@ import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
 import {
-  SidebarAspect,
   IconData,
   NodeType,
   NodeTypeOptionInfo,
   Orientation,
+  SidebarAspect,
   TreeViewPreset,
   ViewData,
   ViewType,
@@ -31,13 +31,13 @@ import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import Tree from "@/views/collections/Tree.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import Activity from "@/views/helpers/Activity.vue";
 import Catalog from "@/views/helpers/Catalog.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
@@ -147,7 +147,7 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 flex max-w-full flex-shrink-0 flex-row items-center gap-x-2 py-1.5 pl-2.5 pr-1"
+      class="mx-2 flex max-w-full flex-shrink-0 flex-row items-center gap-x-2 py-1.5 pl-2 pr-1"
       :style="{
         height: `${BAR_HEADER_HEIGHT}px`,
       }"
@@ -156,9 +156,9 @@ defineExpose<ViewExpose>({ self });
       <!-- Bench button -->
       <button
         v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-        class="flex flex-row items-center gap-x-2 truncate rounded transition-colors duration-75 hover:bg-gray-100"
+        class="flex flex-row items-center gap-x-1.5 truncate rounded transition-colors duration-75 hover:bg-gray-100"
       >
-        <AvatarInline
+        <IconInline
           v-tooltip="{ title: 'Change icon', small: true }"
           v-menu="
             (): PopoverInfoIn => ({

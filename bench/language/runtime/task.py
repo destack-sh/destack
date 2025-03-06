@@ -51,9 +51,10 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    GENERIC = 10, "Generic", "Describe a general purpose task", "fas fa-star-sharp"
+    GENERIC = 10, "Generic", "Describe a general purpose task", "far fa-square-check"
     SCHEDULED = 20, "Scheduled", "Schedule a task", "fas fa-calendar-days"
     RUN = 30, "Run", "Run a specific Node", "fas fa-play"
+    INTERRUPTION = 40, "Interruption", "Handle an Interruption", "fas fa-hand"
 
 
 @enum_(EnumType.TASK_STATUS)

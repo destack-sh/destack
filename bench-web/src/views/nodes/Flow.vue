@@ -319,7 +319,7 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           :field-type="FieldType.INPUT"
         />
         <i
-          v-if="fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
+          v-if="style == 'page' && fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
           class="fas fa-arrow-right-long text-base text-gray-400"
         />
         <!-- Outputs -->

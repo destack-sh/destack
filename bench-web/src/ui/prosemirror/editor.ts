@@ -543,11 +543,15 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
       if (commands.newlineInCode(state, dispatch, view)) {
         return true;
       } else {
-        // insert spanHardBreak at cursor
-        const { from } = state.selection;
-        const hardBreak = PM_SCHEMA.node("spanHardBreak");
-        dispatch?.(state.tr.insert(from, hardBreak));
-        return true;
+        // insert spanHardBreak at cursor, but only if not at the beginning of the line
+        const { from, $from } = state.selection;
+        const atLineStart = $from.parentOffset === 0;
+        if (!atLineStart) {
+          const hardBreak = PM_SCHEMA.node("spanHardBreak");
+          dispatch?.(state.tr.insert(from, hardBreak));
+          return true;
+        }
+        return false;
       }
     },
     Enter(state, dispatch, view) {

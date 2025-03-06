@@ -1371,6 +1371,7 @@ class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TASK_TYPE_GENERIC: _ClassVar[TaskType]
     TASK_TYPE_SCHEDULED: _ClassVar[TaskType]
     TASK_TYPE_RUN: _ClassVar[TaskType]
+    TASK_TYPE_INTERRUPTION: _ClassVar[TaskType]
 
 class TaskStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -3156,6 +3157,7 @@ TASK_TYPE_UNSPECIFIED: TaskType
 TASK_TYPE_GENERIC: TaskType
 TASK_TYPE_SCHEDULED: TaskType
 TASK_TYPE_RUN: TaskType
+TASK_TYPE_INTERRUPTION: TaskType
 TASK_STATUS_UNSPECIFIED: TaskStatus
 TASK_STATUS_CREATED: TaskStatus
 TASK_STATUS_ASSIGNED: TaskStatus
