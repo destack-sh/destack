@@ -750,7 +750,7 @@ class StructType(BuiltinEnum):
     SCHEDULE = 11540
 
     # text (12000-12099)
-    TEXT = 12000
+    TEXT = 12000, None, None, "fas fa-text"
     TEXT_LINE = 12001
     TEXT_SPAN = 12002
     TEXT_TABLE = 12003

@@ -12,6 +12,7 @@ import {
   ColorShade,
   ColorType,
   ENUM_OPTION_INFO_BY_TYPE,
+  EnumType,
   FieldData,
   IconType,
   NodeReferenceData,
@@ -273,7 +274,7 @@ export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_ENUM_ICON = makeIcon({ faName: "fas fa-caret-circle-down" });
 export const DEFAULT_SYSTEM_ICON = makeIcon({ faName: "fas fa-gear" });
 
-/** Resolves the icon for a type :FieldIcon */
+/** Resolves the Icon for a Type */
 export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData | undefined {
   if (node.primitiveType != null) {
     if (node.format != null) {
