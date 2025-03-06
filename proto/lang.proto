@@ -1380,6 +1380,7 @@ enum TaskType {
   TASK_TYPE_GENERIC = 10;
   TASK_TYPE_SCHEDULED = 20;
   TASK_TYPE_RUN = 30;
+  TASK_TYPE_INTERRUPTION = 40;
 }
 
 enum TaskStatus {

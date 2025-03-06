@@ -26,6 +26,7 @@ import {
   StateNodeData,
   StaticResourceNodeData,
   StructType,
+  TaskStatus,
   TypeBaseNodeData,
   ViewDataInfo,
   ViewProperty,
@@ -242,6 +243,10 @@ export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, Ru
 export const INTERRUPTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.YIELDED, RunStatus.WAITING];
 export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, ...INTERRUPTED_RUN_STATUSES];
 export const BAD_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED];
+
+// task
+export const ACTIVE_TASK_STATUSES = [TaskStatus.RUNNING, TaskStatus.WAITING, TaskStatus.REVIEWING];
+export const TERMINAL_TASK_STATUSES = [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED];
 
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];

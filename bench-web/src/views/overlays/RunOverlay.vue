@@ -30,6 +30,7 @@ const actions = computed(() => {
       leave-to-class="opacity-0 translate-y-[4px]"
       appear
     >
+      <!-- NOTE :UX: maybe RunOverlay could become a general contextual overlay (also for reviewing Task queues and such?) -->
       <div
         v-if="run && base"
         class="relative z-50 flex h-[50px] w-[500px] items-center justify-between rounded-lg rounded-b-none border border-b-0 border-gray-400 bg-white shadow-lg transition-colors duration-150"
