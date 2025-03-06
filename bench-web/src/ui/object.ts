@@ -853,7 +853,7 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
  */
 export class ActionLayout extends NodeLayout<NodeType.ACTION> {
   toolRows() {
-    // nocheckin: Selection for tool_selection..?
+    // nocheckin: Flow/Action.selection for tools..?
     return [];
   }
 
