@@ -7,8 +7,10 @@ import {
   BenchType,
   BlockType,
   ColorShade,
+  InlineNodeData,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   Orientation,
   TextLineType,
   TextSpanType,
@@ -186,11 +188,11 @@ function apply(item: SearchItem) {
       // create inline node
       const node = createInlineNode(tx, graph, {
         node: {
-          metatype: blockType as unknown as NodeType,
+          metatype: blockType as unknown as ObjectType,
           parentPtr: toNodeRef(page),
           packagePtr: page.packagePtr,
-          blockPtr: toNodeRef(block),
-        },
+          definitionPtr: toNodeRef(block),
+        } satisfies Partial<InlineNodeData>,
       });
       tx.update(block, { type: blockType, nodePtr: toNodeRef(node) });
       deleteSelf();

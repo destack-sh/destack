@@ -12,7 +12,7 @@ export function createDatabase(
   options: { database: Partial<DatabaseData> },
 ): DatabaseData {
   if (options.database.definitionPtr == null) {
-    throw new Error("cannot create inline database without block");
+    throw new Error("cannot create inline Database without block");
   }
   const siblings = graph.getChildren(options.database.parentPtr!, NodeType.DATABASE);
   const name =

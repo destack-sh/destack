@@ -138,7 +138,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
         <div class="ml-auto">
           <button
             v-tooltip="{ title: 'Clear this Run', small: true, group: 'run.header' }"
-            class="rounded px-0.5 text-gray-400 opacity-0 transition-opacity duration-150 hover:text-gray-700 group-hover/banner:opacity-100"
+            class="rounded px-0.5 text-gray-400 transition-colors duration-150 hover:text-gray-700 group-hover/banner:opacity-100"
             @click="() => CLEAR_RUN_ACTION.action()"
           >
             <span class="fas fa-xmark" />

@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { canvas } from "@/globals";
 import { getRunDurationString, isRunActive } from "@/language/runtime/run";
 import { RunStatusOptionInfo } from "@/proto/wire";
 import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
@@ -9,7 +10,7 @@ import { computed } from "vue";
 
 const runTree = runtime.focusedRunTree;
 const run = runTree.runRef;
-const base = runTree.base;
+const base = runTree.runBaseRef;
 
 const actions = computed(() => {
   if (run.value == null) return [];
@@ -34,7 +35,7 @@ const actions = computed(() => {
         class="relative z-50 flex h-[50px] w-[500px] items-center justify-between rounded-lg rounded-b-none border border-b-0 border-gray-400 bg-white shadow-lg transition-colors duration-150"
       >
         <!-- Node -->
-        <div class="absolute left-4 flex flex-row items-center gap-x-2">
+        <div class="absolute left-5 flex flex-row items-center gap-x-2">
           <!-- Status -->
           <IconInline
             v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
@@ -47,15 +48,15 @@ const actions = computed(() => {
         </div>
         <!-- Run -->
         <div class="absolute left-1/2 flex -translate-x-1/2 flex-row items-center gap-x-1">
-          <NodeReference :node="base" size="large" />
+          <NodeReference class="cursor-pointer" :node="base" size="large" @click="canvas.goToNode(base)" />
         </div>
         <!-- Meta -->
-        <div class="absolute right-4 flex flex-row items-center gap-x-1">
+        <div class="absolute right-5 flex flex-row items-center gap-x-1">
           <!-- Actions -->
           <button
             v-for="action in actions"
             :key="action.title"
-            class="rounded-md p-1 text-gray-700 hover:bg-gray-200"
+            class="rounded-md px-1.5 py-0.5 text-gray-700 transition-colors duration-150 hover:bg-gray-200"
             @click="action.action"
           >
             <IconInline v-bind="action.icon" class="text-base" />

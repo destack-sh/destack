@@ -167,6 +167,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
+    <!-- nocheckin: Task view -->
     <div v-else class="h-[100px] bg-red-100">
       <span>No View for {{ toCamelName(BlockType, block.type) }}</span>
     </div>
