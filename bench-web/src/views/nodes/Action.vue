@@ -194,7 +194,7 @@ defineExpose<ViewExpose>({ self, id, actions });
         </span>
       </div>
       <!-- Tools/Tags -->
-      <!-- nocheckin Action tools/tags? -->
+      <!-- TODO :UX: Action tools/tags? -->
     </div>
 
     <!-- Floating Menu -->

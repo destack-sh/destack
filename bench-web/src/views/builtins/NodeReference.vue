@@ -114,9 +114,10 @@ defineExpose({
     aria-role="button"
     data-contextmenu-items="space.navigate.open"
     @click="
-      () => {
-        if (!isInput && node != null) {
+      (e) => {
+        if (!isInput && node != null && e.altKey) {
           canvas.goToNode(node);
+          e.stopPropagation();
         }
       }
     "
@@ -157,8 +158,8 @@ defineExpose({
         :class="identifierClass"
         :placeholder="nodeTypeName"
         is-input
-        :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
         is-minimal
+        :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
         :model-value="identifier"
         @update:model-value="
           (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })

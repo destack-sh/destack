@@ -166,8 +166,16 @@ function close(popover: PopoverInstance | undefined) {
         data-outside-view="true"
         @keydown.esc.stop.prevent="() => close(popover)"
       >
-        <div v-if="popover.title" class="px-3 pt-1.5">
+        <div v-if="popover.title" class="flex flex-row px-3 pt-1.5">
           <span class="font-semibold">{{ popover.title }}</span>
+          <!-- Remove -->
+          <button
+            v-if="popoverValues[popover.id] != null"
+            class="ml-auto rounded px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @click.stop="() => (popover.onApply?.(undefined), close(popover))"
+          >
+            <span>Remove</span>
+          </button>
         </div>
         <component
           :is="toComponent(popover)"
