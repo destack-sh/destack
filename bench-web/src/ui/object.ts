@@ -1,12 +1,11 @@
 import { canvas, supergraph } from "@/globals";
 import {
-  APPLICATION_ACTION_TYPES,
   DYNAMIC_ACTION_TYPES,
   getBaseFromNode,
   getPropertyTitle,
   isNodeType,
-  SOURCE_NODE_TYPES,
-  toCamelName,
+  isSourceNodeType,
+  toCamelName
 } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
@@ -75,7 +74,7 @@ import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { getNodeName, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
-import { SearchIndex, typeIndex } from "@/ui/search";
+import { typeIndex } from "@/ui/search";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
@@ -791,7 +790,7 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
       );
     }
     // node
-    if (isNodeType(node.benchType) && SOURCE_NODE_TYPES.includes(node.benchType)) {
+    if (isNodeType(node.benchType) && isSourceNodeType(node.benchType)) {
       const nodeProperties = PROPERTY_INFOS_BY_TYPE[node.benchType as unknown as NodeType];
       const nodePropertiesEnum = PROPERTY_ENUM_BY_TYPE[node.benchType as unknown as NodeType];
       const subtypeProperty = nodeProperties[(nodePropertiesEnum as any)?.["type"]!];

@@ -1464,6 +1464,11 @@ class IsOwnable(BuiltinObject):
     """A Node that can be owned by another Node."""
 
     owned_by: Optional[Owner] = p_node_parent(17, *OWNER_TYPES)
+    if TYPE_CHECKING:
+        owned_by_id: Optional[UUID] = None
+        owned_by_ck: Optional[UUID] = None
+        owned_by_type: Optional[NodeType] = None
+        owned_by_ptr: Optional[NodeReference] = None
 
 
 @node_component_()

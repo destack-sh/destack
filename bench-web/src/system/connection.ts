@@ -602,9 +602,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         ...(thisGet.ancestorTypes ?? []),
         ...(thisGet.descendantTypes ?? []),
       ];
-      if (thisNodeTypes.some((t) => !SOURCE_NODE_TYPES.includes(t))) {
-        // we can only assume that node type overlap is enough for source nodes, otherwise check full params
-        //  (since they're loaded in a very specific way)
+      if (thisNodeTypes.some((t) => !SOURCE_NODE_TYPES.includes(t) && t != NodeType.TASK)) {
+        // NOTE :Broken: we can only assume that node type overlap is enough for source nodes, otherwise check full params
+        //  (since they're loaded in a very specific way together with Task.. see :ConnectionMatching)
         return deepContentEquals(params, this.params);
       }
       const otherNodeTypes = [

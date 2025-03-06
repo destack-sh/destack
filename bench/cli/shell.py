@@ -67,7 +67,7 @@ async def shell(
         if user is not None:
             user_node = await User.get(slug=user)
         else:
-            user_node = await User.get(id=bench_node.owner_id)
+            user_node = await User.get(id=bench_node.owned_by_id)
 
         client = await Client.select_all().where(parent=user_node).one_or_none()
         assert client is not None, f"no client for {user_node!r}"

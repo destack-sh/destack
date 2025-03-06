@@ -11,12 +11,8 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import (
-    SOURCE_NODE_TYPES,
-    STATIC_RESOURCE_NODE_TYPES,
     Bench,
     NodeArea,
-    NodeType,
-    Package,
     Store,
     Subject,
 )
@@ -62,16 +58,6 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
     typ=int,
     default=3600,
     description="S3 presigned URL expiry (in seconds)",
-)
-
-BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
-).select_all()
-PACKAGE_QUERY = (
-    Package.include_ancestors(Bench)
-    .include_descendants(*SOURCE_NODE_TYPES)
-    .select_all()
-    .deselect(Bench.encryption_key)
 )
 
 

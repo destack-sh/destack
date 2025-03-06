@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.06.0"
+VERSION = "2025.03.06.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -27,6 +27,9 @@ BENCH_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column(
             "main_handle_id",
@@ -40,8 +43,6 @@ BENCH_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("owner_id", PrimitiveType.UUID, is_nullable=True),
-        Column("owner_type", PrimitiveType.INT16, is_nullable=True),
         Column("region", PrimitiveType.INT16),
         Column("encryption_key", PrimitiveType.STRING, is_encrypted=True),
         Column("status", PrimitiveType.INT16, default="20"),
