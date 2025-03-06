@@ -15,7 +15,7 @@ from bench.language import (
     CustomObject,
     FieldType,
     File,
-    HasRuntimeContext,
+    IsRuntime,
     LinkType,
     Node,
     Page,
@@ -94,7 +94,7 @@ You MUST advance the Flow by completing a specific Action in context for one inv
  - plan the next Actions (by creating Plans with Tasks)
  - edit the Bench (like creating or updating Pages, Blocks, Records, ...)
  - return the Action's outputs as a dict (for dynamic Actions with output Fields)
-Actions can 'call' other Actions by including them in a Plan within a Flow.
+Actions can 'call' other Actions by including them in a Plan (in a Flow).
  
 # Flows
 Flows define how Actions are connected and invoked (via Links).
@@ -269,7 +269,7 @@ LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
 def make_chat_prompt(
     action: Action,
     runner: "Runner",
-    context: "HasRuntimeContext",
+    context: "IsRuntime",
     resources: CustomObject | None,
     inputs: CustomObject | None,
     outputs: CustomObject | None,

@@ -3,17 +3,16 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    OWNER_TYPES,
     TITLE_CONSTRAINT,
     BenchNode,
     BuiltinEnum,
     EnumType,
-    HasTimeIdentity,
     InlineSourceNode,
+    IsOwnable,
+    IsTimed,
     Node,
     NodeReference,
     NodeType,
-    Owner,
     RemoteNodeList,
     StructType,
     Text,
@@ -46,7 +45,7 @@ class ThreadStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)
-class Thread(HasTimeIdentity, BenchNode[ThreadData]):
+class Thread(IsTimed, IsOwnable, BenchNode[ThreadData]):
     """
     A Thread for communicating with Messages on something.
     """
@@ -80,7 +79,6 @@ class Thread(HasTimeIdentity, BenchNode[ThreadData]):
         references=NodeType.RUN,
         description="The Run this Thread is scoped to.",
     )
-    owned_by: Optional[Owner] = p_system(38, require=False, array=False, references=OWNER_TYPES)
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
         channel_id: Optional[UUID] = None
@@ -90,8 +88,6 @@ class Thread(HasTimeIdentity, BenchNode[ThreadData]):
         run_root_id: Optional[UUID] = None
         run_ptr: Optional[NodeReference] = None
         run_id: Optional[UUID] = None
-        owned_by_ptr: Optional[NodeReference] = None
-        owned_by_id: Optional[UUID] = None
 
     # status
     status: ThreadStatus = p_internal(40, default=ThreadStatus.OPEN)

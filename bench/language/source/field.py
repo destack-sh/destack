@@ -7,7 +7,7 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     FieldBaseNode,
     FieldType,
-    HasNodeBase,
+    IsBased,
     Node,
     NodeType,
     Property,
@@ -37,7 +37,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.FIELD, has_subtypes=True)
-class Field(SourceNode[FieldData], HasNodeBase, TypeBase, _IntoQuery):
+class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in BuiltinObjects.
     """

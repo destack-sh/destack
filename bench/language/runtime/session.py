@@ -34,8 +34,8 @@ from bench.language.core import (
     BenchNode,
     EditSubject,
     EditType,
-    HasRuntimeContext,
-    HasTrace,
+    IsRuntime,
+    IsTraceable,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -126,7 +126,7 @@ CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 
 
 @timed_node_(NodeType.SESSION)
-class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
+class Session(BenchNode[SessionData], IsRuntime, IsTraceable):
     """
     A managed Session for interacting with and running a Bench.
     """
@@ -491,10 +491,10 @@ class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
         if node.is_attached:  # ignore detached create (is created on attach)
             self._pending_nodes_by_id[node.id] = node
             if (
-                isinstance(node, HasRuntimeContext)
+                isinstance(node, IsRuntime)
                 and (runtime := self._runtime) is not None
                 and any(
-                    isinstance(ancestor, HasRuntimeContext) and ancestor.session_id == self.id
+                    isinstance(ancestor, IsRuntime) and ancestor.session_id == self.id
                     for ancestor in node._walk_ancestors()
                 )
             ):
@@ -681,7 +681,7 @@ class Session(BenchNode[SessionData], HasRuntimeContext, HasTrace):
         """Whether this is a runtime node tied to the current session."""
         if node.metatype == NodeType.SESSION:
             return self.id == node.id
-        elif isinstance(node, HasRuntimeContext):
+        elif isinstance(node, IsRuntime):
             return node.session_id == self.id
         else:
             return False
@@ -922,7 +922,7 @@ class EditContext(Struct):
 
 
 @struct_(StructType.CONTEXT)
-class Context(Struct, HasRuntimeContext):
+class Context(Struct, IsRuntime):
     """Context information for runtime nodes created in a session."""
 
     pass

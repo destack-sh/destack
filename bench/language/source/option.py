@@ -4,7 +4,7 @@ from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    HasNodeBase,
+    IsBased,
     Node,
     NodeType,
     SourceNode,
@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.OPTION)
-class Option(SourceNode[OptionData], HasNodeBase, _IntoQuery):
+class Option(SourceNode[OptionData], IsBased, _IntoQuery):
     """
     An Option in a Choice or something.
     """

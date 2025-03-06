@@ -10,10 +10,10 @@ from bench.language.core import (
     CustomObject,
     EnumType,
     FieldType,
-    HasNodeBase,
-    HasRuntimeContext,
-    HasTimeIdentity,
-    HasTrace,
+    IsBased,
+    IsRuntime,
+    IsTimed,
+    IsTraceable,
     NodeReference,
     NodeType,
     PackageNode,
@@ -159,9 +159,7 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
-class Interruption(
-    HasTimeIdentity, PackageNode[InterruptionData], HasRuntimeContext, HasTrace, HasNodeBase
-):
+class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceable, IsBased):
     """An Interruption in the execution of a Run."""
 
     # meta

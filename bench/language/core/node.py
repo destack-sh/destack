@@ -70,10 +70,12 @@ from .list import LocalNodeList, attach_node
 from .object import (
     EDIT_SUBJECT_TYPES,
     EMPTY_SCOPE_DATA,
+    OWNER_TYPES,
     BuiltinObject,
     EditSubject,
     FieldOrProperty,
     NodeTypeOrClass,
+    Owner,
     _process_object_cls,
     _trace_edit_operation,
     get_tk_from_ck,
@@ -418,7 +420,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     # BenchNode.bench: 5
     # AuthNode.organization/user: 6-7
     # SourceNode.package: 8
-    # SourceNode.template: 9
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
@@ -444,17 +445,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         baseless=True,
     )
     deleted_at: Optional[datetime] = p_system(14, default=None, autoset=True)
-    # SourceNode.template_at: 15
-    # ...managed_by? owned_by?
+    # IsTemplatable.template/template_at: 15/16
+    # IsOwnable.owned_by: 17
+    # ...managed_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
-    # ...HasTracingContext[20-25]
+    # ...HasTrace[25-29] :Tracing
 
     # NOTE :Architecture!: obviously, a better system would store subnodes directly
-    #  (but we can't do that yet because we map top-level properties to Postgres columns,
+    #  (but we can't do that yet because we map properties to Postgres columns,
     #   so we can't have crazy numbers of subtype-properties unless we pack them like this,
     #   similarly, our protobuf types would explode if we flatten out subnodes)
     subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(29)
@@ -475,7 +477,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     ):
         # inject :Tracing context
         cls = type(self)
-        if isinstance(self, HasTrace):
+        if isinstance(self, IsTraceable):
             if not kwargs.get("mode"):
                 tracing = get_tracing_context()
                 kwargs["mode"] = tracing.mode
@@ -484,9 +486,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
 
         # init node
-        if isinstance(self, SourceNode):
+        if isinstance(self, IsTemplatable):
             if self.ck is None:
-                self.ck = cls.__ck_factory__()
+                self.ck = cls.__ck_factory__()  # type: ignore
                 self.id = cls.__id_factory__()
                 self._is_new = True
         elif self.id is None:
@@ -1117,7 +1119,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if child_prop is not None:
             child_list = getattr(self, child_prop.name)
             child_list.append(child, move=move)
-        elif isinstance(child, HasNodeBase) and (base := child.base) is not None:
+        elif isinstance(child, IsBased) and (base := child.base) is not None:
             child_prop = base.get_child_property(child.metatype)
             if child_prop is not None:
                 child_list = getattr(base, child_prop.name)
@@ -1241,7 +1243,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Creates a new partial Node of this type."""
         from .value import coerce_custom_object_scalar
 
-        if base_type is None and issubclass(cls, HasNodeBase):
+        if base_type is None and issubclass(cls, IsBased):
             base_type = cast(TypeBaseNode, cls.get_base_from_partial(kwargs))
 
         typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
@@ -1363,7 +1365,7 @@ class NodeSubtypeStub[NodeT: Node]:
 
 
 @object_()
-class HasRuntimeContext(BuiltinObject):
+class IsRuntime(BuiltinObject):
     """Context for a Node."""
 
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
@@ -1395,11 +1397,11 @@ class HasRuntimeContext(BuiltinObject):
 
 
 @object_()
-class HasTrace(BuiltinObject):
+class IsTraceable(BuiltinObject):
     """Context for tracing a Node."""
 
     # tracing :Tracing
-    mode: NodeMode = p_internal(20, default=None, default_sql=str(NodeMode.PRODUCTION.value))
+    mode: NodeMode = p_internal(25, default=None, default_sql=str(NodeMode.PRODUCTION.value))
     # ... more tracing context
 
 
@@ -1450,11 +1452,18 @@ class IsTemplatable(BuiltinObject):
     """A Node that can be instanced and templated."""
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
-    template: Optional["Node"] = p_node_template(9)
+    template: Optional["Node"] = p_node_template(15)
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
     template_at: datetime | None = p_system(16, default=None, autoset=True)
+
+
+@node_component_()
+class IsOwnable(BuiltinObject):
+    """A Node that can be owned by another Node."""
+
+    owned_by: Optional[Owner] = p_node_parent(17, *OWNER_TYPES)
 
 
 @node_component_()
@@ -1495,7 +1504,9 @@ class IsComputable(BuiltinObject):
 
 
 @node_component_()
-class SourceNode[NodeDataT: AnyNodeData](IsTemplatable, HasTrace, PackageNode[NodeDataT], abc.ABC):
+class SourceNode[NodeDataT: AnyNodeData](
+    IsTemplatable, IsTraceable, PackageNode[NodeDataT], abc.ABC
+):
     """
     A Node in a Package with a persistent identity that can be instanced.
     """
@@ -1603,7 +1614,7 @@ class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT
 
 
 @node_component_()
-class HasTimeIdentity(BuiltinObject, abc.ABC):
+class IsTimed(BuiltinObject, abc.ABC):
     """A Node with a time-based identity."""
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
@@ -1619,7 +1630,7 @@ TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 
 
 @node_component_()
-class HasNodeBase(BuiltinObject, abc.ABC):
+class IsBased(BuiltinObject, abc.ABC):
     """A Node which may have a 'base' in another Node (e.g., its type definition)."""
 
     @property
@@ -1719,7 +1730,7 @@ class NodeReference(Struct[NodeReferenceData]):
         base_ck: UUID | None = None
         base_bench_id: UUID | None = None
         if node.metatype in BASED_NODE_TYPES:
-            base = cast(HasNodeBase, node).base
+            base = cast(IsBased, node).base
             if base is not None:
                 base_ck = base.ck
                 base_bench_id = base.bench_id
@@ -1759,7 +1770,7 @@ class NodeReference(Struct[NodeReferenceData]):
             reference.bench_id = node_data.parent_ptr.bench_id
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = cast(HasNodeBase, node_cls).get_base_from_data(node_data)
+            base = cast(IsBased, node_cls).get_base_from_data(node_data)
             if base is not None:
                 if base.ck:
                     reference.base_ck = base.ck

@@ -8,7 +8,7 @@ from bench.language import (
     Aliasing,
     CustomObject,
     File,
-    HasRuntimeContext,
+    IsRuntime,
     Node,
     Plan,
     Renderer,
@@ -221,7 +221,7 @@ class Prompt:
     def __init__(
         self,
         action: Action,
-        context: "HasRuntimeContext",
+        context: "IsRuntime",
         aliasing: Aliasing,
         renderer: Renderer,
         items: list[PromptPart],

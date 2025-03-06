@@ -3,6 +3,7 @@ import { INLINE_SOURCE_NODE_TYPES, isInlineNode, toCamelName } from "@/language/
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
+import { createTask } from "@/language/runtime/task";
 import { newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { choiceToType, createChoice } from "@/language/source/choice";
 import { classToType, createClass } from "@/language/source/class";
@@ -128,6 +129,8 @@ export function createInlineNode(
     return createChoice(tx, graph, { choice: options.node });
   } else if (options.node.metatype == NodeType.KIT) {
     return createKit(tx, graph, { kit: options.node });
+  } else if (options.node.metatype == NodeType.TASK) {
+    return createTask(tx, graph, { task: options.node });
   } else {
     throw new Error(`unexpected node type: ${toCamelName(NodeType, options.node.metatype)}`);
   }

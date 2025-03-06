@@ -30,8 +30,8 @@ from bench.language import (
     FileBase,
     FileKind,
     GraphScope,
-    HasRuntimeContext,
     InlineSourceNode,
+    IsRuntime,
     Machine,
     MemoryEngine,
     NodeArea,
@@ -479,7 +479,7 @@ class HostService(GraphServiceBase, HostBase):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _parse_commit(self, subject: Subject, context: HasRuntimeContext, edits: Sequence[EditData]):
+    def _parse_commit(self, subject: Subject, context: IsRuntime, edits: Sequence[EditData]):
         assert subject.client and subject.client_ptr, f"no client for {subject!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
@@ -579,7 +579,7 @@ class HostService(GraphServiceBase, HostBase):
         session: Session,
         graph: NodeGraph,
         data_graph: NodeDataGraph,
-        context: HasRuntimeContext | None,
+        context: IsRuntime | None,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> None:
@@ -778,7 +778,7 @@ class HostService(GraphServiceBase, HostBase):
 
 
 @tracer.start_as_current_span("host.validate_context")
-def validate_context(subject: Subject, context: HasRuntimeContext, edits: Sequence[EditData]):
+def validate_context(subject: Subject, context: IsRuntime, edits: Sequence[EditData]):
     """Checks the session context and per edit context for consistency."""
     assert subject.client and subject.client_ptr, f"no client for {subject!r}"
     if not context.client_ptr or context.client_ptr.id != subject.client_ptr.id:

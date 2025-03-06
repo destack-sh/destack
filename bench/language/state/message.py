@@ -11,9 +11,9 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     FieldType,
-    HasNodeBase,
-    HasTimeIdentity,
     InlineSourceNode,
+    IsBased,
+    IsTimed,
     Node,
     NodeType,
     StructType,
@@ -81,7 +81,7 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(HasTimeIdentity, BenchNode[MessageData], HasNodeBase):
+class Message(IsTimed, BenchNode[MessageData], IsBased):
     """
     A Message about something.
     """

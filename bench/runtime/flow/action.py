@@ -28,9 +28,9 @@ from bench.language import (
     GoToTabAction,
     GoToUrlAction,
     HasApplicationContext,
-    HasNodeBase,
-    HasRuntimeContext,
     InterruptionType,
+    IsBased,
+    IsRuntime,
     LookAction,
     Message,
     ModelDeveloper,
@@ -96,7 +96,7 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
         node: A,
         run: RunIn,
         options: RunOptions,
-        context: HasRuntimeContext,
+        context: IsRuntime,
         parent: Runner | None = None,
         resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
@@ -380,7 +380,7 @@ class CreateActionRunner(StaticActionRunner[CreateAction]):
                 assert bench is not None, f"no bench for {self!r}"
                 node.parent = bench
             elif (
-                isinstance(node, HasNodeBase)
+                isinstance(node, IsBased)
                 and node.base is not None
                 and (parent_types == "any" or node.base.metatype in parent_types)
             ):

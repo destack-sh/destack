@@ -373,7 +373,7 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           <i class="fas fa-plus mr-1.5 text-center" />
           <span class="">Action</span>
         </button>
-        <div class="flex flex-row items-center gap-x-0.5">
+        <div v-if="style == 'page'" class="flex flex-row items-center gap-x-0.5">
           <!-- Zoom -->
           <button
             class="rounded py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
