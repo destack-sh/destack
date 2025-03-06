@@ -604,9 +604,6 @@ export function checkValueScalar(value: any, type: TypeIdentity, invalid: Valida
     if (type.format != null && TYPE_CONSTRAINT_BY_FORMAT[type.format] != null) {
       checkValueScalarConstraint(value, type, TYPE_CONSTRAINT_BY_FORMAT[type.format]!, invalid);
     }
-    if (typeof value == "string" && value.length == 0) {
-      invalid(value, "empty string", type);
-    }
   } else {
     // NOTE :Incomplete: checkValueScalar for Node/Struct/Enum
   }

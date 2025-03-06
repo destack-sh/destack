@@ -540,6 +540,8 @@ NODE_PROPERTY_KEY_BY_FIELD_TYPE: dict[FieldType, str] = {
 
 
 def _get_node_field_expression_value(node: Node | AnyNodeData, field: "Field") -> Any:
+    if not field.name:
+        return None
     if isinstance(node, Node):
         value = getattr(node, field.name)
     else:

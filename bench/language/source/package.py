@@ -43,7 +43,7 @@ class Package(IsOwnable, SourceNode[PackageData]):
     # meta
     parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
     type: PackageType = p_regular(30, require=True)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     slug: str = p_regular(33, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)

@@ -235,7 +235,7 @@ class Action(SourceNode[ActionData], IsComputable):
         30, description="Type of this Action. Only dynamic for tools.", field_type=FieldType.INPUT
     )
     category: ActionCategory | None = p_regular(31, description="Category of this Action.")
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON

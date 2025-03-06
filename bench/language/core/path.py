@@ -37,7 +37,7 @@ from .node import (
 from .object import PropertyReference
 from .property import Property, p_regular
 from .struct import Struct, struct_
-from .validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
+from .validation import SLUG_REGEX_CHAR
 
 if TYPE_CHECKING:
     from bench.language import Bench, Field, Package
@@ -356,7 +356,7 @@ def reverse_path_element(element: PathElement) -> PathElementIn:
 
 # see NAME_REGEX in validation
 BENCH_PATTERN = regex.compile(rf"^@([{SLUG_REGEX_CHAR}]+)(?::([{SLUG_REGEX_CHAR}]+))?$")
-NODE_PATTERN = regex.compile(rf"^([>\^~:])?([{NAME_REGEX_CHAR}\.]*)$")
+NODE_PATTERN = regex.compile(r"^([>\^~:])?([\p{L}0-9 _,;.\-'`˚ ]*)$")
 CONTEXT_PATTERN: regex.Pattern[str] = regex.compile(
     rf"^\$((?:{'|'.join(regex.escape(sign) for sign in SIGN_BY_RUN_SELECTOR.values())}))?$"
 )

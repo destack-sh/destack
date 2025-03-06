@@ -23,7 +23,7 @@ from .property import (
     p_regular,
     p_system,
 )
-from .validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
+from .validation import NAME_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -157,7 +157,7 @@ class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     A 'static' Resource in a Bench.
     """
 
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
 
     @classmethod
     def new(cls, name: str, **kwargs: Any) -> Self:
@@ -181,7 +181,7 @@ class DynamicResource[NodeDataT: AnyNodeData](IsOwnable, Resource[NodeDataT]):
     A 'dynamic' Resource in a Bench.
     """
 
-    name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
 
     occupancy: ResourceOccupancy = p_system(
         36, default=ResourceOccupancy.RESERVED, default_sql=None

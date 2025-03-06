@@ -1309,8 +1309,8 @@ function makeLayout(
       parentPtr: toNodeRef(parent),
       packagePtr: root.packagePtr,
     });
-    if (viewsByName[view.name] != null) throw new Error(`duplicate view name: ${view.name}`);
-    viewsByName[view.name] = view;
+    if (viewsByName[view.name!] != null) throw new Error(`duplicate view name: ${view.name}`);
+    viewsByName[view.name!] = view;
     if (viewsByType[view.type] == null) viewsByType[view.type] = [];
     viewsByType[view.type]!.push(view);
 

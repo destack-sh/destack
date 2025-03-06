@@ -72,7 +72,7 @@ class Link(SourceNode[LinkData], IsComputable):
 
     # meta
     type: LinkType = p_internal(30)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT

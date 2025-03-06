@@ -531,8 +531,8 @@ def _render_custom_object_kwargs(
         if type(prop) is Property and prop.is_value_packed:
             assert type(prop.value_runtime_ptr) is Property, f"no runtime ptr for {prop!r}"
             rendered_kwargs[prop.value_runtime_ptr.name] = renderer.render_custom_object(value)
-        else:
-            rendered_kwargs[prop.name] = renderer.render_value(value, prop.type_info)
+        elif name := prop.name:
+            rendered_kwargs[name] = renderer.render_value(value, prop.type_info)
     return rendered_kwargs
 
 

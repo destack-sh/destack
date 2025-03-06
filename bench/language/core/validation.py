@@ -85,13 +85,10 @@ class TypeConstraintIn:
 SLUG_REGEX_CHAR = r"a-z0-9-"
 SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-NAME_REGEX_CHAR = r"\p{L}0-9 _,;.\-'`˚ "
-NAME_REGEX_INLINE = rf"[{NAME_REGEX_CHAR}]+"
-NAME_REGEX = rf"^{NAME_REGEX_INLINE}$"
 URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
 EMOJI_REGEX = r"\p{Emoji_Presentation}"
-NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
+NAME_CONSTRAINT = TypeConstraintIn(min_length=0, max_length=128)
 TITLE_CONSTRAINT = TypeConstraintIn(min_length=0, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
@@ -104,7 +101,7 @@ RAM_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=256.0, step_value=0.1
 
 def clean_name(name: str, sub="-") -> str:
     """Strip any invalid characters from a name."""
-    return regex.sub(rf"[^{NAME_REGEX_CHAR}]", sub, name)
+    return regex.sub(r"[^\p{L}0-9 _,;.\-'`˚ ]", sub, name)
 
 
 def constraint(

@@ -2321,7 +2321,7 @@ message FileInfoData {
   ObjectType metatype = 1;
   FileType type = 30;
   FileKind kind = 31;
-  string name = 32;
+  optional string name = 32;
   optional string mime_type = 50;
   optional FileFormat format = 51;
   int64 size = 52;
@@ -2651,7 +2651,7 @@ message BrowserData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   BrowserType type = 30;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2692,7 +2692,7 @@ message FileData {
   optional google.protobuf.Value subnode_packed = 29;
   FileType type = 30;
   FileKind kind = 31;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2734,7 +2734,7 @@ message MachineData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   MachineType type = 30;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2770,7 +2770,7 @@ message ScalerData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ScalerType type = 30;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2810,7 +2810,7 @@ message SecretData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2840,7 +2840,7 @@ message StoreData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   StoreType type = 30;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -2871,7 +2871,7 @@ message StreamData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   StreamType type = 30;
-  string name = 32;
+  optional string name = 32;
   ResourceStatus status = 33;
   optional TextData text = 34;
   Region region = 35;
@@ -3091,7 +3091,7 @@ message PlanData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   PlanType type = 30;
-  string name = 40;
+  optional string name = 40;
   PlanTerminationMode on_terminate = 41;
   PlanFailureMode on_failure = 42;
   optional NodeReferenceData implemented_by_ptr = 43;
@@ -3230,7 +3230,7 @@ message TaskData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   TaskType type = 30;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3273,7 +3273,7 @@ message ActionData {
   optional google.protobuf.Value subnode_packed = 29;
   ActionType type = 30;
   optional ActionCategory category = 31;
-  string name = 32;
+  optional string name = 32;
   string order_key = 33;
   optional IconData icon = 35;
   optional TextData text = 36;
@@ -3488,7 +3488,7 @@ message ChannelData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ChannelType type = 30;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3513,7 +3513,7 @@ message ChoiceData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3538,7 +3538,7 @@ message ClassData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3563,7 +3563,7 @@ message DatabaseData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3609,7 +3609,7 @@ message FieldData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   FieldType type = 30;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
@@ -3646,7 +3646,7 @@ message FlowData {
   NodeMode mode = 25;
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3674,7 +3674,7 @@ message KitData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
@@ -3702,7 +3702,7 @@ message LinkData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   LinkType type = 30;
-  string name = 32;
+  optional string name = 32;
   string order_key = 33;
   optional TextData text = 34;
   NodeReferenceData source_ptr = 35;
@@ -3730,7 +3730,7 @@ message OptionData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
@@ -3754,7 +3754,7 @@ message PackageData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   PackageType type = 30;
-  string name = 32;
+  optional string name = 32;
   string slug = 33;
   optional TextData text = 34;
   optional IconData icon = 35;
@@ -3778,7 +3778,7 @@ message PageData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3804,7 +3804,7 @@ message ViewData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ViewType type = 30;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3924,7 +3924,7 @@ message RoleData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional IconData icon = 33;
   optional TextData text = 34;
@@ -3952,7 +3952,7 @@ message SpaceData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   SpaceType type = 30;
-  string name = 31;
+  optional string name = 31;
   optional TextData text = 32;
   string order_key = 33;
   optional SelectionData focus = 70;
@@ -3979,7 +3979,7 @@ message TagData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  string name = 31;
+  optional string name = 31;
   string order_key = 32;
   optional TextData text = 33;
   optional IconData icon = 34;
@@ -4005,7 +4005,7 @@ message TriggerData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   TriggerType type = 30;
-  string name = 32;
+  optional string name = 32;
   optional TextData text = 33;
   TriggerEffect effect = 34;
   optional NodeReferenceData scope_ptr = 35;

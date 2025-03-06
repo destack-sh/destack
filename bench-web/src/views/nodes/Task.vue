@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { NAME_TYPE } from "@/language/core/type";
-import { NodeType, TaskData, ViewData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, TaskData, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
-import { NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
+import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
-import { Ref, toRef } from "vue";
+import { ref, Ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
@@ -20,14 +20,22 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
+// state
 const taskPtr = toRef(props, "nodePtr");
 const { graph, connection } = props.preparedConnection ?? useExistingConnection(taskPtr);
 const task = graph.getRef(taskPtr, { ignoreAncestors: true }) as Ref<TaskData | null>;
 
-defineExpose<ViewExpose>({ self, id });
+// view
+const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
+
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  nameRef.value?.focus?.(anchor ?? "left");
+}
+
+defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
-  <div v-if="task" class="flex flex-row">
+  <div v-if="task" class="flex gap-x-1 flex-row">
     <!-- nocheckin -->
     <!-- Status -->
     <button class="h-5 w-5 rounded border border-gray-200 bg-white p-[1px] transition-colors duration-75">
@@ -38,9 +46,11 @@ defineExpose<ViewExpose>({ self, id });
       <!-- Name -->
       <NativeInput
         id="name"
-        :value-type="NAME_TYPE"
+        ref="nameRef"
+        class="text-base"
         is-minimal
         is-input
+        :value-type="NAME_TYPE"
         :model-value="task?.name"
         @update:model-value="
           (newValue) => task && connection.tx.update(task, { name: newValue as string }, { debounce: 'long' })
