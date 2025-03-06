@@ -158,6 +158,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                 f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
             )
         self._nodes_by_id[node.id] = node
+        # NOTE :Broken: indexing by ck doesn't quite work because there can be multiple nodes per ck?
+        #  (also it's not just SOURCE_NODE_TYPES that can have a ck, it's IsTemplatable)
         if node.metatype in SOURCE_NODE_TYPES and (ck := getattr(node, "ck")):
             self._nodes_by_ck[ck] = node
         if self._get_parent_ptr(node) is not None:

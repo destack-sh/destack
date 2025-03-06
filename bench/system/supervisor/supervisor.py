@@ -413,7 +413,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             assert owner.main_handle is not None, f"{owner!r} has no main handle"
             bench = await create_default_bench(
                 main_handle=owner.main_handle,
-                owner=owner,
+                owned_by=owner,
                 region=region,
                 global_store=self._global_store,
                 session=session,

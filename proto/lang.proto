@@ -1686,6 +1686,8 @@ enum ViewType {
   VIEW_TYPE_CHANNEL = 5100;
   VIEW_TYPE_THREAD = 5501;
   VIEW_TYPE_RUN = 6010;
+  VIEW_TYPE_PLAN = 6040;
+  VIEW_TYPE_TASK = 6041;
   VIEW_TYPE_OBJECT = 10000;
   VIEW_TYPE_TYPE = 10001;
   VIEW_TYPE_FIELD_LIST = 10003;
@@ -2894,13 +2896,13 @@ message BenchData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData owned_by_ptr = 17;
   optional google.protobuf.Value subnode_packed = 29;
   optional NodeReferenceData main_handle_ptr = 31;
   string slug = 32;
   string name = 33;
   optional TextData text = 34;
   optional IconData icon = 35;
-  optional NodeReferenceData owner_ptr = 36;
   Region region = 37;
   optional string encryption_key = 38;
   BenchStatus status = 40;

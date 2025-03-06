@@ -65,7 +65,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
         system_user.main_handle = system_user.handles.create(slug=SYSTEM_SLUG)
         system_bench = await create_default_bench(
             main_handle=system_user.main_handle,
-            owner=system_user,
+            owned_by=system_user,
             region=region,
             global_store=global_store,
             session=session,
@@ -73,7 +73,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
         bench_bench_handle = system_user.handles.create(slug=BENCH_SLUG)
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle,
-            owner=system_user,
+            owned_by=system_user,
             region=region,
             global_store=global_store,
             session=session,

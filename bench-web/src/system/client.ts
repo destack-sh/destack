@@ -1,7 +1,7 @@
+import { NODE_TYPES } from "@/language/core/const";
+import { NodeGraph, type ReadNodeGraph } from "@/language/core/graph";
 import { ClientOriginData, ClientType, LocalStorage, NodeType, ObjectType, SpaceData } from "@/proto/wire";
 import { describeNode, makeScope, nodeReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { NodeGraph, type ReadNodeGraph } from "@/language/core/graph";
-import { SOURCE_NODE_TYPES } from "@/language/core/const";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { IS_DEVELOPER_MODE as globalIsDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -197,7 +197,7 @@ const _spaceLocal = {
 } as SpaceData;
 const _spaceGraphLocal = new NodeGraph({
   scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),
-  nodeTypes: new Set(SOURCE_NODE_TYPES),
+  nodeTypes: new Set(NODE_TYPES),
 });
 _spaceGraphLocal.add(_spaceLocal);
 export const spaceGraphLocal = _spaceGraphLocal as ReadNodeGraph;

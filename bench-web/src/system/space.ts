@@ -37,7 +37,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
     roots: [local.packagePtr.value!],
-    descendantTypes: SOURCE_NODE_TYPES,
+    descendantTypes: [...SOURCE_NODE_TYPES, NodeType.TASK],
     isEnabled: local.packagePtr.value != null,
   })),
 );

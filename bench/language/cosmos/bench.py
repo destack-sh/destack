@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from bench.language.core import (
@@ -20,6 +20,7 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
+from bench.language.core.node import IsOwnable
 from bench.pb2 import BenchData
 from bench.utils.func import generate_encryption_key
 
@@ -28,13 +29,11 @@ if TYPE_CHECKING:
         Handle,
         Icon,
         NodeReference,
-        Organization,
         Package,
         Region,
         Scaler,
         Store,
         Text,
-        User,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -49,7 +48,7 @@ class BenchStatus(BuiltinEnum):
 
 
 @node_(NodeType.BENCH, roots=())
-class Bench(BenchNode[BenchData]):
+class Bench(IsOwnable, BenchNode[BenchData]):
     """
     A Bench is an AI-native operating system for higher order software.
     """
@@ -65,12 +64,6 @@ class Bench(BenchNode[BenchData]):
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
-    owner: Union["User", "Organization", None] = p_system(
-        36, require=False, array=False, references=(NodeType.USER, NodeType.ORGANIZATION)
-    )
-    if TYPE_CHECKING:
-        owner_id: Optional[UUID] = None
-        owner_type: Optional[NodeType] = None
     region: "Region" = p_system(37, require=True, default=REGION, default_sql=None)
     encryption_key: str = p_kernel(
         38,

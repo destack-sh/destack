@@ -13,6 +13,7 @@ import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
 import Kit from "@/views/nodes/Kit.vue";
+import Task from "@/views/nodes/Task.vue";
 import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
 const MAX_INLINE_HEIGHT = 400;
@@ -167,11 +168,20 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
-    <!-- nocheckin: Task view -->
-    <div v-else class="h-[100px] bg-red-100">
-      <span>No View for {{ toCamelName(BlockType, block.type) }}</span>
+    <Task
+      v-else-if="block.type == BlockType.TASK"
+      id="task"
+      ref="nodeRef"
+      :node-ptr="nodePtr"
+      :prepared-connection="preparedConnection"
+      is-minimal
+      is-inline
+      is-input
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
+    <div v-else class="rounded border border-red-500 bg-red-100 text-center font-semibold text-red-900">
+      <span>No View for {{ toCamelName(BlockType, block.type) }} Block</span>
     </div>
-    <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
   </div>
   <Inaccessible v-else class="h-full w-full" :node="blockPtr" :connection="connection" />
 </template>

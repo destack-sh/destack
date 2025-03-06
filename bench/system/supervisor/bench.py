@@ -14,7 +14,7 @@ from bench.language import (
 async def create_default_bench(
     *,
     main_handle: Handle,
-    owner: User | Organization,
+    owned_by: User | Organization,
     region: Region,
     global_store: Store,
     session: Session,
@@ -26,7 +26,7 @@ async def create_default_bench(
         main_handle=main_handle,
         slug=main_handle.slug,
         name=main_handle.slug,
-        owner=owner,
+        owned_by=owned_by,
         region=region,
     )
     session._create(bench)

@@ -109,7 +109,7 @@ BENCH_QUERY = Bench.include_descendants(
 ).select_all()
 PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
-    .include_descendants(*SOURCE_NODE_TYPES)
+    .include_descendants(*SOURCE_NODE_TYPES, NodeType.TASK)
     .select_all()
     .deselect(Bench.encryption_key)
 )

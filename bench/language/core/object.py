@@ -193,11 +193,12 @@ def _process_object_cls[ObjectT: BuiltinObject](
     """Process an object base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
 
-    # NOTE :Performance :Architecture: we can't really use slots for our builtin objects
-    #  (as of Python 3.13, __slots__ always uses class-level descriptors, but we also
+    # TODO :Performance! :Architecture: use slots or something for our builtin objects
+    #  (unfortunately, as of Python 3.13, __slots__ always uses class-level descriptors, but we also
     #   want to use class level attributes for our own properties, like Block.type, ...
-    #   - neglecting this conflict causes fun errors like 'X is a read-only attribute')
+    #   - neglecting this conflict causes fun errors like 'X is a read-only attribute'
     #  .. unless we just use Block.get_property('type') instead of Block.type everywhere?
+    #  also we could maybe just use NamedTuple for simpler Structs like NodeReference?)
 
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls

@@ -89,7 +89,7 @@ const focusPtr = computedValue(() => {
 const { graph, connection } = useExistingConnection(rootPtr, {
   match: {
     predicate: (c) => {
-      // NOTE: hack to exclude Bench connection (which also contains package) :ConnectionMatching
+      // NOTE: exclude Bench connection (which also contains package) :ConnectionMatching
       return !(c as Connection<"get", NodeType>).params.roots.some((r) => r.nodeType == NodeType.BENCH);
     },
   },

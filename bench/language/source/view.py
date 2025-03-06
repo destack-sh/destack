@@ -54,6 +54,8 @@ class ViewType(BuiltinEnum):
     CHANNEL = 5100
     THREAD = 5501
     RUN = 6010
+    PLAN = 6040
+    TASK = 6041
 
     # objects (10000-20000)
     OBJECT = 10000
