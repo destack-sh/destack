@@ -98,7 +98,7 @@ const absoluteStyle = computed(() => {
           v-bind="toast.icon ?? ICON_BY_TOAST_LEVEL[toast.level]"
           class="w-5 text-center text-lg text-gray-700"
           :style="{
-            color: getToastColorHex(toast, ColorShade.S600),
+            color: getToastColorHex(toast, ColorShade.S500),
           }"
         />
       </div>

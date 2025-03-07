@@ -1101,7 +1101,7 @@ export class FlowContext {
   /** Gets the hex color of the given link. */
   getLinkColorHex(link: LinkData): string | undefined {
     if (link.color != null) {
-      return getColorHex(link.color, link.color?.shade ?? ColorShade.S600);
+      return getColorHex(link.color, link.color?.shade ?? ColorShade.S500);
     } else {
       return undefined;
     }

@@ -13395,11 +13395,7 @@ export enum ActionType {
     /**
      * @generated from protobuf enum value: ACTION_TYPE_SQL = 1103;
      */
-    SQL = 1103,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_WEB = 1200;
-     */
-    WEB = 1200
+    SQL = 1103
 }
 /**
  * @generated from protobuf enum symbolx.bench.ActionCategory
@@ -13410,41 +13406,37 @@ export enum ActionCategory {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_READ = 1;
+     * @generated from protobuf enum value: ACTION_CATEGORY_ORCHESTRATE = 1;
      */
-    READ = 1,
+    ORCHESTRATE = 1,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_SEARCH = 2;
+     * @generated from protobuf enum value: ACTION_CATEGORY_COMPUTE = 100;
      */
-    SEARCH = 2,
+    COMPUTE = 100,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_BROWSE = 3;
+     * @generated from protobuf enum value: ACTION_CATEGORY_WORK = 200;
      */
-    BROWSE = 3,
+    WORK = 200,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_TYPE = 4;
+     * @generated from protobuf enum value: ACTION_CATEGORY_WRITE = 300;
      */
-    TYPE = 4,
+    WRITE = 300,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_SPEAK = 5;
+     * @generated from protobuf enum value: ACTION_CATEGORY_COMMUNICATE = 400;
      */
-    SPEAK = 5,
+    COMMUNICATE = 400,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_THINK = 7;
+     * @generated from protobuf enum value: ACTION_CATEGORY_OBSERVE = 800;
      */
-    THINK = 7,
+    OBSERVE = 800,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_WAIT = 8;
+     * @generated from protobuf enum value: ACTION_CATEGORY_INTERACT = 1000;
      */
-    WAIT = 8,
+    INTERACT = 1000,
     /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_WORK = 10;
+     * @generated from protobuf enum value: ACTION_CATEGORY_FETCH = 1100;
      */
-    WORK = 10,
-    /**
-     * @generated from protobuf enum value: ACTION_CATEGORY_INTERACT = 11;
-     */
-    INTERACT = 11
+    FETCH = 1100
 }
 /**
  * @generated from protobuf enum symbolx.bench.PortSide
@@ -38961,19 +38953,17 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
   [ActionType.REST]: { id: 1101, name: 'REST', text: 'Make a REST call', title: 'REST', color: ColorType.INDIGO, icon: 'fas fa-brackets-curly' },
   [ActionType.GRAPHQL]: { id: 1102, name: 'GRAPHQL', text: 'Make a GraphQL call', title: 'GraphQL', color: ColorType.INDIGO, icon: 'fas fa-brackets-curly' },
   [ActionType.SQL]: { id: 1103, name: 'SQL', text: 'Make a SQL call', title: 'SQL', color: ColorType.INDIGO, icon: 'fas fa-code' },
-  [ActionType.WEB]: { id: 1200, name: 'WEB', text: 'Search the Web', title: 'Web', color: ColorType.INDIGO, icon: 'fas fa-globe' },
 }
 
 export const ActionCategoryOptionInfo: Partial<Record<ActionCategory, EnumOptionInfo>> = {
-  [ActionCategory.READ]: { id: 1, name: 'READ', text: 'Reading', title: 'Read', icon: 'fas fa-eye' },
-  [ActionCategory.SEARCH]: { id: 2, name: 'SEARCH', text: 'Searching', title: 'Search', icon: 'fas fa-magnifying-glass' },
-  [ActionCategory.BROWSE]: { id: 3, name: 'BROWSE', text: 'Browsing', title: 'Browse', icon: 'fas fa-globe' },
-  [ActionCategory.TYPE]: { id: 4, name: 'TYPE', text: 'Typing', title: 'Type', icon: 'fas fa-keyboard' },
-  [ActionCategory.SPEAK]: { id: 5, name: 'SPEAK', text: 'Speaking', title: 'Speak', icon: 'fas fa-microphone' },
-  [ActionCategory.THINK]: { id: 7, name: 'THINK', text: 'Thinking', title: 'Think', icon: 'fas fa-brain-circuit' },
-  [ActionCategory.WAIT]: { id: 8, name: 'WAIT', text: 'Waiting', title: 'Wait', icon: 'fas fa-clock' },
-  [ActionCategory.WORK]: { id: 10, name: 'WORK', text: 'Working', title: 'Work', icon: 'fas fa-hammer' },
-  [ActionCategory.INTERACT]: { id: 11, name: 'INTERACT', text: 'Interacting', title: 'Interact', icon: 'fas fa-hand-pointer' },
+  [ActionCategory.ORCHESTRATE]: { id: 1, name: 'ORCHESTRATE', text: 'Orchestrating', title: 'Orchestrate', color: ColorType.YELLOW, icon: 'fas fa-arrows-rotate' },
+  [ActionCategory.COMPUTE]: { id: 100, name: 'COMPUTE', text: 'Computing', title: 'Compute', color: ColorType.SKY, icon: 'fas fa-code' },
+  [ActionCategory.WORK]: { id: 200, name: 'WORK', text: 'Working', title: 'Work', color: ColorType.VIOLET, icon: 'fas fa-hammer' },
+  [ActionCategory.WRITE]: { id: 300, name: 'WRITE', text: 'Writing', title: 'Write', color: ColorType.SKY, icon: 'fas fa-pencil' },
+  [ActionCategory.COMMUNICATE]: { id: 400, name: 'COMMUNICATE', text: 'Communicating', title: 'Communicate', color: ColorType.PINK, icon: 'fas fa-inbox-out' },
+  [ActionCategory.OBSERVE]: { id: 800, name: 'OBSERVE', text: 'Observing', title: 'Observe', color: ColorType.EMERALD, icon: 'fas fa-eye' },
+  [ActionCategory.INTERACT]: { id: 1000, name: 'INTERACT', text: 'Interacting', title: 'Interact', color: ColorType.INDIGO, icon: 'fas fa-hand-pointer' },
+  [ActionCategory.FETCH]: { id: 1100, name: 'FETCH', text: 'Fetching', title: 'Fetch', color: ColorType.INDIGO, icon: 'fas fa-download' },
 }
 
 export const LinkTypeOptionInfo: Partial<Record<LinkType, EnumOptionInfo>> = {

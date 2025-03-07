@@ -68,31 +68,30 @@ _type = type
 
 @enum_(EnumType.ACTION_CATEGORY)
 class ActionCategory(BuiltinEnum):
-    READ = 1, "Read", "Reading", "fas fa-eye"
-    SEARCH = 2, "Search", "Searching", "fas fa-magnifying-glass"
-    BROWSE = 3, "Browse", "Browsing", "fas fa-globe"
-    TYPE = 4, "Type", "Typing", "fas fa-keyboard"
-    SPEAK = 5, "Speak", "Speaking", "fas fa-microphone"
-    THINK = 7, "Think", "Thinking", "fas fa-brain-circuit"
-    WAIT = 8, "Wait", "Waiting", "fas fa-clock"
-    WORK = 10, "Work", "Working", "fas fa-hammer"
-    INTERACT = 11, "Interact", "Interacting", "fas fa-hand-pointer"
+    ORCHESTRATE = 1, "Orchestrate", "Orchestrating", "fas fa-arrows-rotate", ColorType.YELLOW
+    COMPUTE = 100, "Compute", "Computing", "fas fa-code", ColorType.SKY
+    WORK = 200, "Work", "Working", "fas fa-hammer", ColorType.VIOLET
+    WRITE = 300, "Write", "Writing", "fas fa-pencil", ColorType.SKY
+    COMMUNICATE = 400, "Communicate", "Communicating", "fas fa-inbox-out", ColorType.PINK
+    OBSERVE = 800, "Observe", "Observing", "fas fa-eye", ColorType.EMERALD
+    INTERACT = 1000, "Interact", "Interacting", "fas fa-hand-pointer", ColorType.INDIGO
+    FETCH = 1100, "Fetch", "Fetching", "fas fa-download", ColorType.INDIGO
 
 
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
-    # flow
+    # orchestrate
     START = 1, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
     COMPLETE = 10, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
     FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation", ColorType.YELLOW
     # ABORT?
 
-    # tool
+    # compute
     TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.SKY
     CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.SKY
     # SHELL, ...
 
-    # dynamic
+    # work
     DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
     THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
     ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
@@ -181,7 +180,6 @@ class ActionType(BuiltinEnum):
     # GRPC, JDBC, SOQL, ...
 
     # internet
-    WEB = 1200, "Web", "Search the Web", "fas fa-globe", ColorType.INDIGO
     # ...
 
     # containers
@@ -189,7 +187,10 @@ class ActionType(BuiltinEnum):
 
     @property
     def category(self) -> ActionCategory:
-        return ACTION_CATEGORY_BY_TYPE.get(self) or ActionCategory.WORK
+        if self < 100:
+            return ActionCategory.ORCHESTRATE
+        else:
+            return ActionCategory(self / 100)
 
     @property
     def is_boundary(self) -> bool:
@@ -202,22 +203,6 @@ class ActionType(BuiltinEnum):
     @property
     def is_container(self) -> bool:
         return self >= 8000 and self < 9000
-
-
-# NOTE: the default ActionCategory is WORK
-ACTION_CATEGORY_BY_TYPE = {
-    ActionType.THINK: ActionCategory.THINK,
-    ActionType.WAIT: ActionCategory.WAIT,
-    ActionType.SEND: ActionCategory.TYPE,
-    ActionType.RECEIVE: ActionCategory.TYPE,
-    ActionType.YIELD: ActionCategory.WAIT,
-    # application
-    **{t: ActionCategory.INTERACT for t in ActionType if t >= 1000 and t < 1100},
-    # data
-    **{t: ActionCategory.READ for t in ActionType if t >= 1100 and t < 1200},
-    # internet
-    **{t: ActionCategory.BROWSE for t in ActionType if t >= 1200 and t < 1300},
-}
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
@@ -443,7 +428,7 @@ class Action(SourceNode[ActionData], IsComputable):
 
 
 #
-# Flow
+# Orchestrate
 #
 
 
@@ -473,7 +458,7 @@ class FailAction(Action):
 
 
 #
-# Generic
+# Compute
 #
 
 
@@ -485,6 +470,11 @@ class CodeAction(Action):
 @subnode_(ActionType.TOOL)
 class ToolAction(Action):
     pass
+
+
+#
+# Work
+#
 
 
 @subnode_(ActionType.GENERATE)

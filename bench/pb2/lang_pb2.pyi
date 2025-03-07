@@ -1614,20 +1614,18 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACTION_TYPE_REST: _ClassVar[ActionType]
     ACTION_TYPE_GRAPHQL: _ClassVar[ActionType]
     ACTION_TYPE_SQL: _ClassVar[ActionType]
-    ACTION_TYPE_WEB: _ClassVar[ActionType]
 
 class ActionCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_CATEGORY_UNSPECIFIED: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_READ: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_SEARCH: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_BROWSE: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_TYPE: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_SPEAK: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_THINK: _ClassVar[ActionCategory]
-    ACTION_CATEGORY_WAIT: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_ORCHESTRATE: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_COMPUTE: _ClassVar[ActionCategory]
     ACTION_CATEGORY_WORK: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_WRITE: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_COMMUNICATE: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_OBSERVE: _ClassVar[ActionCategory]
     ACTION_CATEGORY_INTERACT: _ClassVar[ActionCategory]
+    ACTION_CATEGORY_FETCH: _ClassVar[ActionCategory]
 
 class PortSide(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -3332,17 +3330,15 @@ ACTION_TYPE_HTTP: ActionType
 ACTION_TYPE_REST: ActionType
 ACTION_TYPE_GRAPHQL: ActionType
 ACTION_TYPE_SQL: ActionType
-ACTION_TYPE_WEB: ActionType
 ACTION_CATEGORY_UNSPECIFIED: ActionCategory
-ACTION_CATEGORY_READ: ActionCategory
-ACTION_CATEGORY_SEARCH: ActionCategory
-ACTION_CATEGORY_BROWSE: ActionCategory
-ACTION_CATEGORY_TYPE: ActionCategory
-ACTION_CATEGORY_SPEAK: ActionCategory
-ACTION_CATEGORY_THINK: ActionCategory
-ACTION_CATEGORY_WAIT: ActionCategory
+ACTION_CATEGORY_ORCHESTRATE: ActionCategory
+ACTION_CATEGORY_COMPUTE: ActionCategory
 ACTION_CATEGORY_WORK: ActionCategory
+ACTION_CATEGORY_WRITE: ActionCategory
+ACTION_CATEGORY_COMMUNICATE: ActionCategory
+ACTION_CATEGORY_OBSERVE: ActionCategory
 ACTION_CATEGORY_INTERACT: ActionCategory
+ACTION_CATEGORY_FETCH: ActionCategory
 PORT_SIDE_UNSPECIFIED: PortSide
 PORT_SIDE_INCOMING: PortSide
 PORT_SIDE_OUTGOING: PortSide
