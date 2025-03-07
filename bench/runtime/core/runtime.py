@@ -558,7 +558,10 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.prepare")
     async def _prepare_run(self, runner: Runner):
-        """Prepare the Run for execution (only for Runs, not RunSpans)"""
+        """
+        Prepare the Run for execution (only for Runs, not RunSpans).
+        A Run is prepared before the first time it's attempted, so only once.
+        """
         assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
 
         # compute resources/inputs/options from context

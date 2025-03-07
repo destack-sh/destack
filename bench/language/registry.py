@@ -67,7 +67,14 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, CustomObject, Node, Struct
-    from bench.language.core import InlineSourceNode, IsBased, NodeSubtypeStub, const
+    from bench.language.core import (
+        InlineSourceNode,
+        IsBased,
+        IsInlinable,
+        IsTemplatable,
+        NodeSubtypeStub,
+        const,
+    )
     from bench.language.core.object import (
         _is_setup_complete,
         _set_setup_complete,
@@ -233,7 +240,23 @@ def _complete_bench_setup():
         ]
         assert_collections_equal(inline_source_node_types, const.INLINE_SOURCE_NODE_TYPES.tuple)
 
-        # check that BASED_NODE_TYPES is consistent with HasNodeBase
+        # check that INLINE_NODE_TYPES is consistent with IsInlinable
+        inlinable_node_types = [
+            cast(Node, n).metatype
+            for n in get_subclasses(IsInlinable)
+            if getattr(n, "metatype", None)
+        ]
+        assert_collections_equal(inlinable_node_types, const.INLINE_NODE_TYPES.tuple)
+
+        # check that TEMPLATABLE_NODE_TYPES is consistent with IsTemplatable
+        templatable_node_types = [
+            cast(Node, n).metatype
+            for n in get_subclasses(IsTemplatable)
+            if getattr(n, "metatype", None)
+        ]
+        assert_collections_equal(templatable_node_types, const.TEMPLATABLE_NODE_TYPES.tuple)
+
+        # check that BASED_NODE_TYPES is consistent with IsBased
         base_node_types = [
             cast(Node, n).metatype for n in get_subclasses(IsBased) if getattr(n, "metatype", None)
         ]

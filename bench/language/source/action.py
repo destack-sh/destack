@@ -293,8 +293,15 @@ class Action(SourceNode[ActionData], IsComputable):
         return None
 
     @property
-    def container(self) -> "Node | None":
-        return self.flow
+    def kit(self) -> "Kit | None":
+        """Gets the containing ancestor Kit (if any)"""
+        from bench.language import Kit
+
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, Kit):
+                return parent
+        return None
 
     def run_type(self) -> RunType:
         return RunType.ACTION

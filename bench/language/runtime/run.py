@@ -45,6 +45,7 @@ if TYPE_CHECKING:
         Action,
         AudioOptions,
         Breakpoint,
+        Channel,
         Code,
         CustomObject,
         Error,
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
         Flow,
         ImageOptions,
         Interruption,
+        Kit,
         Link,
         Log,
         ModelDeveloper,
@@ -154,7 +156,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, PackageNode[RunData], IsRuntime, IsTraceable, IsBased):
+class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
     """
     Run something somewhere, somehow.
     """
@@ -168,11 +170,34 @@ class Run(IsTimed, PackageNode[RunData], IsRuntime, IsTraceable, IsBased):
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
-    # owned_by?
     incoming: list["Run"] = p_internal(
-        35, require=False, array=True, references=NodeType.RUN, same_bench=True
+        32, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
-    options: "RunOptions" = p_internal(39, require=True, array=False, struct=StructType.RUN_OPTIONS)
+    options: "RunOptions" = p_internal(33, require=True, array=False, struct=StructType.RUN_OPTIONS)
+    page: Optional["Page"] = p_internal(
+        34,
+        require=False,
+        array=False,
+        references=NodeType.PAGE,
+        same_bench=True,
+        description="The main Page of the Run.",
+    )
+    channel: Optional["Channel"] = p_internal(
+        35,
+        require=False,
+        array=False,
+        references=NodeType.CHANNEL,
+        same_bench=True,
+        description="The Channel for communicating with the Run (contains Run.thread if any).",
+    )
+    thread: Optional["Thread"] = p_internal(
+        36,
+        require=False,
+        array=False,
+        references=NodeType.THREAD,
+        same_bench=True,
+        description="The Thread for communicating with the Run.",
+    )
 
     # status
     status: RunStatus = p_internal(40, default=RunStatus.CREATED)
@@ -193,33 +218,30 @@ class Run(IsTimed, PackageNode[RunData], IsRuntime, IsTraceable, IsBased):
         50, default=None, require=False, array=False, struct=StructType.ERROR
     )
     interruption: Optional["Interruption"] = p_internal(
-        51, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
-    thread: Optional["Thread"] = p_internal(
-        52,
+        51,
         require=False,
         array=False,
-        references=NodeType.THREAD,
+        references=NodeType.INTERRUPTION,
         same_bench=True,
-        description="The Thread for communication with the Run",
-    )
-    page: Optional["Page"] = p_internal(
-        53,
-        require=False,
-        array=False,
-        references=NodeType.PAGE,
-        same_bench=True,
-        description="The main Page of the Run",
+        description="The current Interruption.",
     )
 
     # flow
     flow: Optional["Flow"] = p_internal(
-        61,
+        60,
         require=False,
         array=False,
         references=NodeType.FLOW,
         same_bench=True,
         description="The Flow this Run is in.",
+    )
+    kit: Optional["Kit"] = p_internal(
+        61,
+        require=False,
+        array=False,
+        references=NodeType.KIT,
+        same_bench=True,
+        description="The Kit the Action is in.",
     )
     action: Optional["Action"] = p_internal(
         62,
@@ -267,14 +289,6 @@ class Run(IsTimed, PackageNode[RunData], IsRuntime, IsTraceable, IsBased):
         default=None,
         description="A unique key for this invocation of the Trigger.",
     )
-    trigger_run: Optional["Run"] = p_regular(
-        68,
-        require=False,
-        array=False,
-        references=NodeType.RUN,
-        same_bench=True,
-        description="The Run the Trigger is associated with.",
-    )
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
@@ -291,8 +305,6 @@ class Run(IsTimed, PackageNode[RunData], IsRuntime, IsTraceable, IsBased):
         incoming_ptr: tuple["NodeReference", ...] = ()
         trigger_ptr: Optional[NodeReference] = None
         trigger_id: Optional[UUID] = None
-        trigger_run_ptr: Optional[NodeReference] = None
-        trigger_run_id: Optional[UUID] = None
 
     # content
     resources_packed: Any = p_value_packed(70)

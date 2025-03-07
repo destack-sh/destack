@@ -1552,7 +1552,6 @@ class IsTimed(BuiltinObject, abc.ABC):
     """A Node with a time-based identity."""
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-    __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
 RunnableNode = Union["Flow", "Action", "Link"]

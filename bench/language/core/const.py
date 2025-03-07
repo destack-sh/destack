@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.07.0"
+VERSION = "2025.03.07.2"
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -471,7 +471,7 @@ class NodeMode(BuiltinEnum):
     PRODUCTION = 2, None, None, "fas fa-globe"
     DEVELOPMENT = 4, None, None, "fas fa-bug"
     TEST = 6, None, None, "fas fa-flask"
-    PREVIEW = 8, None, None, "fas fa-eye"
+    TEMPLATE = 8, None, None, "fas fa-puzzle-piece"
     ARCHIVE = 10, None, None, "fas fa-box-archive"
 
 
@@ -687,6 +687,8 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.VIEW,
     NodeType.TAG,
 )
+INLINE_NODE_TYPES = bittuple(*INLINE_SOURCE_NODE_TYPES, NodeType.TASK)
+TEMPLATABLE_NODE_TYPES = bittuple(*SOURCE_NODE_TYPES, NodeType.TASK)
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(  # :HasBase

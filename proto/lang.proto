@@ -597,7 +597,7 @@ enum NodeMode {
   NODE_MODE_PRODUCTION = 2;
   NODE_MODE_DEVELOPMENT = 4;
   NODE_MODE_TEST = 6;
-  NODE_MODE_PREVIEW = 8;
+  NODE_MODE_TEMPLATE = 8;
   NODE_MODE_ARCHIVE = 10;
 }
 
@@ -3122,8 +3122,11 @@ message RunData {
   optional google.protobuf.Value subnode_packed = 29;
   RunType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  repeated NodeReferenceData incoming_ptr = 35;
-  RunOptionsData options = 39;
+  repeated NodeReferenceData incoming_ptr = 32;
+  RunOptionsData options = 33;
+  optional NodeReferenceData page_ptr = 34;
+  optional NodeReferenceData channel_ptr = 35;
+  optional NodeReferenceData thread_ptr = 36;
   RunStatus status = 40;
   optional int32 attempt = 41;
   optional google.protobuf.Duration duration = 42;
@@ -3136,16 +3139,14 @@ message RunData {
   optional google.protobuf.Timestamp terminated_at = 49;
   optional ErrorData error = 50;
   optional NodeReferenceData interruption_ptr = 51;
-  optional NodeReferenceData thread_ptr = 52;
-  optional NodeReferenceData page_ptr = 53;
-  optional NodeReferenceData flow_ptr = 61;
+  optional NodeReferenceData flow_ptr = 60;
+  optional NodeReferenceData kit_ptr = 61;
   optional NodeReferenceData action_ptr = 62;
   optional NodeReferenceData link_ptr = 63;
   optional NodeReferenceData plan_ptr = 64;
   optional NodeReferenceData task_ptr = 65;
   optional NodeReferenceData trigger_ptr = 66;
   optional string trigger_key = 67;
-  optional NodeReferenceData trigger_run_ptr = 68;
   optional google.protobuf.Value resources_packed = 70;
   optional google.protobuf.Value inputs_packed = 71;
   optional google.protobuf.Value outputs_packed = 72;

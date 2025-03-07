@@ -32,6 +32,7 @@ from bench.language import (
     InterruptionStatus,
     InterruptionType,
     IsRuntime,
+    Kit,
     Link,
     Log,
     Node,
@@ -237,11 +238,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if type(run) is Run or run == "track":
             # Runner = Run
             if run == "track":
-                package, flow, action, link, typ = _get_runnable_container(node)
+                package, flow, kit, action, link, typ = _get_runnable_container(node)
                 tracked_run = Run(
                     parent=parent_run or package,
                     type=typ,
                     flow=flow,
+                    kit=kit,
                     action=action,
                     link=link,
                     options=options,
@@ -612,10 +614,11 @@ RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
 
 def _get_runnable_container(
     node: "RunnableNode",
-) -> tuple[Package, Flow | None, Action | None, Link | None, RunType]:
-    """Gets the containing ancestor Package, Flow, Action, Link, and RunKind for a RunnableNode."""
+) -> tuple[Package, Flow | None, Kit | None, Action | None, Link | None, RunType]:
+    """Gets the containing ancestor Package, Flow, Kit, Action, Link, and RunKind for a RunnableNode."""
     package: Package = node.package
     flow: Flow | None = None
+    kit: Kit | None = None
     action: Action | None = None
     link: Link | None = None
 
@@ -625,6 +628,7 @@ def _get_runnable_container(
     elif isinstance(node, Action):
         action = node
         flow = node.flow
+        kit = node.kit
         typ = RunType.ACTION
     elif isinstance(node, Link):
         link = node
@@ -633,7 +637,7 @@ def _get_runnable_container(
     else:
         assert_never(node)
 
-    return package, flow, action, link, typ
+    return package, flow, kit, action, link, typ
 
 
 def make_run_from_node(
@@ -654,7 +658,7 @@ def make_run_from_node(
     # context
     if session is None:
         session = active_session()
-    _, flow, action, link, typ = _get_runnable_container(node)
+    _, flow, kit, action, link, typ = _get_runnable_container(node)
 
     # graph
     parent = parent or node.package
@@ -675,6 +679,7 @@ def make_run_from_node(
         parent=parent,
         type=typ,
         flow=flow,
+        kit=kit,
         action=action,
         link=link,
         mode=mode or tracing.mode,

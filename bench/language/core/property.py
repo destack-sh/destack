@@ -25,6 +25,7 @@ from .const import (
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
+    TEMPLATABLE_NODE_TYPES,
     UNSET,
     BuiltinEnum,
     EnumType,
@@ -561,7 +562,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 )
                 stored_ids.append(id_prop)
                 # also remember 'ck' if any of the shared types has one
-                if any(t in PACKAGE_NODE_TYPES for t in shared_ptr_types):
+                if any(t in TEMPLATABLE_NODE_TYPES for t in shared_ptr_types):
                     ck_prop = Property(
                         id=self.id,
                         name=self.name + "_ck",
