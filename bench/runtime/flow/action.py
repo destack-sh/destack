@@ -29,6 +29,7 @@ from bench.language import (
     GoToUrlAction,
     HasApplicationContext,
     InterruptionType,
+    IsBased,
     IsRuntime,
     LookAction,
     Message,
@@ -268,7 +269,7 @@ class CodeActionRunner(ActionRunner[CodeAction]):
     async def run(self) -> None:
         from bench.runtime.code import CodeFunctionRunner
 
-        code = self.action_inputs.code or CODE_PASS
+        code = self.node.code or CODE_PASS
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
@@ -378,6 +379,12 @@ class CreateActionRunner(StaticActionRunner[CreateAction]):
                 bench = self.session.bench
                 assert bench is not None, f"no bench for {self!r}"
                 node.parent = bench
+            elif (
+                isinstance(node, IsBased)
+                and node.base is not None
+                and (parent_types == "any" or node.base.metatype in parent_types)
+            ):
+                node.parent = node.base
         assert node.is_attached, f"node {node!r} must be attached"
         self.session._create(node)
         logger.debug("create_action.create", action=self.node, node=node)

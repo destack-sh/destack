@@ -38,13 +38,13 @@ class HostSqlContext(BenchSqlContext):
 
     custom_tables_by_name: dict[str, Table]  # may include tables for deleted databases
     custom_tables_by_database: dict[Database, Table]
-    databases_by_ck: dict[UUID, Database]
+    databases_by_id: dict[UUID, Database]
 
     def get_custom_table(self, database: UUID | Database) -> tuple[Table, Database]:
         if isinstance(database, UUID):
-            if database not in self.databases_by_ck:
-                raise RuntimeError(f"no database database for {database!r} in {self.bench!r}")
-            database = self.databases_by_ck[database]
+            if database not in self.databases_by_id:
+                raise RuntimeError(f"no database for {database!r} in {self.bench!r}")
+            database = self.databases_by_id[database]
 
         table = self.custom_tables_by_database.get(database)
         assert table is not None, f"no table for {database!r}"
@@ -66,7 +66,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
             bench=bench,
             custom_tables_by_name={},
             custom_tables_by_database={},
-            databases_by_ck={},
+            databases_by_id={},
         )
 
     def _init_context_from_databases(self) -> None:
@@ -75,7 +75,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
             old_table = self.context.custom_tables_by_database.get(database)
             new_table = map_database_to_table(database, old_table=old_table)
             self.context.custom_tables_by_database[database] = new_table
-            self.context.databases_by_ck[database.ck] = database
+            self.context.databases_by_id[database.id] = database
 
     async def start(self) -> None:
         # synchronize schemas
@@ -113,15 +113,15 @@ class DatabasePlugin(HostPlugin[Database | Field]):
     @override
     async def on_commit_prepare(self, session: Session, commit: Commit[Database | Field]) -> None:
         # check if any databases were touched
-        touched_databases_by_ck: dict[UUID, Database] = {}
+        touched_databases_by_id: dict[UUID, Database] = {}
         for node in commit.edited:
             if isinstance(node, Database):
-                touched_databases_by_ck[node.ck] = node
+                touched_databases_by_id[node.id] = node
             elif isinstance(node, Field):
                 parent = node.parent
                 if isinstance(parent, Database):
-                    touched_databases_by_ck[parent.ck] = parent
-        if not touched_databases_by_ck:
+                    touched_databases_by_id[parent.id] = parent
+        if not touched_databases_by_id:
             return  # nothing to do
 
         # migrate schema for touched databases (and only those)
@@ -132,7 +132,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
         # load missing databases' current schema (in case they were restored)
         old_tables = []
         restored_databases: list[Database] = []
-        for database in touched_databases_by_ck.values():
+        for database in touched_databases_by_id.values():
             if database in self.context.custom_tables_by_database:
                 old_tables.append(self.context.custom_tables_by_database[database])
             else:
@@ -153,7 +153,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
 
         # get new schema and migrate
         new_tables_by_database: dict[Database, Table] = {}
-        for database in touched_databases_by_ck.values():
+        for database in touched_databases_by_id.values():
             table_name = get_record_table_name(database)
             old_table = old_schema._tables_by_name.get(table_name)
             new_table = map_database_to_table(database, old_table=old_table)
@@ -169,15 +169,15 @@ class DatabasePlugin(HostPlugin[Database | Field]):
 
         # patch context optimistically
         self.context.custom_tables_by_database.update(new_tables_by_database)
-        self.context.databases_by_ck.update(touched_databases_by_ck)
+        self.context.databases_by_id.update(touched_databases_by_id)
         logger.debug("database.migrate", host=self, migration_ops=migration_ops)
 
     @override
     async def on_commit(self, session: Session, commit: Commit[Database | Field]) -> None:
         # actually remove tables for removed databases
         for node in commit.removed:
-            if node.ck in self.context.databases_by_ck:
-                del self.context.databases_by_ck[node.ck]
+            if node.id in self.context.databases_by_id:
+                del self.context.databases_by_id[node.id]
                 del self.context.custom_tables_by_database[cast(Database, node)]
 
     @override

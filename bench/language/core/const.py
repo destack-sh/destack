@@ -694,7 +694,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
 INSTANTIABLE_NODE_TYPES = bittuple(NodeType.DATABASE, NodeType.PLAN, NodeType.TASK)
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
-BASED_NODE_TYPES = bittuple(NodeType.RECORD)
+BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE)
 PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
     1000,

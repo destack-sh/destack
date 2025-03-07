@@ -228,7 +228,6 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
     def __init__(self, scope: GraphScopeData, query: "Query", oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._root_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
-        self._roots_cks: set[str] = {str(r.ck) for r in query._roots or () if r.ck}
 
     def __result_str__(self, result: GetResultData) -> str:
         return f"nodes={len(result.graph)}"
@@ -271,10 +270,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                     # already have a parent, check if parent is a root or just a common ancestor
                     parent = result_graph.get(parent_id)
                     while parent is not None:
-                        if (
-                            parent.id in self._root_ids
-                            or getattr(parent, "ck", None) in self._roots_cks
-                        ):
+                        if parent.id in self._root_ids:
                             # yup, parent is a real root
                             is_in_scope = True
                             break
@@ -285,7 +281,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                     else:
                         # just a shared ancestor, not in scope
                         is_in_scope = False
-                elif node.id in self._root_ids or getattr(node, "ck", None) in self._roots_cks:
+                elif node.id in self._root_ids:
                     # optional root, add the node and its ancestors
                     is_in_scope = True
                     ancestor = updated_graph.get(parent_id)
@@ -370,8 +366,8 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._filter = query._filter
-        self._database_ck = (
-            str(query._base_type.ck) if isinstance(query._base_type, Database) else None
+        self._database_id = (
+            str(query._base_type.id) if isinstance(query._base_type, Database) else None
         )
         self._result_roots_ids: set[str] | None = None
 
@@ -431,7 +427,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
                     continue  # ignore irrelevant remove
                 node = self._result_data.graph[node_id]
             is_relevant = (
-                self._database_ck is None or self._database_ck == getattr(node, "database_ptr").ck
+                self._database_id is None or self._database_id == getattr(node, "database_ptr").id
             ) and (self.query._filter is None or evaluate_conditional(self.query._filter, node))
             if not (is_relevant or is_extant):
                 continue  # ignore irrelevant edit

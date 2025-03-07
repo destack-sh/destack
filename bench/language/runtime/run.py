@@ -427,11 +427,11 @@ class Run(IsTimed, IsRuntime, IsTraceable, PackageNode[RunData]):
     def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
         """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
-        if self.runnable_ptr == runnable.ck:
+        if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id == runnable.id:
             matching_runs.append(self)
         for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
             run = cast(Run, run)
-            if run.runnable_ptr == runnable.ck:
+            if (runnable_ptr := run.runnable_ptr) is not None and runnable_ptr.id == runnable.id:
                 matching_runs.append(run)
         matching_runs.sort(
             key=lambda r: r.terminated_at or r.started_at or r.created_at,

@@ -250,7 +250,6 @@ class Action(SourceNode[ActionData], IsComputable):
         array=False,
         struct=StructType.CODE,
         description="The implementation code for this action.",
-        field_type=FieldType.INPUT,
     )
     tool: Union["Flow", "Action", None] = p_regular(
         53,

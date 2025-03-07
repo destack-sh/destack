@@ -39,7 +39,7 @@ from bench.language.core import (
     unpack_value,
     unpack_value_data,
 )
-from bench.language.core.const import CK_LENGTH_B64
+from bench.language.core.const import CK_LENGTH_B64, ReferenceKind
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.pb2 import (
     AnyNodeData,
@@ -617,6 +617,12 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
             # done: set value
             if prop is not None:
                 # builtin object property
+                if (
+                    prop.reference_kind == ReferenceKind.NODE_ANCESTOR
+                    or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
+                ):
+                    # set automatically (the edit is generated to update the backend)
+                    return
                 value_type = cast(BuiltinObject, obj).__properties__[key].type_info
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 if prop.is_subnode_packed and new_value_packed:

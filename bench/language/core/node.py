@@ -1230,6 +1230,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Creates a new partial Node of this type."""
         from .value import coerce_custom_object_scalar
 
+        if base_type is None and issubclass(cls, IsBased):
+            base_type = cast(TypeBaseNode, cls.get_base_from_partial(kwargs))
+
         typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
         if cls is not Node:
             kwargs["metatype"] = cls.metatype

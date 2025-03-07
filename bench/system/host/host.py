@@ -303,9 +303,9 @@ class HostService(GraphServiceBase, HostBase):
 
     @override
     def resolve_request_base(self, node_ptr: NodeReference | UUID) -> TypeBaseNode | None:
-        base_ck = node_ptr.ck if isinstance(node_ptr, NodeReference) else node_ptr
-        assert base_ck, f"no base ck in {node_ptr!r}"
-        node = self.main_package._graph.get(base_ck)
+        base_id = node_ptr.id if isinstance(node_ptr, NodeReference) else node_ptr
+        assert base_id, f"no base id in {node_ptr!r}"
+        node = self.main_package._graph.get(base_id)
         if not isinstance(node, InlineSourceNode):
             return None
         return cast(TypeBaseNode, node)

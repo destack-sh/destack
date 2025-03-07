@@ -445,7 +445,7 @@ def unpack_node_roots(
         connection=connection,
     )
 
-    if roots:
+    if roots is not None:
         # recover roots if specified (may not be actual roots)
         recovered_roots = []
         for root in roots:
