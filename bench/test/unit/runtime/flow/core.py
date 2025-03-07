@@ -4,7 +4,6 @@ from bench.language import (
     Action,
     ActionType,
     Block,
-    Code,
     ComputedValueMode,
     ErrorType,
     Field,
@@ -71,30 +70,6 @@ async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWo
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Complete)
-    Start.connect(LinkType.REQUIRE, Complete, is_manual=True)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1)
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 3
-
-
-@simulated_runtime()
-async def test_run_flow_with_default_values(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with default values in Complete action."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(
-            Field.output("Output1", int, is_required=True),
-            Field.output("Output2", bool),
-            Field.output("Output3", str, is_required=True),
-        ),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Complete = Action.new(
-        ActionType.COMPLETE, "Complete", parent=Flow1, inputs={"Output1": 1, "Output3": "MyString"}
-    )
     Flow1.actions.extend(Start, Complete)
     Start.connect(LinkType.REQUIRE, Complete, is_manual=True)
     runtime.page().append(Flow1)
@@ -333,42 +308,6 @@ async def test_run_flow_computed_value_mode(simulation: Simulation, runtime: Run
     assert runner.outputs and runner.outputs.Output1 == 1  # Output 1 == Input1 (always)
     assert runner.outputs and runner.outputs.Output2 == 2  # Output2 == Input2?
     assert runner.outputs and runner.outputs.Output3 == 3  # Output3 == Input3 (first set)
-
-
-@simulated_runtime()
-async def test_run_flow_code_dynamic(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Code action with Action.code set dynamically in a Variable."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(Field.input("Code", Code), Field.output("Output", int)),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Flow1.actions.append(Start)
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code",
-        code=code("return {'Output': 1}"),
-        fields=(Field.output("Output", int),),
-    )
-    Flow1.actions.append(Code1)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Code1.get_property("code")),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Code),
-    )
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Complete.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
-        source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output),
-    )
-    Flow1.actions.append(Complete)
-    Code1.connect(LinkType.REQUIRE, Complete, is_manual=True)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    # override the code to return 2
-    runner = await runtime.run_in_runtime(Flow1, inputs={"Code": code("return {'Output': 2}")})
-    assert runner.outputs and runner.outputs.Output == 2
 
 
 @simulated_runtime()

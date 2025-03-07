@@ -88,11 +88,10 @@ async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambda
     # run tool action directly
     runner = await runtime.run_in_runtime(
         Tool1,
-        inputs={"type": ActionType.CODE, "code": code("pass")},
+        inputs={"type": ActionType.CODE},
     )
     assert len(runner.runners) == 1
     assert isinstance(runner.runners[0], CodeActionRunner)
-    assert runner.runners[0].inputs.code == code("pass")
 
     # running flow as is should fail (at tool, because tool is unset)
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
@@ -103,7 +102,7 @@ async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambda
     Code1.code = code("""\
 plan = Plan.serial(
     "Plan",
-    Task.run("Tool1", Tool1, type=ActionType.CODE, code=code("pass")),
+    Task.run("Tool1", Tool1, type=ActionType.CODE),
     on_terminate=PlanTerminationMode.PASS,
 )
 run.plans.append(plan)

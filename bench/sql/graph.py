@@ -94,7 +94,7 @@ from bench.pb2 import (
 from bench.proto import wiring
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.utils.env import IS_DEV
-from bench.utils.func import describe_type, encode_b64vlq, group_by, to_uuid
+from bench.utils.func import describe_type, group_by, to_uuid
 from bench.utils.string import Casing, to_casing
 from bench.utils.time import timedelta_from_isoformat
 from bench.utils.uuidt import UUIDT
@@ -178,13 +178,11 @@ def get_node_table_name(node_type: NodeType) -> str:
 
 
 def get_record_table_name(database: Database) -> str:
-    ck_b64 = encode_b64vlq(database.ck.int)
-    return f"{BENCH_RECORD_TABLE_PREFIX}{ck_b64}"
+    return f"{BENCH_RECORD_TABLE_PREFIX}{database.ck.hex}"
 
 
 def get_record_field_name(field: Field) -> str:
-    field_b64 = encode_b64vlq(field.ck.int)
-    return f"{BENCH_RECORD_VALUE_PREFIX}{field_b64}{field.identity_key}"
+    return f"{BENCH_RECORD_VALUE_PREFIX}{field.ck.hex}{field.identity_key}"
 
 
 def map_builtin_object_to_table(

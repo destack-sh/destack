@@ -179,6 +179,7 @@ export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.B
 export const BASED_NODE_TYPES = [
   // :HasBase
   NodeType.RECORD,
+  NodeType.MESSAGE,
 ];
 export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100);
 export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 && nodeType < 200);
@@ -255,6 +256,7 @@ export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
 /** Default base type for based Nodes */
 export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
   [NodeType.RECORD]: NodeType.DATABASE,
+  [NodeType.MESSAGE]: NodeType.CLASS,
 };
 
 /**
@@ -263,6 +265,8 @@ export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
 export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData | null {
   if (isNode(node, NodeType.RECORD)) {
     return node.databasePtr ?? null;
+  } else if (isNode(node, NodeType.MESSAGE)) {
+    return node.clazzPtr ?? null;
   } else {
     return null;
   }
