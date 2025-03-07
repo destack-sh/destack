@@ -207,7 +207,8 @@ export function formatAbsoluteDate(dt: Timestamp | DateTime, options?: { prefer?
   if (!(dt instanceof DateTime)) dt = tsToDt(dt);
 
   const now = getNow(TimeUpdateInterval.MINUTE).value;
-  const diff = Math.abs(now.diff(dt, "days").as("days"));
+  const diffRel = now.diff(dt, "days").as("days");
+  const diffAbs = Math.abs(diffRel);
   const yesterday = now.minus({ days: 1 });
 
   if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
@@ -226,21 +227,21 @@ export function formatAbsoluteDate(dt: Timestamp | DateTime, options?: { prefer?
     } else {
       return `Yesterday at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
     }
-  } else if (diff <= 6 && dt.year == now.year) {
+  } else if (diffRel < 0 && diffAbs <= 6 && dt.year == now.year) {
     // if it's within the last week in same year, say "<weekday> at <time>"
     if (options?.prefer == "date") {
       return dt.toFormat("cccc");
     } else {
       return `${dt.toFormat("cccc")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
     }
-  } else if (diff <= 364 && dt.year == now.year) {
+  } else if (diffAbs <= 364 && dt.year == now.year) {
     // if it's within the last year in same year, say "<month> <day> at <time>"
     if (options?.prefer == "date") {
       return dt.toFormat("LLL d");
     } else {
       return `${dt.toFormat("LLL d")} at ${dt.toLocaleString(DateTime.TIME_SIMPLE)}`;
     }
-  } else if (diff <= 6) {
+  } else if (diffAbs <= 6) {
     // if it's within the last week but different year
     if (options?.prefer == "date") {
       return dt.toFormat("cccc, LLL d, yyyy");

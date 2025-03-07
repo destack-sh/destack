@@ -141,7 +141,8 @@ function formatDisplayString(dt: DateTime): string {
   } else if (unit.value == "Time") {
     displayString = timeString.value;
   } else if (unit.value == "Date/Time" && dateTime.value) {
-    displayString = formatAbsoluteDate(props.modelValue as Timestamp);
+    const hasTime = dt.hour != 0 || dt.minute != 0 || dt.second != 0;
+    displayString = formatAbsoluteDate(dt, { prefer: hasTime ? undefined : "date" });
   } else {
     displayString = "???";
   }
@@ -275,14 +276,14 @@ defineExpose<ViewExpose>({
   >
     <!-- Dropdown Button -->
     <!-- Current value display -->
-    <template v-if="modelValue">
+    <template v-if="dateTime">
       <IconInline
         v-if="icon || !isMinimal"
         v-bind="icon ?? makeIcon(PrimitiveTypeOptionInfo[valueType?.primitiveType ?? PrimitiveType.DATETIME]!.icon!)"
         class="w-5 text-center group-hover:text-gray-700"
         :class="dateString ? 'text-gray-700' : 'text-gray-400'"
       />
-      <span class="truncate">{{ formatDisplayString(currentMonth) }}</span>
+      <span class="truncate">{{ formatDisplayString(dateTime) }}</span>
       <!-- Clear button -->
       <button
         v-if="!isDisabled && isInput && !valueType?.isRequired"
