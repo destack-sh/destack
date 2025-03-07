@@ -280,13 +280,13 @@ class HostService(GraphServiceBase, HostBase):
                 user = client.parent
             elif isinstance(client.parent, Bench):
                 machine = client.machine
-                owned = [self._bench]  # NOTE :Robustness: Machines own their Benches for now
+                owned = [self._bench]  # NOTE :Security: Machines own their Benches for now
             else:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
         else:
             client = None
 
-        # NOTE :Incomplete: get roles/memberships/identities/... for subject in this bench
+        # NOTE :Incomplete: get roles/memberships/... for subject in this bench
 
         # use new supergraph instance for session
         supergraph = self._supergraph.instance(name="Request")

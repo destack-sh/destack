@@ -270,7 +270,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     next_task = tasks[step]
                     for link in self.node.links:
                         if (
-                            link.target_id == next_task.node_id
+                            link.target_id == next_task.target_id
                             and link.source_id == parent_run.action_id
                         ):
                             next_run = self._start(
@@ -327,7 +327,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     next_tasks = ()
                 for next_task in next_tasks:
                     link = next(
-                        (p for p in outgoing_links if p.target_id == next_task.node_id), None
+                        (p for p in outgoing_links if p.target_id == next_task.target_id), None
                     )
                     if link is None:
                         continue  # ignore, can't call arbitrary nodes

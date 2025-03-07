@@ -27,8 +27,8 @@ class MachineHandle:
         self.oracle = oracle
         self.simulation = simulation
         self.clients_by_name: dict[str, ClientHandle] = {}
-        self._machine_data: MachineData | None = None
         self._client_data: ClientData | None = None
+        self._machine_data: MachineData | None = None
         self._access_token: str | None = None
 
     def __str__(self):
@@ -95,4 +95,4 @@ class MachineHandle:
         self._client_data = client._to_data()
         self._client_data.ClearField("parent_ptr")
         self._machine_data = machine._to_data()
-        self._machine_data.ClearField("parent_ptr")
+        self._machine_data.ClearField("parent_ptr")  # type: ignore

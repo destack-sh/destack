@@ -39,6 +39,7 @@ if TYPE_CHECKING:
         Class,
         Error,
         Flow,
+        Interruption,
         NodeReference,
         Page,
         Plan,
@@ -113,25 +114,38 @@ class Task(
     error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
 
     # content
-    node: Union["Flow", "Action", None] = p_regular(
-        60, require=False, references=(NodeType.FLOW, NodeType.ACTION)
-    )
     clazz: Optional["Class"] = p_internal(
-        61,
+        60,
         require=False,
         array=False,
         references=NodeType.CLASS,
         description="The Task class.",
     )
-    value_packed: Any = p_value_packed(62)
+    target: Union["Flow", "Action", None] = p_regular(
+        61,
+        require=False,
+        references=(NodeType.FLOW, NodeType.ACTION),
+        description="The target Node to run.",
+    )
+    value_packed: Any = p_value_packed(65)
     value: Any = p_value_runtime(
-        62, type=FieldType.INPUT, typ=lambda self: cast(Task, self).value_type
+        65, type=FieldType.INPUT, typ=lambda self: cast(Task, self).value_type
+    )
+    interruption: Optional["Interruption"] = p_regular(
+        66,
+        require=False,
+        array=False,
+        references=NodeType.INTERRUPTION,
+        description="The Interruption this is about.",
+        same_bench=True,
     )
     if TYPE_CHECKING:
-        node_ptr: NodeReference | None = None
-        node_id: str | None = None
         clazz_ptr: Optional[NodeReference] = None
         clazz_id: Optional[UUID] = None
+        target_ptr: Optional[NodeReference] = None
+        target_id: Optional[UUID] = None
+        interruption_ptr: Optional[NodeReference] = None
+        interruption_id: Optional[UUID] = None
 
     # flags
     is_manual: bool = p_regular(
@@ -150,7 +164,7 @@ class Task(
 
     @cached_property
     def value_type(self) -> Optional["TypeBase"]:
-        node = self.node
+        node = self.target
         return (
             node.to_type_maybe(of="value", field_types=[FieldType.RESOURCE, FieldType.INPUT])
             if node is not None
@@ -195,5 +209,5 @@ class Task(
         )
         assert value_type is not None, f"no call value type for {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
-        task = Task(type=TaskType.RUN, name=name, node=node, text=text, value=value)
+        task = Task(type=TaskType.RUN, name=name, target=node, text=text, value=value)
         return task

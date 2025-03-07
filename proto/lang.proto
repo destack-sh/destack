@@ -1704,6 +1704,7 @@ enum ViewType {
   VIEW_TYPE_CONTEXT = 20206;
   VIEW_TYPE_ACTIVITY = 20207;
   VIEW_TYPE_CATALOG = 20208;
+  VIEW_TYPE_INBOX = 20209;
   VIEW_TYPE_WINDOW = 30001;
   VIEW_TYPE_TAB = 30002;
   VIEW_TYPE_HISTORY = 30003;
@@ -3046,6 +3047,7 @@ message InterruptionData {
   optional google.protobuf.Value outputs_packed = 53;
   optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
+  optional NodeReferenceData task_ptr = 56;
   optional NodeReferenceData cancel_trigger_ptr = 60;
   optional NodeReferenceData complete_trigger_ptr = 61;
   optional NodeReferenceData session_ptr = 90;
@@ -3245,9 +3247,10 @@ message TaskData {
   optional google.protobuf.Timestamp started_at = 53;
   optional google.protobuf.Timestamp terminated_at = 56;
   optional ErrorData error = 57;
-  optional NodeReferenceData node_ptr = 60;
-  optional NodeReferenceData clazz_ptr = 61;
-  optional google.protobuf.Value value_packed = 62;
+  optional NodeReferenceData clazz_ptr = 60;
+  optional NodeReferenceData target_ptr = 61;
+  optional google.protobuf.Value value_packed = 65;
+  optional NodeReferenceData interruption_ptr = 66;
   bool is_manual = 70;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
