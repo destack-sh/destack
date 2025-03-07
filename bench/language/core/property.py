@@ -425,7 +425,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         # NOTE :Cleanup: mapping stored and wired references (i.e. node pointers) is gnarly.
         #  In wire pointers (=NodeReference[Data]) we conveniently have a struct with all the info:
-        #   type+id+[ck]+[bench_id]+[base_ck+base_bench_id]
+        #   type+id+[ck]+[bench_id]+[base_id]
         #  But we don't want to store pointers as structs for efficiency, so we map them to columns.
         #  We want FKs on some id columns (like parent pointers), so those need to be
         #  distinct id columns, while others can be bunched together into (id, ck, type) tuple.

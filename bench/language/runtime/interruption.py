@@ -202,6 +202,7 @@ class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceabl
         55,
         require=False,
         array=False,
+        baseless=True,
         references=NodeType.MESSAGE,
         description="The Message that was created for this Interruption.",
         same_bench=True,

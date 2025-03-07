@@ -79,7 +79,7 @@ class Notification(IsTimed, BenchNode[NotificationData]):
     text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
     nodes: list["Node"] = p_regular(53, array=True, require=False, references="any")
     message: Optional["Message"] = p_regular(
-        54, require=False, array=False, references=NodeType.MESSAGE
+        54, require=False, array=False, baseless=True, references=NodeType.MESSAGE
     )
 
     def __content_str__(self) -> str:
