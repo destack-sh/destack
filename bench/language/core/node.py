@@ -1509,31 +1509,6 @@ class IsComputable(BuiltinObject):
 
 
 @node_component_()
-class SourceNode[NodeDataT: AnyNodeData](
-    IsTemplatable, IsTraceable, PackageNode[NodeDataT], abc.ABC
-):
-    """
-    A Node in a Package with a persistent identity that can be instanced.
-    """
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.package is not None
-
-    @property
-    def page(self) -> "Page | None":
-        """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page, SourceNode
-
-        parent = self.parent
-        while isinstance(parent, SourceNode):
-            if isinstance(parent, Page):
-                return parent
-            parent = parent.parent
-        return None
-
-
-@node_component_()
 class IsInlinable(BuiltinObject):
     """A Node that can be defined 'inline' in a Block/Page."""
 
@@ -1570,6 +1545,68 @@ class IsInlinable(BuiltinObject):
         thread_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
         tags_ptr: tuple[NodeReference, ...] = ()
+
+
+@node_component_()
+class IsTimed(BuiltinObject, abc.ABC):
+    """A Node with a time-based identity."""
+
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+    __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+
+
+RunnableNode = Union["Flow", "Action", "Link"]
+RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
+FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
+FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
+TypeBaseNode = Union[FieldBaseNode, "Choice"]
+TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
+
+
+@node_component_()
+class IsBased(BuiltinObject, abc.ABC):
+    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
+
+    @property
+    @abc.abstractmethod
+    def base(self) -> Optional[BenchNode]: ...
+
+    @property
+    def base_ck(self) -> Optional[UUID]:
+        return self.base.ck if self.base is not None else None
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
+
+
+@node_component_()
+class SourceNode[NodeDataT: AnyNodeData](
+    IsTemplatable, IsTraceable, PackageNode[NodeDataT], abc.ABC
+):
+    """
+    A Node in a Package with a persistent identity that can be instanced.
+    """
+
+    @property
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.package is not None
+
+    @property
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page, SourceNode
+
+        parent = self.parent
+        while isinstance(parent, SourceNode):
+            if isinstance(parent, Page):
+                return parent
+            parent = parent.parent
+        return None
 
 
 @node_component_()
@@ -1616,43 +1653,6 @@ class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT
         from bench.language import Block
 
         return Block.wrap(self)
-
-
-@node_component_()
-class IsTimed(BuiltinObject, abc.ABC):
-    """A Node with a time-based identity."""
-
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-    __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-
-
-RunnableNode = Union["Flow", "Action", "Link"]
-RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
-FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
-FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
-TypeBaseNode = Union[FieldBaseNode, "Choice"]
-TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
-
-
-@node_component_()
-class IsBased(BuiltinObject, abc.ABC):
-    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
-
-    @property
-    @abc.abstractmethod
-    def base(self) -> Optional[BenchNode]: ...
-
-    @property
-    def base_ck(self) -> Optional[UUID]:
-        return self.base.ck if self.base is not None else None
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
 
 
 #

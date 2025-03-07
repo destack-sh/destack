@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.06.2"
+VERSION = "2025.03.07.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1851,9 +1851,8 @@ INTERRUPTION_TABLE = Table(
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("response", PrimitiveType.INT16, is_nullable=True),
         Column("message_id", PrimitiveType.UUID, is_nullable=True),
-        Column("message_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("message_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("message_base_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("task_id", PrimitiveType.UUID, is_nullable=True),
         Column("cancel_trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("cancel_trigger_ck", PrimitiveType.UUID, is_nullable=True),
         Column("cancel_trigger_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -2002,14 +2001,16 @@ TASK_TABLE = Table(
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
-        Column("node_id", PrimitiveType.UUID, is_nullable=True),
-        Column("node_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("node_type", PrimitiveType.INT16, is_nullable=True),
-        Column("node_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_id", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_ck", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("target_type", PrimitiveType.INT16, is_nullable=True),
+        Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("is_manual", PrimitiveType.BOOLEAN, default="false"),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),

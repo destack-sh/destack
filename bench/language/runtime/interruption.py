@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         Page,
         Run,
         RunnableNode,
+        Task,
         Text,
         Trigger,
         TypeBase,
@@ -121,9 +122,9 @@ class Breakpoint(Struct):
 
 @enum_(EnumType.INTERRUPTION_TYPE)
 class InterruptionType(BuiltinEnum):
-    PAUSE = 10, None, None, "fas fa-pause"
-    YIELD = 20, None, None, "fas fa-hand"
-    WAIT = 30, None, None, "fas fa-hourglass-end"
+    PAUSE = 10, "Pause", "Run is marked as paused", "fas fa-pause"
+    YIELD = 20, "Yield", "Yield to something", "fas fa-hand"
+    WAIT = 30, "Wait", "Wait for a Trigger", "fas fa-hourglass-end"
 
 
 RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {
@@ -201,7 +202,20 @@ class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceabl
     )
     response: Optional[InterruptionResponse] = p_internal(54, require=False, default=None)
     message: Optional["Message"] = p_regular(
-        55, require=False, array=False, references=NodeType.MESSAGE
+        55,
+        require=False,
+        array=False,
+        references=NodeType.MESSAGE,
+        description="The Message that was created for this Interruption.",
+        same_bench=True,
+    )
+    task: Optional["Task"] = p_regular(
+        56,
+        require=False,
+        array=False,
+        references=NodeType.TASK,
+        description="The Task that was created for this Interruption.",
+        same_bench=True,
     )
 
     # trigger
