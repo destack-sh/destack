@@ -952,8 +952,8 @@ class TaskRenderer(NodeRenderer["Task"]):
         from bench.language import Task
 
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        node = kwargs.pop(Task.get_property("node"))
-        node_str = renderer.render_node_ref(node)
+        target = kwargs.pop(Task.get_property("target"))
+        target_str = renderer.render_node_ref(target)
         value = kwargs.pop(Task.get_property("value"))
         value_kwargs = _deconstruct_custom_object(value)
         kwargs.pop(Task.get_property("type"), None)
@@ -962,7 +962,9 @@ class TaskRenderer(NodeRenderer["Task"]):
         rendered_value_kwargs = _render_custom_object_kwargs(renderer, value, value_kwargs)
         rendered_kwargs.update(rendered_value_kwargs)
         args = renderer.render_args(
-            rendered_kwargs.pop("name"), node_str, renderer.render_kwargs(**rendered_kwargs) or None
+            rendered_kwargs.pop("name"),
+            target_str,
+            renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Task.{obj.type.name.lower()}({args})"
 

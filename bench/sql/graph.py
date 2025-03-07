@@ -209,7 +209,6 @@ def map_builtin_object_to_table(
             is_encrypted=prop.is_encrypted,
             is_primary_key=prop.name == "id",
             is_unique=prop.is_unique,
-            _source=prop.id,
         )
         # default
         if prop.default_sql is not UNSET:
@@ -271,7 +270,6 @@ def map_builtin_object_to_table(
         indexes.append(extra_index)
 
     table = Table(
-        _source=node.metatype.id,
         name=table_name,
         columns=tuple(columns),
         constraints=tuple(constraints),
@@ -319,7 +317,6 @@ def map_database_to_table(database: Database, old_table: Table | None) -> Table:
             is_array=field.is_list,
             is_nullable=True,  # NOTE :Incomplete: support field constraints in database
             is_primary_key=False,
-            _source=field.tk,
             _field=field,
         )
         columns.append(column)
@@ -332,7 +329,6 @@ def map_database_to_table(database: Database, old_table: Table | None) -> Table:
                 columns.append(old_column.clone())
 
     return Table(
-        _source=database.tk,
         _database=database,
         name=table_name,
         columns=tuple(columns),

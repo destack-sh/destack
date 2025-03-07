@@ -266,7 +266,6 @@ class Column(TableObject):
     precision: int | None = None
     scale: int | None = None
     default: str | None = None
-    _source: str | int | None = None
     _field: Union["Field", None] = None
     _table: Union["Table", None] = None  # type: ignore
     _unencrypted_type: PrimitiveType | None = None  # for encrypted columns
@@ -505,7 +504,6 @@ class Table(TableObject):
     columns: tuple[Column, ...]
     indexes: tuple[Index, ...] = ()
     constraints: tuple[Constraint, ...] = ()
-    _source: str | int | None = None
     _database: Union["Database", None] = None  # type: ignore
     _columns_by_name: dict[str, Column] = dataclasses.field(init=False)
     _columns_by_field: dict["Field", Column] = dataclasses.field(init=False)
@@ -776,12 +774,12 @@ ALL_EXTENSIONS = (
 MIGRATION_TABLE = Table(  # see bench/sql/migration.py
     "bench_migration",
     columns=(
-        Column("id", PrimitiveType.INT32, is_primary_key=True, _source=2),
-        Column("version", PrimitiveType.STRING, is_unique=True, _source=30),
-        Column("has_global", PrimitiveType.BOOLEAN, _source=31),
-        Column("has_regional", PrimitiveType.BOOLEAN, _source=32),
-        Column("has_local", PrimitiveType.BOOLEAN, _source=33),
-        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True, _source=34),
+        Column("id", PrimitiveType.INT32, is_primary_key=True),
+        Column("version", PrimitiveType.STRING, is_unique=True),
+        Column("has_global", PrimitiveType.BOOLEAN),
+        Column("has_regional", PrimitiveType.BOOLEAN),
+        Column("has_local", PrimitiveType.BOOLEAN),
+        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )
 

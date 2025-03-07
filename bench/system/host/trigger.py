@@ -95,7 +95,6 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
             run = make_run_from_node(target, inputs=inputs)
             run.trigger = trigger
             run.trigger_key = trigger_key
-            run.trigger_run = trigger_run
             if trigger_run is not None:
                 run.machine = trigger_run.machine
             session._create(run)
