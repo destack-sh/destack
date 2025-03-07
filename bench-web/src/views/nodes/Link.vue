@@ -30,7 +30,7 @@ const pathColorHex = computed(() => {
   if (color == ColorType.GRAY) {
     return getColorHex(color, ColorShade.S400);
   } else {
-    return getColorHex(color, ColorShade.S600);
+    return getColorHex(color, ColorShade.S500);
   }
 });
 

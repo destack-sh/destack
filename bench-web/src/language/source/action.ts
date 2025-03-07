@@ -1,33 +1,17 @@
-import { ACTION_TYPES } from "@/language/core/const";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 
 import { ActionCategory, ActionData, ActionType, BenchType, FieldType, TypeData, TypeKind } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 
-// NOTE: the default ActionCategory is WORK
-export const ACTION_CATEGORY_BY_TYPE: Partial<Record<ActionType, ActionCategory>> = {
-  [ActionType.THINK]: ActionCategory.THINK,
-  [ActionType.WAIT]: ActionCategory.WAIT,
-  [ActionType.SEND]: ActionCategory.TYPE,
-  [ActionType.RECEIVE]: ActionCategory.TYPE,
-  [ActionType.YIELD]: ActionCategory.WAIT,
-};
-for (const type of ACTION_TYPES) {
-  if (type >= 1000 && type < 1100) {
-    ACTION_CATEGORY_BY_TYPE[type] = ActionCategory.INTERACT;
-  } else if (type >= 1100 && type < 1200) {
-    ACTION_CATEGORY_BY_TYPE[type] = ActionCategory.READ;
-  } else if (type >= 1200 && type < 1300) {
-    ACTION_CATEGORY_BY_TYPE[type] = ActionCategory.BROWSE;
-  }
-}
-
 export function getActionCategory(action: ActionData | ActionType): ActionCategory {
-  if (typeof action == "number") {
-    return ACTION_CATEGORY_BY_TYPE[action] ?? ActionCategory.WORK;
+  if (typeof action != "number") {
+    action = action.type;
+  }
+  if (action < 100) {
+    return ActionCategory.ORCHESTRATE;
   } else {
-    return ACTION_CATEGORY_BY_TYPE[action.type] ?? ActionCategory.WORK;
+    return Math.floor(action / 100) as ActionCategory;
   }
 }
 

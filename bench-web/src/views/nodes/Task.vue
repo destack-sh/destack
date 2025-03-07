@@ -67,14 +67,14 @@ defineExpose<ViewExpose>({ self, id, focus });
     <button
       class="ml-1 mt-0.5 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-200 bg-white p-[1px] transition-colors duration-75"
       :style="{
-        borderColor: fillState != 'empty' ? getTaskColorHex(task.status, ColorShade.S600) : undefined,
+        borderColor: fillState != 'empty' ? getTaskColorHex(task.status, ColorShade.S500) : undefined,
       }"
       @click="toggleTaskStatus(connection.tx, task)"
     >
       <span
         class="inline-block h-full w-full rounded-2xl transition-all duration-75"
         :style="{
-          backgroundColor: fillState != 'empty' ? getTaskColorHex(task.status, ColorShade.S600) : undefined,
+          backgroundColor: fillState != 'empty' ? getTaskColorHex(task.status, ColorShade.S500) : undefined,
           clipPath: fillState == 'full' ? undefined : 'inset(0 0 50% 0)',
         }"
       />

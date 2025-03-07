@@ -128,7 +128,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
       >
         <IconInline
           v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
-          :style="{ color: getRunColorHex(run.status, ColorShade.S600) }"
+          :style="{ color: getRunColorHex(run.status, ColorShade.S500) }"
           :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
         />
         <div class="ml-1.5">
