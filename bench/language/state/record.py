@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
     passthrough_set=("value",),
     stored_value_unraveled=True,
 )
-class Record(BenchNode[RecordData], IsBased):
+class Record(IsBased, BenchNode[RecordData]):
     """
     A Record from a Database.
     """

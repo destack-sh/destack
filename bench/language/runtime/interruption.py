@@ -5,12 +5,10 @@ from git import TYPE_CHECKING
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
-    BenchNode,
     BuiltinEnum,
     CustomObject,
     EnumType,
     FieldType,
-    IsBased,
     IsRuntime,
     IsTimed,
     IsTraceable,
@@ -30,7 +28,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.pb2 import AnyNodeData, InterruptionData, NodeReferenceData
+from bench.pb2 import InterruptionData
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -40,7 +38,6 @@ if TYPE_CHECKING:
         Message,
         Page,
         Run,
-        RunnableNode,
         Task,
         Text,
         Trigger,
@@ -160,7 +157,7 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
-class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceable, IsBased):
+class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceable):
     """An Interruption in the execution of a Run."""
 
     # meta
@@ -260,45 +257,6 @@ class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceabl
         if (runnable := self.runnable) is None:
             return None
         return runnable.output_type
-
-    @property
-    def base_ptr(self) -> Optional["NodeReference"]:
-        if self.link_ptr is not None:
-            return self.link_ptr
-        elif self.action_ptr is not None:
-            return self.action_ptr
-        else:
-            return self.flow_ptr
-
-    @property
-    def base(self) -> Optional["BenchNode"]:
-        if self.link_ptr is not None:
-            return self.link
-        elif self.action_ptr is not None:
-            return self.action
-        else:
-            return self.flow
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        run_data = cast(InterruptionData, data)
-        if run_data.link_ptr.metatype != 0:
-            return cast(InterruptionData, data).link_ptr
-        elif run_data.action_ptr.metatype != 0:
-            return cast(InterruptionData, data).action_ptr
-        else:
-            return cast(InterruptionData, data).flow_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
-        if "link" in data:
-            return data["link"]
-        elif "action" in data:
-            return data["action"]
-        elif "flow" in data:
-            return data["flow"]
-        else:
-            return None
 
     @property
     def is_open(self) -> bool:

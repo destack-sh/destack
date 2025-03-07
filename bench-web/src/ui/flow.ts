@@ -945,7 +945,7 @@ export class FlowContext {
       return "Cannot connect to ending Action.";
     } else if (
       this.links.value.some(
-        (link) => link.sourcePtr?.ck == sourcePort.parent.ck && link.targetPtr?.ck == targetPort.parent.ck,
+        (link) => link.sourcePtr?.id == sourcePort.parent.id && link.targetPtr?.id == targetPort.parent.id,
       )
     ) {
       return "Cannot connect same two Actions.";
@@ -1023,7 +1023,7 @@ export class FlowContext {
 
         const canConnect = this.canPortsConnect(sourcePort, targetPort);
         const existingLink = this.links.value.find(
-          (link) => link.sourcePtr?.ck == sourcePort.parent.ck && link.targetPtr?.ck == targetPort.parent.ck,
+          (link) => link.sourcePtr?.id == sourcePort.parent.id && link.targetPtr?.id == targetPort.parent.id,
         );
         if (existingLink) {
           // already connected
@@ -1094,8 +1094,8 @@ export class FlowContext {
 
   /** Gets the links connected to the given port. */
   getLinksAtPort(action: ActionData, side: PortSide): LinkData[] {
-    if (side == PortSide.INCOMING) return this.links.value.filter((link) => link.targetPtr?.ck == action.ck);
-    else return this.links.value.filter((link) => link.sourcePtr?.ck == action.ck);
+    if (side == PortSide.INCOMING) return this.links.value.filter((link) => link.targetPtr?.id == action.id);
+    else return this.links.value.filter((link) => link.sourcePtr?.id == action.id);
   }
 
   /** Gets the hex color of the given link. */

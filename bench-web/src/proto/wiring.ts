@@ -244,8 +244,7 @@ export function toNodeRef<T extends NodeType>(node: NodeTypeMapping[T] | null): 
       id: node.id,
       ck: node.ck,
       benchId: node.benchId,
-      baseCk: node.baseCk,
-      baseBenchId: node.baseBenchId,
+      baseId: node.baseId,
     };
     return ref as TypedNodeReferenceData<T>;
   }
@@ -270,8 +269,7 @@ export function toNodeRef<T extends NodeType>(node: NodeTypeMapping[T] | null): 
   if (BASED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
     const base = getBaseFromNode(node);
     if (base != null) {
-      ref.baseCk = base.ck;
-      ref.baseBenchId = base.benchId;
+      ref.baseId = base.id;
     }
   }
   return ref;

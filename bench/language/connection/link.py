@@ -109,16 +109,16 @@ async def synchronize_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[N
     # group nodes
     nodes_ptr: tuple[NodeReference, ...] = tuple(n.to_ref() for n in nodes)
     nodes_by_id: Mapping[UUID, Node] = {node.id: node for node in nodes if isinstance(node, Node)}
-    nodes_by_type_and_base = group_by(nodes_ptr, lambda node: (node.node_type, node.base_ck))
+    nodes_by_type_and_base = group_by(nodes_ptr, lambda node: (node.node_type, node.base_id))
 
     # link them
     links: list[NodeLink] = []
-    for (_, link_base_ck), link_nodes_ptr in nodes_by_type_and_base.items():
+    for (_, link_base_id), link_nodes_ptr in nodes_by_type_and_base.items():
         # base
-        if link_base_ck is not None:
-            base = cast("TypeBaseNode | None", supergraph.get(link_base_ck))
+        if link_base_id is not None:
+            base = cast("TypeBaseNode | None", supergraph.get(link_base_id))
             if base is None or base.metatype not in TYPE_BASE_NODE_TYPES:
-                raise ValueError(f"missing base {link_base_ck!r} for {link_nodes_ptr!r}")
+                raise ValueError(f"missing base {link_base_id!r} for {link_nodes_ptr!r}")
         else:
             base = None
 

@@ -1,4 +1,4 @@
-import { BASED_NODE_TYPES, isBenchNodeType, isUnloadedNodeType } from "@/language/core/const";
+import { isBenchNodeType, isUnloadedNodeType } from "@/language/core/const";
 import { NodeSuperGraph } from "@/language/core/graph";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, makeScope, toNodeRef } from "@/proto/wiring";
@@ -83,7 +83,7 @@ export class NodeAutoloader {
   /** Add pending nodes to the list of nodes to load */
   addPending(...keys: NodeReferenceData[]) {
     for (const key of keys) {
-      if ([NodeType.RECORD].includes(key.nodeType) && key.baseCk == null) {
+      if ([NodeType.RECORD].includes(key.nodeType) && key.baseId == null) {
         throw new Error(`missing base in ${describeNode(key)}`);
       }
       this.pendingNodesById.value[key.id!] = key;
@@ -133,7 +133,7 @@ export class NodeAutoloader {
   /** Load any missing nodes with new connections (as feasible) */
   async loadAll() {
     if (this.nextNodesToLoad.length > 0) {
-      const nodesByBase = groupByList(this.nextNodesToLoad, (ptr) => ptr.nodeType + "." + ptr.baseCk);
+      const nodesByBase = groupByList(this.nextNodesToLoad, (ptr) => ptr.nodeType + "." + ptr.baseId);
       this.nextNodesToLoad = [];
       await Promise.all(Object.values(nodesByBase).map(this.load.bind(this)));
     }
@@ -146,15 +146,15 @@ export class NodeAutoloader {
 
     // build query
     const nodeType = nodeRefs[0].nodeType;
-    const baseCk = nodeRefs[0].baseCk;
-    const block = baseCk != null ? this.supergraph.get({ nodeType: NodeType.BLOCK, ck: baseCk }) : null;
+    const baseId = nodeRefs[0].baseId;
+    const block = baseId != null ? this.supergraph.get({ nodeType: NodeType.BLOCK, id: baseId }) : null;
     const blockPtr = block != null ? toNodeRef(block) : block;
 
     // retry later if base is missing
-    if (baseCk != null && blockPtr == null) {
+    if (baseId != null && blockPtr == null) {
       this.onFailed(...nodeRefs);
       log.trace("autoload.load.fail", { batchId, nodeRefs });
-      const basePtr = { nodeType: NodeType.BLOCK, ck: baseCk };
+      const basePtr = { nodeType: NodeType.BLOCK, id: baseId };
       // NOTE :Cleanup: we're leaking this wait-to-auto-reload subscription, but it shouldn't matter for now
       //  (it _should_ stop when none of the missing nodes are subscribed to anymore)
       this.supergraph.subscribeUntilFound(basePtr, () => {

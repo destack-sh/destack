@@ -7,6 +7,7 @@ from bench.language.core import (
     BuiltinEnum,
     ColorType,
     EnumType,
+    IsInstantiable,
     IsOwnable,
     IsRuntime,
     IsTimed,
@@ -72,7 +73,7 @@ class PlanFailureMode(BuiltinEnum):
 
 
 @timed_node_(NodeType.PLAN)
-class Plan(IsTimed, IsOwnable, IsRuntime, IsTraceable, PackageNode[PlanData]):
+class Plan(IsTimed, IsOwnable, IsRuntime, IsTraceable, IsInstantiable, PackageNode[PlanData]):
     """A Plan for something like a sequence of Tasks."""
 
     # meta

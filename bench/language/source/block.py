@@ -135,6 +135,18 @@ class Block(SourceNode[BlockData]):
             return ""
 
     @property
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page, SourceNode
+
+        parent = self.parent
+        while isinstance(parent, SourceNode):
+            if isinstance(parent, Page):
+                return parent
+            parent = parent.parent
+        return None
+
+    @property
     def container(self) -> "Page | None":
         """The container of this Block."""
         return self.page

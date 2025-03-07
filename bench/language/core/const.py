@@ -45,9 +45,8 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.07.2"
-TK_LENGTH_BYTES = 8
-TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
+VERSION = "2025.03.07.4"
+CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
 # runtime constants
@@ -522,9 +521,10 @@ class NodeType(BuiltinEnum):
 
     #
     # Local (5000-10000)
+    # NOTE :Architecture: the line between source/state/runtime/... Nodes is quite blurry
     #
 
-    # source (named, versioned, templatable)
+    # source
     PACKAGE = 5000, None, None, "fas fa-box-open"
     DEPENDENCY = 5010, None, None, "fas fa-turn-down-right"
     PAGE = 5020, None, None, "far fa-file"
@@ -688,17 +688,13 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.TAG,
 )
 INLINE_NODE_TYPES = bittuple(*INLINE_SOURCE_NODE_TYPES, NodeType.TASK)
-TEMPLATABLE_NODE_TYPES = bittuple(*SOURCE_NODE_TYPES, NodeType.TASK)
+TEMPLATABLE_NODE_TYPES = bittuple(
+    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
+)
+INSTANTIABLE_NODE_TYPES = bittuple(NodeType.DATABASE, NodeType.PLAN, NodeType.TASK)
 STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
-BASED_NODE_TYPES = bittuple(  # :HasBase
-    NodeType.FIELD,
-    NodeType.OPTION,
-    NodeType.RUN,
-    NodeType.INTERRUPTION,
-    NodeType.MESSAGE,
-    NodeType.RECORD,
-)
+BASED_NODE_TYPES = bittuple(NodeType.RECORD)
 PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
     1000,

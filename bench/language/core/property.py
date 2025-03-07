@@ -22,10 +22,10 @@ from bench.utils.utils import frozendict
 from .const import (
     BASED_NODE_TYPES,
     BENCH_NODE_TYPES,
+    INSTANTIABLE_NODE_TYPES,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
-    TEMPLATABLE_NODE_TYPES,
     UNSET,
     BuiltinEnum,
     EnumType,
@@ -59,8 +59,7 @@ class PropertyReferenceType(BuiltinEnum):
     ID = 1
     CK = 2
     BENCH_ID = 3
-    BASE_CK = 4
-    BASE_BENCH_ID = 5
+    BASE_ID = 4
     NODE_TYPE = 6
 
 
@@ -68,8 +67,7 @@ PROPERTY_META_KEY_BY_TYPE = {
     PropertyReferenceType.ID: "id",
     PropertyReferenceType.CK: "ck",
     PropertyReferenceType.BENCH_ID: "bench_id",
-    PropertyReferenceType.BASE_CK: "base_ck",
-    PropertyReferenceType.BASE_BENCH_ID: "base_bench_id",
+    PropertyReferenceType.BASE_ID: "base_id",
     PropertyReferenceType.NODE_TYPE: "node_type",
 }
 PROPERTY_TYPE_BY_META_KEY = {v: k for k, v in PROPERTY_META_KEY_BY_TYPE.items()}
@@ -562,7 +560,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 )
                 stored_ids.append(id_prop)
                 # also remember 'ck' if any of the shared types has one
-                if any(t in TEMPLATABLE_NODE_TYPES for t in shared_ptr_types):
+                if any(t in INSTANTIABLE_NODE_TYPES for t in shared_ptr_types):
                     ck_prop = Property(
                         id=self.id,
                         name=self.name + "_ck",
@@ -630,14 +628,14 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 any(t in BASED_NODE_TYPES for t in shared_ptr_types)
                 and not self.reference_is_baseless
             ):
-                stored_meta_props[PropertyReferenceType.BASE_CK] = Property(
+                stored_meta_props[PropertyReferenceType.BASE_ID] = Property(
                     id=self.id,
-                    name=self.name + "_base_ck",
+                    name=self.name + "_base_id",
                     component=self.component,
                     reference_kind=self.reference_kind,
                     py_type_raw=list[UUID] if is_list else UUID,
                     reference_source=self,
-                    reference_type=PropertyReferenceType.BASE_CK,
+                    reference_type=PropertyReferenceType.BASE_ID,
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,
@@ -646,16 +644,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     is_required=False,
                     primitive_type=PrimitiveType.UUID,
                 )
-                if (
-                    is_sub_bench
-                    and self.reference_kind != ReferenceKind.NODE_PARENT
-                    and not self.reference_is_bench_implicit
-                ):
-                    stored_base_bench_id = stored_meta_props[PropertyReferenceType.BENCH_ID].clone()
-                    stored_base_bench_id.is_required = False
-                    stored_base_bench_id.name = self.name + "_base_bench_id"
-                    stored_base_bench_id.reference_type = PropertyReferenceType.BASE_BENCH_ID
-                    stored_meta_props[PropertyReferenceType.BASE_BENCH_ID] = stored_base_bench_id
 
             # index contributed info into this property
             stored_ids_by_type = {}

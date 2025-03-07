@@ -1,6 +1,5 @@
-import { ObjectType, RectangleData, NodeType, Orientation, type ViewData } from "@/proto/wire";
-import type { Connection } from "@/system/connection";
 import type { Transaction } from "@/language/runtime/transaction";
+import { ObjectType, Orientation, RectangleData, type ViewData } from "@/proto/wire";
 import { roundToDigits } from "@/utils/functools";
 import {
   useElementSize,
@@ -10,7 +9,7 @@ import {
   useScroll,
   whenever,
 } from "@vueuse/core";
-import { computed, ref, watch, type Ref, type MaybeRef, toRef, watchEffect, nextTick } from "vue";
+import { computed, ref, toRef, watch, type MaybeRef, type Ref } from "vue";
 
 // our own 'dragging' state so we can block pointer events at the root component
 const _isDraggingGlobal = ref(false);
@@ -157,7 +156,7 @@ export function splitView(
     // create a partial view update to set the view to a specific size in pixels (relative or absolute)
     const updateViewPx = (view: ViewData, targetPx: number): Partial<ViewData> => {
       const isAbsolute = getAbsolutePx(view) != null;
-      const update = { id: view.id, ck: view.ck };
+      const update = { id: view.id };
       if (isAbsolute) {
         const newSize = isHorizontal ? { width: targetPx } : { height: targetPx };
         return { ...update, size: { metatype: ObjectType.RECTANGLE, ...newSize } };

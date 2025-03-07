@@ -138,7 +138,9 @@ class PromptRun(PromptCompound):
     @override
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
         parts: list[PromptPart] = [
-            PromptText(title="Run", text=f"Run {self.node.base!r} ({self.node.status.bench_name})"),
+            PromptText(
+                title="Run", text=f"Run {self.node.runnable!r} ({self.node.status.bench_name})"
+            ),
         ]
         if self.node.resources and self.node.resources.any():
             parts.append(

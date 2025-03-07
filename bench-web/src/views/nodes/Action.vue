@@ -58,8 +58,8 @@ const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
 
 // run
-const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: actionPtr.value?.ck }));
-const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: actionPtr.value?.ck }));
+const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ id: actionPtr.value?.id }));
+const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ id: actionPtr.value?.id }));
 
 //
 // Interaction

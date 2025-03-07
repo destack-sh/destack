@@ -30,7 +30,7 @@ TEST_TYPE_IDENTITIES: tuple[tuple[Type, str], ...] = (
                 node_type=NodeType.BLOCK, ck=UUID("12345678-ffff-0000-0000-000000000000")
             ),
         ),
-        "oEjRWeP//AAA=",
+        "oAAAAAAAAAAAAA8//4ZFNS",
     ),
     (Type(kind=TypeKind.PARTIAL_OBJECT), "r"),
 )

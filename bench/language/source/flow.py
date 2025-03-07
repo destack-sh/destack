@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.FLOW, passthrough_get=("fields",))
-class Flow(InlineSourceNode[FlowData], IsComputable):
+class Flow(IsComputable, InlineSourceNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

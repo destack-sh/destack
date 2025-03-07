@@ -1,11 +1,8 @@
 import typing
-from typing import Any, Optional, Union, cast
-from uuid import UUID
+from typing import Optional, Union
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    IsBased,
-    Node,
     NodeType,
     SourceNode,
     StructType,
@@ -15,7 +12,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.pb2 import AnyNodeData, NodeReferenceData, OptionData
+from bench.pb2 import OptionData
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
@@ -26,7 +23,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.OPTION)
-class Option(SourceNode[OptionData], IsBased, _IntoQuery):
+class Option(SourceNode[OptionData], _IntoQuery):
     """
     An Option in a Choice or something.
     """
@@ -38,25 +35,6 @@ class Option(SourceNode[OptionData], IsBased, _IntoQuery):
         33, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
-
-    @property
-    def base(self) -> Optional[Node]:
-        return self.parent
-
-    @property
-    def base_ck(self) -> Optional[UUID]:
-        return self.base.ck if self.base is not None else None
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return (cast(OptionData, data)).parent_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional[Node]:
-        if "parent" in data:
-            return data["parent"]
-        else:
-            return None
 
     @staticmethod
     def new(name: str, **kwargs) -> "Option":

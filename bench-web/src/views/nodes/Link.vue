@@ -34,8 +34,8 @@ const pathColorHex = computed(() => {
   }
 });
 
-const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ ck: linkPtr.value?.ck }));
-const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: linkPtr.value?.ck }));
+const lastRuns = computed(() => runtime.focusedRunTree.getLastActiveRuns({ id: linkPtr.value?.id }));
+const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ id: linkPtr.value?.id }));
 
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 
@@ -98,7 +98,6 @@ defineExpose<ViewExpose>({ self, id, actions });
         class="pointer-events-auto cursor-pointer"
         :data-node-type="link.metatype"
         :data-node-id="link.id"
-        :data-node-ck="link.ck"
         data-suppress-drag="select"
         :d="pathToSvg(path)"
       />

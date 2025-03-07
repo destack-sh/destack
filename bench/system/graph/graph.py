@@ -24,7 +24,6 @@ from opentelemetry import trace
 
 from bench.language import (
     ANCESTOR_NODE_TYPES,
-    BASED_NODE_TYPES,
     EDIT_SUBJECT_TYPES,
     EMPTY_SCOPE_DATA,
     NODE_CLASS_BY_TYPE,
@@ -884,16 +883,6 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
                     raise RuntimeError(f"missing set parent_ptr for move {edit!r}")
                 node_scopes_by_id[parent_ptr.id] = parent_ptr
                 node_types.add(NodeType(parent_ptr.node_type))
-        if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
-            # also add base as node scope
-            assert base_graph is not None, f"missing base graph for {edit!r}"
-            # add current base (base is immutable)
-            old_base_node = base_graph.get(edit.node_ptr.base_ck)
-            if old_base_node is not None:
-                old_base_ptr = NodeReference._ref_data_from_node_data(old_base_node)
-                assert old_base_ptr.id, f"missing base id for {old_base_ptr!r} in {edit!r}"
-                node_scopes_by_id[old_base_ptr.id] = old_base_ptr
-                node_types.add(NodeType(old_base_ptr.node_type))
         node_scopes_by_id[node_id] = node_scope
 
         # graph scope
@@ -906,7 +895,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
         UUID(k): wiring.unpack_builtin_object(v, supergraph=None, expect=NodeReference)
         for k, v in node_scopes_by_id.items()
     }
-    node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_ck, n.node_type))
+    node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_id, n.node_type))
     return CommitArea(
         edited_node_ids=edited_node_ids,
         node_types=node_types,

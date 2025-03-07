@@ -39,11 +39,11 @@
       "justMyCode": true
     },
     {
-      "name": "bench.migrate.apply",
+      "name": "bench.migrate.make",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/bench.py",
-      "args": ["migrate", "apply", "--area", "regional"],
+      "args": ["migrate", "make", "--no-downgrade"],
       "cwd": "${workspaceFolder}",
       "justMyCode": true
     },

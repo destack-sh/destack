@@ -94,7 +94,7 @@ from bench.pb2 import (
 from bench.proto import wiring
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.utils.env import IS_DEV
-from bench.utils.func import describe_type, group_by, to_uuid
+from bench.utils.func import describe_type, encode_b64vlq, group_by, to_uuid
 from bench.utils.string import Casing, to_casing
 from bench.utils.time import timedelta_from_isoformat
 from bench.utils.uuidt import UUIDT
@@ -178,11 +178,13 @@ def get_node_table_name(node_type: NodeType) -> str:
 
 
 def get_record_table_name(database: Database) -> str:
-    return f"{BENCH_RECORD_TABLE_PREFIX}{database.tk}"
+    ck_b64 = encode_b64vlq(database.ck.int)
+    return f"{BENCH_RECORD_TABLE_PREFIX}{ck_b64}"
 
 
 def get_record_field_name(field: Field) -> str:
-    return f"{BENCH_RECORD_VALUE_PREFIX}{field.tk}{field.identity_key}"
+    field_b64 = encode_b64vlq(field.ck.int)
+    return f"{BENCH_RECORD_VALUE_PREFIX}{field_b64}{field.identity_key}"
 
 
 def map_builtin_object_to_table(
@@ -723,8 +725,6 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 ptr.ck = ptr.id
             if bench_id and not ptr.bench_id:
                 ptr.bench_id = bench_id
-                if ptr.base_ck:
-                    ptr.base_bench_id = ptr.bench_id
     else:  # single reference
         # pointer id/ck
         for stored_prop in prop.reference_stored_ids:
@@ -757,8 +757,6 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             ptr.ck = ptr.id
         if bench_id and not ptr.bench_id:
             ptr.bench_id = bench_id
-            if ptr.base_ck:
-                ptr.base_bench_id = ptr.bench_id
         getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
 
 
@@ -1278,8 +1276,8 @@ async def pg_graph_edit(
         if edit.node_ptr.node_type in BUILTIN_TABLE_BY_NODE_TYPE:
             return BUILTIN_TABLE_BY_NODE_TYPE[edit.node_ptr.node_type], None
         else:
-            assert edit.node_ptr.base_ck, f"no base ck for custom table in {edit!r}"
-            table, block = ctx.get_custom_table(UUID(edit.node_ptr.base_ck))
+            assert edit.node_ptr.base_id, f"no base id for custom table in {edit!r}"
+            table, block = ctx.get_custom_table(UUID(edit.node_ptr.base_id))
             return table, block
 
     assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
