@@ -379,9 +379,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             # read the affected nodes into a single graph for evaluation
             data_graph = NodeDataGraph(scope=self._scope, node_types=NODE_TYPES)
             with self.tracer.start_as_current_span(f"{self.name}.commit.read"):
-                for (base_ck, node_type), node_references in area.scopes_by_base_and_type.items():
+                for (base_id, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
-                    database = self.resolve_request_base(base_ck) if base_ck else None
+                    database = self.resolve_request_base(base_id) if base_id else None
                     select = (
                         SelectOptions(select_fields=list(database.fields))
                         if isinstance(database, Database)

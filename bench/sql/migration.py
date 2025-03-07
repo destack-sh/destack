@@ -605,20 +605,20 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
 
     def _emit_alter(table: Table, statements: list[str]) -> None:
         alter_content = ",\n    ".join(statements)
-        lines.append(f'"""\n    ALTER TABLE {table.name}    \n    {alter_content}\n"""')
+        lines.append(f'"""\n    ALTER TABLE "{table.name}"    \n    {alter_content}\n"""')
 
     def _emit(table: Table, statements: list[str]) -> None:
         # batch successive ALTER TABLE statements, otherwise leave them as-is
         lines.append(f"\n# {table.name}")
         current_alter_statements: list[str] = []
         for stmt in statements:
-            if stmt.startswith(f"'ALTER TABLE {table.name}"):
+            if stmt.startswith(f'\'ALTER TABLE "{table.name}"'):
                 current_alter_statements.append(
-                    stmt[1:-1].replace(f"ALTER TABLE {table.name} ", "")
+                    stmt[1:-1].replace(f'ALTER TABLE "{table.name}" ', "")
                 )
-            elif stmt.startswith(f'"""\nALTER TABLE {table.name}'):
+            elif stmt.startswith(f'"""\nALTER TABLE "{table.name}"'):
                 current_alter_statements.append(
-                    stmt[4:-4].replace(f"ALTER TABLE {table.name} ", "")
+                    stmt[4:-4].replace(f'ALTER TABLE "{table.name}" ', "")
                 )
             else:
                 if current_alter_statements:
@@ -822,11 +822,11 @@ def _render_migration_op(op: MigrationOp) -> str | None:
                 else:  # create it
                     updates.append(
                         f"ADD CONSTRAINT {op.new_object.table.name}_pkey"
-                        f" PRIMARY KEY ({op.new_object.name})"
+                        f' PRIMARY KEY ("{op.new_object.name}")'
                     )
             if not updates:
                 return None
-            return f"ALTER TABLE {op.old_object.table.name} " + ",\n".join(updates)
+            return f'ALTER TABLE "{op.old_object.table.name}" ' + ",\n".join(updates)
         elif isinstance(op.old_object, Index):
             # drop and recreate
             assert isinstance(op.new_object, Index), f"expected an index: {op.new_object!r}"

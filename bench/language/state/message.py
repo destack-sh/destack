@@ -144,10 +144,10 @@ class Message(IsTimed, IsBased, BenchNode[MessageData]):
 
     # routing
     reply_to: Optional["Message"] = p_regular(
-        50, require=False, array=False, references=NodeType.MESSAGE
+        50, require=False, array=False, baseless=True, references=NodeType.MESSAGE
     )
     forwarded_from: Optional["Message"] = p_regular(
-        51, require=False, array=False, references=NodeType.MESSAGE
+        51, require=False, array=False, baseless=True, references=NodeType.MESSAGE
     )
     if TYPE_CHECKING:
         reply_to_ptr: Optional[NodeReference] = None
@@ -234,7 +234,10 @@ class Message(IsTimed, IsBased, BenchNode[MessageData]):
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).clazz_ptr
+        if data.HasField("clazz_ptr"):
+            return cast("MessageData", data).clazz_ptr
+        else:
+            return None
 
     @staticmethod
     def get_base_from_partial(data: dict[str, Any]) -> Optional["Class"]:

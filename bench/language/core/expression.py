@@ -493,9 +493,9 @@ def _lower_expression_value(typ: "TypeBase", value: Any) -> Any:
 
     # identity
     if isinstance(value, Node):
-        value = value.ck or value.id
+        value = value.id
     if isinstance(value, (NodeReference, NodeReferenceData)):
-        value = value.ck or value.id
+        value = value.id
     if isinstance(value, UUID):
         value = str(value)
 

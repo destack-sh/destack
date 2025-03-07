@@ -659,9 +659,8 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    const id = "id" in key ? key.id : null;
-    if (!id) return null;
-    const node = this.nodesById[id];
+    if (!key.id) return null;
+    const node = this.nodesById[key.id];
     if (node == null) return null;
     else return node as NodeTypeMapping[T];
   }
@@ -718,11 +717,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     };
   }
 
-  subscribeChildren<T extends NodeType>(
-    parent: { id?: string },
-    metatype: T,
-    callback: NodeGraphCallback,
-  ): () => void {
+  subscribeChildren<T extends NodeType>(parent: { id?: string }, metatype: T, callback: NodeGraphCallback): () => void {
     // subscribe
     if (!parent.id) throw new Error("parent must have an id");
     if (!this.nodeSubsByParentIdAndType[parent.id]) this.nodeSubsByParentIdAndType[parent.id] = {};
@@ -1494,7 +1489,7 @@ export class NodeSuperGraph {
   /**
    * Gets the source connection/graph from the supergraph or throws an error if it's not found.
    */
-  getLinkOrError<T extends  NodeType>(
+  getLinkOrError<T extends NodeType>(
     key: TypedNodeKey<T>,
   ): {
     node: NodeTypeMapping[T];

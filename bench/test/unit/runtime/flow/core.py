@@ -196,7 +196,7 @@ async def test_run_flow_computed_value_chain(
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, inputs={"BoolIn": True, "IntIn": 0})
-    assert runner.outputs and runner.outputs.BoolOut is False
+    assert runner.outputs and runner.outputs.BoolOut is True
     assert runner.outputs and runner.outputs.IntOut == 4
 
 

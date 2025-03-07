@@ -469,7 +469,7 @@ class Index(TableObject):
         assert isinstance(self._table, Table), f"{self} is not attached to a table"
         parts = [
             f'"{self.name}"',
-            f"ON {self._table.name}",
+            f'ON "{self._table.name}"',
             f"USING {self.type}",
             f"({', '.join(self.columns)})",
         ]

@@ -10,6 +10,7 @@ from bench.language.core import (
     Expression,
     FieldType,
     IndexIn,
+    IsBased,
     IsRuntime,
     IsTimed,
     IsTraceable,
@@ -36,7 +37,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.pb2 import RunData
+from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
@@ -155,7 +156,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, IsRuntime, IsTraceable, PackageNode[RunData]):
+class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
     """
     Run something somewhere, somehow.
     """
@@ -359,6 +360,49 @@ class Run(IsTimed, IsRuntime, IsTraceable, PackageNode[RunData]):
             return self.flow_ptr
 
     @property
+    def base_ptr(self) -> Optional["NodeReference"]:
+        if self.link_ptr is not None:
+            return self.link_ptr
+        elif self.action_ptr is not None:
+            return self.action_ptr
+        elif self.flow_ptr is not None:
+            return self.flow_ptr
+        else:
+            return None
+
+    @property
+    def base(self) -> Optional["RunnableNode"]:
+        if self.link_ptr is not None:
+            return self.link
+        elif self.action_ptr is not None:
+            return self.action
+        elif self.flow_ptr is not None:
+            return self.flow
+        else:
+            return None
+
+    @staticmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
+        run_data = cast(RunData, data)
+        if run_data.link_ptr.metatype != 0:
+            return cast(RunData, data).link_ptr
+        elif run_data.action_ptr.metatype != 0:
+            return cast(RunData, data).action_ptr
+        else:
+            return cast(RunData, data).flow_ptr
+
+    @staticmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
+        if "link" in data:
+            return data["link"]
+        elif "action" in data:
+            return data["action"]
+        elif "flow" in data:
+            return data["flow"]
+        else:
+            return None
+
+    @property
     def ancestors(self):
         parent = self.parent
         while isinstance(parent, Run):
@@ -415,12 +459,12 @@ class Run(IsTimed, IsRuntime, IsTraceable, PackageNode[RunData]):
 
     def has(self, *nodes: Node, recursive: bool = True) -> bool:
         """Whether the Run has any of the given Nodes."""
-        nodes_ck = tuple(n.ck for n in nodes)
-        if self.runnable_ptr in nodes_ck:
+        nodes_id = tuple(n.id for n in nodes)
+        if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id in nodes_id:
             return True
         for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
             run = cast(Run, run)
-            if run.runnable_ptr in nodes_ck:
+            if (runnable_ptr := run.runnable_ptr) is not None and runnable_ptr.id in nodes_id:
                 return True
         return False
 

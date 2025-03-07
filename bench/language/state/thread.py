@@ -95,7 +95,7 @@ class Thread(IsTimed, IsOwnable, BenchNode[ThreadData]):
 
     # routing
     created_from: Optional["Message"] = p_regular(
-        50, require=False, array=False, references=NodeType.MESSAGE, same_bench=True
+        50, require=False, array=False, baseless=True, references=NodeType.MESSAGE, same_bench=True
     )
 
     # content

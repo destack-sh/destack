@@ -93,6 +93,7 @@ from bench.pb2 import (
 )
 from bench.proto import wiring
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
+from bench.utils.base58 import base58_encode
 from bench.utils.env import IS_DEV
 from bench.utils.func import describe_type, group_by, to_uuid
 from bench.utils.string import Casing, to_casing
@@ -178,11 +179,13 @@ def get_node_table_name(node_type: NodeType) -> str:
 
 
 def get_record_table_name(database: Database) -> str:
-    return f"{BENCH_RECORD_TABLE_PREFIX}{database.ck.hex}"
+    ck_str = base58_encode(database.ck.bytes)
+    return f"{BENCH_RECORD_TABLE_PREFIX}{ck_str}"
 
 
 def get_record_field_name(field: Field) -> str:
-    return f"{BENCH_RECORD_VALUE_PREFIX}{field.ck.hex}{field.identity_key}"
+    ck_str = base58_encode(field.ck.bytes)
+    return f"{BENCH_RECORD_VALUE_PREFIX}{ck_str}{field.identity_key}"
 
 
 def map_builtin_object_to_table(
