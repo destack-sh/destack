@@ -10,7 +10,6 @@ from bench.language.core import (
     Expression,
     FieldType,
     IndexIn,
-    IsBased,
     IsRuntime,
     IsTimed,
     IsTraceable,
@@ -37,7 +36,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
+from bench.pb2 import RunData
 from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
@@ -156,7 +155,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
+class Run(IsTimed, IsRuntime, IsTraceable, PackageNode[RunData]):
     """
     Run something somewhere, somehow.
     """
@@ -351,6 +350,15 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
             return self.flow
 
     @property
+    def runnable_ptr(self) -> "NodeReference | None":
+        if self.type == RunType.LINK:
+            return self.link_ptr
+        elif self.type == RunType.ACTION:
+            return self.action_ptr
+        else:
+            return self.flow_ptr
+
+    @property
     def ancestors(self):
         parent = self.parent
         while isinstance(parent, Run):
@@ -395,49 +403,6 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
             return None
 
     @property
-    def base_ptr(self) -> Optional["NodeReference"]:
-        if self.link_ptr is not None:
-            return self.link_ptr
-        elif self.action_ptr is not None:
-            return self.action_ptr
-        elif self.flow_ptr is not None:
-            return self.flow_ptr
-        else:
-            return None
-
-    @property
-    def base(self) -> Optional["RunnableNode"]:
-        if self.link_ptr is not None:
-            return self.link
-        elif self.action_ptr is not None:
-            return self.action
-        elif self.flow_ptr is not None:
-            return self.flow
-        else:
-            return None
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        run_data = cast(RunData, data)
-        if run_data.link_ptr.metatype != 0:
-            return cast(RunData, data).link_ptr
-        elif run_data.action_ptr.metatype != 0:
-            return cast(RunData, data).action_ptr
-        else:
-            return cast(RunData, data).flow_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
-        if "link" in data:
-            return data["link"]
-        elif "action" in data:
-            return data["action"]
-        elif "flow" in data:
-            return data["flow"]
-        else:
-            return None
-
-    @property
     def attempts(self) -> Sequence["RunSpan"]:
         return tuple(span for span in self.spans if span.type == RunSpanType.ATTEMPT)
 
@@ -451,22 +416,22 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
     def has(self, *nodes: Node, recursive: bool = True) -> bool:
         """Whether the Run has any of the given Nodes."""
         nodes_ck = tuple(n.ck for n in nodes)
-        if self.base_ck in nodes_ck:
+        if self.runnable_ptr in nodes_ck:
             return True
         for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
             run = cast(Run, run)
-            if run.base_ck in nodes_ck:
+            if run.runnable_ptr in nodes_ck:
                 return True
         return False
 
     def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
         """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
-        if self.base_ck == runnable.ck:
+        if self.runnable_ptr == runnable.ck:
             matching_runs.append(self)
         for run in self._graph.get_descendants(self, NodeType.RUN, recursive=recursive):
             run = cast(Run, run)
-            if run.base_ck == runnable.ck:
+            if run.runnable_ptr == runnable.ck:
                 matching_runs.append(run)
         matching_runs.sort(
             key=lambda r: r.terminated_at or r.started_at or r.created_at,

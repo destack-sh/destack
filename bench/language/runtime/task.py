@@ -10,9 +10,9 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsInlinable,
+    IsInstantiable,
     IsOwnable,
     IsRuntime,
-    IsTemplatable,
     IsTimed,
     IsTraceable,
     NodeList,
@@ -79,10 +79,10 @@ class TaskStatus(BuiltinEnum):
 class Task(
     IsTimed,
     IsInlinable,
-    IsTemplatable,
     IsOwnable,
     IsRuntime,
     IsTraceable,
+    IsInstantiable,
     PackageNode[TaskData],
 ):
     """A Task to accomplish something."""

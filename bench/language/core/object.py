@@ -40,7 +40,6 @@ from .const import (
     ACTIVE_SESSION,
     EMPTY_DICT,
     IS_IN_USER_CODE,
-    TK_LENGTH_BYTES,
     UNSET,
     EditOperationType,
     FieldType,
@@ -132,49 +131,9 @@ def _set_setup_complete():
     _SETUP_STAGE = _SetupStage.COMPLETED
 
 
-def get_tk_from_ck(ck: UUID) -> str:
-    """Gets the stable across templates first 6 bytes of the ck."""
-    return ck.bytes[:TK_LENGTH_BYTES].hex()
-
-
-def get_tk_from_ptr(ptr: "NodeReference") -> str:
-    if ptr.ck:
-        return ptr.ck.bytes[:TK_LENGTH_BYTES].hex()
-    elif ptr.id:
-        return ptr.id.bytes[:TK_LENGTH_BYTES].hex()
-    else:
-        raise ValueError(f"invalid ptr: {ptr!r}")
-
-
-def get_tk_from_ptr_maybe(ptr: Optional["NodeReference"]) -> Optional[str]:
-    if ptr is None:
-        return None
-    elif ptr.ck:
-        return ptr.ck.bytes[:TK_LENGTH_BYTES].hex()
-    elif ptr.id:
-        return ptr.id.bytes[:TK_LENGTH_BYTES].hex()
-    else:
-        raise ValueError(f"invalid ptr: {ptr!r}")
-
-
-def get_tk_b64_from_ptr(ptr: "NodeReference") -> str:
-    if ptr.ck:
-        return base64.b64encode(ptr.ck.bytes[:TK_LENGTH_BYTES]).decode()
-    elif ptr.id:
-        return base64.b64encode(ptr.id.bytes[:TK_LENGTH_BYTES]).decode()
-    else:
-        raise ValueError(f"invalid ptr: {ptr!r}")
-
-
 def get_tk_b64_from_ck(ck: UUID) -> str:
     """Gets the stable across templates first 6 bytes of the ck."""
-    return base64.b64encode(ck.bytes[:TK_LENGTH_BYTES]).decode()
-
-
-def pad_ck_from_tk_b64(tk_b64: str) -> UUID:
-    """Pads the remainder with zeros"""
-    bytes = base64.b64decode(tk_b64.encode()) + (16 - TK_LENGTH_BYTES) * b"\x00"
-    return UUID(bytes=bytes)
+    return base64.b64encode(ck.bytes).decode()
 
 
 _BASE_OBJECT_NAMES = ("BuiltinObject", "Struct", "Struct", "Node")

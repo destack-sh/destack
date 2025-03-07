@@ -12,7 +12,6 @@ from bench.language.core import (
     EnumType,
     FieldType,
     InlineSourceNode,
-    IsBased,
     IsTimed,
     Node,
     NodeType,
@@ -29,7 +28,7 @@ from bench.language.core import (
     p_value_runtime,
     timed_node_,
 )
-from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
+from bench.pb2 import MessageData
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -81,7 +80,7 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(IsTimed, BenchNode[MessageData], IsBased):
+class Message(IsTimed, BenchNode[MessageData]):
     """
     A Message about something.
     """
@@ -221,21 +220,6 @@ class Message(IsTimed, BenchNode[MessageData], IsBased):
             return channel
         else:
             return self.parent
-
-    @property
-    def base(self):
-        return self.clazz
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast("MessageData", data).clazz_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["Class"]:
-        if "clazz" in data:
-            return data["clazz"]
-        else:
-            return None
 
     @property
     def value_type(self) -> "TypeBase | None":

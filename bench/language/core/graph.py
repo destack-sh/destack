@@ -16,7 +16,7 @@ from opentelemetry import trace
 
 from bench.pb2 import AnyNodeData, GraphScopeData
 
-from .const import EMPTY_LIST, SOURCE_NODE_TYPES, NodeType, ObjectType, bittuple
+from .const import EMPTY_LIST, NodeType, ObjectType, bittuple
 
 if TYPE_CHECKING:
     from bench.language import Node, NodeReference
@@ -36,7 +36,6 @@ class GraphConsistencyError(GraphError):
 
 class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     __slots__ = (
-        "_nodes_by_ck",
         "_nodes_by_id",
         "_nodes_by_parent",
         "_parent_by_node",
@@ -60,7 +59,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         )
 
         self._nodes_by_id: dict[K, V] = {}
-        self._nodes_by_ck: dict[K, V] = {}  # *most* nodes have a 'ck'
         self._nodes_by_parent: dict[K, dict[ObjectType, list[V]]] = {}
         # (nodes may be edited in place, so we remember the last parent id we know manually)
         self._parent_by_node: dict[K, K] = {}
@@ -105,10 +103,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     def get(self, node_key: K) -> Optional[V]:
         """Gets a node by id"""
         assert isinstance(node_key, self.key_type), f"expected str, got {node_key!r}"
-        node = self._nodes_by_id.get(node_key)
-        if node is not None:
-            return node
-        return self._nodes_by_ck.get(node_key)
+        return self._nodes_by_id.get(node_key)
 
     def get_or_error(self, node_key: K) -> V:
         """Gets a node by id, raising an error if not found"""
@@ -133,7 +128,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     def clear(self):
         """Clear the graph"""
         self._nodes_by_id.clear()
-        self._nodes_by_ck.clear()
         self._nodes_by_parent.clear()
 
     @abc.abstractmethod
@@ -158,10 +152,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                 f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
             )
         self._nodes_by_id[node.id] = node
-        # NOTE :Broken: indexing by ck doesn't quite work because there can be multiple nodes per ck?
-        #  (also it's not just SOURCE_NODE_TYPES that can have a ck, it's IsTemplatable)
-        if node.metatype in SOURCE_NODE_TYPES and (ck := getattr(node, "ck")):
-            self._nodes_by_ck[ck] = node
         if self._get_parent_ptr(node) is not None:
             self._add_to_parent(node)
 
@@ -174,8 +164,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         if old is None:
             raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
         self._nodes_by_id[node.id] = node
-        if hasattr(node, "ck"):
-            self._nodes_by_ck[getattr(node, "ck")] = node
         metatype = cast(ObjectType, node.metatype)
 
         # update parent if changed
@@ -211,8 +199,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         existing = self._nodes_by_id.pop(node.id, None)
         if existing is None:
             raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
-        if hasattr(node, "ck"):
-            self._nodes_by_ck.pop(getattr(node, "ck"), None)
         if self._get_parent_ptr(node) is not None:
             self._remove_from_parent(node)
         # descend

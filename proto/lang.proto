@@ -613,8 +613,7 @@ enum PropertyReferenceType {
   PROPERTY_REFERENCE_TYPE_ID = 1;
   PROPERTY_REFERENCE_TYPE_CK = 2;
   PROPERTY_REFERENCE_TYPE_BENCH_ID = 3;
-  PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
-  PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
+  PROPERTY_REFERENCE_TYPE_BASE_ID = 4;
   PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
 }
 
@@ -2042,8 +2041,7 @@ message NodeReferenceData {
   optional string id = 31;
   optional string ck = 32;
   optional string bench_id = 33;
-  optional string base_ck = 34;
-  optional string base_bench_id = 35;
+  optional string base_id = 34;
 }
 
 message CodeLineData {
@@ -2647,6 +2645,8 @@ message BrowserData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
@@ -2687,6 +2687,8 @@ message FileData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
@@ -2730,6 +2732,8 @@ message MachineData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
@@ -2767,6 +2771,8 @@ message ScalerData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ScalerType type = 30;
@@ -2807,6 +2813,8 @@ message SecretData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
@@ -2837,6 +2845,8 @@ message StoreData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   StoreType type = 30;
@@ -2867,6 +2877,8 @@ message StreamData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
@@ -3080,6 +3092,7 @@ message LogData {
 message PlanData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3088,6 +3101,8 @@ message PlanData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
@@ -3260,7 +3275,6 @@ message TaskData {
 message ActionData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3455,7 +3469,6 @@ message GoToTabActionData {
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3477,7 +3490,6 @@ message BlockData {
 message ChannelData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3503,7 +3515,6 @@ message ChannelData {
 message ChoiceData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3528,7 +3539,6 @@ message ChoiceData {
 message ClassData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3578,7 +3588,6 @@ message DatabaseData {
 message DependencyData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3635,7 +3644,6 @@ message FieldData {
 message FlowData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3664,7 +3672,6 @@ message FlowData {
 message KitData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3690,7 +3697,6 @@ message KitData {
 message LinkData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3720,7 +3726,6 @@ message LinkData {
 message OptionData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3742,7 +3747,6 @@ message OptionData {
 message PackageData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3768,7 +3772,6 @@ message PackageData {
 message PageData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3793,7 +3796,6 @@ message PageData {
 message ViewData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3914,7 +3916,6 @@ message IconViewData {
 message RoleData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3940,7 +3941,6 @@ message RoleData {
 message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3969,7 +3969,6 @@ message SpaceData {
 message TagData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3994,7 +3993,6 @@ message TagData {
 message TriggerData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;

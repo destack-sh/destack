@@ -35,10 +35,7 @@ import {
 } from "vue";
 
 /** A NodeReference but with proper typing */
-export type NodeKey<T extends NodeType> = Pick<
-  NodeReferenceData,
-  "id" | "ck" | "baseBenchId" | "benchId" | "baseCk"
-> & { nodeType?: T };
+export type NodeKey<T extends NodeType> = Pick<NodeReferenceData, "id" | "ck" | "baseId"> & { nodeType?: T };
 export type TypedNodeKey<T extends NodeType> = NodeKey<T> & { nodeType: T };
 
 // NOTE :Performance!: should differentiate node update types for :NodeFiltering
@@ -515,12 +512,10 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   public readonly isOverlayOf: ReadNodeGraph | null;
 
   private nodesById: { [id: string]: AnyNodeData } = {};
-  private nodesByCk: { [ck: string]: string } = {};
   private nodesByParentIdAndType: { [parentId: string]: { [type: string]: string[] } } = {};
   private rootsIds: string[] = [];
   private anySubs: Array<() => void> = [];
   private nodeSubsById: { [id: string]: Array<NodeGraphCallback> } = {};
-  private nodeSubsByCk: { [ck: string]: Array<NodeGraphCallback> } = {};
   private nodeSubsByParentIdAndType: { [parentId: string]: { [type: string]: Array<NodeGraphCallback> } } = {};
 
   constructor(init: { scope: GraphScopeData; nodeTypes: Set<NodeType>; isOverlayOf?: ReadNodeGraph }) {
@@ -536,12 +531,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
       throw new Error(`node ${describeNode(node)} id already exists in ${this.describeSelf()}`);
     this.nodesById[node.id] = node;
 
-    if ("ck" in node) {
-      if (this.nodesByCk[node.ck])
-        throw new Error(`node ${describeNode(node)} ck already exists in ${this.describeSelf()}`);
-      this.nodesByCk[node.ck] = node.id;
-    }
-
     this._addToParent(node);
     this.notify(node);
   }
@@ -555,7 +544,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   update(node: AnyNodeData) {
     if (!node.id) throw new Error(`node must have an id: ${describeNode(node)}`);
     // we need to know existing to detect & notify move updates correctly
-    const existingSelf: AnyNodeData | null = this.nodesById[node.id] ?? this.nodesByCk[(node as any).ck];
+    const existingSelf: AnyNodeData | null = this.nodesById[node.id];
     let existingBase: AnyNodeData | null = null;
     if (!existingSelf) {
       if (this.isOverlayOf != null) {
@@ -574,13 +563,11 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
       if (existingSelf?.parentPtr != null) this._removeFromParent(existingSelf);
       if (node.parentPtr != null) this._addToParent(node);
       this.nodesById[node.id] = node;
-      if ("ck" in node) this.nodesByCk[node.ck] = node.id;
       this.notify(existingSelf ?? existingBase);
       this.notify(node);
     } else {
       // update
       this.nodesById[node.id] = node;
-      if ("ck" in node) this.nodesByCk[node.ck] = node.id;
       this.notify(node);
     }
   }
@@ -588,7 +575,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   remove(node: AnyNodeData) {
     if (!node.id) throw new Error(`node must have an id: ${describeNode(node)}`);
     delete this.nodesById[node.id];
-    if ("ck" in node) delete this.nodesByCk[node.ck];
 
     // remove from parent/roots
     this._removeFromParent(node);
@@ -606,19 +592,14 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   clear() {
     // remove all nodes
     const nodesById = this.nodesById;
-    const nodesByCk = this.nodesByCk;
     const nodesByParentIdAndType = this.nodesByParentIdAndType;
     this.nodesById = {};
-    this.nodesByCk = {};
     this.nodesByParentIdAndType = {};
 
     // notify relevant subs
     this.anySubs.forEach((sub) => sub());
     for (const id in nodesById) {
       this.nodeSubsById[id]?.forEach((sub) => sub());
-    }
-    for (const ck in nodesByCk) {
-      this.nodeSubsByCk[ck]?.forEach((sub) => sub());
     }
     for (const parentId in nodesByParentIdAndType) {
       if (!this.nodeSubsByParentIdAndType[parentId]) continue;
@@ -678,7 +659,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
-    const id = "id" in key ? key.id : this.nodesByCk[key.ck!];
+    const id = "id" in key ? key.id : null;
     if (!id) return null;
     const node = this.nodesById[id];
     if (node == null) return null;
@@ -717,16 +698,12 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     };
   }
 
-  subscribe(key: { id?: string; ck?: string }, callback: NodeGraphCallback): () => void {
+  subscribe(key: { id?: string }, callback: NodeGraphCallback): () => void {
     const cb = () => callback(); // wrap to get a unique reference
     // subscribe
     if (key.id) {
       if (!this.nodeSubsById[key.id]) this.nodeSubsById[key.id] = [];
       this.nodeSubsById[key.id].push(cb);
-    }
-    if (key.ck) {
-      if (!this.nodeSubsByCk[key.ck]) this.nodeSubsByCk[key.ck] = [];
-      this.nodeSubsByCk[key.ck].push(cb);
     }
     // unsubscribe
     return () => {
@@ -738,19 +715,11 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
           }
         }
       }
-      if (key.ck) {
-        if (this.nodeSubsByCk[key.ck]) {
-          this.nodeSubsByCk[key.ck].splice(this.nodeSubsByCk[key.ck].indexOf(cb), 1);
-          if (this.nodeSubsByCk[key.ck].length == 0) {
-            delete this.nodeSubsByCk[key.ck];
-          }
-        }
-      }
     };
   }
 
   subscribeChildren<T extends NodeType>(
-    parent: { id?: string; ck?: string },
+    parent: { id?: string },
     metatype: T,
     callback: NodeGraphCallback,
   ): () => void {
@@ -779,9 +748,6 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (this.nodeSubsById[node.id]) {
       this.nodeSubsById[node.id].forEach((sub) => sub());
     }
-    if ("ck" in node && this.nodeSubsByCk[node.ck]) {
-      this.nodeSubsByCk[node.ck].forEach((sub) => sub());
-    }
     if (node.parentPtr?.id && this.nodeSubsByParentIdAndType[node.parentPtr.id]) {
       const subs = this.nodeSubsByParentIdAndType[node.parentPtr.id][node.metatype];
       if (subs) subs.forEach((sub) => sub());
@@ -797,7 +763,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   countDirectSubscribers() {
-    return Object.keys(this.nodeSubsById).length + Object.keys(this.nodeSubsByCk).length;
+    return Object.keys(this.nodeSubsById).length;
   }
 
   countChildrenSubscribers() {
@@ -1528,7 +1494,7 @@ export class NodeSuperGraph {
   /**
    * Gets the source connection/graph from the supergraph or throws an error if it's not found.
    */
-  getLinkOrError<T extends NodeType>(
+  getLinkOrError<T extends  NodeType>(
     key: TypedNodeKey<T>,
   ): {
     node: NodeTypeMapping[T];

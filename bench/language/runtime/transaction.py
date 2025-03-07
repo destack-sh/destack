@@ -15,7 +15,6 @@ from bench import pb2
 from bench.language.connection import Connector, WritableConnector
 from bench.language.core import (
     EDIT_SUBJECT_TYPES,
-    TK_LENGTH_B64,
     BuiltinObject,
     CustomObject,
     EditOperationType,
@@ -40,6 +39,7 @@ from bench.language.core import (
     unpack_value,
     unpack_value_data,
 )
+from bench.language.core.const import CK_LENGTH_B64
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.pb2 import (
     AnyNodeData,
@@ -640,7 +640,7 @@ def apply_edit_operation(node: Node, op: EditOperationData, *, validate: bool):
                 )
             else:
                 # custom object field
-                value_type = decode_type_identity(key[TK_LENGTH_B64 + 1 :])
+                value_type = decode_type_identity(key[CK_LENGTH_B64 + 1 :])
                 new_value_packed = unpack_proto_json(op.new_value_packed)
                 new_value = unpack_value(new_value_packed, value_type)
                 field = cast(CustomObject, obj)._type._get_field_by_key(key)

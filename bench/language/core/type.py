@@ -17,9 +17,9 @@ from bench.language.registry import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 from .const import (
+    CK_LENGTH_B64,
     PRIMITIVE_TYPE_BY_PY_TYPE,
     PY_TYPE_BY_PRIMITIVE_TYPE,
-    TK_LENGTH_B64,
     BenchType,
     BuiltinEnum,
     EnumType,
@@ -35,13 +35,7 @@ from .const import (
     is_struct_type,
 )
 from .node import TYPE_BASE_NODE_TYPES, FieldBaseNode, Node, NodeReference, TypeBaseNode
-from .object import (
-    BuiltinObject,
-    get_tk_b64_from_ck,
-    get_tk_b64_from_ptr,
-    object_,
-    pad_ck_from_tk_b64,
-)
+from .object import BuiltinObject, get_tk_b64_from_ck, object_
 from .property import Property, p_internal, p_regular, p_runtime, p_value_packed, p_value_runtime
 from .struct import Struct, struct_
 from .validation import TypeConstraintIn
@@ -118,7 +112,8 @@ def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
         value = encode_b64vlq(typ.bench_type.id)
     elif typ.kind == TypeKind.CUSTOM_OBJECT:
         assert typ.base_type_ptr is not None, f"missing base type for {typ!r}"
-        value = get_tk_b64_from_ptr(typ.base_type_ptr)
+        assert typ.base_type_ptr.ck is not None, f"missing ck for {typ.base_type_ptr!r}"
+        value = encode_b64vlq(typ.base_type_ptr.ck.int)
     elif typ.kind == TypeKind.PARTIAL_OBJECT:
         value = encode_b64vlq(typ.bench_type.id) if typ.bench_type else ""
     else:
@@ -164,10 +159,9 @@ def decode_type_identity(key: str) -> "TypeIdentity":
     elif kind == TypeKind.NODE or kind == TypeKind.BASED_NODE.value:
         return TypeIdentity(kind=TypeKind(kind), is_list=is_list, is_secret=is_secret)
     elif kind == TypeKind.CUSTOM_OBJECT.value:
+        base_id = UUID(int=decode_b64vlq(value))
         base_type_ptr = NodeReference(
-            node_type=NodeType.BLOCK,
-            ck=pad_ck_from_tk_b64(value[:TK_LENGTH_B64]),
-            _skip_validate_self=True,
+            node_type=NodeType.BLOCK, id=base_id, ck=base_id, _skip_validate_self=True
         )
         return TypeIdentity(
             kind=TypeKind.CUSTOM_OBJECT,
@@ -200,7 +194,7 @@ FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
     "R": FieldType.RESOURCE,
 }
 
-STORAGE_KEY_PREFIX_LENGTH = TK_LENGTH_B64 + 1
+STORAGE_KEY_PREFIX_LENGTH = CK_LENGTH_B64 + 1
 
 
 def encode_storage_key(field: "Field") -> str:

@@ -78,7 +78,6 @@ from .object import (
     Owner,
     _process_object_cls,
     _trace_edit_operation,
-    get_tk_from_ck,
     object_,
 )
 from .property import (
@@ -486,7 +485,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
 
         # init node
-        if isinstance(self, IsTemplatable):
+        if isinstance(self, IsInstantiable):
             if self.ck is None:
                 self.ck = cls.__ck_factory__()  # type: ignore
                 self.id = cls.__id_factory__()
@@ -990,11 +989,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             inner_node._untrack_self()
 
     @property
-    def tk(self) -> str:
-        """The template key of this node lineage."""
-        return get_tk_from_ck(self.ck)
-
-    @property
     def _ident(self) -> Optional[str]:
         """The Bench identifier of this node (slug if exists, else name if exists)."""
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
@@ -1119,13 +1113,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if child_prop is not None:
             child_list = getattr(self, child_prop.name)
             child_list.append(child, move=move)
-        elif isinstance(child, IsBased) and (base := child.base) is not None:
-            child_prop = base.get_child_property(child.metatype)
-            if child_prop is not None:
-                child_list = getattr(base, child_prop.name)
-                child_list.append(child, move=move)
-            else:
-                raise ValueError(f"no child property for {child.metatype.bench_name} in {base!r}")
         elif self.metatype in child.__parent_types__:
             if child.metatype in self._graph.node_types:
                 graph = self._graph
@@ -1242,9 +1229,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     ) -> "CustomObject":
         """Creates a new partial Node of this type."""
         from .value import coerce_custom_object_scalar
-
-        if base_type is None and issubclass(cls, IsBased):
-            base_type = cast(TypeBaseNode, cls.get_base_from_partial(kwargs))
 
         typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
         if cls is not Node:
@@ -1446,17 +1430,27 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
 
+    @property
+    def is_attached(self) -> bool:
+        return self.parent_ptr is not None and self.package is not None
+
 
 @node_component_()
 class IsTemplatable(BuiltinObject):
-    """A Node that can be instanced and templated."""
+    """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
-    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     template: Optional["Node"] = p_node_template(15)
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
     template_at: datetime | None = p_system(16, default=None, autoset=True)
+
+
+@node_component_()
+class IsInstantiable(IsTemplatable):
+    """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
+
+    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
 
 @node_component_()
@@ -1466,7 +1460,6 @@ class IsOwnable(BuiltinObject):
     owned_by: Optional[Owner] = p_node_parent(17, *OWNER_TYPES)
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
-        owned_by_ck: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
         owned_by_ptr: Optional[NodeReference] = None
 
@@ -1510,7 +1503,7 @@ class IsComputable(BuiltinObject):
 
 @node_component_()
 class IsInlinable(BuiltinObject):
-    """A Node that can be defined 'inline' in a Block/Page."""
+    """A Node that can be defined 'inline' in a Block on a Page."""
 
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
@@ -1525,6 +1518,7 @@ class IsInlinable(BuiltinObject):
         require=False,
         array=False,
         references=NodeType.BLOCK,
+        same_bench=True,
         description="The Block where this Node is 'defined'.",
     )
     thread: Optional["Thread"] = p_internal(
@@ -1546,6 +1540,39 @@ class IsInlinable(BuiltinObject):
         thread_ptr: Optional[NodeReference] = None
         tags_ptr: tuple[NodeReference, ...] = ()
 
+    @property
+    def page(self) -> "Page | None":
+        """Gets the containing ancestor Page (if any)"""
+        from bench.language import Page, SourceNode
+
+        parent = self.parent
+        while isinstance(parent, SourceNode):
+            if isinstance(parent, Page):
+                return parent
+            parent = parent.parent
+        return None
+
+
+@node_component_()
+class IsBased(BuiltinObject, abc.ABC):
+    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
+
+    @property
+    @abc.abstractmethod
+    def base(self) -> Optional[BenchNode]: ...
+
+    @property
+    def base_id(self) -> Optional[UUID]:
+        return self.base.id if self.base is not None else None
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
+
 
 @node_component_()
 class IsTimed(BuiltinObject, abc.ABC):
@@ -1563,62 +1590,17 @@ TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 
 
 @node_component_()
-class IsBased(BuiltinObject, abc.ABC):
-    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
-
-    @property
-    @abc.abstractmethod
-    def base(self) -> Optional[BenchNode]: ...
-
-    @property
-    def base_ck(self) -> Optional[UUID]:
-        return self.base.ck if self.base is not None else None
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
-
-
-@node_component_()
-class SourceNode[NodeDataT: AnyNodeData](
-    IsTemplatable, IsTraceable, PackageNode[NodeDataT], abc.ABC
-):
+class SourceNode[NodeDataT: AnyNodeData](IsTemplatable, IsTraceable, PackageNode[NodeDataT]):
     """
     A Node in a Package with a persistent identity that can be instanced.
     """
 
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.package is not None
-
-    @property
-    def page(self) -> "Page | None":
-        """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page, SourceNode
-
-        parent = self.parent
-        while isinstance(parent, SourceNode):
-            if isinstance(parent, Page):
-                return parent
-            parent = parent.parent
-        return None
-
 
 @node_component_()
-class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT], abc.ABC):
+class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT]):
     """A named SourceNode that can be defined inline in a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-
-    # content
-    if TYPE_CHECKING:
-        thread_id: Optional[UUID] = None
-        thread_ptr: Optional[NodeReference] = None
-        tags_ptr: tuple[NodeReference, ...] = ()
 
     @property
     def container(self) -> "Node | None":
@@ -1671,9 +1653,7 @@ class NodeReference(Struct[NodeReferenceData]):
     id: Optional[UUID] = p_internal(31, default=None)
     ck: Optional[UUID] = p_internal(32, default=None)
     bench_id: Optional[UUID] = p_internal(33, default=None)
-    base_ck: Optional[UUID] = p_internal(34, default=None)
-    # base could be in a different Bench (e.g. a Signal in Bench A with a type from Bench B)
-    base_bench_id: Optional[UUID] = p_internal(35, default=None)
+    base_id: Optional[UUID] = p_internal(34, default=None)
 
     @staticmethod
     def _clone_ref[T: NodeReference | Any](
@@ -1684,8 +1664,7 @@ class NodeReference(Struct[NodeReferenceData]):
             ck=ref.ck,
             node_type=ref.node_type,
             bench_id=ref.bench_id,
-            base_ck=ref.base_ck,
-            base_bench_id=ref.base_bench_id,
+            base_id=ref.base_id,
             **kwargs,
         )
 
@@ -1704,13 +1683,8 @@ class NodeReference(Struct[NodeReferenceData]):
                 content_parts.append(f"ck={self.ck}")
         if self.bench_id is not None:
             content_parts.append(f"bench_id={self.bench_id}")
-        if self.base_ck is not None:
-            content_parts.append(f"base_ck={self.base_ck}")
-        if self.base_bench_id is not None:
-            if self.base_bench_id == self.bench_id:
-                content_parts.append("base_bench_id=bench_id")
-            else:
-                content_parts.append(f"base_bench_id={self.base_bench_id}")
+        if self.base_id is not None:
+            content_parts.append(f"base_id={self.base_id}")
         selector_str = ", ".join(content_parts)
         return f"{self.node_type.bench_name}:[{selector_str}]"
 
@@ -1731,27 +1705,16 @@ class NodeReference(Struct[NodeReferenceData]):
                     bench_id = session.bench_id
 
         # base
-        base_ck: UUID | None = None
-        base_bench_id: UUID | None = None
+        base_id: UUID | None = None
         if node.metatype in BASED_NODE_TYPES:
-            base = cast(IsBased, node).base
-            if base is not None:
-                base_ck = base.ck
-                base_bench_id = base.bench_id
-                if base_bench_id is None:
-                    # maybe also just creating, try from context
-                    session = ACTIVE_SESSION.get()
-                    if session is not None and session.bench_id is not None:
-                        base_bench_id = session.bench_id
-                base_bench_id = base_bench_id
+            base_id = cast(IsBased, node).base_id
 
         reference = NodeReference(
             node_type=node.metatype,
             id=node.id,
             ck=node.ck,
             bench_id=bench_id,
-            base_ck=base_ck,
-            base_bench_id=base_bench_id,
+            base_id=base_id,
             _skip_validate_self=True,
         )
         return reference
@@ -1776,10 +1739,7 @@ class NodeReference(Struct[NodeReferenceData]):
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
             base = cast(IsBased, node_cls).get_base_from_data(node_data)
             if base is not None:
-                if base.ck:
-                    reference.base_ck = base.ck
-                if base.bench_id:
-                    reference.base_bench_id = base.bench_id
+                reference.base_id = base.id
 
         return reference
 

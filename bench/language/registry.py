@@ -69,7 +69,6 @@ def _complete_bench_setup():
     from bench.language import BuiltinObject, CustomObject, Node, Struct
     from bench.language.core import (
         InlineSourceNode,
-        IsBased,
         IsInlinable,
         IsTemplatable,
         NodeSubtypeStub,
@@ -255,9 +254,3 @@ def _complete_bench_setup():
             if getattr(n, "metatype", None)
         ]
         assert_collections_equal(templatable_node_types, const.TEMPLATABLE_NODE_TYPES.tuple)
-
-        # check that BASED_NODE_TYPES is consistent with IsBased
-        base_node_types = [
-            cast(Node, n).metatype for n in get_subclasses(IsBased) if getattr(n, "metatype", None)
-        ]
-        assert_collections_equal(base_node_types, const.BASED_NODE_TYPES.tuple)

@@ -178,11 +178,7 @@ export function isUnloadedNodeType(nodeType: any): boolean {
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [
   // :HasBase
-  NodeType.FIELD,
   NodeType.RECORD,
-  NodeType.MESSAGE,
-  NodeType.RUN,
-  NodeType.INTERRUPTION,
 ];
 export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100);
 export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 && nodeType < 200);
@@ -258,10 +254,7 @@ export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
 
 /** Default base type for based Nodes */
 export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
-  [NodeType.FIELD]: NodeType.BLOCK,
-  [NodeType.RECORD]: NodeType.BLOCK,
-  [NodeType.RUN]: NodeType.BLOCK,
-  [NodeType.MESSAGE]: NodeType.BLOCK,
+  [NodeType.RECORD]: NodeType.DATABASE,
 };
 
 /**
@@ -270,12 +263,6 @@ export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
 export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData | null {
   if (isNode(node, NodeType.RECORD)) {
     return node.databasePtr ?? null;
-  } else if (isNode(node, NodeType.FIELD)) {
-    return node.parentPtr ?? null;
-  } else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
-    return node.linkPtr ?? node.actionPtr ?? node.flowPtr ?? null;
-  } else if (isNode(node, NodeType.MESSAGE)) {
-    return node.clazzPtr ?? null;
   } else {
     return null;
   }
@@ -285,17 +272,14 @@ export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData |
  * Gets the base reference from a node reference.
  */
 export function getBaseFromNodeReference(nodeRef: NodeReferenceData): NodeReferenceData | null {
-  if (nodeRef.baseCk != null) {
-    // NOTE :Broken :Architecture: technically there could be multiple different base types for the references
-    //  (but right now we only use the node type to get the appropriate supergraph, and since all bases are source nodes,
-    //   it doesn't matter which specific base type we use)
+  if (nodeRef.baseId != null) {
     const baseType = BASE_TYPE_BY_NODE_TYPE[nodeRef.nodeType];
     if (baseType == null) throw new Error(`no base type found for ${describeNode(nodeRef)}`);
     return {
       metatype: ObjectType.NODE_REFERENCE,
       nodeType: baseType,
-      ck: nodeRef.baseCk,
-      benchId: nodeRef.baseBenchId ?? nodeRef.benchId,
+      id: nodeRef.baseId,
+      benchId: nodeRef.benchId,
     };
   } else {
     return null;

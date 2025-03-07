@@ -25,11 +25,11 @@ import {
   IconData,
   InterruptionData,
   InterruptionStatus,
+  LinkData,
   NodeMode,
   NodeReferenceData,
   NodeType,
   ObjectType,
-  LinkData,
   RunOptionsData,
   RunProperty,
   RunSpanData,
@@ -67,10 +67,10 @@ export class RunTree {
   runBasePtr: Ref<TypedNodeReferenceData<RunnableNodeType> | null>;
   runBaseRef: Ref<RunnableNode | null>;
   runConnection: Connection<"get", NodeType.RUN>;
-  runsByBaseCk: Ref<Record<string, RunData[]>>;
+  runsByBaseId: Ref<Record<string, RunData[]>>;
   basesPtrs: Ref<TypedNodeReferenceData<RunnableNodeType>[]>;
   basesRef: Ref<RunnableNode[]>;
-  baseByCkRef: Ref<Record<string, RunnableNode>>;
+  basesByIdRef: Ref<Record<string, RunnableNode>>;
   interruptionsRef: Ref<InterruptionData[]>;
 
   constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
@@ -100,23 +100,23 @@ export class RunTree {
     );
     this.runBaseRef = graph.getRef(this.runBasePtr);
     this.runConnection = runConnection;
-    this.runsByBaseCk = computed(() => {
-      const runByBaseCk: Record<string, RunData[]> = {};
+    this.runsByBaseId = computed(() => {
+      const runByBaseId: Record<string, RunData[]> = {};
       for (const run of this.runsRef.value) {
         if (!isNode(run, NodeType.RUN)) continue;
         const base = getBaseFromNode(run);
-        if (base?.ck != null) {
-          if (runByBaseCk[base.ck] == null) {
-            runByBaseCk[base.ck] = [];
+        if (base?.id != null) {
+          if (runByBaseId[base.id] == null) {
+            runByBaseId[base.id] = [];
           }
-          runByBaseCk[base.ck].push(run);
+          runByBaseId[base.id].push(run);
         }
       }
       // sort ascending
-      for (const runBaseCk of Object.keys(runByBaseCk)) {
-        timesortNode(runByBaseCk[runBaseCk]);
+      for (const runBaseId of Object.keys(runByBaseId)) {
+        timesortNode(runByBaseId[runBaseId]);
       }
-      return runByBaseCk;
+      return runByBaseId;
     });
     this.basesPtrs = computed(() => {
       const basePtrs: TypedNodeReferenceData<RunnableNodeType>[] = [];
@@ -127,12 +127,12 @@ export class RunTree {
       return basePtrs;
     });
     this.basesRef = graph.getManyRef(this.basesPtrs);
-    this.baseByCkRef = computed(() => {
-      const basesByCk: Record<string, RunnableNode> = {};
+    this.basesByIdRef = computed(() => {
+      const basesById: Record<string, RunnableNode> = {};
       for (const base of this.basesRef.value) {
-        basesByCk[base.ck] = base;
+        basesById[base.id] = base;
       }
-      return basesByCk;
+      return basesById;
     });
     this.interruptionsRef = runGraph.getOfTypeRef(NodeType.INTERRUPTION);
   }
@@ -162,22 +162,22 @@ export class RunTree {
     return this.runBaseRef.value;
   }
 
-  hasBase(base: { ck?: string }) {
-    return this.runsByBaseCk.value[base.ck!] != null;
+  hasBase(base: { id?: string }) {
+    return this.runsByBaseId.value[base.id!] != null;
   }
 
-  getBase(base: { ck?: string }) {
-    return this.baseByCkRef.value[base.ck!];
+  getBase(base: { id?: string }) {
+    return this.basesByIdRef.value[base.id!];
   }
 
   /** Gets the last (active) Runs for the given base node. */
-  getLastActiveRuns(base: { ck?: string }): RunData[] {
-    return this.runsByBaseCk.value[base.ck!] ?? [];
+  getLastActiveRuns(base: { id?: string }): RunData[] {
+    return this.runsByBaseId.value[base.id!] ?? [];
   }
 
   /** Gets the last (active) Run for the given base node. */
-  getLastActiveRun(base: { ck?: string }): RunData | null {
-    const runs = this.runsByBaseCk.value[base.ck!];
+  getLastActiveRun(base: { id?: string }): RunData | null {
+    const runs = this.runsByBaseId.value[base.id!];
     return runs?.[runs.length - 1] ?? null;
   }
 }

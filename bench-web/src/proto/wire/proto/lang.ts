@@ -86,13 +86,9 @@ export interface NodeReferenceData {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string base_ck = 34;
+     * @generated from protobuf field: optional string base_id = 34;
      */
-    baseCk?: string;
-    /**
-     * @generated from protobuf field: optional string base_bench_id = 35;
-     */
-    baseBenchId?: string;
+    baseId?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.CodeLineData
@@ -2086,6 +2082,14 @@ export interface BrowserData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 17;
      */
     ownedByPtr?: NodeReferenceData;
@@ -2238,6 +2242,14 @@ export interface FileData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 14;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 17;
      */
@@ -2404,6 +2416,14 @@ export interface MachineData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 17;
      */
     ownedByPtr?: NodeReferenceData;
@@ -2545,6 +2565,14 @@ export interface ScalerData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
@@ -2680,6 +2708,14 @@ export interface SecretData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 17;
      */
     ownedByPtr?: NodeReferenceData;
@@ -2793,6 +2829,14 @@ export interface StoreData {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
+    /**
      * @generated from protobuf field: symbolx.bench.NodeMode mode = 25;
      */
     mode: NodeMode;
@@ -2905,6 +2949,14 @@ export interface StreamData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 14;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 17;
      */
@@ -3695,6 +3747,10 @@ export interface PlanData {
      */
     id: string;
     /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -3726,6 +3782,14 @@ export interface PlanData {
      * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 14;
      */
     deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 15;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp template_at = 16;
+     */
+    templateAt?: Timestamp;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData owned_by_ptr = 17;
      */
@@ -4380,10 +4444,6 @@ export interface ActionData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -4910,10 +4970,6 @@ export interface BlockData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -4990,10 +5046,6 @@ export interface ChannelData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -5088,10 +5140,6 @@ export interface ChoiceData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -5180,10 +5228,6 @@ export interface ClassData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -5366,10 +5410,6 @@ export interface DependencyData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -5581,10 +5621,6 @@ export interface FlowData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -5690,10 +5726,6 @@ export interface KitData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -5786,10 +5818,6 @@ export interface LinkData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -5900,10 +5928,6 @@ export interface OptionData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -5980,10 +6004,6 @@ export interface PackageData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -6078,10 +6098,6 @@ export interface PageData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -6170,10 +6186,6 @@ export interface ViewData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -6531,10 +6543,6 @@ export interface RoleData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -6627,10 +6635,6 @@ export interface SpaceData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -6737,10 +6741,6 @@ export interface TagData {
      */
     id: string;
     /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -6829,10 +6829,6 @@ export interface TriggerData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
-    /**
-     * @generated from protobuf field: string ck = 3;
-     */
-    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -10001,13 +9997,9 @@ export enum PropertyReferenceType {
      */
     BENCH_ID = 3,
     /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_CK = 4;
+     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_ID = 4;
      */
-    BASE_CK = 4,
-    /**
-     * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_BASE_BENCH_ID = 5;
-     */
-    BASE_BENCH_ID = 5,
+    BASE_ID = 4,
     /**
      * @generated from protobuf enum value: PROPERTY_REFERENCE_TYPE_NODE_TYPE = 6;
      */
@@ -14951,8 +14943,7 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
             { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "base_bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 34, name: "base_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceData>): NodeReferenceData {
@@ -14983,11 +14974,8 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
                 case /* optional string bench_id */ 33:
                     message.benchId = reader.string();
                     break;
-                case /* optional string base_ck */ 34:
-                    message.baseCk = reader.string();
-                    break;
-                case /* optional string base_bench_id */ 35:
-                    message.baseBenchId = reader.string();
+                case /* optional string base_id */ 34:
+                    message.baseId = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15016,12 +15004,9 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
         /* optional string bench_id = 33; */
         if (message.benchId !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.benchId);
-        /* optional string base_ck = 34; */
-        if (message.baseCk !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.baseCk);
-        /* optional string base_bench_id = 35; */
-        if (message.baseBenchId !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.baseBenchId);
+        /* optional string base_id = 34; */
+        if (message.baseId !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.baseId);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20573,6 +20558,8 @@ class BrowserData$Type extends MessageType$<BrowserData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
@@ -20650,6 +20637,12 @@ class BrowserData$Type extends MessageType$<BrowserData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -20774,6 +20767,12 @@ class BrowserData$Type extends MessageType$<BrowserData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
@@ -20881,6 +20880,8 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
@@ -20962,6 +20963,12 @@ class FileData$Type extends MessageType$<FileData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -21095,6 +21102,12 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
@@ -21211,6 +21224,8 @@ class MachineData$Type extends MessageType$<MachineData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
@@ -21287,6 +21302,12 @@ class MachineData$Type extends MessageType$<MachineData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -21402,6 +21423,12 @@ class MachineData$Type extends MessageType$<MachineData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
@@ -21500,6 +21527,8 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ScalerType", ScalerType, "SCALER_TYPE_"] },
@@ -21572,6 +21601,12 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* symbolx.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
@@ -21672,6 +21707,12 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
             writer.tag(25, WireType.Varint).int32(message.mode);
@@ -21805,6 +21846,8 @@ class SecretData$Type extends MessageType$<SecretData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
@@ -21869,6 +21912,12 @@ class SecretData$Type extends MessageType$<SecretData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -21963,6 +22012,12 @@ class SecretData$Type extends MessageType$<SecretData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
@@ -22040,6 +22095,8 @@ class StoreData$Type extends MessageType$<StoreData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StoreType", StoreType, "STORE_TYPE_"] },
@@ -22105,6 +22162,12 @@ class StoreData$Type extends MessageType$<StoreData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* symbolx.bench.NodeMode mode */ 25:
                     message.mode = reader.int32();
@@ -22199,6 +22262,12 @@ class StoreData$Type extends MessageType$<StoreData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeMode mode = 25; */
         if (message.mode !== 0)
             writer.tag(25, WireType.Varint).int32(message.mode);
@@ -22276,6 +22345,8 @@ class StreamData$Type extends MessageType$<StreamData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
@@ -22340,6 +22411,12 @@ class StreamData$Type extends MessageType$<StreamData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -22431,6 +22508,12 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
@@ -24016,6 +24099,7 @@ class PlanData$Type extends MessageType$<PlanData> {
         super("symbolx.bench.PlanData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24024,6 +24108,8 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 12, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 15, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
@@ -24047,6 +24133,7 @@ class PlanData$Type extends MessageType$<PlanData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.onTerminate = 0;
@@ -24066,6 +24153,9 @@ class PlanData$Type extends MessageType$<PlanData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -24090,6 +24180,12 @@ class PlanData$Type extends MessageType$<PlanData> {
                     break;
                 case /* optional google.protobuf.Timestamp deleted_at */ 14:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 15:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional google.protobuf.Timestamp template_at */ 16:
+                    message.templateAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.templateAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData owned_by_ptr */ 17:
                     message.ownedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -24160,6 +24256,9 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -24184,6 +24283,12 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional google.protobuf.Timestamp deleted_at = 14; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 15; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp template_at = 16; */
+        if (message.templateAt)
+            Timestamp.internalBinaryWrite(message.templateAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData owned_by_ptr = 17; */
         if (message.ownedByPtr)
             NodeReferenceData.internalBinaryWrite(message.ownedByPtr, writer.tag(17, WireType.LengthDelimited).fork(), options).join();
@@ -25399,7 +25504,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         super("symbolx.bench.ActionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -25430,7 +25534,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.computedValues = [];
         message.type = 0;
@@ -25449,9 +25552,6 @@ class ActionData$Type extends MessageType$<ActionData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -25543,9 +25643,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -26961,7 +27058,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         super("symbolx.bench.BlockData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26984,7 +27080,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.orderKey = "";
@@ -27002,9 +27097,6 @@ class BlockData$Type extends MessageType$<BlockData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -27072,9 +27164,6 @@ class BlockData$Type extends MessageType$<BlockData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -27139,7 +27228,6 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         super("symbolx.bench.ChannelData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27166,7 +27254,6 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.orderKey = "";
@@ -27185,9 +27272,6 @@ class ChannelData$Type extends MessageType$<ChannelData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -27267,9 +27351,6 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -27346,7 +27427,6 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         super("symbolx.bench.ChoiceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27372,7 +27452,6 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         message.tagsPtr = [];
@@ -27390,9 +27469,6 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -27469,9 +27545,6 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -27545,7 +27618,6 @@ class ClassData$Type extends MessageType$<ClassData> {
         super("symbolx.bench.ClassData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27571,7 +27643,6 @@ class ClassData$Type extends MessageType$<ClassData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         message.tagsPtr = [];
@@ -27589,9 +27660,6 @@ class ClassData$Type extends MessageType$<ClassData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -27668,9 +27736,6 @@ class ClassData$Type extends MessageType$<ClassData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -27943,7 +28008,6 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         super("symbolx.bench.DependencyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -27964,7 +28028,6 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.dependsOnPackagesPtr = [];
         if (value !== undefined)
@@ -27981,9 +28044,6 @@ class DependencyData$Type extends MessageType$<DependencyData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -28045,9 +28105,6 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -28411,7 +28468,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         super("symbolx.bench.FlowData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28441,7 +28497,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.computedValues = [];
         message.orderKey = "";
@@ -28461,9 +28516,6 @@ class FlowData$Type extends MessageType$<FlowData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -28552,9 +28604,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -28640,7 +28689,6 @@ class KitData$Type extends MessageType$<KitData> {
         super("symbolx.bench.KitData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28667,7 +28715,6 @@ class KitData$Type extends MessageType$<KitData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         message.tagsPtr = [];
@@ -28685,9 +28732,6 @@ class KitData$Type extends MessageType$<KitData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -28767,9 +28811,6 @@ class KitData$Type extends MessageType$<KitData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -28846,7 +28887,6 @@ class LinkData$Type extends MessageType$<LinkData> {
         super("symbolx.bench.LinkData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -28877,7 +28917,6 @@ class LinkData$Type extends MessageType$<LinkData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.computedValues = [];
         message.type = 0;
@@ -28898,9 +28937,6 @@ class LinkData$Type extends MessageType$<LinkData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -28992,9 +29028,6 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -29083,7 +29116,6 @@ class OptionData$Type extends MessageType$<OptionData> {
         super("symbolx.bench.OptionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29106,7 +29138,6 @@ class OptionData$Type extends MessageType$<OptionData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         if (value !== undefined)
@@ -29123,9 +29154,6 @@ class OptionData$Type extends MessageType$<OptionData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -29193,9 +29221,6 @@ class OptionData$Type extends MessageType$<OptionData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -29260,7 +29285,6 @@ class PackageData$Type extends MessageType$<PackageData> {
         super("symbolx.bench.PackageData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29287,7 +29311,6 @@ class PackageData$Type extends MessageType$<PackageData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.slug = "";
@@ -29305,9 +29328,6 @@ class PackageData$Type extends MessageType$<PackageData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -29387,9 +29407,6 @@ class PackageData$Type extends MessageType$<PackageData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -29466,7 +29483,6 @@ class PageData$Type extends MessageType$<PageData> {
         super("symbolx.bench.PageData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29492,7 +29508,6 @@ class PageData$Type extends MessageType$<PageData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         message.tagsPtr = [];
@@ -29510,9 +29525,6 @@ class PageData$Type extends MessageType$<PageData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -29589,9 +29601,6 @@ class PageData$Type extends MessageType$<PageData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -29665,7 +29674,6 @@ class ViewData$Type extends MessageType$<ViewData> {
         super("symbolx.bench.ViewData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29712,7 +29720,6 @@ class ViewData$Type extends MessageType$<ViewData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.orderKey = "";
@@ -29737,9 +29744,6 @@ class ViewData$Type extends MessageType$<ViewData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -29879,9 +29883,6 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -30692,7 +30693,6 @@ class RoleData$Type extends MessageType$<RoleData> {
         super("symbolx.bench.RoleData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30719,7 +30719,6 @@ class RoleData$Type extends MessageType$<RoleData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         message.tagsPtr = [];
@@ -30737,9 +30736,6 @@ class RoleData$Type extends MessageType$<RoleData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -30819,9 +30815,6 @@ class RoleData$Type extends MessageType$<RoleData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -30898,7 +30891,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         super("symbolx.bench.SpaceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -30928,7 +30920,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.orderKey = "";
@@ -30946,9 +30937,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -31037,9 +31025,6 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -31125,7 +31110,6 @@ class TagData$Type extends MessageType$<TagData> {
         super("symbolx.bench.TagData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31151,7 +31135,6 @@ class TagData$Type extends MessageType$<TagData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.orderKey = "";
         message.tagsPtr = [];
@@ -31169,9 +31152,6 @@ class TagData$Type extends MessageType$<TagData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -31248,9 +31228,6 @@ class TagData$Type extends MessageType$<TagData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -31324,7 +31301,6 @@ class TriggerData$Type extends MessageType$<TriggerData> {
         super("symbolx.bench.TriggerData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -31356,7 +31332,6 @@ class TriggerData$Type extends MessageType$<TriggerData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.effect = 0;
@@ -31376,9 +31351,6 @@ class TriggerData$Type extends MessageType$<TriggerData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
-                    break;
-                case /* string ck */ 3:
-                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -31473,9 +31445,6 @@ class TriggerData$Type extends MessageType$<TriggerData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string ck = 3; */
-        if (message.ck !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -34093,6 +34062,8 @@ export enum ScalerProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   mode = 25,
   subnodePacked = 29,
   type = 30,
@@ -34125,6 +34096,8 @@ export enum StoreProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   mode = 25,
   subnodePacked = 29,
   type = 30,
@@ -34155,6 +34128,8 @@ export enum MachineProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   ownedByPtr = 17,
   mode = 25,
   subnodePacked = 29,
@@ -34192,6 +34167,8 @@ export enum BrowserProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   ownedByPtr = 17,
   mode = 25,
   subnodePacked = 29,
@@ -34232,6 +34209,8 @@ export enum FileProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   ownedByPtr = 17,
   mode = 25,
   subnodePacked = 29,
@@ -34275,6 +34254,8 @@ export enum StreamProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   ownedByPtr = 17,
   mode = 25,
   subnodePacked = 29,
@@ -34304,6 +34285,8 @@ export enum SecretProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   ownedByPtr = 17,
   mode = 25,
   subnodePacked = 29,
@@ -34327,7 +34310,6 @@ export enum SecretProperty {
 export enum PackageProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34353,7 +34335,6 @@ export enum PackageProperty {
 export enum DependencyProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34373,7 +34354,6 @@ export enum DependencyProperty {
 export enum PageProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34398,7 +34378,6 @@ export enum PageProperty {
 export enum BlockProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34420,7 +34399,6 @@ export enum BlockProperty {
 export enum ChoiceProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34445,7 +34423,6 @@ export enum ChoiceProperty {
 export enum ClassProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34507,7 +34484,6 @@ export enum FieldProperty {
 export enum OptionProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34529,7 +34505,6 @@ export enum OptionProperty {
 export enum TagProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34554,7 +34529,6 @@ export enum TagProperty {
 export enum FlowProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34583,7 +34557,6 @@ export enum FlowProperty {
 export enum ActionProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34613,7 +34586,6 @@ export enum ActionProperty {
 export enum LinkProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34643,7 +34615,6 @@ export enum LinkProperty {
 export enum TriggerProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34674,7 +34645,6 @@ export enum TriggerProperty {
 export enum KitProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34700,7 +34670,6 @@ export enum KitProperty {
 export enum ViewProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34771,7 +34740,6 @@ export enum DatabaseProperty {
 export enum ChannelProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34797,7 +34765,6 @@ export enum ChannelProperty {
 export enum RoleProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -34823,7 +34790,6 @@ export enum RoleProperty {
 export enum SpaceProperty {
   metatype = 1,
   id = 2,
-  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -35159,6 +35125,7 @@ export enum LogProperty {
 export enum PlanProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -35167,6 +35134,8 @@ export enum PlanProperty {
   updatedAt = 12,
   updatedByPtr = 13,
   deletedAt = 14,
+  templatePtr = 15,
+  templateAt = 16,
   ownedByPtr = 17,
   mode = 25,
   subnodePacked = 29,
@@ -35561,8 +35530,7 @@ export enum NodeReferenceProperty {
   id = 31,
   ck = 32,
   benchId = 33,
-  baseCk = 34,
-  baseBenchId = 35,
+  baseId = 34,
 }
 
 export enum PropertyReferenceProperty {
@@ -36538,6 +36506,8 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.SCALER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [ScalerProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SCALER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ScalerProperty.type]: { id: 30, name: 'type', component: ObjectType.SCALER, enumType: EnumType.SCALER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -36569,6 +36539,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.STORE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.mode]: { id: 25, name: 'mode', component: ObjectType.STORE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StoreProperty.type]: { id: 30, name: 'type', component: ObjectType.STORE, enumType: EnumType.STORE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -36582,8 +36554,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 50, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 60, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 61, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 62, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36598,6 +36570,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.mode]: { id: 25, name: 'mode', component: ObjectType.MACHINE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -36615,8 +36589,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 43, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 44, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 45, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 50, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 51, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.07.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 52, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 53, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 54, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36634,6 +36608,8 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [BrowserProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.BROWSER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.mode]: { id: 25, name: 'mode', component: ObjectType.BROWSER, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -36673,6 +36649,8 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FILE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -36715,6 +36693,8 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.STREAM, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.STREAM], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.STREAM, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.mode]: { id: 25, name: 'mode', component: ObjectType.STREAM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -36743,6 +36723,8 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.SECRET, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SECRET], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.mode]: { id: 25, name: 'mode', component: ObjectType.SECRET, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -36765,7 +36747,6 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
 export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PACKAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PackageProperty.id]: { id: 2, name: 'id', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36790,7 +36771,6 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
 export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DEPENDENCY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [DependencyProperty.id]: { id: 2, name: 'id', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [DependencyProperty.ck]: { id: 3, name: 'ck', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36809,7 +36789,6 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
 export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PageProperty.id]: { id: 2, name: 'id', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [PageProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PageProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PageProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36833,7 +36812,6 @@ export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BlockProperty.id]: { id: 2, name: 'id', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.ck]: { id: 3, name: 'ck', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36854,7 +36832,6 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
 export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
   [ChoiceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHOICE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChoiceProperty.id]: { id: 2, name: 'id', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ChoiceProperty.ck]: { id: 3, name: 'ck', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ChoiceProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ChoiceProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36878,7 +36855,6 @@ export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
 export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CLASS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ClassProperty.id]: { id: 2, name: 'id', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ClassProperty.ck]: { id: 3, name: 'ck', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CLASS, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ClassProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.CLASS, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ClassProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.CLASS, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36938,7 +36914,6 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
 export const OptionDataInfo: Record<OptionProperty, PropertyInfo> = {
   [OptionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.OPTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [OptionProperty.id]: { id: 2, name: 'id', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [OptionProperty.ck]: { id: 3, name: 'ck', component: ObjectType.OPTION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [OptionProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.OPTION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.CHOICE], referenceStruct: StructType.NODE_REFERENCE },
   [OptionProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.OPTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [OptionProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.OPTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36959,7 +36934,6 @@ export const OptionDataInfo: Record<OptionProperty, PropertyInfo> = {
 export const TagDataInfo: Record<TagProperty, PropertyInfo> = {
   [TagProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TAG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TagProperty.id]: { id: 2, name: 'id', component: ObjectType.TAG, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TagProperty.ck]: { id: 3, name: 'ck', component: ObjectType.TAG, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TagProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TAG, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [TagProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.TAG, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [TagProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.TAG, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -36983,7 +36957,6 @@ export const TagDataInfo: Record<TagProperty, PropertyInfo> = {
 export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FLOW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FlowProperty.id]: { id: 2, name: 'id', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FlowProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37011,7 +36984,6 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ActionProperty.id]: { id: 2, name: 'id', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ActionProperty.ck]: { id: 3, name: 'ck', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.ACTION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.FLOW, NodeType.KIT, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.ACTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.ACTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37040,7 +37012,6 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
 export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [LinkProperty.id]: { id: 2, name: 'id', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.ck]: { id: 3, name: 'ck', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.LINK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37069,7 +37040,6 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TriggerProperty.id]: { id: 2, name: 'id', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.ck]: { id: 3, name: 'ck', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.ACTION, NodeType.TASK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37099,7 +37069,6 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
 export const KitDataInfo: Record<KitProperty, PropertyInfo> = {
   [KitProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.KIT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [KitProperty.id]: { id: 2, name: 'id', component: ObjectType.KIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [KitProperty.ck]: { id: 3, name: 'ck', component: ObjectType.KIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [KitProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.KIT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [KitProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.KIT, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [KitProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.KIT, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37124,7 +37093,6 @@ export const KitDataInfo: Record<KitProperty, PropertyInfo> = {
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ViewProperty.id]: { id: 2, name: 'id', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.ck]: { id: 3, name: 'ck', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.VIEW, NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37193,7 +37161,6 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
 export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANNEL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChannelProperty.id]: { id: 2, name: 'id', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.ck]: { id: 3, name: 'ck', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CHANNEL, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.CHANNEL, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.CHANNEL, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37218,7 +37185,6 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
 export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ROLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RoleProperty.id]: { id: 2, name: 'id', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [RoleProperty.ck]: { id: 3, name: 'ck', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.ROLE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [RoleProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.ROLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [RoleProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.ROLE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37243,7 +37209,6 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SpaceProperty.id]: { id: 2, name: 'id', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37567,6 +37532,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
 export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PLAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PlanProperty.id]: { id: 2, name: 'id', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37575,6 +37541,8 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.updatedAt]: { id: 12, name: 'updated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.PLAN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.MACHINE, NodeType.FLOW, NodeType.ACTION, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.templatePtr]: { id: 15, name: 'template_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.PLAN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.mode]: { id: 25, name: 'mode', component: ObjectType.PLAN, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -37913,8 +37881,7 @@ export const NodeReferenceDataInfo: Record<NodeReferenceProperty, PropertyInfo> 
   [NodeReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NodeReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [NodeReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NodeReferenceProperty.baseId]: { id: 34, name: 'base_id', component: ObjectType.NODE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, PropertyInfo> = {
   [PropertyReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

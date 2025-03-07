@@ -290,6 +290,7 @@ class Action(SourceNode[ActionData], IsComputable):
         while parent is not None:
             if isinstance(parent, Flow):
                 return parent
+            parent = parent.parent
         return None
 
     @property
@@ -301,6 +302,7 @@ class Action(SourceNode[ActionData], IsComputable):
         while parent is not None:
             if isinstance(parent, Kit):
                 return parent
+            parent = parent.parent
         return None
 
     def run_type(self) -> RunType:

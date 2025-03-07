@@ -1,14 +1,12 @@
 import typing
-from typing import Any, Optional, Union, cast
-from uuid import UUID
+from typing import Optional, Union
 
 from bench.language.core import (
     FIELD_BASE_NODE_TYPES,
     NAME_CONSTRAINT,
     FieldBaseNode,
     FieldType,
-    IsBased,
-    Node,
+    IsInstantiable,
     NodeType,
     Property,
     SourceNode,
@@ -26,7 +24,7 @@ from bench.language.core import (
     p_runtime,
     to_type_scalar,
 )
-from bench.pb2 import AnyNodeData, FieldData, NodeReferenceData
+from bench.pb2 import FieldData
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
@@ -37,7 +35,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.FIELD, has_subtypes=True)
-class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
+class Field(IsInstantiable, SourceNode[FieldData], TypeBase, _IntoQuery):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in BuiltinObjects.
     """
@@ -67,25 +65,6 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
     #  one of the base structs takes precende for some reason (but SourceNode is first in MRO...))
 
     @property
-    def base(self) -> Optional[Node]:
-        return self.parent
-
-    @property
-    def base_ck(self) -> Optional[UUID]:
-        return self.base.ck if self.base is not None else None
-
-    @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return (cast(FieldData, data)).parent_ptr
-
-    @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional[Node]:
-        if "parent" in data:
-            return data["parent"]
-        else:
-            return None
-
-    @property
     def type_info(self) -> TypeBase:
         return self
 
@@ -98,6 +77,7 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
     @staticmethod
     def new(
         name: str,
+        type: FieldType,
         typ: TypeIn,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
@@ -110,7 +90,7 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
             if isinstance(constraint, TypeConstraintIn):
                 constraint = constraint.into()
             kwargs["constraint"] = constraint
-        field = Field(name=name, **kwargs)
+        field = Field(name=name, type=type, **kwargs)
         return field
 
     @staticmethod
@@ -120,7 +100,7 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, type=FieldType.RESOURCE, constraint=constraint, **kwargs)
+        return Field.new(name, type=FieldType.RESOURCE, typ=typ, constraint=constraint, **kwargs)
 
     @staticmethod
     def member(
@@ -129,7 +109,7 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, type=FieldType.MEMBER, constraint=constraint, **kwargs)
+        return Field.new(name, type=FieldType.MEMBER, typ=typ, constraint=constraint, **kwargs)
 
     @staticmethod
     def input(
@@ -138,7 +118,7 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, type=FieldType.INPUT, constraint=constraint, **kwargs)
+        return Field.new(name, type=FieldType.INPUT, typ=typ, constraint=constraint, **kwargs)
 
     @staticmethod
     def output(
@@ -147,4 +127,4 @@ class Field(SourceNode[FieldData], IsBased, TypeBase, _IntoQuery):
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
-        return Field.new(name, typ, type=FieldType.OUTPUT, constraint=constraint, **kwargs)
+        return Field.new(name, type=FieldType.OUTPUT, typ=typ, constraint=constraint, **kwargs)

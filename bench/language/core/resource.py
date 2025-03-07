@@ -16,7 +16,7 @@ from .const import (
     bittuple,
     enum_,
 )
-from .node import BenchNode, IsOwnable, IsTraceable, Node, node_component_
+from .node import BenchNode, IsOwnable, IsTemplatable, IsTraceable, Node, node_component_
 from .property import (
     p_internal,
     p_node_parent,
@@ -74,7 +74,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component_()
-class Resource[NodeDataT: AnyNodeData](IsTraceable, BenchNode[NodeDataT]):
+class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, BenchNode[NodeDataT]):
     """
     A Resource in a Bench.
     Resources generally work on the 'desired state' principle.
