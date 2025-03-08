@@ -26,14 +26,7 @@ from .const import (
     StructType,
     enum_,
 )
-from .node import (
-    BenchNode,
-    IsRuntime,
-    Node,
-    NodeReference,
-    RunnableNode,
-    SourceNode,
-)
+from .node import BenchNode, IsRuntime, Node, NodeReference, PackageNode, RunnableNode
 from .object import PropertyReference
 from .property import Property, p_regular
 from .struct import Struct, struct_
@@ -292,7 +285,7 @@ PathElementIn = Union[
     ],
     str,
     Property,
-    "SourceNode",
+    "PackageNode",
 ]
 
 
@@ -306,7 +299,7 @@ def path_element(element_in: PathElementIn) -> PathElement:
         return parse_path(element_in).elements[0]
     elif isinstance(element_in, (Property, Field)):
         return PathElement.attribute(element_in)
-    elif isinstance(element_in, SourceNode):
+    elif isinstance(element_in, PackageNode):
         return PathElement.node_(element_in)
     elif isinstance(element_in, PathElementType):
         return PathElement(type=element_in)
@@ -335,7 +328,7 @@ def to_path(path_in: PathIn) -> Path:
 
 def reverse_path_element(element: PathElement) -> PathElementIn:
     """Reverse a PathElement back into a PathElement-like (where possible)."""
-    from bench.language import Field, Property, SourceNode
+    from bench.language import Field, PackageNode, Property
 
     if element.type == PathElementType.ATTRIBUTE:
         if isinstance(node := element.node, Field):
@@ -343,7 +336,7 @@ def reverse_path_element(element: PathElement) -> PathElementIn:
         elif isinstance(prop := element.property, Property):
             return prop
     elif element.type == PathElementType.NODE:
-        if isinstance(node := element.node, SourceNode):
+        if isinstance(node := element.node, PackageNode):
             return node
     elif element.type in (PathElementType.ROOT, PathElementType.CURRENT, PathElementType.PARENT):
         return element.type
@@ -625,7 +618,7 @@ def evaluate_path(
     for element in elements:
         # absolute
         if element.type == PathElementType.ROOT:
-            if not isinstance(scope, SourceNode):
+            if not isinstance(scope, PackageNode):
                 raise PathLogicError(f"root references are only valid for Bench Nodes: {path}")
             current = scope.package
         elif element.type == PathElementType.BENCH:

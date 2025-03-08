@@ -4,7 +4,9 @@ from bench.language.core import (
     TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     Node,
     NodeReference,
@@ -385,7 +387,7 @@ class RectangleConstraint(Struct):
 
 
 @node_(NodeType.VIEW, has_subtypes=True)
-class View(InlineSourceNode[ViewData]):
+class View(IsTemplatable, IsTraceable, InlineNode[ViewData]):
     """A View is a graphical interface in a Bench."""
 
     parent: Union["Space", "View", "Page", None] = p_node_parent(
@@ -517,9 +519,6 @@ class ChatView(View):
     draft_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
     draft_reply_to: Optional["Message"] = p_regular(
         102, require=False, array=False, references=NodeType.MESSAGE
-    )
-    scope: Optional["InlineSourceNode"] = p_regular(
-        110, require=False, array=False, references="any"
     )
 
 

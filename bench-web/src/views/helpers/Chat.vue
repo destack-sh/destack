@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { isInlineSourceNode } from "@/language/core/const";
+import { isInlineNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, getTextLine, isTextEmpty, trimText } from "@/language/core/text";
@@ -27,7 +27,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { BENCH_SCOPE, benchPtr } from "@/system/client";
+import { BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, canvas, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { user } from "@/system/user";
@@ -78,8 +78,6 @@ const state = canvas.registerView(self, id);
 const subnodePacked = toRef(props, "subnodePacked");
 
 // node
-const scopePtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "scopePtr");
-const scope = supergraph.getRef(scopePtr);
 const nodePtr = computedValue(() => props.nodePtr);
 const node = supergraph.getRef(nodePtr) as Ref<AnyNodeData>;
 const channelPtr = computed(() => {
@@ -376,7 +374,6 @@ function submit() {
   }
   let messageChannelPtr = channelPtr.value;
   let messageThreadPtr = threadPtr.value;
-  let messageScopePtr = scopePtr.value;
 
   // create channel/thread if needed
   // (channelPtr is null means we're given just a scope,
@@ -384,10 +381,9 @@ function submit() {
   if (messageChannelPtr == null) {
     if (nodePtr.value == null) throw new Error("no scope");
     const node = supergraph.get(nodePtr.value);
-    if (!isInlineSourceNode(node)) {
-      throw new Error(`cannot chat with ${node != null ? describeNode(node) : "???"}`);
+    if (!isInlineNode(node)) {
+      throw new Error(`cannot chat with ${describeNode(node ?? nodePtr.value)}`);
     }
-    messageScopePtr = toNodeRef(node);
     // channel
     if (space.value?.channelPtr == null) {
       const newChannel =
@@ -405,9 +401,9 @@ function submit() {
     const newThread = tx.create({
       metatype: NodeType.THREAD,
       benchPtr: benchPtr.value,
+      packagePtr: node.packagePtr,
       parentPtr: messageChannelPtr,
       channelPtr: messageChannelPtr,
-      scopePtr: messageScopePtr,
     });
     messageThreadPtr = toNodeRef(newThread);
     tx.update(node, { threadPtr: messageThreadPtr });
@@ -418,9 +414,10 @@ function submit() {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: messageThreadPtr ?? messageChannelPtr,
+      benchPtr: benchPtr.value,
+      packagePtr: packagePtr.value!,
       channelPtr: messageChannelPtr,
       threadPtr: messageThreadPtr ?? undefined,
-      scopePtr: messageScopePtr ?? undefined,
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
       text,

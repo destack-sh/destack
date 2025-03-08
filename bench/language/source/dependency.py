@@ -1,6 +1,14 @@
 from typing import TYPE_CHECKING, Union
 
-from bench.language.core import NodeType, SourceNode, node_, p_node_parent, p_regular
+from bench.language.core import (
+    IsTemplatable,
+    IsTraceable,
+    NodeType,
+    PackageNode,
+    node_,
+    p_node_parent,
+    p_regular,
+)
 from bench.pb2 import DependencyData
 
 if TYPE_CHECKING:
@@ -10,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.DEPENDENCY)
-class Dependency(SourceNode[DependencyData]):
+class Dependency(IsTemplatable, IsTraceable, PackageNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
     If scopes are given, only those blocks are included.

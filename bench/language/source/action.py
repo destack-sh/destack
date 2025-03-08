@@ -13,13 +13,15 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsComputable,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     Node,
     NodeReference,
     NodeSubtypeStub,
     NodeType,
+    PackageNode,
     RunType,
-    SourceNode,
     StructType,
     Type,
     TypeBase,
@@ -206,7 +208,7 @@ class ActionType(BuiltinEnum):
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
-class Action(SourceNode[ActionData], IsComputable):
+class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
     """
     A data or control flow node in a Flow. Actions are connected by Links.
     """
@@ -230,7 +232,7 @@ class Action(SourceNode[ActionData], IsComputable):
     )
 
     # meta
-    run_options: Optional["RunOptions"] = p_regular(
+    options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     selection: Optional["Selection"] = p_regular(
@@ -314,7 +316,7 @@ class Action(SourceNode[ActionData], IsComputable):
         name: str | None = None,
         *,
         parent: Union["Flow", "Kit", "Action", None] = None,
-        run_options: "RunOptions | None" = None,
+        options: "RunOptions | None" = None,
         is_manual: bool = False,
     ) -> "Link":
         """Connects a target Action to this Action."""
@@ -339,7 +341,7 @@ class Action(SourceNode[ActionData], IsComputable):
             source=self,
             target=target,
             parent=parent,
-            run_options=run_options,
+            options=options,
             is_manual=is_manual,
         )
         parent.links.append(link)

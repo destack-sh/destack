@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.07.6"
+VERSION = "2025.03.08.1"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
@@ -675,7 +675,7 @@ RESOURCE_NODE_TYPES = _get_node_types(1000, 2000)
 STATIC_RESOURCE_NODE_TYPES = _get_node_types(1000, 1100)
 DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(1100, 2000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
-INLINE_SOURCE_NODE_TYPES = bittuple(
+INLINE_NODE_TYPES = bittuple(
     NodeType.CHANNEL,
     NodeType.CHOICE,
     NodeType.CLASS,
@@ -686,8 +686,9 @@ INLINE_SOURCE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.VIEW,
     NodeType.TAG,
+    NodeType.TASK,
+    NodeType.PLAN,
 )
-INLINE_NODE_TYPES = bittuple(*INLINE_SOURCE_NODE_TYPES, NodeType.TASK)
 TEMPLATABLE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
 )

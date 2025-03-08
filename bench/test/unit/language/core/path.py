@@ -290,18 +290,18 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
     page1 = mock_package.pages.create(name="Page1")
     flow1 = Flow.new(
         "Flow1",
-        run_options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),
+        options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),
     )
     page1.append(flow1)
     action1 = flow1.actions.create(  # noqa: F841
         name="Action1",
         type=ActionType.CODE,
-        run_options=RunOptions(model_family=ModelFamily.META_LLAMA),
+        options=RunOptions(model_family=ModelFamily.META_LLAMA),
     )
 
     # relative to scope
     p = path(
-        Flow.get_property("run_options"),
+        Flow.get_property("options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )
@@ -310,7 +310,7 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
     # absolute node path
     p = path(
         flow1,
-        Flow.get_property("run_options"),
+        Flow.get_property("options"),
         RunOptions.get_property("text_options"),
         TextOptions.get_property("temperature"),
     )
@@ -319,7 +319,7 @@ def test_path_evaluate_attribute(session: Session, mock_package: Package):
     # combind relative
     p = path(
         "Action1",
-        Action.get_property("run_options"),
+        Action.get_property("options"),
         RunOptions.get_property("model_family"),
     )
     assert evaluate_path(flow1, flow1, Context(), p) == ModelFamily.META_LLAMA

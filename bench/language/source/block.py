@@ -5,12 +5,15 @@ from uuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
+    Node,
     NodeReference,
     NodeSubtypeStub,
     NodeType,
-    SourceNode,
+    PackageNode,
     StructType,
     TextLine,
     TextLineType,
@@ -103,7 +106,7 @@ if IS_DEV or IS_TEST:
 
 
 @node_(NodeType.BLOCK, has_subtypes=True)
-class Block(SourceNode[BlockData]):
+class Block(IsTemplatable, IsTraceable, PackageNode[BlockData]):
     """A Block on a Page."""
 
     parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
@@ -116,7 +119,7 @@ class Block(SourceNode[BlockData]):
     line: Optional["TextLine"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )
-    node: Optional["InlineSourceNode"] = p_regular(
+    node: Optional["Node"] = p_regular(
         41, references="any", default=None, require=False, array=False, baseless=True
     )
     if TYPE_CHECKING:
@@ -137,10 +140,10 @@ class Block(SourceNode[BlockData]):
     @property
     def page(self) -> "Page | None":
         """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page, SourceNode
+        from bench.language import Page
 
         parent = self.parent
-        while isinstance(parent, SourceNode):
+        while parent is not None:
             if isinstance(parent, Page):
                 return parent
             parent = parent.parent
@@ -154,14 +157,14 @@ class Block(SourceNode[BlockData]):
     @property
     def name(self) -> str | None:
         """The name of the delegate (if any)."""
-        if (node := self.node) is not None and "name" in node.__properties__:
+        if isinstance(node := self.node, InlineNode) and "name" in node.__properties__:
             return node.name
         return None
 
     @property
     def code_name(self) -> str | None:
         """The code name of the delegate (if any)."""
-        if (node := self.node) is not None and "name" in node.__properties__:
+        if isinstance(node := self.node, InlineNode) and "name" in node.__properties__:
             return node.code_name
         return None
 
@@ -170,7 +173,7 @@ class Block(SourceNode[BlockData]):
         super().delete(_now=_now)
         # also delete linked Node (if any)
         if (
-            (node := self.node) is not None
+            isinstance(node := self.node, InlineNode)
             and node.definition_id == self.id
             and not node.is_deleted
         ):
@@ -180,16 +183,20 @@ class Block(SourceNode[BlockData]):
     def restore(self, _now: datetime | None = None):
         super().restore(_now=_now)
         # also restore linked Node (if any)
-        if (node := self.node) is not None and node.definition_id == self.id and node.is_deleted:
+        if (
+            isinstance(node := self.node, InlineNode)
+            and node.definition_id == self.id
+            and node.is_deleted
+        ):
             node.restore(_now=_now)
 
-    def node_as[T: InlineSourceNode](self, node_cls: _type[T]) -> T:
+    def node_as[T: InlineNode](self, node_cls: _type[T]) -> T:
         if not isinstance((node := self.node), node_cls):
             raise TypeError(f"{self!r} has no {node_cls.__name__} (node={node!r})")
         return node  # type: ignore
 
     @staticmethod
-    def wrap(node: InlineSourceNode) -> "Block":
+    def wrap(node: InlineNode) -> "Block":
         """Wrap a Node as a Block."""
         try:
             block_type = BlockType(node.metatype)
@@ -203,7 +210,7 @@ class Block(SourceNode[BlockData]):
     @staticmethod
     def new[BlockT: "Block" = "Block"](
         typ: BlockType | _type[BlockT] | NodeSubtypeStub[BlockT],
-        node: InlineSourceNode | None = None,
+        node: Node | None = None,
         **kwargs,
     ) -> "BlockT":
         # unravel subtype
@@ -214,9 +221,7 @@ class Block(SourceNode[BlockData]):
         # make
         block = Block(type=typ, node=node, **kwargs)  # type: ignore
         # set the node definition for inline source nodes
-        if node is not None:
-            if not isinstance(node, InlineSourceNode):
-                raise TypeError(f"expected InlineSourceNode, got {node!r}")
+        if isinstance(node, InlineNode):
             if node.definition is None:
                 node.definition = block
         return block  # type: ignore

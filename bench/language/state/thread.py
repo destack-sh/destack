@@ -4,15 +4,15 @@ from uuid import UUID
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
-    BenchNode,
     BuiltinEnum,
     EnumType,
-    InlineSourceNode,
+    InlineNode,
     IsOwnable,
     IsTimed,
     Node,
     NodeReference,
     NodeType,
+    PackageNode,
     RemoteNodeList,
     StructType,
     Text,
@@ -45,7 +45,7 @@ class ThreadStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)
-class Thread(IsTimed, IsOwnable, BenchNode[ThreadData]):
+class Thread(IsTimed, IsOwnable, PackageNode[ThreadData]):
     """
     A Thread for communicating with Messages on something.
     """
@@ -60,7 +60,7 @@ class Thread(IsTimed, IsOwnable, BenchNode[ThreadData]):
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["InlineSourceNode", "Package"] = p_regular(
+    scope: Union["InlineNode", "Package"] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
     run_root: Optional["Run"] = p_regular(

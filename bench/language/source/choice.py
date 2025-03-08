@@ -2,7 +2,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     NodeType,
     Type,
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CHOICE, passthrough_get=("options",))
-class Choice(InlineSourceNode[ChoiceData]):
+class Choice(IsTemplatable, IsTraceable, InlineNode[ChoiceData]):
     """A Choice of Options."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

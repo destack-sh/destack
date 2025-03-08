@@ -3,7 +3,9 @@ from typing import TYPE_CHECKING, Union
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
     RemoteNodeList,
     enum_,
@@ -28,7 +30,7 @@ class ChannelType(BuiltinEnum):
 
 
 @timed_node_(NodeType.CHANNEL, has_subtypes=True)
-class Channel(InlineSourceNode[ChannelData]):
+class Channel(IsTemplatable, IsTraceable, InlineNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
     """

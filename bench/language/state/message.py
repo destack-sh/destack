@@ -5,17 +5,17 @@ from uuid import UUID
 import structlog
 
 from bench.language.core import (
-    INLINE_SOURCE_NODE_TYPES,
+    INLINE_NODE_TYPES,
     TITLE_CONSTRAINT,
-    BenchNode,
     BuiltinEnum,
     EnumType,
     FieldType,
-    InlineSourceNode,
+    InlineNode,
     IsBased,
     IsTimed,
     Node,
     NodeType,
+    PackageNode,
     StructType,
     Text,
     TypeBase,
@@ -29,8 +29,7 @@ from bench.language.core import (
     p_value_runtime,
     timed_node_,
 )
-from bench.pb2 import AnyNodeData, MessageData
-from bench.pb2.lang_pb2 import NodeReferenceData
+from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -82,7 +81,7 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(IsTimed, IsBased, BenchNode[MessageData]):
+class Message(IsTimed, IsBased, PackageNode[MessageData]):
     """
     A Message about something.
     """
@@ -107,8 +106,8 @@ class Message(IsTimed, IsBased, BenchNode[MessageData]):
         wire=True,
         is_bench_implicit=True,
     )
-    scope: Union["InlineSourceNode", "Package"] = p_regular(
-        35, require=False, references=(*INLINE_SOURCE_NODE_TYPES, NodeType.PACKAGE)
+    scope: Union["InlineNode", "Package"] = p_regular(
+        35, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
     )
     run_root: Optional["Run"] = p_regular(
         36,
@@ -252,7 +251,7 @@ class Message(IsTimed, IsBased, BenchNode[MessageData]):
         text: Text | None = None,
         *,
         platform: MessagePlatform = MessagePlatform.BENCH,
-        scope: Optional["InlineSourceNode"] = None,
+        scope: Optional["InlineNode"] = None,
         reply_to: Optional["Message"] = None,
     ) -> "Message":
         message = Message(

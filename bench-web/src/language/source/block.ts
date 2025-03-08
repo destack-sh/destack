@@ -1,5 +1,5 @@
 import { supergraph } from "@/globals";
-import { INLINE_SOURCE_NODE_TYPES, isInlineNode, toCamelName } from "@/language/core/const";
+import { INLINE_NODE_TYPES, isInlineNode, toCamelName } from "@/language/core/const";
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -17,7 +17,6 @@ import {
   BlockType,
   FieldType,
   InlineNodeData,
-  InlineSourceNodeData,
   NodeReferenceData,
   NodeType,
   PageData,
@@ -33,7 +32,7 @@ export function createBlock(
   graph: ReadNodeGraph,
   options: {
     block: Partial<NodeIn<NodeType.BLOCK>>;
-    node?: InlineSourceNodeData | Partial<NodeIn<any>>;
+    node?: InlineNodeData | Partial<NodeIn<any>>;
     anchor: "before" | "after" | "inside";
     target: BlockData | PageData;
   },
@@ -82,7 +81,7 @@ export function createBlock(
     line,
     orderKey,
   });
-  if (INLINE_SOURCE_NODE_TYPES.includes(options.block.type as unknown as NodeType) && options.block.nodePtr == null) {
+  if (INLINE_NODE_TYPES.includes(options.block.type as unknown as NodeType) && options.block.nodePtr == null) {
     if (options.node?.id != null) {
       block.nodePtr = toNodeRef(options.node as AnyNodeData);
     } else {
@@ -144,13 +143,6 @@ export function unwrapBlockDefinition(block: BlockData): InlineNodeData | undefi
     return undefined; // may be other node type
   }
   return node;
-}
-
-/** Unwrap an InlineSourceNode into its Block. */
-export function unwrapInlineSourceNode(node: InlineSourceNodeData): BlockData | undefined {
-  if (node.definitionPtr == null) return undefined;
-  const block = supergraph.getOrError(node.definitionPtr);
-  return block as BlockData;
 }
 
 /** Unwrap an InlineNode into its Block. */

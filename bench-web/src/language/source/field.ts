@@ -1,4 +1,4 @@
-import { isInlineSourceNode, RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
+import { isInlineNode, RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { cloneNode, moveNode } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -9,15 +9,13 @@ import {
   BenchType,
   FieldData,
   FieldType,
-  InlineSourceNodeData,
+  InlineNodeData,
   NodeReferenceData,
   NodeType,
-  ObjectType,
   TypeKind,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 import { DragContent, MultiAnchor } from "@/ui/drag";
-import { getNodeIcon } from "@/ui/icon";
 import { Ref } from "vue";
 
 /** Create a Field relative to some Field-containing node. */
@@ -27,7 +25,7 @@ export function createField(
   options: {
     field?: Partial<FieldData>;
     anchor: "before" | "above" | "after" | "below" | "inside" | "start" | "end" | "center";
-    target: FieldData | ActionData | InlineSourceNodeData;
+    target: FieldData | ActionData | InlineNodeData;
   },
 ): FieldData {
   // eslint-disable-next-line prefer-const
@@ -40,7 +38,7 @@ export function createField(
   let type: FieldType;
   let kind: TypeKind | null = fieldIn?.kind ?? null;
   let siblings: FieldData[];
-  if (isInlineSourceNode(target)) {
+  if (isInlineNode(target)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeRef(target);
@@ -166,7 +164,7 @@ export function useFieldList(options: {
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
   fieldType: Ref<FieldType>;
-  base: Ref<InlineSourceNodeData | ActionData | null>;
+  base: Ref<InlineNodeData | ActionData | null>;
 }) {
   const { graph, txFactory, fieldType, base } = options;
 
@@ -177,7 +175,7 @@ export function useFieldList(options: {
       node = graph.getOrError(node);
       if (isNode(node, NodeType.FIELD)) {
         return true;
-      } else if (isInlineSourceNode(node) && TYPE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
+      } else if (isInlineNode(node) && TYPE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
         return true;
       } else {
         return false;

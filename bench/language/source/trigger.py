@@ -2,14 +2,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    INLINE_SOURCE_NODE_TYPES,
+    INLINE_NODE_TYPES,
     NAME_CONSTRAINT,
     BuiltinEnum,
     ColorType,
     EnumType,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
-    SourceNode,
+    PackageNode,
     StructType,
     Text,
     enum_,
@@ -31,6 +33,7 @@ if TYPE_CHECKING:
         Node,
         Package,
         Page,
+        Plan,
         Run,
         Task,
     )
@@ -74,13 +77,13 @@ class TriggerEffect(BuiltinEnum):
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
-class Trigger(SourceNode[TriggerData]):
+class Trigger(IsTemplatable, IsTraceable, PackageNode[TriggerData]):
     """
     A Trigger is an event-driven condition that, once met, affects the Bench somehow.
     """
 
-    parent: Union["Action", "Task", "Run", None] = p_node_parent(
-        4, NodeType.ACTION, NodeType.TASK, NodeType.RUN
+    parent: Union["Action", "Plan", "Task", "Run", None] = p_node_parent(
+        4, NodeType.ACTION, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
 
     # meta
@@ -88,11 +91,11 @@ class Trigger(SourceNode[TriggerData]):
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional[Text] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
-    scope: Union["InlineSourceNode", "Package", None] = p_regular(
+    scope: Union["InlineNode", "Package", None] = p_regular(
         35,
         require=False,
         array=False,
-        references=(*INLINE_SOURCE_NODE_TYPES, NodeType.PACKAGE),
+        references=(*INLINE_NODE_TYPES, NodeType.PACKAGE),
     )
     run_root: Optional["Run"] = p_regular(
         36,

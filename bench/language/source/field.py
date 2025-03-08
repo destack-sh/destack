@@ -6,10 +6,13 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     FieldBaseNode,
     FieldType,
+    InlineNode,
     IsInstantiable,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
+    PackageNode,
     Property,
-    SourceNode,
     StructType,
     TypeBase,
     TypeConstraint,
@@ -35,7 +38,9 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.FIELD, has_subtypes=True)
-class Field(IsInstantiable, SourceNode[FieldData], TypeBase, _IntoQuery):
+class Field(
+    IsInstantiable, IsTemplatable, IsTraceable, PackageNode[FieldData], TypeBase, _IntoQuery
+):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in BuiltinObjects.
     """
@@ -60,7 +65,7 @@ class Field(IsInstantiable, SourceNode[FieldData], TypeBase, _IntoQuery):
     def __eq__(self, other):  # type: ignore
         return _IntoQuery.__eq__(self, other)  # override to avoid recursion
 
-    __hash__ = SourceNode.__hash__  # type: ignore
+    __hash__ = InlineNode.__hash__  # type: ignore
     # (not entirely sure why we need to override Field.__hash__ but not for any other node, maybe
     #  one of the base structs takes precende for some reason (but SourceNode is first in MRO...))
 

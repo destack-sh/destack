@@ -2,7 +2,7 @@ import { canvas, supergraph } from "@/globals";
 import {
   getBaseFromNode,
   HELPER_VIEW_TYPES,
-  isInlineSourceNode,
+  isInlineNode,
   ROOT_VIEW_TYPES,
   toCamelName,
 } from "@/language/core/const";
@@ -1054,7 +1054,7 @@ export class SpaceCanvas {
     else if (
       isNode(node, NodeType.PAGE) ||
       isNode(node, NodeType.BLOCK) ||
-      (isInlineSourceNode(node) && node.definitionPtr != null)
+      (isInlineNode(node) && node.definitionPtr != null)
     ) {
       const containingPage = graph
         .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })

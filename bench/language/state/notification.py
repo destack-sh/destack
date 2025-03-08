@@ -5,12 +5,12 @@ import structlog
 
 from bench.language.core import (
     TITLE_CONSTRAINT,
-    BenchNode,
     BuiltinEnum,
     EnumType,
     IsTimed,
     Node,
     NodeType,
+    PackageNode,
     StructType,
     enum_,
     p_internal,
@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import NotificationData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Message, Text, Thread
+    from bench.language import Channel, Message, Package, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,13 +44,13 @@ class NotificationStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.NOTIFICATION)
-class Notification(IsTimed, BenchNode[NotificationData]):
+class Notification(IsTimed, PackageNode[NotificationData]):
     """
     A Notification about something.
     """
 
     # meta
-    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH)
+    parent: Union["Package", None] = p_node_parent(4, NodeType.PACKAGE)
     type: NotificationType = p_regular(30, require=True)
     channel: Optional["Channel"] = p_system(
         32,

@@ -2,9 +2,10 @@ import typing
 from typing import Optional, Union
 
 from bench.language.core import (
-    INLINE_SOURCE_NODE_TYPES,
     NAME_CONSTRAINT,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     NodeType,
     StructType,
@@ -14,6 +15,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
+from bench.language.core.const import INLINE_NODE_TYPES
 from bench.pb2 import KitData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -25,9 +27,9 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.KIT)
-class Kit(InlineSourceNode[KitData]):
+class Kit(IsTemplatable, IsTraceable, InlineNode[KitData]):
     """
-    A Kit of Actions for a SourceNode.
+    A Kit of Actions for a Node.
     """
 
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
@@ -38,8 +40,8 @@ class Kit(InlineSourceNode[KitData]):
     )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
 
-    target: Optional["InlineSourceNode"] = p_regular(
-        40, require=False, array=False, references=INLINE_SOURCE_NODE_TYPES.tuple
+    target: Optional["InlineNode"] = p_regular(
+        40, require=False, array=False, references=INLINE_NODE_TYPES.tuple
     )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)

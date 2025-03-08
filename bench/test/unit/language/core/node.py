@@ -158,7 +158,11 @@ def test_node_pointers_consistency(session: "Session"):
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
-            node_type=NodeType.MESSAGE, id=message_a.id, ck=message_a.ck, bench_id=bench_a.id
+            node_type=NodeType.MESSAGE,
+            id=message_a.id,
+            ck=message_a.ck,
+            bench_id=bench_a.id,
+            base_id=class_a_1.id,
         )
     )
 
@@ -176,7 +180,11 @@ def test_node_pointers_consistency(session: "Session"):
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(
-            node_type=NodeType.MESSAGE, id=message_b.id, ck=message_b.ck, bench_id=bench_b.id
+            node_type=NodeType.MESSAGE,
+            id=message_b.id,
+            ck=message_b.ck,
+            bench_id=bench_b.id,
+            base_id=class_b_1.id,
         )
     )
     assert message_b.parent_ptr

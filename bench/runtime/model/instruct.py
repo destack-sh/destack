@@ -18,6 +18,7 @@ from bench.language import (
     IsRuntime,
     LinkType,
     Node,
+    PackageNode,
     Page,
     Projection,
     ProjectOptions,
@@ -27,7 +28,6 @@ from bench.language import (
     Resource,
     Run,
     RunType,
-    SourceNode,
     TypeBase,
     _is_setup_complete,
 )
@@ -260,7 +260,7 @@ def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
 
 
 RESOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(Resource)
-SOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(SourceNode)
+PACKAGE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(PackageNode)
 ACTION_TYPE_ENUM_PROMPT = render_builtin_enum(ActionType, compact=False)
 BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
 LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
@@ -503,9 +503,9 @@ You MUST add any call plans to the outputs without touching the existing outputs
 
     general_info_parts: list[PromptPart] = [
         prompt_region(
-            PromptText(title=None, text=SOURCE_NODE_HIERARCHY_PROMPT),
-            title="SourceNode hierarchy",
-            text="Stylized signatures for source Nodes",
+            PromptText(title=None, text=PACKAGE_NODE_HIERARCHY_PROMPT),
+            title="PackageNode hierarchy",
+            text="Stylized signatures for PackageNodes",
             weight=1,
         ),
         prompt_region(

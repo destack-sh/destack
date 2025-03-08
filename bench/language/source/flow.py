@@ -3,8 +3,10 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 
 from bench.language.core import (
     FieldType,
-    InlineSourceNode,
+    InlineNode,
     IsComputable,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     NodeType,
     StructType,
@@ -24,13 +26,13 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.FLOW, passthrough_get=("fields",))
-class Flow(IsComputable, InlineSourceNode[FlowData]):
+class Flow(IsComputable, IsTemplatable, IsTraceable, InlineNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
     # meta
-    run_options: Optional["RunOptions"] = p_regular(
+    options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     selection: Optional["Selection"] = p_regular(

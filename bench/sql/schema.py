@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.07.6"
+VERSION = "2025.03.08.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -887,7 +887,7 @@ FLOW_TABLE = Table(
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("run_options", PrimitiveType.JSON, is_nullable=True),
+        Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
@@ -922,7 +922,7 @@ ACTION_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("run_options", PrimitiveType.JSON, is_nullable=True),
+        Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
@@ -962,7 +962,7 @@ LINK_TABLE = Table(
         Column("source_bench_id", PrimitiveType.UUID),
         Column("target_id", PrimitiveType.UUID),
         Column("target_bench_id", PrimitiveType.UUID),
-        Column("run_options", PrimitiveType.JSON, is_nullable=True),
+        Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("trigger", PrimitiveType.INT16, default="1"),
         Column("delay", PrimitiveType.DURATION, is_nullable=True),
         Column("is_manual", PrimitiveType.BOOLEAN, default="false"),
@@ -1257,6 +1257,7 @@ THREAD_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
@@ -1295,6 +1296,7 @@ MESSAGE_TABLE = Table(
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
@@ -1355,6 +1357,7 @@ NOTIFICATION_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
@@ -1698,6 +1701,12 @@ PLAN_TABLE = Table(
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("definition_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("on_terminate", PrimitiveType.INT16),
         Column("on_failure", PrimitiveType.INT16),

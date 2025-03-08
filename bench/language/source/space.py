@@ -5,11 +5,13 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsOwnable,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     Node,
     NodeType,
+    PackageNode,
     Selection,
-    SourceNode,
     StructType,
     enum_,
     node_,
@@ -42,7 +44,7 @@ class SpaceType(BuiltinEnum):
 
 
 @node_(NodeType.SPACE)
-class Space(IsOwnable, SourceNode[SpaceData]):
+class Space(IsOwnable, IsTemplatable, IsTraceable, PackageNode[SpaceData]):
     """A Space for someone/something to interact with the Bench using Views."""
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
