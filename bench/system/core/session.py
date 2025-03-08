@@ -80,8 +80,8 @@ def pg_engine_from_store(
     scope: GraphScopeData | None = None,
 ):
     """Get the postgres engine for a store"""
-    bench = store.parent
-    assert bench is not None, f"missing parent for {store!r}"
+    bench = store.bench
+    assert bench is not None, f"missing bench for {store!r}"
     return PostgresEngine(
         name=name,
         store=store,

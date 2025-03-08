@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.03.08.1"
+VERSION = "2025.03.08.2"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -56,7 +56,6 @@ AnyNodeData = Union[
     ThreadData,
     MessageData,
     NotificationData,
-    RecordData,
     MembershipData,
     InviteData,
     SessionData,
@@ -66,6 +65,7 @@ AnyNodeData = Union[
     LogData,
     PlanData,
     TaskData,
+    RecordData,
     SkipData,
     EmptyData,
 ]
@@ -161,7 +161,6 @@ BenchNodeData = Union[
     ThreadData,
     MessageData,
     NotificationData,
-    RecordData,
     MembershipData,
     InviteData,
     SessionData,
@@ -171,6 +170,7 @@ BenchNodeData = Union[
     LogData,
     PlanData,
     TaskData,
+    RecordData,
 ]
 ResourceNodeData = Union[
     ScalerData, StoreData, MachineData, BrowserData, FileData, StreamData, SecretData
@@ -199,6 +199,13 @@ SourceNodeData = Union[
     SpaceData,
 ]
 InlineNodeData = Union[
+    ScalerData,
+    StoreData,
+    MachineData,
+    BrowserData,
+    FileData,
+    StreamData,
+    SecretData,
     PageData,
     ChoiceData,
     ClassData,
@@ -214,9 +221,7 @@ InlineNodeData = Union[
 ]
 TypeBaseNodeData = Union[ChoiceData, ClassData, FlowData, ActionData, DatabaseData]
 FieldBaseNodeData = Union[ClassData, FlowData, ActionData, DatabaseData]
-StateNodeData = Union[
-    ThreadData, MessageData, NotificationData, RecordData, MembershipData, InviteData
-]
+StateNodeData = Union[ThreadData, MessageData, NotificationData, MembershipData, InviteData]
 RuntimeNodeData = Union[
     SessionData, RunData, RunSpanData, InterruptionData, LogData, PlanData, TaskData
 ]

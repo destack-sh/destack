@@ -1546,7 +1546,7 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(32, default=INTEGER_ZERO)
+    order_key: str | None = p_internal(32, default=INTEGER_ZERO, default_sql=None)
     icon: Optional["Icon"] = p_regular(
         33, default=None, require=False, array=False, struct=StructType.ICON
     )

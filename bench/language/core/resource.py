@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
 from uuid import UUID
 
 from bench.pb2 import AnyNodeData
@@ -11,28 +11,32 @@ from .const import (
     EnumType,
     NodeType,
     Region,
-    StructType,
     active_session,
     bittuple,
     enum_,
 )
-from .node import BenchNode, IsOwnable, IsTemplatable, IsTraceable, Node, node_component_
+from .node import (
+    InlineNode,
+    IsOwnable,
+    IsTemplatable,
+    IsTraceable,
+    Node,
+    node_component_,
+)
 from .property import (
     p_internal,
     p_node_parent,
-    p_regular,
     p_system,
 )
-from .validation import NAME_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
         NodeReference,
+        Package,
+        Page,
         Region,
         Scaler,
-        Tag,
-        Text,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -74,27 +78,31 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component_()
-class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, BenchNode[NodeDataT]):
+class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, InlineNode[NodeDataT]):
     """
     A Resource in a Bench.
     Resources generally work on the 'desired state' principle.
     Where applicable, the target state is stored in target_* properties.
     """
 
-    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH, is_system=True)
+    parent: Union["Bench", "Package", "Page", None] = p_node_parent(
+        4, NodeType.BENCH, NodeType.PACKAGE, NodeType.PAGE
+    )
     # ... space for type/name/...
-    status: ResourceStatus = p_system(33, default=ResourceStatus.DECLARED, default_sql=None)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    region: Region = p_system(35, default=REGION, default_sql=None)
 
-    # target status
-    activated_at: Optional[datetime] = p_internal(40, default=None)
-    deactivated_at: Optional[datetime] = p_internal(41, default=None)
-    reset_at: Optional[datetime] = p_internal(42, default=None)
-    suspended_at: Optional[datetime] = p_internal(43, default=None)
-    decommissioned_at: Optional[datetime] = p_internal(44, default=None)
-    # current status
-    active_at: Optional[datetime] = p_system(45, default=None)
+    # meta
+    region: Region = p_system(40, default=REGION, default_sql=None)
+
+    # status
+    status: ResourceStatus = p_system(50, default=ResourceStatus.DECLARED, default_sql=None)
+    # target
+    activated_at: Optional[datetime] = p_internal(51, default=None)
+    deactivated_at: Optional[datetime] = p_internal(52, default=None)
+    reset_at: Optional[datetime] = p_internal(53, default=None)
+    suspended_at: Optional[datetime] = p_internal(54, default=None)
+    decommissioned_at: Optional[datetime] = p_internal(55, default=None)
+    # current
+    active_at: Optional[datetime] = p_system(56, default=None)
 
     def __content_str__(self):
         return Node.__default_content_str__(self)
@@ -157,8 +165,6 @@ class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     A 'static' Resource in a Bench.
     """
 
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-
     @classmethod
     def new(cls, name: str, **kwargs: Any) -> Self:
         """Creates a new Resource of this type. Defaults to current Bench"""
@@ -181,16 +187,12 @@ class DynamicResource[NodeDataT: AnyNodeData](IsOwnable, Resource[NodeDataT]):
     A 'dynamic' Resource in a Bench.
     """
 
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-
+    # meta
     occupancy: ResourceOccupancy = p_system(
-        36, default=ResourceOccupancy.RESERVED, default_sql=None
+        41, default=ResourceOccupancy.RESERVED, default_sql=None
     )
     scaler: Optional["Scaler"] = p_system(
-        38, require=False, array=False, references=NodeType.SCALER
-    )
-    tags: list["Tag"] = p_internal(
-        39, require=False, array=True, same_bench=True, references=NodeType.TAG
+        42, require=False, array=False, references=NodeType.SCALER
     )
     if TYPE_CHECKING:
         scaler_id: Optional[UUID] = None

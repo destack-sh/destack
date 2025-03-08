@@ -64,26 +64,24 @@ class Browser(DynamicResource[BrowserData]):
 
     type: BrowserType = p_regular(30, default=BrowserType.CHROMIUM)
 
-    version: str | None = p_regular(50, default=None)
-    target_version: Optional[str] = p_regular(51, default=None)
-    external_name: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(53, require=False, default=None, sensitive=True)
+    version: str | None = p_regular(60, default=None)
+    target_version: Optional[str] = p_regular(61, default=None)
+    external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_system(
-        54, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        64, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     debugger_uri: Optional[str] = p_system(
-        55, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        65, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     view_uri: Optional[str] = p_system(
-        56, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        66, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     client: Optional["Client"] = p_system(
-        57, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
+        67, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
     # settings
-    size: "Vector2 | None" = p_regular(60, require=False, array=False, struct=StructType.VECTOR2)
-
-    # flags
-    is_headless: bool = p_system(70, default=False)
-    is_insecure: bool = p_system(71, default=False)
+    size: "Vector2 | None" = p_regular(70, require=False, array=False, struct=StructType.VECTOR2)
+    is_headless: bool = p_system(75, default=False)
+    is_insecure: bool = p_system(76, default=False)
