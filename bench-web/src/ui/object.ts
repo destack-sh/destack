@@ -5,7 +5,7 @@ import {
   getPropertyTitle,
   isNodeType,
   isSourceNodeType,
-  toCamelName
+  toCamelName,
 } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
@@ -14,6 +14,7 @@ import {
   getStorageKey,
   getTypeName,
   makeType,
+  makeTypeConstraint,
   TypeIdentity,
   typeIsNumeric,
 } from "@/language/core/type";
@@ -60,7 +61,9 @@ import {
   ReceiveActionProperty,
   RecordProperty,
   ScrollActionProperty,
+  SelectionType,
   SendActionProperty,
+  StructType,
   TypeActionProperty,
   TypeBaseNodeData,
   TypeConstraintProperty,
@@ -75,7 +78,7 @@ import { useExistingConnection } from "@/system/connection";
 import { getNodeName, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { typeIndex } from "@/ui/search";
-import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
+import { FULL_WIDTH_VIEW_TYPES, getViewForType, makeSelection } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { computedValue } from "@/utils/ref";
@@ -661,59 +664,6 @@ export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
   }
 }
 
-export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
-  make() {
-    const commonRows: Row[] = [];
-    this.section(undefined, commonRows);
-
-    // schema
-    if (!this.isPartial) {
-      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
-        actions: [this.actionAddField(FieldType.MEMBER)],
-      });
-    }
-  }
-}
-
-export class KitLayout extends NodeLayout<NodeType.KIT> {
-  make() {
-    const commonRows: Row[] = [];
-    this.section(undefined, commonRows);
-
-    this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
-      actions: [this.actionAddField(FieldType.RESOURCE)],
-    });
-  }
-}
-
-export class FlowLayout extends NodeLayout<NodeType.FLOW> {
-  make() {
-    const commonRows: Row[] = [];
-    this.section(undefined, commonRows);
-
-    // schema
-    if (!this.isPartial) {
-      this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
-        actions: [this.actionAddField(FieldType.RESOURCE)],
-      });
-      this.section(
-        "Schema",
-        [
-          { type: "fields-list", fieldType: FieldType.INPUT },
-          { type: "icon", icon: makeIcon("fas fa-arrow-down") },
-          { type: "fields-list", fieldType: FieldType.OUTPUT },
-        ],
-        {
-          actions: [
-            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
-            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
-          ],
-        },
-      );
-    }
-  }
-}
-
 export class FieldLayout extends NodeLayout<NodeType.FIELD> {
   make() {
     const node = this.node!;
@@ -824,6 +774,94 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
   }
 }
 
+export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
+  make() {
+    const commonRows: Row[] = [];
+    this.section(undefined, commonRows);
+
+    // schema
+    if (!this.isPartial) {
+      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
+        actions: [this.actionAddField(FieldType.MEMBER)],
+      });
+    }
+  }
+}
+
+export class KitLayout extends NodeLayout<NodeType.KIT> {
+  make() {
+    const commonRows: Row[] = [];
+    this.section(undefined, commonRows);
+
+    this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
+      actions: [this.actionAddField(FieldType.RESOURCE)],
+    });
+  }
+}
+
+abstract class RunnableNodeLayout<T extends NodeType.FLOW | NodeType.ACTION> extends NodeLayout<T> {
+  toolRows() {
+    const rows: Row[] = [];
+    rows.push({
+      type: "view",
+      title: undefined,
+      isFullWidth: true,
+      viewType: ViewType.PICKER,
+      viewProps: {
+        isInput: true,
+        // TODO :Architecture: argghh this screams for a better Union Type somehow?...
+        icon: makeIcon("fas fa-wrench"),
+        title: "Tool",
+        valueType: makeType({
+          kind: TypeKind.NODE,
+          constraint: makeTypeConstraint({ nodeTypes: [NodeType.KIT, NodeType.FLOW, NodeType.ACTION] }),
+          isList: true,
+        }),
+      },
+      read: () => {
+        return this.node?.selection?.nodesPtr;
+      },
+      write: (newValue) => {
+        this.update({
+          selection: makeStruct({ metatype: StructType.SELECTION, type: SelectionType.LIST, nodesPtr: newValue }),
+        });
+      },
+    });
+    return rows;
+  }
+}
+
+export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
+  make() {
+    const commonRows: Row[] = [];
+    this.section(undefined, commonRows);
+
+    // schema
+    if (!this.isPartial) {
+      // tools
+      this.section("Tools", this.toolRows());
+      // resources
+      this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
+        actions: [this.actionAddField(FieldType.RESOURCE)],
+      });
+      // schema
+      this.section(
+        "Schema",
+        [
+          { type: "fields-list", fieldType: FieldType.INPUT },
+          { type: "icon", icon: makeIcon("fas fa-arrow-down") },
+          { type: "fields-list", fieldType: FieldType.OUTPUT },
+        ],
+        {
+          actions: [
+            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
+            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
+          ],
+        },
+      );
+    }
+  }
+}
 const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>> = {
   // write
   [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked, CreateActionProperty.nodePtr],
@@ -851,12 +889,7 @@ const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>
 /**
  * NOTE: ActionLayout is a bit complex because we need to support the default view, regular partials *and* input/output partials.
  */
-export class ActionLayout extends NodeLayout<NodeType.ACTION> {
-  toolRows() {
-    // nocheckin: Flow/Action.selection for tools..?
-    return [];
-  }
-
+export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
   /** The schema(s) for this Action (for full node) */
   sectionActionSchema() {
     const node = this.node!;
@@ -1019,6 +1052,11 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
       // );
     }
 
+    // tools
+    if ((this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) && !this.isPartial) {
+      this.section("Tools", this.toolRows());
+    }
+
     // schema
     if (!this.isPartial) {
       this.sectionActionSchema();
@@ -1028,11 +1066,6 @@ export class ActionLayout extends NodeLayout<NodeType.ACTION> {
     commonRows.push(
       ...this.actionSubproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
     );
-
-    // tools
-    if ((this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) && !this.isPartial) {
-      commonRows.push(...this.toolRows());
-    }
   }
 }
 

@@ -234,6 +234,7 @@ function createRecord() {
   const record = recordConnection.tx.create({
     metatype: NodeType.RECORD,
     parentPtr: databasePtr,
+    packagePtr: database.value.packagePtr,
     databasePtr,
     valuePacked: {},
   });
