@@ -401,7 +401,7 @@ function markUndeleted<T extends AnyNodeData>(obj: T): T {
 }
 
 function _baseTestFilteredGraph(base: NodeGraph, composite: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
-  let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"] });
+  let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"], set: { id: "package1" } });
   const space11 = fabricate(ObjectType.SPACE, {
     unset: ["deletedAt"],
     set: { parentPtr: toNodeRef(package1), id: "space11", orderKey: "a0" },
@@ -453,7 +453,7 @@ function _baseTestFilteredGraph(base: NodeGraph, composite: ReadNodeGraph & { fi
     expect(composite.getChildren(space12, NodeType.VIEW)).toEqual([view121]);
     expect(space12ViewsRef.value).toEqual([view121]);
 
-    // enable filter -> get unfiltered
+    // enable filter -> get filtered
     composite.filter.value = DEFAULT_NODE_FILTER;
     expect(composite.get({ id: view111.id })).toBeNull();
     expect(view111Ref.value).toBeNull();
@@ -520,6 +520,7 @@ describe("filtered proxy graph", () => {
   const composite = new ProxyNodeGraph({ graph: base, filter: PASSTHROUGH_NODE_FILTER });
   _baseTestFilteredGraph(base, composite);
 });
+
 describe("filtered layered graph", () => {
   const base = new NodeGraph({
     scope: EMPTY_SCOPE,

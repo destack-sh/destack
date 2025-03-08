@@ -151,7 +151,9 @@ export function manualComputed<T>(get: ComputedGetter<T>, meta?: ManualRefMeta):
   };
 
   const result = customRef<T>((_track, _trigger) => {
-    trigger = _trigger;
+    trigger = () => {
+      _trigger();
+    };
 
     return {
       get() {

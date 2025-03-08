@@ -328,7 +328,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
       unsub();
       let parentPtr: { id?: string } | undefined = node;
       while (parentPtr != null) {
-        subs.push(this.subscribe(parentPtr, trigger, { ignoreAncestors: true }));
+        subs.push(this.subscribe(parentPtr, trigger, { ignoreAncestors: true, id: node.id }));
         parentPtr = this.get(parentPtr)?.parentPtr;
       }
     };
@@ -739,13 +739,18 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   notify(node: AnyNodeData) {
+    // NOTE :Performance: NodeGraph.notify is called a lot and copies the subscription list every time
+    //  (to avoid concurrent modification issues, which were very painful to debug..
+    //   there must be some better way, but the entire graph & node ref system is a bit wonky and inefficient anyway)
     this.anySubs.forEach((sub) => sub());
     if (this.nodeSubsById[node.id]) {
-      this.nodeSubsById[node.id].forEach((sub) => sub());
+      this.nodeSubsById[node.id].slice().forEach((sub) => sub());
     }
     if (node.parentPtr?.id && this.nodeSubsByParentIdAndType[node.parentPtr.id]) {
       const subs = this.nodeSubsByParentIdAndType[node.parentPtr.id][node.metatype];
-      if (subs) subs.forEach((sub) => sub());
+      if (subs) {
+        subs.slice().forEach((sub) => sub());
+      }
     }
   }
 
@@ -958,8 +963,11 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     const update = () => {
       unsub();
       if (this._graph.value != null) {
-        subs.push(this._graph.value.subscribe(key, callback));
-        if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(key, callback));
+        if (!options?.ignoreAncestors) {
+          subs.push(this.subscribeAncestors(key, callback));
+        } else {
+          subs.push(this._graph.value.subscribe(key, callback, { ignoreAncestors: true }));
+        }
       }
     };
     update();
@@ -984,7 +992,9 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
       unsub();
       if (this._graph.value != null) {
         subs.push(this._graph.value.subscribeChildren(parent, metatype, callback));
-        if (!options?.ignoreAncestors) subs.push(this.subscribeAncestors(parent, callback));
+        if (!options?.ignoreAncestors) {
+          subs.push(this.subscribeAncestors(parent, callback));
+        }
       }
     };
     update();
@@ -1123,10 +1133,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     const update = () => {
       unsub();
 
-      // NOTE :Architecture :Robustness!: node subscriptions are not always reliably updated if ignoreAncestors :NodeRefStability
-      //  (After much debugging I fixed some related bugs, but I'm still not sure why this still happens sometimes. Overall,
-      //   we almost certainly want a more powerful graph ref/subscription system sometime anyway, and until then, we'll just
-      //   keep oversubscribing here to be safe :|)
+      // NOTE :Architecture :Robustness: node subscriptions are/were not always reliably updated if ignoreAncestors (?) :NodeRefStability
       this.layers.value.forEach((layer) => {
         subs.push(layer.subscribe(key, callback));
         if (!options?.ignoreAncestors) subs.push(layer.subscribeAncestors(key, callback));
