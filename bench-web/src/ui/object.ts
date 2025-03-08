@@ -814,7 +814,7 @@ abstract class RunnableNodeLayout<T extends NodeType.FLOW | NodeType.ACTION> ext
         title: "Tool",
         valueType: makeType({
           kind: TypeKind.NODE,
-          constraint: makeTypeConstraint({ nodeTypes: [NodeType.KIT, NodeType.FLOW, NodeType.ACTION] }),
+          constraint: makeTypeConstraint({ nodeTypes: [NodeType.KIT, NodeType.FLOW, NodeType.PAGE] }),
           isList: true,
         }),
       },

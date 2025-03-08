@@ -39,7 +39,7 @@ _type = type
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
-    FILE = 1200, "File", "Any File", "fas fa-file"
+    FILE = 2200, "File", "Any File", "fas fa-file"
     PAGE = 5020, "Page", "Page to write", "fas fa-page"
     CHOICE = 5030, "Choice", "Choice of options", "fas fa-check-circle"
     CLASS = 5031, "Class", "Class of Fields", "fas fa-boxes-stacked"

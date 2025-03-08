@@ -483,30 +483,30 @@ class FileBase(BuiltinObject):
 
     # common
     type: FileType = p_internal(30)
-    kind: FileKind = p_internal(31)
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
+    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
 
     # meta
-    mime_type: str | None = p_internal(50, constraint=MIME_TYPE_CONSTRAINT)
-    format: FileFormat | None = p_internal(51, default=None)
+    kind: FileKind = p_internal(60)
+    mime_type: str | None = p_internal(61, constraint=MIME_TYPE_CONSTRAINT)
+    format: FileFormat | None = p_internal(62, default=None)
     size: int = p_internal(
-        52, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
+        63, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
     )
-    sha256: str | None = p_internal(53, constraint=SHA256_CONSTRAINT)
+    sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
+    width: Optional[int] = p_internal(65, default=None)
+    height: Optional[int] = p_internal(66, default=None)
+    aspect_ratio: Optional[float] = p_internal(67, default=None)
+    codec: Optional[str] = p_internal(68, default=None)
+    duration: Optional[timedelta] = p_internal(69, default=None)
 
     # content
-    external_url: Optional[str] = p_regular(60, default=None)  # if external
+    external_url: Optional[str] = p_regular(70, default=None)  # if external
     inline_content: Optional[bytes] = p_regular(
-        61, default=None, constraint=constraint(min_length=1)
+        71, default=None, constraint=constraint(min_length=1)
     )
     ...  # thumbnail/preview/...?
 
     # multimedia
-    width: Optional[int] = p_internal(70, default=None)
-    height: Optional[int] = p_internal(71, default=None)
-    aspect_ratio: Optional[float] = p_internal(72, default=None)
-    codec: Optional[str] = p_internal(73, default=None)
-    duration: Optional[timedelta] = p_internal(74, default=None)
 
     # cached content
     _original: Optional["File"] = p_runtime(default=None)  # if converted

@@ -108,7 +108,7 @@ export function isRuntimeNode(node: any): node is RuntimeNodeData {
 }
 
 export function isResourceNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 1000 && nodeType < 2000;
+  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 3000;
 }
 
 export function isResourceNode(node: any): node is ResourceNodeData {
@@ -117,7 +117,7 @@ export function isResourceNode(node: any): node is ResourceNodeData {
 }
 
 export function isStaticResourceNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 1000 && nodeType < 1100;
+  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 2100;
 }
 
 export function isStaticResourceNode(node: any): node is StaticResourceNodeData {
@@ -126,7 +126,7 @@ export function isStaticResourceNode(node: any): node is StaticResourceNodeData 
 }
 
 export function isDynamicResourceNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 1100 && nodeType < 2000;
+  return typeof nodeType == "number" && nodeType >= 2100 && nodeType < 3000;
 }
 
 export function isDynamicResourceNode(node: any): node is DynamicResourceNodeData {
@@ -139,17 +139,17 @@ export function isLocalNodeType(nodeType: any): boolean {
 }
 
 export function isGlobalNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType < 1000;
+  return typeof nodeType == "number" && nodeType < 2000;
 }
 
 export function isRegionalNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 1000 && nodeType < 5000;
+  return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 8000;
 }
 
 export function isBenchNodeType(nodeType: any): boolean {
   return (
     typeof nodeType == "number" &&
-    ((nodeType >= 1000 && nodeType < 10000) ||
+    ((nodeType >= 2000 && nodeType < 10000) ||
       nodeType == NodeType.BENCH ||
       nodeType == NodeType.PACKAGE ||
       nodeType == NodeType.HANDLE ||
@@ -173,10 +173,20 @@ export const BASED_NODE_TYPES = [
   NodeType.RUN,
 ];
 export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100);
-export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 && nodeType < 200);
-export const FINANCE_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 200 && nodeType < 300);
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
+export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
+export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
+export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];
+export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
+export const STATIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isStaticResourceNodeType);
+export const DYNAMIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isDynamicResourceNodeType);
+export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
+export const GLOBAL_NODE_TYPES = NODE_TYPES.filter(isGlobalNodeType);
+export const REGIONAL_NODE_TYPES = NODE_TYPES.filter(isRegionalNodeType);
+export const PUBLIC_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
+export const USER_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE];
 export const INLINE_NODE_TYPES = [
+  ...RESOURCE_NODE_TYPES,
   NodeType.CHANNEL,
   NodeType.PAGE,
   NodeType.CLASS,
@@ -191,17 +201,6 @@ export const INLINE_NODE_TYPES = [
   NodeType.PLAN,
 ];
 INLINE_NODE_TYPES.sort();
-export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
-export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
-export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];
-export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
-export const STATIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isStaticResourceNodeType);
-export const DYNAMIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isDynamicResourceNodeType);
-export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
-export const GLOBAL_NODE_TYPES = NODE_TYPES.filter(isGlobalNodeType);
-export const REGIONAL_NODE_TYPES = NODE_TYPES.filter(isRegionalNodeType);
-export const PUBLIC_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
-export const USER_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
 export const TYPE_NODE_TYPES = [NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];

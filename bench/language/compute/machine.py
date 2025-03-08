@@ -47,20 +47,20 @@ class Machine(DynamicResource[MachineData]):
 
     type: MachineType = p_regular(30, default=MachineType.RUNTIME)
 
-    version: str = p_system(50, default=VERSION, default_sql=None)
-    target_version: str = p_internal(51, default=VERSION, default_sql=None)
-    external_name: Optional[str] = p_kernel(52, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(53, require=False, default=None, sensitive=True)
+    version: str = p_system(60, default=VERSION, default_sql=None)
+    target_version: str = p_internal(61, default=VERSION, default_sql=None)
+    external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(
-        54, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        64, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
     client: Optional["Client"] = p_system(
-        55, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
+        65, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
     cpu: float = p_system(
-        60, description="vCPU count", default=1.0, default_sql=None, constraint=CPU_CONSTRAINT
+        70, description="vCPU count", default=1.0, default_sql=None, constraint=CPU_CONSTRAINT
     )
     ram: float = p_system(
-        61, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
+        71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
     )

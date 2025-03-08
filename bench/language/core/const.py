@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.08.1"
+VERSION = "2025.03.08.2"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
@@ -490,21 +490,23 @@ class NodeType(BuiltinEnum):
     # CHALLENGE?
 
     #
-    # Regional (1000-5000)
+    # Regional (2000-8000)
     #
 
+    # nocheckin: it would be nice to have Resource be InlineNodes too, but that breaks the line..?
+    #  (like how would we load them if Resource.parent can be Page or Bench?)
     # compute
-    SCALER = 1000, None, None, "fas fa-scale-unbalanced"
-    STORE = 1001, None, None, "fas fa-database"
+    SCALER = 2000, None, None, "fas fa-scale-unbalanced"
+    STORE = 2010, None, None, "fas fa-database"
     # CACHE?
     # RESOURCE_CLAIM?
-    MACHINE = 1100, None, None, "fas fa-computer-classic"
-    BROWSER = 1110, None, None, "fas fa-globe"
+    MACHINE = 2100, None, None, "fas fa-computer-classic"
+    BROWSER = 2110, None, None, "fas fa-globe"
     # MODEL, ...
     # data?
-    FILE = 1200, None, None, "fas fa-file"
-    STREAM = 1210, None, None, "fas fa-stream"
-    SECRET = 1220, None, None, "fas fa-key"
+    FILE = 2200, None, None, "fas fa-file"
+    STREAM = 2210, None, None, "fas fa-stream"
+    SECRET = 2220, None, None, "fas fa-key"
 
     # finance
     # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
@@ -518,11 +520,6 @@ class NodeType(BuiltinEnum):
     # data/integrations/code?
     # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
     # ...
-
-    #
-    # Local (5000-10000)
-    # NOTE :Architecture: the line between source/state/runtime/... Nodes is quite blurry
-    #
 
     # source
     PACKAGE = 5000, None, None, "fas fa-box-open"
@@ -556,7 +553,6 @@ class NodeType(BuiltinEnum):
     # POLL?
     # REACTION?
     NOTIFICATION = 5540, None, None, "fas fa-bell"
-    RECORD = 5550, None, None, "fas fa-database"
 
     # auth
     MEMBERSHIP = 5600, None, None, "fas fa-users"
@@ -576,23 +572,29 @@ class NodeType(BuiltinEnum):
     # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
+    # Local (8000-10000)
+    #
+
+    RECORD = 8000, None, None, "fas fa-database"
+
+    #
     # Misc
     #
 
-    SKIP = 9000
+    SKIP = 9998
     EMPTY = 9999
 
     @property
     def is_global(self) -> bool:
-        return self.id < 1000
+        return self.id < 2000
 
     @property
     def is_regional(self) -> bool:
-        return self.id >= 1000 and self.id < 5000
+        return self.id >= 2000 and self.id < 8000
 
     @property
     def is_local(self) -> bool:
-        return self.id >= 5000
+        return self.id >= 8000
 
     @property
     def area(self) -> "NodeArea":
@@ -656,9 +658,9 @@ def _get_node_types(
 
 COSMOS_NODE_TYPES = _get_node_types(None, 100)
 
-GLOBAL_NODE_TYPES = _get_node_types(None, 1000)
-REGIONAL_NODE_TYPES = _get_node_types(1000, 5000)
-LOCAL_NODE_TYPES = _get_node_types(5000, None)
+GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
+REGIONAL_NODE_TYPES = _get_node_types(2000, 8000)
+LOCAL_NODE_TYPES = _get_node_types(8000, None)
 AREA_BY_NODE_TYPE = {
     **dict.fromkeys(GLOBAL_NODE_TYPES, NodeArea.GLOBAL),
     **dict.fromkeys(REGIONAL_NODE_TYPES, NodeArea.REGIONAL),
@@ -671,11 +673,12 @@ NODE_TYPES_BY_AREA = {
 }
 
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-RESOURCE_NODE_TYPES = _get_node_types(1000, 2000)
-STATIC_RESOURCE_NODE_TYPES = _get_node_types(1000, 1100)
-DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(1100, 2000)
+RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
+STATIC_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
+DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 8000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 INLINE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES,
     NodeType.CHANNEL,
     NodeType.CHOICE,
     NodeType.CLASS,
@@ -693,7 +696,6 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
 )
 INSTANTIABLE_NODE_TYPES = bittuple(NodeType.DATABASE, NodeType.PLAN, NodeType.TASK)
-STATE_NODE_TYPES = _get_node_types(5500, 6000)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
 PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
