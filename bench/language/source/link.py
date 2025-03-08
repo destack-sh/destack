@@ -7,10 +7,12 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsComputable,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
+    PackageNode,
     RunStatus,
     RunType,
-    SourceNode,
     StructType,
     TypeBase,
     enum_,
@@ -63,7 +65,7 @@ LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.it
 
 
 @node_(NodeType.LINK, has_subtypes=True)
-class Link(SourceNode[LinkData], IsComputable):
+class Link(IsTemplatable, IsTraceable, IsComputable, PackageNode[LinkData]):
     """
     A Link between Actions in a Flow (source = outgoing, target = incoming).
     """
@@ -86,7 +88,7 @@ class Link(SourceNode[LinkData], IsComputable):
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
         target_ck: Optional[str] = None
-    run_options: Optional["RunOptions"] = p_regular(
+    options: Optional["RunOptions"] = p_regular(
         39, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 

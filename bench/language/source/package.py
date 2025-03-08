@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Optional
 
-from bench.language import SourceNode
 from bench.language.core import (
     NAME_CONSTRAINT,
     SLUG_CONSTRAINT,
@@ -8,8 +7,11 @@ from bench.language.core import (
     EnumType,
     IndexIn,
     IsOwnable,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     NodeType,
+    PackageNode,
     StructType,
     enum_,
     node_,
@@ -18,9 +20,7 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.pb2 import (
-    PackageData,
-)
+from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
     from bench.language import Bench, Channel, Dependency, Icon, Page, Space, Text
@@ -37,7 +37,7 @@ class PackageType(BuiltinEnum):
 
 
 @node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
-class Package(IsOwnable, SourceNode[PackageData]):
+class Package(IsOwnable, IsTemplatable, IsTraceable, PackageNode[PackageData]):
     """A Package is an isolated segment of a Bench."""
 
     # meta

@@ -2,7 +2,9 @@ from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     ColorType,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
     node_,
     p_node_parent,
@@ -17,7 +19,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.ROLE)
-class Role(InlineSourceNode[RoleData]):
+class Role(IsTemplatable, IsTraceable, InlineNode[RoleData]):
     """A Role to assign to something."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

@@ -7,7 +7,6 @@ import {
   EmptyProperty,
   EnumType,
   InlineNodeData,
-  InlineSourceNodeData,
   ModelType,
   NodeReferenceData,
   NodeType,
@@ -67,10 +66,6 @@ export function isSourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 5000 && nodeType < 5500;
 }
 
-export function isInlineSourceNodeType(nodeType: NodeType): boolean {
-  return INLINE_SOURCE_NODE_TYPES.includes(nodeType);
-}
-
 export function isInlineNodeType(nodeType: NodeType): boolean {
   return INLINE_NODE_TYPES.includes(nodeType);
 }
@@ -82,11 +77,6 @@ export function isTypeBaseNodeType(nodeType: NodeType): boolean {
 export function isSourceNode(node: any): node is SourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSourceNodeType(node.metatype as unknown as NodeType);
-}
-
-export function isInlineSourceNode(node: any): node is InlineSourceNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isInlineSourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isInlineNode(node: any): node is InlineNodeData {
@@ -186,7 +176,7 @@ export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100)
 export const AUTH_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 100 && nodeType < 200);
 export const FINANCE_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType >= 200 && nodeType < 300);
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
-export const INLINE_SOURCE_NODE_TYPES = [
+export const INLINE_NODE_TYPES = [
   NodeType.CHANNEL,
   NodeType.PAGE,
   NodeType.CLASS,
@@ -198,9 +188,8 @@ export const INLINE_SOURCE_NODE_TYPES = [
   NodeType.ROLE,
   NodeType.TAG,
   NodeType.TASK,
+  NodeType.PLAN,
 ];
-INLINE_SOURCE_NODE_TYPES.sort();
-export const INLINE_NODE_TYPES = [...INLINE_SOURCE_NODE_TYPES, NodeType.TASK];
 INLINE_NODE_TYPES.sort();
 export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);

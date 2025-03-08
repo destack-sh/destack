@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { INLINE_SOURCE_NODE_TYPES } from "@/language/core/const";
+import { INLINE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import type { NodeReferenceData } from "@/proto/wire";
 import { NodeType } from "@/proto/wire";
@@ -15,7 +15,7 @@ const props = defineProps<{
   graph: ReadNodeGraph;
 }>();
 
-const METATYPES = [NodeType.PAGE, ...INLINE_SOURCE_NODE_TYPES, NodeType.CHANNEL, NodeType.THREAD];
+const METATYPES = [...INLINE_NODE_TYPES, NodeType.THREAD];
 
 const ancestorsFocus = props.graph.getAncestorsRef(toRef(props, "focus"), { includeSelf: true, metatypes: METATYPES });
 const ancestorsSelf = props.graph.getAncestorsRef(toRef(props, "container"), {

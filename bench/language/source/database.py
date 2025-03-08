@@ -2,8 +2,10 @@ from typing import TYPE_CHECKING, Literal
 
 from bench.language.core import (
     FieldType,
-    InlineSourceNode,
+    InlineNode,
     IsInstantiable,
+    IsTemplatable,
+    IsTraceable,
     LocalNodeList,
     NodeType,
     RecordNodeList,
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.DATABASE, passthrough_get=("fields",))
-class Database(IsInstantiable, InlineSourceNode[DatabaseData]):
+class Database(IsInstantiable, IsTemplatable, IsTraceable, InlineNode[DatabaseData]):
     """A Database of Records."""
 
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)

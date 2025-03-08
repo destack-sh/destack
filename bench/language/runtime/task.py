@@ -9,7 +9,7 @@ from bench.language.core import (
     CustomObject,
     EnumType,
     FieldType,
-    IsInlinable,
+    InlineNode,
     IsInstantiable,
     IsOwnable,
     IsRuntime,
@@ -17,7 +17,6 @@ from bench.language.core import (
     IsTraceable,
     NodeList,
     NodeType,
-    PackageNode,
     StructType,
     Text,
     TypeBase,
@@ -78,12 +77,11 @@ class TaskStatus(BuiltinEnum):
 @timed_node_(NodeType.TASK)
 class Task(
     IsTimed,
-    IsInlinable,
     IsOwnable,
     IsRuntime,
     IsTraceable,
     IsInstantiable,
-    PackageNode[TaskData],
+    InlineNode[TaskData],
 ):
     """A Task to accomplish something."""
 

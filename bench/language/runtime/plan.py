@@ -14,7 +14,6 @@ from bench.language.core import (
     IsTraceable,
     LocalNodeList,
     NodeType,
-    PackageNode,
     StructType,
     enum_,
     p_internal,
@@ -23,10 +22,11 @@ from bench.language.core import (
     p_regular,
     timed_node_,
 )
+from bench.language.core.node import InlineNode
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
-    from bench.language import Error, NodeReference, Run, Task
+    from bench.language import Error, NodeReference, Page, Run, Task, Trigger
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -73,12 +73,19 @@ class PlanFailureMode(BuiltinEnum):
 
 
 @timed_node_(NodeType.PLAN)
-class Plan(IsTimed, IsOwnable, IsRuntime, IsTraceable, IsInstantiable, PackageNode[PlanData]):
-    """A Plan for something like a sequence of Tasks."""
+class Plan(
+    IsTimed,
+    IsOwnable,
+    IsRuntime,
+    IsTraceable,
+    IsInstantiable,
+    InlineNode[PlanData],
+):
+    """A Plan for something expressed as a sequence of Tasks."""
 
     # meta
-    parent: Union["Plan", "Run", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
+    parent: Union["Page", "Plan", "Run", None] = p_node_parent(
+        4, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
     name: str | None = p_regular(40, constraint=NAME_CONSTRAINT)
@@ -98,6 +105,7 @@ class Plan(IsTimed, IsOwnable, IsRuntime, IsTraceable, IsInstantiable, PackageNo
     terminated_at: Optional[datetime] = p_internal(55, default=None)
     error: Optional["Error"] = p_internal(56, require=False, array=False, struct=StructType.ERROR)
 
+    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
 

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isInlineSourceNode, isSourceNode, isStateNode, toCamelName } from "@/language/core/const";
+import { isInlineNode, isSourceNode, isStateNode, toCamelName } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
@@ -92,17 +92,14 @@ const targetPropertiesEnum = computed(() =>
 const scope = computed(() => {
   if (delegate.value != null) {
     return delegate.value;
-  } else if (
-    isStateNode(inspection.value) ||
-    (isSourceNode(inspection.value) && !isInlineSourceNode(inspection.value))
-  ) {
+  } else if (isStateNode(inspection.value) || (isSourceNode(inspection.value) && !isInlineNode(inspection.value))) {
     return parent.value;
   } else {
     return inspection.value;
   }
 });
 const threadPtr = computed(() => {
-  if (isInlineSourceNode(scope.value) && scope.value.threadPtr != null) {
+  if (isInlineNode(scope.value) && scope.value.threadPtr != null) {
     // current thread for scope (if in same channel)
     return scope.value.threadPtr;
   } else if (isNode(scope.value, NodeType.CHANNEL) || isNode(scope.value, NodeType.THREAD)) {

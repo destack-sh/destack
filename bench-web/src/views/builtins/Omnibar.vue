@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { INLINE_SOURCE_NODE_TYPES } from "@/language/core/const";
+import { INLINE_NODE_TYPES } from "@/language/core/const";
 import { NodeType, ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
 import { canvas, hasLocalPkg, pkgGraph } from "@/system/space";
@@ -50,7 +50,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: pkgGraph,
-      metatypes: [NodeType.CHANNEL, ...INLINE_SOURCE_NODE_TYPES, NodeType.ACTION],
+      metatypes: [...INLINE_NODE_TYPES, NodeType.ACTION],
       roots: [pkgGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically

@@ -67,13 +67,7 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, CustomObject, Node, Struct
-    from bench.language.core import (
-        InlineSourceNode,
-        IsInlinable,
-        IsTemplatable,
-        NodeSubtypeStub,
-        const,
-    )
+    from bench.language.core import InlineNode, IsTemplatable, NodeSubtypeStub, const
     from bench.language.core.object import (
         _is_setup_complete,
         _set_setup_complete,
@@ -231,18 +225,10 @@ def _complete_bench_setup():
         hook()
 
     if IS_DEV:
-        # check that INLINE_SOURCE_NODE_TYPES is consistent with InlineSourceNode
-        inline_source_node_types = [
-            cast(Node, n).metatype
-            for n in get_subclasses(InlineSourceNode)
-            if getattr(n, "metatype", None)
-        ]
-        assert_collections_equal(inline_source_node_types, const.INLINE_SOURCE_NODE_TYPES.tuple)
-
         # check that INLINE_NODE_TYPES is consistent with IsInlinable
         inlinable_node_types = [
             cast(Node, n).metatype
-            for n in get_subclasses(IsInlinable)
+            for n in get_subclasses(InlineNode)
             if getattr(n, "metatype", None)
         ]
         assert_collections_equal(inlinable_node_types, const.INLINE_NODE_TYPES.tuple)

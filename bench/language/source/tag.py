@@ -3,7 +3,9 @@ from typing import Optional, Union
 
 from bench.language.core import (
     NAME_CONSTRAINT,
-    InlineSourceNode,
+    InlineNode,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
     StructType,
     node_,
@@ -22,7 +24,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.TAG)
-class Tag(InlineSourceNode[TagData]):
+class Tag(IsTemplatable, IsTraceable, InlineNode[TagData]):
     """
     A Tag to tag other Nodes.
     """

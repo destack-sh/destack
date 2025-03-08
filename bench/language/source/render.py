@@ -34,7 +34,6 @@ from bench.language.core import (
     Resource,
     ScalarValue,
     SomeValue,
-    SourceNode,
     Struct,
     StructType,
     Text,
@@ -52,6 +51,7 @@ from bench.language.core import (
     reverse_type_scalar,
     text_to_markdown,
 )
+from bench.language.core.node import PackageNode
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -601,7 +601,7 @@ def _get_renderer(object_type: ObjectType) -> "BuiltinObjectRenderer":
         if is_node_type(object_type):
             node_type = NodeType(object_type)
             if node_type.is_source:
-                renderer = SOURCE_NODE_RENDERER
+                renderer = PACKAGE_NODE_RENDERER
             elif node_type.is_resource:
                 renderer = RESOURCE_NODE_RENDERER
             else:
@@ -664,8 +664,8 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
 
 
-class SourceNodeRenderer[T: SourceNode](NodeRenderer[T]):
-    """The base renderer for a SourceNode."""
+class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
+    """The base renderer for a PackageNode."""
 
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
@@ -682,13 +682,13 @@ class ResourceNodeRenderer[T: Resource](NodeRenderer[T]):
 
 
 NODE_RENDERER = NodeRenderer[Node]()
-SOURCE_NODE_RENDERER = SourceNodeRenderer[SourceNode]()
+PACKAGE_NODE_RENDERER = PackageNodeRenderer[PackageNode]()
 RESOURCE_NODE_RENDERER = ResourceNodeRenderer[Resource]()
 BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
 
 
 @_renderer(NodeType.BLOCK)
-class BlockRenderer(SourceNodeRenderer[Block]):
+class BlockRenderer(PackageNodeRenderer[Block]):
     @override
     def _render_constructor(
         self,
@@ -706,7 +706,7 @@ class BlockRenderer(SourceNodeRenderer[Block]):
 
 
 @_renderer(NodeType.VIEW)
-class ViewRenderer(SourceNodeRenderer[View]):
+class ViewRenderer(PackageNodeRenderer[View]):
     @override
     def _render_constructor(
         self,
@@ -724,7 +724,7 @@ class ViewRenderer(SourceNodeRenderer[View]):
 
 
 @_renderer(NodeType.FLOW)
-class FlowRenderer(SourceNodeRenderer[Flow]):
+class FlowRenderer(PackageNodeRenderer[Flow]):
     @override
     def _render_constructor(
         self,
@@ -742,7 +742,7 @@ class FlowRenderer(SourceNodeRenderer[Flow]):
 
 
 @_renderer(NodeType.ACTION)
-class ActionRenderer(SourceNodeRenderer[Action]):
+class ActionRenderer(PackageNodeRenderer[Action]):
     @override
     def _render_constructor(
         self,
@@ -760,7 +760,7 @@ class ActionRenderer(SourceNodeRenderer[Action]):
 
 
 @_renderer(NodeType.LINK)
-class LinkRenderer(SourceNodeRenderer[Link]):
+class LinkRenderer(PackageNodeRenderer[Link]):
     @override
     def _render_constructor(
         self,
@@ -797,7 +797,7 @@ class LinkRenderer(SourceNodeRenderer[Link]):
 
 
 @_renderer(NodeType.CHOICE)
-class ChoiceRenderer(SourceNodeRenderer[Choice]):
+class ChoiceRenderer(PackageNodeRenderer[Choice]):
     @override
     def _render_constructor(
         self,
@@ -818,7 +818,7 @@ class ChoiceRenderer(SourceNodeRenderer[Choice]):
 
 
 @_renderer(NodeType.CLASS)
-class ClassRenderer(SourceNodeRenderer[Class]):
+class ClassRenderer(PackageNodeRenderer[Class]):
     @override
     def _render_constructor(
         self,
@@ -839,7 +839,7 @@ class ClassRenderer(SourceNodeRenderer[Class]):
 
 
 @_renderer(NodeType.DATABASE)
-class DatabaseRenderer(SourceNodeRenderer[Database]):
+class DatabaseRenderer(PackageNodeRenderer[Database]):
     @override
     def _render_constructor(
         self,
@@ -860,7 +860,7 @@ class DatabaseRenderer(SourceNodeRenderer[Database]):
 
 
 @_renderer(NodeType.PAGE)
-class PageRenderer(SourceNodeRenderer[Page]):
+class PageRenderer(PackageNodeRenderer[Page]):
     @override
     def _render_constructor(
         self,
@@ -878,7 +878,7 @@ class PageRenderer(SourceNodeRenderer[Page]):
 
 
 @_renderer(NodeType.FIELD)
-class FieldRenderer(SourceNodeRenderer[Field]):
+class FieldRenderer(PackageNodeRenderer[Field]):
     @override
     def _render_constructor(
         self,
@@ -906,7 +906,7 @@ class FieldRenderer(SourceNodeRenderer[Field]):
 
 
 @_renderer(NodeType.OPTION)
-class OptionRenderer(SourceNodeRenderer[Option]):
+class OptionRenderer(PackageNodeRenderer[Option]):
     @override
     def _render_constructor(
         self,

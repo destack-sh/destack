@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { canvas } from "@/globals";
 import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
-import { BlockType, InlineSourceNodeData, NodeReferenceData } from "@/proto/wire";
+import { BlockType, InlineNodeData, NodeReferenceData } from "@/proto/wire";
 import { PreparedGetConnection } from "@/system/connection";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -9,7 +9,7 @@ import { FocusAnchor, NavigationDirection, ViewEmits, ViewExpose } from "@/views
 import { computed, ref, Ref } from "vue";
 
 const props = defineProps<{
-  node: InlineSourceNodeData;
+  node: InlineNodeData;
   connection: PreparedGetConnection;
 }>();
 const { graph, connection } = props.connection;

@@ -3107,6 +3107,12 @@ message PlanData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   PlanType type = 30;
+  string order_key = 32;
+  optional IconData icon = 33;
+  optional TextData text = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData thread_ptr = 37;
+  repeated NodeReferenceData tags_ptr = 38;
   optional string name = 40;
   PlanTerminationMode on_terminate = 41;
   PlanFailureMode on_failure = 42;
@@ -3294,7 +3300,7 @@ message ActionData {
   string order_key = 33;
   optional IconData icon = 35;
   optional TextData text = 36;
-  optional RunOptionsData run_options = 40;
+  optional RunOptionsData options = 40;
   optional SelectionData selection = 41;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
@@ -3664,7 +3670,7 @@ message FlowData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
-  optional RunOptionsData run_options = 40;
+  optional RunOptionsData options = 40;
   optional SelectionData selection = 41;
   repeated NodeReferenceData roles_ptr = 42;
 }
@@ -3716,7 +3722,7 @@ message LinkData {
   optional TextData text = 34;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
-  optional RunOptionsData run_options = 39;
+  optional RunOptionsData options = 39;
   LinkTrigger trigger = 40;
   optional google.protobuf.Duration delay = 50;
   bool is_manual = 60;
@@ -3860,7 +3866,6 @@ message ChatViewData {
   optional TextData draft_text = 100;
   repeated NodeReferenceData draft_nodes_ptr = 101;
   optional NodeReferenceData draft_reply_to_ptr = 102;
-  optional NodeReferenceData scope_ptr = 110;
 }
 
 // A View is a graphical interface in a Bench.
@@ -4034,6 +4039,7 @@ message MessageData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -4070,6 +4076,7 @@ message NotificationData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -4095,6 +4102,7 @@ message RecordData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -4114,6 +4122,7 @@ message ThreadData {
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;

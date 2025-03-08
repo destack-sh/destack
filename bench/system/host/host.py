@@ -30,7 +30,7 @@ from bench.language import (
     FileBase,
     FileKind,
     GraphScope,
-    InlineSourceNode,
+    InlineNode,
     IsRuntime,
     Machine,
     MemoryEngine,
@@ -306,7 +306,7 @@ class HostService(GraphServiceBase, HostBase):
         base_id = node_ptr.id if isinstance(node_ptr, NodeReference) else node_ptr
         assert base_id, f"no base id in {node_ptr!r}"
         node = self.main_package._graph.get(base_id)
-        if not isinstance(node, InlineSourceNode):
+        if not isinstance(node, InlineNode):
             return None
         return cast(TypeBaseNode, node)
 

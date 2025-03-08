@@ -31,10 +31,10 @@ if TYPE_CHECKING:
         Node,
         NodeGraph,
         NodeReference,
+        PackageNode,
         Property,
         Query,
         Record,
-        SourceNode,
         Struct,
     )
     from bench.pb2 import AnyNodeData
@@ -58,8 +58,8 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
         if node.__is_in_package__:  # must be in same package
             # NOTE :Incomplete: support cross-package moves
             #  (would have to move descendants and update their .package_ptr?)
-            pkg = cast("SourceNode", node).package
-            assert cast("SourceNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
+            pkg = cast("PackageNode", node).package
+            assert cast("PackageNode", parent).package == pkg, f"cannot move {node!r} to {parent!r}"
         elif node.__is_in_bench__:  # must be in same bench
             bench = cast("BenchNode", node).bench
             assert cast("BenchNode", parent).bench == bench, f"cannot move {node!r} to {parent!r}"
@@ -108,16 +108,16 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
 
     # move and definition together
     if move:
-        from bench.language import Block, InlineSourceNode
+        from bench.language import Block, InlineNode
 
         if isinstance(node, Block):
             if (
-                (inner_node := node.node) is not None
+                isinstance(inner_node := node.node, InlineNode)
                 and inner_node.definition_id == node.id
                 and inner_node.parent_id != parent.id
             ):
                 attach_node(inner_node, parent, graph, move=True)
-        elif isinstance(node, InlineSourceNode):
+        elif isinstance(node, InlineNode):
             if (block := node.definition) is not None and block.parent_id != parent.id:
                 attach_node(block, parent, graph, move=True)
 

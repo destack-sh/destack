@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { INLINE_SOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { INLINE_NODE_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
 import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
@@ -29,16 +29,14 @@ import {
 } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { highlightMatches } from "@/ui/search";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import uFuzzy from "@leeoniya/ufuzzy";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, ref, toRef, watch, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 28;
@@ -64,7 +62,7 @@ const state = canvas.registerView(self, id);
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
 const nodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.PACKAGE) {
-    return INLINE_SOURCE_NODE_TYPES;
+    return INLINE_NODE_TYPES;
   } else {
     return [];
   }

@@ -396,17 +396,17 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     Flow1 = Flow.new(
         "Flow1",
-        run_options=RunOptions(breakpoints=[Breakpoint.before(BreakpointScope.ACTION)]),
+        options=RunOptions(breakpoints=[Breakpoint.before(BreakpointScope.ACTION)]),
     )
     Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(
-        ActionType.YIELD, "Yield", run_options=RunOptions(breakpoints=[Breakpoint.before()])
+        ActionType.YIELD, "Yield", options=RunOptions(breakpoints=[Breakpoint.before()])
     )
     Action1 = Action.new(
         ActionType.CODE,
         "Action1",
         code=code("pass"),
-        run_options=RunOptions(
+        options=RunOptions(
             breakpoints=[Breakpoint.before(), Breakpoint.after_completed(), Breakpoint.after()]
         ),
     )
@@ -416,14 +416,14 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
         LinkType.REQUIRE,
         Yield,
         is_manual=True,
-        run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
+        options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
     )
     Yield.connect(LinkType.REQUIRE, Action1, is_manual=True)
     Action1ToComplete = Action1.connect(
         LinkType.REQUIRE,
         Complete,
         is_manual=True,
-        run_options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
+        options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
     runtime.page().append(Flow1)
     await runtime.commit()

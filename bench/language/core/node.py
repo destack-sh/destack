@@ -1505,9 +1505,46 @@ class IsComputable(BuiltinObject):
 
 
 @node_component_()
-class IsInlinable(BuiltinObject):
+class IsBased(BuiltinObject, abc.ABC):
+    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
+
+    @property
+    @abc.abstractmethod
+    def base(self) -> Optional[BenchNode]: ...
+
+    @property
+    def base_id(self) -> Optional[UUID]:
+        return self.base.id if self.base is not None else None
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
+
+    @staticmethod
+    @abc.abstractmethod
+    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
+
+
+@node_component_()
+class IsTimed(BuiltinObject, abc.ABC):
+    """A Node with a time-based identity."""
+
+    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+
+
+RunnableNode = Union["Flow", "Action", "Link"]
+RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
+FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
+FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
+TypeBaseNode = Union[FieldBaseNode, "Choice"]
+TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
+
+
+@node_component_()
+class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
     """A Node that can be defined 'inline' in a Block on a Page."""
 
+    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
@@ -1546,64 +1583,14 @@ class IsInlinable(BuiltinObject):
     @property
     def page(self) -> "Page | None":
         """Gets the containing ancestor Page (if any)"""
-        from bench.language import Page, SourceNode
+        from bench.language import Page
 
         parent = self.parent
-        while isinstance(parent, SourceNode):
+        while parent is not None:
             if isinstance(parent, Page):
                 return parent
             parent = parent.parent
         return None
-
-
-@node_component_()
-class IsBased(BuiltinObject, abc.ABC):
-    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
-
-    @property
-    @abc.abstractmethod
-    def base(self) -> Optional[BenchNode]: ...
-
-    @property
-    def base_id(self) -> Optional[UUID]:
-        return self.base.id if self.base is not None else None
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
-
-
-@node_component_()
-class IsTimed(BuiltinObject, abc.ABC):
-    """A Node with a time-based identity."""
-
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-
-
-RunnableNode = Union["Flow", "Action", "Link"]
-RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
-FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
-FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
-TypeBaseNode = Union[FieldBaseNode, "Choice"]
-TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
-
-
-@node_component_()
-class SourceNode[NodeDataT: AnyNodeData](IsTemplatable, IsTraceable, PackageNode[NodeDataT]):
-    """
-    A Node in a Package with a persistent identity that can be instanced.
-    """
-
-
-@node_component_()
-class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT]):
-    """A named SourceNode that can be defined inline in a Page."""
-
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
     @property
     def container(self) -> "Node | None":
@@ -1617,20 +1604,24 @@ class InlineSourceNode[NodeDataT: AnyNodeData](IsInlinable, SourceNode[NodeDataT
     @override
     def delete(self, _now: datetime | None = None):
         super().delete(_now=_now)
-        # also delete linked Block (if any)
+        # also delete defining Block (if any)
         if (
-            (block := self.definition) is not None
-            and block.node_id == self.id
-            and not block.is_deleted
+            (definition := self.definition) is not None
+            and definition.node_id == self.id
+            and not definition.is_deleted
         ):
-            block.delete(_now=_now)
+            definition.delete(_now=_now)
 
     @override
     def restore(self, _now: datetime | None = None):
         super().restore(_now=_now)
-        # also restore linked Block (if any)
-        if (block := self.definition) is not None and block.node_id == self.id and block.is_deleted:
-            block.restore(_now=_now)
+        # also restore defining Block (if any)
+        if (
+            (definition := self.definition) is not None
+            and definition.node_id == self.id
+            and definition.is_deleted
+        ):
+            definition.restore(_now=_now)
 
     def to_block(self) -> "Block":
         """Wrap this Node in a *new* Block."""
@@ -1828,46 +1819,3 @@ def patch_graph(*, old_graph: NodeGraph, new_graph: NodeGraph) -> None:
             # node added: add to existing graph
             if patch_node.id not in old_graph._nodes_by_id:
                 old_graph.add(patch_node)
-
-
-def sync_node(*, parent: Node, old_root: SourceNode | None, new_root: SourceNode) -> None:
-    """Patches the old node *in place* from the new node (recursively)."""
-
-    def _copy(node: SourceNode, *, detach: bool) -> SourceNode:
-        """Copy the node (exact non-recursive clone with preserved identity)."""
-        return node.clone(recursive=False, reset=False, detach=detach)
-
-    def _sync(old: SourceNode, new: SourceNode) -> None:
-        """Sync the old node *in place* from the new node."""
-        for prop in old.__wired_properties__.values():
-            if prop.id < 30 or prop.is_computed or prop.name == "order_key":
-                continue  # ignore internal properties
-            old_value = getattr(old, prop.name)
-            new_value = getattr(new, prop.name)
-            if old_value != new_value:
-                old._do_set(prop.name, new_value, track=True)
-
-    if old_root is None:
-        old_root = _copy(new_root, detach=False)
-        parent.append(old_root)
-
-    # create/update new nodes
-    _sync(old_root, new_root)
-    for new in new_root.iter_descendants(recursive=True):
-        old = old_root._graph.get(new.id)
-        if old is None:
-            new_copy = _copy(new, detach=True)
-            if new.parent_ptr is None:
-                old_parent = new_copy
-            else:
-                old_parent = old_root._graph.get(new.parent_ptr.id)
-                assert isinstance(old_parent, SourceNode), f"unexpected {old_parent!r} for {new!r}"
-            old_parent.append(new_copy)
-        else:
-            assert isinstance(old, SourceNode), f"unexpected {old!r} for {new!r}"
-            _sync(old, new)
-
-    # remove old nodes
-    for old in parent.iter_descendants(recursive=True):
-        if old.id not in new_root._graph:
-            old.delete()

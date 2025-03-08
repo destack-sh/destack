@@ -703,7 +703,7 @@ def make_run_from_node(
 
     # options
     if options is None:
-        if isinstance(run_options := getattr(node, "run_options", None), RunOptions):
+        if isinstance(run_options := getattr(node, "options", None), RunOptions):
             options = run_options.clone()
             options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
         else:
@@ -806,9 +806,7 @@ def make_runner(
         inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
 
     # options
-    if options is None and isinstance(
-        run_options := getattr(node, "run_options", None), RunOptions
-    ):
+    if options is None and isinstance(run_options := getattr(node, "options", None), RunOptions):
         options = run_options.clone()
     if options is None:
         options = BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE].clone()

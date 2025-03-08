@@ -3,10 +3,11 @@ from typing import Optional, Union
 
 from bench.language.core import (
     NAME_CONSTRAINT,
+    IsTemplatable,
+    IsTraceable,
     NodeType,
-    SourceNode,
+    PackageNode,
     StructType,
-    _IntoQuery,
     node_,
     p_internal,
     p_node_parent,
@@ -23,7 +24,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.OPTION)
-class Option(SourceNode[OptionData], _IntoQuery):
+class Option(IsTemplatable, IsTraceable, PackageNode[OptionData]):
     """
     An Option in a Choice or something.
     """

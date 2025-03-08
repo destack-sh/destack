@@ -18,10 +18,10 @@ def system():
 @app.command()
 def schema():
     """Print the schema."""
-    from bench.language import SourceNode
+    from bench.language import PackageNode
     from bench.runtime.model.instruct import render_builtin_hierarchy
 
-    print(render_builtin_hierarchy(SourceNode))  # noqa: T201
+    print(render_builtin_hierarchy(PackageNode))  # noqa: T201
 
 
 @app.command()
