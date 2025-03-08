@@ -532,7 +532,11 @@ export function useValueSearch(options: {
         (isNodeType(valueType.value?.benchType) && isUnloadedNodeType(valueType.value?.benchType))
       ) {
         // remote supergraph
-        return SUPERGRAPH_INDEX;
+        return supergraphIndex({
+          id: "supergraph",
+          supergraph,
+          metatypes: valueType.value?.constraint?.nodeTypes,
+        });
       } else {
         // local graph
         const nodeType = valueType.value?.benchType as unknown as NodeType;

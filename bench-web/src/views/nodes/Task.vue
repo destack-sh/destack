@@ -4,6 +4,7 @@ import { isTaskActive, isTaskTerminal, toggleTaskStatus } from "@/language/runti
 import {
   BenchType,
   ColorShade,
+  ColorType,
   NodeReferenceData,
   NodeType,
   PrimitiveType,
@@ -16,7 +17,7 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { pushPopover } from "@/ui/popover";
-import { getTaskColorHex } from "@/ui/style";
+import { getColorHex, getTaskColorHex } from "@/ui/style";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -39,6 +40,7 @@ const state = canvas.registerView(self, id);
 const taskPtr = toRef(props, "nodePtr");
 const { graph, connection } = props.preparedConnection ?? useExistingConnection(taskPtr);
 const task = graph.getRef(taskPtr, { ignoreAncestors: true }) as Ref<TaskData | null>;
+const isManual = computed(() => task.value != null && task.value.isManual);
 const isActive = computed(() => task.value != null && isTaskActive(task.value));
 const isTerminal = computed(() => task.value != null && isTaskTerminal(task.value));
 const hasMeta = computed(() => task.value != null && (task.value.dueAt != null || task.value.ownedByPtr != null));
@@ -67,14 +69,24 @@ defineExpose<ViewExpose>({ self, id, focus });
     <button
       class="ml-1 mt-0.5 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-200 bg-white p-[1px] transition-colors duration-75"
       :style="{
-        borderColor: fillState != 'empty' ? getTaskColorHex(task.status, ColorShade.S500) : undefined,
+        borderColor:
+          fillState != 'empty'
+            ? isManual
+              ? getColorHex(ColorType.GRAY, ColorShade.S700)
+              : getTaskColorHex(task.status, ColorShade.S500)
+            : undefined,
       }"
       @click="toggleTaskStatus(connection.tx, task)"
     >
       <span
         class="inline-block h-full w-full rounded-2xl transition-all duration-75"
         :style="{
-          backgroundColor: fillState != 'empty' ? getTaskColorHex(task.status, ColorShade.S500) : undefined,
+          backgroundColor:
+            fillState != 'empty'
+              ? isManual
+                ? getColorHex(ColorType.GRAY, ColorShade.S500)
+                : getTaskColorHex(task.status, ColorShade.S500)
+              : undefined,
           clipPath: fillState == 'full' ? undefined : 'inset(0 0 50% 0)',
         }"
       />
@@ -86,7 +98,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         <!-- nocheckin: rich 'names'? (for Task, Plan, Page, ...?) -->
         <NativeInput
           id="name"
-          ref="nameRef"
+          ref="nameRef" 
           class="text-base font-medium"
           is-minimal
           is-input
