@@ -24,7 +24,7 @@ async def test_acquire_browser_resource_directly(
 ):
     """Acquire a Browser directly and wait for it to be ready."""
     browser = Browser.new(name="My Lil' Browser")
-    runtime.bench.append(browser)
+    runtime.main_package.append(browser)
     await browser.wait_until_ready()
     assert browser.status == ResourceStatus.UP
 

@@ -683,13 +683,13 @@ class HostService(GraphServiceBase, HostBase):
                     f"unexpected file: {file_data!r} (kind={file_data.kind}, sha256={file_data.sha256})",
                 )
             if file_data.parent_ptr.metatype != 0:
-                if file_data.parent_ptr.id != str(self.bench.id):
+                if file_data.parent_ptr.bench_id != str(self.bench.id):
                     raise GRPCError(
                         GRPCStatus.INVALID_ARGUMENT,
                         f"unexpected parent: {file_data.parent_ptr!r}->{self.bench!r}",
                     )
             else:  # default to main drive
-                file_data.parent_ptr.CopyFrom(self.bench._to_ref_data())
+                file_data.parent_ptr.CopyFrom(self.main_package._to_ref_data())
 
             # presign post URL
             file_key = get_file_key(self.bench, file_data.sha256, file_data.name)

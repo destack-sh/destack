@@ -39,7 +39,6 @@ from bench.language.core import (
     node_,
     object_,
     p_internal,
-    p_node_parent,
     p_regular,
     p_runtime,
     p_system,
@@ -61,7 +60,7 @@ from ..core.resource import DynamicResource
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import Bench, File, Session
+    from bench.language import File, Package, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -789,8 +788,6 @@ class File(DynamicResource[FileData], FileBase):
     A File stored somewhere (like in a Drive, or externally).
     """
 
-    parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
-
     # content/info
     # ...FileInfoBase[50-79]
 
@@ -1007,7 +1004,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    bench: "Bench | None" = None,
+    package: "Package | None" = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -1020,11 +1017,12 @@ async def upload_file(
     # bench
     if session is None:
         session = active_session()
-    if bench is None:
+    if package is None:
         bench = session.bench
-        if bench is None:
-            raise ValueError(f"no Bench to upload file {name!r} to in {session!r}")
-    file.parent = bench
+        package = bench.main_package if bench is not None else None
+        if package is None:
+            raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
+    file.parent = package
 
     # upload file, then create in session
     await upload_file_batch(files=[file], file_contents=[content], session=session)

@@ -203,11 +203,14 @@ class DynamicResource[NodeDataT: AnyNodeData](IsOwnable, Resource[NodeDataT]):
 
         # parent
         if "parent" not in kwargs:
-            if NodeType.BENCH not in cls.__parent_types__:
-                raise ValueError(f"cannot create {cls!r} without parent")
-            bench = session.bench
-            assert bench is not None, "no active Bench"
-            kwargs["parent"] = bench
+            if "package" in kwargs:
+                kwargs["parent"] = kwargs["package"]
+            else:
+                bench = session.bench
+                assert bench is not None, "no active Bench"
+                package = bench.main_package
+                assert package is not None, "no main Package"
+                kwargs["parent"] = package
 
         # title
         if name is None:
