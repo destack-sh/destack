@@ -108,7 +108,12 @@ class DatabasePlugin(HostPlugin[Database | Field]):
                 await apply_sql_migration_ops(connector.cur, migration_ops)
                 session._touch_connector(connector)
                 await session.commit()
-                logger.debug("database.migrate", host=self, migration_ops=migration_ops)
+                logger.debug(
+                    "database.migrate",
+                    host=self,
+                    connector=connector,
+                    migration_ops=migration_ops,
+                )
 
     @override
     async def on_commit_prepare(self, session: Session, commit: Commit[Database | Field]) -> None:
@@ -166,11 +171,14 @@ class DatabasePlugin(HostPlugin[Database | Field]):
         )
         if migration_ops:
             await apply_sql_migration_ops(connector.cur, migration_ops)
+            session._touch_connector(connector)
 
         # patch context optimistically
         self.context.custom_tables_by_database.update(new_tables_by_database)
         self.context.databases_by_id.update(touched_databases_by_id)
-        logger.debug("database.migrate", host=self, migration_ops=migration_ops)
+        logger.debug(
+            "database.migrate", host=self, connector=connector, migration_ops=migration_ops
+        )
 
     @override
     async def on_commit(self, session: Session, commit: Commit[Database | Field]) -> None:

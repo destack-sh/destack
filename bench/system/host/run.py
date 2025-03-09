@@ -98,7 +98,7 @@ class RunPlugin(HostPlugin[Run]):
         # NOTE :Performance: maybe not re-load available Machines in RunPlugin every time?
         available_machines = (
             await Machine.where(
-                Machine.get_property("parent").eq(self.bench)
+                Machine.get_property("bench").eq(self.bench)
                 & Machine.get_property("status").eq(ResourceStatus.UP)
                 & Machine.get_property("type").eq(MachineType.RUNTIME)
             )
