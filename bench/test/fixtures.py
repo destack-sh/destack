@@ -22,6 +22,8 @@ from bench.language import (
     NodeReference,
     NodeSuperGraph,
     NodeType,
+    Package,
+    PackageType,
     Region,
     Store,
     clean_name,
@@ -71,8 +73,18 @@ def make_global_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    store = Store(
+    system_package_stub = Package(
         parent=system_bench_stub,
+        type=PackageType.MAIN,
+        id=UUID(int=1),
+        name="Main",
+        slug="main",
+        _supergraph=supergraph,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
+    store = Store(
+        parent=system_package_stub,
         name=name,
         version=VERSION,
         external_name=name,
@@ -106,8 +118,18 @@ def make_regional_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    store = Store(
+    system_package_stub = Package(
         parent=system_bench_stub,
+        type=PackageType.MAIN,
+        id=UUID(int=1),
+        name="Main",
+        slug="main",
+        _supergraph=supergraph,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
+    store = Store(
+        parent=system_package_stub,
         name=name,
         version=VERSION,
         external_name=name,

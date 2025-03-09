@@ -2,6 +2,7 @@ from bench.language import (
     Bench,
     Handle,
     Organization,
+    PackageType,
     Region,
     ScalerStrategy,
     ScalerType,
@@ -32,14 +33,19 @@ async def create_default_bench(
     session._create(bench)
     await session.flush(optimistic=True)
 
+    # main Package
+    main_package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+    await session.flush(optimistic=True)
+    bench.main_package = main_package
+
     # main Store
-    store = bench.stores.create(region=bench.region, name="Store")
+    store = main_package.stores.create(region=bench.region, name="Store")
     await session.flush(optimistic=True)
     bench.main_store = store
     await session.flush(optimistic=True)
 
     # default Scalers
-    machine_scaler = bench.scalers.create(  # noqa: F841
+    machine_scaler = main_package.scalers.create(  # noqa: F841
         type=ScalerType.MACHINE,
         strategy=ScalerStrategy.AUTO,
         name="Machine Scaler",

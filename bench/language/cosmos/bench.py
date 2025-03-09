@@ -31,7 +31,6 @@ if TYPE_CHECKING:
         NodeReference,
         Package,
         Region,
-        Scaler,
         Store,
         Text,
     )
@@ -96,8 +95,6 @@ class Bench(IsOwnable, BenchNode[BenchData]):
         main_package_ptr: Optional[NodeReference] = None
 
     packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
-    stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
-    scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
 
     @property
     def is_attached(self) -> bool:
