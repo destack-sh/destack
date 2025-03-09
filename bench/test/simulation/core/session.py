@@ -38,6 +38,7 @@ def make_pg_session(
         _engines=(simulation.global_pg_engine, simulation.regional_pg_engine),
         _oracle=simulation.oracle,
         _supergraph=supergraph,
+        _split_read=True,
     )
     return session
 

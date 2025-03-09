@@ -62,7 +62,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
         """Reconcile the Scalers and the Resources they scale."""
 
         # get scalers
-        scalers = scalers if scalers is not None else tuple(self.bench.scalers)
+        scalers = scalers if scalers is not None else tuple(self.main_package.scalers)
         scalers = tuple(s for s in scalers if s.type == self.provision_subtype)
         self._scalers_to_reconcile.clear()
         self._reconcile_event.clear()

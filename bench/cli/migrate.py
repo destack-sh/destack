@@ -10,7 +10,7 @@ from rich import print
 from rich.console import Console
 
 from bench.cli.utils import async_to_sync, parse_area, parse_region
-from bench.language import REGION, VERSION, Bench, NodeArea, NodeType, Region, Store
+from bench.language import REGION, VERSION, Bench, NodeArea, NodeType, Package, Region, Store
 from bench.sql import (
     BENCH_RECORD_TABLE_PREFIX,
     BENCH_TABLE_PREFIX,
@@ -36,7 +36,7 @@ logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
 console = Console()
 
-BENCH_QUERY = Bench.include_descendants(Store).select_all()
+BENCH_QUERY = Bench.include_descendants(Package, Store).select_all()
 
 
 @app.command(help="generate SQL migrations")
@@ -211,14 +211,18 @@ async def apply(
         ):
             if bench != "*":
                 bench_node = await BENCH_QUERY.get(slug=bench)
-                stores = (*bench_node.stores,)
+                assert bench_node.main_package, f"{bench!r} has no main package"
+                stores = list(bench_node.main_package.stores)
             else:
                 benches = await BENCH_QUERY.tolist()
-                stores = tuple(store for bench in benches for store in bench.stores)
+                stores: list[Store] = []
+                for bench_node in benches:
+                    assert bench_node.main_package, f"{bench_node!r} has no main package"
+                    stores.extend(bench_node.main_package.stores)
     elif area == NodeArea.REGIONAL:
-        stores = (regional_store,)
+        stores = [regional_store]
     elif area == NodeArea.GLOBAL:
-        stores = (global_store,)
+        stores = [global_store]
     else:
         raise RuntimeError(f"invalid area: {area!r}")
 

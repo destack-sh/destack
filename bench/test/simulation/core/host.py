@@ -49,5 +49,5 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
         await super().close()
         # manually decommission stores (bootstrapping problem since the Host session uses the store)
         async with pg_connection(self.simulation.global_store, owner=self, autocommit=True) as conn:
-            for store in self.service.bench.stores:
+            for store in self.service.main_package.stores:
                 await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))

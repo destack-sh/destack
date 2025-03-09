@@ -282,7 +282,8 @@ async def test_crud_node_pointers(omni_session: Session):
         )
         session._create(bench)
         await session.flush()
-        store = bench.stores.create(name="Production A")
+        package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+        store = package.stores.create(name="Production A")
         client = Client(
             parent=bench,
             type=ClientType.MOBILE,
@@ -290,7 +291,6 @@ async def test_crud_node_pointers(omni_session: Session):
             name="Testificate's iPhone",
         )
         session._create(client)
-        package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
         await session.flush()
         session.parent = bench  # patch in the session parent
         bench.main_store = store

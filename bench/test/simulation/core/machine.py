@@ -2,7 +2,16 @@ from typing import TYPE_CHECKING, final
 
 from more_itertools import first
 
-from bench.language import Bench, Client, ClientType, Machine, MachineType, NodeType, ResourceStatus
+from bench.language import (
+    Bench,
+    Client,
+    ClientType,
+    Machine,
+    MachineType,
+    NodeType,
+    Package,
+    ResourceStatus,
+)
 from bench.pb2 import ClientData, MachineData
 from bench.system import ACCESS_TOKEN_LENGTH
 from bench.utils.func import generate_access_token
@@ -60,7 +69,7 @@ class MachineHandle:
         session = make_pg_session(self.simulation)
         async with session:
             # create machine and client
-            bench = await Bench.select_all().get(slug=self.spec.bench)
+            bench = await Bench.select_all().include_descendants(Package).get(slug=self.spec.bench)
             bench._graph.add_types(NodeType.MACHINE, NodeType.CLIENT)
             runtime = first(
                 (
@@ -72,8 +81,10 @@ class MachineHandle:
             )
             # add connection uri if we have a runtime :SimulatedNetwork
             connection_uri = f"simulation://{runtime.id}:0" if runtime else None
+            package = bench.main_package
+            assert package is not None, f"no main package for {bench!r}"
             machine = Machine(
-                parent=bench,
+                parent=package,
                 name=self.spec.name,
                 type=MachineType.RUNTIME,
                 status=ResourceStatus.UP,

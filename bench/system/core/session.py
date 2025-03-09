@@ -18,6 +18,8 @@ from bench.language import (
     NodeReference,
     NodeSuperGraph,
     NodeType,
+    Package,
+    PackageType,
     Region,
     Session,
     Store,
@@ -45,8 +47,18 @@ def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-    store = Store(
+    system_package_stub = Package(
         parent=system_bench_stub,
+        type=PackageType.MAIN,
+        id=UUID(int=1),
+        name="Main",
+        slug="main",
+        _supergraph=supergraph,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
+    store = Store(
+        parent=system_package_stub,
         name="Store",
         version=VERSION,
         connection_uri=pg_url,

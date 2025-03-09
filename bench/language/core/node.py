@@ -1426,7 +1426,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A Node in a Package."""
 
-    package: "Package" = p_node_ancestor_with_self(
+    package: "Package | None" = p_node_ancestor_with_self(
         8, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:

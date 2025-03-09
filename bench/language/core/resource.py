@@ -31,7 +31,6 @@ from .property import (
 
 if TYPE_CHECKING:
     from bench.language import (
-        Bench,
         NodeReference,
         Package,
         Page,
@@ -85,9 +84,7 @@ class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, InlineNode[No
     Where applicable, the target state is stored in target_* properties.
     """
 
-    parent: Union["Bench", "Package", "Page", None] = p_node_parent(
-        4, NodeType.BENCH, NodeType.PACKAGE, NodeType.PAGE
-    )
+    parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
     # ... space for type/name/...
 
     # meta

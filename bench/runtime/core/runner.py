@@ -616,7 +616,8 @@ def _get_runnable_container(
     node: "RunnableNode",
 ) -> tuple[Package, Flow | None, Kit | None, Action | None, Link | None, RunType]:
     """Gets the containing ancestor Package, Flow, Kit, Action, Link, and RunKind for a RunnableNode."""
-    package: Package = node.package
+    package: Package | None = node.package
+    assert package is not None, f"no package for {node!r}"
     flow: Flow | None = None
     kit: Kit | None = None
     action: Action | None = None

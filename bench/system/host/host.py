@@ -42,7 +42,6 @@ from bench.language import (
     NodeType,
     Ownable,
     Package,
-    PackageType,
     Query,
     Session,
     Store,
@@ -330,11 +329,6 @@ class HostService(GraphServiceBase, HostBase):
             provisioner.close()
         await asyncio.gather(*(provisioner.wait_closed() for provisioner in provisioners))
 
-        # main Package
-        main_package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
-        await session.flush(optimistic=True)
-        bench.main_package = main_package
-
         # commit
         bench.status = BenchStatus.ACTIVATED
         await session.commit()
@@ -348,32 +342,25 @@ class HostService(GraphServiceBase, HostBase):
         # load bench
         #  (in different session because we don't have the local engines yet)
         async with self.global_session() as session:
-            # get bench main store so we can get all bench data (some of which is local)
-            tmp_bench = await Bench.include_descendants(Store).select_all().get(self.bench_ptr)
-            assert tmp_bench.main_store, f"{tmp_bench!r} has no main store"
-            session._engines += (
-                local_pg_engine_from_store(
-                    name=f"pg-local-{tmp_bench.slug}", store=tmp_bench.main_store
-                ),
-            )
-
-            # initialize bench if not already initialized
-            if tmp_bench.status < BenchStatus.ACTIVATED:
-                await self._activate(session, tmp_bench)
-
             # load full bench
-            tmp_bench._untrack_rec()
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store, f"{self._bench!r} has no main store"
             session.parent = self._bench  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
+            session._engines += (
+                local_pg_engine_from_store(
+                    name=f"pg-local-{self._bench.slug}", store=self._bench.main_store
+                ),
+            )
 
             # load packages
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, mode="both")
 
+            # activate if needed
+            if self._bench.status < BenchStatus.ACTIVATED:
+                await self._activate(session, self._bench)
+
             # cleanup (discard temporary session)
-            tmp_bench.connection.detach()
-            del tmp_bench
             self._bench._untrack_rec()
             self._main_package._untrack_rec()
 

@@ -23,7 +23,7 @@ from bench.language.core import (
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Dependency, Icon, Page, Space, Text
+    from bench.language import Bench, Channel, Dependency, Icon, Page, Scaler, Space, Store, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -56,6 +56,8 @@ class Package(IsOwnable, IsTemplatable, IsTraceable, PackageNode[PackageData]):
         50, require=False, array=False, references=NodeType.CHANNEL, same_bench=True
     )
 
+    stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)
+    scalers: LocalNodeList["Scaler"] = p_node_children(NodeType.SCALER)
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)
     spaces: LocalNodeList["Space"] = p_node_children(NodeType.SPACE)
