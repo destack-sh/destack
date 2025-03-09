@@ -412,7 +412,7 @@ async def test_run_code_raise_retryable_error(
         ActionType.CODE,
         "Code1",
         code=code("""raise RetryableError('error1')"""),
-        run_options=RunOptions(max_attempts=3),
+        options=RunOptions(max_attempts=3),
     )
     Flow1.actions.append(Action1)
     runtime.page().append(Flow1)
@@ -434,7 +434,7 @@ async def test_run_code_raise_unretryable_error(
         ActionType.CODE,
         "Code1",
         code=code("""raise NonRetryableError('error1')"""),
-        run_options=RunOptions(max_attempts=3),
+        options=RunOptions(max_attempts=3),
     )
     Flow1.actions.append(Action1)
     runtime.page().append(Flow1)

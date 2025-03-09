@@ -468,6 +468,7 @@ FILE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),

@@ -106,7 +106,7 @@ class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], a
             for _ in range(scaler.target_count - len(resource_group)):
                 resource_kwargs: dict[str, Any] = {"scaler": scaler, "name": generate_random_name()}
                 resource = cast(WT, self._resource_cls(**resource_kwargs))
-                self.bench.append(resource)
+                self.main_package.append(resource)
                 added.append(resource)
         if added or removed:
             logger.info(

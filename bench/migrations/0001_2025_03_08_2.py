@@ -1,4 +1,4 @@
-# This migration was automatically generated on 2025.03.08. Edit as needed.
+# This migration was automatically generated on 2025.03.09. Edit as needed.
 import psycopg
 
 ID = 1
@@ -14,9 +14,9 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
     # bench_migration
     await cur.execute(
@@ -313,9 +313,9 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_regional(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
     # bench_migration
     await cur.execute(
@@ -542,6 +542,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_file" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
+        "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -2143,9 +2144,9 @@ async def downgrade_regional(cur: psycopg.AsyncCursor):
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
     # bench_migration
     await cur.execute(
