@@ -18,6 +18,7 @@ import {
   MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
+  PackageData,
   ResourceOccupancy,
   ResourceStatus,
   Struct,
@@ -44,6 +45,7 @@ export type FileUpload = {
   status: Ref<FileStatus>;
   isActive: Ref<boolean>;
   bench: BenchData;
+  package: PackageData;
   nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
   content: File;
@@ -75,7 +77,12 @@ export const fileUploads = computed(() => Object.values(uploadsByFileId.value));
 export const activeFileUploads = computed(() => fileUploads.value.filter((u) => u.isActive.value));
 
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
-export async function extractFile(content: File, identity: NodeReferenceData, bench: BenchData): Promise<FileData> {
+export async function extractFile(
+  content: File,
+  identity: NodeReferenceData,
+  bench: BenchData,
+  pkg: PackageData,
+): Promise<FileData> {
   const name = content.name;
 
   // guess file type using extension & mime type
@@ -100,7 +107,8 @@ export async function extractFile(content: File, identity: NodeReferenceData, be
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
-    parentPtr: toNodeRef(bench),
+    parentPtr: toNodeRef(pkg),
+    packagePtr: toNodeRef(pkg),
     benchPtr: toNodeRef(bench),
     region: bench.region,
     status: ResourceStatus.UP,
@@ -193,7 +201,7 @@ async function doUploadFiles(
     try {
       upload.status.value = FileStatus.PREPARING;
       if (options?.validate) {
-        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.bench);
+        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.bench, upload.package);
         options.validate(upload, upload.file.value);
       }
     } catch (e) {
@@ -259,6 +267,7 @@ export function uploadFiles(
   contents: File[],
   options: {
     bench: BenchData;
+    pkg: PackageData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
   },
@@ -269,6 +278,7 @@ export function uploadFiles(
       status: shallowRef(FileStatus.PENDING),
       isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
       bench: options.bench,
+      package: options.pkg,
       nodePtr: fileIdentity,
       file: shallowRef(null),
       content,
@@ -309,6 +319,7 @@ export function uploadFile(
   content: File,
   options: {
     bench: BenchData;
+    pkg: PackageData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
   },

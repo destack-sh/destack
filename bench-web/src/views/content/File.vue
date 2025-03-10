@@ -21,7 +21,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, canvas, pkgConnection } from "@/system/space";
+import { bench, canvas, pkg, pkgConnection } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
@@ -109,11 +109,13 @@ const loadFailed = computed(() => download.value?.status.value == FileStatus.FAI
 async function onFileSelected(files: File[]) {
   if (files.length == 0) return;
   if (bench.value == null) throw new Error("no current bench");
+  if (pkg.value == null) throw new Error("no current package");
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
   try {
     upload.value = uploadFile(() => pkgConnection.tx, content, {
       bench: bench.value,
+      pkg: pkg.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
     });
     await upload.value.completion.wait();
