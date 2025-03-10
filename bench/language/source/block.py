@@ -6,6 +6,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
@@ -106,7 +107,7 @@ if IS_DEV or IS_TEST:
 
 
 @node_(NodeType.BLOCK, has_subtypes=True)
-class Block(IsTemplatable, IsTraceable, PackageNode[BlockData]):
+class Block(IsTemplatable, IsTraceable, IsNamed, PackageNode[BlockData]):
     """A Block on a Page."""
 
     parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
@@ -157,14 +158,14 @@ class Block(IsTemplatable, IsTraceable, PackageNode[BlockData]):
     @property
     def name(self) -> str | None:
         """The name of the delegate (if any)."""
-        if isinstance(node := self.node, InlineNode) and "name" in node.__properties__:
+        if isinstance(node := self.node, IsNamed):
             return node.name
         return None
 
     @property
     def code_name(self) -> str | None:
         """The code name of the delegate (if any)."""
-        if isinstance(node := self.node, InlineNode) and "name" in node.__properties__:
+        if isinstance(node := self.node, IsNamed):
             return node.code_name
         return None
 

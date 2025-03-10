@@ -54,14 +54,12 @@ export function describeNode(node: {
   ck?: string | null;
   slug?: string | null;
   name?: string | null;
-  title?: string | null;
 }): string {
   const nodeParts: string[] = [`id=${node.id}`];
   const nodeType = isNodeRef(node) ? node.nodeType : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
-  if (node.title) nodeParts.push(`title='${node.title}'`);
   if (!isNodeRef(node) && nodeType != null && node.type != null) {
     // coerce 'type' property into actual name
     const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[nodeType as unknown as ObjectType];

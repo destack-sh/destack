@@ -62,7 +62,7 @@ class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
                 pages = self.main_package._graph.nodes_of_type(Page)
                 if edit_type == EditType.CREATE:
                     parent = self.random.choice((self.main_package, *pages))
-                    page = Page.new(name=f"Page {self.page_num}")
+                    page = Page.new(title=f"Page {self.page_num}")
                     self.page_num += 1
                     parent.pages.append(page)
                 elif edit_type == EditType.DELETE:

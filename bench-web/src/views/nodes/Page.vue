@@ -148,6 +148,7 @@ const {
   lineRefsById,
   updatePlugin,
 } = useTextEditor({
+  mode: "block",
   textRef,
   text: textInterface,
   isInput: true,

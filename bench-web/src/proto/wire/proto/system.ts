@@ -513,9 +513,9 @@ export interface ClientDataIn {
      */
     type: ClientType;
     /**
-     * @generated from protobuf field: string name = 32;
+     * @generated from protobuf field: optional string name = 32;
      */
-    name: string;
+    name?: string;
     /**
      * @generated from protobuf field: optional string device_type = 40;
      */
@@ -2022,7 +2022,7 @@ class ClientDataIn$Type extends MessageType<ClientDataIn> {
         super("symbolx.bench.ClientDataIn", [
             { no: 2, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.ClientType", ClientType, "CLIENT_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "device_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "device_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "operating_system", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -2036,7 +2036,6 @@ class ClientDataIn$Type extends MessageType<ClientDataIn> {
     create(value?: PartialMessage<ClientDataIn>): ClientDataIn {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.type = 0;
-        message.name = "";
         if (value !== undefined)
             reflectionMergePartial<ClientDataIn>(this, message, value);
         return message;
@@ -2052,7 +2051,7 @@ class ClientDataIn$Type extends MessageType<ClientDataIn> {
                 case /* symbolx.bench.ClientType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* string name */ 32:
+                case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
                 case /* optional string device_type */ 40:
@@ -2097,8 +2096,8 @@ class ClientDataIn$Type extends MessageType<ClientDataIn> {
         /* symbolx.bench.ClientType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* string name = 32; */
-        if (message.name !== "")
+        /* optional string name = 32; */
+        if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
         /* optional string device_type = 40; */
         if (message.deviceType !== undefined)

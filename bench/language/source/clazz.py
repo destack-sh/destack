@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Literal, Union
 from bench.language.core import (
     FieldType,
     InlineNode,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CLASS, passthrough_get=("fields",))
-class Class(IsTemplatable, IsTraceable, InlineNode[BlockData]):
+class Class(IsTemplatable, IsTraceable, IsNamed, InlineNode[BlockData]):
     """A Class with Fields."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

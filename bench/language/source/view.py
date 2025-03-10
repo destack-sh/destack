@@ -1,10 +1,11 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
+from uuid import UUID
 
 from bench.language.core import (
-    TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
@@ -387,7 +388,7 @@ class RectangleConstraint(Struct):
 
 
 @node_(NodeType.VIEW, has_subtypes=True)
-class View(IsTemplatable, IsTraceable, InlineNode[ViewData]):
+class View(IsTemplatable, IsTraceable, IsNamed, InlineNode[ViewData]):
     """A View is a graphical interface in a Bench."""
 
     parent: Union["Space", "View", "Page", None] = p_node_parent(
@@ -396,10 +397,10 @@ class View(IsTemplatable, IsTraceable, InlineNode[ViewData]):
 
     # meta
     type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
+    title: Optional[str] = p_regular(32, require=False)
     subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content
-    title: Optional[str] = p_regular(40, default=None, constraint=TITLE_CONSTRAINT)
     value_type: Optional["Type"] = p_regular(
         41, default=None, require=False, struct=StructType.TYPE
     )
@@ -408,6 +409,7 @@ class View(IsTemplatable, IsTraceable, InlineNode[ViewData]):
     )
     if TYPE_CHECKING:
         node_type: Optional[NodeType] = None
+        node_id: Optional[UUID] = None
         node_ptr: Optional["NodeReference"] = None
 
     # style

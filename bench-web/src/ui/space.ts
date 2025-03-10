@@ -58,7 +58,7 @@ import { inspectionPtr, pkg, space } from "@/system/space";
 import { Action, ActionContext, declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
-import { getNodeIcon, getNodeName, toIconMaybe } from "@/ui/icon";
+import { getNodeIcon, getNodeTitle, toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { PopoverInfoIn, PopoverInstance, pushPopover } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
@@ -1074,7 +1074,7 @@ export class SpaceCanvas {
       const base = basePtr != null ? graph.get(basePtr) : null;
       if (base == null) {
         toaster.error({
-          title: `Can't Open ${getNodeName(node as AnyNodeData) ?? toCamelName(ObjectType, node.metatype)}`,
+          title: `Can't Open ${getNodeTitle(node as AnyNodeData) ?? toCamelName(ObjectType, node.metatype)}`,
           text: `The base node is missing`,
         });
         return;
@@ -1099,7 +1099,7 @@ export class SpaceCanvas {
     else {
       toaster.error({
         icon: getNodeIcon(node),
-        title: `Can't Open ${getNodeName(node as AnyNodeData) ?? "This Node"}`,
+        title: `Can't Open ${getNodeTitle(node as AnyNodeData) ?? "This Node"}`,
         text: `There is no view for ${toCamelName(ObjectType, node.metatype)}s`,
       });
     }

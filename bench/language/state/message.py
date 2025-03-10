@@ -6,18 +6,19 @@ import structlog
 
 from bench.language.core import (
     INLINE_NODE_TYPES,
-    TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     FieldType,
     InlineNode,
     IsBased,
     IsTimed,
+    IsTitled,
     Node,
     NodeType,
     PackageNode,
     StructType,
     Text,
+    TextLine,
     TypeBase,
     enum_,
     p_internal,
@@ -81,7 +82,7 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(IsTimed, IsBased, PackageNode[MessageData]):
+class Message(IsTimed, IsBased, IsTitled, PackageNode[MessageData]):
     """
     A Message about something.
     """
@@ -89,9 +90,9 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
     # meta
     parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
     type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
-    platform: MessagePlatform = p_regular(31, require=True, default=MessagePlatform.BENCH)
+    platform: MessagePlatform = p_regular(33, require=True, default=MessagePlatform.BENCH)
     channel: "Channel" = p_node_ancestor(
-        32,
+        34,
         NodeType.CHANNEL,
         require=True,
         store=True,
@@ -99,7 +100,7 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
         is_bench_implicit=True,
     )
     thread: Optional["Thread"] = p_node_ancestor(
-        33,
+        35,
         NodeType.THREAD,
         require=False,
         store=True,
@@ -107,10 +108,10 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
         is_bench_implicit=True,
     )
     scope: Union["InlineNode", "Package"] = p_regular(
-        35, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
+        36, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
     )
     run_root: Optional["Run"] = p_regular(
-        36,
+        37,
         require=False,
         array=False,
         references=NodeType.RUN,
@@ -118,7 +119,7 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
         description="The root Run this Message/Thread is scoped to.",
     )
     run: Optional["Run"] = p_regular(
-        37,
+        38,
         require=False,
         array=False,
         references=NodeType.RUN,
@@ -156,7 +157,6 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
     # roles, identities, users, teams, ...?
 
     # content
-    title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(62)
     value: Any = p_value_runtime(
@@ -207,7 +207,7 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
 
     def __content_str__(self) -> str:
         if self.title:
-            return self.title
+            return self.title.to_markdown()
         elif self.text:
             return self.text.to_markdown()
         else:
@@ -247,7 +247,7 @@ class Message(IsTimed, IsBased, PackageNode[MessageData]):
 
     @staticmethod
     def new(
-        title: str | None = None,
+        title: TextLine | None = None,
         text: Text | None = None,
         *,
         platform: MessagePlatform = MessagePlatform.BENCH,

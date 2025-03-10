@@ -125,6 +125,7 @@ if TYPE_CHECKING:
         Session,
         Tag,
         Text,
+        TextLine,
         Thread,
         Type,
         User,
@@ -1532,6 +1533,20 @@ class IsTimed(BuiltinObject, abc.ABC):
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
 
 
+@node_component_()
+class IsNamed(BuiltinObject):
+    """A Node with a plain name."""
+
+    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
+
+
+@node_component_()
+class IsTitled(BuiltinObject):
+    """A Node with a rich title."""
+
+    title: Optional["TextLine"] = p_regular(32, struct=StructType.TEXT_LINE)
+
+
 RunnableNode = Union["Flow", "Action", "Link"]
 RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
 FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
@@ -1545,16 +1560,17 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
     """A Node that can be defined 'inline' in a Block on a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str | None = p_internal(32, default=INTEGER_ZERO, default_sql=None)
+    # name: 31
+    # title: 32
+    order_key: str | None = p_internal(33, default=INTEGER_ZERO, default_sql=None)
     icon: Optional["Icon"] = p_regular(
-        33, default=None, require=False, array=False, struct=StructType.ICON
+        34, default=None, require=False, array=False, struct=StructType.ICON
     )
     text: Optional["Text"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT
+        35, default=None, require=False, array=False, struct=StructType.TEXT
     )
     definition: "Block | None" = p_regular(
-        35,
+        36,
         require=False,
         array=False,
         references=NodeType.BLOCK,

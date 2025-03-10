@@ -3,26 +3,28 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     BuiltinEnum,
     ColorType,
     EnumType,
+    InlineNode,
     IsInstantiable,
     IsOwnable,
     IsRuntime,
     IsTimed,
+    IsTitled,
     IsTraceable,
     LocalNodeList,
     NodeType,
     StructType,
+    TextLineIn,
     enum_,
     p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
+    text_line,
     timed_node_,
 )
-from bench.language.core.node import InlineNode
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
@@ -79,6 +81,7 @@ class Plan(
     IsRuntime,
     IsTraceable,
     IsInstantiable,
+    IsTitled,
     InlineNode[PlanData],
 ):
     """A Plan for something expressed as a sequence of Tasks."""
@@ -88,7 +91,6 @@ class Plan(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
-    name: str | None = p_regular(40, constraint=NAME_CONSTRAINT)
     on_terminate: "PlanTerminationMode" = p_internal(41)
     on_failure: "PlanFailureMode" = p_internal(42)
     implemented_by: Optional["Run"] = p_internal(
@@ -118,27 +120,30 @@ class Plan(
 
     @staticmethod
     def serial(
-        name: str,
+        title: "TextLineIn",
         *tasks: "Task",
         on_terminate: PlanTerminationMode,
         on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
     ) -> "Plan":
         plan = Plan(
-            type=PlanType.SERIAL, name=name, on_terminate=on_terminate, on_failure=on_failure
+            type=PlanType.SERIAL,
+            title=text_line(title),
+            on_terminate=on_terminate,
+            on_failure=on_failure,
         )
         plan.tasks.extend(*tasks)
         return plan
 
     @staticmethod
     def parallel(
-        name: str,
+        title: "TextLineIn",
         *tasks: "Task",
         on_terminate: PlanTerminationMode,
         on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
     ) -> "Plan":
         plan = Plan(
             type=PlanType.PARALLEL,
-            name=name,
+            title=text_line(title),
             on_terminate=on_terminate,
             on_failure=on_failure,
         )

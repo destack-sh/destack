@@ -384,7 +384,8 @@ const mdCitationRule = new InputRule(/\[\^(.+?)\](?:\((.+?)\))?\s+$/, (state, ma
 });
 
 const UNORDERED_LIST_CHARS = ["-", "\\*", "•"];
-const PM_INPUT_RULES: InputRule[] = [
+
+const PM_BASIC_INPUT_RULES: InputRule[] = [
   // character rules
   emDash,
   ellipsis,
@@ -398,9 +399,6 @@ const PM_INPUT_RULES: InputRule[] = [
   replacementRule(/<=>/, "⇔"),
   replacementRule(/<=/, "≤"),
   replacementRule(/>=/, "≥"),
-  // special input rules
-  specialInputRule(/^\/$/, "/", undefined),
-  specialInputRule(/@/, "@", "@"),
   // marker rules
   markerRule("*", PM_SCHEMA.marks.italic),
   markerRule("_", PM_SCHEMA.marks.italic),
@@ -409,6 +407,19 @@ const PM_INPUT_RULES: InputRule[] = [
   markerRule("~", PM_SCHEMA.marks.strikethrough),
   markerRule("~~", PM_SCHEMA.marks.strikethrough),
   markerRule("`", PM_SCHEMA.marks.code),
+];
+
+const PM_LINE_INPUT_RULES: InputRule[] = [
+  ...PM_BASIC_INPUT_RULES,
+  // special input rules
+  specialInputRule(/@/, "@", "@"),
+];
+
+const PM_BLOCK_INPUT_RULES: InputRule[] = [
+  ...PM_BASIC_INPUT_RULES,
+  // special input rules
+  specialInputRule(/^\/$/, "/", undefined),
+  specialInputRule(/@/, "@", "@"),
   // link and citation rules
   mdLinkRule,
   urlLinkRule,
@@ -643,6 +654,7 @@ export function setTextSpanType(
  * Install a Text editor on a DOM element.
  */
 export function useTextEditor(options: {
+  mode: "line" | "block";
   textRef: Ref<HTMLElement | null>;
   text: TextInterface;
   isInput: MaybeRef<boolean>;
@@ -656,14 +668,18 @@ export function useTextEditor(options: {
   pageContext?: PageContext;
   onPmTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
-  const { textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
+  const { mode, textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
 
   // setup
   const bindings: Record<string, Command> = {
     ...commands.baseKeymap,
     ...getPmCommands({ navigate, deleteSelf }),
   };
-  if (toValue(suppressEnter)) {
+  if (mode == "line") {
+    bindings["Shift-Enter"] = () => true;
+    bindings["Mod-Enter"] = () => true;
+    bindings.Enter = () => true;
+  } else if (toValue(suppressEnter)) {
     bindings["Shift-Enter"] = bindings.Enter;
     bindings["Mod-Enter"] = () => true;
     bindings.Enter = () => true;
@@ -673,7 +689,10 @@ export function useTextEditor(options: {
     bindings["Mod-y"] = redo;
     bindings["Mod-Shift-z"] = redo;
   }
-  const plugins: Plugin[] = [keymap(bindings), inputRules({ rules: PM_INPUT_RULES })];
+  const plugins: Plugin[] = [
+    keymap(bindings),
+    inputRules({ rules: mode == "line" ? PM_LINE_INPUT_RULES : PM_BLOCK_INPUT_RULES }),
+  ];
   if (options?.plugins != null) {
     plugins.push(...options.plugins);
   }

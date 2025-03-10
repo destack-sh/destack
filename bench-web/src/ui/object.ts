@@ -75,7 +75,7 @@ import {
 } from "@/proto/wire";
 import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { getNodeName, makeIcon } from "@/ui/icon";
+import { getNodeTitle, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { typeIndex } from "@/ui/search";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType, makeSelection } from "@/ui/view";
@@ -264,7 +264,7 @@ export abstract class BaseObjectLayout {
     // fields
     for (const field of fields) {
       // content
-      const title = options?.title ?? getNodeName(field);
+      const title = options?.title ?? getNodeTitle(field);
       const fieldKey = getStorageKey(field);
       const view = getViewForType(field, { forcePickerDropdown: true });
       if (view == null) continue;
@@ -1032,7 +1032,7 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
           extendUpdate: (newValue) => {
             // also update node name if tool changes
             const tool = newValue != null ? this.graph.get(newValue) : null;
-            const name = tool != null ? getNodeName(tool) : null;
+            const name = tool != null ? getNodeTitle(tool) : null;
             return name != null ? { name } : {};
           },
         }),

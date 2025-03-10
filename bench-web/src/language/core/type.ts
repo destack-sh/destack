@@ -5,7 +5,6 @@ import {
   isNodeType,
   NAME_CONSTRAINT,
   padCkFromTkB64,
-  TITLE_CONSTRAINT,
   toCamelName,
 } from "@/language/core/const";
 import { getEnumTitle } from "@/language/core/enum";
@@ -103,8 +102,7 @@ export const NAME_TYPE = makeType({
 });
 export const TITLE_TYPE = makeType({
   kind: TypeKind.PRIMITIVE,
-  primitiveType: PrimitiveType.STRING,
-  constraint: makeTypeConstraint(TITLE_CONSTRAINT),
+  primitiveType: PrimitiveType.STRING
 });
 
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};

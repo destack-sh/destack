@@ -1,6 +1,7 @@
 import abc
 from typing import (
     TYPE_CHECKING,
+    Callable,
     Collection,
     Generic,
     Iterator,
@@ -297,6 +298,9 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
             )
         else:
             return self.nodes[key]
+
+    def find(self, filter: Callable[[V], bool]) -> V | None:
+        return first((n for n in self.nodes if filter(n)), None)
 
     @overload
     def __getitem__(self, item: str) -> Optional[V]: ...

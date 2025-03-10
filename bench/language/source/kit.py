@@ -2,7 +2,9 @@ import typing
 from typing import Optional, Union
 
 from bench.language.core import (
+    INLINE_NODE_TYPES,
     InlineNode,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
@@ -12,7 +14,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.const import INLINE_NODE_TYPES
 from bench.pb2 import KitData
 
 if typing.TYPE_CHECKING:
@@ -23,7 +24,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.KIT)
-class Kit(IsTemplatable, IsTraceable, InlineNode[KitData]):
+class Kit(IsTemplatable, IsTraceable, IsNamed, InlineNode[KitData]):
     """
     A Kit of Actions for a Node.
     """

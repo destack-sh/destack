@@ -13,6 +13,8 @@ import { makeNode } from "@/language/core/node";
 import {
   ClientData,
   ClientProperty,
+  FlowData,
+  FlowProperty,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   OBJECT_TYPE_BY_MESSAGE_TYPE_NAME,
@@ -148,7 +150,7 @@ describe("merge nodes", () => {
   const bench = makeNode({ metatype: NodeType.BENCH, name: "test", slug: "test" });
   const pkg = makeNode({ metatype: NodeType.PACKAGE, benchPtr: toNodeRef(bench) });
   const base1 = makeNode({
-    metatype: NodeType.PAGE,
+    metatype: NodeType.FLOW,
     packagePtr: toNodeRef(pkg),
     name: "Block1",
     subnodePacked: { fruity: 3, fluffy: false },
@@ -171,11 +173,11 @@ describe("merge nodes", () => {
     overlay3.name = "Overlay3";
     overlay3.subnodePacked = { fruity: 4, fluffy: true };
     (overlay3 as any).setPaths = [
-      [PageProperty.name.toString()],
-      [PageProperty.subnodePacked.toString(), "fluffy"],
-      [PageProperty.subnodePacked.toString(), "bold", "italic"],
+      [FlowProperty.name.toString()],
+      [FlowProperty.subnodePacked.toString(), "fluffy"],
+      [FlowProperty.subnodePacked.toString(), "bold", "italic"],
     ];
-    const merged3 = mergeNode(base1, overlay3) as PageData;
+    const merged3 = mergeNode(base1, overlay3) as FlowData;
     expect(merged3.name).toEqual("Overlay3");
     expect((merged3.subnodePacked as any).fruity).toEqual(3); // not in setPaths
     expect((merged3.subnodePacked as any).fluffy).toEqual(true); // in setPaths

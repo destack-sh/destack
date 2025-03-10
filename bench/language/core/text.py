@@ -152,7 +152,7 @@ class TextLine(TextOptionsBase, Struct):
     cells: list[TextCell] = p_regular(36, array=True, struct=StructType.TEXT_CELL)
 
     def __content_str__(self) -> str:
-        return _render_line(self)
+        return text_line_to_markdown(self)
 
     def __contains__(self, item: str | Node) -> bool:
         if isinstance(item, str):
@@ -180,6 +180,9 @@ class TextLine(TextOptionsBase, Struct):
         else:
             assert_never(item)
         return False
+
+    def to_markdown(self) -> str:
+        return text_line_to_markdown(self)
 
     @staticmethod
     def paragraph(text: str) -> "TextLine":
@@ -499,7 +502,7 @@ def _is_table_start(lines: list[str], idx: int) -> bool:
     return regex.search(r"^\s*\|?( *:?-+:? *\|)+ *:?-*:?\|?\s*$", sep) is not None
 
 
-def _parse_line(line: str, aliasing: "Aliasing | None" = None) -> TextLine:
+def markdown_line_to_line(line: str, aliasing: "Aliasing | None" = None) -> TextLine:
     """
     Parse a markdown line into a TextLine.
     """
@@ -646,7 +649,7 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
             tl, i = _parse_table(lines_str, i, aliasing)
             lines.append(tl)
         else:
-            tl = _parse_line(line, aliasing)
+            tl = markdown_line_to_line(line, aliasing)
             lines.append(tl)
             i += 1
     return Text(lines=lines)
@@ -817,7 +820,7 @@ def _render_table(table: TextTable) -> str:
     return "\n".join(rows_md)
 
 
-def _render_line(line: TextLine) -> str:
+def text_line_to_markdown(line: TextLine) -> str:
     """
     Render a single TextLine as markdown.
     """
@@ -855,7 +858,24 @@ def text_to_markdown(text: Text, aliasing: "AliasingIn | None" = None) -> str:
     """
     Render a Text object as markdown.
     """
-    return "\n".join(_render_line(line) for line in text.lines)
+    return "\n".join(text_line_to_markdown(line) for line in text.lines)
 
 
-text = markdown_to_text
+TextIn = Text | str
+TextLineIn = TextLine | str
+
+
+def text(text: TextIn, aliasing: "AliasingIn | None" = None) -> Text:
+    if isinstance(text, str):
+        return markdown_to_text(text, aliasing=aliasing)
+    else:
+        return text
+
+
+def text_line(text: TextLineIn, aliasing: "AliasingIn | None" = None) -> TextLine:
+    if isinstance(text, str):
+        if isinstance(aliasing, Mapping):
+            aliasing = Aliasing.new(aliasing)
+        return markdown_line_to_line(text, aliasing=aliasing)
+    else:
+        return text

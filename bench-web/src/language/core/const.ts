@@ -245,8 +245,7 @@ export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "num
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.HISTORY, ViewType.SPLIT]);
 export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 20000 && vt < 30000));
 
-export const NAME_CONSTRAINT = PageDataInfo[PageProperty.name].constraint!;
-export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
+export const NAME_CONSTRAINT = ViewDataInfo[ViewProperty.name].constraint!;
 
 /** Default base type for based Nodes */
 export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
