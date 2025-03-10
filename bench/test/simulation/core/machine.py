@@ -104,6 +104,6 @@ class MachineHandle:
             await session.commit()
         self._access_token = client.access_token
         self._client_data = client._to_data()
-        self._client_data.ClearField("parent_ptr")
+        self._client_data.ClearField("parent_ptr")  # type: ignore
         self._machine_data = machine._to_data()
         self._machine_data.ClearField("parent_ptr")  # type: ignore

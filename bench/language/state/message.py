@@ -207,9 +207,9 @@ class Message(IsTimed, IsBased, IsTitled, PackageNode[MessageData]):
 
     def __content_str__(self) -> str:
         if self.title:
-            return self.title.to_markdown()
+            return self.title.to_plain()
         elif self.text:
-            return self.text.to_markdown()
+            return self.text.to_plain()
         else:
             return "<empty>"
 

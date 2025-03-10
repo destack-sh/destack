@@ -1000,6 +1000,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return slug
         if "name" in self.__properties__:
             return getattr(self, "name")
+        if "title" in self.__properties__:
+            title = getattr(self, "title")
+            if type(title) is str:
+                return title
+            elif title is not None:
+                return cast("TextLine", title).to_plain()
         return None
 
     @property
@@ -1028,7 +1034,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def code_name(self) -> Optional[str]:
-        """The python identifier-compatible name of this node."""
+        """The python-compatible identifier of this node."""
         if "slug" in self.__properties__:
             slug = getattr(self, "slug", None)
             if slug:  # prefer slug as ident
@@ -1037,6 +1043,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             name = getattr(self, "name", None)
             if name:
                 return to_code_name(name)
+        if "title" in self.__properties__:
+            title = getattr(self, "title", None)
+            if title is not None:
+                if type(title) is str and title:
+                    return to_code_name(title)
+                else:
+                    return cast("TextLine", title).to_plain()
         return None
 
     @property
@@ -1044,7 +1057,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if not self.__parent_types__:
             # this is a root node
             ident = self._ident
-            assert ident is not None, f"no bench ident for {self!r}"
+            assert ident is not None, f"no identifier for {self!r}"
             return ident
         else:
             # assemble path (like in Path.render)
