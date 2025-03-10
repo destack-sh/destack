@@ -313,7 +313,7 @@ class HostService(GraphServiceBase, HostBase):
     async def _activate(self, session: Session, bench: Bench) -> None:
         """Initializes the given Bench for the first time."""
         assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
-        assert bench.main_store, f"{bench!r} has no main store"
+        assert bench.main_store is not None, f"{bench!r} has no main store"
 
         # use temporary session in HostService during setup
         session.parent = bench
@@ -345,7 +345,7 @@ class HostService(GraphServiceBase, HostBase):
         async with self.global_session() as session:
             # load full bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
-            assert self._bench.main_store, f"{self._bench!r} has no main store"
+            assert self._bench.main_store is not None, f"{self._bench!r} has no main store"
             session.parent = self._bench  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
             session._engines += (

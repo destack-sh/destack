@@ -63,14 +63,14 @@ class PlanStatus(BuiltinEnum):
 
 @enum_(EnumType.PLAN_TERMINATION_MODE)
 class PlanTerminationMode(BuiltinEnum):
-    PASS = 10, "Pass", "Do nothing (finish here)"
+    COMPLETE = 10, "Complete", "Complete the Plan"
     RETURN = 20, "Return", "Return to caller (for more planning)"
 
 
 @enum_(EnumType.PLAN_FAILURE_MODE)
 class PlanFailureMode(BuiltinEnum):
-    FAIL = 10, "Fail", "Fail the entire Plan"
-    COMPLETE = 20, "Complete", "Complete the entire Plan"
+    FAIL = 10, "Fail", "Fail the Plan"
+    COMPLETE = 20, "Complete", "Complete the Plan"
     CONTINUE = 30, "Continue", "Continue the Plan (skip failures)"
 
 
