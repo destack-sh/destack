@@ -5,7 +5,13 @@ import { type ActionKit, type ActionMapKit } from "@/ui/action";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
-import { LineInterface, mapPmNodeToText, mapTextToPmNode, TextInterface } from "@/ui/prosemirror/wiring";
+import {
+  LineInterface,
+  mapLineToPmNode,
+  mapPmNodeToText,
+  mapTextToPmNode,
+  TextInterface,
+} from "@/ui/prosemirror/wiring";
 import { deleteSelection } from "@/ui/space";
 import { deepValueEquals } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -444,8 +450,12 @@ const PM_BLOCK_INPUT_RULES: InputRule[] = [
 ];
 
 /** Build the ProseMirror commands. */
-function getPmCommands(options: { navigate: (direction: NavigationDirection) => void; deleteSelf: () => void }) {
-  const { navigate, deleteSelf } = options;
+function getPmCommands(options: {
+  mode: "line" | "block";
+  navigate: (direction: NavigationDirection) => void;
+  deleteSelf: () => void;
+}) {
+  const { mode, navigate, deleteSelf } = options;
   const extraCommands: Record<string, Command> = {
     ArrowLeft(state, dispatch, view) {
       const { selection } = state;
@@ -509,10 +519,11 @@ function getPmCommands(options: { navigate: (direction: NavigationDirection) => 
         }
       }
 
-      if (atStart && $from.parent.type.name !== "lineParagraph") {
+      if (mode == "block" && atStart && $from.parent.type.name !== "lineParagraph") {
         // morph to plain paragraph
         return morphLineNode(state, $from, TextLineType.PARAGRAPH, dispatch);
       } else if (
+        mode == "block" &&
         atStart &&
         $from.parent.type.name === "lineParagraph" &&
         $from.index(-1) > 0 &&
@@ -673,7 +684,7 @@ export function useTextEditor(options: {
   // setup
   const bindings: Record<string, Command> = {
     ...commands.baseKeymap,
-    ...getPmCommands({ navigate, deleteSelf }),
+    ...getPmCommands({ mode, navigate, deleteSelf }),
   };
   if (mode == "line") {
     bindings["Shift-Enter"] = () => true;
@@ -785,11 +796,22 @@ export function useTextEditor(options: {
         const prevState = view.state;
         let newState = view.state.apply(tx);
         // also write the doc (if changed)
-        // NOTE :Cleanup: can't we just use differenceUpdateLines here?
         if (tx.docChanged && !tx.getMeta("_ignoreDocChanged")) {
           const { lines: updatedText, linesNodes, linesPos } = mapPmNodeToText(newState.doc);
           prevText = text.write(updatedText);
-          if (prevText !== updatedText) {
+          if (mode == "line") {
+            // ensure line type stays the same
+            let tr = newState.tr;
+            const prevLine = prevText[0];
+            const updatedLine = updatedText[0];
+            if (prevLine.type == "text" && updatedLine.type == "text" && prevLine.text.type != updatedLine.text.type) {
+              const prevLineNode = mapLineToPmNode(prevLine);
+              tr = tr.replaceRangeWith(linesPos[0], linesPos[0] + prevLineNode.nodeSize, prevLineNode);
+            }
+            newState = newState.apply(tr);
+          } else if (mode == "block" && prevText !== updatedText) {
+            // sync back updated lines (may change during write)
+            // NOTE :Cleanup: can't we just use differenceUpdateLines here?
             let tr = newState.tr;
             for (let i = 0; i < linesNodes.length; i++) {
               const lineNode = linesNodes[i];

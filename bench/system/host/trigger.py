@@ -1,4 +1,4 @@
-from typing import Any, Sequence, override
+from typing import Sequence, override
 from uuid import UUID
 
 from bench.language import (
@@ -61,13 +61,12 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 del self._active_triggers_by_id[trigger.id]
 
         # collect fired triggers
-        fired_triggers: list[tuple[Run | None, dict[str, Any], str, Trigger]] = []
         for message in commit.added:
             if not isinstance(message, Message):
                 continue
             for trigger in self._active_triggers_by_id.values():
                 if trigger.type == TriggerType.MESSAGE:
-                    # TODO :Broken: better MessageTrigger filtering / is_involved check
+                    # nocheckin :Broken: better MessageTrigger filtering / is_involved check
                     #  (consider reply_to, what about multiple Runs of same Flow,
                     #   ideally should route automatically somehow (when none mentioned?)?, ...)
                     trigger_parent = trigger.parent
@@ -81,23 +80,22 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                         message.thread is not None and message.thread.scope_id == flow.id
                     )
                     is_source = message.created_by_id == flow.id  # don't react to self
-                    if is_involved and not is_source:
-                        inputs = {"message": message}
-                        fired_triggers.append((message.run, inputs, str(message.id), trigger))
 
-        # fire triggers
-        for trigger_run, inputs, trigger_key, trigger in fired_triggers:
-            target = trigger.parent
-            if isinstance(target, Run):
-                target = target.runnable
-            if not isinstance(target, Action):
-                raise RuntimeError(f"trigger {trigger!r} has unsupported target: {target!r}")
-            run = make_run_from_node(target, inputs=inputs)
-            run.trigger = trigger
-            run.trigger_key = trigger_key
-            if trigger_run is not None:
-                run.machine = trigger_run.machine
-            session._create(run)
+                    # fire trigger
+                    if is_involved and not is_source:
+                        target = trigger.parent
+                        if isinstance(target, Run):
+                            target = target.runnable
+                        if not isinstance(target, Action):
+                            raise RuntimeError(
+                                f"trigger {trigger!r} has unsupported target: {target!r}"
+                            )
+                        run = make_run_from_node(target, inputs={"message": message})
+                        run.trigger = trigger
+                        run.trigger_key = str(message.id)
+                        run.channel = message.channel
+                        run.thread = message.thread
+                        session._create(run)
 
     @override
     async def on_commit_failed(self, session: Session, error: BaseException) -> None:

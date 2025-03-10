@@ -95,7 +95,7 @@ export function useTextLineModelValueInterface(options: {
 
   const lines: Ref<LineInterface[]> = computed(() => {
     if (modelValue.value == null) {
-      return [];
+      return [{ type: "text", text: emptyTextLine(options?.forceLineType ?? TextLineType.PARAGRAPH), blockPtr: null }];
     } else {
       if (forceLineType != null) {
         return [{ type: "text", text: { ...modelValue.value, type: forceLineType }, blockPtr: null }];
@@ -540,7 +540,7 @@ function mapPmNodeToSpan(spanMention: PmNode): TextSpanData | null {
 }
 
 /** Convert a line to a PmNode */
-function mapLineToPmNode(line: LineInterface): PmNode {
+export function mapLineToPmNode(line: LineInterface): PmNode {
   if (line.type === "block") {
     return PM_SCHEMA.node("block", { blockPtr: line.blockPtr, nodePtr: line.nodePtr });
   }
@@ -574,7 +574,7 @@ function mapLineToPmNode(line: LineInterface): PmNode {
 }
 
 /** Convert a PmNode to a LineInterface */
-function mapPmNodeToLine(lineNode: PmNode): LineInterface {
+export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
   if (lineNode.type.name === "block") {
     return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
   }
