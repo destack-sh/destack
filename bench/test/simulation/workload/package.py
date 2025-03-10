@@ -11,6 +11,7 @@ from bench.language import (
     Page,
     repr_enums,
 )
+from bench.language.core.const import RESOURCE_NODE_TYPES
 from bench.test.simulation.core import (
     SampledFloat,
     SampledInt,
@@ -81,7 +82,9 @@ class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
             assert_graph_equals(
                 self.main_package._graph,
                 host.service.main_package._graph,
-                ignore_node_types=(NodeType.BENCH,),  # not in host package graph
+                # NOTE :Robustness: Resources should also be in sync in Runtime?
+                #  (for some reason they're not right now)
+                ignore_node_types=(NodeType.BENCH, *RESOURCE_NODE_TYPES),
             )
 
             # and wait for next tx

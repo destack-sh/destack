@@ -6,7 +6,8 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import SOURCE_NODE_TYPES, Bench, Package, Page, TextLineIn, text_line
+from bench.language import Bench, Package, Page, TextLineIn, text_line
+from bench.language.core.const import LOADED_PACKAGE_NODE_TYPES
 from bench.test.simulation.core import Simulation, make_remote_session
 
 from .spec import WorkloadSpec, WorkloadType
@@ -59,7 +60,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
             self.bench = await Bench.get(id=self.bench_id, live=True)
             self.session.parent = self.bench  # patch in the session parent
             self.main_package = await (
-                Package.include_descendants(*SOURCE_NODE_TYPES)
+                Package.include_descendants(*LOADED_PACKAGE_NODE_TYPES)
                 .include_ancestors(Bench)
                 .select_all()
                 .deselect(Bench.encryption_key)

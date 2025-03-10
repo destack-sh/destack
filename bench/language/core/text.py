@@ -761,7 +761,7 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
     return "".join(result)
 
 
-def _render_inline(spans: Sequence[TextSpan]) -> str:
+def _render_inline(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None) -> str:
     """
     Group consecutive spans with the same color so that the outer color marker is rendered only once.
     """
@@ -780,7 +780,7 @@ def _render_inline(spans: Sequence[TextSpan]) -> str:
         grouped.append((current_color, current_group))
     parts = []
     for color, group in grouped:
-        inner = _render_inline_raw(group)
+        inner = _render_inline_raw(group, aliasing)
         if color:
             parts.append(f"[{_render_color(color)}]{inner}[/{_render_color(color)}]")
         else:
@@ -820,10 +820,12 @@ def _render_table(table: TextTable) -> str:
     return "\n".join(rows_md)
 
 
-def text_line_to_markdown(line: TextLine) -> str:
+def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) -> str:
     """
     Render a single TextLine as markdown.
     """
+    if aliasing is not None and isinstance(aliasing, Mapping):
+        aliasing = Aliasing.new(aliasing)
     if line.type == TextLineType.DIVIDER:
         return "---"
     elif line.type == TextLineType.CODE:
@@ -848,7 +850,7 @@ def text_line_to_markdown(line: TextLine) -> str:
             prefix = "- "
         elif line.type == TextLineType.LIST_ORDERED:
             prefix = "1. "
-        content = _render_inline(line.spans)
+        content = _render_inline(line.spans, aliasing)
         if line.color:
             content = f"[{_render_color(line.color)}]{content}[/{_render_color(line.color)}]"
         return prefix + content
@@ -858,7 +860,7 @@ def text_to_markdown(text: Text, aliasing: "AliasingIn | None" = None) -> str:
     """
     Render a Text object as markdown.
     """
-    return "\n".join(text_line_to_markdown(line) for line in text.lines)
+    return "\n".join(text_line_to_markdown(line, aliasing) for line in text.lines)
 
 
 TextIn = Text | str

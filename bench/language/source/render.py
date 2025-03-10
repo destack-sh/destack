@@ -52,6 +52,7 @@ from bench.language.core import (
     text_to_markdown,
 )
 from bench.language.core.node import PackageNode
+from bench.language.core.text import TextLine, text_line_to_markdown
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -871,7 +872,7 @@ class PageRenderer(PackageNodeRenderer[Page]):
     ) -> str:
         # inline name only for now
         args = (
-            rendered_kwargs.pop("name"),
+            rendered_kwargs.pop("title"),
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Page.new({renderer.render_args(*args)})"
@@ -938,7 +939,7 @@ class PlanRenderer(NodeRenderer["Plan"]):
         rendered_kwargs.pop("type", None)
         rendered_kwargs.pop("tasks", None)
         args = (
-            rendered_kwargs.pop("name"),
+            rendered_kwargs.pop("title"),
             *tasks_refs,
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
@@ -962,7 +963,7 @@ class TaskRenderer(NodeRenderer["Task"]):
         rendered_value_kwargs = _render_custom_object_kwargs(renderer, value, value_kwargs)
         rendered_kwargs.update(rendered_value_kwargs)
         args = renderer.render_args(
-            rendered_kwargs.pop("name"),
+            rendered_kwargs.pop("title"),
             target_str,
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
@@ -1000,6 +1001,13 @@ class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         return f"constraint({renderer.render_kwargs(**rendered_kwargs)})"
+
+
+@_renderer(StructType.TEXT_LINE)
+class TextLineRenderer(BuiltinObjectRenderer[TextLine]):
+    @override
+    def render(self, renderer: "Renderer", obj: TextLine) -> str:
+        return f"text_line({text_line_to_markdown(obj, renderer.aliasing)!r})"
 
 
 @_renderer(StructType.TEXT)

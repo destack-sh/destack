@@ -45,7 +45,7 @@ watch(
       nodeTitle = `#${node.name}`;
     } else if (isNode(node, NodeType.VIEW)) {
       nodeTitle = node.title ?? node.name;
-    } else if ((node as any).title != null) {
+    } else if ((node as any)?.title != null) {
       nodeTitle = renderTextLine((node as any).title);
     } else {
       nodeTitle = (node as any)?.slug ?? (node as any)?.name;

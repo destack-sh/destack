@@ -155,7 +155,7 @@ defineExpose({
       aria-hidden
     />
     <!-- Identifier -->
-    <div class="flex flex-row items-baseline">
+    <div class="flex flex-row max-w-full items-baseline">
       <NativeInput
         v-if="isInput && identifierKind == 'name'"
         id="identifier"

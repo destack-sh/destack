@@ -98,7 +98,9 @@ const valueType = computed(() => {
   } else if (props.type == "@") {
     return makeType({
       kind: TypeKind.NODE,
-      constraint: makeTypeConstraint({ nodeTypes: [...INLINE_NODE_TYPES.filter((t) => t != NodeType.VIEW)] }),
+      constraint: makeTypeConstraint({
+        nodeTypes: [NodeType.USER, ...INLINE_NODE_TYPES.filter((t) => t != NodeType.VIEW)],
+      }),
     });
   } else {
     return null;

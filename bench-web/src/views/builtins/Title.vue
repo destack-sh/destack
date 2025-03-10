@@ -59,7 +59,7 @@ defineExpose({ actions, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text pm-compact relative rounded hover:cursor-text"
+    class="pm-text pm-compact relative inline-block rounded hover:cursor-text"
     :class="[isSmall ? 'pm-small' : '', truncate ? 'pm-truncate truncate' : '']"
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"
