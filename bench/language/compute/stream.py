@@ -4,14 +4,13 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     NodeType,
+    Resource,
     enum_,
     node_,
     p_internal,
     p_node_parent,
 )
 from bench.pb2.lang_pb2 import StreamData
-
-from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Bench
@@ -29,7 +28,7 @@ class StreamType(BuiltinEnum):
 
 
 @node_(NodeType.STREAM, has_subtypes=True)
-class Stream(DynamicResource[StreamData]):
+class Stream(Resource[StreamData]):
     """
     A Stream stored somewhere (like in a Drive, or externally).
     """

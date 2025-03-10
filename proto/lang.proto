@@ -38,7 +38,6 @@ enum EnumType {
   ENUM_TYPE_USE_TYPE = 20152;
   ENUM_TYPE_ACCESS_TYPE = 20153;
   ENUM_TYPE_RESOURCE_STATUS = 21000;
-  ENUM_TYPE_RESOURCE_OCCUPANCY = 21001;
   ENUM_TYPE_SCALER_TYPE = 21010;
   ENUM_TYPE_SCALER_STRATEGY = 21011;
   ENUM_TYPE_MACHINE_TYPE = 21020;
@@ -491,7 +490,6 @@ enum BenchType {
   BENCH_TYPE_USE_TYPE = 20152;
   BENCH_TYPE_ACCESS_TYPE = 20153;
   BENCH_TYPE_RESOURCE_STATUS = 21000;
-  BENCH_TYPE_RESOURCE_OCCUPANCY = 21001;
   BENCH_TYPE_SCALER_TYPE = 21010;
   BENCH_TYPE_SCALER_STRATEGY = 21011;
   BENCH_TYPE_MACHINE_TYPE = 21020;
@@ -807,15 +805,6 @@ enum ResourceStatus {
   RESOURCE_STATUS_DOWN = 15;
   RESOURCE_STATUS_DEGRADED = 16;
   RESOURCE_STATUS_DECOMMISSIONED = 30;
-}
-
-// The occupancy of a resource (i.e. whether/how it's being used).
-enum ResourceOccupancy {
-  RESOURCE_OCCUPANCY_UNSPECIFIED = 0;
-  RESOURCE_OCCUPANCY_AVAILABLE = 1;
-  RESOURCE_OCCUPANCY_RESERVED = 2;
-  RESOURCE_OCCUPANCY_OCCUPIED = 3;
-  RESOURCE_OCCUPANCY_DIRTY = 20;
 }
 
 enum ScalerType {
@@ -2660,8 +2649,7 @@ message BrowserData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
-  ResourceOccupancy occupancy = 41;
-  optional NodeReferenceData scaler_ptr = 42;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;
@@ -2707,8 +2695,7 @@ message FileData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
-  ResourceOccupancy occupancy = 41;
-  optional NodeReferenceData scaler_ptr = 42;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;
@@ -2757,8 +2744,7 @@ message MachineData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
-  ResourceOccupancy occupancy = 41;
-  optional NodeReferenceData scaler_ptr = 42;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;
@@ -2789,6 +2775,7 @@ message ScalerData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ScalerType type = 30;
@@ -2800,6 +2787,7 @@ message ScalerData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;
@@ -2848,8 +2836,7 @@ message SecretData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
-  ResourceOccupancy occupancy = 41;
-  optional NodeReferenceData scaler_ptr = 42;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;
@@ -2874,6 +2861,7 @@ message StoreData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   StoreType type = 30;
@@ -2885,6 +2873,7 @@ message StoreData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;
@@ -2924,8 +2913,7 @@ message StreamData {
   optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
-  ResourceOccupancy occupancy = 41;
-  optional NodeReferenceData scaler_ptr = 42;
+  optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
   optional google.protobuf.Timestamp activated_at = 51;
   optional google.protobuf.Timestamp deactivated_at = 52;

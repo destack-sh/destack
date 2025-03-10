@@ -29,6 +29,7 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     PrimitiveType,
+    Resource,
     RunSpanType,
     Severity,
     Struct,
@@ -54,8 +55,6 @@ from bench.pb2 import (
 from bench.utils.func import group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
-
-from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from magika import Magika
@@ -783,7 +782,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
 
 
 @node_(NodeType.FILE, has_subtypes=True)
-class File(DynamicResource[FileData], FileBase):
+class File(Resource[FileData], FileBase):
     """
     A File stored somewhere (like in a Drive, or externally).
     """

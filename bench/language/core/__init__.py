@@ -240,7 +240,7 @@ from .query import (
     SelectOptions,
     get_default_query_filter,
 )
-from .resource import DynamicResource, Resource, ResourceOccupancy, ResourceStatus, StaticResource
+from .resource import Resource, ResourceStatus
 from .struct import Struct, struct_
 from .text import (
     Text,
@@ -428,7 +428,6 @@ __all__ = [
     "ConditionalType",
     "CustomObject",
     "Day",
-    "DynamicResource",
     "EditOperationType",
     "EditSubject",
     "EditType",
@@ -502,7 +501,6 @@ __all__ = [
     "RegionZone",
     "RemoteNodeList",
     "Resource",
-    "ResourceOccupancy",
     "ResourceStatus",
     "RunSpanType",
     "RunStatus",
@@ -517,7 +515,6 @@ __all__ = [
     "SomeValue",
     "SortMode",
     "SortType",
-    "StaticResource",
     "Struct",
     "StructType",
     "Subject",

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Union, cast
 from bench.language.core import (
     FieldType,
     NodeType,
+    Resource,
     StructType,
     node_,
     p_node_parent,
@@ -12,8 +13,6 @@ from bench.language.core import (
 )
 from bench.pb2 import SecretData
 
-from ..core.resource import DynamicResource
-
 if TYPE_CHECKING:
     from bench.language import Bench, Type
 
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.SECRET)
-class Secret(DynamicResource[SecretData]):
+class Secret(Resource[SecretData]):
     """A secret value."""
 
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)

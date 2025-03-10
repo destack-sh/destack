@@ -50,7 +50,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumType]
-    ENUM_TYPE_RESOURCE_OCCUPANCY: _ClassVar[EnumType]
     ENUM_TYPE_SCALER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SCALER_STRATEGY: _ClassVar[EnumType]
     ENUM_TYPE_MACHINE_TYPE: _ClassVar[EnumType]
@@ -503,7 +502,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_RESOURCE_STATUS: _ClassVar[BenchType]
-    BENCH_TYPE_RESOURCE_OCCUPANCY: _ClassVar[BenchType]
     BENCH_TYPE_SCALER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SCALER_STRATEGY: _ClassVar[BenchType]
     BENCH_TYPE_MACHINE_TYPE: _ClassVar[BenchType]
@@ -807,14 +805,6 @@ class ResourceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RESOURCE_STATUS_DOWN: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_DEGRADED: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_DECOMMISSIONED: _ClassVar[ResourceStatus]
-
-class ResourceOccupancy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    RESOURCE_OCCUPANCY_UNSPECIFIED: _ClassVar[ResourceOccupancy]
-    RESOURCE_OCCUPANCY_AVAILABLE: _ClassVar[ResourceOccupancy]
-    RESOURCE_OCCUPANCY_RESERVED: _ClassVar[ResourceOccupancy]
-    RESOURCE_OCCUPANCY_OCCUPIED: _ClassVar[ResourceOccupancy]
-    RESOURCE_OCCUPANCY_DIRTY: _ClassVar[ResourceOccupancy]
 
 class ScalerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2044,7 +2034,6 @@ ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_USE_TYPE: EnumType
 ENUM_TYPE_ACCESS_TYPE: EnumType
 ENUM_TYPE_RESOURCE_STATUS: EnumType
-ENUM_TYPE_RESOURCE_OCCUPANCY: EnumType
 ENUM_TYPE_SCALER_TYPE: EnumType
 ENUM_TYPE_SCALER_STRATEGY: EnumType
 ENUM_TYPE_MACHINE_TYPE: EnumType
@@ -2485,7 +2474,6 @@ BENCH_TYPE_EDIT_TYPE: BenchType
 BENCH_TYPE_USE_TYPE: BenchType
 BENCH_TYPE_ACCESS_TYPE: BenchType
 BENCH_TYPE_RESOURCE_STATUS: BenchType
-BENCH_TYPE_RESOURCE_OCCUPANCY: BenchType
 BENCH_TYPE_SCALER_TYPE: BenchType
 BENCH_TYPE_SCALER_STRATEGY: BenchType
 BENCH_TYPE_MACHINE_TYPE: BenchType
@@ -2723,11 +2711,6 @@ RESOURCE_STATUS_SLEEPING: ResourceStatus
 RESOURCE_STATUS_DOWN: ResourceStatus
 RESOURCE_STATUS_DEGRADED: ResourceStatus
 RESOURCE_STATUS_DECOMMISSIONED: ResourceStatus
-RESOURCE_OCCUPANCY_UNSPECIFIED: ResourceOccupancy
-RESOURCE_OCCUPANCY_AVAILABLE: ResourceOccupancy
-RESOURCE_OCCUPANCY_RESERVED: ResourceOccupancy
-RESOURCE_OCCUPANCY_OCCUPIED: ResourceOccupancy
-RESOURCE_OCCUPANCY_DIRTY: ResourceOccupancy
 SCALER_TYPE_UNSPECIFIED: ScalerType
 SCALER_TYPE_MACHINE: ScalerType
 SCALER_TYPE_BROWSER: ScalerType
@@ -4740,7 +4723,7 @@ class MembershipData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MembershipType, str]] = ..., to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., member_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class BrowserData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "occupancy", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri", "debugger_uri", "view_uri", "client_ptr", "size", "is_headless", "is_insecure")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri", "debugger_uri", "view_uri", "client_ptr", "size", "is_headless", "is_insecure")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4765,7 +4748,6 @@ class BrowserData(_message.Message):
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
-    OCCUPANCY_FIELD_NUMBER: _ClassVar[int]
     SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -4809,7 +4791,6 @@ class BrowserData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     region: Region
-    occupancy: ResourceOccupancy
     scaler_ptr: NodeReferenceData
     status: ResourceStatus
     activated_at: _timestamp_pb2.Timestamp
@@ -4829,10 +4810,10 @@ class BrowserData(_message.Message):
     size: Vector2Data
     is_headless: bool
     is_insecure: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[BrowserType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., version: _Optional[str] = ..., target_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ..., debugger_uri: _Optional[str] = ..., view_uri: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., size: _Optional[_Union[Vector2Data, _Mapping]] = ..., is_headless: bool = ..., is_insecure: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[BrowserType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., version: _Optional[str] = ..., target_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ..., debugger_uri: _Optional[str] = ..., view_uri: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., size: _Optional[_Union[Vector2Data, _Mapping]] = ..., is_headless: bool = ..., is_insecure: bool = ...) -> None: ...
 
 class FileData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "occupancy", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "kind", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "external_url", "inline_content", "retention", "expires_at")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "kind", "mime_type", "format", "size", "sha256", "width", "height", "aspect_ratio", "codec", "duration", "external_url", "inline_content", "retention", "expires_at")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4857,7 +4838,6 @@ class FileData(_message.Message):
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
-    OCCUPANCY_FIELD_NUMBER: _ClassVar[int]
     SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -4904,7 +4884,6 @@ class FileData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     region: Region
-    occupancy: ResourceOccupancy
     scaler_ptr: NodeReferenceData
     status: ResourceStatus
     activated_at: _timestamp_pb2.Timestamp
@@ -4927,10 +4906,10 @@ class FileData(_message.Message):
     inline_content: bytes
     retention: FileRetentionMode
     expires_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[FileType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[_Union[FileKind, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., external_url: _Optional[str] = ..., inline_content: _Optional[bytes] = ..., retention: _Optional[_Union[FileRetentionMode, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[FileType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[_Union[FileKind, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., external_url: _Optional[str] = ..., inline_content: _Optional[bytes] = ..., retention: _Optional[_Union[FileRetentionMode, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class MachineData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "occupancy", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri", "client_ptr", "cpu", "ram")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri", "client_ptr", "cpu", "ram")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4955,7 +4934,6 @@ class MachineData(_message.Message):
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
-    OCCUPANCY_FIELD_NUMBER: _ClassVar[int]
     SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -4996,7 +4974,6 @@ class MachineData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     region: Region
-    occupancy: ResourceOccupancy
     scaler_ptr: NodeReferenceData
     status: ResourceStatus
     activated_at: _timestamp_pb2.Timestamp
@@ -5013,10 +4990,10 @@ class MachineData(_message.Message):
     client_ptr: NodeReferenceData
     cpu: float
     ram: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MachineType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., version: _Optional[str] = ..., target_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cpu: _Optional[float] = ..., ram: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[MachineType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., version: _Optional[str] = ..., target_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., cpu: _Optional[float] = ..., ram: _Optional[float] = ...) -> None: ...
 
 class ScalerData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "strategy", "target_count", "min_count", "max_count", "min_ready_count", "is_active", "is_main")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "strategy", "target_count", "min_count", "max_count", "min_ready_count", "is_active", "is_main")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5029,6 +5006,7 @@ class ScalerData(_message.Message):
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     TEMPLATE_AT_FIELD_NUMBER: _ClassVar[int]
+    OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -5040,6 +5018,7 @@ class ScalerData(_message.Message):
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
+    SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
     DEACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -5066,6 +5045,7 @@ class ScalerData(_message.Message):
     deleted_at: _timestamp_pb2.Timestamp
     template_ptr: NodeReferenceData
     template_at: _timestamp_pb2.Timestamp
+    owned_by_ptr: NodeReferenceData
     mode: NodeMode
     subnode_packed: _struct_pb2.Value
     type: ScalerType
@@ -5077,6 +5057,7 @@ class ScalerData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     region: Region
+    scaler_ptr: NodeReferenceData
     status: ResourceStatus
     activated_at: _timestamp_pb2.Timestamp
     deactivated_at: _timestamp_pb2.Timestamp
@@ -5091,7 +5072,7 @@ class ScalerData(_message.Message):
     min_ready_count: int
     is_active: bool
     is_main: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ScalerType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., strategy: _Optional[_Union[ScalerStrategy, str]] = ..., target_count: _Optional[int] = ..., min_count: _Optional[int] = ..., max_count: _Optional[int] = ..., min_ready_count: _Optional[int] = ..., is_active: bool = ..., is_main: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ScalerType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., strategy: _Optional[_Union[ScalerStrategy, str]] = ..., target_count: _Optional[int] = ..., min_count: _Optional[int] = ..., max_count: _Optional[int] = ..., min_ready_count: _Optional[int] = ..., is_active: bool = ..., is_main: bool = ...) -> None: ...
 
 class MachineScalerData(_message.Message):
     __slots__ = ()
@@ -5102,7 +5083,7 @@ class BrowserScalerData(_message.Message):
     def __init__(self) -> None: ...
 
 class SecretData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "occupancy", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "value_type", "value_packed")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "value_type", "value_packed")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5126,7 +5107,6 @@ class SecretData(_message.Message):
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
-    OCCUPANCY_FIELD_NUMBER: _ClassVar[int]
     SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -5160,7 +5140,6 @@ class SecretData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     region: Region
-    occupancy: ResourceOccupancy
     scaler_ptr: NodeReferenceData
     status: ResourceStatus
     activated_at: _timestamp_pb2.Timestamp
@@ -5171,84 +5150,10 @@ class SecretData(_message.Message):
     active_at: _timestamp_pb2.Timestamp
     value_type: TypeData
     value_packed: _struct_pb2.Value
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., value_type: _Optional[_Union[TypeData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., value_type: _Optional[_Union[TypeData, _Mapping]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
 
 class StoreData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_AT_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
-    ICON_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
-    THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
-    TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
-    REGION_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
-    DEACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
-    RESET_AT_FIELD_NUMBER: _ClassVar[int]
-    SUSPENDED_AT_FIELD_NUMBER: _ClassVar[int]
-    DECOMMISSIONED_AT_FIELD_NUMBER: _ClassVar[int]
-    ACTIVE_AT_FIELD_NUMBER: _ClassVar[int]
-    VERSION_FIELD_NUMBER: _ClassVar[int]
-    TARGET_VERSION_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_NAME_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_URI_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    parent_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    package_ptr: NodeReferenceData
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    deleted_at: _timestamp_pb2.Timestamp
-    template_ptr: NodeReferenceData
-    template_at: _timestamp_pb2.Timestamp
-    mode: NodeMode
-    subnode_packed: _struct_pb2.Value
-    type: StoreType
-    name: str
-    order_key: str
-    icon: IconData
-    text: TextData
-    definition_ptr: NodeReferenceData
-    thread_ptr: NodeReferenceData
-    tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    region: Region
-    status: ResourceStatus
-    activated_at: _timestamp_pb2.Timestamp
-    deactivated_at: _timestamp_pb2.Timestamp
-    reset_at: _timestamp_pb2.Timestamp
-    suspended_at: _timestamp_pb2.Timestamp
-    decommissioned_at: _timestamp_pb2.Timestamp
-    active_at: _timestamp_pb2.Timestamp
-    version: str
-    target_version: str
-    external_name: str
-    external_id: str
-    connection_uri: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[StoreType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., version: _Optional[str] = ..., target_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ...) -> None: ...
-
-class StreamData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "occupancy", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "version", "target_version", "external_name", "external_id", "connection_uri")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5273,7 +5178,84 @@ class StreamData(_message.Message):
     THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
     REGION_FIELD_NUMBER: _ClassVar[int]
-    OCCUPANCY_FIELD_NUMBER: _ClassVar[int]
+    SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
+    DEACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESET_AT_FIELD_NUMBER: _ClassVar[int]
+    SUSPENDED_AT_FIELD_NUMBER: _ClassVar[int]
+    DECOMMISSIONED_AT_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_AT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    TARGET_VERSION_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
+    CONNECTION_URI_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    package_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
+    template_ptr: NodeReferenceData
+    template_at: _timestamp_pb2.Timestamp
+    owned_by_ptr: NodeReferenceData
+    mode: NodeMode
+    subnode_packed: _struct_pb2.Value
+    type: StoreType
+    name: str
+    order_key: str
+    icon: IconData
+    text: TextData
+    definition_ptr: NodeReferenceData
+    thread_ptr: NodeReferenceData
+    tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    region: Region
+    scaler_ptr: NodeReferenceData
+    status: ResourceStatus
+    activated_at: _timestamp_pb2.Timestamp
+    deactivated_at: _timestamp_pb2.Timestamp
+    reset_at: _timestamp_pb2.Timestamp
+    suspended_at: _timestamp_pb2.Timestamp
+    decommissioned_at: _timestamp_pb2.Timestamp
+    active_at: _timestamp_pb2.Timestamp
+    version: str
+    target_version: str
+    external_name: str
+    external_id: str
+    connection_uri: str
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[StoreType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., version: _Optional[str] = ..., target_version: _Optional[str] = ..., external_name: _Optional[str] = ..., external_id: _Optional[str] = ..., connection_uri: _Optional[str] = ...) -> None: ...
+
+class StreamData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_AT_FIELD_NUMBER: _ClassVar[int]
+    OWNED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
+    TAGS_PTR_FIELD_NUMBER: _ClassVar[int]
+    REGION_FIELD_NUMBER: _ClassVar[int]
     SCALER_PTR_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -5306,7 +5288,6 @@ class StreamData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     region: Region
-    occupancy: ResourceOccupancy
     scaler_ptr: NodeReferenceData
     status: ResourceStatus
     activated_at: _timestamp_pb2.Timestamp
@@ -5315,7 +5296,7 @@ class StreamData(_message.Message):
     suspended_at: _timestamp_pb2.Timestamp
     decommissioned_at: _timestamp_pb2.Timestamp
     active_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[StreamType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., occupancy: _Optional[_Union[ResourceOccupancy, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[StreamType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class BenchData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "owned_by_ptr", "subnode_packed", "main_handle_ptr", "slug", "name", "text", "icon", "region", "encryption_key", "status", "main_store_ptr", "main_package_ptr")

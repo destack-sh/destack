@@ -7,6 +7,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     NodeType,
+    Resource,
     Struct,
     StructType,
     enum_,
@@ -18,8 +19,6 @@ from bench.language.core import (
     struct_,
 )
 from bench.pb2.lang_pb2 import MachineData
-
-from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Client
@@ -39,7 +38,7 @@ class MachineImage(Struct):
 
 
 @node_(NodeType.MACHINE, has_subtypes=True)
-class Machine(DynamicResource[MachineData]):
+class Machine(Resource[MachineData]):
     """
     A Machine provides physical compute.
     Machines may be tied to a Server for our own Runtime or may be manually provisioned.
