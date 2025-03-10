@@ -106,7 +106,7 @@ tracer = trace.get_tracer(__name__)
 MAX_TIME_DRIFT_SECONDS = get_from_env(
     "MAX_TIME_DRIFT_SECONDS",
     typ=int,
-    default=60,
+    default=60 * 60,  # 1 hour
     description="Maximum allowable delta between our time and client transaction time",
 )
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(EngineUnavailableError,))
@@ -949,7 +949,7 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     ):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad edited_at {edit.edited_at} in {edit!r}: {edit.edited_at} !~= {now}",
+            f"edit too old: {edit.edited_at} << {now}",
         )
 
     # node data :EditData

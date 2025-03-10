@@ -157,11 +157,11 @@ class Task(
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
-    def complete(self, by: "Run") -> None:
+    def complete(self) -> None:
         self.status = TaskStatus.COMPLETED
 
-    def fail(self, by: "Run") -> None:
-        self.error = by.error
+    def fail(self, error: "Error | None" = None) -> None:
+        self.error = error
         self.status = TaskStatus.FAILED
 
     @cached_property

@@ -182,7 +182,16 @@ class TextLine(TextOptionsBase, Struct):
         return False
 
     def to_markdown(self) -> str:
+        """Render the TextLine as markdown."""
         return text_line_to_markdown(self)
+
+    def to_plain(self) -> str:
+        """Render the TextLine as plain text without any formatting or markdown."""
+        text_parts: list[str] = []
+        for span in self.spans:
+            if span.type == TextSpanType.TEXT:
+                text_parts.append(span.content or "")
+        return "".join(text_parts)
 
     @staticmethod
     def paragraph(text: str) -> "TextLine":
@@ -266,7 +275,15 @@ class Text(Struct):
         return any(item in line for line in self.lines)
 
     def to_markdown(self) -> str:
+        """Render the Text as markdown."""
         return text_to_markdown(self)
+
+    def to_plain(self) -> str:
+        """Render the Text as plain text without any formatting or markdown."""
+        text_parts: list[str] = []
+        for line in self.lines:
+            text_parts.append(line.to_plain())
+        return "\n".join(text_parts)
 
     @staticmethod
     def from_markdown(markdown: str) -> "Text":
