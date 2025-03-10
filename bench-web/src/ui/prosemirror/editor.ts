@@ -436,8 +436,8 @@ const PM_BLOCK_INPUT_RULES: InputRule[] = [
   ...UNORDERED_LIST_CHARS.map((char) =>
     linePrefixRule(` ${char} `, PM_SCHEMA.nodes.lineListUnordered, TextLineType.LIST_UNORDERED),
   ),
-  linePrefixRule(/^[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
-  linePrefixRule(/^\s[0-9a-z]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
+  linePrefixRule(/^[0-9]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
+  linePrefixRule(/^\s[0-9]+\.\s/, PM_SCHEMA.nodes.lineListOrdered, TextLineType.LIST_ORDERED),
   linePrefixRule("> ", PM_SCHEMA.nodes.lineQuote, TextLineType.QUOTE),
   linePrefixRule("! ", PM_SCHEMA.nodes.lineCallout, TextLineType.CALLOUT),
   linePrefixRule("``` ", PM_SCHEMA.nodes.lineCode, TextLineType.CODE),
