@@ -756,8 +756,14 @@ export function supergraphIndex(idx: {
       }
 
       // and search them
-      const candidates = graphs.flatMap((graph) => walkGraph({ ...idx, graph, maxDepth: toValue(idx.maxDepth) }));
-      return candidates;
+      const candidatesById: Record<string, NodeItem> = {};
+      for (const graph of graphs) {
+        const candidates = walkGraph({ ...idx, graph, maxDepth: toValue(idx.maxDepth) });
+        for (const candidate of candidates) {
+          candidatesById[candidate.itemId] = candidate;
+        }
+      }
+      return Object.values(candidatesById).sort((a, b) => a.title.localeCompare(b.title));
     },
   };
   return markRaw(index);

@@ -175,6 +175,8 @@ defineExpose({
         v-else-if="identifierKind == 'title'"
         id="identifier"
         ref="identifierRef"
+        class=""
+        truncate
         :model-value="(node as any).title"
         :force-line-type="size == 'title' ? TextLineType.HEADING_1 : TextLineType.PARAGRAPH"
         :is-small="size != 'title'"

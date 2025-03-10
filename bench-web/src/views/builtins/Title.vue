@@ -14,6 +14,7 @@ const props = defineProps<
     modelValue?: TextLineData;
     forceLineType?: TextLineType;
     placeholder?: string;
+    truncate?: boolean;
     isSmall?: boolean;
   } & Partial<Pick<ViewData, "isInput" | "isMinimal">>
 >();
@@ -59,7 +60,7 @@ defineExpose({ actions, focus });
   <div
     ref="textRef"
     class="pm-text pm-compact relative rounded hover:cursor-text"
-    :class="[isSmall ? 'pm-small' : '']"
+    :class="[isSmall ? 'pm-small' : '', truncate ? 'pm-truncate truncate' : '']"
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"
   >

@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { NodeType, ObjectType, Orientation, ViewType } from "@/proto/wire";
-import { toNodeRef } from "@/proto/wiring";
+import { renderTextLine } from "@/language/core/text";
+import { NodeType, Orientation, ViewType } from "@/proto/wire";
+import { isNode, toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/action";
@@ -39,9 +40,15 @@ watch(
   () => {
     const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
     const node = inspectedNode.value;
-    let nodeTitle = (node as any)?.slug ?? (node as any)?.name ?? (node as any)?.title;
-    if (node?.metatype == ObjectType.CHANNEL) {
-      nodeTitle = `#${nodeTitle}`;
+    let nodeTitle: string | undefined;
+    if (isNode(node, NodeType.CHANNEL)) {
+      nodeTitle = `#${node.name}`;
+    } else if (isNode(node, NodeType.VIEW)) {
+      nodeTitle = node.title ?? node.name;
+    } else if ((node as any).title != null) {
+      nodeTitle = renderTextLine((node as any).title);
+    } else {
+      nodeTitle = (node as any)?.slug ?? (node as any)?.name;
     }
     browserTitle.value = nodeTitle ? `${nodeTitle} | @${benchPostfix}` : `@${benchPostfix}`;
   },
@@ -187,7 +194,10 @@ mark {
 .pm-text .line-block {
   @apply transition-colors duration-150;
 }
-
+.pm-text.pm-truncate .line,
+.pm-text.pm-truncate .line-block {
+  @apply truncate;
+}
 /** Placeholders */
 .pm-text .placeholder {
   @apply pointer-events-none select-none text-gray-400;
