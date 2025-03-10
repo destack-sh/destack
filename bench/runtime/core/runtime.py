@@ -967,7 +967,7 @@ class Runtime:
             run_lock = asyncio.Lock()
             self._locks_by_id[run.id] = run_lock
 
-        async with self.session.active():
+        async with self.session.active(), isolated_graph():
             # get runner (exclusively)
             async with run_lock:
                 if run.id in self._active_runners_by_id:
@@ -979,10 +979,6 @@ class Runtime:
                 else:
                     runner = self.restore_runner(run)
             inner_runner = runner
-
-            # nocheckin: create Thread for top-level (?) Run
-            #  (and create Message for some? events like Interruption)
-            #  (related to tracking Task & Plan somehow?)
 
             # lift run into existing / higher flow
             if (
@@ -1018,29 +1014,32 @@ class Runtime:
                 else:
                     assert_never(trigger_effect)
 
+            # nocheckin: create Thread for top-level (?) Run
+            #  (and create Message for some? events like Interruption)
+            #  (related to tracking Task & Plan somehow?)
+
             # actually run
-            async with isolated_graph():
-                try:
-                    await self.run_runner(runner)
-                    logger.info("runtime.run", run=run, runner=runner, span="current")
-                except (Interrupted, asyncio.CancelledError):
-                    pass  # already handled, not a top-level error
-                except (BenchError, ValueError, TypeError) as e:
-                    # re-raised inner user error
-                    self._try_mark_failed(run, ErrorKind.RUNTIME, e)
-                    self.session.commit_optimistic()
-                    logger.info("runtime.run.error", run=run, exc_info=e, span="current")
-                    if not return_error:
-                        raise
-                except BaseException as e:
-                    # some unexpected internal error
-                    self._try_mark_failed(run, ErrorKind.INTERNAL, e)
-                    self.session.commit_optimistic()
-                    logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
-                    if self.on_error is not None:
-                        self.on_error(e)
-                    if not return_error:
-                        raise
+            try:
+                await self.run_runner(runner)
+                logger.info("runtime.run", run=run, runner=runner, span="current")
+            except (Interrupted, asyncio.CancelledError):
+                pass  # already handled, not a top-level error
+            except (BenchError, ValueError, TypeError) as e:
+                # re-raised inner user error
+                self._try_mark_failed(run, ErrorKind.RUNTIME, e)
+                self.session.commit_optimistic()
+                logger.info("runtime.run.error", run=run, exc_info=e, span="current")
+                if not return_error:
+                    raise
+            except BaseException as e:
+                # some unexpected internal error
+                self._try_mark_failed(run, ErrorKind.INTERNAL, e)
+                self.session.commit_optimistic()
+                logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
+                if self.on_error is not None:
+                    self.on_error(e)
+                if not return_error:
+                    raise
 
         # get inner runner from actual runner (may have been lifted)
         if inner_runner is not runner:

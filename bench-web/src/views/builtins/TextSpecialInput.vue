@@ -216,6 +216,7 @@ function apply(item: SearchItem) {
     }
   } else if (props.type == "@") {
     // create mention
+    // nocheckin: this crashes hard when I refer to the node itself (like Page in Page title)
     const nodePtr = getValueFromItem(item) as NodeReferenceData;
     if (!isNodeRef(nodePtr)) throw new Error("nodePtr is not a node ref");
     const tr = view.state.tr;
@@ -250,7 +251,7 @@ useFloating({
 defineExpose<Partial<ViewExpose>>({ focus });
 </script>
 <template>
-  <div class="relative inline rounded bg-gray-100 px-0.5 py-1.5" @focusout="$nextTick(closeSelf)">
+  <div class="relative inline rounded bg-gray-100 px-0.5 py-1.5 font-normal" @focusout="$nextTick(closeSelf)">
     <!-- Input container -->
     <div ref="inputContainerRef" class="inline">
       <!-- Type -->
