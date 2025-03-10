@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
-import { getTextLine } from "@/language/core/text";
+import { renderText } from "@/language/core/text";
 import { NAME_TYPE } from "@/language/core/type";
 import { isRunActive } from "@/language/runtime/run";
 import {
@@ -190,7 +190,7 @@ defineExpose<ViewExpose>({ self, id, actions });
           {{ field.name }}
         </span>
         <span v-if="fields.length == 0" class="truncate text-gray-400">
-          {{ (action.text != null ? getTextLine(action.text) : null) ?? ActionTypeOptionInfo[action.type]?.text }}
+          {{ (action.text != null ? renderText(action.text) : null) ?? ActionTypeOptionInfo[action.type]?.text }}
         </span>
       </div>
       <!-- Tools/Tags -->

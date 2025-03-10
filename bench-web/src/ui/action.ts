@@ -210,10 +210,7 @@ type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "isEnabled" | "act
 export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action"> & { action?: ActionCallable };
 export type ActionMapDeclaration<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionDeclaration>;
 export type ActionKit = Pick<Action, "isEnabled" | "action" | "isChecked">;
-export type ActionMapKit<T extends string> = Record<
-  FilterPrefix<ActionBuiltinId, T>,
-  ActionKit | ActionCallable
->;
+export type ActionMapKit<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionKit | ActionCallable>;
 export type ActionContribution = ActionDeclaration & ActionKit;
 export type ActionMapContribution<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionContribution>;
 
@@ -566,7 +563,9 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
 ];
 export const NON_DELETABLE_NODE_TYPES = [
   NodeType.MESSAGE,
-  ...RUNTIME_NODE_TYPES,
+  NodeType.RUN,
+  NodeType.RUN_SPAN,
+  NodeType.LOG,
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,
 ];

@@ -51,7 +51,7 @@ export function trimText(text: TextData): TextData {
 }
 
 /** Gets up to maxLines lines of text joined together. */
-export function getTextLine(text: TextData, maxLines: number = 3): string | undefined {
+export function renderText(text: TextData, maxLines: number = 3): string | undefined {
   const lines: string[] = [];
   for (const line of text.lines) {
     if (line.spans.some((span) => span.content != null)) {
@@ -62,6 +62,14 @@ export function getTextLine(text: TextData, maxLines: number = 3): string | unde
   const line = lines.join(" ");
   if (line.length == 0) return undefined;
   return line;
+}
+
+/** Renders a single line of text. */
+export function renderTextLine(line: TextLineData): string | undefined {
+  if (line.spans?.some((span) => span.content != null)) {
+    return line.spans.map((span) => span.content).join("");
+  }
+  return undefined;
 }
 
 /** Rough estimate of the height of a Text */

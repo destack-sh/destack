@@ -42,14 +42,12 @@ export function createPage(
   if (isNode(target, NodeType.PAGE) && options.page.definitionPtr == null) {
     throw new Error("cannot create inline Page without block");
   }
-  const name = options.page.name ?? generateNodeName({ metatype: ObjectType.PAGE, ...options.page }, siblings);
   const page = tx.create({
     metatype: NodeType.PAGE,
     parentPtr,
     packagePtr,
     ...options.page,
     orderKey,
-    name,
   });
 
   // create default contents

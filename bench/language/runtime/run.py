@@ -13,6 +13,7 @@ from bench.language.core import (
     IsBased,
     IsRuntime,
     IsTimed,
+    IsTitled,
     IsTraceable,
     LocalNodeList,
     Node,
@@ -156,7 +157,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
+class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunData]):
     """
     Run something somewhere, somehow.
     """
@@ -165,17 +166,14 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
     parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
-        31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
+        33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    if TYPE_CHECKING:
-        root_ptr: Optional[NodeReference] = None
-        root_id: Optional[UUID] = None
     incoming: list["Run"] = p_internal(
-        32, require=False, array=True, references=NodeType.RUN, same_bench=True
+        34, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
-    options: "RunOptions" = p_internal(33, require=True, array=False, struct=StructType.RUN_OPTIONS)
+    options: "RunOptions" = p_internal(35, require=True, array=False, struct=StructType.RUN_OPTIONS)
     page: Optional["Page"] = p_internal(
-        34,
+        36,
         require=False,
         array=False,
         references=NodeType.PAGE,
@@ -183,7 +181,7 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
         description="The main Page of the Run.",
     )
     channel: Optional["Channel"] = p_internal(
-        35,
+        37,
         require=False,
         array=False,
         references=NodeType.CHANNEL,
@@ -191,13 +189,22 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
         description="The Channel for communicating with the Run (contains Run.thread if any).",
     )
     thread: Optional["Thread"] = p_internal(
-        36,
+        38,
         require=False,
         array=False,
         references=NodeType.THREAD,
         same_bench=True,
         description="The Thread for communicating with the Run.",
     )
+    if TYPE_CHECKING:
+        root_ptr: Optional[NodeReference] = None
+        root_id: Optional[UUID] = None
+        page_ptr: Optional[NodeReference] = None
+        page_id: Optional[UUID] = None
+        channel_ptr: Optional[NodeReference] = None
+        channel_id: Optional[UUID] = None
+        thread_ptr: Optional[NodeReference] = None
+        thread_id: Optional[UUID] = None
 
     # status
     status: RunStatus = p_internal(40, default=RunStatus.CREATED)
@@ -319,7 +326,6 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, PackageNode[RunData]):
     outputs: "CustomObject | None" = p_value_runtime(
         72, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
-    name: str | None = p_regular(74, default=None)
     text: Optional["Text"] = p_regular(75, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(76, default=None, struct=StructType.CODE)
 

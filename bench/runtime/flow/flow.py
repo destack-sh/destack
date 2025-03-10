@@ -27,10 +27,10 @@ from bench.language import (
     RunStatus,
     RunType,
     Task,
-    Text,
     TypeBase,
     coerce_custom_object_scalar,
 )
+from bench.language.core.text import TextLine
 from bench.runtime.core import (
     Interrupted,
     RetryableError,
@@ -164,8 +164,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         task: Task | None = None,
         resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
-        title: str | None = None,
-        text: Text | None = None,
+        title: TextLine | None = None,
     ) -> Run:
         """Run an Action or Link in this Flow."""
         runner = make_runner(
@@ -181,8 +180,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         runner.flow = cast(FlowRunner, self)
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
-        run.name = title
-        run.text = text
+        run.title = title
         run.plan = plan
         run.task = task
         run.incoming_ptr = tuple(run.to_ref() for run in incoming)
@@ -362,8 +360,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 task=task,
                 resources=task.value,
                 inputs=task.value,
-                title=task.name,
-                text=task.text,
+                title=task.title,
             )
         else:
             next_run = self._start(next_action, incoming=(runner.tracked_run,))

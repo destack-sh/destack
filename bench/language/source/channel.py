@@ -4,6 +4,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     NodeType,
@@ -30,7 +31,7 @@ class ChannelType(BuiltinEnum):
 
 
 @timed_node_(NodeType.CHANNEL, has_subtypes=True)
-class Channel(IsTemplatable, IsTraceable, InlineNode[ChannelData]):
+class Channel(IsTemplatable, IsTraceable, IsNamed, InlineNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
     """

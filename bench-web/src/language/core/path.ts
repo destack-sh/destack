@@ -12,7 +12,7 @@ import {
 } from "@/proto/wire";
 import { isNode, isStruct, makeStruct, propertyInfo, toNodeRef } from "@/proto/wiring";
 import { supergraph } from "@/globals";
-import { getNodeName } from "@/ui/icon";
+import { getNodeTitle } from "@/ui/icon";
 
 const SIGN_BY_PATH_ELEMENT_TYPE: Partial<Record<PathElementType, string>> = {
   [PathElementType.ROOT]: "/",
@@ -45,13 +45,13 @@ export function renderPath(path: PathData): string {
       pathParts.push(prefix + (element.name ?? "???"));
     } else if (element.type == PathElementType.NODE) {
       const node = element.nodePtr != null ? supergraph.get(element.nodePtr) : null;
-      pathParts.push(node != null ? (getNodeName(node) ?? "???") : "???");
+      pathParts.push(node != null ? (getNodeTitle(node) ?? "???") : "???");
     } else if (element.type == PathElementType.RUN) {
       pathParts.push("$>");
     } else if (element.type == PathElementType.ATTRIBUTE) {
       if (element.nodePtr != null) {
         const node = supergraph.get(element.nodePtr);
-        pathParts.push(node != null ? (getNodeName(node) ?? "???") : "???");
+        pathParts.push(node != null ? (getNodeTitle(node) ?? "???") : "???");
       } else if (element.propertyPtr != null) {
         const property = propertyInfo(element.propertyPtr.objectType!, element.propertyPtr.id);
         pathParts.push(property.name);

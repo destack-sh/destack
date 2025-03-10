@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { canvas } from "@/globals";
-import { makeType } from "@/language/core/type";
+import { INLINE_NODE_TYPES } from "@/language/core/const";
+import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createInlineNode } from "@/language/source/block";
 import {
@@ -15,6 +16,7 @@ import {
   TextLineType,
   TextSpanType,
   TypeKind,
+  ViewType,
 } from "@/proto/wire";
 import { isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
@@ -95,7 +97,10 @@ const valueType = computed(() => {
       return makeType({ kind: TypeKind.ENUM, benchType: BenchType.BLOCK_TYPE });
     }
   } else if (props.type == "@") {
-    return makeType({ kind: TypeKind.ENUM, benchType: BenchType.FLOW });
+    return makeType({
+      kind: TypeKind.NODE,
+      constraint: makeTypeConstraint({ nodeTypes: [...INLINE_NODE_TYPES.filter((t) => t != NodeType.VIEW)] }),
+    });
   } else {
     return null;
   }

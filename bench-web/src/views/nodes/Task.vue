@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { makeType, NAME_TYPE } from "@/language/core/type";
+import { makeType } from "@/language/core/type";
 import { isTaskActive, isTaskTerminal, toggleTaskStatus } from "@/language/runtime/task";
 import {
   BenchType,
@@ -9,9 +9,10 @@ import {
   NodeType,
   PrimitiveType,
   TaskData,
+  TextLineData,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
@@ -19,12 +20,12 @@ import { canvas } from "@/system/space";
 import { pushPopover } from "@/ui/popover";
 import { getColorHex, getTaskColorHex } from "@/ui/style";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
+import Title from "@/views/builtins/Title.vue";
+import { FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Datetime from "@/views/content/Datetime.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
-import { computed, ref, Ref, toRef, TrackOpTypes } from "vue";
+import { computed, ref, Ref, toRef } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
@@ -93,22 +94,18 @@ defineExpose<ViewExpose>({ self, id, focus });
     </button>
     <!-- Body -->
     <div class="flex w-full gap-y-0.5" :class="[hasMeta ? 'flex-col' : 'flex-row']">
-      <div>
+      <div class="w-full">
         <!-- Name -->
-        <!-- nocheckin: rich 'names'? (for Task, Plan, Page, ...?) -->
-        <NativeInput
-          id="name"
-          ref="nameRef" 
-          class="text-base font-medium"
+        <Title
+          ref="nameRef"
+          class="w-full text-base"
           is-minimal
           is-input
-          placeholder="Task"
-          :value-type="NAME_TYPE"
-          :model-value="task?.name"
+          :model-value="task?.title"
           @update:model-value="
-            (newValue) => connection.tx.update(task!, { name: newValue as string }, { debounce: 'long' })
+            (newValue) => connection.tx.update(task!, { title: newValue as TextLineData }, { debounce: 'short' })
           "
-          @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+          @keydown.enter="emit('navigate', 'enter')"
         />
       </div>
       <!-- Metadata -->

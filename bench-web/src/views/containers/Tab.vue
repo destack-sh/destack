@@ -7,7 +7,7 @@ import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, spaceGraph } from "@/system/space";
 import { type Action, type ActionContext, type ActionMapKit } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
-import { getNodeIcon, getNodeName, IconInline, makeIcon } from "@/ui/icon";
+import { getNodeIcon, getNodeTitle, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
@@ -37,7 +37,7 @@ const tabsNames = computed(() => {
   for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
     const tab = tabs.value[tabIdx];
     const base = tabsNodes.value.find((n) => n.id == tab.nodePtr?.id);
-    const name = getNodeName(tab, { base }) ?? "???";
+    const name = getNodeTitle(tab, { base }) ?? "???";
     tabsNames.push(name);
   }
   return tabsNames;

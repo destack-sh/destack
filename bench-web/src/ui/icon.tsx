@@ -2,6 +2,7 @@ import _AVAILABLE_EMOJI_ICONS from "@/assets/emoji-icons.json";
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { supergraph } from "@/globals";
 import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/core/const";
+import { renderTextLine } from "@/language/core/text";
 import type { TypeIdentity } from "@/language/core/type";
 import {
   ActionType,
@@ -12,7 +13,6 @@ import {
   ColorShade,
   ColorType,
   ENUM_OPTION_INFO_BY_TYPE,
-  EnumType,
   FieldData,
   IconType,
   NodeReferenceData,
@@ -27,7 +27,7 @@ import {
   TypeFormatOptionInfo,
   TypeKind,
   type AnyNodeData,
-  type IconData,
+  type IconData
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
@@ -357,7 +357,7 @@ export function getNodeIcon(
 }
 
 /** Gets the name of a Node. */
-export function getNodeName(
+export function getNodeTitle(
   node: AnyNodeData,
   options?: { base?: AnyNodeData | undefined | null },
 ): string | undefined {
@@ -377,5 +377,11 @@ export function getNodeName(
   }
 
   // default to name / title
-  return (node as any).title ?? (node as any).name;
+  if ((node as any).title != null) {
+    return renderTextLine((node as any).title);
+  } else if ((node as any).name != null) {
+    return (node as any).name;
+  } else {
+    return undefined;
+  }
 }

@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    TITLE_CONSTRAINT,
     BuiltinEnum,
     EnumType,
     InlineNode,
     IsOwnable,
     IsTimed,
+    IsTitled,
     Node,
     NodeReference,
     NodeType,
@@ -45,7 +45,7 @@ class ThreadStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)
-class Thread(IsTimed, IsOwnable, PackageNode[ThreadData]):
+class Thread(IsTimed, IsOwnable, IsTitled, PackageNode[ThreadData]):
     """
     A Thread for communicating with Messages on something.
     """
@@ -54,7 +54,7 @@ class Thread(IsTimed, IsOwnable, PackageNode[ThreadData]):
     parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
     channel: "Channel" = p_system(
-        32,
+        33,
         require=True,
         array=False,
         same_bench=True,
@@ -99,7 +99,6 @@ class Thread(IsTimed, IsOwnable, PackageNode[ThreadData]):
     )
 
     # content
-    title: Optional[str] = p_regular(60, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(

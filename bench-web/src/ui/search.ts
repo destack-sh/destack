@@ -59,7 +59,7 @@ import {
   emojiIcon,
   fontAwesomeIcon,
   getNodeIcon,
-  getNodeName,
+  getNodeTitle,
   type FontAwesomeIcon,
 } from "@/ui/icon";
 import uFuzzy from "@leeoniya/ufuzzy";
@@ -611,7 +611,7 @@ function nodeItemFromNode(
   if (node == null) return null;
 
   // 'title'
-  const title = getNodeName(node) ?? "";
+  const title = getNodeTitle(node) ?? "";
 
   // compose path
   const pathParts = [];

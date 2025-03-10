@@ -53,7 +53,7 @@ export function useTextModelValueInterface(options: {
 }): TextInterface {
   const { modelValue, update } = options;
 
-  const lines = computed(() => {
+  const lines: Ref<LineInterface[]> = computed(() => {
     const lines: LineInterface[] = [];
     for (const line of modelValue.value?.lines ?? []) {
       lines.push({ type: "text", text: line, blockPtr: null });
@@ -85,6 +85,53 @@ export function useTextModelValueInterface(options: {
   return { read, write, updateView };
 }
 
+/** Read write directly from TextLineData. */
+export function useTextLineModelValueInterface(options: {
+  modelValue: Readonly<Ref<TextLineData | undefined | null>>;
+  forceLineType?: TextLineType;
+  update: (text: TextLineData) => void;
+}): TextInterface {
+  const { modelValue, forceLineType, update } = options;
+
+  const lines: Ref<LineInterface[]> = computed(() => {
+    if (modelValue.value == null) {
+      return [];
+    } else {
+      if (forceLineType != null) {
+        return [{ type: "text", text: { ...modelValue.value, type: forceLineType }, blockPtr: null }];
+      } else {
+        return [{ type: "text", text: modelValue.value, blockPtr: null }];
+      }
+    }
+  });
+
+  function read(): LineInterface[] {
+    return lines.value;
+  }
+
+  function write(lines: LineInterface[]) {
+    if (lines.length != 1 || lines[0].type != "text") {
+      throw new Error("invalid lines");
+    }
+    if (forceLineType != null && lines[0].text.type != forceLineType) {
+      const newLine = { ...lines[0].text, type: forceLineType };
+      lines = [{ type: "text", text: newLine, blockPtr: null }];
+      update(newLine);
+    } else {
+      update(lines[0].text);
+    }
+    return lines;
+  }
+
+  function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+    const doc = mapTextToPmNode(newLines);
+    const updatedState = EditorState.create({ doc: doc, schema: PM_SCHEMA, plugins: view.state.plugins });
+    view.updateState(updatedState);
+  }
+
+  return { read, write, updateView };
+}
+
 /** Read/write Text from Blocks in a Page. */
 export function useTextPageInterface(options: {
   page: Ref<PageData | null | undefined>;
@@ -95,7 +142,7 @@ export function useTextPageInterface(options: {
   const { page, blocks, graph, txFactory } = options;
 
   // map blocks to lines
-  const lines = computed(() => {
+  const lines: Ref<LineInterface[]> = computed(() => {
     const lines: LineInterface[] = [];
     for (const block of blocks.value) {
       const blockPtr = toNodeRef(block);

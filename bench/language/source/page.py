@@ -3,13 +3,16 @@ from typing import TYPE_CHECKING, Union, overload
 from bench.language.core import (
     InlineNode,
     IsTemplatable,
+    IsTitled,
     IsTraceable,
     LocalNodeList,
     Node,
     NodeType,
+    TextLineIn,
     node_,
     p_node_children,
     p_node_parent,
+    text_line,
 )
 from bench.pb2 import BlockData
 
@@ -20,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.PAGE, passthrough_get=("fields",))
-class Page(IsTemplatable, IsTraceable, InlineNode[BlockData]):
+class Page(IsTemplatable, IsTraceable, IsTitled, InlineNode[BlockData]):
     """A Page of Blocks."""
 
     # meta
@@ -53,8 +56,8 @@ class Page(IsTemplatable, IsTraceable, InlineNode[BlockData]):
             return super().append(child, move)
 
     @staticmethod
-    def new(name: str, *nodes: "Block | InlineNode", **kwargs) -> "Page":
-        page = Page(name=name, **kwargs)
+    def new(title: "TextLineIn", *nodes: "Block | InlineNode", **kwargs) -> "Page":
+        page = Page(title=text_line(title), **kwargs)
         for node in nodes:
             page.append(node)
         return page

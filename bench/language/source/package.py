@@ -23,7 +23,18 @@ from bench.language.core import (
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Dependency, Icon, Page, Scaler, Space, Store, Text
+    from bench.language import (
+        Bench,
+        Channel,
+        Dependency,
+        Flow,
+        Icon,
+        Page,
+        Scaler,
+        Space,
+        Store,
+        Text,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,8 +63,22 @@ class Package(IsOwnable, IsTemplatable, IsTraceable, PackageNode[PackageData]):
         40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
     )
 
+    # NOTE :Architecture: maybe we should factor out main_channel/main_flow/.. from Package
+    #  (into something more general that we could also use in Page or Flow or such)
     main_channel: Optional["Channel"] = p_regular(
-        50, require=False, array=False, references=NodeType.CHANNEL, same_bench=True
+        50,
+        require=False,
+        array=False,
+        references=NodeType.CHANNEL,
+        same_bench=True,
+        description="The default Channel to communicate with.",
+    )
+    main_flow: Optional["Flow"] = p_regular(
+        51,
+        require=False,
+        array=False,
+        references=NodeType.FLOW,
+        description="The default Flow for dynamic behavior.",
     )
 
     stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)

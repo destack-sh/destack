@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
     InlineNode,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CHOICE, passthrough_get=("options",))
-class Choice(IsTemplatable, IsTraceable, InlineNode[ChoiceData]):
+class Choice(IsTemplatable, IsTraceable, IsNamed, InlineNode[ChoiceData]):
     """A Choice of Options."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

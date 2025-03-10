@@ -4,7 +4,6 @@ from typing import Any, Optional, cast
 from git import TYPE_CHECKING
 
 from bench.language.core import (
-    TITLE_CONSTRAINT,
     BuiltinEnum,
     CustomObject,
     EnumType,
@@ -157,7 +156,7 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
-class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceable):
+class Interruption(IsTimed, IsRuntime, IsTraceable, PackageNode[InterruptionData]):
     """An Interruption in the execution of a Run."""
 
     # meta
@@ -187,7 +186,6 @@ class Interruption(IsTimed, PackageNode[InterruptionData], IsRuntime, IsTraceabl
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
 
     # content
-    title: Optional[str] = p_regular(50, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
     inputs_packed: Any = p_value_packed(52)
     inputs: Any = p_value_runtime(

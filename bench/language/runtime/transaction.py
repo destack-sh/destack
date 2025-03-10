@@ -823,14 +823,12 @@ def edit_data_graph(
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
         vignette = ChangeVignetteData(metatype=pb2.OBJECT_TYPE_CHANGE_VIGNETTE)
-        if getattr(node, "name", None):
-            vignette.name = getattr(node, "name")
-        if getattr(node, "title", None):
-            vignette.title = getattr(node, "title")
-        if getattr(node, "type", None) is not None:
-            vignette.subtype = getattr(node, "type")
-        if getattr(node, "icon", None) is not None and node.HasField("icon"):
-            vignette.icon.CopyFrom(getattr(node, "icon"))
+        if name := getattr(node, "name", None):
+            vignette.name = name
+        if (subtype := getattr(node, "type", None)) is not None:
+            vignette.subtype = subtype
+        if (icon := getattr(node, "icon", None)) is not None:
+            vignette.icon.CopyFrom(icon)
         return vignette
 
     flat_edits: list[EditData] = []  # for prepass

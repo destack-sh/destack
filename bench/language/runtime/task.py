@@ -14,11 +14,13 @@ from bench.language.core import (
     IsOwnable,
     IsRuntime,
     IsTimed,
+    IsTitled,
     IsTraceable,
     NodeList,
     NodeType,
     StructType,
     Text,
+    TextLineIn,
     TypeBase,
     coerce_custom_object_scalar,
     enum_,
@@ -28,6 +30,7 @@ from bench.language.core import (
     p_regular,
     p_value_packed,
     p_value_runtime,
+    text_line,
     timed_node_,
 )
 from bench.pb2 import TaskData
@@ -80,6 +83,7 @@ class Task(
     IsOwnable,
     IsRuntime,
     IsTraceable,
+    IsTitled,
     IsInstantiable,
     InlineNode[TaskData],
 ):
@@ -171,7 +175,11 @@ class Task(
 
     @staticmethod
     def generic(
-        name: str, text: "Text | None", clazz: "Class | None", is_manual: bool = False, **kwargs
+        title: "TextLineIn | None",
+        text: "Text | None",
+        clazz: "Class | None",
+        is_manual: bool = False,
+        **kwargs,
     ) -> "Task":
         if clazz is not None:
             value_type = clazz.to_type_maybe(of="value")
@@ -180,7 +188,7 @@ class Task(
             value = None
         task = Task(
             type=TaskType.GENERIC,
-            name=name,
+            title=text_line(title) if title is not None else None,
             text=text,
             clazz=clazz,
             value=value,
@@ -190,7 +198,7 @@ class Task(
 
     @staticmethod
     def run(
-        name: str,
+        title: "TextLineIn | None",
         node: "Flow | Action",
         value: CustomObject | None = None,
         *,
@@ -207,5 +215,10 @@ class Task(
         )
         assert value_type is not None, f"no call value type for {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
-        task = Task(type=TaskType.RUN, name=name, target=node, text=text, value=value)
+        task = Task(
+            type=TaskType.RUN,
+            title=text_line(title) if title is not None else None,
+            target=node,
+            value=value,
+        )
         return task

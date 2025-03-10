@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { isInlineNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
-import { emptyText, getTextLine, isTextEmpty, trimText } from "@/language/core/text";
+import { emptyText, renderText, isTextEmpty, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createChannel } from "@/language/source/channel";
@@ -40,7 +40,7 @@ import {
   MESSAGE_CONTEXT_ACTIONS,
 } from "@/ui/action";
 import { useSingleDropZone } from "@/ui/drag";
-import { AvatarInline, getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
+import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
@@ -234,7 +234,7 @@ const messageViews = computed(() => {
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? (authorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
     const authorIcon = author != null ? (getNodeIcon(author) ?? null) : null;
-    const authorName = author != null ? (getNodeName(author) ?? null) : null;
+    const authorName = author != null ? (getNodeTitle(author) ?? null) : null;
     let isNewGroup;
     let isNewDate;
     if (i == 0) {
@@ -646,7 +646,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               class="ml-1 min-w-0 flex-1 truncate text-xs text-gray-400"
               :style="{ maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px' }"
             >
-              {{ getTextLine(replyTo.message.text) }}
+              {{ renderText(replyTo.message.text) }}
             </span>
           </div>
 
@@ -823,7 +823,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px',
           }"
         >
-          {{ getTextLine(replyTo.message.text) }}
+          {{ renderText(replyTo.message.text) }}
         </span>
         <!-- Clear -->
         <button class="ml-auto rounded-full px-1 text-gray-700 hover:text-gray-900" @click="stopReplying()">

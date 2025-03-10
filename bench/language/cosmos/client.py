@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    TITLE_CONSTRAINT,
     ClientType,
+    IsNamed,
     Node,
     NodeReference,
     NodeType,
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), has_subtypes=True)
-class Client(Node[ClientData]):
+class Client(IsNamed, Node[ClientData]):
     """A Client to connect with the system."""
 
     parent: Union["User", "Bench", None] = p_node_parent(4, NodeType.USER, NodeType.BENCH)
@@ -41,7 +41,6 @@ class Client(Node[ClientData]):
         user_ptr: Optional[NodeReference] = None
 
     type: ClientType = p_regular(30)
-    name: str = p_regular(32, constraint=TITLE_CONSTRAINT)
 
     device_type: Optional[str] = p_regular(40, default=None)
     device_name: Optional[str] = p_regular(41, default=None)

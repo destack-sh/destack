@@ -4,6 +4,7 @@ from bench.language.core import (
     FieldType,
     InlineNode,
     IsInstantiable,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.DATABASE, passthrough_get=("fields",))
-class Database(IsInstantiable, IsTemplatable, IsTraceable, InlineNode[DatabaseData]):
+class Database(IsInstantiable, IsTemplatable, IsTraceable, IsNamed, InlineNode[DatabaseData]):
     """A Database of Records."""
 
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)

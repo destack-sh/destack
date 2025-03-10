@@ -3,14 +3,22 @@ import { canvas, supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
 import { Transaction } from "@/language/runtime/transaction";
-import { AnyNodeData, NodeReferenceData, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE } from "@/proto/wire";
+import {
+  AnyNodeData,
+  NodeReferenceData,
+  NodeType,
+  Orientation,
+  PROPERTY_ENUM_BY_TYPE,
+  TextLineData,
+  TextLineType,
+} from "@/proto/wire";
 import { ConnectionBase } from "@/system/connection";
-import { IS_IN_ALT_MODE } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
+import Title from "@/views/builtins/Title.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -34,7 +42,7 @@ const props = defineProps<{
 const emit = defineEmits<ViewEmits>();
 
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
-const identifierRef = ref<InstanceType<typeof NativeInput> | null>(null);
+const identifierRef = ref<InstanceType<typeof NativeInput | typeof Title> | null>(null);
 
 let node: Ref<AnyNodeData | null | undefined>;
 let connection: Ref<ConnectionBase<any, any> | null | undefined> | null;
@@ -54,7 +62,6 @@ const identifierKind = computed(() => {
   else if ("title" in nodeProperties.value) return "title";
   else return null;
 });
-const identifier: Ref<string | undefined> = computed(() => (node.value as any)?.[identifierKind.value!]);
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
@@ -150,7 +157,7 @@ defineExpose({
     <!-- Identifier -->
     <div class="flex flex-row items-baseline">
       <NativeInput
-        v-if="isInput"
+        v-if="isInput && identifierKind == 'name'"
         id="identifier"
         ref="identifierRef"
         class="flex-shrink-0 rounded text-gray-900"
@@ -160,11 +167,24 @@ defineExpose({
         is-input
         is-minimal
         :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
-        :model-value="identifier"
+        :model-value="(node as any).name"
+        @update:model-value="(newValue) => getTx().update(node!, { name: newValue as string }, { debounce: 'long' })"
+        @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      />
+      <Title
+        v-else-if="identifierKind == 'title'"
+        id="identifier"
+        ref="identifierRef"
+        :model-value="(node as any).title"
+        :force-line-type="size == 'title' ? TextLineType.HEADING_1 : TextLineType.PARAGRAPH"
+        :is-small="size != 'title'"
+        :is-input="isInput"
+        :placeholder="nodeTypeName"
         @update:model-value="
-          (newValue) => getTx().update(node!, { [identifierKind!]: newValue as string }, { debounce: 'long' })
+          (newValue) => getTx().update(node!, { title: newValue as TextLineData }, { debounce: 'long' })
         "
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+        @keydown.enter.stop="emit('navigate', 'enter')"
       />
       <span
         v-else
@@ -172,7 +192,7 @@ defineExpose({
         :class="[identifierClass]"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
       >
-        {{ identifier ?? nodeTypeName }}
+        {{ (node as any).name ?? nodeTypeName }}
       </span>
       <!-- Metadata -->
       <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />

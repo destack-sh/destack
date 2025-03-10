@@ -9,7 +9,7 @@ import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { CONTEXT_ACTIONS_BY_TYPE, getAction, isActionEnabled } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { getNodeIcon, getNodeName, IconInline } from "@/ui/icon";
+import { getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -94,7 +94,7 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
           v-bind="getNodeIcon(node)"
           class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
         />
-        <span class="max-w-full select-none truncate">{{ getNodeName(node) ?? "???" }}</span>
+        <span class="max-w-full select-none truncate">{{ getNodeTitle(node) ?? "???" }}</span>
         <!-- Metadata -->
         <NodeMetadata class="ml-1.5" size="regular" :node="node" />
         <!-- Actions -->

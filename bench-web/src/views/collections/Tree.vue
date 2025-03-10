@@ -10,6 +10,7 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
+  TextLineType,
   TreeViewPreset,
   ViewData,
   ViewType,
@@ -32,6 +33,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
+import Title from "@/views/builtins/Title.vue";
 import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
@@ -290,7 +292,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                 ? 'bg-gray-100'
                 : 'hover:bg-gray-100',
             isDragging(node) ? 'opacity-50' : '',
-            (node as any).name != null ? '' : 'italic',
           ]"
           :style="{
             paddingLeft: 6 + depth * DEPTH_OFFSET + 'px',
@@ -333,6 +334,13 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             v-if="(node as any).name != null && (node as any).name != ''"
             class="max-w-full select-none truncate"
             v-html="(node as any).name"
+          />
+          <Title
+            v-else-if="(node as any).title != null"
+            :model-value="(node as any).title"
+            :force-line-type="TextLineType.PARAGRAPH"
+            is-small
+            :placeholder="toCamelName(NodeType, node.metatype)"
           />
           <span
             v-else
