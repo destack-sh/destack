@@ -339,6 +339,8 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             v-else-if="(node as any).title != null"
             :model-value="(node as any).title"
             :force-line-type="TextLineType.PARAGRAPH"
+            class="max-w-full select-none truncate"
+            truncate
             is-small
             :placeholder="toCamelName(NodeType, node.metatype)"
           />

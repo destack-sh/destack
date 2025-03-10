@@ -16,7 +16,6 @@ import {
   TextLineType,
   TextSpanType,
   TypeKind,
-  ViewType,
 } from "@/proto/wire";
 import { isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { IconInline } from "@/ui/icon";
@@ -36,7 +35,7 @@ import { EditorView } from "prosemirror-view";
 import { computed, nextTick, Ref, ref, watch } from "vue";
 
 const MAX_HEIGHT = 500;
-const WIDTH = 320;
+const WIDTH = 400;
 
 const PLACEHOLDER_BY_TYPE: Record<SpanSpecialInputType, string> = {
   ["/"]: "Filter...",
@@ -318,7 +317,12 @@ defineExpose<Partial<ViewExpose>>({ focus });
           track-is-overlay
         >
           <!-- Results -->
-          <ul class="mx-0.5 flex max-w-full flex-col py-0.5">
+          <ul
+            class="mx-0.5 flex max-w-full flex-col py-0.5"
+            :style="{
+              width: `${WIDTH}px`,
+            }"
+          >
             <template v-for="item in results" :key="item.id">
               <!-- Results -->
               <li

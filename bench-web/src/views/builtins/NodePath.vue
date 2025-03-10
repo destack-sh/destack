@@ -48,6 +48,7 @@ const selfIndex = computed(() => path.value.findIndex((node) => node.id == props
         <NodeReference
           :node="node"
           size="regular"
+          class="max-w-[200px] truncate"
           :isLight="selfIndex != -1 && i != selfIndex"
           :isIconLight="selfIndex != -1 && i > selfIndex"
         />
