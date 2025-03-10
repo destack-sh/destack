@@ -176,7 +176,14 @@ defineExpose<ViewExpose>({ self });
       }"
     >
       <!-- Node (path) -->
-      <NodeReference v-if="target" :node="target" :tx="() => inspectionConnection!.tx" size="regular" is-input />
+      <NodeReference
+        v-if="target"
+        :node="target"
+        :tx="() => inspectionConnection!.tx"
+        size="regular"
+        class="max-w-[300px] truncate"
+        is-input
+      />
       <span v-else class="text-gray-400">Nothing</span>
       <template v-if="scope != null && scope.id != target?.id">
         <span class="mx-0.5 text-gray-400">in</span>

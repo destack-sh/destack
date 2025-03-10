@@ -139,7 +139,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
 @_render_test
 def test_render_property(session: Session, package: Package):
     prop_1 = Node.get_property("id")
-    prop_2 = Page.get_property("name")
+    prop_2 = Page.get_property("title")
     prop_3 = Run.get_property("outputs")
     return {"prop_1": prop_1, "prop_2": prop_2, "prop_3": prop_3}
 
@@ -161,7 +161,7 @@ def test_render_path(session: Session, package: Package):
 
 @_render_test
 def test_render_partial_object(session: Session, package: Package):
-    PartialPage1 = Page.partial(name="PartialPage1")
+    PartialFlow1 = Flow.partial(name="PartialFlow1")
     MessageType1 = Class.new(
         "MessageType1",
         Field.member("Field1", int),
@@ -172,7 +172,7 @@ def test_render_partial_object(session: Session, package: Package):
         MessageType.REGULAR, clazz=MessageType1, Field1=17, Field2="hello!"
     )
     return {
-        "PartialPage1": PartialPage1,
+        "PartialFlow1": PartialFlow1,
         "MessageType1": MessageType1,
         "PatialMessage1": PatialMessage1,
     }
@@ -181,8 +181,7 @@ def test_render_partial_object(session: Session, package: Package):
 @_render_test
 def test_render_bad_names(session: Session, package: Package):
     _F_1 = Field.resource("-F_1", str)
-    Page_with_Spa_se = Page.new("Page with Spa se")
-    return {"_F_1": _F_1, "Page_with_Spa_se": Page_with_Spa_se}
+    return {"_F_1": _F_1}
 
 
 @_render_test
@@ -267,7 +266,7 @@ def test_render_flow_computed_value(session: Session, package: Package):
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):
     """Rendered node ref in sibling scope should be simplified"""
-    Page1 = package.pages.create(name="Page")
+    Page1 = package.pages.create(title="Page")
     Choice1 = Choice.new(
         "Choice1",
         Option.new("Option1"),
