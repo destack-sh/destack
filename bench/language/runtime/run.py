@@ -41,6 +41,8 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.tenacity import RetryOptions
 
+from .context import HasRunContext
+
 if TYPE_CHECKING:
     from bench.language import (
         Action,
@@ -54,7 +56,6 @@ if TYPE_CHECKING:
         Flow,
         ImageOptions,
         Interruption,
-        Kit,
         Link,
         Log,
         ModelDeveloper,
@@ -66,10 +67,8 @@ if TYPE_CHECKING:
         Plan,
         RunnableNode,
         RunSpan,
-        Task,
         TextOptions,
         Thread,
-        Trigger,
         TypeBase,
         VideoOptions,
     )
@@ -157,7 +156,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunData]):
+class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunData], HasRunContext):
     """
     Run something somewhere, somehow.
     """
@@ -232,102 +231,25 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
         same_bench=True,
         description="The current Interruption.",
     )
-
-    # flow
-    flow: Optional["Flow"] = p_internal(
-        60,
-        require=False,
-        array=False,
-        references=NodeType.FLOW,
-        same_bench=True,
-        description="The Flow this Run is in.",
-    )
-    kit: Optional["Kit"] = p_internal(
-        61,
-        require=False,
-        array=False,
-        references=NodeType.KIT,
-        same_bench=True,
-        description="The Kit the Action is in.",
-    )
-    action: Optional["Action"] = p_internal(
-        62,
-        require=False,
-        array=False,
-        references=NodeType.ACTION,
-        same_bench=True,
-        description="The Action this Run is executing.",
-    )
-    link: Optional["Link"] = p_internal(
-        63,
-        require=False,
-        array=False,
-        references=NodeType.LINK,
-        same_bench=True,
-        description="The Link this Run is executing.",
-    )
-    plan: Optional["Plan"] = p_internal(
-        64,
-        require=False,
-        array=False,
-        references=NodeType.PLAN,
-        same_bench=True,
-        description="The Plan this Run is following (leaf).",
-    )
-    task: Optional["Task"] = p_internal(
-        65,
-        require=False,
-        array=False,
-        references=NodeType.TASK,
-        same_bench=True,
-        description="The Task this Run is implementing.",
-    )
-    trigger: Optional["Trigger"] = p_regular(
-        66,
-        require=False,
-        array=False,
-        references=NodeType.TRIGGER,
-        same_bench=True,
-        description="The Trigger this Run is triggered by.",
-    )
-    trigger_key: Optional[str] = p_internal(
-        67,
-        require=False,
-        default=None,
-        description="A unique key for this invocation of the Trigger.",
-    )
     if TYPE_CHECKING:
-        page_ptr: Optional[NodeReference] = None
-        page_id: Optional[UUID] = None
-        page_ck: Optional[UUID] = None
-        flow_ptr: Optional[NodeReference] = None
-        flow_id: Optional[UUID] = None
-        flow_ck: Optional[UUID] = None
-        action_ptr: Optional[NodeReference] = None
-        action_id: Optional[UUID] = None
-        action_ck: Optional[UUID] = None
-        link_ptr: Optional[NodeReference] = None
-        link_id: Optional[UUID] = None
-        link_ck: Optional[UUID] = None
-        incoming_ptr: tuple["NodeReference", ...] = ()
-        trigger_ptr: Optional[NodeReference] = None
-        trigger_id: Optional[UUID] = None
+        interruption_ptr: Optional[NodeReference] = None
+        interruption_id: Optional[UUID] = None
 
     # content
-    resources_packed: Any = p_value_packed(70)
+    resources_packed: Any = p_value_packed(60)
     resources: "CustomObject | None" = p_value_runtime(
-        70, type=FieldType.RESOURCE, typ=lambda self: cast("Run", self).resource_type
+        60, type=FieldType.RESOURCE, typ=lambda self: cast("Run", self).resource_type
     )
-    inputs_packed: Any = p_value_packed(71)
+    inputs_packed: Any = p_value_packed(61)
     inputs: "CustomObject | None" = p_value_runtime(
-        71, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
+        61, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
     )
-    outputs_packed: Any = p_value_packed(72)
+    outputs_packed: Any = p_value_packed(62)
     outputs: "CustomObject | None" = p_value_runtime(
-        72, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
+        62, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
-    text: Optional["Text"] = p_regular(75, default=None, struct=StructType.TEXT)
-    code: Optional["Code"] = p_regular(76, default=None, struct=StructType.CODE)
+    text: Optional["Text"] = p_regular(65, default=None, struct=StructType.TEXT)
+    code: Optional["Code"] = p_regular(66, default=None, struct=StructType.CODE)
 
     # ...HasContext[90-99]
 

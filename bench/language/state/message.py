@@ -30,6 +30,7 @@ from bench.language.core import (
     p_value_runtime,
     timed_node_,
 )
+from bench.language.core.text import text_line
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
@@ -257,7 +258,7 @@ class Message(IsTimed, IsBased, IsTitled, PackageNode[MessageData]):
         message = Message(
             type=MessageType.REGULAR,
             platform=platform,
-            title=title,
+            title=text_line(title) if title is not None else None,
             text=text,
             reply_to=reply_to,
         )

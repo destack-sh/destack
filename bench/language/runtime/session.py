@@ -44,15 +44,11 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     SessionStatus,
-    Struct,
-    StructType,
     bittuple,
-    p_internal,
     p_node_parent,
     p_regular,
     p_runtime,
     repr_scope,
-    struct_,
     timed_node_,
 )
 from bench.language.registry import DESCENDANT_NODE_TYPES
@@ -77,14 +73,9 @@ from .transaction import Transaction
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
         Bench,
-        Block,
-        Flow,
         NodeReference,
-        Page,
         Query,
-        Run,
     )
     from bench.runtime.core import Runtime
 
@@ -889,40 +880,3 @@ class Session(BenchNode[SessionData], IsRuntime, IsTraceable):
 
     async def __aexit__(self, exc_type, exc, tb):
         await self.close()
-
-
-@struct_(StructType.EDIT_CONTEXT)
-class EditContext(Struct):
-    """Additional context for a specific edit (per-edit variable subset of Session context)."""
-
-    page: Optional["Page"] = p_internal(70, require=False, array=False, references=NodeType.PAGE)
-    flow: Optional["Flow"] = p_internal(71, require=False, array=False, references=NodeType.FLOW)
-    action: Optional["Action"] = p_internal(
-        72, require=False, array=False, references=NodeType.ACTION
-    )
-    session: Optional["Session"] = p_internal(
-        73, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    run: Optional["Run"] = p_internal(
-        74, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    run_root: Optional["Run"] = p_internal(
-        75, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    identity: Optional["Block"] = p_internal(
-        76, require=False, array=False, references=NodeType.BLOCK
-    )
-    if TYPE_CHECKING:
-        block_ptr: Optional[NodeReference] = None
-        action_ptr: Optional[NodeReference] = None
-        session_ptr: Optional[NodeReference] = None
-        run_ptr: Optional[NodeReference] = None
-        run_root_ptr: Optional[NodeReference] = None
-        identity_ptr: Optional[NodeReference] = None
-
-
-@struct_(StructType.CONTEXT)
-class Context(Struct, IsRuntime):
-    """Context information for runtime nodes created in a session."""
-
-    pass

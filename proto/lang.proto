@@ -2333,6 +2333,25 @@ message ClientOriginData {
   optional string nonce = 32;
 }
 
+message EditContextData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData page_ptr = 70;
+  optional NodeReferenceData flow_ptr = 71;
+  optional NodeReferenceData action_ptr = 72;
+  optional NodeReferenceData session_ptr = 73;
+  optional NodeReferenceData run_ptr = 74;
+  optional NodeReferenceData run_root_ptr = 75;
+  optional NodeReferenceData identity_ptr = 76;
+}
+
+message ContextData {
+  ObjectType metatype = 1;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
 message RunTraceData {
   ObjectType metatype = 1;
   repeated RunFrameData frames = 30;
@@ -2439,25 +2458,6 @@ message ChangeData {
   string key = 30;
   optional CodeData code = 33;
   repeated EditData edits = 34;
-}
-
-message EditContextData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData page_ptr = 70;
-  optional NodeReferenceData flow_ptr = 71;
-  optional NodeReferenceData action_ptr = 72;
-  optional NodeReferenceData session_ptr = 73;
-  optional NodeReferenceData run_ptr = 74;
-  optional NodeReferenceData run_root_ptr = 75;
-  optional NodeReferenceData identity_ptr = 76;
-}
-
-message ContextData {
-  ObjectType metatype = 1;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
 }
 
 message FontData {
@@ -3185,19 +3185,19 @@ message RunData {
   optional google.protobuf.Timestamp terminated_at = 49;
   optional ErrorData error = 50;
   optional NodeReferenceData interruption_ptr = 51;
-  optional NodeReferenceData flow_ptr = 60;
-  optional NodeReferenceData kit_ptr = 61;
-  optional NodeReferenceData action_ptr = 62;
-  optional NodeReferenceData link_ptr = 63;
-  optional NodeReferenceData plan_ptr = 64;
-  optional NodeReferenceData task_ptr = 65;
-  optional NodeReferenceData trigger_ptr = 66;
-  optional string trigger_key = 67;
-  optional google.protobuf.Value resources_packed = 70;
-  optional google.protobuf.Value inputs_packed = 71;
-  optional google.protobuf.Value outputs_packed = 72;
-  optional TextData text = 75;
-  optional CodeData code = 76;
+  optional google.protobuf.Value resources_packed = 60;
+  optional google.protobuf.Value inputs_packed = 61;
+  optional google.protobuf.Value outputs_packed = 62;
+  optional TextData text = 65;
+  optional CodeData code = 66;
+  optional NodeReferenceData flow_ptr = 80;
+  optional NodeReferenceData kit_ptr = 81;
+  optional NodeReferenceData action_ptr = 82;
+  optional NodeReferenceData link_ptr = 83;
+  optional NodeReferenceData plan_ptr = 84;
+  optional NodeReferenceData task_ptr = 85;
+  optional NodeReferenceData trigger_ptr = 86;
+  optional string trigger_key = 87;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;
@@ -3253,6 +3253,14 @@ message RunSpanData {
   optional TextData text = 61;
   optional CodeData code = 62;
   repeated NodeReferenceData nodes_ptr = 65;
+  optional NodeReferenceData flow_ptr = 80;
+  optional NodeReferenceData kit_ptr = 81;
+  optional NodeReferenceData action_ptr = 82;
+  optional NodeReferenceData link_ptr = 83;
+  optional NodeReferenceData plan_ptr = 84;
+  optional NodeReferenceData task_ptr = 85;
+  optional NodeReferenceData trigger_ptr = 86;
+  optional string trigger_key = 87;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData machine_ptr = 94;

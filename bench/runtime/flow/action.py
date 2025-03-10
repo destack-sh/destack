@@ -262,8 +262,8 @@ class FailActionRunner(ActionRunner[FailAction]):
 
 
 class CodeActionRunner(ActionRunner[CodeAction]):
-    # NOTE: Code runner is static and must generate its own Plans
-    #  (so we don't auto-generate them to simplify things, thus we don't inherit StaticActionRunner)
+    # NOTE: Code runner is static and must generate its own Plans (i.e. we don't auto-generate them)
+    #  (because this is only used for manual stuff; therefore we don't inherit StaticActionRunner)
 
     @override
     async def run(self) -> None:
