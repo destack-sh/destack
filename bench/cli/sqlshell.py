@@ -6,8 +6,7 @@ import structlog
 import typer
 
 from bench.cli.utils import async_to_sync, parse_area, parse_region
-from bench.language import Bench, Store
-from bench.language.core import REGION, NodeArea, Region
+from bench.language import REGION, Bench, NodeArea, Package, Region, Store
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
 
@@ -47,8 +46,10 @@ async def shell(
         async with global_session(
             global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
         ):
-            bench_node = await Bench.include_descendants(Store).select_all().get(slug=bench)
-            assert bench_node.main_store, f"{bench!r} has no main store"
+            bench_node = (
+                await Bench.include_descendants(Package, Store).select_all().get(slug=bench)
+            )
+            assert bench_node.main_store is not None, f"{bench!r} has no main store"
             store = bench_node.main_store
     else:
         raise ValueError(f"invalid area: {area!r}")

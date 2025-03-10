@@ -437,7 +437,7 @@ def flow_implicit_transformation_in_call(package: Package):
         Plan.serial(
             "Complete",
             Task.run("Complete", Complete, Greeting="Hello Alice!"),
-            on_terminate=PlanTerminationMode.PASS,
+            on_terminate=PlanTerminationMode.COMPLETE,
         )
     ]
     return ExampleIn(
@@ -471,7 +471,7 @@ def flow_send_message(package: Package):
                     channel=Channel1, reply_to=Message1, text="Not much, and you?"
                 ),
             ),
-            on_terminate=PlanTerminationMode.PASS,
+            on_terminate=PlanTerminationMode.COMPLETE,
         )
     ]
     return ExampleIn(

@@ -1344,7 +1344,7 @@ class PlanStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PlanTerminationMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PLAN_TERMINATION_MODE_UNSPECIFIED: _ClassVar[PlanTerminationMode]
-    PLAN_TERMINATION_MODE_PASS: _ClassVar[PlanTerminationMode]
+    PLAN_TERMINATION_MODE_COMPLETE: _ClassVar[PlanTerminationMode]
     PLAN_TERMINATION_MODE_RETURN: _ClassVar[PlanTerminationMode]
 
 class PlanFailureMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -3127,7 +3127,7 @@ PLAN_STATUS_ABORTED: PlanStatus
 PLAN_STATUS_FAILED: PlanStatus
 PLAN_STATUS_COMPLETED: PlanStatus
 PLAN_TERMINATION_MODE_UNSPECIFIED: PlanTerminationMode
-PLAN_TERMINATION_MODE_PASS: PlanTerminationMode
+PLAN_TERMINATION_MODE_COMPLETE: PlanTerminationMode
 PLAN_TERMINATION_MODE_RETURN: PlanTerminationMode
 PLAN_FAILURE_MODE_UNSPECIFIED: PlanFailureMode
 PLAN_FAILURE_MODE_FAIL: PlanFailureMode

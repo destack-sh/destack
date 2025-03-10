@@ -43,9 +43,7 @@ from bench.language.core import (
     TypeKind,
     format_code,
     get_custom_object_properties,
-    get_path,
     is_node_type,
-    render_path,
     reverse_icon,
     reverse_path_element,
     reverse_type_scalar,
@@ -227,35 +225,9 @@ class Renderer:
                 alias = f"{parent_alias}.{parent_child_prop.name}.{node.code_name}"
                 return alias
 
-        alias = self.aliasing.get(node)
-        if alias is not None:
-            # already have an alias
-            return alias
-        elif isinstance(node, Node) and node.is_attached and "name" in node.__properties__:
-            # reference as path
-            if self.scope.id == node.id:
-                return "self"
-            path = get_path(scope=self.scope, node=node)
-            rendered_path = render_path(path)
-            if self.options.use_code_paths:
-                # simplify path for use in Code (which treats references as unique get_node)
-                if len(path) == 1 and path[0].type in (
-                    PathElementType.CLOSEST,
-                    PathElementType.CHILD,
-                ):
-                    assert path[0].code_name is not None, f"no name for {path[0]!r}"
-                    return path[0].code_name
-                elif (
-                    len(path) == 2
-                    and path[0].type in (PathElementType.CLOSEST, PathElementType.CHILD)
-                    and path[1].type == PathElementType.ATTRIBUTE
-                ):
-                    return f"{path[0].name}.{path[1].code_name}"
-            return f"get_node({rendered_path!r})"
-        else:
-            # create new alias
-            alias = self.aliasing.add(node)
-            return alias
+        # otherwise just make context-specific alias
+        alias = self.aliasing.get_or_add(node)
+        return alias
 
     def render_property_ref(self, prop: Property | PropertyReference) -> str:
         if isinstance(prop, PropertyReference):
@@ -417,8 +389,9 @@ class Renderer:
         if node.parent_ptr and node.parent_ptr in self.aliasing:
             parent_alias = self.aliasing.get(node.parent_ptr)
             parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.node_type]
-            parent_child_prop = parent_cls.get_child_property_or_error(node.metatype)
-            return f"{parent_alias}.{parent_child_prop.name}"
+            parent_child_prop = parent_cls.get_child_property(node.metatype)
+            if parent_child_prop is not None:
+                return f"{parent_alias}.{parent_child_prop.name}"
         return None
 
     def render_statement(self, *nodes: Node, format: bool = False) -> str:

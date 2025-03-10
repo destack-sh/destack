@@ -121,7 +121,7 @@ async def shell(
             .select_all()
             .get(bench_node.to_ref(), mode="both")
         )
-        assert bench_node.main_store, f"{bench!r} has no main store"
+        assert bench_node.main_store is not None, f"{bench_node!r} has no main store"
         session.parent = bench_node  # patch in bench for pg context
         session._default_scope = GraphScope(bench_id=bench_node.id)._to_data()
         main_package = await (
