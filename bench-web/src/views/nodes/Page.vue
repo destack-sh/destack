@@ -20,7 +20,7 @@ import {
 } from "@/proto/wire/";
 import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { bench, canvas } from "@/system/space";
+import { bench, canvas, pkg } from "@/system/space";
 import { type ActionMapKit } from "@/ui/action";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
@@ -36,10 +36,10 @@ import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import TextTooltip from "@/views/builtins/TextTooltip.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useEventListener } from "@vueuse/core";
 import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, type Ref } from "vue";
 
@@ -262,7 +262,8 @@ const activeDropAnchorPosition = computed(() => {
 function addFiles(files: FileList | File[], anchor: "before" | "after" | "inside", target: PageData | BlockData) {
   Array.from(files).forEach(async (file) => {
     if (bench.value == null) throw new Error("no current bench");
-    const upload = uploadFile(() => connection.tx, file, { bench: bench.value });
+    if (pkg.value == null) throw new Error("no current package");
+    const upload = uploadFile(() => connection.tx, file, { bench: bench.value, pkg: pkg.value });
     await upload.completion.wait();
     const block = createBlock(connection.tx, graph, {
       block: { type: BlockType.FILE, nodePtr: toNodeRef(upload.file.value!) },

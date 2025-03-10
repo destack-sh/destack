@@ -135,7 +135,7 @@ export function isDynamicResourceNode(node: any): node is DynamicResourceNodeDat
 }
 
 export function isLocalNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 5000;
+  return typeof nodeType == "number" && nodeType >= 8000;
 }
 
 export function isGlobalNodeType(nodeType: any): boolean {
@@ -180,9 +180,9 @@ export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RU
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
 export const STATIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isStaticResourceNodeType);
 export const DYNAMIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isDynamicResourceNodeType);
-export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
 export const GLOBAL_NODE_TYPES = NODE_TYPES.filter(isGlobalNodeType);
 export const REGIONAL_NODE_TYPES = NODE_TYPES.filter(isRegionalNodeType);
+export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
 export const PUBLIC_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const USER_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE];
 export const INLINE_NODE_TYPES = [

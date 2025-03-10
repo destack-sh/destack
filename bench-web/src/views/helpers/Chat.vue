@@ -459,7 +459,8 @@ async function addFiles(files: FileList | File[]) {
   Array.from(files).forEach(async (file) => {
     // upload and insert each file individually
     if (bench.value == null) throw new Error("no bench");
-    const upload = uploadFile(() => benchConnection.tx, file, { bench: bench.value });
+    if (pkg.value == null) throw new Error("no package");
+    const upload = uploadFile(() => benchConnection.tx, file, { bench: bench.value, pkg: pkg.value });
     await upload.completion.wait();
     state.update(
       {

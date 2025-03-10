@@ -36,7 +36,7 @@ export function defaultSortNode<T extends AnyNodeData>(nodes: T[]): void {
  * Sets the node order keys so that the target is position relative to the reference. Nodes must be in order.
  * Also applies any 'fixes' due to duplicate order keys in the same transaction.
  */
-export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order: {
+export function updateOrder<T extends AnyNodeData & { orderKey?: string | undefined }>(order: {
   tx: Transaction;
   node: T;
   position: "before" | "after";
@@ -71,7 +71,7 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
 /**
  * Gets the order key relative to the reference. Nodes must be in order.
  */
-export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
+export function getOrderKey<T extends { id: string; orderKey?: string | undefined }>(order: {
   position: "before" | "above" | "after" | "below";
   reference: T | null;
   nodes: T[];
@@ -92,7 +92,7 @@ export function getOrderKey<T extends { id: string; orderKey: string }>(order: {
 /**
  * Patches any 'broken' order keys to put the nodes in the given order.
  */
-export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: Transaction, nodes: T[]) {
+export function fixOrderKeys<T extends AnyNodeData & { orderKey?: string | undefined }>(tx: Transaction, nodes: T[]) {
   // ensure nodes are in current order
   defaultSortNode(nodes);
 
@@ -101,9 +101,9 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
   while (i < nodes.length) {
     const prevOrderKey = i == 0 ? null : nodes[i - 1].orderKey;
     const node = nodes[i];
-    if (!isValidOrderKey(node.orderKey)) {
+    if (node.orderKey == null || !isValidOrderKey(node.orderKey)) {
       // just patch in place
-      const orderKey = generateOrderKey(prevOrderKey, nodes[i + 1]?.orderKey ?? null);
+      const orderKey = generateOrderKey(prevOrderKey ?? null, nodes[i + 1]?.orderKey ?? null);
       // @ts-expect-error: orderKey must exist
       tx.update(node, { orderKey }, { debounce: "tick" });
     } else if (node.orderKey == prevOrderKey) {
