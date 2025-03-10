@@ -711,6 +711,9 @@ BENCH_NODE_TYPES = _get_node_types(
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
+LOADED_PACKAGE_NODE_TYPES = bittuple(
+    *SOURCE_NODE_TYPES, *STATIC_RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
+)
 
 #
 # Struct metatypes

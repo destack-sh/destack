@@ -13,9 +13,9 @@ from bench import pb2
 from bench.language import (
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
+    LOADED_PACKAGE_NODE_TYPES,
     NONCE,
     PUBLIC_NODE_TYPES,
-    SOURCE_NODE_TYPES,
     STATIC_RESOURCE_NODE_TYPES,
     Bench,
     Client,
@@ -43,7 +43,7 @@ BENCH_QUERY = Bench.include_descendants(
     NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
 ).select_all()
 PACKAGE_QUERY = (
-    Package.include_descendants(*SOURCE_NODE_TYPES, NodeType.TASK)
+    Package.include_descendants(*LOADED_PACKAGE_NODE_TYPES)
     .include_ancestors(Bench)
     .select_all()
     .deselect(Bench.encryption_key)

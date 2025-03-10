@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { INLINE_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { INLINE_NODE_TYPES, RESOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
 import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
@@ -62,7 +62,9 @@ const state = canvas.registerView(self, id);
 const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
 const nodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.PACKAGE) {
-    return INLINE_NODE_TYPES;
+    // only inline nodes without resources since that would include all Package resources
+    //  (we may actually want resource nodes *inside* Pages, not the Package?)
+    return INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n));
   } else {
     return [];
   }
@@ -87,7 +89,7 @@ const focusPtr = computedValue(() => {
 const { graph, connection } = useExistingConnection(rootPtr, {
   match: {
     predicate: (c) => {
-      // NOTE: exclude Bench connection (which also contains package) :ConnectionMatching
+      // NOTE: exclude Bench connection (which also contains package) :ConnectionMatching :RichGraph
       return !(c as Connection<"get", NodeType>).params.roots.some((r) => r.nodeType == NodeType.BENCH);
     },
   },

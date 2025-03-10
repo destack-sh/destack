@@ -15,6 +15,7 @@ from opentelemetry import trace
 from bench.language import (
     BENCH_NODE_TYPES,
     CLOUD,
+    LOADED_PACKAGE_NODE_TYPES,
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
@@ -108,7 +109,7 @@ BENCH_QUERY = Bench.include_descendants(
 ).select_all()
 PACKAGE_QUERY = (
     Package.include_ancestors(Bench)
-    .include_descendants(*SOURCE_NODE_TYPES, NodeType.TASK)
+    .include_descendants(*LOADED_PACKAGE_NODE_TYPES)
     .select_all()
     .deselect(Bench.encryption_key)
 )
@@ -360,7 +361,7 @@ class HostService(GraphServiceBase, HostBase):
             if self._bench.status < BenchStatus.ACTIVATED:
                 await self._activate(session, self._bench)
 
-            # cleanup (discard temporary session)
+            # cleanup
             self._bench._untrack_rec()
             self._main_package._untrack_rec()
 
