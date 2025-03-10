@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.10.3"
+VERSION = "2025.03.10.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1558,6 +1558,11 @@ RUN_TABLE = Table(
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
+        Column("resources_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("flow_id", PrimitiveType.UUID, is_nullable=True),
         Column("kit_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
@@ -1568,11 +1573,6 @@ RUN_TABLE = Table(
         Column("task_ck", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
-        Column("resources_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),
@@ -1621,6 +1621,16 @@ RUN_SPAN_TABLE = Table(
         Column("nodes_type", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("nodes_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_base_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("flow_id", PrimitiveType.UUID, is_nullable=True),
+        Column("kit_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_id", PrimitiveType.UUID, is_nullable=True),
+        Column("link_id", PrimitiveType.UUID, is_nullable=True),
+        Column("plan_id", PrimitiveType.UUID, is_nullable=True),
+        Column("plan_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("task_id", PrimitiveType.UUID, is_nullable=True),
+        Column("task_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
+        Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("machine_id", PrimitiveType.UUID, is_nullable=True),

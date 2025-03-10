@@ -287,6 +287,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     mode=self.mode,
                     _skip_validate_self=True,
                 )
+                parent_run._copy_context_to(tracked_span)
                 self.session._create(tracked_span)
             else:
                 tracked_span = cast(RunSpan, run)

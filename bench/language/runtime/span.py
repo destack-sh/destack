@@ -22,6 +22,8 @@ from bench.language.core import (
 )
 from bench.pb2 import RunSpanData
 
+from .context import HasRunContext
+
 if TYPE_CHECKING:
     from bench.language import Code, Error, Interruption, NodeReference, Run
 
@@ -30,8 +32,11 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.RUN_SPAN)
-class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsTraceable):
-    """A RunSpan is a specific not-individually-controllable part of a Run."""
+class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsTraceable, HasRunContext):
+    """
+    A RunSpan is a sub-part of a Run that executes a smaller unit of work than a runnable Node.
+    RunSpans, unlike Runs, are not individually controllable.
+    """
 
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)

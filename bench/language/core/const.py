@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.10.3"
+VERSION = "2025.03.10.4"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
@@ -1444,6 +1444,10 @@ class RunSpanType(BuiltinEnum):
     FILE_PREPARE_UPLOAD = 501, None, None, "fas fa-upload"
     FILE_DOWNLOAD = 502, None, None, "fas fa-download"
     FILE_PREPARE_DOWNLOAD = 503, None, None, "fas fa-download"
+    # ...
+    # nocheckin: RunSpanTypes for all ActionTypes/intents/etc.
+    #  (and emit those spans in builtin Actions..? how does this relate to Logs and such
+    #   like for created/updated Nodes and such)
 
 
 @enum_(EnumType.ERROR_KIND)
@@ -1729,6 +1733,7 @@ def run_span(
             started_at=runtime.oracle.utc(),
             _skip_validate_self=True,
         )
+        run._copy_context_to(span)
         run.spans.append(span)
         try:
             with tracer.start_as_current_span(key):

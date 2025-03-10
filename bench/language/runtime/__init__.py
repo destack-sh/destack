@@ -1,3 +1,4 @@
+from .context import Context, EditContext, HasRunContext
 from .error import Error, ErrorType
 from .interruption import (
     INTERRUPTION_TYPE_BY_RUN_STATUS,
@@ -24,7 +25,7 @@ from .model import (
 )
 from .plan import Plan, PlanFailureMode, PlanStatus, PlanTerminationMode, PlanType
 from .run import Run, RunOptions
-from .session import Context, EditContext, Session
+from .session import Session
 from .span import RunSpan
 from .task import Task, TaskStatus, TaskType
 from .transaction import (
@@ -53,6 +54,7 @@ __all__ = [
     "EditOperation",
     "Error",
     "ErrorType",
+    "HasRunContext",
     "ImageOptions",
     "Interruption",
     "InterruptionResponse",
