@@ -1,5 +1,5 @@
 import { setAutoloader, setSupergraph } from "@/globals";
-import { SOURCE_NODE_TYPES } from "@/language/core/const";
+import { LOADED_PACKAGE_NODE_TYPES, SOURCE_NODE_TYPES } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import {
   DEFAULT_NODE_FILTER,
@@ -588,7 +588,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   /** Whether this connection is a superset of the given connection */
   includes(params: ConnectionParamsMapping<T>[K]): boolean {
-    // NOTE :Broken: connection 'overlap' detection is broken :ConnectionMatching
+    // NOTE :Broken: connection 'overlap' detection is broken :ConnectionMatching :RichGraph
     //  (but shouldn't be an issue for now as we we fetch the entire package source / other search connections separately)
     if (this.kind == "get") {
       const thisGet = this.params as GetConnectionParams<T>;
@@ -602,9 +602,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         ...(thisGet.ancestorTypes ?? []),
         ...(thisGet.descendantTypes ?? []),
       ];
-      if (thisNodeTypes.some((t) => !SOURCE_NODE_TYPES.includes(t) && t != NodeType.TASK)) {
+      if (thisNodeTypes.some((t) => !LOADED_PACKAGE_NODE_TYPES.includes(t))) {
         // NOTE :Broken: we can only assume that node type overlap is enough for source nodes, otherwise check full params
-        //  (since they're loaded in a very specific way together with Task.. see :ConnectionMatching)
+        //  (since they're loaded in a very specific way together with Task.. see :ConnectionMatching :RichGraph)
         return deepContentEquals(params, this.params);
       }
       const otherNodeTypes = [
@@ -999,7 +999,7 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
     return null;
   }
   if (matchingConnections.length > 1) {
-    // NOTE: find the best connection match somehow :ConnectionMatching?
+    // NOTE: find the best connection match somehow :ConnectionMatching :RichGraph?
     // pick newest connection
     matchingConnections.sort((a, b) => b.createdAt.diff(a.createdAt).milliseconds);
   }

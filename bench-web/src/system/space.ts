@@ -1,5 +1,5 @@
 import { setCanvas, setSpace, supergraph } from "@/globals";
-import { SOURCE_NODE_TYPES, STATIC_RESOURCE_NODE_TYPES } from "@/language/core/const";
+import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/core/graph";
 import { getHostClient } from "@/proto/services";
 import { BenchData, ChangeCategory, NodeType, PackageData, SpaceType } from "@/proto/wire";
@@ -27,7 +27,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
   computed(() => ({
     scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
-    descendantTypes: [NodeType.PACKAGE, ...STATIC_RESOURCE_NODE_TYPES],
+    descendantTypes: [NodeType.PACKAGE],
     isEnabled: local.benchPtr.value != null,
   })),
 );
@@ -37,7 +37,7 @@ export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
     roots: [local.packagePtr.value!],
-    descendantTypes: [...SOURCE_NODE_TYPES, NodeType.TASK],
+    descendantTypes: LOADED_PACKAGE_NODE_TYPES,
     isEnabled: local.packagePtr.value != null,
   })),
 );

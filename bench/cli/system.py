@@ -121,7 +121,7 @@ async def make_local_machine(
         machines = await Machine.where(
             Machine.get_property("bench").eq(bench)
             & Machine.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
-        ).tolist()
+        ).to_list()
         machine = first(machines, None)
         if machine is None:
             raise ValueError(f"{bench!r} has no machines")
@@ -131,7 +131,7 @@ async def make_local_machine(
                 & Client.get_property("type").eq(ClientType.MACHINE)
             )
             .select_all()
-            .tolist()
+            .to_list()
         )
         client = first(clients, None)
         if client is None:
