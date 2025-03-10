@@ -2,6 +2,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     NodeType,
+    Resource,
     constraint,
     enum_,
     node_,
@@ -10,8 +11,6 @@ from bench.language.core import (
     subnode_,
 )
 from bench.pb2.lang_pb2 import ScalerData
-
-from ..core.resource import StaticResource
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -30,7 +29,7 @@ class ScalerStrategy(BuiltinEnum):
 
 
 @node_(NodeType.SCALER, has_subtypes=True)
-class Scaler(StaticResource[ScalerData]):
+class Scaler(Resource[ScalerData]):
     """
     A Scaler is a static Resource that automatically scales a dynamic Resource.
     """

@@ -5,14 +5,13 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     NodeType,
+    Resource,
     enum_,
     node_,
     p_kernel,
     p_system,
 )
 from bench.pb2 import StoreData
-
-from ..core.resource import StaticResource
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -23,7 +22,7 @@ class StoreType(BuiltinEnum):
 
 
 @node_(NodeType.STORE)
-class Store(StaticResource[StoreData]):
+class Store(Resource[StoreData]):
     """A trusty Postgres-compatible database."""
 
     type: StoreType = p_system(30, default=StoreType.POSTGRES)

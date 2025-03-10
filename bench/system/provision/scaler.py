@@ -9,7 +9,6 @@ from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
     Browser,
-    DynamicResource,
     Machine,
     NodeType,
     Resource,
@@ -35,7 +34,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class ScalerProvisioner[WT: DynamicResource](Provisioner[Scaler, Scaler | WT], abc.ABC):
+class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC):
     """A Provisioner that scales a dynamic Resource for all the Scalers of its type."""
 
     provision_type = NodeType.SCALER

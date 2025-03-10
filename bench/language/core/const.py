@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.08.2"
+VERSION = "2025.03.10.1"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
@@ -321,7 +321,6 @@ class EnumType(BuiltinEnum):
 
     # resources (21000-21049)
     RESOURCE_STATUS = 21000
-    RESOURCE_OCCUPANCY = 21001
     SCALER_TYPE = 21010
     SCALER_STRATEGY = 21011
     MACHINE_TYPE = 21020
@@ -477,7 +476,7 @@ class NodeMode(BuiltinEnum):
 @enum_(EnumType.NODE_TYPE)
 class NodeType(BuiltinEnum):
     #
-    # Global (1-1000)
+    # Global (1-2000)
     #
 
     # cosmos
@@ -493,13 +492,11 @@ class NodeType(BuiltinEnum):
     # Regional (2000-8000)
     #
 
-    # nocheckin: it would be nice to have Resource be InlineNodes too, but that breaks the line..?
-    #  (like how would we load them if Resource.parent can be Page or Bench?)
     # compute
     SCALER = 2000, None, None, "fas fa-scale-unbalanced"
     STORE = 2010, None, None, "fas fa-database"
     # CACHE?
-    # RESOURCE_CLAIM?
+    # (RESOURCE_)CLAIM?
     MACHINE = 2100, None, None, "fas fa-computer-classic"
     BROWSER = 2110, None, None, "fas fa-globe"
     # MODEL, ...

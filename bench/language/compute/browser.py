@@ -5,6 +5,7 @@ from bench.language.core import (
     EnumType,
     NodeType,
     PrimitiveType,
+    Resource,
     Struct,
     StructType,
     enum_,
@@ -15,8 +16,6 @@ from bench.language.core import (
     struct_,
 )
 from bench.pb2.lang_pb2 import BrowserData
-
-from ..core.resource import DynamicResource
 
 if TYPE_CHECKING:
     from bench.language import Client, Vector2
@@ -59,7 +58,7 @@ DEFAULT_BROWSER_HEIGHT = 1080.0
 
 
 @node_(NodeType.BROWSER, has_subtypes=True)
-class Browser(DynamicResource[BrowserData]):
+class Browser(Resource[BrowserData]):
     """A Browser instance for web browsing."""
 
     type: BrowserType = p_regular(30, default=BrowserType.CHROMIUM)

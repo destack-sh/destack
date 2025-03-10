@@ -21,17 +21,13 @@ from .node import (
     IsTemplatable,
     IsTraceable,
     Node,
+    NodeReference,
     node_component_,
 )
-from .property import (
-    p_internal,
-    p_node_parent,
-    p_system,
-)
+from .property import p_internal, p_node_parent, p_system
 
 if TYPE_CHECKING:
     from bench.language import (
-        NodeReference,
         Package,
         Page,
         Region,
@@ -61,23 +57,15 @@ class ResourceStatus(BuiltinEnum):
         return 10 <= self.value <= 20
 
 
-@enum_(EnumType.RESOURCE_OCCUPANCY)
-class ResourceOccupancy(BuiltinEnum):
-    """The occupancy of a resource (i.e. whether/how it's being used)."""
-
-    AVAILABLE = 1
-    RESERVED = 2
-    OCCUPIED = 3
-    DIRTY = 20
-
-
 EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value <= 20))
 
 NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component_()
-class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, InlineNode[NodeDataT]):
+class Resource[NodeDataT: AnyNodeData](
+    IsTraceable, IsTemplatable, IsOwnable, InlineNode[NodeDataT]
+):
     """
     A Resource in a Bench.
     Resources generally work on the 'desired state' principle.
@@ -89,6 +77,12 @@ class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, InlineNode[No
 
     # meta
     region: Region = p_system(40, default=REGION, default_sql=None)
+    scaler: Optional["Scaler"] = p_system(
+        41, require=False, array=False, references=NodeType.SCALER
+    )
+    if TYPE_CHECKING:
+        scaler_id: Optional[UUID] = None
+        scaler_ptr: Optional[NodeReference] = None
 
     # status
     status: ResourceStatus = p_system(50, default=ResourceStatus.DECLARED, default_sql=None)
@@ -155,50 +149,9 @@ class Resource[NodeDataT: AnyNodeData](IsTraceable, IsTemplatable, InlineNode[No
         """Wait until this Resource is ready."""
         await self.wait_until(lambda r: r.status == ResourceStatus.UP, timeout=timeout)
 
-
-@node_component_()
-class StaticResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
-    """
-    A 'static' Resource in a Bench.
-    """
-
-    @classmethod
-    def new(cls, name: str, **kwargs: Any) -> Self:
-        """Creates a new Resource of this type. Defaults to current Bench"""
-
-        # parent
-        if "parent" not in kwargs:
-            if NodeType.BENCH not in cls.__parent_types__:
-                raise ValueError(f"cannot create {cls!r} without parent")
-            bench = active_session().bench
-            assert bench is not None, "no active Bench"
-            kwargs["parent"] = bench
-
-        resource = cls(name=name, **kwargs)
-        return resource
-
-
-@node_component_()
-class DynamicResource[NodeDataT: AnyNodeData](IsOwnable, Resource[NodeDataT]):
-    """
-    A 'dynamic' Resource in a Bench.
-    """
-
-    # meta
-    occupancy: ResourceOccupancy = p_system(
-        41, default=ResourceOccupancy.RESERVED, default_sql=None
-    )
-    scaler: Optional["Scaler"] = p_system(
-        42, require=False, array=False, references=NodeType.SCALER
-    )
-    if TYPE_CHECKING:
-        scaler_id: Optional[UUID] = None
-        scaler_ptr: Optional[NodeReference] = None
-        tags_ptr: tuple[NodeReference, ...] = ()
-
     @classmethod
     def new(cls, *, name: str | None = None, **kwargs: Any) -> Self:
-        """Creates a new Resource of this type. Defaults to current Bench"""
+        """Creates a new Resource of this type."""
         session = active_session()
 
         # parent
@@ -216,7 +169,7 @@ class DynamicResource[NodeDataT: AnyNodeData](IsOwnable, Resource[NodeDataT]):
         if name is None:
             # fabricate title
             now = session._oracle.utc()
-            name = cls.metatype.bench_name + now.strftime("%Y-%m-%d %H:%M:%S")
+            name = f"{cls.metatype.bench_name} {now.strftime('%Y-%m-%d %H:%M:%S')}"
 
         resource = cls(name=name, **kwargs)
         return resource
