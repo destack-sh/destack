@@ -4,8 +4,8 @@
 
 import { supergraph } from "@/globals";
 import { isInlineNode, TIMED_NODE_TYPES, toCamelName } from "@/language/core/const";
-import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
-import { updateOrder } from "@/language/core/order";
+import { getNextSibling, isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
+import { getOrderKey, updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
 import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { createBlock, unwrapBlockDefinition } from "@/language/source/block";
@@ -34,6 +34,7 @@ import {
 import {
   describeNode,
   isNode,
+  isNodeRef,
   makeDefaultObject,
   newNodeCk,
   newNodeId,
@@ -42,7 +43,7 @@ import {
 } from "@/proto/wiring";
 import { FLOW_GRID_STEP } from "@/ui/flow";
 import { addVector2 } from "@/ui/view";
-import { INTEGER_ZERO } from "@/utils/fractional";
+import { generateOrderKey, INTEGER_ZERO } from "@/utils/fractional";
 import { assertNever, groupByList } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
@@ -370,29 +371,29 @@ export function getRootNodes<T extends AnyNodeData>(nodes: T[]): T[] {
   return rootNodes;
 }
 
-/** Replaces references in the BuiltinObject with their mapped values. */
-function replaceBuiltinObjectReferences(
-  obj: AnyNodeData | AnyStructData | any,
-  map: Record<string, NodeReferenceData>,
-): any {
-  if (Array.isArray(obj)) {
-    for (let i = 0; i < obj.length; i++) {
-      obj[i] = replaceBuiltinObjectReferences(obj[i], map);
-    }
-    return obj;
-  } else if (obj && typeof obj === "object") {
-    if (obj.id && typeof obj.id === "string" && map[obj.id]) {
-      return replaceBuiltinObjectReferences(map[obj.id], map);
-    } else {
-      for (const key in obj) {
-        obj[key] = replaceBuiltinObjectReferences(obj[key], map);
-      }
-      return obj;
-    }
+/** Replaces references in the Node or Struct with their mapped values. */
+function replaceNodeReferences(obj: AnyNodeData | AnyStructData | any, map: Record<string, NodeReferenceData>): any {
+  if (isNodeRef(obj) && map[obj.id!]) {
+    // replace node reference
+    return map[obj.id!];
   }
 
-  return obj;
+  // walk object
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      obj[i] = replaceNodeReferences(obj[i], map);
+    }
+    return obj;
+  } else if (typeof obj === "object") {
+    for (const key in obj) {
+      obj[key] = replaceNodeReferences(obj[key], map);
+    }
+    return obj;
+  } else {
+    return obj;
+  }
 }
+
 /**
  * Creates a clone of this node and its node descendants with the same content (and different identity)
  * The new node will be appended after the current node in its parent.
@@ -400,9 +401,10 @@ function replaceBuiltinObjectReferences(
 export function cloneNode<T extends AnyNodeData>(
   tx: Transaction,
   graph: ReadNodeGraph,
-  node: T,
+  oldNode: T,
   options: {
     after?: AnyNodeData;
+    before?: AnyNodeData;
     includeChildren?: boolean;
     now?: Timestamp;
     set?: Partial<T>;
@@ -410,7 +412,8 @@ export function cloneNode<T extends AnyNodeData>(
     _isNested?: boolean;
     _isDefinitionCounterpart?: boolean;
     _keepOrder?: boolean;
-    _identityMap?: Record<string, NodeReferenceData>;
+    _oldNodeByOldId?: Record<string, AnyNodeData>;
+    _newNodeByOldId?: Record<string, AnyNodeData>;
   } = {
     includeChildren: true,
   },
@@ -420,90 +423,89 @@ export function cloneNode<T extends AnyNodeData>(
 
   // clone this node
   const now = options?.now ?? Timestamp.now();
-  const clone = _cloneNode(node, now);
-  if (options?.set) Object.assign(clone, options.set);
+  const newNode = _cloneNode(oldNode, now);
+  if (options?.set) Object.assign(newNode, options.set);
 
   // update derived properties
   if (!options?.keepProperties) {
     // name
-    if ("name" in clone && !options?._isNested) {
+    if ("name" in newNode && !options?._isNested) {
       // update name
-      if (isGeneratedNodeName(node.metatype as unknown as NodeType, (clone as any).name)) {
+      if (isGeneratedNodeName(oldNode.metatype as unknown as NodeType, (newNode as any).name)) {
         // bump generated node name
-        const siblings = graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType);
-        clone.name = generateNodeName(node, siblings);
+        const siblings = graph.getChildren(oldNode.parentPtr!, oldNode.metatype as unknown as NodeType);
+        newNode.name = generateNodeName(oldNode, siblings);
       } else {
         // bump digit at end (or add 2) if already exists
-        const seq = (clone as any).name.match(/\d+$/);
+        const seq = (newNode as any).name.match(/\d+$/);
         if (seq != null) {
           const num = parseInt(seq[0]);
-          clone.name = clone.name!.replace(/\d+$/, (num + 1).toString());
+          newNode.name = newNode.name!.replace(/\d+$/, (num + 1).toString());
         } else {
-          clone.name += "2";
+          newNode.name += "2";
         }
       }
     }
+    // order
+    if ("orderKey" in newNode) {
+      const after = options?.after ?? oldNode;
+      const before = options?.before ?? getNextSibling(graph, oldNode);
+      const orderKey = generateOrderKey(
+        (after as any).orderKey,
+        (after as any)?.orderKey == (before as any)?.orderKey ? null : (before as any)?.orderKey,
+      );
+      newNode.orderKey = orderKey;
+    }
+
     // position
-    if (isNode(clone, NodeType.ACTION)) {
-      clone.position = addVector2(clone.position, { x: 0, y: FLOW_GRID_STEP * 6 });
+    if (isNode(newNode, NodeType.ACTION)) {
+      newNode.position = addVector2(newNode.position, { x: 0, y: FLOW_GRID_STEP * 6 });
     }
   }
 
-  // actually create node
-  tx.create(clone);
-  // put clone after 'node'
-  // (technically we could get the new orderKey before we create it, avoiding an update,
-  //   but that only works if the order doesn't require fixing up the siblings, which updateOrder may do)
-  if ((node as any).orderKey && !options?._keepOrder) {
-    updateOrder({
-      tx,
-      node: clone as T & { orderKey: string },
-      position: "after",
-      reference: options?.after?.id ?? node.id!,
-      getNodes: () =>
-        graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType) as Array<T & { orderKey: string }>,
-    });
-  }
-
   // remember new identity
-  const identityMap = options?._identityMap ?? {};
-  identityMap[node.id!] = toNodeRef(clone);
+  const newNodeByOldId = options?._newNodeByOldId != null ? options._newNodeByOldId : {};
+  const oldNodeByOldId = options?._oldNodeByOldId != null ? options._oldNodeByOldId : {};
+  newNodeByOldId[oldNode.id!] = newNode;
+  oldNodeByOldId[oldNode.id!] = oldNode;
 
   // clone blocks/definitions together
   if (!options?._isDefinitionCounterpart) {
-    if (isNode(node, NodeType.BLOCK)) {
+    if (isNode(oldNode, NodeType.BLOCK)) {
       // for definition blocks, also clone the source node
-      const source = unwrapBlockDefinition(node);
-      if (source?.definitionPtr?.id == node.id) {
+      const source = unwrapBlockDefinition(oldNode);
+      if (source?.definitionPtr?.id == oldNode.id) {
         cloneNode(tx, graph, source, {
           includeChildren: true,
           now,
-          set: { parentPtr: clone.parentPtr },
+          set: { parentPtr: newNode.parentPtr },
           _isNested: true,
           _isDefinitionCounterpart: true,
           _keepOrder: true,
-          _identityMap: identityMap,
+          _newNodeByOldId: newNodeByOldId,
+          _oldNodeByOldId: oldNodeByOldId,
         });
       }
-    } else if (isInlineNode(node) && node.definitionPtr != null) {
+    } else if (isInlineNode(oldNode) && oldNode.definitionPtr != null) {
       // for inline source nodes, also clone the block definition
-      const block = supergraph.getOrError(node.definitionPtr) as BlockData;
+      const block = supergraph.getOrError(oldNode.definitionPtr) as BlockData;
       cloneNode(tx, graph, block, {
         includeChildren: true,
         now,
-        set: { nodePtr: toNodeRef(clone) },
+        set: { nodePtr: toNodeRef(newNode) },
         _isNested: true,
         _isDefinitionCounterpart: true,
         _keepOrder: true,
-        _identityMap: identityMap,
+        _newNodeByOldId: newNodeByOldId,
+        _oldNodeByOldId: oldNodeByOldId,
       });
     }
   }
 
   // clone all children (recursively)
   if (options?.includeChildren) {
-    const clonePtr = toNodeRef(clone);
-    const children = graph.getChildren(node);
+    const clonePtr = toNodeRef(newNode);
+    const children = graph.getChildren(oldNode);
     for (const child of children) {
       cloneNode(tx, graph, child, {
         includeChildren: true,
@@ -511,20 +513,40 @@ export function cloneNode<T extends AnyNodeData>(
         set: { parentPtr: clonePtr },
         _isNested: true,
         _keepOrder: true,
-        _identityMap: identityMap,
+        _newNodeByOldId: newNodeByOldId,
+        _oldNodeByOldId: oldNodeByOldId,
       });
     }
   }
 
-  // map identities (recursively)
-  if (options?._identityMap == null) {
-    for (const nodeId in identityMap) {
-      const newNode = graph.getOrError({ id: nodeId });
-      replaceBuiltinObjectReferences(newNode, identityMap);
-    }
+  // perform clone in one go
+  if (!options?._isNested) {
+    _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
   }
 
-  return clone;
+  return newNode;
+}
+
+/** Updates the given map with the new node references. */
+export function _createClones(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  oldNodeByOldId: Record<string, AnyNodeData>,
+  newNodeByOldId: Record<string, AnyNodeData>,
+) {
+  // map old to new refs
+  const identityRefMap: Record<string, NodeReferenceData> = {};
+  for (const nodeId in newNodeByOldId) {
+    const newNode = newNodeByOldId[nodeId];
+    identityRefMap[nodeId] = toNodeRef(newNode);
+  }
+
+  // actually create nodes
+  for (const oldNode of Object.values(oldNodeByOldId)) {
+    let newNode = newNodeByOldId[oldNode.id!];
+    newNode = replaceNodeReferences(newNode, identityRefMap);
+    tx.create(newNode);
+  }
 }
 
 /** Clones the given nodes (preserving their order) and returns the new nodes. */
@@ -538,7 +560,8 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
   // clone them (maintaing relative position)
   const clonedNodes: AnyNodeData[] = [];
   const clonedNodesByParentId: Record<string, AnyNodeData[]> = {};
-  const map: Record<string, NodeReferenceData> = {};
+  const oldNodeByOldId: Record<string, AnyNodeData> = {};
+  const newNodeByOldId: Record<string, AnyNodeData> = {};
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
     const parentId = node.parentPtr?.id!;
@@ -549,18 +572,23 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
     } else {
       after = nodesByParentId[parentId]?.at(-1);
     }
-    const clone = cloneNode(tx, graph, node, { after, includeChildren: true, _identityMap: map });
+    const lastChild = nodesByParentId[parentId]?.at(-1);
+    const before = lastChild != null ? getNextSibling(graph, lastChild) : null;
+    const clone = cloneNode(tx, graph, node, {
+      after,
+      before: before ?? undefined,
+      includeChildren: true,
+      _isNested: true,
+      _oldNodeByOldId: oldNodeByOldId,
+      _newNodeByOldId: newNodeByOldId,
+    });
     clonedNodes.push(clone);
     if (clonedNodesByParentId[parentId] == null) clonedNodesByParentId[parentId] = [];
     clonedNodesByParentId[parentId]?.push(clone);
   }
 
-  // map identities for all cloned nodes
-  for (const nodeId in map) {
-    const clonedId = map[nodeId].id!;
-    const newNode = graph.getOrError({ id: clonedId });
-    replaceBuiltinObjectReferences(newNode, map);
-  }
+  // actually clone
+  _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
 
   return clonedNodes;
 }

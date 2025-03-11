@@ -172,12 +172,12 @@ export function validateOrderKey(key: string) {
 // `b` is an order key or null (END).
 // `a < b` lexicographically if both are non-null.
 export function generateOrderKey(a: string | null, b: string | null, digits: string = BASE_95_DIGITS): string {
-  if (a !== null) validateOrderKey(a);
-  if (b !== null) validateOrderKey(b);
-  if (a !== null && b !== null && a >= b) throw new Error(a + " >= " + b);
-  if (a === null && b === null) return INTEGER_ZERO;
+  if (a != null) validateOrderKey(a);
+  if (b != null) validateOrderKey(b);
+  if (a != null && b != null && a >= b) throw new Error(a + " >= " + b);
+  if (a == null && b == null) return INTEGER_ZERO;
 
-  if (a === null) {
+  if (a == null) {
     b = b as string; // b can't be null here (see if above)
     const ib = getIntegerPart(b);
     const fb = b.slice(ib.length);
@@ -187,7 +187,7 @@ export function generateOrderKey(a: string | null, b: string | null, digits: str
     // decrement(ib) can't be null here since ib != SMALLEST_INTEGER
     return ib < b ? ib : (decrementInteger(ib, digits) as string);
   }
-  if (b === null) {
+  if (b == null) {
     const ia = getIntegerPart(a);
     const fa = a.slice(ia.length);
     const i = incrementInteger(ia, digits);
