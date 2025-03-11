@@ -212,7 +212,14 @@ defineExpose({
         {{ (node as any).name ?? nodeTypeName }}
       </span>
       <!-- Metadata -->
-      <NodeMetadata v-if="!isMinimal" :size="size" :node="node" :is-light="isLight" :class="metadataClass" />
+      <NodeMetadata
+        v-if="!isMinimal"
+        class="flex-shrink-0"
+        :size="size"
+        :node="node"
+        :is-light="isLight"
+        :class="metadataClass"
+      />
     </div>
   </div>
   <div

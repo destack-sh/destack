@@ -300,6 +300,7 @@ mark {
   @apply mt-[7px];
 }
 .pm-text .line-block.page > .line-handle,
+.pm-text .line-block.file > .line-handle,
 .pm-text .line-block.task > .line-handle {
   @apply mt-0;
 }
