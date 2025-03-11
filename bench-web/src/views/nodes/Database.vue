@@ -266,6 +266,8 @@ function getColumnPadding(
     return { paddingTop: 5, paddingBottom: 0 };
   } else if (viewType == ViewType.TEXT) {
     return { paddingTop: 3, paddingBottom: 2 };
+  } else if (viewType == ViewType.NUMBER || viewType == ViewType.STRING) {
+    return { paddingTop: 6, paddingBottom: 2 };
   } else {
     return { paddingTop: 3, paddingBottom: 3 };
   }
@@ -934,7 +936,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               paddingRight: x == columns.length - 1 && paddingX != null ? `${paddingX}px` : undefined,
             }"
             :data-column-id="column.id /* used to mark this as a column for click handler below */"
-            @click="
+            @mousedown="
               (event) => {
                 // interact with / focus cell component
                 const componentEl = cellComponentRefs[getCellId(record, column)];
@@ -980,8 +982,10 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               class="flex-1 cursor-pointer select-none"
               :model-value="readColumnValue(record, column)"
               is-minimal
+              is-small
               :size="{ width: column.width, height: ROW_HEIGHT_MAX }"
               @update:model-value="(value: any) => writeColumnValue(record, column, value)"
+              @mousedown.stop
             />
             <!-- No view available (internal bug / missing feature) -->
             <span v-else class="text-danger-600">
