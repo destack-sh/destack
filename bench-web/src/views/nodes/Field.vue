@@ -67,7 +67,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       :class="[!isMinimal ? 'px-1 py-[3px]' : '']"
       :node="field"
       :tx="() => connection.tx"
-      size="regular"
+      size="sm"
       is-light
       is-input
       is-minimal

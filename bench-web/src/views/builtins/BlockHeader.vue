@@ -45,7 +45,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
     <!-- Title -->
     <NodeReference
       ref="nameRef"
-      size="large"
+      size="base"
       :node="node"
       is-input
       :tx="() => connection.tx"

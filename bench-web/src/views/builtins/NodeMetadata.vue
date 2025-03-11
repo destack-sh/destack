@@ -7,20 +7,20 @@ import { humanizeBytes } from "@/utils/string";
 import { computed } from "vue";
 
 const props = defineProps<{
-  size: "regular" | "large" | "title";
+  size: "sm" | "base" | "title" | "inherit";
   node: AnyNodeData;
   isLight?: boolean;
 }>();
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
-  props.size == "regular" ? "w-5" : "",
-  props.size == "large" ? "w-5 text-base" : "",
+  props.size == "sm" ? "w-5" : "",
+  props.size == "base" ? "w-5 text-base" : "",
   props.size == "title" ? "w-8 text-2xl" : "",
 ]);
 const textClass = computed(() => [
-  props.size == "regular" ? ["", props.isLight ? "" : ""] : "",
-  props.size == "large" ? ["text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.size == "sm" ? ["", props.isLight ? "" : ""] : "",
+  props.size == "base" ? ["text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.size == "title" ? ["text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",
 ]);
 </script>

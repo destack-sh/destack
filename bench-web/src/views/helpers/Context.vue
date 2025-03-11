@@ -180,14 +180,14 @@ defineExpose<ViewExpose>({ self });
         v-if="target"
         :node="target"
         :tx="() => inspectionConnection!.tx"
-        size="regular"
+        size="sm"
         class="max-w-[300px] truncate"
         is-input
       />
       <span v-else class="text-gray-400">Nothing</span>
       <template v-if="scope != null && scope.id != target?.id">
         <span class="mx-0.5 text-gray-400">in</span>
-        <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="regular" />
+        <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="sm" />
       </template>
 
       <!-- Tabs -->

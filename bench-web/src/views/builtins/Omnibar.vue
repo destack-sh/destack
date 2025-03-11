@@ -297,7 +297,7 @@ defineExpose({ isActive, open });
                     </span>
                   </span>
                   <!-- Metadata -->
-                  <NodeMetadata v-if="item.metatype == 'node'" size="regular" :node="item.node!" class="ml-1.5" />
+                  <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />
                   <!-- Secondary (shortcut, last edited, etc.) -->
                   <span class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-2">
                     <Shortcut

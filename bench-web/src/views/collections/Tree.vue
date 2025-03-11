@@ -350,7 +350,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             v-html="toCamelName(NodeType, node.metatype)"
           />
           <!-- Metadata -->
-          <NodeMetadata class="ml-1.5" size="regular" :node="node" />
+          <NodeMetadata class="ml-1.5" size="sm" :node="node" />
           <!-- Meta -->
           <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[7px]">
             <!-- Create inside -->

@@ -61,7 +61,7 @@ const dragInfo = computed<DragInfo | null>(() => {
           v-for="node in dragInfo.unwrappedNodes"
           :key="node.id"
           :node="node"
-          size="regular"
+          size="sm"
           class="max-w-48 rounded-2xl border border-gray-300 bg-white px-1.5 py-0.5 text-gray-900"
         />
         <span

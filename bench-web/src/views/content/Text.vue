@@ -70,7 +70,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       !isMinimal
         ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
         : '',
-      isSmall ? 'pm-small' : '',
+      isSmall ? 'pm-sm' : 'pm-base',
     ]"
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"

@@ -297,7 +297,7 @@ defineExpose<ViewExpose>({
         class="mr-2 flex flex-row items-center gap-x-1.5 rounded"
         :class="[valueType?.isList ? 'bg-gray-100 px-1' : '', v.status == 'pending' ? 'animate-pulse' : '']"
       >
-        <NodeReference v-if="v.metatype == 'node'" size="regular" is-light :node="v.node!" />
+        <NodeReference v-if="v.metatype == 'node'" size="sm" is-light :node="v.node!" />
         <template v-else>
           <IconInline v-if="v.icon" v-bind="v.icon" class="w-5 text-center text-gray-700" />
           <span v-if="v.status == 'pending'" class="truncate">...</span>
@@ -379,7 +379,7 @@ defineExpose<ViewExpose>({
           :key="i"
           class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
         >
-          <NodeReference v-if="v.metatype == 'node'" size="regular" is-light :node="v.node!" />
+          <NodeReference v-if="v.metatype == 'node'" size="sm" is-light :node="v.node!" />
           <template v-else>
             <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
             <span class="truncate">{{ v.title ?? "???" }}</span>
@@ -457,7 +457,7 @@ defineExpose<ViewExpose>({
               <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
             </span>
             <!-- Metadata -->
-            <NodeMetadata v-if="item.metatype == 'node'" size="regular" :node="item.node!" class="ml-1.5" />
+            <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />
             <!-- Secondary -->
             <span class="ml-auto truncate pl-2 text-right">
               <!-- Path -->

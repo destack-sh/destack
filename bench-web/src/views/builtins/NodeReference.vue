@@ -26,7 +26,7 @@ import { MaybeElement } from "@vueuse/core";
 import { computed, Ref, ref, toRef } from "vue";
 
 const props = defineProps<{
-  size: "regular" | "large" | "title";
+  size: "sm" | "base" | "title" | "inherit";
   node?: AnyNodeData;
   nodePtr?: NodeReferenceData;
   tx?: () => Transaction;
@@ -65,30 +65,32 @@ const identifierKind = computed(() => {
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
-  props.size == "regular" ? "w-5 mr-1" : "",
-  props.size == "large" ? "w-5 text-base mr-2" : "",
-  props.size == "title" ? "w-8 text-4xl mr-3.5" : "",
+  props.size == "sm" ? "text-sm w-5 mr-1" : "",
+  props.size == "base" ? "text-base w-5 mr-2" : "",
+  props.size == "title" ? "text-4xl w-8 mr-3.5" : "",
+  props.size == "inherit" ? "mr-[0.3em]" : "",
 ]);
 const identifierClass = computed(() => [
-  props.size == "regular" ? [props.isLight ? "" : "font-medium"] : "",
-  props.size == "large" ? ["text-base", props.isLight ? "" : "font-medium"] : "",
+  props.size == "sm" ? ["text-sm", props.isLight ? "" : "font-medium"] : "",
+  props.size == "base" ? ["text-base", props.isLight ? "" : "font-medium"] : "",
   props.size == "title" ? ["text-4xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
 const metadataClass = computed(() => [
-  props.size == "regular" ? "ml-1" : "",
-  props.size == "large" ? "ml-1.5" : "",
+  props.size == "sm" ? "ml-1" : "",
+  props.size == "base" ? "ml-1.5" : "",
   props.size == "title" ? "ml-1.5" : "",
+  props.size == "inherit" ? "ml-[0.3em]" : "",
 ]);
 const identifierWidthMax = computed(() => {
   if (props.maxWidth != null) return props.maxWidth;
   else if (props.size == "title") return 600;
-  else if (props.size == "large") return 400;
+  else if (props.size == "base") return 400;
   else return 300;
 });
 const verticalClass = computed(() => [
-  props.size == "regular" ? "gap-y-0.5" : "",
-  props.size == "large" ? "gap-y-1" : "",
+  props.size == "sm" ? "gap-y-0.5" : "",
+  props.size == "base" ? "gap-y-1" : "",
   props.size == "title" ? "gap-y-2" : "",
 ]);
 
@@ -155,7 +157,7 @@ defineExpose({
       aria-hidden
     />
     <!-- Identifier -->
-    <div class="flex flex-row max-w-full items-baseline">
+    <div class="flex max-w-full flex-row items-baseline">
       <NativeInput
         v-if="isInput && identifierKind == 'name'"
         id="identifier"
@@ -175,13 +177,15 @@ defineExpose({
         v-else-if="identifierKind == 'title'"
         id="identifier"
         ref="identifierRef"
-        class=""
         truncate
         :model-value="(node as any).title"
-        :force-line-type="size == 'title' ? TextLineType.HEADING_1 : TextLineType.PARAGRAPH"
-        :is-small="size != 'title'"
+        :force-line-type="
+          size == 'inherit' ? 'inherit' : size == 'title' ? TextLineType.HEADING_1 : TextLineType.PARAGRAPH
+        "
+        :is-small="size == 'sm'"
         :is-input="isInput"
         :placeholder="nodeTypeName"
+        :style="{ maxWidth: `${identifierWidthMax}px` }"
         @update:model-value="
           (newValue) => getTx().update(node!, { title: newValue as TextLineData }, { debounce: 'long' })
         "
