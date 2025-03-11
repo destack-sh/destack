@@ -7,7 +7,7 @@ import { spacePtr } from "@/system/client";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/action";
 import { keytrap } from "@/ui/keymap";
-import { isDraggingGlobal } from "@/ui/layout";
+import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
 import EmptySpace from "@/views/builtins/EmptySpace.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -61,7 +61,8 @@ watch(
     ref="spaceRef"
     class="select-none overflow-hidden bg-white text-sm"
     :class="[
-      isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
+      IS_DRAGGING_OR_SELECTING || hasActivePopover ? 'select-none' : '',
+      IS_DRAGGING ? 'pointer-events-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
     ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
@@ -177,14 +178,22 @@ mark {
 /* NOTE :Cleanup: we select only direct line descendants to avoid overriding nested pm-text instances that want to inherit
    (like for Titles we sometimes inherit from the containing line, so we don't want to override that) */
 .pm-text.pm-base > * > .line,
-.pm-text.pm-base > * > .line-block.page {
+.pm-text.pm-base > * > * > .line,
+.pm-text.pm-base > * > .line-block.page,
+.pm-text.pm-base > * > * > .line-block.page {
   @apply text-base;
   line-height: 1.65;
 }
 .pm-text.pm-sm > * > .line,
-.pm-text.pm-sm > * > .line-block.page {
+.pm-text.pm-sm > * > * > .line,
+.pm-text.pm-sm > * > .line-block.page,
+.pm-text.pm-sm > * > * > .line-block.page {
   @apply text-sm;
   line-height: 1.65;
+}
+.pm-text.pm-inactive .line,
+.pm-text.pm-inactive .line-block {
+  @apply select-none;
 }
 .pm-text.pm-inherit .line,
 .pm-text.pm-inherit .line-block.page {
@@ -210,6 +219,7 @@ mark {
 .pm-text.pm-truncate .line-block {
   @apply truncate;
 }
+
 /** Placeholders */
 .pm-text .placeholder {
   @apply pointer-events-none select-none text-gray-400;

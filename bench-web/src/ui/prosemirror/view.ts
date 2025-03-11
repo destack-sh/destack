@@ -539,10 +539,7 @@ export function useLineHandlePlugin() {
     doc.descendants((node: PmNode, pos: number) => {
       // only create line handles for text nodes (block line handles are created in the LineBlockView)
       if (node.type.isInGroup("line") && node.type.name != "block") {
-        const widget = Decoration.widget(pos + 1, () => createLineHandleDom(node), {
-          side: 10,
-          key: `line-handle-${node.attrs.blockPtr.id}`,
-        });
+        const widget = Decoration.widget(pos + 1, () => createLineHandleDom(node), { side: 10 });
         decorations.push(widget);
       }
     });

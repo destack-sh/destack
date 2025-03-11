@@ -92,7 +92,7 @@ export function createBlock(
           ...options.node,
           parentPtr,
           packagePtr: target.packagePtr,
-          blockPtr: toNodeRef(block),
+          definitionPtr: toNodeRef(block),
         },
       });
       block.nodePtr = toNodeRef(node);
