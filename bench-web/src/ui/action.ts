@@ -345,10 +345,7 @@ export function fireActionFromEvent(action: Action, e: KeyboardEvent): boolean {
   const context: ActionContext = { event: e };
   if (canvas.selection != null && supergraph.getManyMaybe(canvas.selection.nodesPtr).length > 0) {
     context.nodes = supergraph.getManyMaybe(canvas.selection.nodesPtr);
-  } else if (space.value?.inspectionPtr != null) {
-    const node = supergraph.get(space.value.inspectionPtr);
-    if (node != null) context.nodes = [node];
-  }
+  } // :IgnoreInspectionForAction
 
   // bail if action is disabled or suppressed
   if (!isActionEnabled(action, context)) {
@@ -520,6 +517,7 @@ export function getNodesForAction<T extends NodeType>(
   } else {
     return { connection: null, graph: null, nodes: [] };
   }
+  // NOTE: we ignore the current inspection because it leads to unexpected behavior :IgnoreInspectionForAction
 
   // find link
   let link = null;
