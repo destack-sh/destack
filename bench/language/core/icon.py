@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .property import p_internal
 from .struct import Struct, struct_
-from .validation import EMOJI_CONSTRAINT
 
 if TYPE_CHECKING:
     from bench.language import Color
@@ -30,7 +29,9 @@ class Icon(Struct):
 
     type: IconType = p_internal(30, default=False)
     # content
-    emoji: Optional[str] = p_internal(31, require=False, constraint=EMOJI_CONSTRAINT)
+    # NOTE :Robustness: emoji's should have a (regex?) constraint, but that's pretty hard
+    #  (we used to have \p{Emoji_Presentation}, but that's too strict)
+    emoji: Optional[str] = p_internal(31, require=False)
     fa_name: Optional[str] = p_internal(33, require=False)
     vsc_name: Optional[str] = p_internal(34, require=False)
     # style

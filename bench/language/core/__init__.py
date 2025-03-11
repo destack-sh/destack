@@ -280,7 +280,6 @@ from .type import (
 from .validation import (
     CPU_CONSTRAINT,
     EMAIL_CONSTRAINT,
-    EMOJI_CONSTRAINT,
     NAME_CONSTRAINT,
     RAM_CONSTRAINT,
     SLUG_CONSTRAINT,
@@ -350,7 +349,6 @@ __all__ = [
     "DYNAMIC_RESOURCE_NODE_TYPES",
     "EDIT_SUBJECT_TYPES",
     "EMAIL_CONSTRAINT",
-    "EMOJI_CONSTRAINT",
     "EMPTY_DICT",
     "EMPTY_LIST",
     "EMPTY_SCOPE_DATA",

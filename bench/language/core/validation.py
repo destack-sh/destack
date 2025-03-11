@@ -87,13 +87,11 @@ SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
 URL_REGEX = r"^(?:[a-z]+:\/\/)?[\w.-]+\.[a-z]{2,}(?:\/\S*)?$"
 PHONE_NUMBER_REGEX = r"^\+?(\d{1,3})?[-.\s]?(\(?\d{1,4}\)?)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}$"
-EMOJI_REGEX = r"\p{Emoji_Presentation}"
 NAME_CONSTRAINT = TypeConstraintIn(min_length=0, max_length=128)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
 URL_CONSTRAINT = TypeConstraintIn(regex=URL_REGEX)
 PHONE_NUMBER_CONSTRAINT = TypeConstraintIn(regex=PHONE_NUMBER_REGEX)
-EMOJI_CONSTRAINT = TypeConstraintIn(regex=EMOJI_REGEX)
 CPU_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=16.0, step_value=0.1)
 RAM_CONSTRAINT = TypeConstraintIn(min_value=0.1, max_value=256.0, step_value=0.1)
 
@@ -132,7 +130,6 @@ def constraint(
 TYPE_CONSTRAINT_BY_FORMAT: dict[TypeFormat, TypeConstraintIn] = {  # :TypeFormat
     TypeFormat.URL: TypeConstraintIn(regex=URL_REGEX),
     TypeFormat.EMAIL: TypeConstraintIn(regex=EMAIL_REGEX),
-    TypeFormat.EMOJI: TypeConstraintIn(regex=EMOJI_REGEX),
     TypeFormat.PHONE_NUMBER: TypeConstraintIn(regex=PHONE_NUMBER_REGEX),
     TypeFormat.SLUG: TypeConstraintIn(regex=SLUG_REGEX),
 }
