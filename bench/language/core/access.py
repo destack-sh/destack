@@ -957,7 +957,7 @@ def evaluate_edit(
     for edit in edits:
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
         node_ptr = edit.node_ptr
-        assert node_ptr and node_ptr.id is not None, f"no node id for {edit!r}"
+        assert node_ptr and node_ptr.id is not None, f"no node id for {wiring.describe_edit(edit)}"
         node_type: NodeType = wiring.unpack_enum(NodeType, node_ptr.node_type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
 
@@ -965,9 +965,11 @@ def evaluate_edit(
         if node_cls.__roots__:
             # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.HasField("node_data"), f"no node data for {edit!r}"
+                assert edit.HasField("node_data"), f"no node data for {wiring.describe_edit(edit)}"
                 node_data = wiring.unwrap_some_node(edit.node_data)
-                assert node_data.HasField("parent_ptr"), f"no parent for {edit!r}"
+                assert node_data.HasField(
+                    "parent_ptr"
+                ), f"no parent for {wiring.describe_edit(edit)}"
                 scope_ptr = node_data.parent_ptr
                 while scope_ptr.id in new_node_scopes_by_child_id:
                     scope_ptr = new_node_scopes_by_child_id[scope_ptr.id]
@@ -977,7 +979,10 @@ def evaluate_edit(
             scope = graph.get(cast(str, scope_ptr.id))
             if scope is None:
                 # missing scope means we're trying to edit a node dependent on a node that doesn't exist
-                raise ValidationError(edit, f"scope {scope_ptr!r} for {edit!r} not in {graph!r}")
+                raise ValidationError(
+                    edit,
+                    f"scope {wiring.describe_node_ptr(scope_ptr)} for {wiring.describe_edit(edit)} not in {graph!r}",
+                )
             root = graph.get_root(scope)
         else:
             if edit.type in (EditType.CREATE, EditType.UPSERT):
@@ -995,7 +1000,9 @@ def evaluate_edit(
             raise ValidationError(edit, "invalid properties") from e
 
         if scope is None or root is None:
-            raise ValidationError(edit, f"scope {node_ptr!r} not in {graph!r}")
+            raise ValidationError(
+                edit, f"scope {wiring.describe_node_ptr(node_ptr)} not in {graph!r}"
+            )
         # and evaluate it
         decision, allowed_properties = evaluate_access(
             matrix=matrix,
