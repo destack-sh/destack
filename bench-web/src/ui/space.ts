@@ -108,7 +108,9 @@ type OpenViewOptions = {
   props?: ViewIn;
 };
 
-const activeElement = useActiveElement();
+export const NODE_REF_CONTEXT_KEY = Symbol("nodeRefContext");
+export const activeElement = useActiveElement();
+
 const SUBVIEWS_PROPERTY_ID = propertyInfo(ObjectType.VIEW, ViewProperty.subviewsPacked).id;
 const SUBVIEWS_PROPERTY_KEY = SUBVIEWS_PROPERTY_ID.toString();
 

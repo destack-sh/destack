@@ -216,7 +216,6 @@ function apply(item: SearchItem) {
     }
   } else if (props.type == "@") {
     // create mention
-    // nocheckin: this crashes hard when I refer to the node itself (like Page in Page title)
     const nodePtr = getValueFromItem(item) as NodeReferenceData;
     if (!isNodeRef(nodePtr)) throw new Error("nodePtr is not a node ref");
     const tr = view.state.tr;

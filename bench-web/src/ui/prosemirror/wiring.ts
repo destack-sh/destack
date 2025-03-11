@@ -89,20 +89,26 @@ export function useTextModelValueInterface(options: {
 export function useTextLineModelValueInterface(options: {
   modelValue: Readonly<Ref<TextLineData | undefined | null>>;
   forceLineType?: TextLineType;
+  hideMentions?: boolean;
   update: (text: TextLineData) => void;
 }): TextInterface {
-  const { modelValue, forceLineType, update } = options;
+  const { modelValue, forceLineType, hideMentions, update } = options;
 
   const lines: Ref<LineInterface[]> = computed(() => {
+    let text: TextLineData;
     if (modelValue.value == null) {
-      return [{ type: "text", text: emptyTextLine(options?.forceLineType ?? TextLineType.PARAGRAPH), blockPtr: null }];
+      text = emptyTextLine(options?.forceLineType ?? TextLineType.PARAGRAPH);
     } else {
       if (forceLineType != null) {
-        return [{ type: "text", text: { ...modelValue.value, type: forceLineType }, blockPtr: null }];
+        text = { ...modelValue.value, type: forceLineType };
       } else {
-        return [{ type: "text", text: modelValue.value, blockPtr: null }];
+        text = modelValue.value;
       }
     }
+    if (hideMentions) {
+      text.spans = text.spans.filter((span) => span.type != TextSpanType.MENTION);
+    }
+    return [{ type: "text", text, blockPtr: null }];
   });
 
   function read(): LineInterface[] {

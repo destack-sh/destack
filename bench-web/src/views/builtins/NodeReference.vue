@@ -15,6 +15,7 @@ import {
 import { ConnectionBase } from "@/system/connection";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
+import { NODE_REF_CONTEXT_KEY } from "@/ui/space";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
@@ -23,7 +24,7 @@ import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { MaybeElement } from "@vueuse/core";
-import { computed, Ref, ref, toRef } from "vue";
+import { computed, inject, provide, Ref, ref, toRef } from "vue";
 
 const props = defineProps<{
   size: "sm" | "base" | "title" | "inherit";
@@ -35,6 +36,7 @@ const props = defineProps<{
   isLight?: boolean;
   isIconLight?: boolean;
   isMinimal?: boolean;
+  isNested?: boolean;
   hideIcon?: boolean;
   orientation?: Orientation;
   maxWidth?: number;
@@ -104,6 +106,10 @@ function getTx() {
   }
 }
 
+// nesting
+const isNested = props.isNested ?? inject(NODE_REF_CONTEXT_KEY, null) != null;
+provide(NODE_REF_CONTEXT_KEY, node);
+
 defineExpose({
   focusIcon: () => focusInElement(iconRef.value as MaybeElement),
   focusIdentifier: (anchor?: FocusAnchor) => identifierRef.value?.focus?.(anchor),
@@ -159,14 +165,14 @@ defineExpose({
     <!-- Identifier -->
     <div class="flex max-w-full flex-row items-baseline">
       <NativeInput
-        v-if="isInput && identifierKind == 'name'"
+        v-if="!isNested && isInput && identifierKind == 'name'"
         id="identifier"
         ref="identifierRef"
         class="flex-shrink-0 rounded text-gray-900"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
         :class="identifierClass"
         :placeholder="nodeTypeName"
-        is-input
+        :is-input="!isNested && isInput"
         is-minimal
         :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
         :model-value="(node as any).name"
@@ -182,8 +188,9 @@ defineExpose({
         :force-line-type="
           size == 'inherit' ? 'inherit' : size == 'title' ? TextLineType.HEADING_1 : TextLineType.PARAGRAPH
         "
+        :hide-mentions="isNested"
         :is-small="size == 'sm'"
-        :is-input="isInput"
+        :is-input="!isNested && isInput"
         :placeholder="nodeTypeName"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
         @update:model-value="

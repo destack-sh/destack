@@ -16,6 +16,7 @@ const props = defineProps<
     placeholder?: string;
     truncate?: boolean;
     isSmall?: boolean;
+    hideMentions?: boolean;
   } & Partial<Pick<ViewData, "isInput" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
@@ -25,6 +26,7 @@ const forceLineType = props.forceLineType == "inherit" ? TextLineType.PARAGRAPH 
 const textInterface = useTextLineModelValueInterface({
   modelValue: toRef(props, "modelValue"),
   forceLineType,
+  hideMentions: props.hideMentions,
   update: (text) => emit("update:modelValue", text),
 });
 const vueInstance = getCurrentInstance();
