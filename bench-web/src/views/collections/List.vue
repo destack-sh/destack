@@ -96,7 +96,7 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
         />
         <span class="max-w-full select-none truncate">{{ getNodeTitle(node) ?? "???" }}</span>
         <!-- Metadata -->
-        <NodeMetadata class="ml-1.5" size="regular" :node="node" />
+        <NodeMetadata class="ml-1.5" size="sm" :node="node" />
         <!-- Actions -->
         <div class="ml-auto flex flex-row gap-x-1">
           <button

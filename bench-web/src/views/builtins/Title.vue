@@ -12,7 +12,7 @@ import { getCurrentInstance, ref, toRef } from "vue";
 const props = defineProps<
   {
     modelValue?: TextLineData;
-    forceLineType?: TextLineType;
+    forceLineType?: TextLineType | "inherit";
     placeholder?: string;
     truncate?: boolean;
     isSmall?: boolean;
@@ -21,16 +21,17 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 
 const textRef = ref<HTMLElement | null>(null);
+const forceLineType = props.forceLineType == "inherit" ? TextLineType.PARAGRAPH : props.forceLineType;
 const textInterface = useTextLineModelValueInterface({
   modelValue: toRef(props, "modelValue"),
-  forceLineType: props.forceLineType,
+  forceLineType,
   update: (text) => emit("update:modelValue", text),
 });
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Text");
 
 const plugins: Plugin[] = [usePlaceholderPlugin({ defaultPlaceholder: props.placeholder, showIfUnfocused: true })];
-if (props.isInput && props.forceLineType == TextLineType.PARAGRAPH) {
+if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
 
@@ -47,8 +48,7 @@ const { focus, actions: textActions } = useTextEditor({
   plugins,
   history: true,
 });
-// NOTE :Performance: maybe render simple Text into static DOM node (if readonly)?
-//  (see https://discuss.prosemirror.net/t/render-doc-content-to-html/4193)
+// NOTE :Performance: having each Title be its own full Text editor is a bit heavy
 
 const actions: Partial<ActionMapKit<"space">> = {
   ...textActions,
@@ -59,8 +59,11 @@ defineExpose({ actions, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text pm-compact relative inline-block rounded hover:cursor-text"
-    :class="[isSmall ? 'pm-small' : '', truncate ? 'pm-truncate truncate' : '']"
+    class="pm-text pm-compact pm-paddingless relative inline-block rounded hover:cursor-text"
+    :class="[
+      truncate ? 'pm-truncate truncate' : '',
+      props.forceLineType == 'inherit' ? 'pm-inherit' : isSmall ? 'pm-sm' : 'pm-base',
+    ]"
     data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
     data-suppress-drag="both"
   >

@@ -68,7 +68,7 @@ defineExpose<ViewExpose>({ self, id, focus });
   <div v-if="task" class="group/task flex flex-row items-start gap-x-2">
     <!-- Status -->
     <button
-      class="ml-1 mt-0.5 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-200 bg-white p-[1px] transition-colors duration-75"
+      class="ml-1 mt-0.5 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-500 bg-white p-[1px] transition-colors duration-75"
       :style="{
         borderColor:
           fillState != 'empty'
@@ -140,7 +140,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         "
       >
         <i v-if="!task.ownedByPtr" class="fas fa-user" :class="task.ownedByPtr ? 'text-gray-700' : 'text-gray-400'" />
-        <NodeReference v-if="task.ownedByPtr" :node-ptr="task.ownedByPtr" size="regular" />
+        <NodeReference v-if="task.ownedByPtr" :node-ptr="task.ownedByPtr" size="sm" />
         <span v-else class="text-gray-400">owner</span>
       </button>
       <!-- Due -->

@@ -159,7 +159,7 @@ defineExpose<ViewExpose>({ self, id, actions });
           <i class="fas fa-arrow-up-right" />
         </button>
         <!-- Metadata -->
-        <NodeMetadata :node="action" size="regular" />
+        <NodeMetadata :node="action" size="sm" />
         <!-- Controls/Meta -->
         <div class="ml-auto flex flex-row pl-2 pr-1.5">
           <!-- Run status -->

@@ -167,10 +167,6 @@ mark {
 /** Basics */
 .pm-text {
   @apply text-gray-900;
-  line-height: 1.65;
-}
-.pm-text.pm-small {
-  @apply text-sm;
 }
 .pm-text strong {
   @apply font-semibold;
@@ -178,21 +174,37 @@ mark {
 .pm-text code {
   @apply bg-gray-100 px-1 py-0.5 font-mono text-sm;
 }
+/* NOTE :Cleanup: we select only direct line descendants to avoid overriding nested pm-text instances that want to inherit
+   (like for Titles we sometimes inherit from the containing line, so we don't want to override that) */
+.pm-text.pm-base > * > .line,
+.pm-text.pm-base > * > .line-block.page {
+  @apply text-base;
+  line-height: 1.65;
+}
+.pm-text.pm-sm > * > .line,
+.pm-text.pm-sm > * > .line-block.page {
+  @apply text-sm;
+  line-height: 1.65;
+}
+.pm-text.pm-inherit .line,
+.pm-text.pm-inherit .line-block.page {
+  @apply text-inherit;
+}
 .pm-text .line,
 .pm-text .line-block.page {
-  @apply relative px-0.5 py-[3px] text-base transition-colors duration-150;
+  @apply relative px-0.5 py-[3px] transition-colors duration-150;
+}
+.pm-text .line,
+.pm-text .line-block {
+  @apply transition-colors duration-150;
 }
 .pm-text.pm-compact .line,
 .pm-text.pm-compact .line-block.page {
   @apply px-0 py-[1px];
 }
-.pm-text.pm-small .line,
-.pm-text.pm-small .line-block.page {
-  @apply text-sm;
-}
-.pm-text .line,
-.pm-text .line-block {
-  @apply transition-colors duration-150;
+.pm-text.pm-compact.pm-paddingless .line,
+.pm-text.pm-compact.pm-paddingless .line-block.page {
+  @apply mb-0 mt-0 px-0 py-0;
 }
 .pm-text.pm-truncate .line,
 .pm-text.pm-truncate .line-block {
@@ -314,32 +326,44 @@ mark {
 }
 
 /* Headings */
-.pm-text h1.line {
-  @apply mb-2 mt-4 text-3xl font-bold;
+.pm-text:not(.pm-inherit) h1.line {
+  @apply text-3xl font-bold;
   line-height: 1.2;
 }
-.pm-text.pm-compact h1.line {
+.pm-text:not(.pm-paddingless) h1.line {
+  @apply mb-2 mt-4;
+}
+.pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h1.line {
   @apply mb-1 mt-2;
 }
-.pm-text h2.line {
-  @apply mb-1.5 mt-2.5 text-2xl font-bold;
+.pm-text:not(.pm-inherit) h2.line {
+  @apply text-2xl font-bold;
   line-height: 1.4;
 }
-.pm-text.pm-compact h2.line {
+.pm-text:not(.pm-paddingless) h2.line {
+  @apply mb-1.5 mt-2.5;
+}
+.pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h2.line {
   @apply mb-0.5 mt-1.5;
 }
-.pm-text h3.line {
-  @apply mb-0.5 mt-1.5 text-xl font-bold;
+.pm-text:not(.pm-inherit) h3.line {
+  @apply text-xl font-bold;
   line-height: 1.5;
 }
-.pm-text.pm-compact h3.line {
+.pm-text:not(.pm-paddingless) h3.line {
+  @apply mb-0.5 mt-1.5;
+}
+.pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h3.line {
   @apply mb-0 mt-1;
 }
-.pm-text h4.line {
-  @apply mb-0.5 mt-1.5 text-lg font-bold;
+.pm-text:not(.pm-inherit) h4.line {
+  @apply text-lg font-bold;
   line-height: 1.5;
 }
-.pm-text.pm-compact h4.line {
+.pm-text:not(.pm-paddingless) h4.line {
+  @apply mb-0.5 mt-1.5;
+}
+.pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h4.line {
   @apply mb-0 mt-0.5;
 }
 

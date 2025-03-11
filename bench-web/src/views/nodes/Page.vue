@@ -410,7 +410,7 @@ defineExpose<ViewExpose>({ self, actions, focus });
         <!-- Text/Blocks -->
         <div
           ref="textRef"
-          class="pm-text stealth relative mx-auto rounded hover:cursor-text"
+          class="pm-text pm-base stealth relative mx-auto rounded hover:cursor-text"
           data-suppress-actions="space.move.left,space.move.right"
           :style="{
             width: widths.block + 'px',
