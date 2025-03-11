@@ -392,7 +392,8 @@ class GetConnection[ConnectorT: Connector, T: Node](
         update: WatchGetUpdateData,
         unpack_update: bool,
     ) -> WatchGetUpdate | None:
-        from ..runtime.transaction import edit_data_graph, edit_graph
+        from bench.language import edit_data_graph, edit_graph
+        from bench.proto import wiring
 
         # filter edits
         if self.session._origin:
@@ -422,7 +423,9 @@ class GetConnection[ConnectorT: Connector, T: Node](
                 for edit in new_edits:
                     if edit.type in (EditType.DELETE, EditType.ERASE):
                         node = result.graph.get(UUID(edit.node_ptr.id))
-                        assert node is not None, f"missing node for edit: {edit!r}"
+                        assert (
+                            node is not None
+                        ), f"missing node for edit: {wiring.describe_edit(edit)}"
                         removed[node.id] = node
 
                 # do edit
@@ -438,7 +441,9 @@ class GetConnection[ConnectorT: Connector, T: Node](
                 for edit in new_edits:
                     if edit.type in (EditType.CREATE, EditType.UPDATE, EditType.MOVE):
                         node = result.graph.get(UUID(edit.node_ptr.id))
-                        assert node is not None, f"missing node for edit: {edit!r}"
+                        assert (
+                            node is not None
+                        ), f"missing node for edit: {wiring.describe_edit(edit)}"
                         if edit.type == EditType.CREATE:
                             added[node.id] = node
                         else:
@@ -521,7 +526,9 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             result_data.graph.add(node_data)
         for node_ptr in update.removed_nodes_ptr:
             node_data = result_data.graph.get(cast(str, node_ptr.id))
-            assert node_data is not None, f"missing node for update: {node_ptr!r}"
+            assert (
+                node_data is not None
+            ), f"missing node for update: {wiring.describe_node_ptr(node_ptr)}"
             result_data.graph.remove(node_data)
 
         if result is not None:  # and update unpacked result
@@ -533,7 +540,7 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             for edit in new_edits:
                 if edit.type in (EditType.DELETE, EditType.ERASE):
                     node = result.graph.get(UUID(edit.node_ptr.id))
-                    assert node is not None, f"missing node for edit: {edit!r}"
+                    assert node is not None, f"missing node for edit: {wiring.describe_edit(edit)}"
                     removed[node.id] = node
 
             # add new nodes
@@ -572,7 +579,7 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             for edit in new_edits:
                 if edit.type in (EditType.CREATE, EditType.UPDATE, EditType.MOVE):
                     node = result.graph.get(UUID(edit.node_ptr.id))
-                    assert node is not None, f"missing node for edit: {edit!r}"
+                    assert node is not None, f"missing node for edit: {wiring.describe_edit(edit)}"
                     if edit.type == EditType.CREATE:
                         added[node.id] = node
                     else:
@@ -583,14 +590,18 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             new_roots_data: list[AnyNodeData] = []
             for root_ptr in result_data.roots_ptr:
                 root = result_data.graph.get(cast(str, root_ptr.id))
-                assert root is not None, f"missing root for update: {root_ptr!r}"
+                assert (
+                    root is not None
+                ), f"missing root for update: {wiring.describe_node_ptr(root_ptr)}"
                 new_roots_data.append(root)
             result_data.roots = new_roots_data
 
             new_roots: list[Node] = []
             for root_data in result_data.roots_ptr:
                 root = result.graph.get(UUID(root_data.id))
-                assert root is not None, f"missing root for update: {root_data!r}"
+                assert (
+                    root is not None
+                ), f"missing root for update: {wiring.describe_node_ptr(root_data)}"
                 new_roots.append(root)
             result.roots = new_roots
 
@@ -607,7 +618,9 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             new_roots_data: list[AnyNodeData] = []
             for root_ptr in result_data.roots_ptr:
                 root = result_data.graph.get(cast(str, root_ptr.id))
-                assert root is not None, f"missing root for update: {root_ptr!r}"
+                assert (
+                    root is not None
+                ), f"missing root for update: {wiring.describe_node_ptr(root_ptr)}"
                 new_roots_data.append(root)
             result_data.roots = new_roots_data
 

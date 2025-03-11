@@ -18,6 +18,7 @@ from bench.language.core import (
     BuiltinEnumOrUnion,
     BuiltinObject,
     CustomObject,
+    EditType,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -37,7 +38,7 @@ from bench.language.core import (
 )
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.language.runtime import Session
-from bench.pb2 import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
+from bench.pb2 import AnyNodeData, AnyStructData, EditData, NodeReferenceData, RpcMetadata
 from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -58,6 +59,35 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[B
     cls: BUILTIN_OBJECT_CLASS_BY_TYPE[object_type]
     for cls, object_type in OBJECT_TYPE_BY_PROTO_CLASS.items()
 }
+
+
+def describe_node_ptr(ptr: NodeReferenceData) -> str:
+    """Describe a pointer."""
+    node_type = unpack_enum(NodeType, ptr.node_type)
+    if ptr.ck:
+        return f"{node_type.name}[id={ptr.id}, ck={ptr.ck}]"
+    else:
+        return f"{node_type.name}[id={ptr.id}]"
+
+
+def describe_node(node: AnyNodeData) -> str:
+    """Describe a node."""
+    node_type = unpack_enum(NodeType, node.metatype)
+    node_parts: list[str] = [f"id={node.id}"]
+    if node.HasField("ck"):
+        node_parts.append(f"ck={node.ck}")  # type: ignore
+    if node.HasField("name"):
+        node_parts.append(f"name={node.name}")  # type: ignore
+    if node.HasField("slug"):
+        node_parts.append(f"slug={node.slug}")  # type: ignore
+    return f"{node_type.name}({', '.join(node_parts)})"
+
+
+def describe_edit(edit: EditData) -> str:
+    """Describe an edit."""
+    edit_type = unpack_enum(EditType, edit.type)
+    node_str = describe_node_ptr(edit.node_ptr)
+    return f"{edit_type.name}[id={edit.id}, edited_at={edit.edited_at.ToJsonString()}, node={node_str}]"
 
 
 def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:

@@ -775,12 +775,16 @@ def edit_graph(
                 graph.update(node)
         elif edit_type == EditType.ERASE or (not include_deleted and edit_type == EditType.DELETE):
             node = graph.get(node_id)
-            assert node is not None, f"missing node {node_id!r} for remove: {edit!r}"
+            assert (
+                node is not None
+            ), f"missing node {node_id} for remove: {wiring.describe_edit(edit)}"
             graph.remove(node)
         else:
             # some update
             node = graph.get(node_id)
-            assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
+            assert (
+                node is not None
+            ), f"missing node {node_id} for update: {wiring.describe_edit(edit)}"
 
             # apply edit operations
             for op in edit.operations:

@@ -1277,11 +1277,13 @@ async def pg_graph_edit(
         if edit.node_ptr.node_type in BUILTIN_TABLE_BY_NODE_TYPE:
             return BUILTIN_TABLE_BY_NODE_TYPE[edit.node_ptr.node_type], None
         else:
-            assert edit.node_ptr.base_id, f"no base id for custom table in {edit!r}"
+            assert (
+                edit.node_ptr.base_id
+            ), f"no base id for custom table in {wiring.describe_edit(edit)}"
             table, block = ctx.get_custom_table(UUID(edit.node_ptr.base_id))
             return table, block
 
-    assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
+    assert edits[0].node_ptr is not None, f"no node ptr for {wiring.describe_edit(edits[0])}"
     batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.node_type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
@@ -1291,7 +1293,7 @@ async def pg_graph_edit(
     # batch operations by table and edit type
     for i, prev_edit in enumerate(edits):
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
-        assert prev_edit.node_ptr is not None, f"no node ptr for {prev_edit!r}"
+        assert prev_edit.node_ptr is not None, f"no node ptr for {wiring.describe_edit(prev_edit)}"
         batch.append(prev_edit)
 
         # accumulate updated properties
@@ -1372,7 +1374,9 @@ async def _pg_edit_cascade(
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
         for root_edit in batch:
-            assert root_edit.HasField("old_edited_at"), f"no old edited at for {root_edit!r}"
+            assert root_edit.HasField(
+                "old_edited_at"
+            ), f"no old edited at for {wiring.describe_edit(root_edit)}"
             removed_at = root_edit.old_edited_at.ToDatetime(tzinfo=pytz.utc)
             removed_dts.append(removed_at)
         extra_filter = C(op=ConditionalType.IN, property=Node.deleted_at, value=removed_dts)
@@ -1469,7 +1473,7 @@ async def _pg_edit_batch(
         nodes = []
         rows = []
         for edit in batch:
-            assert edit.HasField("node_data"), f"no node_data for {edit!r}"
+            assert edit.HasField("node_data"), f"no node_data for {wiring.describe_edit(edit)}"
             node = wiring.unwrap_some_node(edit.node_data)
             nodes.append(node)
             # inline implicit metadata
@@ -1526,8 +1530,8 @@ async def _pg_edit_batch(
         # collect dynamic values
         dynamic_values: list[RowIn] = []
         for edit in batch:
-            assert edit.node_ptr is not None, f"no node ptr for {edit!r}"
-            assert edit.HasField("edited_at"), f"no edited_at for {edit!r}"
+            assert edit.node_ptr is not None, f"no node ptr for {wiring.describe_edit(edit)}"
+            assert edit.HasField("edited_at"), f"no edited_at for {wiring.describe_edit(edit)}"
             row: dict[str, SqlPrimitive] = {"id": edit.node_ptr.id}
 
             # apply update operations
@@ -1535,11 +1539,15 @@ async def _pg_edit_batch(
                 # we only support top-level set/clear operations
                 assert (
                     op.type == EditOperationType.SET or op.type == EditOperationType.CLEAR
-                ), f"cannot perform non-set operation: ${op!r} in {edit!r}"
-                assert len(op.path) == 1, f"cannot update hierarchically: {op!r} in {edit!r}"
+                ), f"cannot perform non-set operation: ${op!r} in {wiring.describe_edit(edit)}"
+                assert (
+                    len(op.path) == 1
+                ), f"cannot update hierarchically: {op!r} in {wiring.describe_edit(edit)}"
                 prop_id = int(op.path[0])
                 prop = node_cls.__properties_by_id__.get(prop_id)
-                assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
+                assert (
+                    prop is not None
+                ), f"no property {prop_id!r} in {node_cls!r} for {wiring.describe_edit(edit)}"
 
                 # apply set
                 if op.type == EditOperationType.CLEAR or not op.HasField("new_value_packed"):
