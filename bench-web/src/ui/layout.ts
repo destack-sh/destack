@@ -1,5 +1,6 @@
 import type { Transaction } from "@/language/runtime/transaction";
 import { ObjectType, Orientation, RectangleData, type ViewData } from "@/proto/wire";
+import { activeSelection } from "@/ui/drag";
 import { roundToDigits } from "@/utils/functools";
 import {
   useElementSize,
@@ -12,8 +13,8 @@ import {
 import { computed, ref, toRef, watch, type MaybeRef, type Ref } from "vue";
 
 // our own 'dragging' state so we can block pointer events at the root component
-const _isDraggingGlobal = ref(false);
-export const isDraggingGlobal = computed(() => _isDraggingGlobal.value);
+export const IS_DRAGGING = ref(false);
+export const IS_DRAGGING_OR_SELECTING = computed(() => IS_DRAGGING.value || activeSelection.value != null);
 
 export const MIN_SPLIT_SIZE = 250;
 export const DEFAULT_ORIENTATION = Orientation.HORIZONTAL;
@@ -203,7 +204,7 @@ export function useSplitView(
     // wait for mouse press once to start dragging
     computed(() => draggingIdx.value != null && mousePressed.pressed.value),
     () => {
-      _isDraggingGlobal.value = true;
+      IS_DRAGGING.value = true;
 
       // apply dragging
       const stop = watch([mouseRelativeX, mouseRelativeY], () => {
@@ -221,7 +222,7 @@ export function useSplitView(
         computed(() => !mousePressed.pressed.value),
         () => {
           draggingIdx.value = null;
-          _isDraggingGlobal.value = false;
+          IS_DRAGGING.value = false;
           stop();
         },
         { once: true },
@@ -359,7 +360,7 @@ export function useScrollArea(area: {
       isThumbScrolling.value = false;
     }
   });
-  watch(isThumbScrolling, () => (_isDraggingGlobal.value = isThumbScrolling.value));
+  watch(isThumbScrolling, () => (IS_DRAGGING.value = isThumbScrolling.value));
 
   function getStartPosition() {
     if (area.container.value == null) return null;

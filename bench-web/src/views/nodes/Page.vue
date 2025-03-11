@@ -24,7 +24,7 @@ import { bench, canvas, pkg } from "@/system/space";
 import { type ActionMapKit } from "@/ui/action";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { isDraggingGlobal, ScrollbarWidth } from "@/ui/layout";
+import { IS_DRAGGING_OR_SELECTING, ScrollbarWidth } from "@/ui/layout";
 import { useNodeListActions } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
 import { useTextEditor } from "@/ui/prosemirror/editor";
@@ -151,7 +151,7 @@ const {
   mode: "block",
   textRef,
   text: textInterface,
-  isInput: true,
+  isInput: computed(() => !IS_DRAGGING_OR_SELECTING.value),
   suppressEnter: false,
   suppressDrop: true, // handled manually (block-by-block) below
   navigate: (direction: NavigationDirection) => {
@@ -356,9 +356,6 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
   }
 }
 
-const isSelectingPage = computed(() => isSelecting());
-const canSelect = computed(() => !isSelectingPage.value && !isDraggingGlobal.value);
-
 defineExpose<ViewExpose>({ self, actions, focus });
 </script>
 <template>
@@ -388,7 +385,7 @@ defineExpose<ViewExpose>({ self, actions, focus });
       <div
         ref="contentRef"
         class="flex min-h-full flex-col focus:outline-none focus:ring-0"
-        :class="[canSelect ? '' : 'cursor-default select-none']"
+        :class="[IS_DRAGGING_OR_SELECTING ? 'cursor-default select-none' : '']"
         :style="{ minHeight: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) + 'px' }"
       >
         <!-- Page header (title) -->
@@ -411,6 +408,7 @@ defineExpose<ViewExpose>({ self, actions, focus });
         <div
           ref="textRef"
           class="pm-text pm-base stealth relative mx-auto rounded hover:cursor-text"
+          :class="[IS_DRAGGING_OR_SELECTING ? 'pm-inactive' : '']"
           data-suppress-actions="space.move.left,space.move.right"
           :style="{
             width: widths.block + 'px',

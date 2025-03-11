@@ -32,7 +32,9 @@ const textInterface = useTextLineModelValueInterface({
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Text");
 
-const plugins: Plugin[] = [usePlaceholderPlugin({ defaultPlaceholder: props.placeholder, showIfUnfocused: true })];
+const plugins: Plugin[] = [
+  usePlaceholderPlugin({ defaultPlaceholder: props.placeholder, placeholderByNodeType: {}, showIfUnfocused: true }),
+];
 if (props.isInput && forceLineType) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
