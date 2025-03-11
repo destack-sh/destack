@@ -208,7 +208,7 @@ def unpack_commit(
 class HostPlugin[T: Node]:
     """
     A plugin into the Host operating system of a Bench.
-    TODO :Architecture :Performance!: revisit HostPlugins for Package/transaction isolation
+    TODO :Architecture! :Performance!: revisit HostPlugins for Package/transaction isolation
      Maybe this could work a bit like in ProseMirror where (some) state is isolated outside
      of the individual plugins - that would also make it easier to reset on error.
      We probably also want to load in/out Packages at some point (?)

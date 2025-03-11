@@ -839,7 +839,9 @@ export function useTextEditor(options: {
 
   // mount the editor view
   whenever(textRef, () => {
-    if (view) throw new Error("view already exists");
+    if (view) {
+      view.destroy();
+    }
     prevText = lines.value.slice();
     view = makeEditorView();
   });

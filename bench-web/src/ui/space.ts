@@ -282,7 +282,7 @@ export class SpaceCanvas {
     // traverse upwards until we find some node ptr or a component that gives us a node ptr
     let nodePtr: NodeReferenceData | null = null;
     while (el != null) {
-      if (el.dataset?.["ignoreElement"] == "self") {
+      if (el.dataset?.["suppressNode"] == "self") {
         el = el.parentElement!; // skip this element
         continue;
       } else if (el.dataset?.["nodeId"] != null) {

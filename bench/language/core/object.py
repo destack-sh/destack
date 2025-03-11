@@ -623,7 +623,12 @@ def _trace_edit_operation(
     old_value: Any | None,
     subtype: int | None,
 ):
-    """Traces an edit operation to the given object."""
+    """
+    Traces an edit operation to the given object.
+    TODO :Performance!: trace edits using 'dirty fields/paths' instead of full operations
+     (we flush very frequently and it would be much more efficient to avoid packing edits upfront;
+      also there is no need to track old_value right?)
+    """
     # figure out if we're in a tracked node (before we start tracing the edit)
     if key.is_list and not (new_value is None or isinstance(new_value, list)):
         return  # ignore, not tracking edits to individual list items yet

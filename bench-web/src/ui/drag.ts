@@ -677,7 +677,7 @@ function getIntersectingNodes(
       elBounding.right >= x &&
       elBounding.top <= y2 &&
       elBounding.bottom >= y &&
-      el.dataset?.["ignoreElement"] != "self"
+      el.dataset?.["suppressNode"] != "self"
     ) {
       let nodePtr: NodeReferenceData | null = null;
       if (el.dataset?.["nodeId"] != null) {

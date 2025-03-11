@@ -65,13 +65,13 @@ const actions: Partial<ActionMapKit<"space" | "link">> = {
 defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
-  <div v-if="link != null && path != null" class="group pointer-events-none z-30" data-ignore-element="self">
+  <div v-if="link != null && path != null" class="group pointer-events-none z-30" data-suppress-node="self">
     <!-- Path -->
     <svg
       class="group pointer-events-none relative overflow-visible"
       :class="lastRun != null && isRunActive(lastRun) ? 'animate-pulse' : ''"
       :style="{ color: lastRun != null ? getRunColorHex(lastRun.status) : pathColorHex }"
-      data-ignore-element="self"
+      data-suppress-node="self"
     >
       <defs>
         <!-- Main Arrowhead Marker -->

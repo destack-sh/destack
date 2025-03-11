@@ -617,7 +617,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           :data-node-id="message.id"
           :data-node-type="message.metatype"
           data-contextmenu-items="chat.message*"
-          data-ignore-element="self"
+          data-suppress-node="self"
           @dblclick="startReplying(message)"
         >
           <!-- New date (line with date in middle) -->
