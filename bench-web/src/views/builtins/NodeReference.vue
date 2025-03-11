@@ -128,6 +128,8 @@ defineExpose({
     :data-node-type="node.metatype"
     aria-role="button"
     data-contextmenu-items="space.navigate.open"
+    data-suppress-node="self"
+    @mousedown.prevent="() => identifierRef?.focus?.('right')"
     @click="
       (e) => {
         if (!isInput && node != null && e.altKey) {
@@ -178,6 +180,7 @@ defineExpose({
         :model-value="(node as any).name"
         @update:model-value="(newValue) => getTx().update(node!, { name: newValue as string }, { debounce: 'long' })"
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+        @mousedown.stop="true /* keep inner focus */"
       />
       <Title
         v-else-if="identifierKind == 'title'"
@@ -198,6 +201,7 @@ defineExpose({
         "
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
         @keydown.enter.stop="emit('navigate', 'enter')"
+        @mousedown.stop="true /* keep inner focus */"
       />
       <span
         v-else

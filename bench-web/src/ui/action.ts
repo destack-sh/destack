@@ -517,8 +517,6 @@ export function getNodesForAction<T extends NodeType>(
     nodesPtr = canvas.selection.nodesPtr;
   } else if (context?.nodes != null) {
     nodesPtr = context.nodes.map(toNodeRef);
-  } else if (canvas.inspection != null) {
-    nodesPtr = [canvas.inspection];
   } else {
     return { connection: null, graph: null, nodes: [] };
   }
