@@ -5873,6 +5873,10 @@ export interface FlowData {
      */
     subnodePacked?: JsonValue;
     /**
+     * @generated from protobuf field: symbolx.bench.FlowType type = 30;
+     */
+    type: FlowType;
+    /**
      * @generated from protobuf field: optional string name = 31;
      */
     name?: string;
@@ -8238,6 +8242,10 @@ export enum EnumType {
      */
     LINK_TRIGGER = 22354,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 22360;
+     */
+    FLOW_TYPE = 22360,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 22400;
      */
     SPACE_TYPE = 22400,
@@ -10017,6 +10025,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_LINK_TRIGGER = 22354;
      */
     LINK_TRIGGER = 22354,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FLOW_TYPE = 22360;
+     */
+    FLOW_TYPE = 22360,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 22400;
      */
@@ -13665,6 +13677,19 @@ export enum LinkTrigger {
      * @generated from protobuf enum value: LINK_TRIGGER_ON_TERMINATED = 3;
      */
     ON_TERMINATED = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.FlowType
+ */
+export enum FlowType {
+    /**
+     * @generated from protobuf enum value: FLOW_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FLOW_TYPE_ACTION = 10;
+     */
+    ACTION = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.SpaceType
@@ -29000,6 +29025,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 28, name: "computed_values", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ComputedValueData },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FlowType", FlowType, "FLOW_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
@@ -29018,6 +29044,7 @@ class FlowData$Type extends MessageType$<FlowData> {
         message.id = "";
         message.mode = 0;
         message.computedValues = [];
+        message.type = 0;
         message.tagsPtr = [];
         message.rolesPtr = [];
         if (value !== undefined)
@@ -29073,6 +29100,9 @@ class FlowData$Type extends MessageType$<FlowData> {
                     break;
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* symbolx.bench.FlowType type */ 30:
+                    message.type = reader.int32();
                     break;
                 case /* optional string name */ 31:
                     message.name = reader.string();
@@ -29161,6 +29191,9 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.FlowType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
@@ -34009,6 +34042,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.LINK_TYPE]: LinkType,
   [EnumType.LINK_TRIGGER]: LinkTrigger,
+  [EnumType.FLOW_TYPE]: FlowType,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -34423,6 +34457,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.LINK_TYPE]: LinkType,
   [EnumType.LINK_TRIGGER]: LinkTrigger,
+  [EnumType.FLOW_TYPE]: FlowType,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.COLOR_TYPE]: ColorType,
@@ -35111,6 +35146,7 @@ export enum FlowProperty {
   mode = 25,
   computedValues = 28,
   subnodePacked = 29,
+  type = 30,
   name = 31,
   orderKey = 33,
   icon = 34,
@@ -37154,8 +37190,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.10.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.10.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37193,8 +37229,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 60, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.10.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.10.3", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 60, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.11.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37592,6 +37628,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.mode]: { id: 25, name: 'mode', component: ObjectType.FLOW, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [FlowProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [FlowProperty.type]: { id: 30, name: 'type', component: ObjectType.FLOW, enumType: EnumType.FLOW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.name]: { id: 31, name: 'name', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -39594,6 +39631,10 @@ export const LinkTriggerOptionInfo: Partial<Record<LinkTrigger, EnumOptionInfo>>
   [LinkTrigger.ON_TERMINATED]: { id: 3, name: 'ON_TERMINATED', text: 'Always, success or failure', title: 'On terminated', icon: 'fas fa-check-double' },
 }
 
+export const FlowTypeOptionInfo: Partial<Record<FlowType, EnumOptionInfo>> = {
+  [FlowType.ACTION]: { id: 10, name: 'ACTION', text: 'Link Actions into a single Flow', title: 'Action' },
+}
+
 export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.USER_WIZARD]: { id: 20001, name: 'USER_WIZARD', text: 'Sign up, login, etc.', title: 'User wizard', icon: 'fas fa-user' },
   [ViewType.BENCH_WIZARD]: { id: 20002, name: 'BENCH_WIZARD', title: 'Bench wizard', icon: 'fas fa-circle-dot' },
@@ -39699,6 +39740,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.ACTION_CATEGORY]: ActionCategoryOptionInfo,
   [EnumType.LINK_TYPE]: LinkTypeOptionInfo,
   [EnumType.LINK_TRIGGER]: LinkTriggerOptionInfo,
+  [EnumType.FLOW_TYPE]: FlowTypeOptionInfo,
   [EnumType.VIEW_TYPE]: ViewTypeOptionInfo,
   [EnumType.MESSAGE_TYPE]: MessageTypeOptionInfo,
 }

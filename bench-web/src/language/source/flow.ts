@@ -2,7 +2,17 @@ import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
 import { Transaction } from "@/language/runtime/transaction";
-import { ActionType, BenchType, FieldType, FlowData, NodeType, ObjectType, TypeData, TypeKind } from "@/proto/wire";
+import {
+  ActionType,
+  BenchType,
+  FieldType,
+  FlowData,
+  FlowType,
+  NodeType,
+  ObjectType,
+  TypeData,
+  TypeKind,
+} from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 
 /** Create a Flow. */
@@ -14,7 +24,7 @@ export function createFlow(tx: Transaction, graph: ReadNodeGraph, options: { flo
   // create
   const siblings = graph.getChildren(options.flow.parentPtr!, NodeType.FLOW);
   const name = options.flow.name ?? generateNodeName({ metatype: ObjectType.FLOW, ...options.flow }, siblings);
-  const flow = tx.create({ metatype: NodeType.FLOW, ...options.flow, name });
+  const flow = tx.create({ metatype: NodeType.FLOW, type: FlowType.ACTION, ...options.flow, name });
 
   // create default contents
   const start = tx.create({

@@ -94,7 +94,8 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
     <NodeReference
       v-if="node && block.type == BlockType.PAGE"
       ref="nodeRef"
-      size="large"
+      class="cursor-pointer"
+      size="base"
       is-underline
       is-light
       :node="node"

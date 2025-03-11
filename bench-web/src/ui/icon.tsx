@@ -27,7 +27,7 @@ import {
   TypeFormatOptionInfo,
   TypeKind,
   type AnyNodeData,
-  type IconData
+  type IconData,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
@@ -366,13 +366,13 @@ export function getNodeTitle(
     const basePtr = getBaseFromNode(node);
     const base = options?.base ?? (basePtr != null ? supergraph.get(basePtr) : undefined);
     if (base != null) {
-      return (base as any).title ?? (base as any).name;
+      return getNodeTitle(base, options);
     }
   } else if (isNode(node, NodeType.VIEW) && node.nodePtr != null) {
     // 'quasi' base from view
     const base = options?.base ?? supergraph.get(node.nodePtr);
     if (base != null) {
-      return (base as any).title ?? (base as any).name;
+      return getNodeTitle(base, options);
     }
   }
 

@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.10.4"
+VERSION = "2025.03.11.0"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
@@ -417,6 +417,7 @@ class EnumType(BuiltinEnum):
     PORT_SIDE = 22352
     LINK_TYPE = 22353
     LINK_TRIGGER = 22354
+    FLOW_TYPE = 22360
 
     # views (22400-22449)
     SPACE_TYPE = 22400
