@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.10.4"
+VERSION = "2025.03.11.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -928,6 +928,7 @@ FLOW_TABLE = Table(
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),

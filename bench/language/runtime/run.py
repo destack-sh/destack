@@ -193,7 +193,7 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
         array=False,
         references=NodeType.THREAD,
         same_bench=True,
-        description="The Thread for communicating with the Run.",
+        description="The Thread for communicating with the Run. May be shared with other Runs.",
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None

@@ -2,6 +2,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Optional, Union
 
 from bench.language.core import (
+    BuiltinEnum,
+    EnumType,
     FieldType,
     InlineNode,
     IsComputable,
@@ -13,6 +15,7 @@ from bench.language.core import (
     StructType,
     TypeBase,
     TypeKind,
+    enum_,
     node_,
     p_node_children,
     p_node_parent,
@@ -26,11 +29,17 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@enum_(EnumType.FLOW_TYPE)
+class FlowType(BuiltinEnum):
+    ACTION = 10, "Action", "Link Actions into a single Flow"
+
+
 @node_(NodeType.FLOW, passthrough_get=("fields",))
 class Flow(IsComputable, IsTemplatable, IsTraceable, IsNamed, InlineNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+    type: FlowType = p_regular(30, default=FlowType.ACTION, default_sql=None)
 
     # meta
     options: Optional["RunOptions"] = p_regular(

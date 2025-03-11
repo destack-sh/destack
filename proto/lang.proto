@@ -108,6 +108,7 @@ enum EnumType {
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_LINK_TYPE = 22353;
   ENUM_TYPE_LINK_TRIGGER = 22354;
+  ENUM_TYPE_FLOW_TYPE = 22360;
   ENUM_TYPE_SPACE_TYPE = 22400;
   ENUM_TYPE_VIEW_TYPE = 22401;
   ENUM_TYPE_COLOR_TYPE = 22402;
@@ -560,6 +561,7 @@ enum BenchType {
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_LINK_TYPE = 22353;
   BENCH_TYPE_LINK_TRIGGER = 22354;
+  BENCH_TYPE_FLOW_TYPE = 22360;
   BENCH_TYPE_SPACE_TYPE = 22400;
   BENCH_TYPE_VIEW_TYPE = 22401;
   BENCH_TYPE_COLOR_TYPE = 22402;
@@ -1645,6 +1647,11 @@ enum LinkTrigger {
   LINK_TRIGGER_ON_COMPLETED = 1;
   LINK_TRIGGER_ON_FAILED = 2;
   LINK_TRIGGER_ON_TERMINATED = 3;
+}
+
+enum FlowType {
+  FLOW_TYPE_UNSPECIFIED = 0;
+  FLOW_TYPE_ACTION = 10;
 }
 
 enum SpaceType {
@@ -3696,6 +3703,7 @@ message FlowData {
   NodeMode mode = 25;
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
+  FlowType type = 30;
   optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;

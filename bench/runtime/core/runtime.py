@@ -392,6 +392,7 @@ class Runtime:
     ) -> list[Resource]:
         """Get or create the available Resources for the given Runner."""
         # TODO :Incomplete: reuse resources across (unrelated) Runs? :ExclusiveOwnership
+        #  (also related to switching from ResourceFields to :ResourceClaims somehow?)
         resource_types = [to_type_scalar(t) for t in resources if not isinstance(t, Resource)]
         resources_to_acquire: list[Resource] = [r for r in resources if isinstance(r, Resource)]
         for resource_type in resource_types:
@@ -628,7 +629,8 @@ class Runtime:
                         timeout=DEFAULT_RESOURCE_TIMEOUT,
                     )
                     # TODO :Incomplete!: free/decommission resourcers on Run termination?
-                    #  (use Resource.active_at for timeout/keepalive as backup in Host)
+                    #  (use Resource.active_at for timeout/keepalive as backup in Host
+                    #   ... also see above for :ResourceClaims instead/also maybe)
 
         # check inputs
         if runner.input_type is not None:
