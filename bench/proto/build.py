@@ -745,6 +745,7 @@ export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
     type_formats_str_inner = "\n".join(
         f"  [TypeFormat.{t.name.upper()}]: {_render_js_constraint(TYPE_CONSTRAINT_BY_FORMAT[t])},"
         for t in TypeFormat
+        if t in TYPE_CONSTRAINT_BY_FORMAT
     )
     type_formats_str = f"""
 export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstraintIn>> = {{
