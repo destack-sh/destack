@@ -62,7 +62,7 @@ const dragInfo = computed<DragInfo | null>(() => {
           :key="node.id"
           :node="node"
           size="sm"
-          class="max-w-48 rounded-2xl border border-gray-300 bg-white px-1.5 py-0.5 text-gray-900"
+          class="max-w-[200px] truncate rounded-2xl border border-gray-300 bg-white px-1.5 py-0.5 text-gray-900"
         />
         <span
           v-if="dragInfo.unwrappedNodes.length > 0 && Object.keys(dragInfo.unnamedNodesByType).length > 0"

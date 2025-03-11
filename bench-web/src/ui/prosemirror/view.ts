@@ -1,5 +1,4 @@
-import { supergraph } from "@/globals";
-import { canvas } from "@/globals";
+import { canvas, supergraph } from "@/globals";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { isNodeRef } from "@/proto/wiring";
 import { startDragging } from "@/ui/drag";
@@ -211,6 +210,9 @@ export class LineBlockView extends VueComponentView {
       this.nodePtr = node.attrs.nodePtr;
       this.props = { ...this.props, id: this.blockPtr.id, nodePtr: this.blockPtr };
       this.setupView(this.blockPtr, this.nodePtr);
+      this.lineHandleDom.remove();
+      this.lineHandleDom = createLineHandleDom(node);
+      this.dom.appendChild(this.lineHandleDom);
       this.render();
     }
     return true;
@@ -276,6 +278,11 @@ export class LineBlockView extends VueComponentView {
 
   setSelection(anchor: number, head: number, root: Document | ShadowRoot) {
     // nothing to do?
+  }
+
+  destroy(): void {
+    this.lineHandleDom.remove();
+    super.destroy();
   }
 }
 
@@ -484,8 +491,11 @@ export function useTooltipPlugin(options: {
 
 export const LINE_HANDLE_PLUGIN_KEY = new PluginKey("lineHandlePlugin");
 
+let handleId = 0;
+
 /** Create a DOM element for a line handle. */
 function createLineHandleDom(node: PmNode): HTMLElement {
+  const id = handleId++;
   const blockPtr = node.attrs.blockPtr as NodeReferenceData;
 
   function createButton(icon: string): HTMLElement {
@@ -499,9 +509,6 @@ function createLineHandleDom(node: PmNode): HTMLElement {
 
   const containerDom = document.createElement("div");
   containerDom.className = "line-handle";
-
-  // add
-  // TODO :UX: add button for line handle
 
   // drag
   const dragButton = createButton("fas fa-grip-vertical");
@@ -530,9 +537,12 @@ export function useLineHandlePlugin() {
   function buildLineHandleDecorations(doc: PmNode) {
     const decorations: Decoration[] = [];
     doc.descendants((node: PmNode, pos: number) => {
-      // only create line handles for text nodes (block line handles are created in the BlockRenderer)
+      // only create line handles for text nodes (block line handles are created in the LineBlockView)
       if (node.type.isInGroup("line") && node.type.name != "block") {
-        const widget = Decoration.widget(pos + 1, () => createLineHandleDom(node), { side: 10 });
+        const widget = Decoration.widget(pos + 1, () => createLineHandleDom(node), {
+          side: 10,
+          key: `line-handle-${node.attrs.blockPtr.id}`,
+        });
         decorations.push(widget);
       }
     });

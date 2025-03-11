@@ -195,7 +195,7 @@ defineExpose<
       :style="
         orientation == Orientation.HORIZONTAL
           ? { height: props.trackWidth + 'px', bottom: '0px', left: '0px', width: '100%' }
-          : { width: props.trackWidth + 'px', right: area.thumb.value.width + 'px', top: '0px', height: '100%' }
+          : { width: props.trackWidth + 'px', right: '0px', top: '0px', height: '100%' }
       "
       data-suppress-drag="both"
     >

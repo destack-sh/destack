@@ -456,7 +456,6 @@ export function cloneNode<T extends AnyNodeData>(
       );
       newNode.orderKey = orderKey;
     }
-
     // position
     if (isNode(newNode, NodeType.ACTION)) {
       newNode.position = addVector2(newNode.position, { x: 0, y: FLOW_GRID_STEP * 6 });
