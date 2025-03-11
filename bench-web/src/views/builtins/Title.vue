@@ -48,7 +48,6 @@ const { focus, actions: textActions } = useTextEditor({
   deleteSelf: () => emit("deleteSelf"),
   parentComponent: vueInstance,
   plugins,
-  history: true,
 });
 // NOTE :Performance: having each Title be its own full Text editor is a bit heavy
 
@@ -66,7 +65,7 @@ defineExpose({ actions, focus });
       truncate ? 'pm-truncate truncate' : '',
       props.forceLineType == 'inherit' ? 'pm-inherit' : isSmall ? 'pm-sm' : 'pm-base',
     ]"
-    data-suppress-actions="space.move.left,space.move.right,space.history.undo,space.history.redo"
+    data-suppress-actions="space.move.left,space.move.right"
     data-suppress-drag="both"
   >
     <!-- ... -->

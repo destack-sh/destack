@@ -1234,6 +1234,26 @@ export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | NodeRefere
   return isNodeRef(node) ? graph.getOrError(node) : node;
 }
 
+/** Get the siblings of the given node (of the same node type) */
+export function getSiblings(graph: ReadNodeGraph, node: AnyNodeData): AnyNodeData[] {
+  if (node.parentPtr == null) return [];
+  return graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
+}
+
+/** Get the previous sibling of the given node */
+export function getPreviousSibling(graph: ReadNodeGraph, node: AnyNodeData): AnyNodeData | null {
+  const siblings = getSiblings(graph, node);
+  const index = siblings.findIndex((sibling) => sibling.id == node.id);
+  return index > 0 ? siblings[index - 1] : null;
+}
+
+/** Get the next sibling of the given node */
+export function getNextSibling(graph: ReadNodeGraph, node: AnyNodeData): AnyNodeData | null {
+  const siblings = getSiblings(graph, node);
+  const index = siblings.findIndex((sibling) => sibling.id == node.id);
+  return index < siblings.length - 1 ? siblings[index + 1] : null;
+}
+
 export type NodeTreeItem<T extends NodeType> = {
   id: string;
   node: NodeTypeMapping[T];
