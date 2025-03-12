@@ -21,6 +21,9 @@ if TYPE_CHECKING:
 class Dependency(IsTemplatable, IsTraceable, PackageNode[DependencyData]):
     """A Dependency on another Package or Bench."""
 
+    # NOTE :Incomplete: Dependency doesn't actually do anything yet
+    #  (we just hardcode a dependency on the builtin Bench package)
+
     parent: Union["Package", None] = p_node_parent(4, NodeType.PACKAGE)
 
     dependency: Union["Package", "Bench"] = p_regular(

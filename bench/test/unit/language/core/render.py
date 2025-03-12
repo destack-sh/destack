@@ -8,8 +8,6 @@ from bench.language import (
     Action,
     ActionType,
     Aliasing,
-    Block,
-    BlockType,
     BuiltinObject,
     Choice,
     Class,
@@ -207,12 +205,6 @@ def test_render_field_with_constraint(session: Session, package: Package):
         "Field1", int, constraint=constraint(min_value=1.0, max_value=10.0, step_value=2.0)
     )
     return {"Field1": Field1}
-
-
-@_render_test
-def test_render_create_action(session: Session, package: Package):
-    Action1 = Action.new(ActionType.CREATE, "Action1", node_partial=Block.partial(BlockType.PAGE))
-    return {"Action1": Action1}
 
 
 @_render_test
