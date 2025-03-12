@@ -3,7 +3,7 @@ from uuid import UUID
 
 from bench.language import Region
 from bench.proto import SupervisorClient
-from bench.system import HostInfo, HostMap, SupervisorService
+from bench.system import CreateBenchOptions, HostInfo, HostMap, SupervisorService
 
 from .service import ServiceHandle
 from .spec import SupervisorSpec
@@ -44,6 +44,7 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, Supervis
             oracle=self.oracle,
             host_map=SimulatedHostMap(self.simulation),
             on_error=self.simulation.on_error,
+            create_bench_options=CreateBenchOptions(create_machine_scaler=False),
         )
         await self._service.start()
         return self._service

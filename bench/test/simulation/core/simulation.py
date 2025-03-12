@@ -131,16 +131,18 @@ class Simulation:
 
     def get_user(self, name: str) -> "UserHandle":
         user = self.users_by_name.get(name)
-        assert (
-            user is not None
-        ), f"{self!r} has no user: '{name}' (available: {list(self.users_by_name)})"
+        if user is None:
+            raise LookupError(
+                f"{self!r} has no user: '{name}' (available: {list(self.users_by_name)})"
+            )
         return user
 
     def get_client(self, name: str) -> "ClientHandle":
         client = self.clients_by_name.get(name)
-        assert (
-            client is not None
-        ), f"{self!r} has no client: '{name}' (available: {list(self.clients_by_name)})"
+        if client is None:
+            raise LookupError(
+                f"{self!r} has no client: '{name}' (available: {list(self.clients_by_name)})"
+            )
         return client
 
     def get_bench(self, name: str | UUID) -> "BenchHandle":
@@ -148,37 +150,42 @@ class Simulation:
             bench = self.benches_by_id.get(name)
         else:
             bench = self.benches_by_name.get(name)
-        assert (
-            bench is not None
-        ), f"{self!r} has no bench: '{name}' (available: {list(self.benches_by_name)})"
+        if bench is None:
+            raise LookupError(
+                f"{self!r} has no bench: '{name}' (available: {list(self.benches_by_name)})"
+            )
         return bench
 
     def get_machine(self, name: str) -> "MachineHandle":
         machine = self.machines_by_name.get(name)
-        assert (
-            machine is not None
-        ), f"{self!r} has no machine: '{name}' (available: {list(self.machines_by_name)})"
+        if machine is None:
+            raise LookupError(
+                f"{self!r} has no machine: '{name}' (available: {list(self.machines_by_name)})"
+            )
         return machine
 
     def get_runtime(self, name: str) -> "RuntimeHandle":
         runtime = self.runtimes_by_name.get(name)
-        assert (
-            runtime is not None
-        ), f"{self!r} has no runtime: '{name}' (available: {list(self.runtimes_by_name)})"
+        if runtime is None:
+            raise LookupError(
+                f"{self!r} has no runtime: '{name}' (available: {list(self.runtimes_by_name)})"
+            )
         return runtime
 
     def get_host(self, name: str) -> "HostHandle":
         host = self.hosts_by_name.get(name)
-        assert (
-            host is not None
-        ), f"{self!r} has no host: '{name}' (available: {list(self.hosts_by_name)})"
+        if host is None:
+            raise LookupError(
+                f"{self!r} has no host: '{name}' (available: {list(self.hosts_by_name)})"
+            )
         return host
 
     def get_service(self, id: str) -> ServiceHandle:
         service = self.services_by_id.get(id)
-        assert (
-            service is not None
-        ), f"{self!r} has no service: '{id}' (available: {list(self.services_by_id)})"
+        if service is None:
+            raise LookupError(
+                f"{self!r} has no service: '{id}' (available: {list(self.services_by_id)})"
+            )
         return service
 
     def get_workload_group(self, name: str) -> list["Workload"]:

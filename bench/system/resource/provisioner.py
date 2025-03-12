@@ -1,6 +1,6 @@
 import abc
 import asyncio
-from typing import TYPE_CHECKING, Collection, cast, final
+from typing import TYPE_CHECKING, cast, final
 
 import structlog
 from opentelemetry import trace
@@ -206,17 +206,3 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
 
     @abc.abstractmethod
     async def _do_decommission(self, resource: PT): ...
-
-
-async def provision(host: "HostService", bench: Bench, resources: Collection[Resource]) -> None:
-    """Provisions the given resources in *this* environment"""
-    from .registry import get_provisioners
-
-    provisioners = get_provisioners(host, bench)
-    for resource in resources:
-        for provisioner in provisioners:
-            if resource.metatype == provisioner.provision_type:
-                await provisioner.provision(resource)
-                break
-        else:
-            raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")

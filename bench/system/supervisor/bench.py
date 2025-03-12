@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from bench.language import (
     Bench,
     Handle,
@@ -7,9 +9,12 @@ from bench.language import (
     ScalerStrategy,
     ScalerType,
     Session,
-    Store,
     User,
 )
+
+
+class CreateBenchOptions(NamedTuple):
+    create_machine_scaler: bool = True
 
 
 async def create_default_bench(
@@ -17,8 +22,8 @@ async def create_default_bench(
     main_handle: Handle,
     owned_by: User | Organization,
     region: Region,
-    global_store: Store,
     session: Session,
+    options: CreateBenchOptions,
 ) -> Bench:
     """Creates a new Bench with all the default stuff."""
 
@@ -44,15 +49,15 @@ async def create_default_bench(
     bench.main_store = store
     await session.flush(optimistic=True)
 
-    # default Scalers
-    machine_scaler = main_package.scalers.create(  # noqa: F841
-        type=ScalerType.MACHINE,
-        strategy=ScalerStrategy.AUTO,
-        name="Machine Scaler",
-        min_count=1,
-        target_count=1,
-        max_count=4,
-        is_main=True,
-    )
+    if options.create_machine_scaler:
+        machine_scaler = main_package.scalers.create(  # noqa: F841
+            type=ScalerType.MACHINE,
+            strategy=ScalerStrategy.AUTO,
+            name="Machine Scaler",
+            min_count=0,
+            target_count=0,
+            max_count=4,
+            is_main=True,
+        )
 
     return bench

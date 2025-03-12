@@ -1,7 +1,7 @@
 import pytest
 
 from bench.language import Region
-from bench.system.provision.neon import NEON_API_KEY, NEON_BASE_URL, NeonApiRemote
+from bench.system.resource.neon import NEON_API_KEY, NEON_BASE_URL, NeonApiRemote
 
 
 @pytest.mark.asyncio

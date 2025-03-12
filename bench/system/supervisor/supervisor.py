@@ -64,7 +64,7 @@ from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
-from .bench import create_default_bench
+from .bench import CreateBenchOptions, create_default_bench
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -87,6 +87,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         network: Network,
         oracle: Oracle,
         host_map: HostMap,
+        create_bench_options: CreateBenchOptions,
         on_error: Callable[[Exception], None] | None = None,
     ):
         GraphServiceBase.__init__(
@@ -104,6 +105,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         self._global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
         self._store_map = store_map
         self._host_map = host_map
+        self._create_bench_options = create_bench_options
         self._on_error = on_error
 
     def __str__(self):
@@ -415,8 +417,8 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 main_handle=owner.main_handle,
                 owned_by=owner,
                 region=region,
-                global_store=self._global_store,
                 session=session,
+                options=self._create_bench_options,
             )
 
             # 'activate' owner
