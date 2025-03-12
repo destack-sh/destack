@@ -123,7 +123,7 @@ class RunPlugin(HostPlugin[Run]):
                 )
                 request = RunRequest(run_ptr=run._to_ref_data())
                 _ = await runtime.run(request)
-                log.debug("run_plugin.run", machine=machine, span="current")
+                log.info("run_plugin.run", machine=machine, span="current")
                 return  # success
             except Exception as e:
                 log.error("run_plugin.run.error", machine=machine, error=e)

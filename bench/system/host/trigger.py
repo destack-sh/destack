@@ -1,6 +1,9 @@
 from typing import Sequence, override
 from uuid import UUID
 
+import structlog
+from opentelemetry import trace
+
 from bench.language import (
     Action,
     Message,
@@ -15,6 +18,9 @@ from bench.proto import EditData
 from bench.runtime import make_run_from_node
 
 from .core import Commit, HostPlugin
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # NOTE :Incomplete: consider runtime Triggers (i.e., those not in source)
 # NOTE :Architecture: how will Triggers work with hibernated Runs? :HibernateRuns
@@ -96,6 +102,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                         run.channel = message.channel
                         run.thread = message.thread
                         session._create(run)
+                        logger.info("message_trigger_plugin.trigger", message=message, run=run)
 
     @override
     async def on_commit_failed(self, session: Session, error: BaseException) -> None:

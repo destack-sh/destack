@@ -8,6 +8,7 @@ from bench.language.core import (
     EnumType,
     IsTimed,
     IsTitled,
+    IsTraceable,
     Node,
     NodeType,
     PackageNode,
@@ -44,7 +45,7 @@ class NotificationStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.NOTIFICATION)
-class Notification(IsTitled, IsTimed, PackageNode[NotificationData]):
+class Notification(IsTitled, IsTimed, IsTraceable, PackageNode[NotificationData]):
     """
     A Notification about something.
     """

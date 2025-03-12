@@ -1586,10 +1586,6 @@ enum ActionType {
   ACTION_TYPE_GENERATE = 203;
   ACTION_TYPE_TRANSFORM = 204;
   ACTION_TYPE_EXTRACT = 205;
-  ACTION_TYPE_CLASSIFY = 206;
-  ACTION_TYPE_SUMMARIZE = 207;
-  ACTION_TYPE_COMPARE = 208;
-  ACTION_TYPE_TRANSLATE = 209;
   ACTION_TYPE_EDIT = 210;
   ACTION_TYPE_CREATE = 400;
   ACTION_TYPE_DUPLICATE = 401;
@@ -4086,6 +4082,7 @@ message MessageData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   optional TextLineData title = 32;
@@ -4123,6 +4120,7 @@ message NotificationData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   NotificationType type = 30;
   optional TextLineData title = 32;
@@ -4149,6 +4147,7 @@ message RecordData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 32;
   optional string order_key = 33;
@@ -4170,6 +4169,7 @@ message ThreadData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ThreadType type = 30;
   optional TextLineData title = 32;
@@ -4181,6 +4181,10 @@ message ThreadData {
   optional google.protobuf.Timestamp closed_at = 45;
   optional NodeReferenceData created_from_ptr = 50;
   optional TextData text = 61;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
 }
 
 enum BuiltinEnum {

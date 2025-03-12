@@ -5,6 +5,7 @@ import structlog
 from bench.language.core import (
     FieldType,
     IsBased,
+    IsTraceable,
     Node,
     NodeType,
     PackageNode,
@@ -35,7 +36,7 @@ logger = structlog.get_logger(__name__)
     passthrough_set=("value",),
     stored_value_unraveled=True,
 )
-class Record(IsBased, PackageNode[RecordData]):
+class Record(IsBased, IsTraceable, PackageNode[RecordData]):
     """
     A Record from a Database.
     """
