@@ -213,13 +213,27 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
         default=None,
         description="Duration from first attempt start to last attempt termination.",
     )
-    scheduled_at: Optional[datetime] = p_system(43, default=None)
-    started_at: Optional[datetime] = p_internal(44, default=None)
-    stopped_at: Optional[datetime] = p_internal(45, default=None)
-    interrupted_at: Optional[datetime] = p_internal(46, default=None)
-    paused_at: Optional[datetime] = p_internal(47, default=None)
-    resumed_at: Optional[datetime] = p_internal(48, default=None)
-    terminated_at: Optional[datetime] = p_internal(49, default=None)
+    scheduled_at: Optional[datetime] = p_system(
+        43, default=None, description="When the Run is scheduled to start."
+    )
+    started_at: Optional[datetime] = p_internal(
+        44, default=None, description="When the Run first started."
+    )
+    stopped_at: Optional[datetime] = p_internal(
+        45, default=None, description="When the Run was requested to stop."
+    )
+    interrupted_at: Optional[datetime] = p_internal(
+        46, default=None, description="When the Run was interrupted."
+    )
+    paused_at: Optional[datetime] = p_internal(
+        47, default=None, description="When the Run was requested to pause."
+    )
+    resumed_at: Optional[datetime] = p_internal(
+        48, default=None, description="When the Run was requested to resume."
+    )
+    terminated_at: Optional[datetime] = p_internal(
+        49, default=None, description="When the Run terminated."
+    )
     error: Optional["Error"] = p_internal(
         50, default=None, require=False, array=False, struct=StructType.ERROR
     )
@@ -229,7 +243,7 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
         array=False,
         references=NodeType.INTERRUPTION,
         same_bench=True,
-        description="The current Interruption.",
+        description="The latest Interruption blocking the Run.",
     )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
@@ -442,6 +456,10 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
             and _trigger_runtime
         ):
             runtime.stop_run(self)
+
+    @property
+    def should_stop(self) -> bool:
+        return not (self.status.is_terminal) and (self.stopped_at is not None)
 
     @property
     def should_pause(self) -> bool:

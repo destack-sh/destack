@@ -112,15 +112,13 @@ class ActionType(BuiltinEnum):
         ColorType.VIOLET,
     )
     EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
-    CLASSIFY = 206, "Classify", "Classify or categorize", "fas fa-tags", ColorType.VIOLET
-    SUMMARIZE = 207, "Summarize", "Condense media content", "fas fa-file-lines", ColorType.VIOLET
-    COMPARE = 208, "Compare", "Compare multiple things", "fas fa-code-compare", ColorType.VIOLET
-    TRANSLATE = 209, "Translate", "Translate between languages", "fas fa-language", ColorType.VIOLET
     EDIT = 210, "Edit", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
 
     # read
     # AGGREGATE?
     # COPY?
+
+    # nocheckin: turn builtin-Actions into builtin Action nodes (in bench package)
 
     # write
     CREATE = 400, "Create", "Create a Node", "fas fa-plus", ColorType.SKY

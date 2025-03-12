@@ -13,6 +13,7 @@ from bench.language.core import (
     IsBased,
     IsTimed,
     IsTitled,
+    IsTraceable,
     Node,
     NodeType,
     PackageNode,
@@ -28,9 +29,9 @@ from bench.language.core import (
     p_system,
     p_value_packed,
     p_value_runtime,
+    text_line,
     timed_node_,
 )
-from bench.language.core.text import text_line
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
@@ -83,7 +84,7 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(IsTimed, IsBased, IsTitled, PackageNode[MessageData]):
+class Message(IsTimed, IsBased, IsTitled, IsTraceable, PackageNode[MessageData]):
     """
     A Message about something (usually in a Thread or a Channel).
     """

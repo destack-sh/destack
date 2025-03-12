@@ -206,7 +206,7 @@ class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
 
         # run model
         # nocheckin: implicit Flow for 'dynamic' Actions (Package.main_flow)
-        #  wait isn't there turtles problem with implementing DynamicActions using dynamic actions?
+        #  wait isn't there a turtles problem with implementing DynamicActions using dynamic actions?
         #  or it just a Receive with a Tool in the middle?
         #  or maybe just leave Package.main_flow for another 'default Flow'
         #   and actually implement dynamic Actions right here somehow?
@@ -678,11 +678,6 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.ROUTE: DynamicActionRunner,
     ActionType.GENERATE: DynamicActionRunner,
     ActionType.TRANSFORM: DynamicActionRunner,
-    ActionType.EXTRACT: DynamicActionRunner,
-    ActionType.CLASSIFY: DynamicActionRunner,
-    ActionType.SUMMARIZE: DynamicActionRunner,
-    ActionType.COMPARE: DynamicActionRunner,
-    ActionType.TRANSLATE: DynamicActionRunner,
     ActionType.EDIT: DynamicActionRunner,
     # read
     # ...

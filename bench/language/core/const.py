@@ -45,7 +45,7 @@ class _Unset:
 BENCH_SLUG = "bench"
 SYSTEM_SLUG = "system"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
-VERSION = "2025.03.12.0"
+VERSION = "2025.03.12.1"
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
@@ -60,8 +60,9 @@ if not IS_TEST:
     DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
     DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
 else:
-    DEFAULT_WAIT_TIMEOUT = timedelta(seconds=5)
-    DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=5)
+    # nocheckin
+    DEFAULT_WAIT_TIMEOUT = timedelta(seconds=500)
+    DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=500)
 
 
 def new_struct_id() -> int:

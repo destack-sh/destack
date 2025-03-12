@@ -980,7 +980,7 @@ def evaluate_edit(
             if scope is None:
                 # missing scope means we're trying to edit a node dependent on a node that doesn't exist
                 raise ValidationError(
-                    edit,
+                    wiring.describe_edit(edit),
                     f"scope {wiring.describe_node_ptr(scope_ptr)} for {wiring.describe_edit(edit)} not in {graph!r}",
                 )
             root = graph.get_root(scope)

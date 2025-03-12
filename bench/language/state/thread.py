@@ -7,8 +7,10 @@ from bench.language.core import (
     EnumType,
     InlineNode,
     IsOwnable,
+    IsRuntime,
     IsTimed,
     IsTitled,
+    IsTraceable,
     Node,
     NodeReference,
     NodeType,
@@ -45,7 +47,7 @@ class ThreadStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)
-class Thread(IsTimed, IsOwnable, IsTitled, PackageNode[ThreadData]):
+class Thread(IsTimed, IsOwnable, IsTitled, IsTraceable, IsRuntime, PackageNode[ThreadData]):
     """
     A Thread for communicating with Messages on something.
     """

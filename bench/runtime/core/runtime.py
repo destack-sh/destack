@@ -915,18 +915,18 @@ class Runtime:
         runner = restore_runner(runtime=self, run=run)
         runner.connection = run._connection
         self._owned_runners_by_id[run_ptr.id] = runner
-        run._connection.on_update(lambda _, update: self._on_update(runner, update))
+        run._connection.on_update(lambda _, update: self._on_updated(runner, update))
         return runner, run
 
-    def _on_run_update(self, runner: Runner, run: Run):
+    def _on_run_updated(self, runner: Runner, run: Run):
         """React to updates on a Run from outside this Runtime."""
         if run.status.is_terminal:
             return  # nothing to do anymore
         elif run.stopped_at:
             self.stop_run(run)
-        elif run.paused_at and (not run.resumed_at or run.paused_at > run.resumed_at):
+        elif run.should_pause:
             pass  # nothing to do (pause is trapped automatically)
-        elif run.resumed_at and (not run.paused_at or run.resumed_at > run.paused_at):
+        elif run.should_resume:
             # close open Interruption, resume affected Runs
             interruption = run.interruption
             if (
@@ -937,18 +937,18 @@ class Runtime:
                 interruption.complete(_trigger_runtime=False)
             self.resume_run(run, *run.ancestors)
 
-    def _on_interrupt_update(self, runner: Runner, interruption: Interruption):
+    def _on_interrupt_updated(self, runner: Runner, interruption: Interruption):
         """React to updates on an Interruption from outside this Runtime."""
         if interruption.status.is_closed:
             self.resume_run(*self.get_interrupted_runs(self.session._graph, interruption))
 
-    def _on_update(self, runner: Runner, update: WatchGetUpdate):
+    def _on_updated(self, runner: Runner, update: WatchGetUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
         for node in update.updated.values():
             if isinstance(node, Run):
-                self._on_run_update(runner, node)
+                self._on_run_updated(runner, node)
             elif isinstance(node, Interruption):
-                self._on_interrupt_update(runner, node)
+                self._on_interrupt_updated(runner, node)
 
     async def run(
         self,

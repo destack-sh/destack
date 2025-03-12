@@ -262,7 +262,7 @@ def basic_field_reference(package: Package):
         ],
     )
     Action1 = Action.new(
-        ActionType.CLASSIFY,
+        ActionType.EXTRACT,
         name="Classify",
         fields=[Field.input("Text", str), Field.output("Sentiment", Sentiment)],
     )

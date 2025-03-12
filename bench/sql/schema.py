@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.12.0"
+VERSION = "2025.03.12.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1316,6 +1316,7 @@ THREAD_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("title", PrimitiveType.JSON, is_nullable=True),
@@ -1331,6 +1332,10 @@ THREAD_TABLE = Table(
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("created_from_id", PrimitiveType.UUID, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("session_id", PrimitiveType.UUID, is_nullable=True),
+        Column("client_id", PrimitiveType.UUID, is_nullable=True),
+        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1353,6 +1358,7 @@ MESSAGE_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("title", PrimitiveType.JSON, is_nullable=True),
@@ -1414,6 +1420,7 @@ NOTIFICATION_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("title", PrimitiveType.JSON, is_nullable=True),
