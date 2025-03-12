@@ -68,7 +68,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 if trigger.type == TriggerType.MESSAGE:
                     # nocheckin :Broken: better MessageTrigger filtering / is_involved check
                     #  (consider reply_to, what about multiple Runs of same Flow,
-                    #   ideally should route automatically somehow (when none mentioned?)?, ...)
+                    #   ideally should route automatically somehow (when none mentioned)?, ...)
                     trigger_parent = trigger.parent
                     if isinstance(trigger_parent, Run):
                         trigger_parent = trigger_parent.action
@@ -77,12 +77,12 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                     assert flow is not None, f"trigger {trigger!r} has no flow"
                     # if we're in the scope of the flow, always trigger, otherwise only if mentioned
                     is_involved = (message.text is not None and flow in message.text) or (
-                        message.thread is not None and message.thread.scope_id == flow.id
+                        (thread := message.thread) is not None and thread.scope_id == flow.id
                     )
-                    is_source = message.created_by_id == flow.id  # don't react to self
+                    is_author = message.created_by_id == flow.id  # don't react to self
 
                     # fire trigger
-                    if is_involved and not is_source:
+                    if is_involved and not is_author:
                         target = trigger.parent
                         if isinstance(target, Run):
                             target = target.runnable

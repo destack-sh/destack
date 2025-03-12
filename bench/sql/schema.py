@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.11.0"
+VERSION = "2025.03.12.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1304,6 +1304,7 @@ THREAD_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("parent_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1318,7 +1319,7 @@ THREAD_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("title", PrimitiveType.JSON, is_nullable=True),
-        Column("channel_id", PrimitiveType.UUID),
+        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
         Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1356,7 +1357,7 @@ MESSAGE_TABLE = Table(
         Column("type", PrimitiveType.INT16, default="1"),
         Column("title", PrimitiveType.JSON, is_nullable=True),
         Column("platform", PrimitiveType.INT16, default="1"),
-        Column("channel_id", PrimitiveType.UUID),
+        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1367,7 +1368,7 @@ MESSAGE_TABLE = Table(
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_base_id", PrimitiveType.UUID, is_nullable=True),
-        Column("status", PrimitiveType.INT16, default="30"),
+        Column("status", PrimitiveType.INT16),
         Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("sent_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("received_at", PrimitiveType.DATETIME, is_nullable=True),

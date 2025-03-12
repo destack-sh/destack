@@ -4173,7 +4173,7 @@ message ThreadData {
   optional google.protobuf.Value subnode_packed = 29;
   ThreadType type = 30;
   optional TextLineData title = 32;
-  NodeReferenceData channel_ptr = 33;
+  optional NodeReferenceData channel_ptr = 33;
   optional NodeReferenceData scope_ptr = 35;
   optional NodeReferenceData run_root_ptr = 36;
   optional NodeReferenceData run_ptr = 37;

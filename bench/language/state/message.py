@@ -85,17 +85,17 @@ class MessageStatus(BuiltinEnum):
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
 class Message(IsTimed, IsBased, IsTitled, PackageNode[MessageData]):
     """
-    A Message about something.
+    A Message about something (usually in a Thread or a Channel).
     """
 
     # meta
     parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
     type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
     platform: MessagePlatform = p_regular(33, require=True, default=MessagePlatform.BENCH)
-    channel: "Channel" = p_node_ancestor(
+    channel: Optional["Channel"] = p_node_ancestor(
         34,
         NodeType.CHANNEL,
-        require=True,
+        require=False,
         store=True,
         wire=True,
         is_bench_implicit=True,
@@ -137,7 +137,7 @@ class Message(IsTimed, IsBased, IsTitled, PackageNode[MessageData]):
         run_ptr: Optional[NodeReference] = None
 
     # status
-    status: MessageStatus = p_internal(40, default=MessageStatus.SENT)
+    status: MessageStatus = p_internal(40, default=MessageStatus.SENT, default_sql=None)
     failed_at: Optional[datetime] = p_system(42, default=None)
     sent_at: Optional[datetime] = p_system(43, default=None)
     received_at: Optional[datetime] = p_system(44, default=None)

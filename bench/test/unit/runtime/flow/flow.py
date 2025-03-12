@@ -282,8 +282,8 @@ run.plans.append(plan)
     assert runner.tracked_run.has(Code1)
 
 
-# nocheckin: track Plan/Task status
-# (this feels related to closing Interruptions and other cascading runtime stuff?)
+# nocheckin: track cascading Plan/Task status
+# (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
 
 
 @simulated_runtime()
