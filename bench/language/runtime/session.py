@@ -756,8 +756,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsTraceable):
         # TODO :Architecture :Cleanup: revamp Session handling across internal, system and remote
         #  It feels quite clumsy and mixes concerns (why are we talking about DatabasePlugin here?);
         #   and in general, we should probably pull apart system and runtime Sessions somehow
-        #  Maybe Session should remain a Node (that we track for real), but the Session logic
-        #   could go elsewhere, or we move it into Transaction, or something else.
+        #  Maybe Session should remain a Node, but the Session logic goes elsewhere...?
 
         assert self._tx is not None, f"no active transaction in {self!r}"
 

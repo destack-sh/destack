@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     SLUG_CONSTRAINT,
     BuiltinEnum,
     EnumType,
@@ -18,8 +17,8 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_system,
 )
+from bench.language.core.node import IsNamed
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
@@ -33,7 +32,6 @@ if TYPE_CHECKING:
         Scaler,
         Space,
         Store,
-        Text,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -41,27 +39,20 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PACKAGE_TYPE)
 class PackageType(BuiltinEnum):
-    MAIN = 1
-    SIDE = 5
-    SNAPSHOT = 10
-    # ARCHIVE?
+    OPEN = 1, "Open"
+    CLOSED = 2, "Closed"
+    PRIVATE = 3, "Private"
 
 
 @node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
-class Package(IsOwnable, IsTemplatable, IsTraceable, PackageNode[PackageData]):
-    """A Package is an isolated segment of a Bench."""
+class Package(IsOwnable, IsTemplatable, IsTraceable, IsNamed, PackageNode[PackageData]):
+    """A Package is a semi-isolated area of a Bench."""
 
     # meta
     parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
     type: PackageType = p_regular(30, require=True)
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-    slug: str = p_regular(33, constraint=SLUG_CONSTRAINT)
-    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
+    slug: str | None = p_regular(34, constraint=SLUG_CONSTRAINT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-
-    base: Optional["Package"] = p_system(
-        40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
-    )
 
     # NOTE :Architecture: maybe we should factor out main_channel/main_flow/.. from Package
     #  (into something more general that we could also use in Page or Flow or such)

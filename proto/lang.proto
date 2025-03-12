@@ -633,9 +633,9 @@ enum ChangeCategory {
 
 enum PackageType {
   PACKAGE_TYPE_UNSPECIFIED = 0;
-  PACKAGE_TYPE_MAIN = 1;
-  PACKAGE_TYPE_SIDE = 5;
-  PACKAGE_TYPE_SNAPSHOT = 10;
+  PACKAGE_TYPE_OPEN = 1;
+  PACKAGE_TYPE_CLOSED = 2;
+  PACKAGE_TYPE_PRIVATE = 3;
 }
 
 // The cloud provider.
@@ -2804,7 +2804,6 @@ message ScalerData {
   int32 max_count = 63;
   int32 min_ready_count = 64;
   bool is_active = 75;
-  bool is_main = 76;
 }
 
 // A Scaler is a static Resource that automatically scales a dynamic Resource.
@@ -3642,8 +3641,7 @@ message DependencyData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData depends_on_bench_ptr = 40;
-  repeated NodeReferenceData depends_on_packages_ptr = 41;
+  NodeReferenceData dependency_ptr = 40;
 }
 
 message FieldData {
@@ -3804,11 +3802,9 @@ message PackageData {
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   PackageType type = 30;
-  optional string name = 32;
-  string slug = 33;
-  optional TextData text = 34;
+  optional string name = 31;
+  optional string slug = 34;
   optional IconData icon = 35;
-  optional NodeReferenceData base_ptr = 40;
   optional NodeReferenceData main_channel_ptr = 50;
   optional NodeReferenceData main_flow_ptr = 51;
 }

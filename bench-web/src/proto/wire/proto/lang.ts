@@ -2728,10 +2728,6 @@ export interface ScalerData {
      * @generated from protobuf field: bool is_active = 75;
      */
     isActive: boolean;
-    /**
-     * @generated from protobuf field: bool is_main = 76;
-     */
-    isMain: boolean;
 }
 /**
  * A Scaler is a static Resource that automatically scales a dynamic Resource.
@@ -5659,13 +5655,9 @@ export interface DependencyData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData depends_on_bench_ptr = 40;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData dependency_ptr = 40;
      */
-    dependsOnBenchPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData depends_on_packages_ptr = 41;
-     */
-    dependsOnPackagesPtr: NodeReferenceData[];
+    dependencyPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbolx.bench.FieldData
@@ -6265,25 +6257,17 @@ export interface PackageData {
      */
     type: PackageType;
     /**
-     * @generated from protobuf field: optional string name = 32;
+     * @generated from protobuf field: optional string name = 31;
      */
     name?: string;
     /**
-     * @generated from protobuf field: string slug = 33;
+     * @generated from protobuf field: optional string slug = 34;
      */
-    slug: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
-     */
-    text?: TextData;
+    slug?: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
      */
     icon?: IconData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 40;
-     */
-    basePtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_channel_ptr = 50;
      */
@@ -10300,17 +10284,17 @@ export enum PackageType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_MAIN = 1;
+     * @generated from protobuf enum value: PACKAGE_TYPE_OPEN = 1;
      */
-    MAIN = 1,
+    OPEN = 1,
     /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_SIDE = 5;
+     * @generated from protobuf enum value: PACKAGE_TYPE_CLOSED = 2;
      */
-    SIDE = 5,
+    CLOSED = 2,
     /**
-     * @generated from protobuf enum value: PACKAGE_TYPE_SNAPSHOT = 10;
+     * @generated from protobuf enum value: PACKAGE_TYPE_PRIVATE = 3;
      */
-    SNAPSHOT = 10
+    PRIVATE = 3
 }
 /**
  * The cloud provider.
@@ -21854,8 +21838,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 62, name: "min_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 63, name: "max_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 64, name: "min_ready_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 75, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 76, name: "is_main", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 75, name: "is_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ScalerData>): ScalerData {
@@ -21873,7 +21856,6 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         message.maxCount = 0;
         message.minReadyCount = 0;
         message.isActive = false;
-        message.isMain = false;
         if (value !== undefined)
             reflectionMergePartial<ScalerData>(this, message, value);
         return message;
@@ -21996,9 +21978,6 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                     break;
                 case /* bool is_active */ 75:
                     message.isActive = reader.bool();
-                    break;
-                case /* bool is_main */ 76:
-                    message.isMain = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22126,9 +22105,6 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* bool is_active = 75; */
         if (message.isActive !== false)
             writer.tag(75, WireType.Varint).bool(message.isActive);
-        /* bool is_main = 76; */
-        if (message.isMain !== false)
-            writer.tag(76, WireType.Varint).bool(message.isMain);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28580,8 +28556,7 @@ class DependencyData$Type extends MessageType$<DependencyData> {
             { no: 16, name: "template_at", kind: "message", T: () => Timestamp },
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 40, name: "depends_on_bench_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "depends_on_packages_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 40, name: "dependency_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<DependencyData>): DependencyData {
@@ -28589,7 +28564,6 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         message.metatype = 0;
         message.id = "";
         message.mode = 0;
-        message.dependsOnPackagesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<DependencyData>(this, message, value);
         return message;
@@ -28641,11 +28615,8 @@ class DependencyData$Type extends MessageType$<DependencyData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* symbolx.bench.NodeReferenceData depends_on_bench_ptr */ 40:
-                    message.dependsOnBenchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.dependsOnBenchPtr);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData depends_on_packages_ptr */ 41:
-                    message.dependsOnPackagesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* symbolx.bench.NodeReferenceData dependency_ptr */ 40:
+                    message.dependencyPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.dependencyPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28701,12 +28672,9 @@ class DependencyData$Type extends MessageType$<DependencyData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData depends_on_bench_ptr = 40; */
-        if (message.dependsOnBenchPtr)
-            NodeReferenceData.internalBinaryWrite(message.dependsOnBenchPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData depends_on_packages_ptr = 41; */
-        for (let i = 0; i < message.dependsOnPackagesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.dependsOnPackagesPtr[i], writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData dependency_ptr = 40; */
+        if (message.dependencyPtr)
+            NodeReferenceData.internalBinaryWrite(message.dependencyPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29865,11 +29833,9 @@ class PackageData$Type extends MessageType$<PackageData> {
             { no: 25, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PackageType", PackageType, "PACKAGE_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "text", kind: "message", T: () => TextData },
+            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
-            { no: 40, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "main_channel_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "main_flow_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
@@ -29880,7 +29846,6 @@ class PackageData$Type extends MessageType$<PackageData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
-        message.slug = "";
         if (value !== undefined)
             reflectionMergePartial<PackageData>(this, message, value);
         return message;
@@ -29938,20 +29903,14 @@ class PackageData$Type extends MessageType$<PackageData> {
                 case /* symbolx.bench.PackageType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* optional string name */ 32:
+                case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* string slug */ 33:
+                case /* optional string slug */ 34:
                     message.slug = reader.string();
-                    break;
-                case /* optional symbolx.bench.TextData text */ 34:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData base_ptr */ 40:
-                    message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData main_channel_ptr */ 50:
                     message.mainChannelPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainChannelPtr);
@@ -30019,21 +29978,15 @@ class PackageData$Type extends MessageType$<PackageData> {
         /* symbolx.bench.PackageType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
+        /* optional string name = 31; */
         if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* string slug = 33; */
-        if (message.slug !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.slug);
-        /* optional symbolx.bench.TextData text = 34; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional string slug = 34; */
+        if (message.slug !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.slug);
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData base_ptr = 40; */
-        if (message.basePtr)
-            NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData main_channel_ptr = 50; */
         if (message.mainChannelPtr)
             NodeReferenceData.internalBinaryWrite(message.mainChannelPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -34733,7 +34686,6 @@ export enum ScalerProperty {
   maxCount = 63,
   minReadyCount = 64,
   isActive = 75,
-  isMain = 76,
 }
 
 export enum StoreProperty {
@@ -35002,11 +34954,9 @@ export enum PackageProperty {
   mode = 25,
   subnodePacked = 29,
   type = 30,
-  name = 32,
-  slug = 33,
-  text = 34,
+  name = 31,
+  slug = 34,
   icon = 35,
-  basePtr = 40,
   mainChannelPtr = 50,
   mainFlowPtr = 51,
 }
@@ -35026,8 +34976,7 @@ export enum DependencyProperty {
   templateAt = 16,
   mode = 25,
   subnodePacked = 29,
-  dependsOnBenchPtr = 40,
-  dependsOnPackagesPtr = 41,
+  dependencyPtr = 40,
 }
 
 export enum PageProperty {
@@ -37239,7 +37188,6 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.maxCount]: { id: 63, name: 'max_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 16, constraint: { minValue: 0, maxValue: 64, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.minReadyCount]: { id: 64, name: 'min_ready_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.isActive]: { id: 75, name: 'is_active', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.isMain]: { id: 76, name: 'is_main', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STORE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37274,8 +37222,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37313,8 +37261,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 60, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 60, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37501,11 +37449,9 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.mode]: { id: 25, name: 'mode', component: ObjectType.PACKAGE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [PackageProperty.type]: { id: 30, name: 'type', component: ObjectType.PACKAGE, enumType: EnumType.PACKAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.name]: { id: 32, name: 'name', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.slug]: { id: 33, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [PackageProperty.name]: { id: 31, name: 'name', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [PackageProperty.slug]: { id: 34, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$", nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [PackageProperty.basePtr]: { id: 40, name: 'base_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.mainChannelPtr]: { id: 50, name: 'main_channel_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.mainFlowPtr]: { id: 51, name: 'main_flow_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
 }
@@ -37524,8 +37470,7 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.mode]: { id: 25, name: 'mode', component: ObjectType.DEPENDENCY, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [DependencyProperty.dependsOnBenchPtr]: { id: 40, name: 'depends_on_bench_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.dependsOnPackagesPtr]: { id: 41, name: 'depends_on_packages_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -39367,6 +39312,12 @@ export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
   [NodeMode.ARCHIVE]: { id: 10, name: 'ARCHIVE', icon: 'fas fa-box-archive' },
 }
 
+export const PackageTypeOptionInfo: Partial<Record<PackageType, EnumOptionInfo>> = {
+  [PackageType.OPEN]: { id: 1, name: 'OPEN', title: 'Open' },
+  [PackageType.CLOSED]: { id: 2, name: 'CLOSED', title: 'Closed' },
+  [PackageType.PRIVATE]: { id: 3, name: 'PRIVATE', title: 'Private' },
+}
+
 export const RegionOptionInfo: Partial<Record<Region, EnumOptionInfo>> = {
   [Region.ZURICH]: { id: 1000, name: 'ZURICH', icon: '🇨🇭' },
   [Region.FRANKFURT]: { id: 1010, name: 'FRANKFURT', icon: '🇩🇪' },
@@ -39797,6 +39748,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.NODE_TYPE]: NodeTypeOptionInfo,
   [EnumType.STRUCT_TYPE]: StructTypeOptionInfo,
   [EnumType.NODE_MODE]: NodeModeOptionInfo,
+  [EnumType.PACKAGE_TYPE]: PackageTypeOptionInfo,
   [EnumType.REGION]: RegionOptionInfo,
   [EnumType.REGION_AREA]: RegionAreaOptionInfo,
   [EnumType.RESOURCE_STATUS]: ResourceStatusOptionInfo,

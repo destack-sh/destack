@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.12.1"
+VERSION = "2025.03.12.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -308,7 +308,6 @@ SCALER_TABLE = Table(
         Column("max_count", PrimitiveType.INT32, default="16"),
         Column("min_ready_count", PrimitiveType.INT32, default="0"),
         Column("is_active", PrimitiveType.BOOLEAN, default="true"),
-        Column("is_main", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -637,10 +636,8 @@ PACKAGE_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
-        Column("slug", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("slug", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("base_id", PrimitiveType.UUID, is_nullable=True),
         Column("main_channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("main_flow_id", PrimitiveType.UUID, is_nullable=True),
         Column("main_flow_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -670,9 +667,8 @@ DEPENDENCY_TABLE = Table(
         Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("depends_on_bench_id", PrimitiveType.UUID),
-        Column("depends_on_packages_id", PrimitiveType.UUID, is_array=True),
-        Column("depends_on_packages_bench_id", PrimitiveType.UUID, is_array=True),
+        Column("dependency_id", PrimitiveType.UUID),
+        Column("dependency_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

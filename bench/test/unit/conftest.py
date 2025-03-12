@@ -136,7 +136,7 @@ async def session_async(request):
 
 def make_package(session: Session):
     bench = Bench(name="test", slug="test", status=BenchStatus.ACTIVATED)
-    package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+    package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
     bench.main_store = package.stores.create(name="Store")
     session.parent = bench
     session._graph.update(session, _force_update_parent=True)

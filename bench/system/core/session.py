@@ -49,7 +49,7 @@ def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
     )
     system_package_stub = Package(
         parent=system_bench_stub,
-        type=PackageType.MAIN,
+        type=PackageType.OPEN,
         id=UUID(int=1),
         name="Main",
         slug="main",

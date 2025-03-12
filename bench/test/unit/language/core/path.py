@@ -142,7 +142,7 @@ def test_parse_path_invalid(invalid_path: str):
 def mock_package(session: Session):
     bench = Bench(name="bench1", slug="bench")
     session.parent = bench  # patch in the session parent
-    package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+    package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
     session._graph.update(session, _force_update_parent=True)
     return package
 
@@ -152,10 +152,10 @@ def mock_package_populated(session: Session):
     # make bench
     bench = Bench(name="bench1", slug="bench1")
     session.parent = bench  # patch in the session parent
-    package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+    package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
     session._graph.update(session, _force_update_parent=True)
     bench.main_package = package
-    side_package = bench.packages.create(type=PackageType.SIDE, name="Side", slug="side")  # noqa: F841
+    side_package = bench.packages.create(type=PackageType.OPEN, name="Side", slug="side")  # noqa: F841
 
     # page nodes
     page1 = package.pages.create(name="Page1")

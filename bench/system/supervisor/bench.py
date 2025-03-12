@@ -39,12 +39,12 @@ async def create_default_bench(
     await session.flush(optimistic=True)
 
     # main Package
-    main_package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+    main_package = bench.packages.create(type=PackageType.OPEN, name="Main Package", slug="main")
     await session.flush(optimistic=True)
     bench.main_package = main_package
 
     # main Store
-    store = main_package.stores.create(region=bench.region, name="Store")
+    store = main_package.stores.create(region=bench.region, name="Local Store")
     await session.flush(optimistic=True)
     bench.main_store = store
     await session.flush(optimistic=True)

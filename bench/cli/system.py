@@ -24,7 +24,6 @@ from bench.language import (
     User,
     UserStatus,
 )
-from bench.system.supervisor.bench import CreateBenchOptions
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
@@ -38,6 +37,7 @@ logger = structlog.get_logger(__name__)
 @async_to_sync
 async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)] = REGION):
     from bench.system import (
+        CreateBenchOptions,
         create_default_bench,
         global_session,
         global_store_from_env,
