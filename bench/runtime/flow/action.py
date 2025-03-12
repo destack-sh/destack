@@ -1,10 +1,9 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, final, override
+from typing import TYPE_CHECKING, Any, ClassVar, cast, final, override
 
 import structlog
 from opentelemetry import trace
-from playwright.async_api import Page as PlaywrightPage
 
 from bench.language import (
     Action,
@@ -12,55 +11,32 @@ from bench.language import (
     Aliasing,
     BreakpointScope,
     BreakpointSite,
-    Browser,
-    ClickAction,
     CodeAction,
     CompleteAction,
-    CreateAction,
     CustomObject,
-    DeleteAction,
-    DuplicateAction,
     FailAction,
-    FileFormat,
-    FileType,
-    GoBackwardAction,
-    GoForwardAction,
-    GoToTabAction,
-    GoToUrlAction,
-    HasApplicationContext,
     InterruptionType,
-    IsBased,
     IsRuntime,
-    LookAction,
     Message,
     ModelDeveloper,
     ModelType,
-    NodeType,
-    PressAction,
     ReceiveAction,
     RunnableNode,
     RunOptions,
     RunSpanType,
     RunType,
-    ScrollAction,
-    SelectAction,
     SendAction,
     Text,
     ToolAction,
-    TypeAction,
     TypeBase,
     TypeKind,
-    UpdateAction,
     ValidationError,
     WaitAction,
     YieldAction,
     code,
     coerce_custom_object_scalar,
     make_node_from_partial,
-    patch_node_from_partial,
-    upload_file,
 )
-from bench.runtime.browser import parse_dom_node
 from bench.runtime.core import (
     ATTEMPT_ONCE,
     NotSupportedError,
@@ -71,7 +47,6 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.core.error import IncapableError
 from bench.runtime.model.chat import get_chat_model_runner_cls
 
 if TYPE_CHECKING:
@@ -361,89 +336,6 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 
 
 #
-# Write
-#
-
-
-class CreateActionRunner(StaticActionRunner[CreateAction]):
-    @override
-    async def run_static(self) -> None:
-        node_partial = self.action_inputs.node_partial
-        assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
-
-        # create node from partial
-        node = make_node_from_partial(node_partial)
-        if node.parent is None:
-            parent_types = node.__parent_property__.reference_nodes or ()
-            if parent_types == "any" or NodeType.PACKAGE in parent_types:
-                bench = self.session.bench
-                assert bench is not None, f"no bench for {self!r}"
-                node.parent = bench.main_package
-            elif NodeType.BENCH in parent_types:
-                bench = self.session.bench
-                assert bench is not None, f"no bench for {self!r}"
-                node.parent = bench
-            elif (
-                isinstance(node, IsBased)
-                and node.base is not None
-                and (parent_types == "any" or node.base.metatype in parent_types)
-            ):
-                node.parent = node.base
-        assert node.is_attached, f"node {node!r} must be attached"
-        self.session._create(node)
-        logger.debug("create_action.create", action=self.node, node=node)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar({"node": node}, self.output_type, as_packed=True)
-
-
-class DuplicateActionRunner(StaticActionRunner[DuplicateAction]):
-    @override
-    async def run_static(self) -> None:
-        node = self.action_inputs.node
-        node_partial = self.action_inputs.node_partial
-        assert node is not None, "no node to clone"
-        assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
-
-        # clone node with partial override
-        cloned_node = node.clone(recursive=not self.action_inputs.is_shallow, detach=True)
-        patch_node_from_partial(cloned_node, node_partial)
-        cloned_node_parent = cloned_node.parent or node.parent
-        assert cloned_node_parent is not None, f"cloned node {cloned_node!r} must be attached"
-        cloned_node_parent.append(cloned_node)
-        logger.debug("action.clone", action=self.node, node=cloned_node, partial=node_partial)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar(
-            {"duplicated_node": cloned_node}, self.output_type, as_packed=True
-        )
-
-
-class UpdateActionRunner(StaticActionRunner[UpdateAction]):
-    @override
-    async def run_static(self) -> None:
-        node = self.action_inputs.node
-        assert node is not None, "no node to update"
-        node_partial = self.action_inputs.node_partial
-        assert isinstance(node_partial, CustomObject), f"bad node_partial: {node_partial!r}"
-
-        # update with partial patch
-        patch_node_from_partial(node, node_partial)
-        logger.debug("action.update", action=self.node, node=node, partial=node_partial)
-
-
-class DeleteActionRunner(StaticActionRunner[DeleteAction]):
-    @override
-    async def run_static(self) -> None:
-        node = self.action_inputs.node
-        assert node is not None, "no node to delete"
-
-        # delete
-        node.delete()
-        logger.debug("action.delete", action=self.node, node=node)
-
-
-#
 # Async
 #
 
@@ -498,172 +390,6 @@ class YieldActionRunner(StaticActionRunner[YieldAction]):
         self.outputs = interruption.outputs
 
 
-#
-# Application
-# NOTE :Incomplete: for now Application Actions only work with Browser (via Playwright)
-#
-
-
-class ApplicationActionRunner[A: Action = Action](StaticActionRunner[A]):
-    def _get_application(self) -> Browser:
-        if (application := cast(HasApplicationContext, self.action_inputs).application) is not None:
-            return application
-        else:
-            return self._get_ready_resource_or_error(Browser)
-
-    async def _focus_element(
-        self,
-        inputs: HasApplicationContext,
-        pw_page: PlaywrightPage,
-        button: Literal["left", "right", "middle"] = "left",
-    ):
-        """Focuses the element."""
-        if (element_id := inputs.element_id) is not None:
-            selector = f"[data-bench-highlight-id='{element_id}']"
-            await pw_page.focus(selector)
-        elif (element_position := inputs.element_position) is not None:
-            await pw_page.mouse.click(element_position.x, element_position.y, button=button)
-        else:
-            raise IncapableError("no element to focus")
-
-
-class LookActionRunner(ApplicationActionRunner[LookAction]):
-    @override
-    async def run_static(self) -> None:
-        # NOTE :Performance: obviously LookAction could be a lot more efficient
-        #  (defer uploads, ensure extension script is preloaded, ...)
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        dom_nodes_js = await pw_page.evaluate(
-            self.runtime.playwright.get_extension_script_js() + "\n cleanup(); highlight()"
-        )
-        dom_nodes = [parse_dom_node(dom_node_js) for dom_node_js in dom_nodes_js]
-        screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")
-        now = self.session._oracle.utc()
-        screenshot = await upload_file(
-            screenshot_bytes,
-            type=FileType.IMAGE,
-            format=FileFormat.PNG,
-            name=f"{browser.name} Screenshot {now.strftime('%Y-%m-%d %H:%M:%S.%f')}",
-        )
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar(
-            {"dom_nodes": dom_nodes, "screenshot": screenshot}, self.output_type
-        )
-
-
-class ClickActionRunner(ApplicationActionRunner[ClickAction]):
-    @override
-    async def run_static(self) -> None:
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        button = self.action_inputs.button or "left"
-        if button not in ("left", "right", "middle"):
-            raise ValidationError(None, f"invalid button: {button!r}")
-        if (element_id := self.action_inputs.element_id) is not None:
-            selector = f"[data-bench-highlight-id='{element_id}']"
-            await pw_page.click(selector)
-        elif (element_position := self.action_inputs.element_position) is not None:
-            await pw_page.mouse.click(element_position.x, element_position.y, button=button)
-        else:
-            raise IncapableError("no element to focus")
-        await self.runtime.playwright.wait_for_idle(pw_page)
-
-
-class PressActionRunner(ApplicationActionRunner[PressAction]):
-    @override
-    async def run_static(self) -> None:
-        combination = self.action_inputs.combination
-        if not isinstance(combination, str):
-            raise ValidationError(None, f"bad keys to press: {combination!r}")
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action_inputs, pw_page)
-        delay_seconds = self.action_inputs.delay.total_seconds() if self.action_inputs.delay else 0
-        await pw_page.keyboard.press(combination, delay=delay_seconds)
-        await self.runtime.playwright.wait_for_idle(pw_page)
-
-
-class TypeActionRunner(ApplicationActionRunner[TypeAction]):
-    @override
-    async def run_static(self) -> None:
-        string = self.action_inputs.string
-        if not isinstance(string, str):
-            raise ValidationError(None, f"bad string to type: {string!r}")
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action_inputs, pw_page)
-        delay_seconds = self.action_inputs.delay.total_seconds() if self.action_inputs.delay else 0
-        await pw_page.keyboard.type(string, delay=delay_seconds)
-
-
-class ScrollActionRunner(ApplicationActionRunner[ScrollAction]):
-    @override
-    async def run_static(self) -> None:
-        amount = self.action_inputs.amount
-        if amount is None:
-            raise ValidationError(None, "no amount to scroll")
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        await self._focus_element(self.action_inputs, pw_page)
-        await pw_page.mouse.wheel(delta_x=amount.x, delta_y=amount.y)
-
-
-class SelectActionRunner(ApplicationActionRunner[SelectAction]):
-    @override
-    async def run_static(self) -> None:
-        raise NotImplementedError
-
-
-class GoBackwardActionRunner(ApplicationActionRunner[GoBackwardAction]):
-    @override
-    async def run_static(self) -> None:
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        await pw_page.go_back()
-        await self.runtime.playwright.wait_for_idle(pw_page)
-
-
-class GoForwardActionRunner(ApplicationActionRunner[GoForwardAction]):
-    @override
-    async def run_static(self) -> None:
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        await pw_page.go_forward()
-        await self.runtime.playwright.wait_for_idle(pw_page)
-
-
-class GoToUrlActionRunner(ApplicationActionRunner[GoToUrlAction]):
-    @override
-    async def run_static(self) -> None:
-        url = self.action_inputs.url
-        if url is None:
-            raise ValidationError(None, "no url to go to")
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        pw_page = pw_browser.pages[0]
-        await pw_page.goto(url, wait_until="domcontentloaded")
-        await self.runtime.playwright.wait_for_idle(pw_page)
-
-
-class GoToTabActionRunner(ApplicationActionRunner[GoToTabAction]):
-    @override
-    async def run_static(self) -> None:
-        tab_index = self.action_inputs.tab_index
-        if tab_index is None:
-            raise ValidationError(None, "no tab index to go to")
-        browser = self._get_application()
-        pw_browser = await self.runtime.playwright.get_client(browser)
-        await pw_browser.pages[tab_index].bring_to_front()
-
-
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     # flow
     ActionType.START: StartActionRunner,
@@ -674,33 +400,9 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     ActionType.TOOL: ToolActionRunner,
     # dynamic
     ActionType.DO: DynamicActionRunner,
-    ActionType.THINK: DynamicActionRunner,
-    ActionType.ROUTE: DynamicActionRunner,
-    ActionType.GENERATE: DynamicActionRunner,
-    ActionType.TRANSFORM: DynamicActionRunner,
-    ActionType.EDIT: DynamicActionRunner,
-    # read
-    # ...
-    # write
-    ActionType.CREATE: CreateActionRunner,
-    ActionType.DUPLICATE: DuplicateActionRunner,
-    ActionType.UPDATE: UpdateActionRunner,
-    ActionType.DELETE: DeleteActionRunner,
     # async
     ActionType.WAIT: WaitActionRunner,
     ActionType.SEND: SendActionRunner,
     ActionType.RECEIVE: ReceiveActionRunner,
     ActionType.YIELD: YieldActionRunner,
-    # application
-    ActionType.LOOK: LookActionRunner,
-    ActionType.CLICK: ClickActionRunner,
-    ActionType.PRESS: PressActionRunner,
-    ActionType.TYPE: TypeActionRunner,
-    ActionType.SCROLL: ScrollActionRunner,
-    ActionType.SELECT: SelectActionRunner,
-    ActionType.GO_BACKWARD: GoBackwardActionRunner,
-    ActionType.GO_FORWARD: GoForwardActionRunner,
-    # web
-    ActionType.GO_TO_URL: GoToUrlActionRunner,
-    ActionType.GO_TO_TAB: GoToTabActionRunner,
 }

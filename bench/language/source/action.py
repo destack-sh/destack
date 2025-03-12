@@ -3,12 +3,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from uuid import UUID
 
-import cachetools
-
 from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
-    BuiltinObject,
     ColorType,
     EnumType,
     FieldType,
@@ -29,7 +26,6 @@ from bench.language.core import (
     TypeKind,
     enum_,
     node_,
-    object_,
     p_internal,
     p_node_children,
     p_node_parent,
@@ -44,11 +40,8 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Browser,
         Code,
-        DomNode,
         Field,
-        File,
         Flow,
         Icon,
         Kit,
@@ -95,24 +88,24 @@ class ActionType(BuiltinEnum):
 
     # work
     DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
-    THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
-    ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
-    GENERATE = (
-        203,
-        "Generate",
-        "Generate something new",
-        "fas fa-wand-magic-sparkles",
-        ColorType.VIOLET,
-    )
-    TRANSFORM = (
-        204,
-        "Transform",
-        "Change the form of something",
-        "fas fa-arrows-rotate",
-        ColorType.VIOLET,
-    )
-    EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
-    EDIT = 210, "Edit", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
+    # THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
+    # ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
+    # GENERATE = (
+    #     203,
+    #     "Generate",
+    #     "Generate something new",
+    #     "fas fa-wand-magic-sparkles",
+    #     ColorType.VIOLET,
+    # )
+    # TRANSFORM = (
+    #     204,
+    #     "Transform",
+    #     "Change the form of something",
+    #     "fas fa-arrows-rotate",
+    #     ColorType.VIOLET,
+    # )
+    # EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
+    # EDIT = 210, "Edit", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
 
     # read
     # AGGREGATE?
@@ -121,10 +114,10 @@ class ActionType(BuiltinEnum):
     # nocheckin: turn builtin-Actions into builtin Action nodes (in bench package)
 
     # write
-    CREATE = 400, "Create", "Create a Node", "fas fa-plus", ColorType.SKY
-    DUPLICATE = 401, "Duplicate", "Duplicate a Node", "fas fa-clone", ColorType.SKY
-    UPDATE = 402, "Update", "Update a Node", "fas fa-pencil", ColorType.SKY
-    DELETE = 403, "Delete", "Delete a Node", "fas fa-trash", ColorType.SKY
+    # CREATE = 400, "Create", "Create a Node", "fas fa-plus", ColorType.SKY
+    # DUPLICATE = 401, "Duplicate", "Duplicate a Node", "fas fa-clone", ColorType.SKY
+    # UPDATE = 402, "Update", "Update a Node", "fas fa-pencil", ColorType.SKY
+    # DELETE = 403, "Delete", "Delete a Node", "fas fa-trash", ColorType.SKY
     # PASTE?
 
     # communicate
@@ -147,36 +140,36 @@ class ActionType(BuiltinEnum):
     # LISTEN, ...
 
     # application
-    CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer", ColorType.INDIGO
-    PRESS = 1001, "Press", "Press a key", "fas fa-keyboard", ColorType.INDIGO
-    TYPE = 1002, "Type", "Type text", "fas fa-keyboard", ColorType.INDIGO
-    SCROLL = (
-        1003,
-        "Scroll",
-        "Scroll the mouse wheel",
-        "fas fa-computer-mouse-scrollwheel",
-        ColorType.INDIGO,
-    )
-    SELECT = 1004, "Select", "Select an element", "fas fa-lasso", ColorType.INDIGO
-    DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer", ColorType.INDIGO
-    GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left", ColorType.INDIGO
-    GO_FORWARD = (
-        1007,
-        "Go forward",
-        "Go forward in history",
-        "fas fa-arrow-turn-right",
-        ColorType.INDIGO,
-    )
-    GO_TO_URL = 1050, "Go to URL", "Navigate to a URL", "fas fa-link", ColorType.INDIGO
-    GO_TO_TAB = 1051, "Go to tab", "Switch to a tab", "fas fa-sidebar", ColorType.INDIGO
-    OPEN_TAB = 1052, "Open tab", "Open a new tab", "fas fa-plus", ColorType.INDIGO
-    CLOSE_TAB = 1053, "Close tab", "Close a tab", "fas fa-minus", ColorType.INDIGO
+    # CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer", ColorType.INDIGO
+    # PRESS = 1001, "Press", "Press a key", "fas fa-keyboard", ColorType.INDIGO
+    # TYPE = 1002, "Type", "Type text", "fas fa-keyboard", ColorType.INDIGO
+    # SCROLL = (
+    #     1003,
+    #     "Scroll",
+    #     "Scroll the mouse wheel",
+    #     "fas fa-computer-mouse-scrollwheel",
+    #     ColorType.INDIGO,
+    # )
+    # SELECT = 1004, "Select", "Select an element", "fas fa-lasso", ColorType.INDIGO
+    # DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer", ColorType.INDIGO
+    # GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left", ColorType.INDIGO
+    # GO_FORWARD = (
+    #     1007,
+    #     "Go forward",
+    #     "Go forward in history",
+    #     "fas fa-arrow-turn-right",
+    #     ColorType.INDIGO,
+    # )
+    # GO_TO_URL = 1050, "Go to URL", "Navigate to a URL", "fas fa-link", ColorType.INDIGO
+    # GO_TO_TAB = 1051, "Go to tab", "Switch to a tab", "fas fa-sidebar", ColorType.INDIGO
+    # OPEN_TAB = 1052, "Open tab", "Open a new tab", "fas fa-plus", ColorType.INDIGO
+    # CLOSE_TAB = 1053, "Close tab", "Close a tab", "fas fa-minus", ColorType.INDIGO
 
     # data
-    HTTP = 1100, "HTTP", "Make an HTTP call", "fas fa-globe", ColorType.INDIGO
-    REST = 1101, "REST", "Make a REST call", "fas fa-brackets-curly", ColorType.INDIGO
-    GRAPHQL = 1102, "GraphQL", "Make a GraphQL call", "fas fa-brackets-curly", ColorType.INDIGO
-    SQL = 1103, "SQL", "Make a SQL call", "fas fa-code", ColorType.INDIGO
+    # HTTP = 1100, "HTTP", "Make an HTTP call", "fas fa-globe", ColorType.INDIGO
+    # REST = 1101, "REST", "Make a REST call", "fas fa-brackets-curly", ColorType.INDIGO
+    # GRAPHQL = 1102, "GraphQL", "Make a GraphQL call", "fas fa-brackets-curly", ColorType.INDIGO
+    # SQL = 1103, "SQL", "Make a SQL call", "fas fa-code", ColorType.INDIGO
     # GRPC, JDBC, SOQL, ...
 
     # internet
@@ -485,100 +478,9 @@ class ToolAction(Action):
 #
 
 
-@subnode_(ActionType.GENERATE)
-class GenerateAction(Action):
-    pass
-
-
-@subnode_(ActionType.TRANSFORM)
-class TransformAction(Action):
-    pass
-
-
-@subnode_(ActionType.ROUTE)
-class RouteAction(Action):
-    pass
-
-
-@subnode_(ActionType.EDIT)
-class EditAction(Action):
-    pass
-
-
 #
 # Read
 #
-
-
-#
-# Write
-#
-
-
-@subnode_(ActionType.CREATE)
-class CreateAction(Action):
-    node_partial_packed: Any = p_value_packed(120, field_type=FieldType.INPUT, partial=True)
-    node_partial: Any = p_value_runtime(
-        120,
-        typ=lambda self: CreateAction._node_partial_type(),
-        field_type=FieldType.INPUT,
-        partial=True,
-    )
-    node: Node | None = p_regular(220, require=False, references="any", field_type=FieldType.OUTPUT)
-
-    @classmethod
-    @cachetools.cached({})  # :CachedTypeInfo
-    def _node_partial_type(cls) -> "TypeBase":
-        return Type(kind=TypeKind.PARTIAL_OBJECT)
-
-
-@subnode_(ActionType.DUPLICATE)
-class DuplicateAction(Action):
-    node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
-    if TYPE_CHECKING:
-        node_ptr: NodeReference | None = None
-    node_partial_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
-    node_partial: Any = p_value_runtime(
-        121,
-        typ=lambda self: DuplicateAction._node_partial_type(),
-        field_type=FieldType.INPUT,
-        partial=True,
-    )
-    is_shallow: bool | None = p_regular(122, default=False, field_type=FieldType.INPUT)
-    duplicated_node: Node | None = p_regular(
-        123, require=False, references="any", field_type=FieldType.OUTPUT
-    )
-
-    @classmethod
-    @cachetools.cached({})  # :CachedTypeInfo
-    def _node_partial_type(cls) -> "TypeBase":
-        return Type(kind=TypeKind.PARTIAL_OBJECT)
-
-
-@subnode_(ActionType.UPDATE)
-class UpdateAction(Action):
-    node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
-    if TYPE_CHECKING:
-        node_ptr: NodeReference | None = None
-    node_partial_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
-    node_partial: Any = p_value_runtime(
-        121,
-        typ=lambda self: UpdateAction._node_partial_type(),
-        field_type=FieldType.INPUT,
-        partial=True,
-    )
-
-    @classmethod
-    @cachetools.cached({})  # :CachedTypeInfo
-    def _node_partial_type(cls) -> "TypeBase":
-        return Type(kind=TypeKind.PARTIAL_OBJECT)
-
-
-@subnode_(ActionType.DELETE)
-class DeleteAction(Action):
-    node: Node | None = p_regular(120, require=False, references="any", field_type=FieldType.INPUT)
-    if TYPE_CHECKING:
-        node_ptr: NodeReference | None = None
 
 
 #
@@ -623,104 +525,3 @@ class ReceiveAction(Action):
 @subnode_(ActionType.YIELD)
 class YieldAction(Action):
     pass
-
-
-#
-# Application
-#
-
-
-@object_()
-class HasApplicationContext(BuiltinObject):
-    application: Optional["Browser"] = p_regular(
-        100, require=False, references=(NodeType.BROWSER,), field_type=FieldType.INPUT
-    )
-    element_id: str | None = p_regular(110, field_type=FieldType.INPUT)
-    element_position: Optional["Vector2"] = p_regular(
-        111, default=None, array=False, struct=StructType.VECTOR2, field_type=FieldType.INPUT
-    )
-
-
-@subnode_(ActionType.LOOK)
-class LookAction(Action, HasApplicationContext):  # move out of application?
-    exclude_image: bool | None = p_regular(120, default=False, field_type=FieldType.INPUT)
-    screenshot: Optional["File"] = p_regular(
-        200,
-        require=False,
-        array=False,
-        references=NodeType.FILE,
-        field_type=FieldType.OUTPUT,
-    )
-    dom_nodes: list["DomNode"] = p_regular(
-        201,
-        require=False,
-        array=True,
-        struct=StructType.DOM_NODE,
-        field_type=FieldType.OUTPUT,
-    )
-
-
-@subnode_(ActionType.CLICK)
-class ClickAction(Action, HasApplicationContext):
-    button: Optional[str] = p_regular(120, default=None, field_type=FieldType.INPUT)
-
-
-@subnode_(ActionType.PRESS)
-class PressAction(Action, HasApplicationContext):
-    combination: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    delay: timedelta | None = p_regular(121, default=None, field_type=FieldType.INPUT)
-
-
-@subnode_(ActionType.TYPE)
-class TypeAction(Action, HasApplicationContext):
-    string: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    delay: timedelta | None = p_regular(121, default=None, field_type=FieldType.INPUT)
-
-
-@subnode_(ActionType.SCROLL)
-class ScrollAction(Action, HasApplicationContext):
-    amount: Optional["Vector2"] = p_regular(
-        120,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.VECTOR2,
-        field_type=FieldType.INPUT,
-    )
-
-
-@subnode_(ActionType.SELECT)
-class SelectAction(Action, HasApplicationContext):
-    pass
-
-
-@subnode_(ActionType.GO_BACKWARD)
-class GoBackwardAction(Action, HasApplicationContext):
-    pass
-
-
-@subnode_(ActionType.GO_FORWARD)
-class GoForwardAction(Action, HasApplicationContext):
-    pass
-
-
-#
-# Web
-#
-
-
-@subnode_(ActionType.GO_TO_URL)
-class GoToUrlAction(Action, HasApplicationContext):
-    url: str | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-
-
-@subnode_(ActionType.GO_TO_TAB)
-class GoToTabAction(Action, HasApplicationContext):
-    tab_index: int | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-
-
-#
-# Group
-#
-
-...

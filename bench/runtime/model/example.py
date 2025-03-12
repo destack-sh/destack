@@ -267,7 +267,7 @@ def basic_field_reference(package: Package):
         ],
     )
     Action1 = Action.new(
-        ActionType.EXTRACT,
+        ActionType.DO,
         name="Classify",
         fields=[Field.input("Text", str), Field.output("Sentiment", Sentiment)],
     )
@@ -289,7 +289,7 @@ def basic_field_reference(package: Package):
 def action_simple(package: Package):
     """A super simple meaningless Action."""
     Action1 = Action.new(
-        ActionType.GENERATE,
+        ActionType.DO,
         name="Action1",
         text=text("Generate some example outputs"),
         fields=[Field.output("Output1", str), Field.output("Output2", str, is_required=True)],
@@ -325,7 +325,7 @@ raise IncapableError("I'm afraid I cannot do that.")
 def action_refusing_illegal_request(package: Package):
     """How to refuse an illegal request."""
     Generate1 = Action.new(
-        ActionType.GENERATE,
+        ActionType.DO,
         name="Generate1",
         text=text("Implement some obviously terrible logic for nefarious purposes"),
     )

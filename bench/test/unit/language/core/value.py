@@ -13,11 +13,7 @@ from bench.language import (
     BuiltinObject,
     Channel,
     Class,
-    Code,
-    CreateAction,
     CustomObject,
-    Database,
-    DuplicateAction,
     Field,
     FieldType,
     Flow,
@@ -27,7 +23,6 @@ from bench.language import (
     NodeType,
     Package,
     PrimitiveType,
-    Record,
     Session,
     Text,
     Type,
@@ -127,39 +122,6 @@ def test_partial_node_message_extraneous_property(session: Session, package: Pac
         )
 
 
-def test_partial_node_action(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial Action node with subtypes."""
-    typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.ACTION)
-    obj = Action.partial(type=ActionType.DUPLICATE, name="Action1")
-
-    # should be init to set/empty/default values for ActionBlock
-    assert obj.type == ActionType.DUPLICATE
-    assert obj.name == "Action1"
-    assert obj.node is None
-    assert obj.is_shallow is False
-
-    # set/get values on properties and subnode properties
-    obj.is_shallow = True
-    obj.text = Text.plain("hello bench!")
-    obj.code = Code.from_string("print('hello bench!')")
-    assert obj.is_shallow is True
-    assert obj.text == Text.plain("hello bench!")
-    assert obj.code == Code.from_string("print('hello bench!')")
-
-    # pack/unpack
-    obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
-    assert obj_unpacked.equals(obj)
-
-    # turn into full node
-    full_obj = cast(DuplicateAction, Action.from_partial(obj))
-    assert full_obj.id is not None
-    assert full_obj.type == ActionType.DUPLICATE
-    assert full_obj.is_shallow is True
-    assert full_obj.text == Text.plain("hello bench!")
-    assert full_obj.code == Code.from_string("print('hello bench!')")
-
-
 def test_partial_node_generic(session: Session, package: Package) -> None:
     """Create, update, pack/unpack a partial generic node."""
     typ = Type(kind=TypeKind.PARTIAL_OBJECT)
@@ -188,45 +150,6 @@ def test_partial_node_generic(session: Session, package: Package) -> None:
     full_obj = cast(Field, Node.from_partial(obj))
     assert full_obj.id is not None
     assert full_obj.name == "Option1"
-
-
-def test_partial_node_with_nested_value_packed(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial node with a nested value packed property (CreateAction)."""
-    obj = Action.partial(type=ActionType.CREATE)
-    typ = obj._type
-
-    # should be init to given/empty values
-    assert obj.id is None
-    assert obj.parent is None
-    assert obj.type == ActionType.CREATE
-    assert obj.node_partial is None
-
-    # set/get nested value
-    node_partial = Record.partial(database=Database.new("Database1"))
-    obj.node_partial = node_partial
-    assert obj.node_partial == node_partial
-
-    # pack/unpack
-    obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
-    assert obj.equals(obj_unpacked)
-    assert obj_unpacked.node_partial is not node_partial  # should be a different object instance
-
-    # turn into full node
-    full_obj = cast(CreateAction, Action.from_partial(obj, name="CreateAction1"))
-    assert full_obj.id is not None
-    assert full_obj.name == "CreateAction1"
-    assert full_obj.type == ActionType.CREATE
-    assert full_obj.node_partial == node_partial
-
-
-def test_partial_node_coerce(session: Session, package: Package) -> None:
-    """Coerce a partial node with a subtype value."""
-    obj = Action.partial()
-    obj.type = ActionType.TYPE
-    obj.string = "Hello World!"
-    obj_coerced = coerce_custom_object_scalar({**obj}, obj._type)
-    assert obj_coerced == obj
 
 
 def test_unpack_custom_object(session: Session, package: Package) -> None:

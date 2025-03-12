@@ -2,7 +2,6 @@ from bench.language import (
     Action,
     ActionType,
     Class,
-    DuplicateAction,
     EditOperationType,
     Field,
     Flow,
