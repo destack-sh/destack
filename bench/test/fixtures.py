@@ -75,9 +75,9 @@ def make_global_store(name: str):
     )
     system_package_stub = Package(
         parent=system_bench_stub,
-        type=PackageType.MAIN,
+        type=PackageType.OPEN,
         id=UUID(int=1),
-        name="Main",
+        name="Main Package",
         slug="main",
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
@@ -120,9 +120,9 @@ def make_regional_store(name: str):
     )
     system_package_stub = Package(
         parent=system_bench_stub,
-        type=PackageType.MAIN,
+        type=PackageType.OPEN,
         id=UUID(int=1),
-        name="Main",
+        name="Main Package",
         slug="main",
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,

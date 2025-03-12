@@ -282,7 +282,7 @@ async def test_crud_node_pointers(omni_session: Session):
         )
         session._create(bench)
         await session.flush()
-        package = bench.packages.create(type=PackageType.MAIN, name="Main", slug="main")
+        package = bench.packages.create(type=PackageType.OPEN, name="Main", slug="main")
         store = package.stores.create(name="Production A")
         client = Client(
             parent=bench,

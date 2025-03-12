@@ -45,9 +45,6 @@ class Scaler(Resource[ScalerData]):
 
     # flags
     is_active: bool = p_regular(75, default=True)
-    is_main: bool = p_regular(
-        76, default=False, description="Whether this is the main Scaler for the target Resource."
-    )
 
 
 @subnode_(NodeType.MACHINE)
