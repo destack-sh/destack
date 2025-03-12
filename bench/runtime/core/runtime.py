@@ -51,6 +51,7 @@ from bench.language import (
     RunType,
     Session,
     SessionStatus,
+    Thread,
     TriggerEffect,
     Type,
     TypeIn,
@@ -69,6 +70,7 @@ from bench.language import (
     synchronize_nodes,
     to_type_scalar,
 )
+from bench.language.state.thread import ThreadType
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name
@@ -1016,9 +1018,11 @@ class Runtime:
                 else:
                     assert_never(trigger_effect)
 
-            # nocheckin: create Thread for top-level (?) Run
-            #  (and create Message for some? events like Interruption)
-            #  (related to tracking Task & Plan somehow?)
+            # create Thread for top-level Run
+            if run.thread_ptr is None:
+                thread = Thread(parent=run, type=ThreadType.RUN, run_root=run, run=run)
+                self.session._create(thread)
+                run.thread = thread
 
             # actually run
             try:

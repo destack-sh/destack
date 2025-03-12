@@ -51,16 +51,18 @@ class Thread(IsTimed, IsOwnable, IsTitled, PackageNode[ThreadData]):
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
+    parent: Union["Channel", "Thread", "Run", None] = p_node_parent(
+        4, NodeType.CHANNEL, NodeType.THREAD, NodeType.RUN
+    )
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
-    channel: "Channel" = p_system(
+    channel: "Channel | None" = p_system(
         33,
-        require=True,
+        require=False,
         array=False,
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["InlineNode", "Package"] = p_regular(
+    scope: Union["InlineNode", "Package", None] = p_regular(
         35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
     )
     run_root: Optional["Run"] = p_regular(
