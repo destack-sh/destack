@@ -76,15 +76,20 @@ from bench.system.core import (
     local_pg_engine_from_store,
     pg_engine_from_store,
 )
-from bench.system.graph import (
-    GraphServiceBase,
-    PostgresEngine,
-    extract_commit_area,
-    validate_edit,
+from bench.system.graph import GraphServiceBase, PostgresEngine, extract_commit_area, validate_edit
+from bench.system.resource import (
+    BrowserbaseBrowserProvisioner,
+    BrowserScalerProvisioner,
+    KubernetesMachineProvisioner,
+    LocalhostBrowserProvisioner,
+    LocalhostMachineProvisioner,
+    LocalhostStoreProvisioner,
+    MachineScalerProvisioner,
+    NeonStoreProvisioner,
+    Provisioner,
+    StoreProvisioner,
 )
-from bench.system.provision import Provisioner, get_provisioners
-from bench.system.provision.store import StoreProvisioner
-from bench.utils.env import ENV
+from bench.utils.env import ENV, Env
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -310,6 +315,30 @@ class HostService(GraphServiceBase, HostBase):
             return None
         return cast(TypeBaseNode, node)
 
+    def get_provisioners(self: "HostService", bench: Bench) -> list[Provisioner]:
+        """Gets all available provisioners for the Bench in *this* environment"""
+        provisioners: list[type[Provisioner]]
+        if ENV == Env.TEST or ENV == Env.DEV:
+            provisioners = [
+                BrowserScalerProvisioner,
+                MachineScalerProvisioner,
+                LocalhostStoreProvisioner,
+                LocalhostMachineProvisioner,
+                LocalhostBrowserProvisioner,
+            ]
+        elif ENV == Env.STAGE or ENV == Env.PROD:
+            provisioners = [
+                BrowserScalerProvisioner,
+                MachineScalerProvisioner,
+                NeonStoreProvisioner,
+                KubernetesMachineProvisioner,
+                BrowserbaseBrowserProvisioner,
+            ]
+        else:
+            raise RuntimeError(f"unexpected environment: {ENV!r}")
+
+        return [provisioner(self, bench) for provisioner in provisioners]
+
     async def _activate(self, session: Session, bench: Bench) -> None:
         """Initializes the given Bench for the first time."""
         assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
@@ -320,7 +349,7 @@ class HostService(GraphServiceBase, HostBase):
         self._session = session
 
         # immediately provision local Store
-        provisioners = get_provisioners(self, bench)
+        provisioners = self.get_provisioners(bench)
         store_provisioner = first(
             (p for p in provisioners if isinstance(p, StoreProvisioner)), None
         )
@@ -432,7 +461,7 @@ class HostService(GraphServiceBase, HostBase):
         self._session.suspend()
 
         # start plugins
-        self._provisioners = tuple(get_provisioners(self, self._bench))
+        self._provisioners = tuple(self.get_provisioners(self._bench))
         self._plugins = (
             database_plugin,
             *self._provisioners,
@@ -780,7 +809,7 @@ def validate_context(subject: Subject, context: IsRuntime, edits: Sequence[EditD
             f"bad user context for {subject!r}: {context.user_ptr!r}",
         )
     if subject.client.type == ClientType.MACHINE:
-        if not context.machine or context.machine != subject.machine:
+        if not context.machine_ptr or context.machine_ptr.id != subject.machine_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
                 f"bad machine context for {subject!r}: {context.machine!r}",

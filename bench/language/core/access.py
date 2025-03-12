@@ -361,8 +361,8 @@ class Subject(Struct):
         client_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
-        server_ptr: Optional[NodeReference] = None
-        server_id: Optional[UUID] = None
+        machine_ptr: Optional[NodeReference] = None
+        machine_id: Optional[UUID] = None
 
     # accessories
     owned: list[Ownable] = p_system(

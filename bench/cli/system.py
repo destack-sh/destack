@@ -24,6 +24,7 @@ from bench.language import (
     User,
     UserStatus,
 )
+from bench.system.supervisor.bench import CreateBenchOptions
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
@@ -67,16 +68,16 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
             main_handle=system_user.main_handle,
             owned_by=system_user,
             region=region,
-            global_store=global_store,
             session=session,
+            options=CreateBenchOptions(create_machine_scaler=False),
         )
         bench_bench_handle = system_user.handles.create(slug=BENCH_SLUG)
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle,
             owned_by=system_user,
             region=region,
-            global_store=global_store,
             session=session,
+            options=CreateBenchOptions(create_machine_scaler=True),
         )
         logger.info(
             "system.bootstrap",
@@ -165,7 +166,7 @@ async def create_image_pull_secret(*, ghcr_username: str, ghcr_token: str):
     from kubernetes_asyncio import client as k8
     from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
 
-    from bench.system.provision.kubernetes import KUBERNETES_NAMESPACE, get_kubernetes_client
+    from bench.system.resource.kubernetes import KUBERNETES_NAMESPACE, get_kubernetes_client
 
     kubernetes_api = await get_kubernetes_client()
     kubernetes_core_api = KubernetesCoreV1Api(kubernetes_api)

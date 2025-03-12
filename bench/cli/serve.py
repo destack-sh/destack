@@ -97,6 +97,7 @@ async def system(
     from bench.system import (
         HOST_MAP,
         STORE_MAP,
+        CreateBenchOptions,
         HostRouterService,
         SupervisorService,
         global_store_from_env,
@@ -122,6 +123,7 @@ async def system(
             oracle=REAL_ORACLE,
             host_map=HOST_MAP,
             store_map=STORE_MAP,
+            create_bench_options=CreateBenchOptions(),
         )
         services.append(supervisor)
     await _do_serve(handlers=services, network=network, host=host, port=port, watch=watch)
@@ -130,7 +132,13 @@ async def system(
 @app.command()
 @async_to_sync
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system import HOST_MAP, STORE_MAP, SupervisorService, global_store_from_env
+    from bench.system import (
+        HOST_MAP,
+        STORE_MAP,
+        CreateBenchOptions,
+        SupervisorService,
+        global_store_from_env,
+    )
 
     global_store = global_store_from_env()
     network = RealNetwork()
@@ -141,6 +149,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
         oracle=REAL_ORACLE,
         host_map=HOST_MAP,
         store_map=STORE_MAP,
+        create_bench_options=CreateBenchOptions(),
     )
     await _do_serve(handlers=[supervisor], network=network, host=host, port=port, watch=watch)
 
