@@ -16,7 +16,6 @@ from bench.language import (
     LOADED_PACKAGE_NODE_TYPES,
     NONCE,
     PUBLIC_NODE_TYPES,
-    STATIC_RESOURCE_NODE_TYPES,
     Bench,
     Client,
     ClientType,
@@ -40,14 +39,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
+    NodeType.HANDLE, NodeType.PACKAGE, *LOADED_PACKAGE_NODE_TYPES
 ).select_all()
-PACKAGE_QUERY = (
-    Package.include_descendants(*LOADED_PACKAGE_NODE_TYPES)
-    .include_ancestors(Bench)
-    .select_all()
-    .deselect(Bench.encryption_key)
-)
 
 
 class RuntimeThreadMode(enum.StrEnum):
@@ -175,13 +168,12 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         async with self.session():
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
+            self._main_package = self._bench.main_package
             self._session.parent = self._bench
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._machine_id:
                 self._machine = await Machine.get(id=self._machine_id)
-            # get package
-            self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, live=True)
 
         # update session context
         self._session.client = self._client

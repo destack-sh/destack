@@ -16,6 +16,7 @@ from bench.language import (
     apply_sort,
     code,
     evaluate_conditional,
+    text_line,
 )
 from bench.runtime.core import create_run_from_node
 
@@ -46,7 +47,7 @@ def test_evaluate_conditional_property_stringy(session: Session):
 
 
 def test_evaluate_conditional_property_node(session: Session, package: Package):
-    Page1 = package.pages.create(name="Page1")
+    Page1 = package.pages.create(title=text_line("Page1"))
     Flow1 = Flow.new("Flow1")
     Page1.append(Flow1)
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))

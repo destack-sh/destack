@@ -9,10 +9,16 @@ from rich import print
 
 from bench.cli.utils import async_to_sync, parse_region
 from bench.language import (
-    BENCH_SLUG,
+    BENCH_BENCH_ID,
+    BENCH_BENCH_SLUG,
+    BENCH_BUILTIN_PACKAGE_ID,
+    BENCH_BUILTIN_PACKAGE_SLUG,
     CLOUD,
     REGION,
-    SYSTEM_SLUG,
+    SYSTEM_BENCH_ID,
+    SYSTEM_BENCH_SLUG,
+    SYSTEM_PACKAGE_ID,
+    SYSTEM_PACKAGE_SLUG,
     Bench,
     Client,
     ClientType,
@@ -63,21 +69,33 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
         )
         session._create(system_user)
         await session.flush(optimistic=True)
-        system_user.main_handle = system_user.handles.create(slug=SYSTEM_SLUG)
+        # create builtin benches :BuiltinBenches
+        system_user.main_handle = system_user.handles.create(slug=SYSTEM_BENCH_SLUG)
         system_bench = await create_default_bench(
             main_handle=system_user.main_handle,
             owned_by=system_user,
             region=region,
             session=session,
-            options=CreateBenchOptions(create_machine_scaler=False),
+            options=CreateBenchOptions(
+                create_machine_scaler=False,
+                bench_id=SYSTEM_BENCH_ID,
+                main_package_slug=SYSTEM_PACKAGE_SLUG,
+                main_package_id=SYSTEM_PACKAGE_ID,
+            ),
         )
-        bench_bench_handle = system_user.handles.create(slug=BENCH_SLUG)
+        bench_bench_handle = system_user.handles.create(slug=BENCH_BENCH_SLUG)
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle,
             owned_by=system_user,
             region=region,
             session=session,
-            options=CreateBenchOptions(create_machine_scaler=True),
+            options=CreateBenchOptions(
+                bench_id=BENCH_BENCH_ID,
+                main_package_slug=BENCH_BUILTIN_PACKAGE_SLUG,
+                main_package_id=BENCH_BUILTIN_PACKAGE_ID,
+                main_package_name="Builtin Package",
+                create_machine_scaler=False,
+            ),
         )
         logger.info(
             "system.bootstrap",

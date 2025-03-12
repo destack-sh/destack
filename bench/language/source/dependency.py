@@ -12,24 +12,21 @@ from bench.language.core import (
 from bench.pb2 import DependencyData
 
 if TYPE_CHECKING:
-    from bench.language import Package
+    from bench.language import Bench, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @node_(NodeType.DEPENDENCY)
 class Dependency(IsTemplatable, IsTraceable, PackageNode[DependencyData]):
-    """
-    A dependency on another Bench (pointing to a specific Package).
-    If scopes are given, only those blocks are included.
-    """
+    """A Dependency on another Package or Bench."""
 
     parent: Union["Package", None] = p_node_parent(4, NodeType.PACKAGE)
 
-    dependency: "Package" = p_regular(
+    dependency: Union["Package", "Bench"] = p_regular(
         40,
         require=True,
         array=False,
-        references=NodeType.PACKAGE,
-        description="The Package this Dependency depends on.",
+        references=(NodeType.PACKAGE, NodeType.BENCH),
+        description="The Package or Bench this Dependency depends on (if Bench it's all Packages).",
     )

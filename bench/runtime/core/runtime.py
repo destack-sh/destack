@@ -99,7 +99,7 @@ tracer = trace.get_tracer(__name__)
 class Runtime:
     """
     The runtime for executing Runs. A Runtime is tied exclusively to one Session.
-    A Run is exclusively owned by one Runtime at a time, but may be transferred between Runtimes.
+    A Run is exclusively owned by one Runtime at a time (but may be transferred between Runtimes).
     """
 
     def __init__(
@@ -116,7 +116,6 @@ class Runtime:
         from bench.runtime.browser.playwright import PlaywrightClient
         from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 
-        assert session.bench is not None, f"{session!r} is not attached"
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
         self.session._graph.add_types(*RUNTIME_NODE_TYPES)

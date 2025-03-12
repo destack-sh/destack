@@ -42,12 +42,20 @@ class _Unset:
 
 
 # forever constants
-BENCH_SLUG = "bench"
-SYSTEM_SLUG = "system"
-UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 VERSION = "2025.03.12.2"
+UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
+
+# builtin benches :BuiltinBenches
+BENCH_BENCH_SLUG = "bench"
+BENCH_BENCH_ID = UUID("11111111-1111-1111-1111-000000000000")
+BENCH_BUILTIN_PACKAGE_SLUG = "builtin"
+BENCH_BUILTIN_PACKAGE_ID = UUID("11111111-1111-1111-1111-000000000001")
+SYSTEM_BENCH_SLUG = "system"
+SYSTEM_BENCH_ID = UUID("22222222-2222-2222-2222-000000000000")
+SYSTEM_PACKAGE_SLUG = "system"
+SYSTEM_PACKAGE_ID = UUID("22222222-2222-2222-2222-000000000001")
 
 # runtime constants
 NONCE = uuid4()
@@ -60,9 +68,8 @@ if not IS_TEST:
     DEFAULT_WAIT_TIMEOUT = timedelta(seconds=30)
     DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=30)
 else:
-    # nocheckin
-    DEFAULT_WAIT_TIMEOUT = timedelta(seconds=500)
-    DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=500)
+    DEFAULT_WAIT_TIMEOUT = timedelta(seconds=5)
+    DEFAULT_RESOURCE_TIMEOUT = timedelta(seconds=5)
 
 
 def new_struct_id() -> int:
