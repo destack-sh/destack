@@ -1783,11 +1783,6 @@ class Empty(Node):
     parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
 
 
-#
-# Utilities
-#
-
-
 # NOTE: import from .value later to avoid circular import
 #  (but import at top level to avoid import in critical path)
 

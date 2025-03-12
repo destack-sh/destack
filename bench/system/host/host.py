@@ -18,8 +18,6 @@ from bench.language import (
     LOADED_PACKAGE_NODE_TYPES,
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
-    SOURCE_NODE_TYPES,
-    STATIC_RESOURCE_NODE_TYPES,
     Bench,
     BenchStatus,
     C,
@@ -90,7 +88,6 @@ from bench.system.resource import (
     StoreProvisioner,
 )
 from bench.utils.env import ENV, Env
-from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
@@ -110,14 +107,8 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
 )
 
 BENCH_QUERY = Bench.include_descendants(
-    NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
+    NodeType.HANDLE, NodeType.PACKAGE, *LOADED_PACKAGE_NODE_TYPES
 ).select_all()
-PACKAGE_QUERY = (
-    Package.include_ancestors(Bench)
-    .include_descendants(*LOADED_PACKAGE_NODE_TYPES)
-    .select_all()
-    .deselect(Bench.encryption_key)
-)
 
 
 class HostService(GraphServiceBase, HostBase):
@@ -375,6 +366,8 @@ class HostService(GraphServiceBase, HostBase):
             # load full bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store is not None, f"{self._bench!r} has no main store"
+            assert self._bench.main_package is not None, f"{self._bench!r} has no main package"
+            self._main_package = self._bench.main_package
             session.parent = self._bench  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
             session._engines += (
@@ -383,16 +376,12 @@ class HostService(GraphServiceBase, HostBase):
                 ),
             )
 
-            # load packages
-            self._main_package = await PACKAGE_QUERY.get(self._bench.main_package_ptr, mode="both")
-
             # activate if needed
             if self._bench.status < BenchStatus.ACTIVATED:
                 await self._activate(session, self._bench)
 
             # cleanup
             self._bench._untrack_rec()
-            self._main_package._untrack_rec()
 
         # setup main engines
         # (overwrite global pg engine now that we have the full bench as context)
@@ -429,13 +418,6 @@ class HostService(GraphServiceBase, HostBase):
                 graph=self._bench._data_graph,
                 include_deleted=False,
             ),
-            MemoryEngine(
-                name="inmemory-main-package",
-                scope=self._scope,
-                node_types=SOURCE_NODE_TYPES,
-                graph=self._main_package._data_graph,
-                include_deleted=False,
-            ),
         )
         self._engines = (
             *inmemory_engines,  # prefer in memory engines
@@ -456,7 +438,6 @@ class HostService(GraphServiceBase, HostBase):
             _skip_add_self=True,
         )
         self._bench._track_rec(self._session)
-        self._main_package._track_rec(self._session)
         await self._session.open(_set_in_context=True)
         self._session.suspend()
 
@@ -538,27 +519,16 @@ class HostService(GraphServiceBase, HostBase):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         bench_edits: list[EditData] = []
-        package_edits: list[EditData] = []
         for i, edit in enumerate(chain(edits, cascaded_edits)):
             is_cascaded = i >= len(edits)
             if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
                 continue  # remove cascades are implicit
             node_type = NodeType(edit.node_ptr.node_type)
-            if (
-                node_type not in self._bench._graph.node_types
-                and node_type not in self._main_package._graph.node_types
-            ):
+            if node_type not in self._bench._graph.node_types:
                 continue  # not loaded
             if node_type in self._bench._graph.node_types:
                 bench_edits.append(edit)
-            if node_type in self._main_package._graph.node_types and edit.scope.package_id:
-                package_id = to_uuid(edit.scope.package_id)
-                assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
-                package_edits.append(edit)
-        for root_node, subedits in (
-            (self._bench, bench_edits),
-            (self._main_package, package_edits),
-        ):
+        for root_node, subedits in ((self._bench, bench_edits),):
             # filter the in memory edits to only those with an origin (we = system has origin = null)
             external_edits = tuple(e for e in subedits if e.origin.id)
             if scope == "both" or scope == "unpacked":
@@ -577,17 +547,11 @@ class HostService(GraphServiceBase, HostBase):
         Resets the in-memory graphs to match the data graphs. Patches in-place.
         """
         assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._main_package is not None, f"package not loaded in {self!r}"
 
         new_bench_graph = unpack_node_graph(
             self._bench._data_graph, self._supergraph, session=self._session
         )
         patch_graph(old_graph=self._bench._graph, new_graph=new_bench_graph)
-
-        new_package_graph = unpack_node_graph(
-            self._main_package._data_graph, self._supergraph, session=self._session
-        )
-        patch_graph(old_graph=self._main_package._graph, new_graph=new_package_graph)
 
     @override
     @tracer.start_as_current_span("host.on_commit_prepare")
@@ -638,8 +602,6 @@ class HostService(GraphServiceBase, HostBase):
         await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
 
         assert self._session is not None, f"session not ready in {self!r}"
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-        assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # apply edits to loaded data graphs (see on_commit_prepare above for optimistic counterpart)
         self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="data")
@@ -814,7 +776,6 @@ def validate_context(subject: Subject, context: IsRuntime, edits: Sequence[EditD
                 GRPCStatus.INVALID_ARGUMENT,
                 f"bad machine context for {subject!r}: {context.machine!r}",
             )
-    # NOTE :Incomplete: validate Edit context in Host
 
 
 def get_drive_bucket(bench: Bench) -> str:

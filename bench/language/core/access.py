@@ -473,11 +473,9 @@ def _register_system_policies():
             .allow(),
         ),
         Policy(name="StaffAccess").append(
-            PolicyRule(
-                name="StaffCanReadAnything", text=Text.plain("Staff Users can read anything.")
-            )
+            PolicyRule(name="StaffCanDoAnything", text=Text.plain("Staff Users can do anything."))
             .subject(is_staff=True)
-            .allow(AccessKind.READ),
+            .allow(AccessKind.READ, AccessKind.EDIT, AccessKind.USE),
         ),
         Policy(name="MemberAccess").append(
             PolicyRule(
