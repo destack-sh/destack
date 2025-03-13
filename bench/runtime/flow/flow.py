@@ -1,6 +1,6 @@
 from abc import ABC
 from asyncio import Queue
-from typing import Any, ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
+from typing import ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -96,7 +96,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             outputs=outputs,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, LinkRunner | ActionRunner[Any]] = {}
+        self._active_runners_by_id: dict[UUID, LinkRunner | ActionRunner] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._events: Queue[RunnerEvent] = Queue()
 

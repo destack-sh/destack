@@ -2,7 +2,7 @@
 import psycopg
 
 ID = 1
-VERSION = "2025.03.13.0"
+VERSION = "2025.03.13.1"
 HAS_GLOBAL = True
 HAS_REGIONAL = True
 HAS_LOCAL = True
@@ -14,8 +14,8 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 
     # bench_migration
@@ -313,8 +313,8 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_regional(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 
     # bench_migration
@@ -352,7 +352,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -403,7 +403,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 1,
         "name" varchar,
@@ -453,7 +453,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 10,
         "name" varchar,
@@ -506,7 +506,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 1,
         "name" varchar,
@@ -562,7 +562,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -620,7 +620,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -664,7 +664,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar,
@@ -709,7 +709,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -740,7 +740,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "dependency_id" uuid NOT NULL,
         "dependency_type" smallint NOT NULL,
@@ -769,7 +769,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "title" jsonb,
         "order_key" varchar,
@@ -801,7 +801,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -833,7 +833,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar,
@@ -864,7 +864,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar,
@@ -898,7 +898,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -946,7 +946,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
@@ -975,7 +975,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar,
@@ -1006,7 +1006,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
@@ -1046,11 +1046,10 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
-        "category" smallint,
         "name" varchar,
         "order_key" varchar NOT NULL DEFAULT 'a0'::character varying,
         "icon" jsonb,
@@ -1087,7 +1086,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "computed_values" jsonb[],
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
@@ -1128,7 +1127,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -1174,7 +1173,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar,
@@ -1210,7 +1209,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" integer NOT NULL,
         "name" varchar,
@@ -1267,7 +1266,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "name" varchar,
         "order_key" varchar,
@@ -1299,7 +1298,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 1,
         "name" varchar,
@@ -1331,7 +1330,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_id" uuid,
         "template_bench_id" uuid,
         "template_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "order_key" varchar,
         "icon" jsonb,
@@ -1364,7 +1363,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "name" varchar,
@@ -1407,7 +1406,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "deleted_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 1,
         "title" jsonb,
@@ -1447,7 +1446,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 1,
         "title" jsonb,
@@ -1507,7 +1506,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "title" jsonb,
@@ -1596,7 +1595,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "status" smallint NOT NULL DEFAULT 1,
         "duration" interval,
@@ -1627,7 +1626,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "title" jsonb,
@@ -1691,7 +1690,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "root_id" uuid,
@@ -1747,7 +1746,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "root_id" uuid,
@@ -1802,7 +1801,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "severity" smallint NOT NULL,
@@ -1840,7 +1839,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL,
         "title" jsonb,
@@ -1891,7 +1890,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
-        "mode" smallint NOT NULL DEFAULT 2,
+        "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 10,
         "title" jsonb,
@@ -2169,10 +2168,10 @@ async def downgrade_regional(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
 
     # bench_migration
     await cur.execute(

@@ -1,7 +1,17 @@
-import abc
 from typing import TYPE_CHECKING, Annotated, Any, cast, override
 
-from bench.language import Browser, File, FileFormat, FileType, NodeMode, Page, upload_file
+from bench.language import (
+    Browser,
+    BrowserType,
+    File,
+    FileFormat,
+    FileType,
+    NodeMode,
+    Page,
+    upload_file,
+)
+
+from .computer import ComputerKit, IComputer
 
 if TYPE_CHECKING:
     from playwright.async_api import Page as PlaywrightPage
@@ -9,69 +19,9 @@ if TYPE_CHECKING:
     from bench.runtime.core.runner import Runner
 
 
-from .reflect import class_to_kit
+from bench.builtin.core import class_to_kit
 
 # ruff: noqa: N802,N803
-
-
-class IComputer(abc.ABC):
-    """The basic interface to any sort of a Computer."""
-
-    @abc.abstractmethod
-    async def Screenshot(self) -> Annotated[dict[str, File], {"image": File}]:
-        """
-        Take a screenshot of the current screen
-        ICON: fas fa-camera
-        """
-        ...
-
-    @abc.abstractmethod
-    async def Click(self, X: int, Y: int, Button: str = "left") -> None:
-        """
-        Click an element
-        ICON: fas fa-arrow-pointer
-        """
-        ...
-
-    @abc.abstractmethod
-    async def Double_Click(self, X: int, Y: int) -> None:
-        """
-        Double click an element
-        ICON: fas fa-arrow-pointer
-        """
-        ...
-
-    @abc.abstractmethod
-    async def Press(self, Keys: list[str]) -> None:
-        """
-        Press a key
-        ICON: fas fa-keyboard
-        """
-        ...
-
-    @abc.abstractmethod
-    async def Type(self, Text: str) -> None:
-        """
-        Type a string on the keyboard
-        ICON: fas fa-keyboard
-        """
-        ...
-
-    @abc.abstractmethod
-    async def Move(self, X: int, Y: int) -> None:
-        """
-        Move the mouse to a position
-        ICON: fas fa-mouse
-        """
-        ...
-
-    @abc.abstractmethod
-    async def Scroll(self, X: int, Y: int, Scroll_X: int, Scroll_Y: int) -> None:
-        """
-        Scroll the mouse
-        ICON: fas fa-mouse
-        """
-        ...
 
 
 class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
@@ -174,6 +124,6 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
         await pw_page.go_back()
 
 
-ComputerKit = class_to_kit(IComputer, "Computer", mode=NodeMode.TEMPLATE)
 BrowserKit = class_to_kit(IBrowser, "Browser", template=ComputerKit)
-ComputerPage = Page.new("Computer", ComputerKit, BrowserKit)
+ChromeBrowser = Browser(name="Chrome Browser", type=BrowserType.CHROMIUM, mode=NodeMode.TEMPLATE)
+BrowserPage = Page.new("Browser", ChromeBrowser, BrowserKit)

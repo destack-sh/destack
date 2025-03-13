@@ -88,7 +88,7 @@ def class_to_kit(
                     )
                     action.fields.append(field)
 
-        # match base field's ck for instances
+        # 'inherit' base field's ck for instances
         if template_action is not None:
             for template_field in template_action.fields:
                 assert template_field.name, f"{template_field!r} has no name"

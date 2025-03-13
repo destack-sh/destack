@@ -35,12 +35,12 @@ async def test_acquire_browser_resource_directly(
 @simulated_runtime()
 async def test_run_flow_browser_go_to_url(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Use a Browser as in a Flow to open a URL and get a screenshot."""
-    from bench.builtin import BrowserKit, CommonKit
+    from bench.builtin import ActionKit, BrowserKit
 
     Flow1 = Flow.new("Flow", fields=[Field.resource("Browser", Browser)])
     Start = Action.new(ActionType.START)
     GoToUrl = Action.new(BrowserKit.actions.Go_To_Url, url="https://symbolx.com")
-    Wait = Action.new(CommonKit.actions.Wait, delay=timedelta(seconds=3))
+    Wait = Action.new(ActionKit.actions.Wait, delay=timedelta(seconds=3))
     Observe = Action.new(BrowserKit.actions.Screenshot)
     Complete = Action.new(ActionType.COMPLETE)
     Flow1.actions.extend(Start, GoToUrl, Wait, Observe, Complete)

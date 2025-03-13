@@ -3,9 +3,7 @@ from typing import TYPE_CHECKING, Literal, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
-    NAME_CONSTRAINT,
     BuiltinEnum,
-    ColorType,
     EnumType,
     FieldType,
     IsComputable,
@@ -25,9 +23,8 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    subnode_,
 )
-from bench.language.core.node import IsInstantiable
+from bench.language.core.node import IsInstantiable, IsNamed
 from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -41,7 +38,6 @@ if TYPE_CHECKING:
         Kit,
         Link,
         LinkType,
-        Message,
         NodeReference,
         RunOptions,
         Selection,
@@ -55,86 +51,29 @@ if TYPE_CHECKING:
 _type = type
 
 
-@enum_(EnumType.ACTION_CATEGORY)
-class ActionCategory(BuiltinEnum):
-    ORCHESTRATE = 1, "Orchestrate", "Orchestrating", "fas fa-arrows-rotate", ColorType.YELLOW
-    COMPUTE = 100, "Compute", "Computing", "fas fa-code", ColorType.SKY
-    WORK = 200, "Work", "Working", "fas fa-hammer", ColorType.VIOLET
-    WRITE = 300, "Write", "Writing", "fas fa-pencil", ColorType.SKY
-    COMMUNICATE = 400, "Communicate", "Communicating", "fas fa-inbox-out", ColorType.PINK
-    OBSERVE = 800, "Observe", "Observing", "fas fa-eye", ColorType.EMERALD
-    INTERACT = 1000, "Interact", "Interacting", "fas fa-hand-pointer", ColorType.INDIGO
-    FETCH = 1100, "Fetch", "Fetching", "fas fa-download", ColorType.INDIGO
-
-
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
     # orchestrate
-    START = 10, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
-    COMPLETE = 20, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
-    # WAIT = 30, "Wait", "Wait for some trigger", "fas fa-clock", ColorType.PINK
-    # FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation", ColorType.YELLOW
-    # ABORT?
+    START = 10, "Start", "Begin the Flow", "fas fa-circle-play"
+    RECEIVE = 11, "Receive", "Receive a Message", "fas fa-inbox-in"
+    COMPLETE = 20, "Complete", "Complete the entire Flow", "fas fa-flag-checkered"
+    # WAIT = 30, "Wait", "Wait for some trigger"
 
-    # compute
-    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.SKY
-    CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.SKY
-
-    # work
-    DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
-    # THINK = 201, "Think", "Reflect on the context", "fas fa-brain-circuit", ColorType.VIOLET
-    # ROUTE = 202, "Route", "Route between Actions", "fas fa-split", ColorType.VIOLET
-    # GENERATE = (
-    #     203,
-    #     "Generate",
-    #     "Generate something new",
-    #     "fas fa-wand-magic-sparkles",
-    #     ColorType.VIOLET,
-    # )
-    # TRANSFORM = (
-    #     204,
-    #     "Transform",
-    #     "Change the form of something",
-    #     "fas fa-arrows-rotate",
-    #     ColorType.VIOLET,
-    # )
-    # EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
-    # EDIT = 210, "Edit", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
-
-    # nocheckin: turn builtin-Actions into builtin Action nodes (in bench package)
-
-    #
-    # communicate
-    # SEND = 510, "Send", "Send a Message", "fas fa-inbox-out", ColorType.PINK
-    RECEIVE = 511, "Receive", "Receive a Message", "fas fa-inbox-in", ColorType.PINK
-    # YIELD = 520, "Yield", "Defer to someone", "fas fa-hand", ColorType.PINK
-    # NOTIFY?
+    # act
+    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench"
+    CODE = 101, "Code", "Run some Code", "fas fa-code"
+    DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer"
 
     # containers
     # GROUP, LOOP, ...
 
     @property
-    def category(self) -> ActionCategory:
-        if self < 100:
-            return ActionCategory.ORCHESTRATE
-        else:
-            return ActionCategory(self / 100)
-
-    @property
     def is_boundary(self) -> bool:
         return self < 40
 
-    @property
-    def is_dynamic(self) -> bool:
-        return self >= 200 and self < 300
-
-    @property
-    def is_container(self) -> bool:
-        return self >= 8000 and self < 9000
-
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
-class Action(IsComputable, IsInstantiable, IsTraceable, PackageNode[ActionData]):
+class Action(IsComputable, IsInstantiable, IsNamed, IsTraceable, PackageNode[ActionData]):
     """
     A data or control flow node in a Flow. Actions are connected by Links.
     """
@@ -145,8 +84,6 @@ class Action(IsComputable, IsInstantiable, IsTraceable, PackageNode[ActionData])
 
     # common
     type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
-    category: ActionCategory | None = p_regular(31, description="Category of this Action.")
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.ICON
@@ -330,55 +267,3 @@ class Action(IsComputable, IsInstantiable, IsTraceable, PackageNode[ActionData])
             type=cast(ActionType, typ), name=name or cast(ActionType, typ).bench_name, **kwargs
         )
         return cast(ActionT, action)
-
-
-#
-# Orchestrate
-#
-
-
-@subnode_(ActionType.START)
-class StartAction(Action):
-    pass
-
-
-@subnode_(ActionType.COMPLETE)
-class CompleteAction(Action):
-    pass
-
-
-#
-# Compute
-#
-
-
-@subnode_(ActionType.CODE)
-class CodeAction(Action):
-    pass
-
-
-@subnode_(ActionType.TOOL)
-class ToolAction(Action):
-    pass
-
-
-#
-# Work
-#
-
-
-#
-# Read
-#
-
-
-#
-# Communicate
-#
-
-
-@subnode_(ActionType.RECEIVE)
-class ReceiveAction(Action):
-    message: Optional["Message"] = p_regular(
-        100, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.INPUT
-    )

@@ -10,18 +10,14 @@ from bench.language import (
     Aliasing,
     BreakpointScope,
     BreakpointSite,
-    CodeAction,
-    CompleteAction,
     CustomObject,
     IsRuntime,
     ModelDeveloper,
     ModelType,
-    ReceiveAction,
     RunnableNode,
     RunOptions,
     RunSpanType,
     RunType,
-    ToolAction,
     TypeBase,
     TypeKind,
     code,
@@ -47,7 +43,7 @@ tracer = trace.get_tracer(__name__)
 CODE_PASS = code("pass")
 
 
-class ActionRunner[A: Action = Action](Runner[A], ABC):
+class ActionRunner(Runner[Action], ABC):
     """Action Runner."""
 
     runner_type: ClassVar[RunType] = RunType.ACTION
@@ -56,7 +52,7 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
         self,
         *,
         runtime: Runtime,
-        node: A,
+        node: Action,
         run: RunIn,
         options: RunOptions,
         context: IsRuntime,
@@ -77,7 +73,6 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
             outputs=outputs,
             run=run,
         )
-        self.action_inputs = cast(A, self.inputs)
         self.flow = flow
 
     @override
@@ -91,7 +86,7 @@ class ActionRunner[A: Action = Action](Runner[A], ABC):
         return False
 
 
-class StaticActionRunner[A: Action = Action](ActionRunner[A]):
+class StaticActionRunner(ActionRunner):
     @final
     @override
     async def run(self) -> None:
@@ -143,7 +138,7 @@ class StaticActionRunner[A: Action = Action](ActionRunner[A]):
         ...
 
 
-class DynamicActionRunner[A: Action = Action](ActionRunner[A]):
+class DynamicActionRunner(ActionRunner):
     @final
     @override
     async def run(self) -> None:
@@ -207,10 +202,15 @@ class StartActionRunner(StaticActionRunner):
         pass  # nothing to do
 
 
-class CompleteActionRunner(ActionRunner[CompleteAction]):
+class ReceiveActionRunner(StaticActionRunner):
+    @override
+    async def run_static(self) -> None:
+        pass  # nothing to do?
+
+
+class CompleteActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
-        self.outputs = self.inputs
         if self.flow is not None:
             self.flow._complete(outputs=self.outputs)
 
@@ -220,7 +220,7 @@ class CompleteActionRunner(ActionRunner[CompleteAction]):
 #
 
 
-class CodeActionRunner(ActionRunner[CodeAction]):
+class CodeActionRunner(ActionRunner):
     # NOTE: Code runner is static and must generate its own Plans (i.e. we don't auto-generate them)
     #  (because this is only used for manual stuff; therefore we don't inherit StaticActionRunner)
 
@@ -248,7 +248,7 @@ class CodeActionRunner(ActionRunner[CodeAction]):
         self.outputs = code_runner.outputs
 
 
-class ToolActionRunner(StaticActionRunner[ToolAction]):
+class ToolActionRunner(StaticActionRunner):
     def _get_resumable_subrunner(
         self,
         node: RunnableNode,
@@ -281,8 +281,8 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 
     @override
     async def run_static(self) -> None:
-        tool = self.action_inputs.tool
-        tool_type = self.action_inputs.type
+        tool = self.node.tool
+        tool_type = self.node.type
         if tool is not None:
             # delegate to tool node
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
@@ -315,26 +315,14 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
             raise RunImpossibleError("no tool given")
 
 
-#
-# Async
-#
-
-
-class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
-    @override
-    async def run_static(self) -> None:
-        pass  # nothing to do?
-
-
-ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
+ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
     # flow
     ActionType.START: StartActionRunner,
+    ActionType.RECEIVE: ReceiveActionRunner,
     ActionType.COMPLETE: CompleteActionRunner,
     # tool
     ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
     # dynamic
     ActionType.DO: DynamicActionRunner,
-    # async
-    ActionType.RECEIVE: ReceiveActionRunner,
 }

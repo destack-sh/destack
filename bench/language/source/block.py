@@ -17,6 +17,7 @@ from bench.language.core import (
     PackageNode,
     StructType,
     TextLine,
+    TextLineIn,
     TextLineType,
     enum_,
     node_,
@@ -24,6 +25,7 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
+    text_line,
 )
 from bench.pb2 import BlockData
 from bench.utils.env import IS_DEV, IS_TEST
@@ -40,6 +42,8 @@ _type = type
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
+    COMPUTER = 2100, "Computer", "Computer", "fas fa-computer"
+    BROWSER = 2110, "Browser", "Browser", "fas fa-browser"
     FILE = 2200, "File", "Any File", "fas fa-file"
     PAGE = 5020, "Page", "Page to write", "fas fa-page"
     CHOICE = 5030, "Choice", "Choice of options", "fas fa-check-circle"
@@ -207,6 +211,11 @@ class Block(IsTemplatable, IsTraceable, IsNamed, PackageNode[BlockData]):
         if node.definition_id is None:
             node.definition = block
         return block
+
+    @staticmethod
+    def heading(line: TextLineIn, level: int = 1) -> "Block":
+        """Create a heading Block."""
+        return Block.new(BlockType.HEADING_1, line=text_line(line))
 
     @staticmethod
     def new[BlockT: "Block" = "Block"](

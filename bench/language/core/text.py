@@ -842,6 +842,8 @@ def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) 
     Render a single TextLine as markdown.
     """
     if aliasing is not None and isinstance(aliasing, Mapping):
+        from bench.language.source import Aliasing
+
         aliasing = Aliasing.new(aliasing)
     if line.type == TextLineType.DIVIDER:
         return "---"
