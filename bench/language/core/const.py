@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.13.0"
+VERSION = "2025.03.13.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -421,7 +421,6 @@ class EnumType(BuiltinEnum):
 
     # flow (22350-22399)
     ACTION_TYPE = 22350
-    ACTION_CATEGORY = 22351
     PORT_SIDE = 22352
     LINK_TYPE = 22353
     LINK_TRIGGER = 22354
@@ -474,12 +473,12 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
-    BUILTIN = 1, None, None, "fas fa-cog"
-    PRODUCTION = 2, None, None, "fas fa-globe"
-    DEVELOPMENT = 4, None, None, "fas fa-bug"
-    TEST = 6, None, None, "fas fa-flask"
-    TEMPLATE = 8, None, None, "fas fa-puzzle-piece"
-    ARCHIVE = 10, None, None, "fas fa-box-archive"
+    BUILTIN = 10, None, None, "fas fa-cog"
+    PRODUCTION = 20, None, None, "fas fa-globe"
+    DEVELOPMENT = 30, None, None, "fas fa-bug"
+    TEST = 40, None, None, "fas fa-flask"
+    TEMPLATE = 50, None, None, "fas fa-puzzle-piece"
+    ARCHIVE = 100, None, None, "fas fa-box-archive"
 
 
 @enum_(EnumType.NODE_TYPE)

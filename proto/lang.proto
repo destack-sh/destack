@@ -104,7 +104,6 @@ enum EnumType {
   ENUM_TYPE_MODEL_PROVIDER = 22253;
   ENUM_TYPE_CODE_TYPE = 22300;
   ENUM_TYPE_ACTION_TYPE = 22350;
-  ENUM_TYPE_ACTION_CATEGORY = 22351;
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_LINK_TYPE = 22353;
   ENUM_TYPE_LINK_TRIGGER = 22354;
@@ -551,7 +550,6 @@ enum BenchType {
   BENCH_TYPE_MODEL_PROVIDER = 22253;
   BENCH_TYPE_CODE_TYPE = 22300;
   BENCH_TYPE_ACTION_TYPE = 22350;
-  BENCH_TYPE_ACTION_CATEGORY = 22351;
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_LINK_TYPE = 22353;
   BENCH_TYPE_LINK_TRIGGER = 22354;
@@ -587,12 +585,12 @@ enum BenchType {
 
 enum NodeMode {
   NODE_MODE_UNSPECIFIED = 0;
-  NODE_MODE_BUILTIN = 1;
-  NODE_MODE_PRODUCTION = 2;
-  NODE_MODE_DEVELOPMENT = 4;
-  NODE_MODE_TEST = 6;
-  NODE_MODE_TEMPLATE = 8;
-  NODE_MODE_ARCHIVE = 10;
+  NODE_MODE_BUILTIN = 10;
+  NODE_MODE_PRODUCTION = 20;
+  NODE_MODE_DEVELOPMENT = 30;
+  NODE_MODE_TEST = 40;
+  NODE_MODE_TEMPLATE = 50;
+  NODE_MODE_ARCHIVE = 100;
 }
 
 enum NodeArea {
@@ -1034,6 +1032,8 @@ enum TypeFormat {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
+  BLOCK_TYPE_COMPUTER = 2100;
+  BLOCK_TYPE_BROWSER = 2110;
   BLOCK_TYPE_FILE = 2200;
   BLOCK_TYPE_PAGE = 5020;
   BLOCK_TYPE_CHOICE = 5030;
@@ -1574,23 +1574,11 @@ enum CodeType {
 enum ActionType {
   ACTION_TYPE_UNSPECIFIED = 0;
   ACTION_TYPE_START = 10;
+  ACTION_TYPE_RECEIVE = 11;
   ACTION_TYPE_COMPLETE = 20;
   ACTION_TYPE_TOOL = 100;
   ACTION_TYPE_CODE = 101;
   ACTION_TYPE_DO = 200;
-  ACTION_TYPE_RECEIVE = 511;
-}
-
-enum ActionCategory {
-  ACTION_CATEGORY_UNSPECIFIED = 0;
-  ACTION_CATEGORY_ORCHESTRATE = 1;
-  ACTION_CATEGORY_COMPUTE = 100;
-  ACTION_CATEGORY_WORK = 200;
-  ACTION_CATEGORY_WRITE = 300;
-  ACTION_CATEGORY_COMMUNICATE = 400;
-  ACTION_CATEGORY_OBSERVE = 800;
-  ACTION_CATEGORY_INTERACT = 1000;
-  ACTION_CATEGORY_FETCH = 1100;
 }
 
 enum PortSide {
@@ -3276,8 +3264,7 @@ message ActionData {
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ActionType type = 30;
-  optional ActionCategory category = 31;
-  optional string name = 32;
+  optional string name = 31;
   string order_key = 33;
   optional IconData icon = 35;
   optional TextData text = 36;
@@ -3286,27 +3273,6 @@ message ActionData {
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
   optional Vector2Data position = 80;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message StartActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message CompleteActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message CodeActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message ToolActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message ReceiveActionData {
-  optional NodeReferenceData message_ptr = 100;
 }
 
 message BlockData {

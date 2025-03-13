@@ -52,7 +52,7 @@ async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkloa
 
     # nested scalar struct clear
     View1.position.left = None
-    assert get_last_operation().type == EditOperationType.SET
+    assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [
         View1.get_property("position").key,
         Offset.get_property("left").key,

@@ -26,6 +26,7 @@ from bench.language import (
     parse_path,
     path,
     render_path,
+    text_line,
 )
 
 
@@ -287,7 +288,7 @@ def test_get_path(
 
 def test_path_evaluate_attribute(session: Session, mock_package: Package):
     """Evaluate nested path Attributes on a Node."""
-    page1 = mock_package.pages.create(name="Page1")
+    page1 = mock_package.pages.create(title=text_line("Page1"))
     flow1 = Flow.new(
         "Flow1",
         options=RunOptions(max_attempts=2, text_options=TextOptions(temperature=0.5)),

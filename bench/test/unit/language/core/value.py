@@ -31,6 +31,7 @@ from bench.language import (
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
+    text_line,
     unpack_builtin_object,
     unpack_builtin_object_data,
     unpack_custom_object,
@@ -89,13 +90,13 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     assert obj.channel is None
     # set/get values on value and properties
     obj.Field1 = 42
-    obj.title = "My New Message"
+    obj.title = text_line("My New Message")
     obj.clazz = message_type
     obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
     obj.channel = Channel1
     assert obj.Field1 == 42
     assert obj.clazz == message_type
-    assert obj.title == "My New Message"
+    assert obj.title == text_line("My New Message")
     assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
     assert obj.channel == Channel1
     # pack/unpack
@@ -106,7 +107,7 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     # turn into full node
     full_obj = Message.from_partial(obj)
     assert full_obj.id is not None
-    assert full_obj.title == "My New Message"
+    assert full_obj.title == text_line("My New Message")
     assert full_obj.value
     assert full_obj.value.Field1 == 42
     assert full_obj.value.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
