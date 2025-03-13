@@ -13,7 +13,6 @@ from bench.language import (
     NodeReference,
     Package,
     PackageType,
-    Session,
 )
 
 
@@ -89,7 +88,7 @@ def assign_builtin_ids(graph: NodeGraph):
     graph._reindex()
 
 
-def make_builtin_package(session: Session) -> Package:
+def make_builtin_package() -> Package:
     """
     Create the Builtins (detached).
     """

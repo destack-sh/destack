@@ -445,15 +445,10 @@ class CustomObject(Mapping[str, Any]):
                 if self._value.get(key) is None:
                     self._do_set(key, value, validate=not _skip_validate)
         else:
-            property_field_types = self._type.property_field_types
             # NOTE :Performance: all these Property iterations/filters seem inefficient
             for prop in obj._get_effective_cls().__runtime_properties__.values():
                 if (
-                    (
-                        property_field_types
-                        and (prop.field_type is None or prop.field_type not in property_field_types)
-                    )
-                    or prop.id is None
+                    prop.id is None
                     or prop.id < 30
                     or prop.reference_source is not None
                     or prop.is_autoset
@@ -667,11 +662,7 @@ def get_partial_object_type(
         subtype = cast(int | None, value.get("type"))
         if subtype is None:
             subtype = cast(int | None, value.get("30"))
-        if subtype is None or (
-            # subtype may be overridden in value for some nodes (like with Action.type)
-            typ.property_field_types
-            and node_cls.__subtype_base_property__.field_type not in typ.property_field_types
-        ):
+        if subtype is None:
             if typ.constraint is not None and typ.constraint.node_subtypes:
                 subtype = typ.constraint.node_subtypes[0]
         if subtype is not None:
@@ -694,8 +685,6 @@ def get_custom_object_properties(
             )
         else:
             properties = node_cls.__original_properties__.values()
-        if typ.property_field_types:
-            properties = tuple(p for p in properties if p.field_type in typ.property_field_types)
         return properties
     else:
         # nothing
@@ -717,12 +706,7 @@ def get_custom_object_property(
         if prop is None:
             prop = node_cls.__original_properties__.get(name)
 
-    if prop is not None and (
-        not typ.property_field_types or prop.field_type in typ.property_field_types
-    ):
-        return prop
-    else:
-        return None
+    return prop
 
 
 def _do_get_value_runtime(obj: "Struct | Node", prop: Property):

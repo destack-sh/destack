@@ -1,6 +1,5 @@
-from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Literal, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
@@ -13,16 +12,13 @@ from bench.language.core import (
     IsTemplatable,
     IsTraceable,
     LocalNodeList,
-    Node,
     NodeReference,
     NodeSubtypeStub,
     NodeType,
     PackageNode,
     RunType,
     StructType,
-    Type,
     TypeBase,
-    TypeConstraint,
     TypeKind,
     enum_,
     node_,
@@ -30,8 +26,6 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_value_packed,
-    p_value_runtime,
     subnode_,
 )
 from bench.pb2.lang_pb2 import ActionData
@@ -76,15 +70,15 @@ class ActionCategory(BuiltinEnum):
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
     # orchestrate
-    START = 1, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
-    COMPLETE = 10, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
-    FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation", ColorType.YELLOW
+    START = 10, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
+    COMPLETE = 20, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
+    # WAIT = 30, "Wait", "Wait for some trigger", "fas fa-clock", ColorType.PINK
+    # FAIL = 11, "Fail", "Fail the entire Flow", "fas fa-triangle-exclamation", ColorType.YELLOW
     # ABORT?
 
     # compute
     TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.SKY
     CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.SKY
-    # SHELL, ...
 
     # work
     DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.VIOLET
@@ -121,10 +115,9 @@ class ActionType(BuiltinEnum):
     # PASTE?
 
     # communicate
-    WAIT = 500, "Wait", "Wait for some trigger", "fas fa-clock", ColorType.PINK
-    SEND = 510, "Send", "Send a Message", "fas fa-inbox-out", ColorType.PINK
+    # SEND = 510, "Send", "Send a Message", "fas fa-inbox-out", ColorType.PINK
     RECEIVE = 511, "Receive", "Receive a Message", "fas fa-inbox-in", ColorType.PINK
-    YIELD = 520, "Yield", "Defer to someone", "fas fa-hand", ColorType.PINK
+    # YIELD = 520, "Yield", "Defer to someone", "fas fa-hand", ColorType.PINK
     # NOTIFY?
 
     # resource
@@ -136,7 +129,7 @@ class ActionType(BuiltinEnum):
     # ...
 
     # environment
-    LOOK = 800, "Look", "Look at the environment", "fas fa-eye", ColorType.EMERALD
+    # LOOK = 800, "Look", "Look at the environment", "fas fa-eye", ColorType.EMERALD
     # LISTEN, ...
 
     # application
@@ -209,9 +202,7 @@ class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
     )
 
     # common
-    type: ActionType = p_regular(
-        30, description="Type of this Action. Only dynamic for tools.", field_type=FieldType.INPUT
-    )
+    type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
     category: ActionCategory | None = p_regular(31, description="Category of this Action.")
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
@@ -250,18 +241,11 @@ class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
         array=False,
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
-        field_type=FieldType.INPUT,
     )
     if TYPE_CHECKING:
         tool_ptr: "NodeReference | None" = None
         tool_id: Optional[UUID] = None
         tool_ck: Optional[UUID] = None
-
-    # outputs
-    # fanout/fanin, ...?
-
-    # flags
-    # is_streaming: bool = p_regular(80, default=False)
 
     # flow
     position: Optional["Vector2"] = p_regular(
@@ -342,7 +326,6 @@ class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
         self,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-        field_only: bool | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
         from bench.language import Kit, Type
@@ -350,37 +333,19 @@ class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
         else:
-            property_field_types = field_types
             if self.type == ActionType.COMPLETE:
                 if field_types and FieldType.INPUT not in field_types:
                     return None
                 base = self.parent
                 assert not isinstance(base, Kit), f"{self!r} is invalid inside {base!r}"
-                property_field_types = field_types
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:
                 base = self.tool
             else:
                 base = self
-            if (
-                field_types
-                and (FieldType.INPUT in field_types or FieldType.OUTPUT in field_types)
-                and not field_only
-            ):
-                # actions also have their subtype as input & output type
-                #  (to support dynamically setting some action properties as inputs)
-                return Type(
-                    kind=TypeKind.PARTIAL_OBJECT,
-                    base_type=base,
-                    bench_type=NodeType.ACTION,
-                    base_field_types=field_types,
-                    property_field_types=property_field_types or [],
-                    constraint=TypeConstraint(node_subtypes=[self.type]),
-                )
-            else:
-                return Type(
-                    kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_types=field_types or []
-                )
+            return Type(
+                kind=TypeKind.CUSTOM_OBJECT, base_type=base, base_field_types=field_types or []
+            )
 
     def to_type(
         self,
@@ -397,17 +362,9 @@ class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
     def resource_type(self) -> "TypeBase | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.RESOURCE])
 
-    @cached_property
-    def variable_type_field_only(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.RESOURCE], field_only=True)
-
     @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-
-    @cached_property  # :CachedTypeInfo
-    def input_type_field_only(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.INPUT], field_only=True)
 
     @cached_property  # :CachedTypeInfo
     def output_type(self) -> "TypeBase | None":
@@ -415,16 +372,21 @@ class Action(IsComputable, IsTemplatable, IsTraceable, PackageNode[ActionData]):
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](
-        typ: ActionType | _type[ActionT] | NodeSubtypeStub[ActionT],
-        name: str,
+        typ: Union["Action", ActionType, _type[ActionT], NodeSubtypeStub[ActionT]],
+        name: str | None = None,
         **kwargs,
     ) -> ActionT:
         """Creates a new Action of the given type."""
-        if isinstance(typ, type):
+        if isinstance(typ, Action):
+            action = Action(type=ActionType.TOOL, tool=typ, name=name or typ.name, **kwargs)
+            return cast(ActionT, action)
+        elif isinstance(typ, type):
             typ = Action.__subtype_by_subclass__[typ]  # type: ignore
         elif isinstance(typ, NodeSubtypeStub):
             typ = cast(ActionType, typ._node_subtype)
-        action = Action(type=cast(ActionType, typ), name=name, **kwargs)
+        action = Action(
+            type=cast(ActionType, typ), name=name or cast(ActionType, typ).bench_name, **kwargs
+        )
         return cast(ActionT, action)
 
 
@@ -441,21 +403,6 @@ class StartAction(Action):
 @subnode_(ActionType.COMPLETE)
 class CompleteAction(Action):
     pass
-
-
-@subnode_(ActionType.FAIL)
-class FailAction(Action):
-    error_title: str | None = p_regular(
-        120, default=None, require=False, field_type=FieldType.INPUT
-    )
-    error_text: Optional["Text"] = p_regular(
-        121,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.TEXT,
-        field_type=FieldType.INPUT,
-    )
 
 
 #
@@ -488,40 +435,8 @@ class ToolAction(Action):
 #
 
 
-@subnode_(ActionType.WAIT)
-class WaitAction(Action):
-    delay: timedelta | None = p_regular(120, default=None, field_type=FieldType.INPUT)
-    node: Optional["Node"] = p_regular(
-        200,
-        require=False,
-        references="any",
-        field_type=FieldType.OUTPUT,
-        description="The Node the Trigger was waiting on.",
-    )
-
-
-@subnode_(ActionType.SEND)
-class SendAction(Action):
-    message_in_packed: Any = p_value_packed(121, field_type=FieldType.INPUT, partial=True)
-    message_in: Any = p_value_runtime(
-        121,
-        typ=lambda self: Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE),
-        field_type=FieldType.INPUT,
-        partial=True,
-    )
-    # is_blocking, ...?
-    message: Optional["Message"] = p_regular(
-        200, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.OUTPUT
-    )
-
-
 @subnode_(ActionType.RECEIVE)
 class ReceiveAction(Action):
     message: Optional["Message"] = p_regular(
         100, require=False, array=False, references=NodeType.MESSAGE, field_type=FieldType.INPUT
     )
-
-
-@subnode_(ActionType.YIELD)
-class YieldAction(Action):
-    pass

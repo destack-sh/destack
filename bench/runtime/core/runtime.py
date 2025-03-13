@@ -113,7 +113,7 @@ class Runtime:
         dynamic_glbls: Mapping[str, Any] | None = None,
         on_error: Callable[[BaseException], None] | None = None,
     ):
-        from bench.runtime.browser.playwright import PlaywrightClient
+        from bench.runtime.computer.playwright import PlaywrightClient
         from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 
         assert session.bench is not None, f"{session!r} is not attached"

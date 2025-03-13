@@ -13,7 +13,6 @@ from bench.language import (
     BuiltinEnum,
     BuiltinObject,
     CustomObject,
-    FieldType,
     File,
     IsRuntime,
     LinkType,
@@ -172,7 +171,6 @@ def render_builtin_class(cls: type[BuiltinObject]) -> str:
             or (prop.is_ephemeral and not prop.is_value_runtime)
             or prop.is_kernel
             or prop.name == "order_key"
-            or prop.field_type == FieldType.OUTPUT
         ):
             continue  # ignore internal properties
         # scalar

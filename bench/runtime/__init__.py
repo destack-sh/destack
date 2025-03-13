@@ -1,6 +1,6 @@
 from .base import RuntimeServiceBase as RuntimeServiceBase
 from .base import RuntimeThreadMode as RuntimeThreadMode
-from .browser import *  # noqa: F403
+from .computer import *  # noqa: F403
 from .code import *  # noqa: F403
 from .core import *  # noqa: F403
 from .flow import *  # noqa: F403

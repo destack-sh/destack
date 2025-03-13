@@ -96,7 +96,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     default_factory: Callable[[], Any] | None = None
     default_sql: Any = UNSET
     constraint: "TypeConstraint | TypeConstraintIn | None" = None
-    field_type: FieldType | None = None  # what field type this property pretends to be
 
     # flags
     is_list: bool = UNSET
@@ -411,7 +410,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 default=None,
                 reference_source=self,
                 constraint=self.constraint,
-                field_type=self.field_type,
             )
             self.reference_stored_props = (property_ptr,)
             self.reference_wired_ptr = property_ptr
@@ -486,7 +484,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 default=None,
                 primitive_type=None,
                 constraint=self.constraint,
-                field_type=self.field_type,
             )
             if (
                 self.reference_kind == ReferenceKind.NODE_ANCESTOR
@@ -830,7 +827,6 @@ def p_property(
         default_factory=default_factory,
         primitive_type=primitive_type,
         constraint=constraint,
-        field_type=field_type,
         reference_kind=reference_kind,
         reference_nodes=references,
         reference_struct=struct,
@@ -990,7 +986,6 @@ def p_value_runtime(
         is_value_runtime=True,
         is_list=False,
         default=None,
-        field_type=field_type,
         value_packed_ptr=packed,
         value_type_info_getter=typ,
         value_field_type=type,
@@ -1019,7 +1014,6 @@ def p_value_packed(
         is_sensitive=secret,
         is_encrypted=secret,
         is_deferred=secret,
-        field_type=field_type,
         value_is_partial=partial,
     )
 

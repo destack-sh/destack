@@ -165,7 +165,7 @@ def test_unpack_custom_object(session: Session, package: Package) -> None:
             Field.output("Output1", int),
         ],
     )
-    input_type = Action1.input_type_field_only
+    input_type = Action1.input_type
     assert input_type is not None, f"no input_type for {Action1!r}"
     obj = coerce_custom_object_scalar(
         {

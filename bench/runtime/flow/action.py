@@ -1,4 +1,3 @@
-import asyncio
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar, cast, final, override
 
@@ -14,10 +13,7 @@ from bench.language import (
     CodeAction,
     CompleteAction,
     CustomObject,
-    FailAction,
-    InterruptionType,
     IsRuntime,
-    Message,
     ModelDeveloper,
     ModelType,
     ReceiveAction,
@@ -25,22 +21,14 @@ from bench.language import (
     RunOptions,
     RunSpanType,
     RunType,
-    SendAction,
-    Text,
     ToolAction,
     TypeBase,
     TypeKind,
-    ValidationError,
-    WaitAction,
-    YieldAction,
     code,
-    coerce_custom_object_scalar,
-    make_node_from_partial,
 )
 from bench.runtime.core import (
     ATTEMPT_ONCE,
     NotSupportedError,
-    RetryableError,
     RunImpossibleError,
     RunIn,
     Runner,
@@ -227,14 +215,6 @@ class CompleteActionRunner(ActionRunner[CompleteAction]):
             self.flow._complete(outputs=self.outputs)
 
 
-class FailActionRunner(ActionRunner[FailAction]):
-    @override
-    async def run(self) -> None:
-        title = self.action_inputs.error_title or "Flow failed"
-        text = self.action_inputs.error_text or Text.plain(f"Flow failed at {self.node!r}")
-        raise RetryableError(title=title, text=text)
-
-
 #
 # Tool
 #
@@ -340,69 +320,21 @@ class ToolActionRunner(StaticActionRunner[ToolAction]):
 #
 
 
-class WaitActionRunner(StaticActionRunner[WaitAction]):
-    @override
-    async def run_static(self) -> None:
-        # NOTE :Incomplete: obviously WaitStep should be Interruption/Trigger-driven
-        if self.action_inputs.delay is not None:
-            await asyncio.sleep(self.action_inputs.delay.total_seconds())
-
-
-class SendActionRunner(StaticActionRunner[SendAction]):
-    @override
-    async def run_static(self) -> None:
-        message_partial = self.action_inputs.message_in
-        assert isinstance(
-            message_partial, CustomObject
-        ), f"bad message_partial: {message_partial!r}"
-
-        # create/send message
-        message = make_node_from_partial(message_partial)
-        assert isinstance(message, Message), f"bad message: {message!r}"
-        if message.parent is None:
-            if message.reply_to is not None:
-                message.parent = message.reply_to.parent
-            elif message.thread is not None:
-                message.parent = message.thread
-            elif message.channel is not None:
-                message.parent = message.channel
-            else:
-                raise ValidationError(message, "no parent for message")
-        self.session._create(message)
-        logger.debug("send_action.create", action=self.node, message=message)
-
-        assert self.output_type is not None, f"no output type for {self!r}"
-        self.outputs = coerce_custom_object_scalar(
-            {"message": message}, self.output_type, as_packed=True
-        )
-
-
 class ReceiveActionRunner(StaticActionRunner[ReceiveAction]):
     @override
     async def run_static(self) -> None:
         pass  # nothing to do?
 
 
-class YieldActionRunner(StaticActionRunner[YieldAction]):
-    @override
-    async def run_static(self) -> None:
-        interruption = self._trap_interruption(InterruptionType.YIELD)
-        self.outputs = interruption.outputs
-
-
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner[Any]]] = {
     # flow
     ActionType.START: StartActionRunner,
     ActionType.COMPLETE: CompleteActionRunner,
-    ActionType.FAIL: FailActionRunner,
     # tool
     ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
     # dynamic
     ActionType.DO: DynamicActionRunner,
     # async
-    ActionType.WAIT: WaitActionRunner,
-    ActionType.SEND: SendActionRunner,
     ActionType.RECEIVE: ReceiveActionRunner,
-    ActionType.YIELD: YieldActionRunner,
 }
