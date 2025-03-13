@@ -53,6 +53,8 @@ class Membership(BenchNode[MembershipData]):
         40,
         require=True,
         array=False,
+        baseless=True,
+        ckless=True,
         references=(
             NodeType.BENCH,
             NodeType.ORGANIZATION,

@@ -90,7 +90,9 @@ class Message(IsTimed, IsBased, IsTitled, IsTraceable, PackageNode[MessageData])
     """
 
     # meta
-    parent: Union["Channel", "Thread", None] = p_node_parent(4, NodeType.CHANNEL, NodeType.THREAD)
+    parent: Union["Channel", "Thread", None] = p_node_parent(
+        4, NodeType.CHANNEL, NodeType.THREAD, ckless=True
+    )
     type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
     platform: MessagePlatform = p_regular(33, require=True, default=MessagePlatform.BENCH)
     channel: Optional["Channel"] = p_node_ancestor(
@@ -195,6 +197,7 @@ class Message(IsTimed, IsBased, IsTitled, IsTraceable, PackageNode[MessageData])
         array=False,
         references=NodeType.THREAD,
         same_bench=True,
+        ckless=True,
         description="The Thread that was created from this Message.",
     )
     if TYPE_CHECKING:

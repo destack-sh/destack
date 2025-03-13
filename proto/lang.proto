@@ -2591,7 +2591,6 @@ message BrowserData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -2637,7 +2636,6 @@ message ComputerData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -2680,7 +2678,6 @@ message FileData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -2729,7 +2726,6 @@ message ScalerData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -2769,7 +2765,6 @@ message SecretData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -2806,7 +2801,6 @@ message StoreData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -2846,7 +2840,6 @@ message StreamData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
@@ -3072,7 +3065,6 @@ message PlanData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   PlanTerminationMode on_terminate = 41;
   PlanFailureMode on_failure = 42;
@@ -3226,7 +3218,6 @@ message TaskData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   optional NodeReferenceData implemented_by_ptr = 41;
   TaskStatus status = 50;
@@ -3318,7 +3309,6 @@ message ChannelData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
 }
 
@@ -3342,7 +3332,6 @@ message ChoiceData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
 }
 
@@ -3366,7 +3355,6 @@ message ClassData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
 }
 
@@ -3391,7 +3379,6 @@ message DatabaseData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
 }
 
@@ -3472,7 +3459,6 @@ message FlowData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   optional RunOptionsData options = 40;
   optional SelectionData selection = 41;
@@ -3499,7 +3485,6 @@ message KitData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   optional NodeReferenceData target_ptr = 40;
 }
@@ -3598,7 +3583,6 @@ message PageData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
 }
 
@@ -3624,7 +3608,6 @@ message ViewData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   optional google.protobuf.Value subviews_packed = 39;
   optional TypeData value_type = 41;
@@ -3740,7 +3723,6 @@ message RoleData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
   optional ColorType color = 40;
 }
@@ -3769,7 +3751,6 @@ message SpaceData {
   optional SelectionData selection = 71;
   optional NodeReferenceData inspection_ptr = 73;
   optional NodeReferenceData channel_ptr = 75;
-  optional NodeReferenceData thread_ptr = 76;
   optional NodeReferenceData run_ptr = 77;
 }
 
@@ -3793,7 +3774,6 @@ message TagData {
   optional IconData icon = 34;
   optional TextData text = 35;
   optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
   repeated NodeReferenceData tags_ptr = 38;
 }
 
@@ -3925,6 +3905,7 @@ message RecordData {
 message ThreadData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3933,18 +3914,24 @@ message ThreadData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 25;
   optional google.protobuf.Value subnode_packed = 29;
   ThreadType type = 30;
   optional TextLineData title = 32;
-  optional NodeReferenceData channel_ptr = 33;
-  optional NodeReferenceData scope_ptr = 35;
-  optional NodeReferenceData run_root_ptr = 36;
-  optional NodeReferenceData run_ptr = 37;
-  ThreadStatus status = 40;
-  optional google.protobuf.Timestamp closed_at = 45;
-  optional NodeReferenceData created_from_ptr = 50;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 36;
+  repeated NodeReferenceData tags_ptr = 38;
+  optional NodeReferenceData channel_ptr = 40;
+  optional NodeReferenceData scope_ptr = 41;
+  optional NodeReferenceData run_root_ptr = 42;
+  optional NodeReferenceData run_ptr = 43;
+  optional NodeReferenceData created_from_ptr = 45;
+  ThreadStatus status = 50;
+  optional google.protobuf.Timestamp closed_at = 55;
   optional TextData text = 61;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
