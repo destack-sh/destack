@@ -1,44 +1,80 @@
-from bench.language import Node
+from typing import Collection, cast
+from uuid import UUID, uuid5
+
+from bench.language import UUID_NAMESPACE, IsInstantiable, Node, NodeGraph, NodeReference
 
 
-def sync_node(*, parent: Node, old_root: Node | None, new_root: Node) -> None:
-    """Patches the old node *in place* from the new node (recursively)."""
+def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()):
+    """
+    Assign deterministic ids/cks to the Nodes in the graph (derived from their absolute path).
+    """
+    assigned_ptrs_by_node: dict[UUID, NodeReference] = {}
 
-    def _copy(node: Node, *, detach: bool) -> Node:
-        """Copy the node (exact non-recursive clone with preserved identity)."""
-        return node.clone(recursive=False, reset=False, detach=detach)
+    # set deterministic ids
+    for node in graph.nodes:
+        if node in ignore:
+            continue
+        old_node_id = node.id
+        node.id = uuid5(namespace=UUID_NAMESPACE, name=node.absolute_path)
+        if isinstance(node, IsInstantiable):
+            cast(IsInstantiable, node).ck = node.id
+        assigned_ptrs_by_node[old_node_id] = node.to_ref()
 
-    def _sync(old: Node, new: Node) -> None:
-        """Sync the old node *in place* from the new node."""
-        for prop in old.__wired_properties__.values():
-            if prop.id < 30 or prop.is_computed or prop.name == "order_key":
-                continue  # ignore internal properties
-            old_value = getattr(old, prop.name)
-            new_value = getattr(new, prop.name)
-            if old_value != new_value:
-                old._do_set(prop.name, new_value, track=True)
-
-    if old_root is None:
-        old_root = _copy(new_root, detach=False)
-        parent.append(old_root)
-
-    # create/update new nodes
-    _sync(old_root, new_root)
-    for new in new_root.iter_descendants(recursive=True):
-        old = old_root._graph.get(new.id)
-        if old is None:
-            new_copy = _copy(new, detach=True)
-            if new.parent_ptr is None:
-                old_parent = new_copy
+    # update references & reindex
+    for node in graph.nodes:
+        for prop in node.__wired_properties__.values():
+            if not prop.is_node_reference or prop.is_computed:
+                continue
+            prop_value = getattr(node, prop.name)
+            if not prop_value:
+                continue
+            if prop.is_list:
+                new_value = [assigned_ptrs_by_node.get(v.id, v) for v in prop_value]
             else:
-                old_parent = old_root._graph.get(new.parent_ptr.id)
-                assert isinstance(old_parent, Node), f"unexpected {old_parent!r} for {new!r}"
-            old_parent.append(new_copy)
+                new_value = assigned_ptrs_by_node.get(prop_value.id, prop_value)
+            setattr(node, prop.name, new_value)
+
+    graph._reindex()
+
+
+def patch_node(target: Node, reference: Node) -> None:
+    """Patch the target node *in place* from the reference node."""
+    for prop in target.__wired_properties__.values():
+        if prop.id < 30 or prop.is_computed:
+            continue  # ignore internal properties
+        target_value = getattr(target, prop.name)
+        reference_value = getattr(reference, prop.name)
+        if target_value != reference_value:
+            target._do_set(prop.name, reference_value, track=True)
+
+
+def sync_node(*, parent: Node, target_root: Node, reference_root: Node) -> None:
+    """Patches the target node *in place* from the reference node (recursively)."""
+
+    # create/update target nodes
+    patch_node(target_root, reference_root)
+    for reference in reference_root.iter_descendants(recursive=True):
+        target = target_root._graph.get(reference.id)
+        if target is None:
+            target = reference.clone(
+                recursive=False,
+                reset=False,
+                detach=True,
+                map=False,
+                _graph=target_root._graph,
+            )
+            if reference.parent_ptr is None:
+                target_parent = target_root
+            else:
+                parent_id = reference.parent_ptr.id
+                assert parent_id is not None, f"unexpected {reference!r} has no parent"
+                target_parent = target_root._graph.get(parent_id)
+                assert target_parent is not None, f"missing parent {parent_id!r} for {reference!r}"
+            target_parent.append(target)
         else:
-            assert isinstance(old, Node), f"unexpected {old!r} for {new!r}"
-            _sync(old, new)
+            patch_node(target, reference)
 
     # remove old nodes
-    for old in parent.iter_descendants(recursive=True):
-        if old.id not in new_root._graph:
-            old.delete()
+    for reference in parent.iter_descendants(recursive=True):
+        if reference.id not in target_root._graph:
+            reference.delete()

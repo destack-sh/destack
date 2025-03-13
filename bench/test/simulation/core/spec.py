@@ -32,6 +32,7 @@ class SimulationSpec:
     supervisor: "SupervisorSpec" = field(default_factory=lambda: SupervisorSpec())
     hosts: tuple["HostSpec", ...] = ()
     workloads: tuple["WorkloadSpec", ...] = ()
+    system: bool = False
 
 
 @dataclass

@@ -704,7 +704,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """The logical 'container' of this Node (may be the parent or something else)."""
         return self.parent
 
-    def iter_descendants(self, recursive: bool = False):
+    def iter_descendants(self, recursive: bool = False) -> Iterable["Node"]:
         """Iterate over all descendants of this node."""
         for child_prop in self.__node_child_properties__.values():
             child_list = getattr(self, child_prop.name)
@@ -723,9 +723,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         recursive: bool = True,
         detach: bool = False,
         map: bool | dict[UUID, "Node"] = True,
+        **kwargs,
     ) -> Self:
         # clone self
-        clone = super().clone(reset=reset)
+        clone = super().clone(reset=reset, **kwargs)
 
         # clone children and append to self (recursive)
         if map is True:
@@ -1447,10 +1448,6 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
-
-    @property
-    def is_attached(self) -> bool:
-        return self.parent_ptr is not None and self.package is not None
 
 
 @node_component_()
