@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import ClientData, ClientOriginData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Machine, Space, User
+    from bench.language import Bench, Computer, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -56,8 +56,8 @@ class Client(IsNamed, Node[ClientData]):
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     space: Optional["Space"] = p_system(60, array=False, require=False, references=NodeType.SPACE)
-    machine: Optional["Machine"] = p_system(
-        62, array=False, require=False, references=NodeType.MACHINE
+    computer: Optional["Computer"] = p_system(
+        62, array=False, require=False, references=NodeType.COMPUTER
     )
 
     @property

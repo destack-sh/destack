@@ -21,7 +21,7 @@ from .health import HealthService
 from .network import (
     IS_IN_DOCKER,
     IS_IN_MINIKUBE,
-    MACHINE_ENVIRONMENT,
+    COMPUTER_ENVIRONMENT,
     Network,
     NullNetwork,
     RealNetwork,
@@ -61,7 +61,7 @@ from .wiring import (
 __all__ = [
     "IS_IN_DOCKER",
     "IS_IN_MINIKUBE",
-    "MACHINE_ENVIRONMENT",
+    "COMPUTER_ENVIRONMENT",
     "PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE",
     "Enum",
     "EnumValue",

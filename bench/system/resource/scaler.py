@@ -9,7 +9,7 @@ from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
     Browser,
-    Machine,
+    Computer,
     NodeType,
     Resource,
     ResourceStatus,
@@ -173,10 +173,10 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class MachineScalerProvisioner(ScalerProvisioner[Machine]):
-    watch_types = bittuple(NodeType.SCALER, NodeType.MACHINE)
-    provision_subtype = ScalerType.MACHINE
-    scale_type = NodeType.MACHINE
+class ComputerScalerProvisioner(ScalerProvisioner[Computer]):
+    watch_types = bittuple(NodeType.SCALER, NodeType.COMPUTER)
+    provision_subtype = ScalerType.COMPUTER
+    scale_type = NodeType.COMPUTER
 
 
 class BrowserScalerProvisioner(ScalerProvisioner[Browser]):

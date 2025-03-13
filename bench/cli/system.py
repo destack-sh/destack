@@ -22,7 +22,7 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
-    Machine,
+    Computer,
     NodeArea,
     NodeType,
     Region,
@@ -77,7 +77,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
             region=region,
             session=session,
             options=CreateBenchOptions(
-                create_machine_scaler=False,
+                create_computer_scaler=False,
                 bench_id=SYSTEM_BENCH_ID,
                 main_package_slug=SYSTEM_PACKAGE_SLUG,
                 main_package_id=SYSTEM_PACKAGE_ID,
@@ -94,7 +94,7 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
                 main_package_slug=BENCH_BUILTIN_PACKAGE_SLUG,
                 main_package_id=BENCH_BUILTIN_PACKAGE_ID,
                 main_package_name="Builtin Package",
-                create_machine_scaler=False,
+                create_computer_scaler=False,
             ),
         )
         logger.info(
@@ -107,10 +107,10 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
 
 
 @app.command(
-    name="make-local-machine", help="gets or creates a local Machine (and Client) for a Bench"
+    name="make-local-computer", help="gets or creates a local Computer (and Client) for a Bench"
 )
 @async_to_sync
-async def make_local_machine(
+async def make_local_computer(
     bench_slug: str,
     title: str = "Localhost",
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
@@ -133,21 +133,21 @@ async def make_local_machine(
         global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
         bench = (
-            await Bench.include_descendants(NodeType.MACHINE, NodeType.CLIENT)
+            await Bench.include_descendants(NodeType.COMPUTER, NodeType.CLIENT)
             .select_all()
             .get(slug=bench_slug)
         )
-        machines = await Machine.where(
-            Machine.get_property("bench").eq(bench)
-            & Machine.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+        computers = await Computer.where(
+            Computer.get_property("bench").eq(bench)
+            & Computer.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
         ).to_list()
-        machine = first(machines, None)
-        if machine is None:
-            raise ValueError(f"{bench!r} has no machines")
+        computer = first(computers, None)
+        if computer is None:
+            raise ValueError(f"{bench!r} has no computers")
         clients = (
             await Client.where(
-                Client.get_property("parent").eq(machine)
-                & Client.get_property("type").eq(ClientType.MACHINE)
+                Client.get_property("parent").eq(computer)
+                & Client.get_property("type").eq(ClientType.COMPUTER)
             )
             .select_all()
             .to_list()
@@ -156,17 +156,17 @@ async def make_local_machine(
         if client is None:
             client = Client(
                 parent=bench,
-                type=ClientType.MACHINE,
+                type=ClientType.COMPUTER,
                 name=title,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                machine=machine,
+                computer=computer,
                 seen_at=REAL_ORACLE.utc(),
             )
             session._create(client)
 
         client_env = {
             "BENCH_ID": str(bench.id),
-            "MACHINE_ID": str(machine.id),
+            "COMPUTER_ID": str(computer.id),
             "CLIENT_TYPE": str(int(client.type)),
             "CLIENT_ID": str(client.id),
             "CLIENT_ACCESS_TOKEN": client.access_token,

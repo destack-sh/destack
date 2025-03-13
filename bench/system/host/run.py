@@ -10,11 +10,11 @@ from opentelemetry import trace
 
 from bench.language import (
     Bench,
+    Computer,
+    ComputerType,
     Error,
     ErrorKind,
     ErrorType,
-    Machine,
-    MachineType,
     NodeType,
     ResourceStatus,
     Run,
@@ -64,7 +64,7 @@ class RunPlugin(HostPlugin[Run]):
     @override
     async def start(self) -> None:
         # TODO :Robustness: kill/re-queue abandoned Runs
-        #  (like Runs 'stuck' on dead or since restarted Machines)
+        #  (like Runs 'stuck' on dead or since restarted Computers)
         self.tasks.start_queue(self._run_queue, self._process_run, skip_errors=True)
 
     def _queue_run(self, run: Run) -> RunHandle:
@@ -89,44 +89,44 @@ class RunPlugin(HostPlugin[Run]):
     @tracer.start_as_current_span("run_plugin.process_run")
     @isolated_graph()
     async def _process_run(self, op: RunHandle) -> None:
-        """Push Runs to relevant Machines."""
+        """Push Runs to relevant Computers."""
         op.retry.on_attempt()
         run = op.run
         log = logger.bind(host=self, run=run, retry=op.retry)
 
-        # select machines to process run on
-        # NOTE :Performance: maybe not re-load available Machines in RunPlugin every time?
-        available_machines = (
-            await Machine.where(
-                Machine.get_property("bench").eq(self.bench)
-                & Machine.get_property("status").eq(ResourceStatus.UP)
-                & Machine.get_property("type").eq(MachineType.RUNTIME)
+        # select computers to process run on
+        # NOTE :Performance: maybe not re-load available Computers in RunPlugin every time?
+        available_computers = (
+            await Computer.where(
+                Computer.get_property("bench").eq(self.bench)
+                & Computer.get_property("status").eq(ResourceStatus.UP)
+                & Computer.get_property("type").eq(ComputerType.RUNTIME)
             )
             .select_all()
             .to_list()
         )
-        # if last machine is still available, use that
-        existing_machine = first((m for m in available_machines if m.id == run.machine_id), None)
-        if existing_machine:
-            candidate_machines = [existing_machine]
+        # if last computer is still available, use that
+        existing_computer = first((m for m in available_computers if m.id == run.computer_id), None)
+        if existing_computer:
+            candidate_computers = [existing_computer]
         else:
-            # otherwise, pick any available machine
-            candidate_machines = available_machines
-            random.shuffle(candidate_machines)
+            # otherwise, pick any available computer
+            candidate_computers = available_computers
+            random.shuffle(candidate_computers)
 
-        # contact machines
-        for machine in candidate_machines:
+        # contact computers
+        for computer in candidate_computers:
             try:
-                assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
+                assert computer.connection_uri, f"missing connection uri for computer {computer!r}"
                 runtime = RuntimeClient(
-                    await self.network.get_channel(machine.connection_uri, source_id=self.host.id)
+                    await self.network.get_channel(computer.connection_uri, source_id=self.host.id)
                 )
                 request = RunRequest(run_ptr=run._to_ref_data())
                 _ = await runtime.run(request)
-                log.info("run_plugin.run", machine=machine, span="current")
+                log.info("run_plugin.run", computer=computer, span="current")
                 return  # success
             except Exception as e:
-                log.error("run_plugin.run.error", machine=machine, error=e)
+                log.error("run_plugin.run.error", computer=computer, error=e)
                 op.retry.on_error(e)
                 continue
 
@@ -137,7 +137,7 @@ class RunPlugin(HostPlugin[Run]):
                 kind=ErrorKind.RUNTIME,
                 type=ErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to queue run",
-                text=Text.from_markdown("Could not reach any available Machine."),
+                text=Text.from_markdown("Could not reach any available Computer."),
             )
             async with self.host.session(commit=True):  # :StaleNodes
                 run.status = RunStatus.ABORTED if run.started_at else RunStatus.CANCELLED
@@ -146,7 +146,7 @@ class RunPlugin(HostPlugin[Run]):
                     run.duration = run.terminated_at - run.started_at
                 run.error = error
             log.error(
-                "run_plugin.run.failed", machines=available_machines, error=error, span="current"
+                "run_plugin.run.failed", computers=available_computers, error=error, span="current"
             )
         else:
             # retry later
@@ -158,7 +158,7 @@ class RunPlugin(HostPlugin[Run]):
             )
             log.trace(
                 "run_plugin.run.retry",
-                machines=available_machines,
+                computers=available_computers,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,
                 span="current",

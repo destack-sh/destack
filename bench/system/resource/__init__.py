@@ -1,22 +1,22 @@
 from .browser import BrowserbaseBrowserProvisioner, LocalhostBrowserProvisioner
-from .machine import (
-    DockerMachineProvisioner,
-    KubernetesMachineProvisioner,
-    LocalhostMachineProvisioner,
+from .computer import (
+    DockerComputerProvisioner,
+    KubernetesComputerProvisioner,
+    LocalhostComputerProvisioner,
 )
 from .provisioner import Provisioner
-from .scaler import BrowserScalerProvisioner, MachineScalerProvisioner
+from .scaler import BrowserScalerProvisioner, ComputerScalerProvisioner
 from .store import LocalhostStoreProvisioner, NeonStoreProvisioner, StoreProvisioner
 
 __all__ = [
     "BrowserScalerProvisioner",
     "BrowserbaseBrowserProvisioner",
-    "DockerMachineProvisioner",
-    "KubernetesMachineProvisioner",
+    "ComputerScalerProvisioner",
+    "DockerComputerProvisioner",
+    "KubernetesComputerProvisioner",
     "LocalhostBrowserProvisioner",
-    "LocalhostMachineProvisioner",
+    "LocalhostComputerProvisioner",
     "LocalhostStoreProvisioner",
-    "MachineScalerProvisioner",
     "NeonStoreProvisioner",
     "Provisioner",
     "StoreProvisioner",

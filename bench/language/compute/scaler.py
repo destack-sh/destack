@@ -8,7 +8,6 @@ from bench.language.core import (
     node_,
     p_regular,
     p_system,
-    subnode_,
 )
 from bench.pb2.lang_pb2 import ScalerData
 
@@ -18,7 +17,7 @@ from bench.pb2.lang_pb2 import ScalerData
 @enum_(EnumType.SCALER_TYPE)
 class ScalerType(BuiltinEnum):
     # NOTE: should match respective NodeType
-    MACHINE = 2100
+    COMPUTER = 2100
     BROWSER = 2150
 
 
@@ -45,13 +44,3 @@ class Scaler(Resource[ScalerData]):
 
     # flags
     is_active: bool = p_regular(75, default=True)
-
-
-@subnode_(NodeType.MACHINE)
-class MachineScaler(Scaler):
-    pass
-
-
-@subnode_(NodeType.BROWSER)
-class BrowserScaler(Scaler):
-    pass

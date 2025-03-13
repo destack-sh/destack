@@ -65,11 +65,11 @@ from .validation import ValidationHandler, on_invalid_raise
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Computer,
         CustomObject,
         Field,
         Flow,
         Link,
-        Machine,
         Node,
         NodeReference,
         Organization,
@@ -88,23 +88,23 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
-EditSubject = Union["User", "Machine", "Flow", "Action", "Run"]
+EditSubject = Union["User", "Computer", "Flow", "Action", "Run"]
 EDIT_SUBJECT_TYPES = (
     NodeType.USER,
-    NodeType.MACHINE,
+    NodeType.COMPUTER,
     NodeType.FLOW,
     NodeType.ACTION,
     NodeType.RUN,
 )
 
-Owner = Union["User", "Organization", "Flow", "Action", "Machine", "Link"]
+Owner = Union["User", "Organization", "Flow", "Action", "Computer", "Link"]
 OWNER_TYPES = (
     NodeType.USER,
     NodeType.ORGANIZATION,
     NodeType.FLOW,
     NodeType.ACTION,
     NodeType.LINK,
-    NodeType.MACHINE,
+    NodeType.COMPUTER,
 )
 
 

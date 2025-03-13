@@ -147,7 +147,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 bench = client.parent
                 assert bench is not None, f"{client!r} has no bench"
                 return Subject(
-                    is_authenticated=True, client=client, machine=client.machine, owned=[bench]
+                    is_authenticated=True, client=client, computer=client.computer, owned=[bench]
                 )
             else:
                 raise RuntimeError(f"unexpected client: {client!r}")

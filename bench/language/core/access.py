@@ -51,7 +51,7 @@ from .text import Text
 from .validation import NAME_CONSTRAINT, ValidationError
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Machine, Organization, Query, User
+    from bench.language import Bench, Block, Client, Computer, Organization, Query, User
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -353,16 +353,16 @@ class Subject(Struct):
     user: Optional["User"] = p_system(
         41, default=None, require=False, array=False, references=NodeType.USER
     )
-    machine: Optional["Machine"] = p_system(
-        43, default=None, require=False, array=False, references=NodeType.MACHINE
+    computer: Optional["Computer"] = p_system(
+        43, default=None, require=False, array=False, references=NodeType.COMPUTER
     )
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
-        machine_ptr: Optional[NodeReference] = None
-        machine_id: Optional[UUID] = None
+        computer_ptr: Optional[NodeReference] = None
+        computer_id: Optional[UUID] = None
 
     # accessories
     owned: list[Ownable] = p_system(

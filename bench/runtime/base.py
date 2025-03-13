@@ -19,8 +19,8 @@ from bench.language import (
     Bench,
     Client,
     ClientType,
+    Computer,
     GraphScope,
-    Machine,
     NodeReference,
     NodeSuperGraph,
     NodeType,
@@ -66,7 +66,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
-        machine_id: UUID | None,
+        computer_id: UUID | None,
         mode: "RuntimeThreadMode",
         on_error: Callable[[BaseException], None] | None = None,
     ):
@@ -78,8 +78,8 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         # services
         self._supervisor = supervisor
         self._host: HostClient | None = None
-        if client_type == ClientType.MACHINE and machine_id is None:
-            raise ValueError(f"missing machine_id for {client_type} {client_id}")
+        if client_type == ClientType.COMPUTER and computer_id is None:
+            raise ValueError(f"missing computer_id for {client_type} {client_id}")
         self._client_type = client_type
         self._client_id = client_id
         self._client_access_token = client_access_token
@@ -102,8 +102,8 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}"
         )
-        self._machine_id = machine_id
-        self._machine: Machine | None = None
+        self._computer_id = computer_id
+        self._computer: Computer | None = None
         self._client_id = client_id
         self._client: Client | None = None
         self._engines: tuple[RemoteEngine, ...] = ()
@@ -172,17 +172,17 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             self._session.parent = self._bench
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
-            if self._machine_id:
-                self._machine = await Machine.get(id=self._machine_id)
+            if self._computer_id:
+                self._computer = await Computer.get(id=self._computer_id)
 
         # update session context
         self._session.client = self._client
-        self._session.machine = self._machine
+        self._session.computer = self._computer
         if isinstance(self._client.parent, User):
             self._session.user = self._client.parent
             self._session._subject = self._client.parent
         elif isinstance(self._client.parent, Bench):
-            self._session._subject = self._client.machine
+            self._session._subject = self._client.computer
         else:
             raise ValueError(f"unknown client parent {self._client.parent!r} in {self!r}")
         self._session._origin = (

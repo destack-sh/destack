@@ -11,9 +11,9 @@ locals {
     REGION       = var.region
 
     SUPERVISOR_URL               = var.supervisor_url
-    MACHINE_RUNTIME_IMAGE        = "ghcr.io/symbolx/bench-runtime"
+    COMPUTER_RUNTIME_IMAGE        = "ghcr.io/symbolx/bench-runtime"
     KUBERNETES_NAMESPACE         = "default"
-    KUBERNETES_MACHINE_APP_LABEL = "bench-machine"
+    KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
     KUBERNETES_IMAGE_PULL_SECRET = kubernetes_secret.image_pull_secret.metadata[0].name
 
     GLOBAL_PG_HOST       = var.global_pg_host

@@ -804,7 +804,7 @@ async def upload_file_batch(
     files: list[File], file_contents: list[bytes], session: "Session | None" = None
 ):
     """Uploads the given Files to their Host."""
-    from bench.proto import MACHINE_ENVIRONMENT
+    from bench.proto import COMPUTER_ENVIRONMENT
 
     assert len(files) == len(
         file_contents
@@ -821,7 +821,7 @@ async def upload_file_batch(
         upload_req = UploadFilesRequest(
             scope=session._get_scope_for_node(files[0]),
             files=[f._to_data() for f in files],
-            environment=MACHINE_ENVIRONMENT,
+            environment=COMPUTER_ENVIRONMENT,
         )
         upload_rep = await session.host.upload_files(upload_req, metadata=session._rpc_headers)
         assert len(upload_rep.handles) == len(
@@ -864,7 +864,7 @@ async def download_file_batch(
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
-    from bench.proto import MACHINE_ENVIRONMENT, unpack_builtin_object
+    from bench.proto import COMPUTER_ENVIRONMENT, unpack_builtin_object
 
     if not file_refs:
         return []
@@ -876,7 +876,7 @@ async def download_file_batch(
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
-            environment=MACHINE_ENVIRONMENT,
+            environment=COMPUTER_ENVIRONMENT,
         )
         download_rep = await session.host.download_files(
             download_req, metadata=session._rpc_headers

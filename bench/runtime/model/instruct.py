@@ -119,7 +119,7 @@ Triggers are conditional events that affect a Bench somehow
 A Trigger may create a Task for a scheduled Task, which is then implemented by some Run.
 
 # Runtime
-Runs of Flows, Actions, Links, .. are executed in a Runtime on a Machine in a Session.
+Runs of Flows, Actions, Links, .. are executed in a Runtime on a Computer in a Session.
 A Run = 1 invocation, so Runs naturally form a tree.
 The Runtime provides your Python shell with access to the current Bench and runtime context.
 
@@ -128,7 +128,7 @@ Channels are like Discord or Slack channels for Messages and Threads.
 A Thread is a sequence of related Messages on some topic in a Channel.
 
 # Resources
-Resources represent external things (like Files, Machines, Browsers).
+Resources represent external things (like Files, Computers, Browsers).
 Generally, Resources are automatically acquired and released as needed.
 You MAY access current Resources under `resources.name` (like `resources.Browser`).
 

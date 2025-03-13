@@ -8,8 +8,8 @@ from bench.test.conftest import TestProfile
 from bench.test.simulation.core import (
     BenchSpec,
     ClientSpec,
+    ComputerSpec,
     HostSpec,
-    MachineSpec,
     RuntimeSpec,
     SimulationSpec,
     UserSpec,
@@ -75,11 +75,11 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         description="Create a single runtime with no workloads",
         profile=TestProfile.QUICK,
         users=(UserSpec(name="alice"),),
-        machines=(MachineSpec(name="alice-machine", bench="alice"),),
+        computers=(ComputerSpec(name="alice-computer", bench="alice"),),
         clients=(ClientSpec(name="alice-1", parent=("user", "alice")),),
         benches=(BenchSpec(name="alice", owner="alice"),),
         hosts=(HostSpec(bench="alice"),),
-        runtimes=(RuntimeSpec(name="alice-runtime", machine="alice-machine"),),
+        runtimes=(RuntimeSpec(name="alice-runtime", computer="alice-computer"),),
     ),
     #
     # Simple

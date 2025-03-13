@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, ExpressionType, MachineProperty, ResourceStatus } from "@/proto/wire";
+import { ViewData, NodeType, ViewType, ExpressionType, ComputerProperty, ResourceStatus } from "@/proto/wire";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { canvas } from "@/system/space";
 import { ref, toRef } from "vue";
@@ -14,7 +14,7 @@ import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const RESOURCE_TYPES = [NodeType.MACHINE, NodeType.BROWSER];
+const RESOURCE_TYPES = [NodeType.COMPUTER, NodeType.BROWSER];
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
@@ -71,7 +71,7 @@ defineExpose<ViewExpose>({ self, id });
               queryNodeType: resourceType,
               filter: makeExpression({
                 type: ExpressionType.NOT_IN,
-                propertyPtr: propertyReference(resourceType, MachineProperty.status),
+                propertyPtr: propertyReference(resourceType, ComputerProperty.status),
                 value: [ResourceStatus.DECOMMISSIONED],
               }),
             })

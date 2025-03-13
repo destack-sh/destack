@@ -473,7 +473,7 @@ export interface CommitTransactionRequest {
      */
     edits: EditData[];
     /**
-     * Extra session context (with any info not contained in EditContext, like machine/server).
+     * Extra session context (with any info not contained in EditContext, like computer/server).
      *
      * @generated from protobuf field: optional symbolx.bench.ContextData context = 4;
      */
@@ -828,9 +828,9 @@ export interface UploadFilesRequest {
      */
     files: FileData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.MachineEnvironment environment = 3;
+     * @generated from protobuf field: optional symbolx.bench.ComputerEnvironment environment = 3;
      */
-    environment?: MachineEnvironment;
+    environment?: ComputerEnvironment;
 }
 /**
  * @generated from protobuf message symbolx.bench.UploadFilesResponse
@@ -875,9 +875,9 @@ export interface DownloadFilesRequest {
      */
     files: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.MachineEnvironment environment = 3;
+     * @generated from protobuf field: optional symbolx.bench.ComputerEnvironment environment = 3;
      */
-    environment?: MachineEnvironment;
+    environment?: ComputerEnvironment;
 }
 /**
  * @generated from protobuf message symbolx.bench.DownloadFilesResponse
@@ -906,9 +906,9 @@ export interface DownloadFilesResponse_DownloadHandle {
 // 
 
 /**
- * @generated from protobuf enum symbolx.bench.MachineEnvironment
+ * @generated from protobuf enum symbolx.bench.ComputerEnvironment
  */
-export enum MachineEnvironment {
+export enum ComputerEnvironment {
     /**
      * @generated from protobuf enum value: REGULAR = 0;
      */
@@ -3066,7 +3066,7 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         super("symbolx.bench.UploadFilesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData },
-            { no: 3, name: "environment", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineEnvironment", MachineEnvironment] }
+            { no: 3, name: "environment", kind: "enum", opt: true, T: () => ["symbolx.bench.ComputerEnvironment", ComputerEnvironment] }
         ]);
     }
     create(value?: PartialMessage<UploadFilesRequest>): UploadFilesRequest {
@@ -3087,7 +3087,7 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
                 case /* repeated symbolx.bench.FileData files */ 2:
                     message.files.push(FileData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.MachineEnvironment environment */ 3:
+                case /* optional symbolx.bench.ComputerEnvironment environment */ 3:
                     message.environment = reader.int32();
                     break;
                 default:
@@ -3108,7 +3108,7 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         /* repeated symbolx.bench.FileData files = 2; */
         for (let i = 0; i < message.files.length; i++)
             FileData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.MachineEnvironment environment = 3; */
+        /* optional symbolx.bench.ComputerEnvironment environment = 3; */
         if (message.environment !== undefined)
             writer.tag(3, WireType.Varint).int32(message.environment);
         let u = options.writeUnknownFields;
@@ -3243,7 +3243,7 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
         super("symbolx.bench.DownloadFilesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 3, name: "environment", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineEnvironment", MachineEnvironment] }
+            { no: 3, name: "environment", kind: "enum", opt: true, T: () => ["symbolx.bench.ComputerEnvironment", ComputerEnvironment] }
         ]);
     }
     create(value?: PartialMessage<DownloadFilesRequest>): DownloadFilesRequest {
@@ -3264,7 +3264,7 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
                 case /* repeated symbolx.bench.NodeReferenceData files */ 2:
                     message.files.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.MachineEnvironment environment */ 3:
+                case /* optional symbolx.bench.ComputerEnvironment environment */ 3:
                     message.environment = reader.int32();
                     break;
                 default:
@@ -3285,7 +3285,7 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
         /* repeated symbolx.bench.NodeReferenceData files = 2; */
         for (let i = 0; i < message.files.length; i++)
             NodeReferenceData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.MachineEnvironment environment = 3; */
+        /* optional symbolx.bench.ComputerEnvironment environment = 3; */
         if (message.environment !== undefined)
             writer.tag(3, WireType.Varint).int32(message.environment);
         let u = options.writeUnknownFields;
