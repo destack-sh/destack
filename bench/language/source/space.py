@@ -29,7 +29,6 @@ if TYPE_CHECKING:
         Package,
         Run,
         Text,
-        Thread,
         View,
     )
 
@@ -65,9 +64,6 @@ class Space(IsOwnable, IsTemplatable, IsTraceable, PackageNode[SpaceData]):
     )
     channel: Optional["Channel"] = p_regular(
         75, default=None, require=False, array=False, references=NodeType.CHANNEL
-    )
-    thread: Optional["Thread"] = p_regular(
-        76, default=None, require=False, array=False, references=NodeType.THREAD
     )
     run: Optional["Run"] = p_regular(
         77, default=None, require=False, array=False, references=NodeType.RUN

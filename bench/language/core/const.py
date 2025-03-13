@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.13.2"
+VERSION = "2025.03.13.3"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -697,12 +697,18 @@ INLINE_NODE_TYPES = bittuple(
     NodeType.TAG,
     NodeType.TASK,
     NodeType.PLAN,
-)
-TEMPLATABLE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
+    NodeType.THREAD,
 )
 INSTANTIABLE_NODE_TYPES = bittuple(
-    NodeType.ACTION, NodeType.FIELD, NodeType.DATABASE, NodeType.PLAN, NodeType.TASK
+    NodeType.ACTION,
+    NodeType.FIELD,
+    NodeType.DATABASE,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.THREAD,
+)
+TEMPLATABLE_NODE_TYPES = bittuple(
+    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, *INSTANTIABLE_NODE_TYPES
 )
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)

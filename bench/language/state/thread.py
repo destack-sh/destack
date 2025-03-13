@@ -6,6 +6,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsInstantiable,
     IsOwnable,
     IsRuntime,
     IsTimed,
@@ -14,7 +15,6 @@ from bench.language.core import (
     Node,
     NodeReference,
     NodeType,
-    PackageNode,
     RemoteNodeList,
     StructType,
     Text,
@@ -26,10 +26,11 @@ from bench.language.core import (
     p_system,
     timed_node_,
 )
+from bench.language.core.const import INLINE_NODE_TYPES
 from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Message, Package, Run
+    from bench.language import Channel, Message, Package, Page, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -47,28 +48,37 @@ class ThreadStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.THREAD, has_subtypes=True)
-class Thread(IsTimed, IsOwnable, IsTitled, IsTraceable, IsRuntime, PackageNode[ThreadData]):
+class Thread(
+    IsTimed,
+    IsOwnable,
+    IsTitled,
+    IsTraceable,
+    IsRuntime,
+    IsInstantiable,
+    InlineNode[ThreadData],
+):
     """
     A Thread for communicating with Messages on something.
     """
 
     # meta
-    parent: Union["Channel", "Thread", "Run", None] = p_node_parent(
-        4, NodeType.CHANNEL, NodeType.THREAD, NodeType.RUN
+    parent: Union["Package", "Page", "Channel", "Thread", "Run", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.RUN
     )
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
-    channel: "Channel | None" = p_system(
-        33,
+
+    channel: Optional["Channel"] = p_system(
+        40,
         require=False,
         array=False,
         same_bench=True,
         references=NodeType.CHANNEL,
     )
     scope: Union["InlineNode", "Package", None] = p_regular(
-        35, require=False, references=(NodeType.PAGE, NodeType.PACKAGE)
+        41, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
     )
     run_root: Optional["Run"] = p_regular(
-        36,
+        42,
         require=False,
         array=False,
         same_bench=True,
@@ -76,12 +86,15 @@ class Thread(IsTimed, IsOwnable, IsTitled, IsTraceable, IsRuntime, PackageNode[T
         description="The root Run this Thread is scoped to.",
     )
     run: Optional["Run"] = p_regular(
-        37,
+        43,
         require=False,
         array=False,
         same_bench=True,
         references=NodeType.RUN,
         description="The Run this Thread is scoped to.",
+    )
+    created_from: Optional["Message"] = p_regular(
+        45, require=False, array=False, baseless=True, references=NodeType.MESSAGE, same_bench=True
     )
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
@@ -92,15 +105,12 @@ class Thread(IsTimed, IsOwnable, IsTitled, IsTraceable, IsRuntime, PackageNode[T
         run_root_id: Optional[UUID] = None
         run_ptr: Optional[NodeReference] = None
         run_id: Optional[UUID] = None
+        created_from_ptr: Optional[NodeReference] = None
+        created_from_id: Optional[UUID] = None
 
     # status
-    status: ThreadStatus = p_internal(40, default=ThreadStatus.OPEN)
-    closed_at: Optional[datetime] = p_internal(45, default=None)
-
-    # routing
-    created_from: Optional["Message"] = p_regular(
-        50, require=False, array=False, baseless=True, references=NodeType.MESSAGE, same_bench=True
-    )
+    status: ThreadStatus = p_internal(50, default=ThreadStatus.OPEN)
+    closed_at: Optional[datetime] = p_internal(55, default=None)
 
     # content
     text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
