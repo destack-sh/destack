@@ -245,8 +245,8 @@ CLIENT_TABLE = Table(
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("space_id", PrimitiveType.UUID, is_nullable=True),
         Column("space_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_access_token", IndexType.BTREE, ("access_token",), is_unique=True),
@@ -361,8 +361,8 @@ STORE_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-MACHINE_TABLE = Table(
-    "bench_machine",
+COMPUTER_TABLE = Table(
+    "bench_computer",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
@@ -383,7 +383,7 @@ MACHINE_TABLE = Table(
         Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16, default="1"),
+        Column("type", PrimitiveType.INT16, default="10"),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
@@ -1335,7 +1335,7 @@ THREAD_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1518,7 +1518,7 @@ SESSION_TABLE = Table(
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1586,7 +1586,7 @@ RUN_TABLE = Table(
         Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1645,7 +1645,7 @@ RUN_SPAN_TABLE = Table(
         Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1701,7 +1701,7 @@ INTERRUPTION_TABLE = Table(
         Column("complete_trigger_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1734,7 +1734,7 @@ LOG_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1787,7 +1787,7 @@ PLAN_TABLE = Table(
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -1848,7 +1848,7 @@ TASK_TABLE = Table(
         Column("is_manual", PrimitiveType.BOOLEAN, default="false"),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("machine_id", PrimitiveType.UUID, is_nullable=True),
+        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(

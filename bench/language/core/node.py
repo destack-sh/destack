@@ -106,6 +106,7 @@ if TYPE_CHECKING:
         ComputedSourceIn,
         ComputedValue,
         ComputedValueMode,
+        Computer,
         CustomObject,
         Database,
         Expression,
@@ -114,7 +115,6 @@ if TYPE_CHECKING:
         GetConnection,
         Icon,
         Link,
-        Machine,
         NodeLink,
         NodeReference,
         Package,
@@ -1379,8 +1379,8 @@ class IsRuntime(BuiltinObject):
     client: Optional["Client"] = p_internal(
         93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
-    machine: Optional["Machine"] = p_internal(
-        94, require=False, array=False, references=NodeType.MACHINE, same_bench=True
+    computer: Optional["Computer"] = p_internal(
+        94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
     )
     user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
     if TYPE_CHECKING:
@@ -1388,8 +1388,8 @@ class IsRuntime(BuiltinObject):
         session_id: Optional[UUID] = None
         client_ptr: Optional[NodeReference] = None
         client_id: Optional[UUID] = None
-        machine_ptr: Optional[NodeReference] = None
-        machine_id: Optional[UUID] = None
+        computer_ptr: Optional[NodeReference] = None
+        computer_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
 

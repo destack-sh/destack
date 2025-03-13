@@ -184,8 +184,8 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
     client_type = get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client")
     client_id = get_from_env("CLIENT_ID", typ=UUID, description="Node id of current client")
     client_access_token = get_from_env("CLIENT_ACCESS_TOKEN", description="Access token for client")
-    machine_id = get_from_env_maybe(
-        "MACHINE_ID", typ=UUID, description="Node id of current machine"
+    computer_id = get_from_env_maybe(
+        "COMPUTER_ID", typ=UUID, description="Node id of current computer"
     )
     max_threads = get_from_env(
         "RUNTIME_THREADS", typ=int, default=1, description="Maximum number of runtime threads"
@@ -217,7 +217,7 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            machine_id=machine_id,
+            computer_id=computer_id,
             max_threads=max_threads,
             max_concurrency_per_thread=max_concurrency_per_thread,
             mode=mode,
@@ -233,7 +233,7 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             client_type=client_type,
             client_id=client_id,
             client_access_token=client_access_token,
-            machine_id=machine_id,
+            computer_id=computer_id,
             mode=mode,
         )
         await _do_serve(handlers=[thread], network=network, host=host, port=port, watch=watch)

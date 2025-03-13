@@ -331,7 +331,7 @@ class EnumType(BuiltinEnum):
     RESOURCE_STATUS = 21000
     SCALER_TYPE = 21010
     SCALER_STRATEGY = 21011
-    MACHINE_TYPE = 21020
+    COMPUTER_TYPE = 21020
     BROWSER_TYPE = 21030
     STORE_TYPE = 21040
     CLIENT_TYPE = 21041
@@ -506,10 +506,11 @@ class NodeType(BuiltinEnum):
     STORE = 2010, None, None, "fas fa-database"
     # CACHE?
     # (RESOURCE_)CLAIM?
-    MACHINE = 2100, None, None, "fas fa-computer-classic"
+    COMPUTER = 2100, None, None, "fas fa-computer-classic"
     BROWSER = 2110, None, None, "fas fa-globe"
     # MODEL, ...
-    # data?
+
+    # data
     FILE = 2200, None, None, "fas fa-file"
     STREAM = 2210, None, None, "fas fa-stream"
     SECRET = 2220, None, None, "fas fa-key"
@@ -526,6 +527,9 @@ class NodeType(BuiltinEnum):
     # data/integrations/code?
     # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
     # ...
+
+    # sync
+    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     # source
     PACKAGE = 5000, None, None, "fas fa-box-open"
@@ -573,9 +577,6 @@ class NodeType(BuiltinEnum):
     LOG = 6030, None, None, "fas fa-file-alt"
     PLAN = 6040, None, None, "fas fa-list-check"
     TASK = 6041, None, None, "far fa-square-check"
-
-    # sync
-    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
     # Local (8000-10000)
@@ -752,7 +753,6 @@ class StructType(BuiltinEnum):
     ACCESS = 10505
 
     # bench (11000-11499)
-    MACHINE_IMAGE = 11000
 
     # type (11500-11999)
     TYPE = 11500
@@ -1649,8 +1649,8 @@ class ClientType(BuiltinEnum):
     DESKTOP = 3
     MOBILE = 4
 
-    # server
-    MACHINE = 10
+    # system
+    COMPUTER = 10
 
 
 #

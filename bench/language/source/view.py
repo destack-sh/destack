@@ -40,7 +40,7 @@ class ViewType(BuiltinEnum):
     #
 
     # nodes (0-10000)
-    MACHINE = 2100
+    COMPUTER = 2100
     BROWSER = 2150
     PAGE = 5020
     BLOCK = 5021

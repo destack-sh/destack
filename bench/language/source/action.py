@@ -101,72 +101,14 @@ class ActionType(BuiltinEnum):
     # EXTRACT = 205, "Extract", "Extract structured data", "fas fa-filter", ColorType.VIOLET
     # EDIT = 210, "Edit", "Edit this Bench", "fas fa-pen-to-square", ColorType.VIOLET
 
-    # read
-    # AGGREGATE?
-    # COPY?
-
     # nocheckin: turn builtin-Actions into builtin Action nodes (in bench package)
 
-    # write
-    # CREATE = 400, "Create", "Create a Node", "fas fa-plus", ColorType.SKY
-    # DUPLICATE = 401, "Duplicate", "Duplicate a Node", "fas fa-clone", ColorType.SKY
-    # UPDATE = 402, "Update", "Update a Node", "fas fa-pencil", ColorType.SKY
-    # DELETE = 403, "Delete", "Delete a Node", "fas fa-trash", ColorType.SKY
-    # PASTE?
-
+    #
     # communicate
     # SEND = 510, "Send", "Send a Message", "fas fa-inbox-out", ColorType.PINK
     RECEIVE = 511, "Receive", "Receive a Message", "fas fa-inbox-in", ColorType.PINK
     # YIELD = 520, "Yield", "Defer to someone", "fas fa-hand", ColorType.PINK
     # NOTIFY?
-
-    # resource
-    # ACQUIRE, PROVISION, SUSPEND, DECOMMISSION, ...
-
-    # runtime
-    # PAUSE, RESUME, STOP, KILL, ...
-
-    # ...
-
-    # environment
-    # LOOK = 800, "Look", "Look at the environment", "fas fa-eye", ColorType.EMERALD
-    # LISTEN, ...
-
-    # application
-    # CLICK = 1000, "Click", "Click an element", "fas fa-arrow-pointer", ColorType.INDIGO
-    # PRESS = 1001, "Press", "Press a key", "fas fa-keyboard", ColorType.INDIGO
-    # TYPE = 1002, "Type", "Type text", "fas fa-keyboard", ColorType.INDIGO
-    # SCROLL = (
-    #     1003,
-    #     "Scroll",
-    #     "Scroll the mouse wheel",
-    #     "fas fa-computer-mouse-scrollwheel",
-    #     ColorType.INDIGO,
-    # )
-    # SELECT = 1004, "Select", "Select an element", "fas fa-lasso", ColorType.INDIGO
-    # DRAG = 1005, "Drag", "Drag an element", "fas fa-hand-pointer", ColorType.INDIGO
-    # GO_BACKWARD = 1006, "Go back", "Go back in history", "fas fa-arrow-turn-left", ColorType.INDIGO
-    # GO_FORWARD = (
-    #     1007,
-    #     "Go forward",
-    #     "Go forward in history",
-    #     "fas fa-arrow-turn-right",
-    #     ColorType.INDIGO,
-    # )
-    # GO_TO_URL = 1050, "Go to URL", "Navigate to a URL", "fas fa-link", ColorType.INDIGO
-    # GO_TO_TAB = 1051, "Go to tab", "Switch to a tab", "fas fa-sidebar", ColorType.INDIGO
-    # OPEN_TAB = 1052, "Open tab", "Open a new tab", "fas fa-plus", ColorType.INDIGO
-    # CLOSE_TAB = 1053, "Close tab", "Close a tab", "fas fa-minus", ColorType.INDIGO
-
-    # data
-    # HTTP = 1100, "HTTP", "Make an HTTP call", "fas fa-globe", ColorType.INDIGO
-    # REST = 1101, "REST", "Make a REST call", "fas fa-brackets-curly", ColorType.INDIGO
-    # GRAPHQL = 1102, "GraphQL", "Make a GraphQL call", "fas fa-brackets-curly", ColorType.INDIGO
-    # SQL = 1103, "SQL", "Make a SQL call", "fas fa-code", ColorType.INDIGO
-    # GRPC, JDBC, SOQL, ...
-
-    # internet
-    # ...
 
     # containers
     # GROUP, LOOP, ...

@@ -40,7 +40,7 @@ enum EnumType {
   ENUM_TYPE_RESOURCE_STATUS = 21000;
   ENUM_TYPE_SCALER_TYPE = 21010;
   ENUM_TYPE_SCALER_STRATEGY = 21011;
-  ENUM_TYPE_MACHINE_TYPE = 21020;
+  ENUM_TYPE_COMPUTER_TYPE = 21020;
   ENUM_TYPE_BROWSER_TYPE = 21030;
   ENUM_TYPE_STORE_TYPE = 21040;
   ENUM_TYPE_CLIENT_TYPE = 21041;
@@ -148,7 +148,7 @@ enum NodeType {
   NODE_TYPE_CLIENT = 50;
   NODE_TYPE_SCALER = 2000;
   NODE_TYPE_STORE = 2010;
-  NODE_TYPE_MACHINE = 2100;
+  NODE_TYPE_COMPUTER = 2100;
   NODE_TYPE_BROWSER = 2110;
   NODE_TYPE_FILE = 2200;
   NODE_TYPE_STREAM = 2210;
@@ -207,7 +207,6 @@ enum StructType {
   STRUCT_TYPE_ACCESS_ZONE = 10503;
   STRUCT_TYPE_ACCESS_MATRIX = 10504;
   STRUCT_TYPE_ACCESS = 10505;
-  STRUCT_TYPE_MACHINE_IMAGE = 11000;
   STRUCT_TYPE_TYPE = 11500;
   STRUCT_TYPE_TYPE_CONSTRAINT = 11501;
   STRUCT_TYPE_FILE_INFO = 11520;
@@ -259,7 +258,7 @@ enum ObjectType {
   OBJECT_TYPE_CLIENT = 50;
   OBJECT_TYPE_SCALER = 2000;
   OBJECT_TYPE_STORE = 2010;
-  OBJECT_TYPE_MACHINE = 2100;
+  OBJECT_TYPE_COMPUTER = 2100;
   OBJECT_TYPE_BROWSER = 2110;
   OBJECT_TYPE_FILE = 2200;
   OBJECT_TYPE_STREAM = 2210;
@@ -314,7 +313,6 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_ZONE = 10503;
   OBJECT_TYPE_ACCESS_MATRIX = 10504;
   OBJECT_TYPE_ACCESS = 10505;
-  OBJECT_TYPE_MACHINE_IMAGE = 11000;
   OBJECT_TYPE_TYPE = 11500;
   OBJECT_TYPE_TYPE_CONSTRAINT = 11501;
   OBJECT_TYPE_FILE_INFO = 11520;
@@ -366,7 +364,7 @@ enum BenchType {
   BENCH_TYPE_CLIENT = 50;
   BENCH_TYPE_SCALER = 2000;
   BENCH_TYPE_STORE = 2010;
-  BENCH_TYPE_MACHINE = 2100;
+  BENCH_TYPE_COMPUTER = 2100;
   BENCH_TYPE_BROWSER = 2110;
   BENCH_TYPE_FILE = 2200;
   BENCH_TYPE_STREAM = 2210;
@@ -421,7 +419,6 @@ enum BenchType {
   BENCH_TYPE_ACCESS_ZONE = 10503;
   BENCH_TYPE_ACCESS_MATRIX = 10504;
   BENCH_TYPE_ACCESS = 10505;
-  BENCH_TYPE_MACHINE_IMAGE = 11000;
   BENCH_TYPE_TYPE = 11500;
   BENCH_TYPE_TYPE_CONSTRAINT = 11501;
   BENCH_TYPE_FILE_INFO = 11520;
@@ -490,7 +487,7 @@ enum BenchType {
   BENCH_TYPE_RESOURCE_STATUS = 21000;
   BENCH_TYPE_SCALER_TYPE = 21010;
   BENCH_TYPE_SCALER_STRATEGY = 21011;
-  BENCH_TYPE_MACHINE_TYPE = 21020;
+  BENCH_TYPE_COMPUTER_TYPE = 21020;
   BENCH_TYPE_BROWSER_TYPE = 21030;
   BENCH_TYPE_STORE_TYPE = 21040;
   BENCH_TYPE_CLIENT_TYPE = 21041;
@@ -808,7 +805,7 @@ enum ResourceStatus {
 
 enum ScalerType {
   SCALER_TYPE_UNSPECIFIED = 0;
-  SCALER_TYPE_MACHINE = 2100;
+  SCALER_TYPE_COMPUTER = 2100;
   SCALER_TYPE_BROWSER = 2150;
 }
 
@@ -818,9 +815,13 @@ enum ScalerStrategy {
   SCALER_STRATEGY_AUTO = 2;
 }
 
-enum MachineType {
-  MACHINE_TYPE_UNSPECIFIED = 0;
-  MACHINE_TYPE_RUNTIME = 1;
+enum ComputerType {
+  COMPUTER_TYPE_UNSPECIFIED = 0;
+  COMPUTER_TYPE_RUNTIME = 10;
+  COMPUTER_TYPE_UBUNTU = 1000;
+  COMPUTER_TYPE_MAC = 1100;
+  COMPUTER_TYPE_WINDOWS = 1200;
+  COMPUTER_TYPE_CUSTOM = 9000;
 }
 
 enum BrowserType {
@@ -839,7 +840,7 @@ enum ClientType {
   CLIENT_TYPE_BROWSER_PLUGIN = 2;
   CLIENT_TYPE_DESKTOP = 3;
   CLIENT_TYPE_MOBILE = 4;
-  CLIENT_TYPE_MACHINE = 10;
+  CLIENT_TYPE_COMPUTER = 10;
 }
 
 enum FileRetentionMode {
@@ -1625,7 +1626,7 @@ enum SpaceType {
 
 enum ViewType {
   VIEW_TYPE_UNSPECIFIED = 0;
-  VIEW_TYPE_MACHINE = 2100;
+  VIEW_TYPE_COMPUTER = 2100;
   VIEW_TYPE_BROWSER = 2150;
   VIEW_TYPE_PAGE = 5020;
   VIEW_TYPE_BLOCK = 5021;
@@ -2106,7 +2107,7 @@ message SubjectData {
   optional bool is_system = 32;
   optional NodeReferenceData client_ptr = 40;
   optional NodeReferenceData user_ptr = 41;
-  optional NodeReferenceData machine_ptr = 43;
+  optional NodeReferenceData computer_ptr = 43;
   repeated NodeReferenceData owned_ptr = 52;
   repeated NodeReferenceData memberships_ptr = 53;
 }
@@ -2282,10 +2283,6 @@ message FileInfoData {
   optional bytes inline_content = 71;
 }
 
-message MachineImageData {
-  ObjectType metatype = 1;
-}
-
 message ClientOriginData {
   ObjectType metatype = 1;
   ClientType type = 30;
@@ -2308,7 +2305,7 @@ message ContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -2630,6 +2627,49 @@ message BrowserData {
   bool is_insecure = 76;
 }
 
+message ComputerData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  ComputerType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  optional NodeReferenceData definition_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
+  repeated NodeReferenceData tags_ptr = 38;
+  Region region = 40;
+  optional NodeReferenceData scaler_ptr = 41;
+  ResourceStatus status = 50;
+  optional google.protobuf.Timestamp activated_at = 51;
+  optional google.protobuf.Timestamp deactivated_at = 52;
+  optional google.protobuf.Timestamp reset_at = 53;
+  optional google.protobuf.Timestamp suspended_at = 54;
+  optional google.protobuf.Timestamp decommissioned_at = 55;
+  optional google.protobuf.Timestamp active_at = 56;
+  string version = 60;
+  string target_version = 61;
+  optional string external_name = 62;
+  optional string external_id = 63;
+  optional string connection_uri = 64;
+  optional NodeReferenceData client_ptr = 65;
+  float cpu = 70;
+  float ram = 71;
+}
+
 message FileData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2679,49 +2719,6 @@ message FileData {
   optional google.protobuf.Timestamp expires_at = 81;
 }
 
-message MachineData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  MachineType type = 30;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
-  repeated NodeReferenceData tags_ptr = 38;
-  Region region = 40;
-  optional NodeReferenceData scaler_ptr = 41;
-  ResourceStatus status = 50;
-  optional google.protobuf.Timestamp activated_at = 51;
-  optional google.protobuf.Timestamp deactivated_at = 52;
-  optional google.protobuf.Timestamp reset_at = 53;
-  optional google.protobuf.Timestamp suspended_at = 54;
-  optional google.protobuf.Timestamp decommissioned_at = 55;
-  optional google.protobuf.Timestamp active_at = 56;
-  string version = 60;
-  string target_version = 61;
-  optional string external_name = 62;
-  optional string external_id = 63;
-  optional string connection_uri = 64;
-  optional NodeReferenceData client_ptr = 65;
-  float cpu = 70;
-  float ram = 71;
-}
-
 message ScalerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2761,14 +2758,6 @@ message ScalerData {
   int32 max_count = 63;
   int32 min_ready_count = 64;
   bool is_active = 75;
-}
-
-// A Scaler is a static Resource that automatically scales a dynamic Resource.
-message MachineScalerData {
-}
-
-// A Scaler is a static Resource that automatically scales a dynamic Resource.
-message BrowserScalerData {
 }
 
 message SecretData {
@@ -2930,7 +2919,7 @@ message ClientData {
   optional google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
   optional NodeReferenceData space_ptr = 60;
-  optional NodeReferenceData machine_ptr = 62;
+  optional NodeReferenceData computer_ptr = 62;
 }
 
 message HandleData {
@@ -3045,7 +3034,7 @@ message InterruptionData {
   optional NodeReferenceData complete_trigger_ptr = 61;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3068,7 +3057,7 @@ message LogData {
   optional TextData text = 33;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3107,7 +3096,7 @@ message PlanData {
   optional ErrorData error = 56;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3159,7 +3148,7 @@ message RunData {
   optional string trigger_key = 87;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3181,7 +3170,7 @@ message SessionData {
   optional google.protobuf.Timestamp closed_at = 43;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3222,7 +3211,7 @@ message RunSpanData {
   optional string trigger_key = 87;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3265,7 +3254,7 @@ message TaskData {
   bool is_manual = 70;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -3993,7 +3982,7 @@ message ThreadData {
   optional TextData text = 61;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData machine_ptr = 94;
+  optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
 }
 
@@ -4025,7 +4014,7 @@ message SomeNodeData {
     ClientData client = 6;
     ScalerData scaler = 7;
     StoreData store = 8;
-    MachineData machine = 9;
+    ComputerData computer = 9;
     BrowserData browser = 10;
     FileData file = 11;
     StreamData stream = 12;

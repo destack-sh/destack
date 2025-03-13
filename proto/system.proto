@@ -165,7 +165,7 @@ message CommitTransactionRequest {
   string id = 2;
   // All the edits for all the changes in order.
   repeated EditData edits = 3;
-  // Extra session context (with any info not contained in EditContext, like machine/server).
+  // Extra session context (with any info not contained in EditContext, like computer/server).
   optional ContextData context = 4;
 }
 message CommitTransactionResponse {
@@ -342,7 +342,7 @@ service Supervisor {
 // Host
 //
 
-enum MachineEnvironment {
+enum ComputerEnvironment {
   REGULAR = 0;
   DOCKER = 1;
   MINIKUBE = 2;
@@ -351,7 +351,7 @@ enum MachineEnvironment {
 message UploadFilesRequest {
   GraphScopeData scope = 1;
   repeated FileData files = 2;
-  optional MachineEnvironment environment = 3;
+  optional ComputerEnvironment environment = 3;
 }
 
 message UploadFilesResponse {
@@ -367,7 +367,7 @@ message UploadFilesResponse {
 message DownloadFilesRequest {
   GraphScopeData scope = 1;
   repeated NodeReferenceData files = 2;
-  optional MachineEnvironment environment = 3;
+  optional ComputerEnvironment environment = 3;
 }
 
 message DownloadFilesResponse {

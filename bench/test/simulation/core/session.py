@@ -5,8 +5,8 @@ from bench.language import (
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
     Client,
+    Computer,
     GraphScope,
-    Machine,
     NodeReference,
     NodeSuperGraph,
     NodeType,
@@ -53,7 +53,7 @@ async def make_remote_session(
     supergraph: NodeSuperGraph | None = None,
 ):
     """Create a Session to a remote Bench's Host"""
-    from .machine import MachineHandle
+    from .computer import ComputerHandle
     from .user import UserHandle
 
     nonce = str(UUID(int=oracle.random.getrandbits(128)))
@@ -100,15 +100,15 @@ async def make_remote_session(
             skip_add_self=False,
         )
         session._subject = session.user
-    elif isinstance(client.parent, MachineHandle):
-        session.machine = unpack_builtin_object(
-            client.parent.machine_data,
+    elif isinstance(client.parent, ComputerHandle):
+        session.computer = unpack_builtin_object(
+            client.parent.computer_data,
             session=session,
             supergraph=supergraph,
-            expect=Machine,
+            expect=Computer,
             skip_add_self=False,
         )
-        session._subject = session.machine
+        session._subject = session.computer
     else:
         assert_never(client.parent)
     session.client = unpack_builtin_object(

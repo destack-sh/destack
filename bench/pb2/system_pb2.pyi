@@ -17,14 +17,14 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class MachineEnvironment(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class ComputerEnvironment(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    REGULAR: _ClassVar[MachineEnvironment]
-    DOCKER: _ClassVar[MachineEnvironment]
-    MINIKUBE: _ClassVar[MachineEnvironment]
-REGULAR: MachineEnvironment
-DOCKER: MachineEnvironment
-MINIKUBE: MachineEnvironment
+    REGULAR: _ClassVar[ComputerEnvironment]
+    DOCKER: _ClassVar[ComputerEnvironment]
+    MINIKUBE: _ClassVar[ComputerEnvironment]
+REGULAR: ComputerEnvironment
+DOCKER: ComputerEnvironment
+MINIKUBE: ComputerEnvironment
 
 class GetNodesRequest(_message.Message):
     __slots__ = ("scope", "roots", "base_type_ptr", "ancestor_types", "descendant_types", "select", "include_deleted", "no_cache", "is_optional")
@@ -393,8 +393,8 @@ class UploadFilesRequest(_message.Message):
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.GraphScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.FileData]
-    environment: MachineEnvironment
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ..., environment: _Optional[_Union[MachineEnvironment, str]] = ...) -> None: ...
+    environment: ComputerEnvironment
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
 
 class UploadFilesResponse(_message.Message):
     __slots__ = ("handles",)
@@ -420,8 +420,8 @@ class DownloadFilesRequest(_message.Message):
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.GraphScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    environment: MachineEnvironment
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., environment: _Optional[_Union[MachineEnvironment, str]] = ...) -> None: ...
+    environment: ComputerEnvironment
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., environment: _Optional[_Union[ComputerEnvironment, str]] = ...) -> None: ...
 
 class DownloadFilesResponse(_message.Message):
     __slots__ = ("handles",)

@@ -29,7 +29,7 @@ AnyNodeData = Union[
     ClientData,
     ScalerData,
     StoreData,
-    MachineData,
+    ComputerData,
     BrowserData,
     FileData,
     StreamData,
@@ -86,7 +86,6 @@ AnyStructData = Union[
     AccessZoneData,
     AccessMatrixData,
     AccessData,
-    MachineImageData,
     TypeData,
     TypeConstraintData,
     FileInfoData,
@@ -133,7 +132,7 @@ BenchNodeData = Union[
     HandleData,
     ScalerData,
     StoreData,
-    MachineData,
+    ComputerData,
     BrowserData,
     FileData,
     StreamData,
@@ -172,10 +171,10 @@ BenchNodeData = Union[
     RecordData,
 ]
 ResourceNodeData = Union[
-    ScalerData, StoreData, MachineData, BrowserData, FileData, StreamData, SecretData
+    ScalerData, StoreData, ComputerData, BrowserData, FileData, StreamData, SecretData
 ]
 DynamicResourceNodeData = Union[
-    MachineData,
+    ComputerData,
     BrowserData,
     FileData,
     StreamData,
@@ -237,7 +236,7 @@ SourceNodeData = Union[
 InlineNodeData = Union[
     ScalerData,
     StoreData,
-    MachineData,
+    ComputerData,
     BrowserData,
     FileData,
     StreamData,

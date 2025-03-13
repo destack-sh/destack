@@ -10,7 +10,7 @@ from grpclib.client import Channel
 
 from bench import pb2
 from bench.language.core.const import ClientType
-from bench.pb2 import MachineEnvironment
+from bench.pb2 import ComputerEnvironment
 from bench.pb2.common_pb2 import RpcMetadata
 from bench.proto.wiring import pack_rpc_headers
 from bench.utils.telemetry import collect_propagation_context
@@ -23,11 +23,11 @@ IS_IN_MINIKUBE = get_from_env(
     "IS_IN_MINIKUBE", typ=bool, default=False, description="Whether we're running in Minikube"
 )
 if IS_IN_DOCKER:
-    MACHINE_ENVIRONMENT = MachineEnvironment.DOCKER
+    COMPUTER_ENVIRONMENT = ComputerEnvironment.DOCKER
 elif IS_IN_MINIKUBE:
-    MACHINE_ENVIRONMENT = MachineEnvironment.MINIKUBE
+    COMPUTER_ENVIRONMENT = ComputerEnvironment.MINIKUBE
 else:
-    MACHINE_ENVIRONMENT = MachineEnvironment.REGULAR
+    COMPUTER_ENVIRONMENT = ComputerEnvironment.REGULAR
 
 
 def localize_url(domain: str) -> str:

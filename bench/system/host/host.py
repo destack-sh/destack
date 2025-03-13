@@ -22,6 +22,7 @@ from bench.language import (
     BenchStatus,
     C,
     ClientType,
+    Computer,
     ConditionalType,
     EditType,
     Engine,
@@ -31,7 +32,6 @@ from bench.language import (
     GraphScope,
     InlineNode,
     IsRuntime,
-    Machine,
     MemoryEngine,
     NodeArea,
     NodeDataGraph,
@@ -78,11 +78,11 @@ from bench.system.graph import GraphServiceBase, PostgresEngine, extract_commit_
 from bench.system.resource import (
     BrowserbaseBrowserProvisioner,
     BrowserScalerProvisioner,
-    KubernetesMachineProvisioner,
+    ComputerScalerProvisioner,
+    KubernetesComputerProvisioner,
     LocalhostBrowserProvisioner,
-    LocalhostMachineProvisioner,
+    LocalhostComputerProvisioner,
     LocalhostStoreProvisioner,
-    MachineScalerProvisioner,
     NeonStoreProvisioner,
     Provisioner,
     StoreProvisioner,
@@ -252,7 +252,7 @@ class HostService(GraphServiceBase, HostBase):
         # get client
         is_staff = False
         user: User | None = None
-        machine: Machine | None = None
+        computer: Computer | None = None
         owned: list[Ownable] = []
         if metadata.client_id and metadata.client_access_token:
             if not metadata.client_type:
@@ -275,8 +275,8 @@ class HostService(GraphServiceBase, HostBase):
                 is_staff = client.parent.is_staff
                 user = client.parent
             elif isinstance(client.parent, Bench):
-                machine = client.machine
-                owned = [self._bench]  # NOTE :Security: Machines own their Benches for now
+                computer = client.computer
+                owned = [self._bench]  # NOTE :Security: Computers own their Benches for now
             else:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
         else:
@@ -291,7 +291,7 @@ class HostService(GraphServiceBase, HostBase):
             is_staff=is_staff,
             client=client,
             user=user,
-            machine=machine,
+            computer=computer,
             owned=owned,
             _supergraph=supergraph,
         )
@@ -312,17 +312,17 @@ class HostService(GraphServiceBase, HostBase):
         if ENV == Env.TEST or ENV == Env.DEV:
             provisioners = [
                 BrowserScalerProvisioner,
-                MachineScalerProvisioner,
+                ComputerScalerProvisioner,
                 LocalhostStoreProvisioner,
-                LocalhostMachineProvisioner,
+                LocalhostComputerProvisioner,
                 LocalhostBrowserProvisioner,
             ]
         elif ENV == Env.STAGE or ENV == Env.PROD:
             provisioners = [
                 BrowserScalerProvisioner,
-                MachineScalerProvisioner,
+                ComputerScalerProvisioner,
                 NeonStoreProvisioner,
-                KubernetesMachineProvisioner,
+                KubernetesComputerProvisioner,
                 BrowserbaseBrowserProvisioner,
             ]
         else:
@@ -770,11 +770,11 @@ def validate_context(subject: Subject, context: IsRuntime, edits: Sequence[EditD
             GRPCStatus.INVALID_ARGUMENT,
             f"bad user context for {subject!r}: {context.user_ptr!r}",
         )
-    if subject.client.type == ClientType.MACHINE:
-        if not context.machine_ptr or context.machine_ptr.id != subject.machine_id:
+    if subject.client.type == ClientType.COMPUTER:
+        if not context.computer_ptr or context.computer_ptr.id != subject.computer_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
-                f"bad machine context for {subject!r}: {context.machine!r}",
+                f"bad computer context for {subject!r}: {context.computer!r}",
             )
 
 

@@ -964,7 +964,7 @@ export function typeIndex(idx: {
       // (but typeIndex in general seems like a mess, probably shouldn't be in regular search/Picker anyway..)
       if (idx.fieldType == FieldType.RESOURCE) {
         const allItems: TypeItem[] = [];
-        for (const nodeType of [NodeType.BROWSER, NodeType.MACHINE]) {
+        for (const nodeType of [NodeType.BROWSER, NodeType.COMPUTER]) {
           const item = typeItemFromTypeIdentity(
             makeType({ kind: TypeKind.NODE, benchType: nodeType as unknown as BenchType }),
           );

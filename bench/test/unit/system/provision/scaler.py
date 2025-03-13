@@ -8,9 +8,9 @@ from bench.test.unit.conftest import simulated_runtime
 async def test_create_scaler(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Creates a scaler."""
     _ = runtime.main_package.scalers.create(
-        type=ScalerType.MACHINE,
+        type=ScalerType.COMPUTER,
         strategy=ScalerStrategy.AUTO,
-        name="Machine Scaler",
+        name="Computer Scaler",
         min_count=1,
         target_count=1,
         max_count=4,

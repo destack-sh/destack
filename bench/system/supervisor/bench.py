@@ -21,7 +21,7 @@ class CreateBenchOptions(NamedTuple):
     main_package_name: str = "Main Package"
     main_package_slug: str = "main"
     local_store_name: str = "Local Store"
-    create_machine_scaler: bool = True
+    create_computer_scaler: bool = True
 
 
 async def create_default_bench(
@@ -66,11 +66,11 @@ async def create_default_bench(
     bench.main_store = store
     await session.flush(optimistic=True)
 
-    if options.create_machine_scaler:
-        machine_scaler = main_package.scalers.create(  # noqa: F841
-            type=ScalerType.MACHINE,
+    if options.create_computer_scaler:
+        _ = main_package.scalers.create(
+            type=ScalerType.COMPUTER,
             strategy=ScalerStrategy.AUTO,
-            name="Machine Scaler",
+            name="Computer Scaler",
             min_count=0,
             target_count=0,
             max_count=4,

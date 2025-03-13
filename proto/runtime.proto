@@ -15,7 +15,7 @@ message RunRequest {
 message RunResponse {
 }
   
-// A Runtime for running a Bench somewhere (like on a Machine or a Client).
+// A Runtime for running a Bench somewhere (like on a Computer or a Client).
 // The Runtime may run multiple processes/threads to process its Runs in Sessions in parallel.
 service Runtime {
 	option (kind) = INTERNAL; // :ServiceKind

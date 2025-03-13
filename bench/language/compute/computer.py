@@ -8,17 +8,14 @@ from bench.language.core import (
     EnumType,
     NodeType,
     Resource,
-    Struct,
-    StructType,
     enum_,
     node_,
     p_internal,
     p_kernel,
     p_regular,
     p_system,
-    struct_,
 )
-from bench.pb2.lang_pb2 import MachineData
+from bench.pb2 import ComputerData
 
 if TYPE_CHECKING:
     from bench.language import Client
@@ -26,25 +23,22 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.MACHINE_TYPE)
-class MachineType(BuiltinEnum):
-    RUNTIME = 1  # our own Bench runtime
-    # IMAGE = 2  # custom Machine/Docker image
+@enum_(EnumType.COMPUTER_TYPE)
+class ComputerType(BuiltinEnum):
+    RUNTIME = 10, "Runtime", "The main Bench runtime", "fas fa-computer-classic"
+    UBUNTU = 1000, "Ubuntu", "A Linux computer running Ubuntu", "fab fa-ubuntu"
+    MAC = 1100, "Mac", "A Mac computer", "fab fa-apple"
+    WINDOWS = 1200, "Windows", "A Windows computer", "fab fa-windows"
+    CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
 
 
-@struct_(StructType.MACHINE_IMAGE)
-class MachineImage(Struct):
-    pass
-
-
-@node_(NodeType.MACHINE, has_subtypes=True)
-class Machine(Resource[MachineData]):
+@node_(NodeType.COMPUTER, has_subtypes=True)
+class Computer(Resource[ComputerData]):
     """
-    A Machine provides physical compute.
-    Machines may be tied to a Server for our own Runtime or may be manually provisioned.
+    A Computer provides physical compute.
     """
 
-    type: MachineType = p_regular(30, default=MachineType.RUNTIME)
+    type: ComputerType = p_regular(30, default=ComputerType.RUNTIME)
 
     version: str = p_system(60, default=VERSION, default_sql=None)
     target_version: str = p_internal(61, default=VERSION, default_sql=None)

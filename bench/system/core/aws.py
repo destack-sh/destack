@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, assert_never
 import boto3
 import botocore.config
 
-from bench.pb2 import MachineEnvironment
+from bench.pb2 import ComputerEnvironment
 from bench.proto.network import dockerify_url, minikubeify_url
 from bench.utils.utils import get_from_env
 
@@ -46,13 +46,13 @@ def get_s3_client(*, localize_for: Literal["docker", "minikube"] | None = None) 
     return s3_client
 
 
-def get_s3_client_for_presigning(zone: Optional[MachineEnvironment]) -> S3Client:
+def get_s3_client_for_presigning(zone: Optional[ComputerEnvironment]) -> S3Client:
     """Gets the S3 client for presigning URLs."""
-    if zone is None or zone == MachineEnvironment.REGULAR:
+    if zone is None or zone == ComputerEnvironment.REGULAR:
         return get_s3_client()
-    elif zone == MachineEnvironment.DOCKER:
+    elif zone == ComputerEnvironment.DOCKER:
         return get_s3_client(localize_for="docker")
-    elif zone == MachineEnvironment.MINIKUBE:
+    elif zone == ComputerEnvironment.MINIKUBE:
         return get_s3_client(localize_for="minikube")
     else:
-        raise ValueError(f"unexpected machine environment: {zone}")
+        raise ValueError(f"unexpected computer environment: {zone}")

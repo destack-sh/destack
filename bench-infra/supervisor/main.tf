@@ -33,7 +33,7 @@ locals {
         format("%s=%s", k, v)
       ]
     ]))
-    MACHINE_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
+    COMPUTER_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name

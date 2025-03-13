@@ -113,8 +113,8 @@ class Runtime:
         dynamic_glbls: Mapping[str, Any] | None = None,
         on_error: Callable[[BaseException], None] | None = None,
     ):
-        from bench.runtime.computer.playwright import PlaywrightClient
         from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+        from bench.runtime.computer.playwright import PlaywrightClient
 
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
@@ -419,8 +419,8 @@ class Runtime:
             node.session_ptr = self.session_ptr
         if node.client_id != self.session.client_id:
             node.client_ptr = self.session.client_ptr
-        if node.machine_id != self.session.machine_id:
-            node.machine_ptr = self.session.machine_ptr
+        if node.computer_id != self.session.computer_id:
+            node.computer_ptr = self.session.computer_ptr
         if node.user_id != self.session.user_id:
             node.user_ptr = self.session.user_ptr
 

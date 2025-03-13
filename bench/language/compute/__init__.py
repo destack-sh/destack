@@ -1,4 +1,5 @@
 from .browser import DEFAULT_BROWSER_HEIGHT, DEFAULT_BROWSER_WIDTH, Browser, BrowserType
+from .computer import Computer, ComputerType
 from .file import (
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
@@ -18,7 +19,6 @@ from .file import (
     upload_file,
     upload_file_batch,
 )
-from .machine import Machine, MachineImage, MachineType
 from .scaler import Scaler, ScalerStrategy, ScalerType
 from .secret import Secret
 from .store import Store
@@ -34,6 +34,8 @@ __all__ = [
     "MIME_TYPE_CONSTRAINT",
     "Browser",
     "BrowserType",
+    "Computer",
+    "ComputerType",
     "File",
     "FileBase",
     "FileFormat",
@@ -41,9 +43,6 @@ __all__ = [
     "FileKind",
     "FileRetentionMode",
     "FileType",
-    "Machine",
-    "MachineImage",
-    "MachineType",
     "Scaler",
     "ScalerStrategy",
     "ScalerType",
