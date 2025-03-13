@@ -20,7 +20,7 @@ def class_to_kit(
         kit.text = text(text_value)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        action = Action.new(ActionType.TOOL, name=method_name)
+        action = Action.new(ActionType.CODE, name=method_name)
 
         # template
         if template is not None:
@@ -47,9 +47,27 @@ def class_to_kit(
         # code
         if not inspect.isabstract(method):
             method_source = inspect.getsource(method)
+            lines = method_source.splitlines()
+            # find the first line with actual code (after the def line and any docstring)
+            start_idx = 0
+            for i, line in enumerate(lines):
+                if "def " in line.strip():
+                    start_idx = i + 1
+                    break
+            # skip docstring if present
+            if (start_idx < len(lines) and '"""' in lines[start_idx]) or "'''" in lines[start_idx]:
+                for i in range(start_idx + 1, len(lines)):
+                    if '"""' in lines[i] or "'''" in lines[i]:
+                        start_idx = i + 1
+                        break
+            if start_idx < len(lines):
+                method_body = lines[start_idx:]
+                indent = len(method_body[0]) - len(method_body[0].lstrip())
+                method_body = [line[indent:] if line.strip() else line for line in method_body]
+                method_source = "\n".join(method_body)
+            else:
+                method_source = "pass"  # Empty method body
             action.code = code(method_source)
-
-        kit.actions.append(action)
 
         # inputs
         sig = inspect.signature(method)
@@ -95,5 +113,7 @@ def class_to_kit(
                 field = action.fields.get(template_field.name)
                 if field is not None:
                     field.ck = template_field.ck
+
+        kit.actions.append(action)
 
     return kit
