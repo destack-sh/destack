@@ -2,7 +2,7 @@ import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from bench.language import InterruptionType
+from bench.language import InterruptionType, Page
 
 from .reflect import class_to_kit
 
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 # ruff: noqa: N802,N803
 
 
-class ICommonKit(ActionRunner if TYPE_CHECKING else None):
+class ICommonKit(ActionRunner if TYPE_CHECKING else object):
     """Common utility Actions for Flows."""
 
     async def Fail(self, Message: str, Is_Retryable: bool = True) -> None:
@@ -41,3 +41,4 @@ class ICommonKit(ActionRunner if TYPE_CHECKING else None):
 
 
 CommonKit = class_to_kit(ICommonKit, "CommonKit")
+CommonPage = Page.new("Common", CommonKit)

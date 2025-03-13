@@ -104,16 +104,13 @@ class HasRunContext(BuiltinObject):
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
-        page_ck: Optional[UUID] = None
         flow_ptr: Optional[NodeReference] = None
         flow_id: Optional[UUID] = None
-        flow_ck: Optional[UUID] = None
         action_ptr: Optional[NodeReference] = None
         action_id: Optional[UUID] = None
         action_ck: Optional[UUID] = None
         link_ptr: Optional[NodeReference] = None
         link_id: Optional[UUID] = None
-        link_ck: Optional[UUID] = None
         incoming_ptr: tuple["NodeReference", ...] = ()
         trigger_ptr: Optional[NodeReference] = None
         trigger_id: Optional[UUID] = None

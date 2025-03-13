@@ -432,6 +432,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         references=EDIT_SUBJECT_TYPES,
         same_bench=True,
         baseless=True,
+        ckless=True,
     )
     updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
     updated_by: Optional[EditSubject] = p_system(  # type: ignore (see above)
@@ -443,6 +444,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         references=EDIT_SUBJECT_TYPES,
         same_bench=True,
         baseless=True,
+        ckless=True,
     )
     deleted_at: Optional[datetime] = p_system(14, default=None, autoset=True)
     # IsTemplatable.template/template_at: 15/16
@@ -1474,7 +1476,7 @@ class IsInstantiable(IsTemplatable):
 class IsOwnable(BuiltinObject):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional[Owner] = p_node_parent(17, *OWNER_TYPES)
+    owned_by: Optional[Owner] = p_node_parent(17, *OWNER_TYPES, ckless=True)
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None

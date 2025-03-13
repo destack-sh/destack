@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.12.2"
+VERSION = "2025.03.13.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -668,6 +668,7 @@ DEPENDENCY_TABLE = Table(
         Column("mode", PrimitiveType.INT16, default="2"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("dependency_id", PrimitiveType.UUID),
+        Column("dependency_type", PrimitiveType.INT16),
         Column("dependency_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
@@ -834,6 +835,7 @@ FIELD_TABLE = Table(
         Column("base_field_types", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("property_field_types", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("oneof_id", PrimitiveType.UUID, is_nullable=True),
+        Column("oneof_ck", PrimitiveType.UUID, is_nullable=True),
         Column("oneof_type", PrimitiveType.INT16, is_nullable=True),
         Column("default_packed", PrimitiveType.JSON, is_nullable=True),
         Column("format", PrimitiveType.INT16, is_nullable=True),
@@ -944,7 +946,9 @@ ACTION_TABLE = Table(
     "bench_action",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
@@ -971,6 +975,7 @@ ACTION_TABLE = Table(
         Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
+        Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tool_type", PrimitiveType.INT16, is_nullable=True),
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
@@ -983,6 +988,7 @@ LINK_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
@@ -1170,7 +1176,6 @@ DATABASE_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="2"),
@@ -1571,6 +1576,7 @@ RUN_TABLE = Table(
         Column("flow_id", PrimitiveType.UUID, is_nullable=True),
         Column("kit_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("link_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1629,6 +1635,7 @@ RUN_SPAN_TABLE = Table(
         Column("flow_id", PrimitiveType.UUID, is_nullable=True),
         Column("kit_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("link_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1672,6 +1679,7 @@ INTERRUPTION_TABLE = Table(
         Column("flow_id", PrimitiveType.UUID, is_nullable=True),
         Column("flow_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
+        Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("action_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("link_id", PrimitiveType.UUID, is_nullable=True),
         Column("link_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1754,7 +1762,6 @@ PLAN_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1808,7 +1815,6 @@ TASK_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
@@ -1834,6 +1840,7 @@ TASK_TABLE = Table(
         Column("clazz_id", PrimitiveType.UUID, is_nullable=True),
         Column("clazz_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("target_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
         Column("target_type", PrimitiveType.INT16, is_nullable=True),
         Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),

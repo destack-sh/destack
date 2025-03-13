@@ -142,6 +142,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     reference_struct: StructType | None = None  # for struct child types
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
+    reference_is_ckless: bool = False
     reference_is_baseless: bool = False
     reference_force_fk: bool = False
     reference_is_node_data: bool = False
@@ -557,7 +558,10 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                 )
                 stored_ids.append(id_prop)
                 # also remember 'ck' if any of the shared types has one
-                if any(t in INSTANTIABLE_NODE_TYPES for t in shared_ptr_types):
+                if (
+                    any(t in INSTANTIABLE_NODE_TYPES for t in shared_ptr_types)
+                    and not self.reference_is_ckless
+                ):
                     ck_prop = Property(
                         id=self.id,
                         name=self.name + "_ck",
@@ -780,6 +784,7 @@ def p_property(
     fk: bool = False,
     same_bench: bool = False,
     baseless: bool = False,
+    ckless: bool = False,
     struct: StructType | None = None,
     is_node_data: bool = False,
     store: bool = True,
@@ -834,6 +839,7 @@ def p_property(
         reference_list_type=custom_list,
         reference_is_bench_implicit=same_bench,
         reference_is_baseless=baseless,
+        reference_is_ckless=ckless,
         reference_force_fk=fk,
         is_internal=internal,
         is_system=system,
@@ -873,7 +879,13 @@ def p_runtime(
     )
 
 
-def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any:
+def p_node_parent(
+    id: int,
+    *node_type: NodeType,
+    is_system: bool = False,
+    ckless: bool = False,
+    baseless: bool = False,
+) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(
         id=id,
@@ -887,6 +899,8 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
         is_untracked=True,
         is_required=False,
         is_system=is_system,
+        reference_is_ckless=ckless,
+        reference_is_baseless=baseless,
     )
 
 
@@ -945,6 +959,7 @@ def p_node_template(id: int) -> Any:
         id=id,
         reference_kind=ReferenceKind.NODE_TEMPLATE,
         reference_is_baseless=True,
+        reference_is_ckless=True,
         is_internal=True,
         is_stored=True,
         is_wired=True,

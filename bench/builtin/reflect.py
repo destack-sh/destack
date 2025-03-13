@@ -20,18 +20,29 @@ def class_to_kit(
         kit.text = text(text_value)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        # action
-        doc = inspect.getdoc(method) or ""
-        icon_match = re.search(r"ICON:\s*(.*)", doc)
-        icon_value = icon_match.group(1).strip() if icon_match else None
         action = Action.new(ActionType.TOOL, name=method_name)
-        if icon_value:
-            action.icon = Icon.new(icon_value)
 
-        # text
-        clean_doc = re.sub(r"ICON:.*(\n|$)", "", doc).strip()
-        if clean_doc:
-            action.text = text(clean_doc)
+        # template
+        if template is not None:
+            template_action = template.actions.get(method_name)
+            if template_action is not None:
+                action.ck = template_action.ck
+        else:
+            template_action = None
+
+        # icon/text
+        doc = inspect.getdoc(method) or ""
+        if doc:
+            icon_match = re.search(r"ICON:\s*(.*)", doc)
+            icon_value = icon_match.group(1).strip() if icon_match else None
+            if icon_value:
+                action.icon = Icon.new(icon_value)
+            clean_doc = re.sub(r"ICON:.*(\n|$)", "", doc).strip()
+            if clean_doc:
+                action.text = text(clean_doc)
+        elif template_action is not None:
+            action.icon = template_action.icon
+            action.text = template_action.text
 
         # code
         if not inspect.isabstract(method):
@@ -76,4 +87,13 @@ def class_to_kit(
                         is_required=not type_info.is_optional,
                     )
                     action.fields.append(field)
+
+        # match base field's ck for instances
+        if template_action is not None:
+            for template_field in template_action.fields:
+                assert template_field.name, f"{template_field!r} has no name"
+                field = action.fields.get(template_field.name)
+                if field is not None:
+                    field.ck = template_field.ck
+
     return kit

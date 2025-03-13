@@ -1,4 +1,3 @@
-from bench.builtin import make_builtin_package, sync_node
 from bench.language import Session
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -8,6 +7,8 @@ from bench.test.utils import assert_graph_equals
 
 def test_make_builtin_package(session: Session) -> None:
     """Make a Builtin package."""
+    from bench.builtin import make_builtin_package
+
     builtin_package = make_builtin_package()
     pass
 
@@ -15,6 +16,8 @@ def test_make_builtin_package(session: Session) -> None:
 @simulated_runtime()
 async def test_sync_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload) -> None:
     """Sync the Builtins page."""
+    from bench.builtin import make_builtin_package, sync_node
+
     builtin_package = make_builtin_package()
     empty_package = runtime.main_package
 

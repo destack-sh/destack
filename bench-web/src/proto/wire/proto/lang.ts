@@ -964,35 +964,6 @@ export interface TypeData {
     isSecret: boolean;
 }
 /**
- * @generated from protobuf message symbolx.bench.DomNodeData
- */
-export interface DomNodeData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: string id = 30;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional string tag = 31;
-     */
-    tag?: string;
-    /**
-     * @generated from protobuf field: optional string text = 34;
-     */
-    text?: string;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value attributes = 35;
-     */
-    attributes?: Value;
-    /**
-     * @generated from protobuf field: optional bool is_focused = 36;
-     */
-    isFocused?: boolean;
-}
-/**
  * @generated from protobuf message symbolx.bench.FileInfoData
  */
 export interface FileInfoData {
@@ -4636,6 +4607,10 @@ export interface ActionData {
      */
     id: string;
     /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -4749,21 +4724,6 @@ export interface CompleteActionData {
 /**
  * A data or control flow node in a Flow. Actions are connected by Links.
  *
- * @generated from protobuf message symbolx.bench.FailActionData
- */
-export interface FailActionData {
-    /**
-     * @generated from protobuf field: optional string error_title = 120;
-     */
-    errorTitle?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData error_text = 121;
-     */
-    errorText?: TextData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
  * @generated from protobuf message symbolx.bench.CodeActionData
  */
 export interface CodeActionData {
@@ -4778,128 +4738,6 @@ export interface ToolActionData {
 /**
  * A data or control flow node in a Flow. Actions are connected by Links.
  *
- * @generated from protobuf message symbolx.bench.GenerateActionData
- */
-export interface GenerateActionData {
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.TransformActionData
- */
-export interface TransformActionData {
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.RouteActionData
- */
-export interface RouteActionData {
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.EditActionData
- */
-export interface EditActionData {
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.CreateActionData
- */
-export interface CreateActionData {
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 120;
-     */
-    nodePartialPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 220;
-     */
-    nodePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.DuplicateActionData
- */
-export interface DuplicateActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 120;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 121;
-     */
-    nodePartialPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional bool is_shallow = 122;
-     */
-    isShallow?: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData duplicated_node_ptr = 123;
-     */
-    duplicatedNodePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.UpdateActionData
- */
-export interface UpdateActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 120;
-     */
-    nodePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value node_partial_packed = 121;
-     */
-    nodePartialPacked?: JsonValue;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.DeleteActionData
- */
-export interface DeleteActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 120;
-     */
-    nodePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.WaitActionData
- */
-export interface WaitActionData {
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration delay = 120;
-     */
-    delay?: Duration;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 200;
-     */
-    nodePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.SendActionData
- */
-export interface SendActionData {
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value message_in_packed = 121;
-     */
-    messageInPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 200;
-     */
-    messagePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
  * @generated from protobuf message symbolx.bench.ReceiveActionData
  */
 export interface ReceiveActionData {
@@ -4907,247 +4745,6 @@ export interface ReceiveActionData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 100;
      */
     messagePtr?: NodeReferenceData;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.YieldActionData
- */
-export interface YieldActionData {
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.LookActionData
- */
-export interface LookActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional bool exclude_image = 120;
-     */
-    excludeImage?: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData screenshot_ptr = 200;
-     */
-    screenshotPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.DomNodeData dom_nodes = 201;
-     */
-    domNodes: DomNodeData[];
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.ClickActionData
- */
-export interface ClickActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional string button = 120;
-     */
-    button?: string;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.PressActionData
- */
-export interface PressActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional string combination = 120;
-     */
-    combination?: string;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration delay = 121;
-     */
-    delay?: Duration;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.TypeActionData
- */
-export interface TypeActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional string string = 120;
-     */
-    string?: string;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration delay = 121;
-     */
-    delay?: Duration;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.ScrollActionData
- */
-export interface ScrollActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data amount = 120;
-     */
-    amount?: Vector2Data;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.SelectActionData
- */
-export interface SelectActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.GoBackwardActionData
- */
-export interface GoBackwardActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.GoForwardActionData
- */
-export interface GoForwardActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.GoToUrlActionData
- */
-export interface GoToUrlActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional string url = 120;
-     */
-    url?: string;
-}
-/**
- * A data or control flow node in a Flow. Actions are connected by Links.
- *
- * @generated from protobuf message symbolx.bench.GoToTabActionData
- */
-export interface GoToTabActionData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData application_ptr = 100;
-     */
-    applicationPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string element_id = 110;
-     */
-    elementId?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Vector2Data element_position = 111;
-     */
-    elementPosition?: Vector2Data;
-    /**
-     * @generated from protobuf field: optional int32 tab_index = 120;
-     */
-    tabIndex?: number;
 }
 /**
  * @generated from protobuf message symbolx.bench.BlockData
@@ -8798,11 +8395,7 @@ export enum StructType {
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
-    RECTANGLE_CONSTRAINT = 13209,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DOM_NODE = 13700;
-     */
-    DOM_NODE = 13700
+    RECTANGLE_CONSTRAINT = 13209
 }
 /**
  * @generated from protobuf enum symbolx.bench.ObjectType
@@ -9223,11 +8816,7 @@ export enum ObjectType {
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
-    RECTANGLE_CONSTRAINT = 13209,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_DOM_NODE = 13700;
-     */
-    DOM_NODE = 13700
+    RECTANGLE_CONSTRAINT = 13209
 }
 /**
  * @generated from protobuf enum symbolx.bench.BenchType
@@ -9649,10 +9238,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
      */
     RECTANGLE_CONSTRAINT = 13209,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_DOM_NODE = 13700;
-     */
-    DOM_NODE = 13700,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20000;
      */
@@ -13434,17 +13019,13 @@ export enum ActionType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_START = 1;
+     * @generated from protobuf enum value: ACTION_TYPE_START = 10;
      */
-    START = 1,
+    START = 10,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_COMPLETE = 10;
+     * @generated from protobuf enum value: ACTION_TYPE_COMPLETE = 20;
      */
-    COMPLETE = 10,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_FAIL = 11;
-     */
-    FAIL = 11,
+    COMPLETE = 20,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_TOOL = 100;
      */
@@ -13458,129 +13039,9 @@ export enum ActionType {
      */
     DO = 200,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_THINK = 201;
-     */
-    THINK = 201,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_ROUTE = 202;
-     */
-    ROUTE = 202,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GENERATE = 203;
-     */
-    GENERATE = 203,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_TRANSFORM = 204;
-     */
-    TRANSFORM = 204,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_EXTRACT = 205;
-     */
-    EXTRACT = 205,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_EDIT = 210;
-     */
-    EDIT = 210,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_CREATE = 400;
-     */
-    CREATE = 400,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_DUPLICATE = 401;
-     */
-    DUPLICATE = 401,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_UPDATE = 402;
-     */
-    UPDATE = 402,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_DELETE = 403;
-     */
-    DELETE = 403,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_WAIT = 500;
-     */
-    WAIT = 500,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_SEND = 510;
-     */
-    SEND = 510,
-    /**
      * @generated from protobuf enum value: ACTION_TYPE_RECEIVE = 511;
      */
-    RECEIVE = 511,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_YIELD = 520;
-     */
-    YIELD = 520,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_LOOK = 800;
-     */
-    LOOK = 800,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_CLICK = 1000;
-     */
-    CLICK = 1000,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_PRESS = 1001;
-     */
-    PRESS = 1001,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_TYPE = 1002;
-     */
-    TYPE = 1002,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_SCROLL = 1003;
-     */
-    SCROLL = 1003,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_SELECT = 1004;
-     */
-    SELECT = 1004,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_DRAG = 1005;
-     */
-    DRAG = 1005,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_BACKWARD = 1006;
-     */
-    GO_BACKWARD = 1006,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_FORWARD = 1007;
-     */
-    GO_FORWARD = 1007,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_TO_URL = 1050;
-     */
-    GO_TO_URL = 1050,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GO_TO_TAB = 1051;
-     */
-    GO_TO_TAB = 1051,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_OPEN_TAB = 1052;
-     */
-    OPEN_TAB = 1052,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_CLOSE_TAB = 1053;
-     */
-    CLOSE_TAB = 1053,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_HTTP = 1100;
-     */
-    HTTP = 1100,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_REST = 1101;
-     */
-    REST = 1101,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_GRAPHQL = 1102;
-     */
-    GRAPHQL = 1102,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_SQL = 1103;
-     */
-    SQL = 1103
+    RECEIVE = 511
 }
 /**
  * @generated from protobuf enum symbolx.bench.ActionCategory
@@ -17659,89 +17120,6 @@ class TypeData$Type extends MessageType$<TypeData> {
  * @generated MessageType for protobuf message symbolx.bench.TypeData
  */
 export const TypeData = new TypeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class DomNodeData$Type extends MessageType$<DomNodeData> {
-    constructor() {
-        super("symbolx.bench.DomNodeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "tag", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "attributes", kind: "message", T: () => Value },
-            { no: 36, name: "is_focused", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<DomNodeData>): DomNodeData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        if (value !== undefined)
-            reflectionMergePartial<DomNodeData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DomNodeData): DomNodeData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 30:
-                    message.id = reader.string();
-                    break;
-                case /* optional string tag */ 31:
-                    message.tag = reader.string();
-                    break;
-                case /* optional string text */ 34:
-                    message.text = reader.string();
-                    break;
-                case /* optional google.protobuf.Value attributes */ 35:
-                    message.attributes = Value.internalBinaryRead(reader, reader.uint32(), options, message.attributes);
-                    break;
-                case /* optional bool is_focused */ 36:
-                    message.isFocused = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: DomNodeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 30; */
-        if (message.id !== "")
-            writer.tag(30, WireType.LengthDelimited).string(message.id);
-        /* optional string tag = 31; */
-        if (message.tag !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.tag);
-        /* optional string text = 34; */
-        if (message.text !== undefined)
-            writer.tag(34, WireType.LengthDelimited).string(message.text);
-        /* optional google.protobuf.Value attributes = 35; */
-        if (message.attributes)
-            Value.internalBinaryWrite(message.attributes, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_focused = 36; */
-        if (message.isFocused !== undefined)
-            writer.tag(36, WireType.Varint).bool(message.isFocused);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.DomNodeData
- */
-export const DomNodeData = new DomNodeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FileInfoData$Type extends MessageType$<FileInfoData> {
     constructor() {
@@ -26037,6 +25415,7 @@ class ActionData$Type extends MessageType$<ActionData> {
         super("symbolx.bench.ActionData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 8, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26067,6 +25446,7 @@ class ActionData$Type extends MessageType$<ActionData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.computedValues = [];
         message.type = 0;
@@ -26085,6 +25465,9 @@ class ActionData$Type extends MessageType$<ActionData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -26176,6 +25559,9 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -26309,59 +25695,6 @@ class CompleteActionData$Type extends MessageType$<CompleteActionData> {
  */
 export const CompleteActionData = new CompleteActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class FailActionData$Type extends MessageType$<FailActionData> {
-    constructor() {
-        super("symbolx.bench.FailActionData", [
-            { no: 120, name: "error_title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 121, name: "error_text", kind: "message", T: () => TextData }
-        ]);
-    }
-    create(value?: PartialMessage<FailActionData>): FailActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<FailActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FailActionData): FailActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional string error_title */ 120:
-                    message.errorTitle = reader.string();
-                    break;
-                case /* optional symbolx.bench.TextData error_text */ 121:
-                    message.errorText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.errorText);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FailActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional string error_title = 120; */
-        if (message.errorTitle !== undefined)
-            writer.tag(120, WireType.LengthDelimited).string(message.errorTitle);
-        /* optional symbolx.bench.TextData error_text = 121; */
-        if (message.errorText)
-            TextData.internalBinaryWrite(message.errorText, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FailActionData
- */
-export const FailActionData = new FailActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class CodeActionData$Type extends MessageType$<CodeActionData> {
     constructor() {
         super("symbolx.bench.CodeActionData", []);
@@ -26412,431 +25745,6 @@ class ToolActionData$Type extends MessageType$<ToolActionData> {
  */
 export const ToolActionData = new ToolActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class GenerateActionData$Type extends MessageType$<GenerateActionData> {
-    constructor() {
-        super("symbolx.bench.GenerateActionData", []);
-    }
-    create(value?: PartialMessage<GenerateActionData>): GenerateActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<GenerateActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GenerateActionData): GenerateActionData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: GenerateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.GenerateActionData
- */
-export const GenerateActionData = new GenerateActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TransformActionData$Type extends MessageType$<TransformActionData> {
-    constructor() {
-        super("symbolx.bench.TransformActionData", []);
-    }
-    create(value?: PartialMessage<TransformActionData>): TransformActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<TransformActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TransformActionData): TransformActionData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: TransformActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TransformActionData
- */
-export const TransformActionData = new TransformActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RouteActionData$Type extends MessageType$<RouteActionData> {
-    constructor() {
-        super("symbolx.bench.RouteActionData", []);
-    }
-    create(value?: PartialMessage<RouteActionData>): RouteActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<RouteActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RouteActionData): RouteActionData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: RouteActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RouteActionData
- */
-export const RouteActionData = new RouteActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class EditActionData$Type extends MessageType$<EditActionData> {
-    constructor() {
-        super("symbolx.bench.EditActionData", []);
-    }
-    create(value?: PartialMessage<EditActionData>): EditActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<EditActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditActionData): EditActionData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: EditActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.EditActionData
- */
-export const EditActionData = new EditActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CreateActionData$Type extends MessageType$<CreateActionData> {
-    constructor() {
-        super("symbolx.bench.CreateActionData", [
-            { no: 120, name: "node_partial_packed", kind: "message", T: () => Value },
-            { no: 220, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<CreateActionData>): CreateActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<CreateActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateActionData): CreateActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional google.protobuf.Value node_partial_packed */ 120:
-                    message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 220:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CreateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value node_partial_packed = 120; */
-        if (message.nodePartialPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 220; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(220, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CreateActionData
- */
-export const CreateActionData = new CreateActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class DuplicateActionData$Type extends MessageType$<DuplicateActionData> {
-    constructor() {
-        super("symbolx.bench.DuplicateActionData", [
-            { no: 120, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 121, name: "node_partial_packed", kind: "message", T: () => Value },
-            { no: 122, name: "is_shallow", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "duplicated_node_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<DuplicateActionData>): DuplicateActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<DuplicateActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DuplicateActionData): DuplicateActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 120:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional google.protobuf.Value node_partial_packed */ 121:
-                    message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional bool is_shallow */ 122:
-                    message.isShallow = reader.bool();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData duplicated_node_ptr */ 123:
-                    message.duplicatedNodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.duplicatedNodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: DuplicateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 120; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value node_partial_packed = 121; */
-        if (message.nodePartialPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_shallow = 122; */
-        if (message.isShallow !== undefined)
-            writer.tag(122, WireType.Varint).bool(message.isShallow);
-        /* optional symbolx.bench.NodeReferenceData duplicated_node_ptr = 123; */
-        if (message.duplicatedNodePtr)
-            NodeReferenceData.internalBinaryWrite(message.duplicatedNodePtr, writer.tag(123, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.DuplicateActionData
- */
-export const DuplicateActionData = new DuplicateActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class UpdateActionData$Type extends MessageType$<UpdateActionData> {
-    constructor() {
-        super("symbolx.bench.UpdateActionData", [
-            { no: 120, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 121, name: "node_partial_packed", kind: "message", T: () => Value }
-        ]);
-    }
-    create(value?: PartialMessage<UpdateActionData>): UpdateActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<UpdateActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UpdateActionData): UpdateActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 120:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* optional google.protobuf.Value node_partial_packed */ 121:
-                    message.nodePartialPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: UpdateActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 120; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value node_partial_packed = 121; */
-        if (message.nodePartialPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.nodePartialPacked), writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.UpdateActionData
- */
-export const UpdateActionData = new UpdateActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class DeleteActionData$Type extends MessageType$<DeleteActionData> {
-    constructor() {
-        super("symbolx.bench.DeleteActionData", [
-            { no: 120, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<DeleteActionData>): DeleteActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<DeleteActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DeleteActionData): DeleteActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 120:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: DeleteActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 120; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.DeleteActionData
- */
-export const DeleteActionData = new DeleteActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class WaitActionData$Type extends MessageType$<WaitActionData> {
-    constructor() {
-        super("symbolx.bench.WaitActionData", [
-            { no: 120, name: "delay", kind: "message", T: () => Duration },
-            { no: 200, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<WaitActionData>): WaitActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<WaitActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WaitActionData): WaitActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional google.protobuf.Duration delay */ 120:
-                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 200:
-                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: WaitActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Duration delay = 120; */
-        if (message.delay)
-            Duration.internalBinaryWrite(message.delay, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData node_ptr = 200; */
-        if (message.nodePtr)
-            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.WaitActionData
- */
-export const WaitActionData = new WaitActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SendActionData$Type extends MessageType$<SendActionData> {
-    constructor() {
-        super("symbolx.bench.SendActionData", [
-            { no: 121, name: "message_in_packed", kind: "message", T: () => Value },
-            { no: 200, name: "message_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<SendActionData>): SendActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<SendActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SendActionData): SendActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional google.protobuf.Value message_in_packed */ 121:
-                    message.messageInPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 200:
-                    message.messagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messagePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SendActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional google.protobuf.Value message_in_packed = 121; */
-        if (message.messageInPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.messageInPacked), writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData message_ptr = 200; */
-        if (message.messagePtr)
-            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SendActionData
- */
-export const SendActionData = new SendActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class ReceiveActionData$Type extends MessageType$<ReceiveActionData> {
     constructor() {
         super("symbolx.bench.ReceiveActionData", [
@@ -26882,709 +25790,6 @@ class ReceiveActionData$Type extends MessageType$<ReceiveActionData> {
  * @generated MessageType for protobuf message symbolx.bench.ReceiveActionData
  */
 export const ReceiveActionData = new ReceiveActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class YieldActionData$Type extends MessageType$<YieldActionData> {
-    constructor() {
-        super("symbolx.bench.YieldActionData", []);
-    }
-    create(value?: PartialMessage<YieldActionData>): YieldActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<YieldActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: YieldActionData): YieldActionData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: YieldActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.YieldActionData
- */
-export const YieldActionData = new YieldActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class LookActionData$Type extends MessageType$<LookActionData> {
-    constructor() {
-        super("symbolx.bench.LookActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "exclude_image", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 200, name: "screenshot_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 201, name: "dom_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => DomNodeData }
-        ]);
-    }
-    create(value?: PartialMessage<LookActionData>): LookActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.domNodes = [];
-        if (value !== undefined)
-            reflectionMergePartial<LookActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LookActionData): LookActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional bool exclude_image */ 120:
-                    message.excludeImage = reader.bool();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData screenshot_ptr */ 200:
-                    message.screenshotPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.screenshotPtr);
-                    break;
-                case /* repeated symbolx.bench.DomNodeData dom_nodes */ 201:
-                    message.domNodes.push(DomNodeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LookActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool exclude_image = 120; */
-        if (message.excludeImage !== undefined)
-            writer.tag(120, WireType.Varint).bool(message.excludeImage);
-        /* optional symbolx.bench.NodeReferenceData screenshot_ptr = 200; */
-        if (message.screenshotPtr)
-            NodeReferenceData.internalBinaryWrite(message.screenshotPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.DomNodeData dom_nodes = 201; */
-        for (let i = 0; i < message.domNodes.length; i++)
-            DomNodeData.internalBinaryWrite(message.domNodes[i], writer.tag(201, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.LookActionData
- */
-export const LookActionData = new LookActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ClickActionData$Type extends MessageType$<ClickActionData> {
-    constructor() {
-        super("symbolx.bench.ClickActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "button", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ClickActionData>): ClickActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<ClickActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClickActionData): ClickActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional string button */ 120:
-                    message.button = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ClickActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional string button = 120; */
-        if (message.button !== undefined)
-            writer.tag(120, WireType.LengthDelimited).string(message.button);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ClickActionData
- */
-export const ClickActionData = new ClickActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PressActionData$Type extends MessageType$<PressActionData> {
-    constructor() {
-        super("symbolx.bench.PressActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "combination", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 121, name: "delay", kind: "message", T: () => Duration }
-        ]);
-    }
-    create(value?: PartialMessage<PressActionData>): PressActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<PressActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PressActionData): PressActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional string combination */ 120:
-                    message.combination = reader.string();
-                    break;
-                case /* optional google.protobuf.Duration delay */ 121:
-                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PressActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional string combination = 120; */
-        if (message.combination !== undefined)
-            writer.tag(120, WireType.LengthDelimited).string(message.combination);
-        /* optional google.protobuf.Duration delay = 121; */
-        if (message.delay)
-            Duration.internalBinaryWrite(message.delay, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PressActionData
- */
-export const PressActionData = new PressActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TypeActionData$Type extends MessageType$<TypeActionData> {
-    constructor() {
-        super("symbolx.bench.TypeActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "string", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 121, name: "delay", kind: "message", T: () => Duration }
-        ]);
-    }
-    create(value?: PartialMessage<TypeActionData>): TypeActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<TypeActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TypeActionData): TypeActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional string string */ 120:
-                    message.string = reader.string();
-                    break;
-                case /* optional google.protobuf.Duration delay */ 121:
-                    message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TypeActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional string string = 120; */
-        if (message.string !== undefined)
-            writer.tag(120, WireType.LengthDelimited).string(message.string);
-        /* optional google.protobuf.Duration delay = 121; */
-        if (message.delay)
-            Duration.internalBinaryWrite(message.delay, writer.tag(121, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TypeActionData
- */
-export const TypeActionData = new TypeActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ScrollActionData$Type extends MessageType$<ScrollActionData> {
-    constructor() {
-        super("symbolx.bench.ScrollActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "amount", kind: "message", T: () => Vector2Data }
-        ]);
-    }
-    create(value?: PartialMessage<ScrollActionData>): ScrollActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<ScrollActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScrollActionData): ScrollActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional symbolx.bench.Vector2Data amount */ 120:
-                    message.amount = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.amount);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ScrollActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.Vector2Data amount = 120; */
-        if (message.amount)
-            Vector2Data.internalBinaryWrite(message.amount, writer.tag(120, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ScrollActionData
- */
-export const ScrollActionData = new ScrollActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class SelectActionData$Type extends MessageType$<SelectActionData> {
-    constructor() {
-        super("symbolx.bench.SelectActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data }
-        ]);
-    }
-    create(value?: PartialMessage<SelectActionData>): SelectActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<SelectActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectActionData): SelectActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SelectActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.SelectActionData
- */
-export const SelectActionData = new SelectActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class GoBackwardActionData$Type extends MessageType$<GoBackwardActionData> {
-    constructor() {
-        super("symbolx.bench.GoBackwardActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data }
-        ]);
-    }
-    create(value?: PartialMessage<GoBackwardActionData>): GoBackwardActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<GoBackwardActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoBackwardActionData): GoBackwardActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: GoBackwardActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.GoBackwardActionData
- */
-export const GoBackwardActionData = new GoBackwardActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class GoForwardActionData$Type extends MessageType$<GoForwardActionData> {
-    constructor() {
-        super("symbolx.bench.GoForwardActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data }
-        ]);
-    }
-    create(value?: PartialMessage<GoForwardActionData>): GoForwardActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<GoForwardActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoForwardActionData): GoForwardActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: GoForwardActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.GoForwardActionData
- */
-export const GoForwardActionData = new GoForwardActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class GoToUrlActionData$Type extends MessageType$<GoToUrlActionData> {
-    constructor() {
-        super("symbolx.bench.GoToUrlActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<GoToUrlActionData>): GoToUrlActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<GoToUrlActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoToUrlActionData): GoToUrlActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional string url */ 120:
-                    message.url = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: GoToUrlActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional string url = 120; */
-        if (message.url !== undefined)
-            writer.tag(120, WireType.LengthDelimited).string(message.url);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.GoToUrlActionData
- */
-export const GoToUrlActionData = new GoToUrlActionData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class GoToTabActionData$Type extends MessageType$<GoToTabActionData> {
-    constructor() {
-        super("symbolx.bench.GoToTabActionData", [
-            { no: 100, name: "application_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 110, name: "element_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "element_position", kind: "message", T: () => Vector2Data },
-            { no: 120, name: "tab_index", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
-        ]);
-    }
-    create(value?: PartialMessage<GoToTabActionData>): GoToTabActionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<GoToTabActionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GoToTabActionData): GoToTabActionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeReferenceData application_ptr */ 100:
-                    message.applicationPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.applicationPtr);
-                    break;
-                case /* optional string element_id */ 110:
-                    message.elementId = reader.string();
-                    break;
-                case /* optional symbolx.bench.Vector2Data element_position */ 111:
-                    message.elementPosition = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.elementPosition);
-                    break;
-                case /* optional int32 tab_index */ 120:
-                    message.tabIndex = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: GoToTabActionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeReferenceData application_ptr = 100; */
-        if (message.applicationPtr)
-            NodeReferenceData.internalBinaryWrite(message.applicationPtr, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* optional string element_id = 110; */
-        if (message.elementId !== undefined)
-            writer.tag(110, WireType.LengthDelimited).string(message.elementId);
-        /* optional symbolx.bench.Vector2Data element_position = 111; */
-        if (message.elementPosition)
-            Vector2Data.internalBinaryWrite(message.elementPosition, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 tab_index = 120; */
-        if (message.tabIndex !== undefined)
-            writer.tag(120, WireType.Varint).int32(message.tabIndex);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.GoToTabActionData
- */
-export const GoToTabActionData = new GoToTabActionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BlockData$Type extends MessageType$<BlockData> {
     constructor() {
@@ -33537,9 +31742,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | TeamData | ClientData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData | RecordData | SkipData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData | DomNodeData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | MachineImageData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof TeamData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof MachineData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof KitData | typeof ViewData | typeof DatabaseData | typeof ChannelData | typeof RoleData | typeof SpaceData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof RecordData | typeof SkipData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData | typeof DomNodeData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof MachineImageData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData | RecordData
 export type ResourceNodeData = ScalerData | StoreData | MachineData | BrowserData | FileData | StreamData | SecretData
 export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData
@@ -33862,7 +32067,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.LINE]: LineData,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintData,
-  [ObjectType.DOM_NODE]: DomNodeData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -33969,7 +32173,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.Vector4Data"]: ObjectType.VECTOR4,
   ["symbolx.bench.LineData"]: ObjectType.LINE,
   ["symbolx.bench.RectangleConstraintData"]: ObjectType.RECTANGLE_CONSTRAINT,
-  ["symbolx.bench.DomNodeData"]: ObjectType.DOM_NODE,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -34160,7 +32363,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.VECTOR4]: Vector4Data,
   [StructType.LINE]: LineData,
   [StructType.RECTANGLE_CONSTRAINT]: RectangleConstraintData,
-  [StructType.DOM_NODE]: DomNodeData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -34219,35 +32421,13 @@ export interface ScalerSubtypeMapping extends Record<ScalerType, ScalerSubtype> 
   [ScalerType.BROWSER]: BrowserScalerData,
 }
 
-export type ActionSubtype = StartActionData | CompleteActionData | FailActionData | CodeActionData | ToolActionData | GenerateActionData | TransformActionData | RouteActionData | EditActionData | CreateActionData | DuplicateActionData | UpdateActionData | DeleteActionData | WaitActionData | SendActionData | ReceiveActionData | YieldActionData | LookActionData | ClickActionData | PressActionData | TypeActionData | ScrollActionData | SelectActionData | GoBackwardActionData | GoForwardActionData | GoToUrlActionData | GoToTabActionData;
+export type ActionSubtype = StartActionData | CompleteActionData | CodeActionData | ToolActionData | ReceiveActionData;
 export interface ActionSubtypeMapping extends Record<ActionType, ActionSubtype> {
   [ActionType.START]: StartActionData,
   [ActionType.COMPLETE]: CompleteActionData,
-  [ActionType.FAIL]: FailActionData,
   [ActionType.CODE]: CodeActionData,
   [ActionType.TOOL]: ToolActionData,
-  [ActionType.GENERATE]: GenerateActionData,
-  [ActionType.TRANSFORM]: TransformActionData,
-  [ActionType.ROUTE]: RouteActionData,
-  [ActionType.EDIT]: EditActionData,
-  [ActionType.CREATE]: CreateActionData,
-  [ActionType.DUPLICATE]: DuplicateActionData,
-  [ActionType.UPDATE]: UpdateActionData,
-  [ActionType.DELETE]: DeleteActionData,
-  [ActionType.WAIT]: WaitActionData,
-  [ActionType.SEND]: SendActionData,
   [ActionType.RECEIVE]: ReceiveActionData,
-  [ActionType.YIELD]: YieldActionData,
-  [ActionType.LOOK]: LookActionData,
-  [ActionType.CLICK]: ClickActionData,
-  [ActionType.PRESS]: PressActionData,
-  [ActionType.TYPE]: TypeActionData,
-  [ActionType.SCROLL]: ScrollActionData,
-  [ActionType.SELECT]: SelectActionData,
-  [ActionType.GO_BACKWARD]: GoBackwardActionData,
-  [ActionType.GO_FORWARD]: GoForwardActionData,
-  [ActionType.GO_TO_URL]: GoToUrlActionData,
-  [ActionType.GO_TO_TAB]: GoToTabActionData,
 }
 
 export type TriggerSubtype = ScheduleTriggerData | MessageTriggerData;
@@ -34384,7 +32564,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.VECTOR4]: Vector4Data,
   [ObjectType.LINE]: LineData,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintData,
-  [ObjectType.DOM_NODE]: DomNodeData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -35187,6 +33366,7 @@ export enum FlowProperty {
 export enum ActionProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 8,
@@ -35894,11 +34074,6 @@ export enum CompleteActionProperty {
 
 }
 
-export enum FailActionProperty {
-  errorTitle = 120,
-  errorText = 121,
-}
-
 export enum CodeActionProperty {
 
 }
@@ -35907,130 +34082,8 @@ export enum ToolActionProperty {
 
 }
 
-export enum GenerateActionProperty {
-
-}
-
-export enum TransformActionProperty {
-
-}
-
-export enum RouteActionProperty {
-
-}
-
-export enum EditActionProperty {
-
-}
-
-export enum CreateActionProperty {
-  nodePartialPacked = 120,
-  nodePtr = 220,
-}
-
-export enum DuplicateActionProperty {
-  nodePtr = 120,
-  nodePartialPacked = 121,
-  isShallow = 122,
-  duplicatedNodePtr = 123,
-}
-
-export enum UpdateActionProperty {
-  nodePtr = 120,
-  nodePartialPacked = 121,
-}
-
-export enum DeleteActionProperty {
-  nodePtr = 120,
-}
-
-export enum WaitActionProperty {
-  delay = 120,
-  nodePtr = 200,
-}
-
-export enum SendActionProperty {
-  messageInPacked = 121,
-  messagePtr = 200,
-}
-
 export enum ReceiveActionProperty {
   messagePtr = 100,
-}
-
-export enum YieldActionProperty {
-
-}
-
-export enum LookActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  excludeImage = 120,
-  screenshotPtr = 200,
-  domNodes = 201,
-}
-
-export enum ClickActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  button = 120,
-}
-
-export enum PressActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  combination = 120,
-  delay = 121,
-}
-
-export enum TypeActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  string = 120,
-  delay = 121,
-}
-
-export enum ScrollActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  amount = 120,
-}
-
-export enum SelectActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-}
-
-export enum GoBackwardActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-}
-
-export enum GoForwardActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-}
-
-export enum GoToUrlActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  url = 120,
-}
-
-export enum GoToTabActionProperty {
-  applicationPtr = 100,
-  elementId = 110,
-  elementPosition = 111,
-  tabIndex = 120,
 }
 
 export enum ScheduleTriggerProperty {
@@ -36636,21 +34689,12 @@ export enum RectangleConstraintProperty {
   maxHeight = 53,
 }
 
-export enum DomNodeProperty {
-  metatype = 1,
-  id = 30,
-  tag = 31,
-  text = 34,
-  attributes = 35,
-  isFocused = 36,
-}
-
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty | typeof DomNodeProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof MachineProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof MachineImageProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -36758,7 +34802,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.LINE]: LineProperty,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintProperty,
-  [ObjectType.DOM_NODE]: DomNodeProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -36865,7 +34908,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.VECTOR4]: Vector4Property,
   [ObjectType.LINE]: LineProperty,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintProperty,
-  [ObjectType.DOM_NODE]: DomNodeProperty,
 }
 
 export const CLIENT_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ClientType, any>> = {
@@ -36897,31 +34939,9 @@ export const FIELD_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<FieldType, any>> = {
 export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> = {
   [ActionType.START]: StartActionProperty,
   [ActionType.COMPLETE]: CompleteActionProperty,
-  [ActionType.FAIL]: FailActionProperty,
   [ActionType.CODE]: CodeActionProperty,
   [ActionType.TOOL]: ToolActionProperty,
-  [ActionType.GENERATE]: GenerateActionProperty,
-  [ActionType.TRANSFORM]: TransformActionProperty,
-  [ActionType.ROUTE]: RouteActionProperty,
-  [ActionType.EDIT]: EditActionProperty,
-  [ActionType.CREATE]: CreateActionProperty,
-  [ActionType.DUPLICATE]: DuplicateActionProperty,
-  [ActionType.UPDATE]: UpdateActionProperty,
-  [ActionType.DELETE]: DeleteActionProperty,
-  [ActionType.WAIT]: WaitActionProperty,
-  [ActionType.SEND]: SendActionProperty,
   [ActionType.RECEIVE]: ReceiveActionProperty,
-  [ActionType.YIELD]: YieldActionProperty,
-  [ActionType.LOOK]: LookActionProperty,
-  [ActionType.CLICK]: ClickActionProperty,
-  [ActionType.PRESS]: PressActionProperty,
-  [ActionType.TYPE]: TypeActionProperty,
-  [ActionType.SCROLL]: ScrollActionProperty,
-  [ActionType.SELECT]: SelectActionProperty,
-  [ActionType.GO_BACKWARD]: GoBackwardActionProperty,
-  [ActionType.GO_FORWARD]: GoForwardActionProperty,
-  [ActionType.GO_TO_URL]: GoToUrlActionProperty,
-  [ActionType.GO_TO_TAB]: GoToTabActionProperty,
 }
 
 export const LINK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<LinkType, any>> = {
@@ -37222,8 +35242,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37261,8 +35281,8 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 60, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.12.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 60, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.13.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37470,7 +35490,7 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.templateAt]: { id: 16, name: 'template_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.mode]: { id: 25, name: 'mode', component: ObjectType.DEPENDENCY, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37672,6 +35692,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ActionProperty.id]: { id: 2, name: 'id', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.ck]: { id: 3, name: 'ck', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.ACTION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.FLOW, NodeType.KIT, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.ACTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.packagePtr]: { id: 8, name: 'package_ptr', component: ObjectType.ACTION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -37685,7 +35706,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.mode]: { id: 25, name: 'mode', component: ObjectType.ACTION, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.computedValues]: { id: 28, name: 'computed_values', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COMPUTED_VALUE },
   [ActionProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ActionProperty.type]: { id: 30, name: 'type', component: ObjectType.ACTION, enumType: EnumType.ACTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, fieldType: FieldType.INPUT, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.type]: { id: 30, name: 'type', component: ObjectType.ACTION, enumType: EnumType.ACTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.category]: { id: 31, name: 'category', component: ObjectType.ACTION, enumType: EnumType.ACTION_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.name]: { id: 32, name: 'name', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -37694,7 +35715,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.options]: { id: 40, name: 'options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [ActionProperty.selection]: { id: 41, name: 'selection', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.position]: { id: 80, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
@@ -38351,119 +36372,14 @@ export const StartActionDataInfo: Record<StartActionProperty, PropertyInfo> = {
 export const CompleteActionDataInfo: Record<CompleteActionProperty, PropertyInfo> = {
 
 }
-export const FailActionDataInfo: Record<FailActionProperty, PropertyInfo> = {
-  [FailActionProperty.errorTitle]: { id: 120, name: 'error_title', component: ObjectType.ACTION, componentSubtype: 11, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [FailActionProperty.errorText]: { id: 121, name: 'error_text', component: ObjectType.ACTION, componentSubtype: 11, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-}
 export const CodeActionDataInfo: Record<CodeActionProperty, PropertyInfo> = {
 
 }
 export const ToolActionDataInfo: Record<ToolActionProperty, PropertyInfo> = {
 
 }
-export const GenerateActionDataInfo: Record<GenerateActionProperty, PropertyInfo> = {
-
-}
-export const TransformActionDataInfo: Record<TransformActionProperty, PropertyInfo> = {
-
-}
-export const RouteActionDataInfo: Record<RouteActionProperty, PropertyInfo> = {
-
-}
-export const EditActionDataInfo: Record<EditActionProperty, PropertyInfo> = {
-
-}
-export const CreateActionDataInfo: Record<CreateActionProperty, PropertyInfo> = {
-  [CreateActionProperty.nodePartialPacked]: { id: 120, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 400, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-  [CreateActionProperty.nodePtr]: { id: 220, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 400, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const DuplicateActionDataInfo: Record<DuplicateActionProperty, PropertyInfo> = {
-  [DuplicateActionProperty.nodePtr]: { id: 120, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 401, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [DuplicateActionProperty.nodePartialPacked]: { id: 121, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 401, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-  [DuplicateActionProperty.isShallow]: { id: 122, name: 'is_shallow', component: ObjectType.ACTION, componentSubtype: 401, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [DuplicateActionProperty.duplicatedNodePtr]: { id: 123, name: 'duplicated_node_ptr', component: ObjectType.ACTION, componentSubtype: 401, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const UpdateActionDataInfo: Record<UpdateActionProperty, PropertyInfo> = {
-  [UpdateActionProperty.nodePtr]: { id: 120, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 402, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [UpdateActionProperty.nodePartialPacked]: { id: 121, name: 'node_partial_packed', component: ObjectType.ACTION, componentSubtype: 402, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-}
-export const DeleteActionDataInfo: Record<DeleteActionProperty, PropertyInfo> = {
-  [DeleteActionProperty.nodePtr]: { id: 120, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 403, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const WaitActionDataInfo: Record<WaitActionProperty, PropertyInfo> = {
-  [WaitActionProperty.delay]: { id: 120, name: 'delay', component: ObjectType.ACTION, componentSubtype: 500, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [WaitActionProperty.nodePtr]: { id: 200, name: 'node_ptr', component: ObjectType.ACTION, componentSubtype: 500, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const SendActionDataInfo: Record<SendActionProperty, PropertyInfo> = {
-  [SendActionProperty.messageInPacked]: { id: 121, name: 'message_in_packed', component: ObjectType.ACTION, componentSubtype: 510, kind: 'primitive', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true, valueIsPartial: true },
-  [SendActionProperty.messagePtr]: { id: 200, name: 'message_ptr', component: ObjectType.ACTION, componentSubtype: 510, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-}
 export const ReceiveActionDataInfo: Record<ReceiveActionProperty, PropertyInfo> = {
-  [ReceiveActionProperty.messagePtr]: { id: 100, name: 'message_ptr', component: ObjectType.ACTION, componentSubtype: 511, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-}
-export const YieldActionDataInfo: Record<YieldActionProperty, PropertyInfo> = {
-
-}
-export const LookActionDataInfo: Record<LookActionProperty, PropertyInfo> = {
-  [LookActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [LookActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 800, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [LookActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [LookActionProperty.excludeImage]: { id: 120, name: 'exclude_image', component: ObjectType.ACTION, componentSubtype: 800, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [LookActionProperty.screenshotPtr]: { id: 200, name: 'screenshot_ptr', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', fieldType: FieldType.OUTPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [LookActionProperty.domNodes]: { id: 201, name: 'dom_nodes', component: ObjectType.ACTION, componentSubtype: 800, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.OUTPUT, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.DOM_NODE },
-}
-export const ClickActionDataInfo: Record<ClickActionProperty, PropertyInfo> = {
-  [ClickActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [ClickActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ClickActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ClickActionProperty.button]: { id: 120, name: 'button', component: ObjectType.ACTION, componentSubtype: 1000, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-}
-export const PressActionDataInfo: Record<PressActionProperty, PropertyInfo> = {
-  [PressActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [PressActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [PressActionProperty.combination]: { id: 120, name: 'combination', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [PressActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1001, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-}
-export const TypeActionDataInfo: Record<TypeActionProperty, PropertyInfo> = {
-  [TypeActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [TypeActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [TypeActionProperty.string]: { id: 120, name: 'string', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [TypeActionProperty.delay]: { id: 121, name: 'delay', component: ObjectType.ACTION, componentSubtype: 1002, kind: 'primitive', primitiveType: PrimitiveType.DURATION, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-}
-export const ScrollActionDataInfo: Record<ScrollActionProperty, PropertyInfo> = {
-  [ScrollActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [ScrollActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [ScrollActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ScrollActionProperty.amount]: { id: 120, name: 'amount', component: ObjectType.ACTION, componentSubtype: 1003, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-}
-export const SelectActionDataInfo: Record<SelectActionProperty, PropertyInfo> = {
-  [SelectActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [SelectActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1004, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-}
-export const GoBackwardActionDataInfo: Record<GoBackwardActionProperty, PropertyInfo> = {
-  [GoBackwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoBackwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoBackwardActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1006, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-}
-export const GoForwardActionDataInfo: Record<GoForwardActionProperty, PropertyInfo> = {
-  [GoForwardActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoForwardActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoForwardActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1007, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-}
-export const GoToUrlActionDataInfo: Record<GoToUrlActionProperty, PropertyInfo> = {
-  [GoToUrlActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoToUrlActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoToUrlActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoToUrlActionProperty.url]: { id: 120, name: 'url', component: ObjectType.ACTION, componentSubtype: 1050, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-}
-export const GoToTabActionDataInfo: Record<GoToTabActionProperty, PropertyInfo> = {
-  [GoToTabActionProperty.applicationPtr]: { id: 100, name: 'application_ptr', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', fieldType: FieldType.INPUT, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BROWSER], referenceStruct: StructType.NODE_REFERENCE },
-  [GoToTabActionProperty.elementId]: { id: 110, name: 'element_id', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.STRING, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
-  [GoToTabActionProperty.elementPosition]: { id: 111, name: 'element_position', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'reference', primitiveType: PrimitiveType.JSON, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [GoToTabActionProperty.tabIndex]: { id: 120, name: 'tab_index', component: ObjectType.ACTION, componentSubtype: 1051, kind: 'primitive', primitiveType: PrimitiveType.INT32, fieldType: FieldType.INPUT, isRuntime: true, isWired: true, isStored: true },
+  [ReceiveActionProperty.messagePtr]: { id: 100, name: 'message_ptr', component: ObjectType.ACTION, componentSubtype: 511, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ScheduleTriggerDataInfo: Record<ScheduleTriggerProperty, PropertyInfo> = {
   [ScheduleTriggerProperty.schedule]: { id: 100, name: 'schedule', component: ObjectType.TRIGGER, componentSubtype: 10, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
@@ -38997,14 +36913,6 @@ export const RectangleConstraintDataInfo: Record<RectangleConstraintProperty, Pr
   [RectangleConstraintProperty.minHeight]: { id: 52, name: 'min_height', component: ObjectType.RECTANGLE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [RectangleConstraintProperty.maxHeight]: { id: 53, name: 'max_height', component: ObjectType.RECTANGLE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
-export const DomNodeDataInfo: Record<DomNodeProperty, PropertyInfo> = {
-  [DomNodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DOM_NODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [DomNodeProperty.id]: { id: 30, name: 'id', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.tag]: { id: 31, name: 'tag', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.text]: { id: 34, name: 'text', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.attributes]: { id: 35, name: 'attributes', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true },
-  [DomNodeProperty.isFocused]: { id: 36, name: 'is_focused', component: ObjectType.DOM_NODE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-}
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},
   [ObjectType.BENCH]: BenchDataInfo,
@@ -39110,7 +37018,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.VECTOR4]: Vector4DataInfo,
   [ObjectType.LINE]: LineDataInfo,
   [ObjectType.RECTANGLE_CONSTRAINT]: RectangleConstraintDataInfo,
-  [ObjectType.DOM_NODE]: DomNodeDataInfo,
 }
 
 export const ClientSubtypePropertyInfo: Partial<Record<ClientType, Record<any, PropertyInfo>>> = {
@@ -39134,31 +37041,9 @@ export const FieldSubtypePropertyInfo: Partial<Record<FieldType, Record<any, Pro
 export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, PropertyInfo>>> = {
   [ActionType.START]: StartActionDataInfo,
   [ActionType.COMPLETE]: CompleteActionDataInfo,
-  [ActionType.FAIL]: FailActionDataInfo,
   [ActionType.CODE]: CodeActionDataInfo,
   [ActionType.TOOL]: ToolActionDataInfo,
-  [ActionType.GENERATE]: GenerateActionDataInfo,
-  [ActionType.TRANSFORM]: TransformActionDataInfo,
-  [ActionType.ROUTE]: RouteActionDataInfo,
-  [ActionType.EDIT]: EditActionDataInfo,
-  [ActionType.CREATE]: CreateActionDataInfo,
-  [ActionType.DUPLICATE]: DuplicateActionDataInfo,
-  [ActionType.UPDATE]: UpdateActionDataInfo,
-  [ActionType.DELETE]: DeleteActionDataInfo,
-  [ActionType.WAIT]: WaitActionDataInfo,
-  [ActionType.SEND]: SendActionDataInfo,
   [ActionType.RECEIVE]: ReceiveActionDataInfo,
-  [ActionType.YIELD]: YieldActionDataInfo,
-  [ActionType.LOOK]: LookActionDataInfo,
-  [ActionType.CLICK]: ClickActionDataInfo,
-  [ActionType.PRESS]: PressActionDataInfo,
-  [ActionType.TYPE]: TypeActionDataInfo,
-  [ActionType.SCROLL]: ScrollActionDataInfo,
-  [ActionType.SELECT]: SelectActionDataInfo,
-  [ActionType.GO_BACKWARD]: GoBackwardActionDataInfo,
-  [ActionType.GO_FORWARD]: GoForwardActionDataInfo,
-  [ActionType.GO_TO_URL]: GoToUrlActionDataInfo,
-  [ActionType.GO_TO_TAB]: GoToTabActionDataInfo,
 }
 export const LinkSubtypePropertyInfo: Partial<Record<LinkType, Record<any, PropertyInfo>>> = {
 }
@@ -39609,43 +37494,12 @@ export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionIn
 }
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
-  [ActionType.START]: { id: 1, name: 'START', text: 'Begin the Flow', title: 'Start', color: ColorType.YELLOW, icon: 'fas fa-circle-play' },
-  [ActionType.COMPLETE]: { id: 10, name: 'COMPLETE', text: 'Complete the entire Flow', title: 'Complete', color: ColorType.YELLOW, icon: 'fas fa-flag-checkered' },
-  [ActionType.FAIL]: { id: 11, name: 'FAIL', text: 'Fail the entire Flow', title: 'Fail', color: ColorType.YELLOW, icon: 'fas fa-triangle-exclamation' },
+  [ActionType.START]: { id: 10, name: 'START', text: 'Begin the Flow', title: 'Start', color: ColorType.YELLOW, icon: 'fas fa-circle-play' },
+  [ActionType.COMPLETE]: { id: 20, name: 'COMPLETE', text: 'Complete the entire Flow', title: 'Complete', color: ColorType.YELLOW, icon: 'fas fa-flag-checkered' },
   [ActionType.TOOL]: { id: 100, name: 'TOOL', text: 'Delegate to a specific tool', title: 'Tool', color: ColorType.SKY, icon: 'fas fa-screwdriver-wrench' },
   [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some Code', title: 'Code', color: ColorType.SKY, icon: 'fas fa-code' },
   [ActionType.DO]: { id: 200, name: 'DO', text: 'Perform an arbitrary action', title: 'Do', color: ColorType.VIOLET, icon: 'fas fa-hammer' },
-  [ActionType.THINK]: { id: 201, name: 'THINK', text: 'Reflect on the context', title: 'Think', color: ColorType.VIOLET, icon: 'fas fa-brain-circuit' },
-  [ActionType.ROUTE]: { id: 202, name: 'ROUTE', text: 'Route between Actions', title: 'Route', color: ColorType.VIOLET, icon: 'fas fa-split' },
-  [ActionType.GENERATE]: { id: 203, name: 'GENERATE', text: 'Generate something new', title: 'Generate', color: ColorType.VIOLET, icon: 'fas fa-wand-magic-sparkles' },
-  [ActionType.TRANSFORM]: { id: 204, name: 'TRANSFORM', text: 'Change the form of something', title: 'Transform', color: ColorType.VIOLET, icon: 'fas fa-arrows-rotate' },
-  [ActionType.EXTRACT]: { id: 205, name: 'EXTRACT', text: 'Extract structured data', title: 'Extract', color: ColorType.VIOLET, icon: 'fas fa-filter' },
-  [ActionType.EDIT]: { id: 210, name: 'EDIT', text: 'Edit this Bench', title: 'Edit', color: ColorType.VIOLET, icon: 'fas fa-pen-to-square' },
-  [ActionType.CREATE]: { id: 400, name: 'CREATE', text: 'Create a Node', title: 'Create', color: ColorType.SKY, icon: 'fas fa-plus' },
-  [ActionType.DUPLICATE]: { id: 401, name: 'DUPLICATE', text: 'Duplicate a Node', title: 'Duplicate', color: ColorType.SKY, icon: 'fas fa-clone' },
-  [ActionType.UPDATE]: { id: 402, name: 'UPDATE', text: 'Update a Node', title: 'Update', color: ColorType.SKY, icon: 'fas fa-pencil' },
-  [ActionType.DELETE]: { id: 403, name: 'DELETE', text: 'Delete a Node', title: 'Delete', color: ColorType.SKY, icon: 'fas fa-trash' },
-  [ActionType.WAIT]: { id: 500, name: 'WAIT', text: 'Wait for some trigger', title: 'Wait', color: ColorType.PINK, icon: 'fas fa-clock' },
-  [ActionType.SEND]: { id: 510, name: 'SEND', text: 'Send a Message', title: 'Send', color: ColorType.PINK, icon: 'fas fa-inbox-out' },
   [ActionType.RECEIVE]: { id: 511, name: 'RECEIVE', text: 'Receive a Message', title: 'Receive', color: ColorType.PINK, icon: 'fas fa-inbox-in' },
-  [ActionType.YIELD]: { id: 520, name: 'YIELD', text: 'Defer to someone', title: 'Yield', color: ColorType.PINK, icon: 'fas fa-hand' },
-  [ActionType.LOOK]: { id: 800, name: 'LOOK', text: 'Look at the environment', title: 'Look', color: ColorType.EMERALD, icon: 'fas fa-eye' },
-  [ActionType.CLICK]: { id: 1000, name: 'CLICK', text: 'Click an element', title: 'Click', color: ColorType.INDIGO, icon: 'fas fa-arrow-pointer' },
-  [ActionType.PRESS]: { id: 1001, name: 'PRESS', text: 'Press a key', title: 'Press', color: ColorType.INDIGO, icon: 'fas fa-keyboard' },
-  [ActionType.TYPE]: { id: 1002, name: 'TYPE', text: 'Type text', title: 'Type', color: ColorType.INDIGO, icon: 'fas fa-keyboard' },
-  [ActionType.SCROLL]: { id: 1003, name: 'SCROLL', text: 'Scroll the mouse wheel', title: 'Scroll', color: ColorType.INDIGO, icon: 'fas fa-computer-mouse-scrollwheel' },
-  [ActionType.SELECT]: { id: 1004, name: 'SELECT', text: 'Select an element', title: 'Select', color: ColorType.INDIGO, icon: 'fas fa-lasso' },
-  [ActionType.DRAG]: { id: 1005, name: 'DRAG', text: 'Drag an element', title: 'Drag', color: ColorType.INDIGO, icon: 'fas fa-hand-pointer' },
-  [ActionType.GO_BACKWARD]: { id: 1006, name: 'GO_BACKWARD', text: 'Go back in history', title: 'Go back', color: ColorType.INDIGO, icon: 'fas fa-arrow-turn-left' },
-  [ActionType.GO_FORWARD]: { id: 1007, name: 'GO_FORWARD', text: 'Go forward in history', title: 'Go forward', color: ColorType.INDIGO, icon: 'fas fa-arrow-turn-right' },
-  [ActionType.GO_TO_URL]: { id: 1050, name: 'GO_TO_URL', text: 'Navigate to a URL', title: 'Go to URL', color: ColorType.INDIGO, icon: 'fas fa-link' },
-  [ActionType.GO_TO_TAB]: { id: 1051, name: 'GO_TO_TAB', text: 'Switch to a tab', title: 'Go to tab', color: ColorType.INDIGO, icon: 'fas fa-sidebar' },
-  [ActionType.OPEN_TAB]: { id: 1052, name: 'OPEN_TAB', text: 'Open a new tab', title: 'Open tab', color: ColorType.INDIGO, icon: 'fas fa-plus' },
-  [ActionType.CLOSE_TAB]: { id: 1053, name: 'CLOSE_TAB', text: 'Close a tab', title: 'Close tab', color: ColorType.INDIGO, icon: 'fas fa-minus' },
-  [ActionType.HTTP]: { id: 1100, name: 'HTTP', text: 'Make an HTTP call', title: 'HTTP', color: ColorType.INDIGO, icon: 'fas fa-globe' },
-  [ActionType.REST]: { id: 1101, name: 'REST', text: 'Make a REST call', title: 'REST', color: ColorType.INDIGO, icon: 'fas fa-brackets-curly' },
-  [ActionType.GRAPHQL]: { id: 1102, name: 'GRAPHQL', text: 'Make a GraphQL call', title: 'GraphQL', color: ColorType.INDIGO, icon: 'fas fa-brackets-curly' },
-  [ActionType.SQL]: { id: 1103, name: 'SQL', text: 'Make a SQL call', title: 'SQL', color: ColorType.INDIGO, icon: 'fas fa-code' },
 }
 
 export const ActionCategoryOptionInfo: Partial<Record<ActionCategory, EnumOptionInfo>> = {
