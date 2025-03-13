@@ -247,7 +247,6 @@ enum StructType {
   STRUCT_TYPE_VECTOR4 = 13207;
   STRUCT_TYPE_LINE = 13208;
   STRUCT_TYPE_RECTANGLE_CONSTRAINT = 13209;
-  STRUCT_TYPE_DOM_NODE = 13700;
 }
 
 enum ObjectType {
@@ -355,7 +354,6 @@ enum ObjectType {
   OBJECT_TYPE_VECTOR4 = 13207;
   OBJECT_TYPE_LINE = 13208;
   OBJECT_TYPE_RECTANGLE_CONSTRAINT = 13209;
-  OBJECT_TYPE_DOM_NODE = 13700;
 }
 
 enum BenchType {
@@ -463,7 +461,6 @@ enum BenchType {
   BENCH_TYPE_VECTOR4 = 13207;
   BENCH_TYPE_LINE = 13208;
   BENCH_TYPE_RECTANGLE_CONSTRAINT = 13209;
-  BENCH_TYPE_DOM_NODE = 13700;
   BENCH_TYPE_ENUM_TYPE = 20000;
   BENCH_TYPE_NODE_TYPE = 20001;
   BENCH_TYPE_STRUCT_TYPE = 20002;
@@ -1575,43 +1572,12 @@ enum CodeType {
 
 enum ActionType {
   ACTION_TYPE_UNSPECIFIED = 0;
-  ACTION_TYPE_START = 1;
-  ACTION_TYPE_COMPLETE = 10;
-  ACTION_TYPE_FAIL = 11;
+  ACTION_TYPE_START = 10;
+  ACTION_TYPE_COMPLETE = 20;
   ACTION_TYPE_TOOL = 100;
   ACTION_TYPE_CODE = 101;
   ACTION_TYPE_DO = 200;
-  ACTION_TYPE_THINK = 201;
-  ACTION_TYPE_ROUTE = 202;
-  ACTION_TYPE_GENERATE = 203;
-  ACTION_TYPE_TRANSFORM = 204;
-  ACTION_TYPE_EXTRACT = 205;
-  ACTION_TYPE_EDIT = 210;
-  ACTION_TYPE_CREATE = 400;
-  ACTION_TYPE_DUPLICATE = 401;
-  ACTION_TYPE_UPDATE = 402;
-  ACTION_TYPE_DELETE = 403;
-  ACTION_TYPE_WAIT = 500;
-  ACTION_TYPE_SEND = 510;
   ACTION_TYPE_RECEIVE = 511;
-  ACTION_TYPE_YIELD = 520;
-  ACTION_TYPE_LOOK = 800;
-  ACTION_TYPE_CLICK = 1000;
-  ACTION_TYPE_PRESS = 1001;
-  ACTION_TYPE_TYPE = 1002;
-  ACTION_TYPE_SCROLL = 1003;
-  ACTION_TYPE_SELECT = 1004;
-  ACTION_TYPE_DRAG = 1005;
-  ACTION_TYPE_GO_BACKWARD = 1006;
-  ACTION_TYPE_GO_FORWARD = 1007;
-  ACTION_TYPE_GO_TO_URL = 1050;
-  ACTION_TYPE_GO_TO_TAB = 1051;
-  ACTION_TYPE_OPEN_TAB = 1052;
-  ACTION_TYPE_CLOSE_TAB = 1053;
-  ACTION_TYPE_HTTP = 1100;
-  ACTION_TYPE_REST = 1101;
-  ACTION_TYPE_GRAPHQL = 1102;
-  ACTION_TYPE_SQL = 1103;
 }
 
 enum ActionCategory {
@@ -2296,15 +2262,6 @@ message TypeData {
   bool is_required = 60;
   bool is_list = 61;
   bool is_secret = 62;
-}
-
-message DomNodeData {
-  ObjectType metatype = 1;
-  string id = 30;
-  optional string tag = 31;
-  optional string text = 34;
-  optional google.protobuf.Value attributes = 35;
-  optional bool is_focused = 36;
 }
 
 message FileInfoData {
@@ -3315,6 +3272,7 @@ message TaskData {
 message ActionData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 8;
@@ -3350,12 +3308,6 @@ message CompleteActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Links.
-message FailActionData {
-  optional string error_title = 120;
-  optional TextData error_text = 121;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
 message CodeActionData {
 }
 
@@ -3364,146 +3316,8 @@ message ToolActionData {
 }
 
 // A data or control flow node in a Flow. Actions are connected by Links.
-message GenerateActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message TransformActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message RouteActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message EditActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message CreateActionData {
-  optional google.protobuf.Value node_partial_packed = 120;
-  optional NodeReferenceData node_ptr = 220;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message DuplicateActionData {
-  optional NodeReferenceData node_ptr = 120;
-  optional google.protobuf.Value node_partial_packed = 121;
-  optional bool is_shallow = 122;
-  optional NodeReferenceData duplicated_node_ptr = 123;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message UpdateActionData {
-  optional NodeReferenceData node_ptr = 120;
-  optional google.protobuf.Value node_partial_packed = 121;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message DeleteActionData {
-  optional NodeReferenceData node_ptr = 120;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message WaitActionData {
-  optional google.protobuf.Duration delay = 120;
-  optional NodeReferenceData node_ptr = 200;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message SendActionData {
-  optional google.protobuf.Value message_in_packed = 121;
-  optional NodeReferenceData message_ptr = 200;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
 message ReceiveActionData {
   optional NodeReferenceData message_ptr = 100;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message YieldActionData {
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message LookActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional bool exclude_image = 120;
-  optional NodeReferenceData screenshot_ptr = 200;
-  repeated DomNodeData dom_nodes = 201;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message ClickActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional string button = 120;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message PressActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional string combination = 120;
-  optional google.protobuf.Duration delay = 121;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message TypeActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional string string = 120;
-  optional google.protobuf.Duration delay = 121;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message ScrollActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional Vector2Data amount = 120;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message SelectActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message GoBackwardActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message GoForwardActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message GoToUrlActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional string url = 120;
-}
-
-// A data or control flow node in a Flow. Actions are connected by Links.
-message GoToTabActionData {
-  optional NodeReferenceData application_ptr = 100;
-  optional string element_id = 110;
-  optional Vector2Data element_position = 111;
-  optional int32 tab_index = 120;
 }
 
 message BlockData {

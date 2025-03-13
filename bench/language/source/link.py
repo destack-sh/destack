@@ -79,15 +79,13 @@ class Link(IsTemplatable, IsTraceable, IsComputable, PackageNode[LinkData]):
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    source: "Action" = p_regular(35, require=True, references=NodeType.ACTION)
-    target: "Action" = p_regular(36, require=True, references=NodeType.ACTION)
+    source: "Action" = p_regular(35, require=True, references=NodeType.ACTION, ckless=True)
+    target: "Action" = p_regular(36, require=True, references=NodeType.ACTION, ckless=True)
     if TYPE_CHECKING:
         source_ptr: Optional[NodeReference] = None
         source_id: Optional[UUID] = None
-        source_ck: Optional[str] = None
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
-        target_ck: Optional[str] = None
     options: Optional["RunOptions"] = p_regular(
         39, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )

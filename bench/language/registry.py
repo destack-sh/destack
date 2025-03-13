@@ -67,7 +67,13 @@ def _on_completing_setup(func: Callable | None = None):
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     from bench.language import BuiltinObject, CustomObject, Node, Struct
-    from bench.language.core import InlineNode, IsTemplatable, NodeSubtypeStub, const
+    from bench.language.core import (
+        InlineNode,
+        IsInstantiable,
+        IsTemplatable,
+        NodeSubtypeStub,
+        const,
+    )
     from bench.language.core.object import (
         _is_setup_complete,
         _set_setup_complete,
@@ -240,3 +246,11 @@ def _complete_bench_setup():
             if getattr(n, "metatype", None)
         ]
         assert_collections_equal(templatable_node_types, const.TEMPLATABLE_NODE_TYPES.tuple)
+
+        # check that INSTANTIABLE_NODE_TYPES is consistent with IsInstantiable
+        instantiable_node_types = [
+            cast(Node, n).metatype
+            for n in get_subclasses(IsInstantiable)
+            if getattr(n, "metatype", None)
+        ]
+        assert_collections_equal(instantiable_node_types, const.INSTANTIABLE_NODE_TYPES.tuple)
