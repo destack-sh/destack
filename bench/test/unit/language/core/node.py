@@ -35,6 +35,7 @@ from bench.language import (
     TextLine,
 )
 from bench.language.source.channel import Channel
+from bench.language.source.view import ChatView, View, ViewType
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -77,17 +78,15 @@ def test_node_subtype_property_access(session: "Session"):
     assert Text1.line is not None and Text1.line.spans[0].content == "Hello, world!"
 
     # subtype -> node ref property
-    Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
-    assert Duplicate1.node == Text1
-    assert Duplicate1.node_ptr == Text1.to_ref()
-    Duplicate1.is_shallow = True
-    assert Duplicate1.is_shallow
+    View1 = cast(ChatView, View.new(ViewType.CHAT, "ChatView1", draft_nodes=[Text1]))
+    assert View1.draft_nodes == [Text1]
+    assert View1.draft_nodes_ptr == [Text1.to_ref()]
 
 
 def test_node_subtype_property_reference(session: "Session"):
     Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
-    Duplicate1 = Action.new(DuplicateAction, "BlockAction1", node=Text1)
-    node_prop: Property = Duplicate1.get_property("node")
+    View1 = cast(ChatView, View.new(ViewType.CHAT, "ChatView1", draft_nodes=[Text1]))
+    node_prop: Property = View1.get_property("draft_nodes")
     assert node_prop.to_ref().resolve_or_error() is node_prop
 
 

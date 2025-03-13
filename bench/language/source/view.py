@@ -522,6 +522,9 @@ class ChatView(View):
     draft_reply_to: Optional["Message"] = p_regular(
         102, require=False, array=False, references=NodeType.MESSAGE
     )
+    if TYPE_CHECKING:
+        draft_nodes_ptr: list["NodeReference"] = []
+        draft_reply_to_ptr: Optional["NodeReference"] = None
 
 
 # NOTE :Cleanup: Sidebar/Context :DefaultViewAspects should probably just be tabs?

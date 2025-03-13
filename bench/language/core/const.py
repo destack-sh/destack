@@ -805,9 +805,6 @@ class StructType(BuiltinEnum):
     LINE = 13208, None, None, "fas fa-bezier-curve"
     RECTANGLE_CONSTRAINT = 13209, None, None, "fas fa-box-constraint"
 
-    # browser/application (13700-13999)
-    DOM_NODE = 13700
-
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
 STRUCT_TYPES_SET: frozenset[StructType] = frozenset(STRUCT_TYPES)

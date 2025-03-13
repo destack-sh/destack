@@ -1,10 +1,4 @@
-from .browser import (
-    DEFAULT_BROWSER_HEIGHT,
-    DEFAULT_BROWSER_WIDTH,
-    Browser,
-    BrowserType,
-    DomNode,
-)
+from .browser import DEFAULT_BROWSER_HEIGHT, DEFAULT_BROWSER_WIDTH, Browser, BrowserType
 from .file import (
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
@@ -40,7 +34,6 @@ __all__ = [
     "MIME_TYPE_CONSTRAINT",
     "Browser",
     "BrowserType",
-    "DomNode",
     "File",
     "FileBase",
     "FileFormat",

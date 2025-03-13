@@ -3,20 +3,23 @@ import re
 from typing import Annotated, Any, cast, get_args, get_origin
 
 from bench.language import Action, ActionType, Field, Icon, Kit, NodeMode, TypeIn, code, text
+from bench.utils.func import parse_py_annotation
 
 
-def class_to_kit(cls: type[Any], name: str, mode: NodeMode = NodeMode.BUILTIN) -> Kit:
+def class_to_kit(
+    cls: type[Any], name: str, mode: NodeMode = NodeMode.BUILTIN, template: Kit | None = None
+) -> Kit:
     """
     Turn a class into a Kit. Methods become Actions, their signature become Fields.
     Also parses out special metadata like ICON=...
     """
 
-    kit = Kit.new(name, mode=mode)
+    kit = Kit.new(name, mode=mode, template=template)
+    text_value = inspect.getdoc(cls) or ""
+    if text_value:
+        kit.text = text(text_value)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        if method_name.startswith("_"):
-            continue
-
         # action
         doc = inspect.getdoc(method) or ""
         icon_match = re.search(r"ICON:\s*(.*)", doc)
@@ -45,24 +48,32 @@ def class_to_kit(cls: type[Any], name: str, mode: NodeMode = NodeMode.BUILTIN) -
         for param_name, param in params:
             param_type = param.annotation if param.annotation != inspect.Parameter.empty else Any
             default_value = None if param.default == inspect.Parameter.empty else param.default
-
+            type_info = parse_py_annotation(cast(Any, param_type), {})
             field = Field.input(
-                name=param_name, typ=cast(TypeIn, param_type), default=default_value
+                name=param_name.replace("_", " ").title(),
+                typ=cast(TypeIn, type_info.type),
+                default=default_value,
+                is_list=type_info.is_list,
+                is_required=not type_info.is_optional,
             )
             action.fields.append(field)
 
         # outputs
         return_type = sig.return_annotation
-        if return_type != inspect.Signature.empty and return_type is not None:
-            # Handle Annotated return types with metadata
-            if get_origin(return_type) == Annotated:
-                _, metadata = get_args(return_type)
-                if isinstance(metadata, dict):
-                    for output_name, output_type in metadata.items():
-                        field = Field.output(name=output_name, typ=output_type)
-                        action.fields.append(field)
-            else:
-                field = Field.output(name="result", typ=return_type)
-                action.fields.append(field)
-
+        if (
+            return_type != inspect.Signature.empty
+            and return_type is not None
+            and get_origin(return_type) == Annotated
+        ):
+            _, metadata = get_args(return_type)
+            if isinstance(metadata, dict):
+                for output_name, output_type in metadata.items():
+                    type_info = parse_py_annotation(output_type, {})
+                    field = Field.output(
+                        name=output_name.replace("_", " ").title(),
+                        typ=type_info.type,
+                        is_list=type_info.is_list,
+                        is_required=not type_info.is_optional,
+                    )
+                    action.fields.append(field)
     return kit

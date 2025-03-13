@@ -199,6 +199,8 @@ run.plans.append(plan)
 @simulated_runtime()
 async def test_run_flow_plan_multiple(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with multiple Plans."""
+    from bench.builtin import CommonKit
+    
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Plan1 = Action.new(ActionType.CODE, "Plan1", code=code("pass"))
@@ -206,7 +208,7 @@ async def test_run_flow_plan_multiple(simulation: Simulation, runtime: RuntimeLa
     Code2 = Action.new(ActionType.CODE, "Code2", code=code("pass"))
     Code3 = Action.new(ActionType.CODE, "Code3", code=code("pass"))
     Code4 = Action.new(ActionType.CODE, "Code4", code=code("pass"))
-    Fail = Action.new(ActionType.FAIL, "Fail")
+    Fail = Action.new(CommonKit.actions.Fail, "Fail")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Plan1, Code1, Code2, Code3, Code4, Fail, Complete)
     Start.connect(LinkType.REQUIRE, Plan1, is_manual=True)
@@ -289,9 +291,11 @@ run.plans.append(plan)
 @simulated_runtime()
 async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then resume from the Yield."""
+    from bench.builtin import CommonKit
+    
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(ActionType.YIELD, "Yield")
+    Yield = Action.new(CommonKit.actions.Yield, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Complete)
     Start.connect(LinkType.REQUIRE, Yield, is_manual=True)
@@ -328,10 +332,12 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
 @simulated_runtime()
 async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
+    from bench.builtin import CommonKit
+    
     # inner flow
     FlowInner = Flow.new("FlowInner")
     StartInner = Action.new(ActionType.START, "StartInner")
-    YieldInner = Action.new(ActionType.YIELD, "YieldInner")
+    YieldInner = Action.new(CommonKit.actions.Yield, "YieldInner")
     CompleteInner = Action.new(ActionType.COMPLETE, "CompleteInner")
     FlowInner.actions.extend(StartInner, YieldInner, CompleteInner)
     StartInner.connect(LinkType.REQUIRE, YieldInner, is_manual=True)
@@ -371,9 +377,11 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
 @simulated_runtime()
 async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then cancel it."""
+    from bench.builtin import CommonKit
+    
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(ActionType.YIELD, "Yield")
+    Yield = Action.new(CommonKit.actions.Yield, "Yield")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
     Flow1.actions.extend(Start, Yield, Complete)
     Start.connect(LinkType.REQUIRE, Yield, is_manual=True)
@@ -394,13 +402,15 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
 @simulated_runtime()
 async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
+    from bench.builtin import CommonKit
+    
     Flow1 = Flow.new(
         "Flow1",
         options=RunOptions(breakpoints=[Breakpoint.before(BreakpointScope.ACTION)]),
     )
     Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(
-        ActionType.YIELD, "Yield", options=RunOptions(breakpoints=[Breakpoint.before()])
+        CommonKit.actions.Yield, "Yield", options=RunOptions(breakpoints=[Breakpoint.before()])
     )
     Action1 = Action.new(
         ActionType.CODE,
