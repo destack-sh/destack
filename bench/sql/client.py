@@ -60,6 +60,14 @@ def get_pg_pool(store: Store) -> "PostgresConnectionPool":
     return _pools_by_store[store]
 
 
+def get_pg_pool_by_external_name(external_name: str) -> "PostgresConnectionPool | None":
+    """Gets the connection pool for the given external name."""
+    for store in _pools_by_store:
+        if store.external_name == external_name:
+            return _pools_by_store[store]
+    return None
+
+
 @asynccontextmanager
 async def pg_connection(store: Store, *, owner: Any | None = None, autocommit: bool = False):
     """Opens a connection to the given store."""

@@ -1074,11 +1074,11 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 return True
         return False
 
-    def clone(self, *, reset: bool = True) -> Self:
+    def clone(self, *, reset: bool = True, **kwargs) -> Self:
         """
         Create a clone of this object and its descendants (structs/nodes) with the same content.
         """
-        copy_kwargs = {}
+        copy_kwargs = {**kwargs}
         for prop in self.__wired_properties__.values():
             prop_value = getattr(self, prop.name)
             if reset and prop.id < 30:

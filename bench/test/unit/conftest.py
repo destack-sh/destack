@@ -189,6 +189,7 @@ def make_simulation_spec(
     hosts: tuple[HostSpec, ...] = (),
     runtimes: tuple[RuntimeSpec, ...] = (),
     workloads: tuple[WorkloadSpec, ...] = (),
+    system: bool = False,
 ) -> SimulationSpec:
     users = users or (UserSpec(name="alice"),)
     computers = computers or (ComputerSpec(name="alice-computer", bench="alice"),)
@@ -210,11 +211,13 @@ def make_simulation_spec(
         hosts=hosts,
         runtimes=runtimes,
         workloads=workloads,
+        system=system,
     )
     return spec
 
 
 def simulated_runtime(
+    *,
     network: NetworkSpec | None = None,
     users: tuple[UserSpec, ...] = (),
     computers: tuple[ComputerSpec, ...] = (),
@@ -222,6 +225,7 @@ def simulated_runtime(
     supervisor: SupervisorSpec | None = None,
     benches: tuple[BenchSpec, ...] = (),
     hosts: tuple[HostSpec, ...] = (),
+    system: bool = False,
     runtimes: tuple[RuntimeSpec, ...] | Literal[True] = (),
 ):
     """Run a 'lambda workload' test as a Computer's Runtime inside a Simulation."""
@@ -247,6 +251,7 @@ def simulated_runtime(
             hosts=hosts,
             runtimes=runtimes,
             workloads=(lambda_workload,),
+            system=system,
         )
 
         @functools.wraps(test_func)

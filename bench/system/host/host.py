@@ -53,6 +53,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
+from bench.language.core.const import BENCH_BENCH_ID
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -384,7 +385,7 @@ class HostService(GraphServiceBase, HostBase):
             self._bench._untrack_rec()
 
         # setup main engines
-        # (overwrite global pg engine now that we have the full bench as context)
+        # (overwrite global pg engine now that we have t he full bench as context)
         database_plugin = DatabasePlugin(self, self._bench, self._main_package)
         self._global_pg_engine = PostgresEngine(
             name="pg-global",
@@ -452,6 +453,18 @@ class HostService(GraphServiceBase, HostBase):
         )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
+
+        # sync builtins if we're the system bench
+        if self.bench_id == BENCH_BENCH_ID:
+            from bench.builtin import BuiltinPackage, sync_node
+
+            async with self.session(readonly=False, commit=True):
+                sync_node(
+                    parent=self._bench,
+                    target_root=self._main_package,
+                    reference_root=BuiltinPackage,
+                )
+
         logger.info(
             "host.start",
             host=self,

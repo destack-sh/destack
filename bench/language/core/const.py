@@ -1458,9 +1458,6 @@ class RunSpanType(BuiltinEnum):
     FILE_DOWNLOAD = 502, None, None, "fas fa-download"
     FILE_PREPARE_DOWNLOAD = 503, None, None, "fas fa-download"
     # ...
-    # nocheckin: RunSpanTypes for all ActionTypes/intents/etc.
-    #  (and emit those spans in builtin Actions..? how does this relate to Logs and such
-    #   like for created/updated Nodes and such)
 
 
 @enum_(EnumType.ERROR_KIND)

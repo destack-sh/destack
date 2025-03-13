@@ -10,6 +10,7 @@ from bench.language import (
     Message,
     Run,
     RunStatus,
+    Session,
     Trigger,
     code,
     text,
@@ -18,9 +19,27 @@ from bench.runtime import create_run_from_node
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
+from bench.test.utils import assert_graph_equals
 
 
-@simulated_runtime(runtimes=True)
+def test_make_builtin_package(session: Session) -> None:
+    """Make a Builtin package."""
+    from bench.builtin import BuiltinPackage
+
+    _ = BuiltinPackage
+
+
+@simulated_runtime(system=True)
+async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload) -> None:
+    """Test the Builtin package."""
+    from bench.builtin import BENCH_BUILTIN_PACKAGE_PTR
+    from bench.builtin import BuiltinPackage as BuiltinPackageRaw
+
+    BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BUILTIN_PACKAGE_PTR)
+    assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoaded._graph)
+
+
+@simulated_runtime(system=True, runtimes=True)
 async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run and wait for it to execute in another Runtime."""
     Page1 = runtime.page()
@@ -33,7 +52,7 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
     assert run.status == RunStatus.COMPLETED
 
 
-@simulated_runtime(runtimes=True)
+@simulated_runtime(system=True, runtimes=True)
 async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run from a Message in a Flow. Should be lifted into a Flow Run."""
     Channel1 = Channel.new("General")
@@ -52,7 +71,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     assert Run1.status == RunStatus.COMPLETED
 
 
-@simulated_runtime(runtimes=True)
+@simulated_runtime(system=True, runtimes=True)
 async def test_reply_to_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Reply to a Message in a Flow. Should complete and not recurse endlessly."""
     Channel1 = Channel.new("General")
@@ -87,7 +106,7 @@ message_in.parent.append(reply)
 #   .. somehow? doesn't that move the logic to the client?)
 
 
-@simulated_runtime(runtimes=True)
+@simulated_runtime(system=True, runtimes=True)
 async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")

@@ -288,7 +288,7 @@ run.plans.append(plan)
 # (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
 
 
-@simulated_runtime()
+@simulated_runtime(system=True)
 async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then resume from the Yield."""
     from bench.builtin import ActionKit
@@ -329,7 +329,7 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
     assert len(runner.attempts) == 1
 
 
-@simulated_runtime()
+@simulated_runtime(system=True)
 async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
     from bench.builtin import ActionKit
@@ -374,7 +374,7 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     assert runner.status == RunStatus.COMPLETED
 
 
-@simulated_runtime()
+@simulated_runtime(system=True)
 async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then cancel it."""
     from bench.builtin import ActionKit
@@ -399,7 +399,7 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
 
 
-@simulated_runtime()
+@simulated_runtime(system=True)
 async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with breakpoints all over. Should yield and resume properly."""
     from bench.builtin import ActionKit
@@ -474,7 +474,7 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     assert runner.status == RunStatus.COMPLETED
 
 
-@simulated_runtime()
+@simulated_runtime(system=True)
 async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")

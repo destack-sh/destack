@@ -10,11 +10,20 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from bench.language import NodeArea, Store
+from bench.language import REGION, NodeArea, Store
+from bench.language.core.const import (
+    BENCH_BENCH_ID,
+    BENCH_BENCH_SLUG,
+    SYSTEM_BENCH_ID,
+    SYSTEM_BENCH_SLUG,
+)
 from bench.proto import SupervisorClient
+from bench.sql.client import get_pg_pool_by_external_name, pg_connection
+from bench.sql.engine import sqlstr
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
 from bench.system import StoreMap, pg_engine_from_store
-from bench.test.fixtures import delete_test_db
+from bench.system.core.session import global_store_from_env
+from bench.system.supervisor.bootstrap import create_system_benches
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 
@@ -197,7 +206,7 @@ class Simulation:
         bench = self.get_bench(name)
         return bench.bench_id
 
-    def prepare(self):
+    async def prepare(self):
         """Initialize the simulation from ths spec."""
 
         def add_service(service: ServiceHandle) -> ServiceHandle:
@@ -332,6 +341,14 @@ class Simulation:
         for workload in self.spec.workloads:
             add_workload(workload)
 
+        # system
+        if self.spec.system:
+            # maybe this should happen in a SystemHandle or such?
+            add_bench(BenchSpec(name=SYSTEM_BENCH_SLUG, owner="system"))
+            add_host(HostSpec(bench=SYSTEM_BENCH_SLUG))
+            add_bench(BenchSpec(name=BENCH_BENCH_SLUG, owner="system"))
+            add_host(HostSpec(bench=BENCH_BENCH_SLUG))
+
     async def wait_idle(self, min_idle_time: float = 0.1):
         """Wait until all services are idle for at least min_idle_time."""
         idle_since = None
@@ -347,7 +364,16 @@ class Simulation:
 
     async def run(self):
         """Run the simulation."""
-        # supervisor first (always needed)
+
+        # system
+        if self.spec.system:
+            await create_system_benches(
+                region=REGION,
+                global_store=self.global_store,
+                global_pg_engine=self.global_pg_engine,
+                regional_store=self.regional_store,
+                regional_pg_engine=self.regional_pg_engine,
+            )
         await self.supervisor.start()
         async with SimulatedChannel(
             self.supervisor.service, oracle=self.oracle
@@ -362,8 +388,7 @@ class Simulation:
             # prepare benches
             for bench in self.benches_by_name.values():
                 user = self.users_by_name.get(bench.spec.owner)
-                assert user, f"no user {bench.spec.owner} for {bench!r} in {self!r}"
-                await bench.prepare(supervisor_client, user.some_client)
+                await bench.prepare(supervisor_client, user.some_client if user else None)
                 self.benches_by_id[bench.bench_id] = bench
             # prepare computers and their clients
             for computer in self.computers_by_name.values():
@@ -441,7 +466,7 @@ async def run_simulation(spec: SimulationSpec):
     try:
         # setup
         with tracer.start_as_current_span("simulation.prepare"):
-            simulation.prepare()
+            await simulation.prepare()
             await create_test_db(global_store, BUILTIN_GLOBAL_SCHEMA)
             await create_test_db(regional_store, BUILTIN_REGIONAL_SCHEMA)
             log.info("simulation.prepare", span="current")
@@ -449,10 +474,24 @@ async def run_simulation(spec: SimulationSpec):
         with tracer.start_as_current_span("simulation.run"):
             await simulation.run()
             log.info("simulation.run", span="current")
-        # teardown
-        await delete_test_db(global_store)
-        await delete_test_db(regional_store)
     finally:
+        # teardown
+        for database_name in (
+            global_store.external_name,
+            regional_store.external_name,
+            f"test-{BENCH_BENCH_ID}",
+            f"test-{SYSTEM_BENCH_ID}",
+        ):
+            if not database_name:
+                continue
+            pool = get_pg_pool_by_external_name(database_name)
+            if pool:
+                await pool.close()
+            async with pg_connection(
+                global_store_from_env(), owner=global_store, autocommit=True
+            ) as conn:
+                await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{database_name}"'))
+
         # cleanup
         del spec
         del global_store
