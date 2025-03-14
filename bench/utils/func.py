@@ -2,9 +2,11 @@ import asyncio
 import enum
 import functools
 import hashlib
+import importlib
 import json
 import math
 import secrets
+import sys
 import types
 import typing
 from collections import OrderedDict
@@ -30,6 +32,27 @@ from cachetools import cached
 from bench.utils.base58 import base58_encode
 
 logger = structlog.get_logger(__name__)
+
+
+def reload_module(module):
+    """Reloads a module and all its submodules."""
+    visited = set()
+
+    def _reload(mod):
+        if mod.__name__ in visited:
+            return
+        visited.add(mod.__name__)
+
+        # first reload children
+        for attr_name in dir(mod):
+            attr = getattr(mod, attr_name)
+            if isinstance(attr, type(sys)) and attr.__name__.startswith(mod.__name__):
+                _reload(attr)
+
+        # then reload parent
+        importlib.reload(mod)
+
+    _reload(module)
 
 
 def async_shield[T](coro: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:

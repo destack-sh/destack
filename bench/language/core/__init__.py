@@ -154,7 +154,7 @@ from .graph import (
     NodeGraph,
     NodeSuperGraph,
 )
-from .icon import Icon, IconIn, IconType, reverse_icon, to_icon
+from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .list import LocalNodeList, NodeList, RecordNodeList, RemoteNodeList, ValueList
 from .node import (
     BASED_NODE_TYPES,
@@ -596,6 +596,7 @@ __all__ = [
     "get_node_or_error",
     "get_path",
     "get_tracing_context",
+    "icon",
     "is_enum_type",
     "is_node_type",
     "is_object_type",

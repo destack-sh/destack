@@ -11,7 +11,10 @@ from bench.language import (
 )
 
 BuiltinPackage = Package(
-    type=PackageType.OPEN, id=BENCH_BUILTIN_PACKAGE_ID, slug=BENCH_BUILTIN_PACKAGE_SLUG
+    type=PackageType.OPEN,
+    id=BENCH_BUILTIN_PACKAGE_ID,
+    slug=BENCH_BUILTIN_PACKAGE_SLUG,
+    _is_new=True,
 )
 BuiltinPackage.extend(ActionPage, BrowserPage, ComputerPage)
 
