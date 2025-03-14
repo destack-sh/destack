@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.13.3"
+VERSION = "2025.03.14.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -397,6 +397,8 @@ class EnumType(BuiltinEnum):
     TRIGGER_EFFECT = 22031
     TRIGGER_STATUS = 22032
     SCHEDULE_FREQUENCY = 22041
+    CLAIM_TYPE = 22050
+    CLAIM_STATUS = 22051
 
     # error (22100-22149)
     ERROR_KIND = 22100
@@ -504,7 +506,6 @@ class NodeType(BuiltinEnum):
     SCALER = 2000, None, None, "fas fa-scale-unbalanced"
     STORE = 2010, None, None, "fas fa-database"
     # CACHE?
-    # (RESOURCE_)CLAIM?
     COMPUTER = 2100, None, None, "fas fa-computer-classic"
     BROWSER = 2110, None, None, "fas fa-globe"
     # MODEL, ...
@@ -526,9 +527,6 @@ class NodeType(BuiltinEnum):
     # data/integrations/code?
     # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
     # ...
-
-    # sync
-    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     # source
     PACKAGE = 5000, None, None, "fas fa-box-open"
@@ -556,7 +554,7 @@ class NodeType(BuiltinEnum):
     # space
     SPACE = 5200, None, None, "fas fa-space-between"
 
-    # state
+    # communication
     THREAD = 5501, None, None, "fas fa-reel"
     MESSAGE = 5502, None, None, "fas fa-message"
     # POLL?
@@ -566,16 +564,21 @@ class NodeType(BuiltinEnum):
     # auth
     MEMBERSHIP = 5600, None, None, "fas fa-users"
     INVITE = 5610, None, None, "fas fa-user-plus"
+    # CHALLENGE?
 
-    # runtime
+    # run
     SESSION = 6000, None, None, "fas fa-circle-play"
     RUN = 6010, None, None, "fas fa-play"
     RUN_SPAN = 6011, None, None, "fas fa-play"
     # RUN_GROUP, RUN_QUEUE, ...?
     INTERRUPTION = 6020, None, None, "fas fa-hand"
     LOG = 6030, None, None, "fas fa-file-alt"
-    PLAN = 6040, None, None, "fas fa-list-check"
-    TASK = 6041, None, None, "far fa-square-check"
+
+    # orchestration
+    PLAN = 6100, None, None, "fas fa-list-check"
+    TASK = 6110, None, None, "far fa-square-check"
+    CLAIM = 6150, None, None, "fas fa-stamp"
+    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
 
     #
     # Local (8000-10000)
@@ -629,10 +632,6 @@ class NodeType(BuiltinEnum):
     @property
     def is_state(self) -> bool:
         return self.id >= 5500 and self.id < 6000
-
-    @property
-    def is_runtime(self) -> bool:
-        return self.id >= 6000 and self.id < 6500
 
 
 @enum_(EnumType.NODE_AREA)
@@ -706,6 +705,7 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.THREAD,
+    NodeType.CLAIM,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, *INSTANTIABLE_NODE_TYPES

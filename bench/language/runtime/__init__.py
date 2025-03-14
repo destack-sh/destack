@@ -23,11 +23,9 @@ from .model import (
     TextOptions,
     VideoOptions,
 )
-from .plan import Plan, PlanFailureMode, PlanStatus, PlanTerminationMode, PlanType
 from .run import Run, RunOptions
 from .session import Session
 from .span import RunSpan
-from .task import Task, TaskStatus, TaskType
 from .transaction import (
     Change,
     ChangeVignette,
@@ -66,19 +64,11 @@ __all__ = [
     "ModelFamily",
     "ModelProvider",
     "ModelType",
-    "Plan",
-    "PlanFailureMode",
-    "PlanStatus",
-    "PlanTerminationMode",
-    "PlanType",
     "Run",
     "RunOptions",
     "RunSpan",
     "Session",
     "Severity",
-    "Task",
-    "TaskStatus",
-    "TaskType",
     "TextOptions",
     "Transaction",
     "VideoOptions",

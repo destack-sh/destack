@@ -79,8 +79,10 @@ class IComputer(abc.ABC):
 
 
 ComputerKit = class_to_kit(IComputer, "Computer")
-RuntimeComputer = Computer(
+RuntimeComputerTemplate = Computer(
     name="Runtime Computer", type=ComputerType.RUNTIME, mode=NodeMode.TEMPLATE
 )
-UbuntuComputer = Computer(name="Ubuntu Computer", type=ComputerType.UBUNTU, mode=NodeMode.TEMPLATE)
-ComputerPage = Page.new("Computer", UbuntuComputer, ComputerKit)
+UbuntuComputerTemplate = Computer(
+    name="Ubuntu Computer", type=ComputerType.UBUNTU, mode=NodeMode.TEMPLATE
+)
+ComputerPage = Page.new("Computer", RuntimeComputerTemplate, UbuntuComputerTemplate, ComputerKit)

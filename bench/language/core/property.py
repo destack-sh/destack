@@ -883,8 +883,8 @@ def p_node_parent(
     id: int,
     *node_type: NodeType,
     is_system: bool = False,
-    ckless: bool = False,
-    baseless: bool = False,
+    ckless: bool = True,
+    baseless: bool = True,
 ) -> Any:
     """The parent of a node, must be of one of the given types."""
     return Property(

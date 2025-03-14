@@ -70,7 +70,7 @@ from bench.language import (
     synchronize_nodes,
     to_type_scalar,
 )
-from bench.language.state.thread import ThreadType
+from bench.language.communication.thread import ThreadType
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.naming import generate_random_name

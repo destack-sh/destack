@@ -17,7 +17,7 @@ from bench.language.core import (
 from bench.pb2 import KitData
 
 if typing.TYPE_CHECKING:
-    from bench.language import Action, Package, Page
+    from bench.language import Action, Claim, Package, Page
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -36,6 +36,7 @@ class Kit(IsTemplatable, IsTraceable, IsNamed, InlineNode[KitData]):
     )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
+    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     @staticmethod
     def new(name: str, **kwargs) -> "Kit":

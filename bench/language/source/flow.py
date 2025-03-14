@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Field, Link, Page, Role, RunOptions, Selection
+    from bench.language import Action, Claim, Field, Link, Page, Role, RunOptions, Selection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -58,6 +58,7 @@ class Flow(IsComputable, IsTemplatable, IsTraceable, IsNamed, InlineNode[FlowDat
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     def __content_str__(self):
         return ""
