@@ -34,8 +34,8 @@ from bench.language.core import (
     BenchNode,
     EditSubject,
     EditType,
+    IsModal,
     IsRuntime,
-    IsTraceable,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -117,7 +117,7 @@ CommitFailedHook = Callable[["Session", BaseException], Awaitable[None]]
 
 
 @timed_node_(NodeType.SESSION)
-class Session(BenchNode[SessionData], IsRuntime, IsTraceable):
+class Session(BenchNode[SessionData], IsRuntime, IsModal):
     """
     A managed Session for interacting with and running a Bench.
     """

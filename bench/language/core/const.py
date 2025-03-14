@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.14.0"
+VERSION = "2025.03.14.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -475,11 +475,11 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
-    BUILTIN = 10, None, None, "fas fa-cog"
-    MAIN = 20, None, None, "fas fa-globe"
-    TEST = 30, None, None, "fas fa-flask"
-    TEMPLATE = 40, None, None, "fas fa-puzzle-piece"
-    ARCHIVE = 50, None, None, "fas fa-box-archive"
+    BUILTIN = 10, "Builtin", "Provided by the Bench system", "fas fa-cog"
+    MAIN = 20, "Main", "Active and available", "fas fa-globe"
+    TEST = 30, "Test", "Active in test mode", "fas fa-flask"
+    TEMPLATE = 40, "Template", "Template to instantiate", "fas fa-puzzle-piece"
+    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
 
 
 @enum_(EnumType.NODE_TYPE)
@@ -622,7 +622,7 @@ class NodeType(BuiltinEnum):
 
     @property
     def is_resource(self) -> bool:
-        return self.id >= 1000 and self.id < 2000
+        return self.id >= 2000 and self.id < 3000
 
     @property
     def is_source(self) -> bool:

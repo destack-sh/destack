@@ -11,10 +11,10 @@ from bench.language.core import (
     FieldType,
     IndexIn,
     IsBased,
+    IsModal,
     IsRuntime,
     IsTimed,
     IsTitled,
-    IsTraceable,
     LocalNodeList,
     Node,
     NodeType,
@@ -156,7 +156,7 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunData], HasRunContext):
+class Run(IsTimed, IsRuntime, IsModal, IsBased, IsTitled, PackageNode[RunData], HasRunContext):
     """
     Run something somewhere, somehow.
     """

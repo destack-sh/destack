@@ -8,8 +8,8 @@ from bench.language.core import (
     ColorType,
     EnumType,
     InlineNode,
+    IsModal,
     IsTemplatable,
-    IsTraceable,
     NodeType,
     PackageNode,
     StructType,
@@ -77,7 +77,7 @@ class TriggerEffect(BuiltinEnum):
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
-class Trigger(IsTemplatable, IsTraceable, PackageNode[TriggerData]):
+class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     """
     A Trigger is an event-driven condition that, once met, affects the Bench somehow.
     """

@@ -7,9 +7,9 @@ from bench.language.core import (
     FieldType,
     InlineNode,
     IsComputable,
+    IsModal,
     IsNamed,
     IsTemplatable,
-    IsTraceable,
     LocalNodeList,
     NodeType,
     StructType,
@@ -35,7 +35,7 @@ class FlowType(BuiltinEnum):
 
 
 @node_(NodeType.FLOW, passthrough_get=("fields",))
-class Flow(IsComputable, IsTemplatable, IsTraceable, IsNamed, InlineNode[FlowData]):
+class Flow(IsComputable, IsTemplatable, IsModal, IsNamed, InlineNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

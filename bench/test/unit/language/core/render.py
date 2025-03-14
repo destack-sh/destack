@@ -9,8 +9,11 @@ from bench.language import (
     Action,
     ActionType,
     Aliasing,
+    Browser,
+    BrowserType,
     BuiltinObject,
     Choice,
+    Claim,
     Class,
     ComputedValue,
     ComputedValueMode,
@@ -21,6 +24,7 @@ from bench.language import (
     Message,
     MessageType,
     Node,
+    NodeMode,
     NodeReference,
     Option,
     Package,
@@ -35,6 +39,7 @@ from bench.language import (
     format_code,
     path,
     render_expression,
+    text_line,
     to_type,
 )
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
@@ -139,8 +144,41 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
 
 
 @_render_test
-def test_render_mode(session: Session, package: Package):
-    return {}
+def test_render_bad_names(session: Session, package: Package):
+    """Invalid identifiers should be aliased."""
+    _F_1 = Field.member("-F_1", str)
+    _123_field = Field.member("123_field", int)
+    field_with_spaces = Field.member("field with spaces", bool)
+    class1 = Field.member("class", str)
+    field_email_com = Field.member("field@email.com", float)
+    _special_chars_ = Field.member("$special_chars#", int)
+    if_else = Field.member("if-else", bool)
+    return {
+        "_F_1": _F_1,
+        "_123_field": _123_field,
+        "field_with_spaces": field_with_spaces,
+        "class1": class1,
+        "field_email_com": field_email_com,
+        "_special_chars_": _special_chars_,
+        "if_else": if_else,
+    }
+
+
+@_render_test
+def test_render_node_mode(session: Session, package: Package):
+    """Node mode should be rendered inline."""
+    Page1 = Page.new(text_line("Page1"))
+    Page2 = Page.new(text_line("Page2"), mode=NodeMode.ARCHIVE)
+    Page3 = Page.new(text_line("Page3"), mode=NodeMode.TEST)
+    Browser1 = Browser.new(BrowserType.CHROME, "Browser1", mode=NodeMode.TEMPLATE)
+    Flow1 = Flow.new("Flow1", claims=[Claim.exclusive("Claim1", Browser1, mode=NodeMode.TEMPLATE)])
+    return {
+        "Page1": Page1,
+        "Page2": Page2,
+        "Page3": Page3,
+        "Browser1": Browser1,
+        "Flow1": Flow1,
+    }
 
 
 @_render_test
@@ -187,33 +225,6 @@ def test_render_partial_object(session: Session, package: Package):
         "MessageType1": MessageType1,
         "PatialMessage1": PatialMessage1,
     }
-
-
-@_render_test
-def test_render_bad_names(session: Session, package: Package):
-    """Invalid identifiers should be aliased."""
-    _F_1 = Field.member("-F_1", str)
-    _123_field = Field.member("123_field", int)
-    field_with_spaces = Field.member("field with spaces", bool)
-    class1 = Field.member("class", str)
-    field_email_com = Field.member("field@email.com", float)
-    _special_chars_ = Field.member("$special_chars#", int)
-    if_else = Field.member("if-else", bool)
-    return {
-        "_F_1": _F_1,
-        "_123_field": _123_field,
-        "field_with_spaces": field_with_spaces,
-        "class1": class1,
-        "field_email_com": field_email_com,
-        "_special_chars_": _special_chars_,
-        "if_else": if_else,
-    }
-
-
-@_render_test
-def test_render_node_mode(session: Session, package: Package):
-    """Node mode should be rendered inline."""
-    pass
 
 
 @_render_test

@@ -6,6 +6,7 @@ from bench.language import (
     Action,
     ActionType,
     Browser,
+    BrowserType,
     Claim,
     Flow,
     LinkType,
@@ -23,7 +24,7 @@ async def test_acquire_browser_resource_directly(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):
     """Acquire a Browser directly and wait for it to be ready."""
-    browser = Browser.new(name="My Lil' Browser")
+    browser = Browser.new(BrowserType.CHROME, "My Lil' Browser")
     runtime.main_package.append(browser)
     await browser.wait_until_ready()
     assert browser.status == ResourceStatus.UP

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Self, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
 from uuid import UUID
 
 from bench.pb2 import AnyNodeData
@@ -11,16 +11,15 @@ from .const import (
     EnumType,
     NodeType,
     Region,
-    active_session,
     bittuple,
     enum_,
 )
 from .node import (
     InlineNode,
+    IsModal,
     IsNamed,
     IsOwnable,
     IsTemplatable,
-    IsTraceable,
     Node,
     NodeReference,
     node_component_,
@@ -65,7 +64,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 @node_component_()
 class Resource[NodeDataT: AnyNodeData](
-    IsTraceable, IsTemplatable, IsOwnable, IsNamed, InlineNode[NodeDataT]
+    IsModal, IsTemplatable, IsOwnable, IsNamed, InlineNode[NodeDataT]
 ):
     """
     A Resource in a Bench.
@@ -149,28 +148,3 @@ class Resource[NodeDataT: AnyNodeData](
     async def wait_until_ready(self, timeout: timedelta | None = None) -> None:
         """Wait until this Resource is ready."""
         await self.wait_until(lambda r: r.status == ResourceStatus.UP, timeout=timeout)
-
-    @classmethod
-    def new(cls, *, name: str | None = None, **kwargs: Any) -> Self:
-        """Creates a new Resource of this type."""
-        session = active_session()
-
-        # parent
-        if "parent" not in kwargs:
-            if "package" in kwargs:
-                kwargs["parent"] = kwargs["package"]
-            else:
-                bench = session.bench
-                assert bench is not None, "no active Bench"
-                package = bench.main_package
-                assert package is not None, "no main Package"
-                kwargs["parent"] = package
-
-        # title
-        if name is None:
-            # fabricate title
-            now = session._oracle.utc()
-            name = f"{cls.metatype.bench_name} {now.strftime('%Y-%m-%d %H:%M:%S')}"
-
-        resource = cls(name=name, **kwargs)
-        return resource

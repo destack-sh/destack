@@ -5,9 +5,9 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsModal,
     IsNamed,
     IsTemplatable,
-    IsTraceable,
     LocalNodeList,
     Node,
     NodeReference,
@@ -388,7 +388,7 @@ class RectangleConstraint(Struct):
 
 
 @node_(NodeType.VIEW, has_subtypes=True)
-class View(IsTemplatable, IsTraceable, IsNamed, InlineNode[ViewData]):
+class View(IsTemplatable, IsModal, IsNamed, InlineNode[ViewData]):
     """A View is a graphical interface in a Bench."""
 
     parent: Union["Space", "View", "Page", None] = p_node_parent(

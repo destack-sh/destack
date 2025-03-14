@@ -55,8 +55,8 @@ from bench.language import (
     TypeBase,
     TypeIn,
     active_session,
-    get_tracing_context,
 )
+from bench.language.core.const import ACTIVE_SESSION
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -633,7 +633,6 @@ def make_run_from_node(
     node: "RunnableNode",
     *,
     isolate: bool = True,
-    resources: Any | None = None,
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
@@ -663,7 +662,13 @@ def make_run_from_node(
             graph = parent._graph
 
     # build run
-    tracing = get_tracing_context()
+    mode = NodeMode.MAIN
+    if isinstance(parent, Run):
+        mode = parent.mode
+    else:
+        session = session if session is not None else ACTIVE_SESSION.get()
+        if session is not None and session._runtime is not None:
+            mode = session._runtime.active_mode
     run = Run(
         parent=parent,
         type=typ,
@@ -671,7 +676,7 @@ def make_run_from_node(
         kit=kit,
         action=action,
         link=link,
-        mode=mode or tracing.mode,
+        mode=mode,
         _graph=graph,
         _skip_validate_self=True,
     )
