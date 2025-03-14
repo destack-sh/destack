@@ -6,6 +6,7 @@ from typing import (
     Collection,
     Iterable,
     Optional,
+    Self,
     cast,
     override,
 )
@@ -82,6 +83,10 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
+
+    def copy(self) -> Self:
+        """Copy the graph"""
+        return self.__class__(self.scope, self.node_types, nodes=self.nodes)
 
     @property
     def nodes(self) -> Collection[V]:
@@ -371,6 +376,11 @@ class NodeGraph(_NodeGraphBase[UUID, "Node"]):
     ):
         super().__init__(scope, node_types, nodes=nodes)
         self.supergraph = supergraph
+
+    @override
+    def copy(self) -> Self:
+        """Copy the graph"""
+        return self.__class__(self.scope, self.node_types, self.supergraph, nodes=self.nodes)
 
     @override
     def _get_parent_ptr(self, node: "Node") -> "NodeReferenceData | NodeReference | None":

@@ -80,10 +80,6 @@ class Package(IsOwnable, IsTemplatable, IsTraceable, IsNamed, PackageNode[Packag
     dependencies: LocalNodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
 
     @property
-    def is_attached(self) -> bool:
-        return True
-
-    @property
     def package(self):
         return self
 
@@ -91,12 +87,9 @@ class Package(IsOwnable, IsTemplatable, IsTraceable, IsNamed, PackageNode[Packag
     def absolute_path(self) -> str:
         bench = self.bench
         if bench is not None:
-            if bench.main_package_id == self.id:
-                return f"@{bench.slug}"
-            else:
-                return f"{bench.slug}:{self.slug}"
+            return f"{bench.slug}:{self.slug}"
         else:
-            return "<detached>:{self.slug}"
+            return f"<detached>:{self.slug}"
 
     @property
     def package_id(self):

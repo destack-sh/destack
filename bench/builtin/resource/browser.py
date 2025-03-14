@@ -78,10 +78,10 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
             await pw_page.keyboard.press(key)
 
     @override
-    async def Type(self, Text: str) -> None:
+    async def Type(self, String: str) -> None:
         browser = self._get_ready_resource_or_error(Browser)
         pw_page = self._get_pw_page(browser)
-        await pw_page.keyboard.type(Text)
+        await pw_page.keyboard.type(String)
 
     @override
     async def Move(self, X: int, Y: int) -> None:

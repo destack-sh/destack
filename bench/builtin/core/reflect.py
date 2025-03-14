@@ -20,7 +20,10 @@ def class_to_kit(
         kit.text = text(text_value)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        action = Action.new(ActionType.CODE, name=method_name)
+        if method_name.startswith("_"):
+            continue
+
+        action = Action.new(ActionType.CODE, name=method_name.replace("_", " ").title())
 
         # template
         if template is not None:

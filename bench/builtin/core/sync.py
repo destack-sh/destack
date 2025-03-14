@@ -1,7 +1,41 @@
 from typing import Collection, cast
 from uuid import UUID, uuid5
 
-from bench.language import UUID_NAMESPACE, IsInstantiable, Node, NodeGraph, NodeReference
+from bench.language import (
+    UUID_NAMESPACE,
+    Block,
+    IsInstantiable,
+    Node,
+    NodeGraph,
+    NodeReference,
+)
+
+
+def get_stable_builtin_path(node: Node) -> str:
+    """Get a deterministic absolute path for a Node."""
+
+    # assemble path (like in Path.render)
+    path_parts: list[str] = []
+    current = node
+    while current is not None:
+        path_key = current._ident
+        if path_key is None:
+            if isinstance(current, Block):
+                inline_node = current.node
+                assert inline_node is not None, f"block {current!r} has no inline node"
+                inline_ident = inline_node._ident
+                assert inline_ident is not None, f"inline node {inline_node!r} has no ident"
+                path_key = f"Block[{inline_ident}]"
+            else:
+                raise ValueError(f"node {current!r} has no ident")
+
+        path_parts.append(path_key)
+        next_parent = current.parent
+        if next_parent is None and current.metatype in node.__roots__:
+            break  # reached the root
+        current = next_parent
+
+    return "/".join(reversed(path_parts))
 
 
 def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()):
@@ -15,7 +49,8 @@ def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()):
         if node in ignore:
             continue
         old_node_id = node.id
-        node.id = uuid5(namespace=UUID_NAMESPACE, name=node.absolute_path)
+        path = get_stable_builtin_path(node)
+        node.id = uuid5(namespace=UUID_NAMESPACE, name=path)
         if isinstance(node, IsInstantiable):
             cast(IsInstantiable, node).ck = node.id
         assigned_ptrs_by_node[old_node_id] = node.to_ref()

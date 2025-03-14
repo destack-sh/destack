@@ -1019,8 +1019,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 return f"@{bench_ident}"
             else:
                 return bench_ident
-        elif "ck" in self.__properties__:
-            return f"{self.metatype.bench_name}[ck={self.ck}]"
         else:
             return f"{self.metatype.bench_name}[id={self.id}]"
 
@@ -1069,10 +1067,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 if current.metatype == NodeType.PACKAGE:
                     bench = cast("Bench | Package", current).bench
                     if bench is not None:
-                        if bench.main_package_id == current.id:
-                            path_parts.append(bench._path_key)
-                        else:
-                            path_parts.append(f"{bench._path_key}:{current._path_key}")
+                        path_parts.append(f"{bench._path_key}:{current._path_key}")
                         break
 
                 path_parts.append(current._path_key)

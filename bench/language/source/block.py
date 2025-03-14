@@ -143,6 +143,18 @@ class Block(IsTemplatable, IsTraceable, IsNamed, PackageNode[BlockData]):
             return ""
 
     @property
+    @override
+    def _path_key(self) -> str:
+        if (
+            (node := self.node) is not None
+            and node.parent_id == self.parent_id
+            and (node_ident := node._ident) is not None
+        ):
+            return f"Block[{node_ident}]"
+
+        return f"{self.metatype.bench_name}[id={self.id}]"
+
+    @property
     def page(self) -> "Page | None":
         """Gets the containing ancestor Page (if any)"""
         from bench.language import Page

@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from bench.builtin.core import class_to_kit
-from bench.language import Action, ActionType, InterruptionType, NodeMode, Page, text
+from bench.language import Action, ActionType, InterruptionType, NodeMode, Page, icon, text
 
 if TYPE_CHECKING:
     from bench.runtime import ActionRunner, NonRetryableError, RetryableError
@@ -46,42 +46,42 @@ ActionKit.actions.extend(
         ActionType.DO,
         name="Think",
         text=text("Reflect on the context"),
-        icon="fas fa-brain-circuit",
+        icon=icon("fas fa-brain-circuit"),
         mode=NodeMode.TEMPLATE,
     ),
     Action.new(
         ActionType.DO,
         name="Route",
         text=text("Route between Actions"),
-        icon="fas fa-split",
+        icon=icon("fas fa-split"),
         mode=NodeMode.TEMPLATE,
     ),
     Action.new(
         ActionType.DO,
         name="Generate",
         text=text("Generate something new"),
-        icon="fas fa-wand-magic-sparkles",
+        icon=icon("fas fa-wand-magic-sparkles"),
         mode=NodeMode.TEMPLATE,
     ),
     Action.new(
         ActionType.DO,
         name="Transform",
         text=text("Change the form of something"),
-        icon="fas fa-arrows-rotate",
+        icon=icon("fas fa-arrows-rotate"),
         mode=NodeMode.TEMPLATE,
     ),
     Action.new(
         ActionType.DO,
         name="Extract",
         text=text("Extract structured data"),
-        icon="fas fa-filter",
+        icon=icon("fas fa-filter"),
         mode=NodeMode.TEMPLATE,
     ),
     Action.new(
         ActionType.DO,
         name="Edit",
         text=text("Edit this Bench"),
-        icon="fas fa-pen-to-square",
+        icon=icon("fas fa-pen-to-square"),
         mode=NodeMode.TEMPLATE,
     ),
 )

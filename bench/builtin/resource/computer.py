@@ -54,7 +54,7 @@ class IComputer(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def Type(self, Text: str) -> None:
+    async def Type(self, String: str) -> None:
         """
         Type a string on the keyboard
         ICON: fas fa-keyboard

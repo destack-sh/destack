@@ -152,6 +152,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                 rpc_metadata=self._rpc_metadata,
             ),
         )
+        # nocheckin: dependencies (hardcoded to BENCH_BENCH_PTR for now)
 
         # setup session
         self._session = Session(

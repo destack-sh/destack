@@ -20,17 +20,25 @@ from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
 from bench.test.utils import assert_graph_equals
+from bench.utils.func import reload_module
 
 
 def test_make_builtin_package(session: Session) -> None:
-    """Make a Builtin package."""
-    from bench.builtin import BuiltinPackage
+    """Make a Builtin package. Make it again and check they're equal."""
+    from bench import builtin
 
-    _ = BuiltinPackage
+    prev_graph = builtin.BuiltinPackage._graph.copy()
+
+    reload_module(builtin)
+
+    from bench import builtin
+
+    assert prev_graph is not builtin.BuiltinPackage._graph
+    assert_graph_equals(prev_graph, builtin.BuiltinPackage._graph)
 
 
 @simulated_runtime(system=True)
-async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload) -> None:
+async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Test the Builtin package."""
     from bench.builtin import BENCH_BUILTIN_PACKAGE_PTR
     from bench.builtin import BuiltinPackage as BuiltinPackageRaw
