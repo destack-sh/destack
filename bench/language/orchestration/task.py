@@ -168,7 +168,7 @@ class Task(
     def value_type(self) -> Optional["TypeBase"]:
         node = self.target
         return (
-            node.to_type_maybe(of="value", field_types=[FieldType.RESOURCE, FieldType.INPUT])
+            node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
             if node is not None
             else None
         )
@@ -210,9 +210,7 @@ class Task(
         if not isinstance(node, (Block, Action)):
             raise ValueError(f"invalid node type for Call: {type(node)}")
 
-        value_type = node.to_type_maybe(
-            of="value", field_types=[FieldType.RESOURCE, FieldType.INPUT]
-        )
+        value_type = node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
         assert value_type is not None, f"no call value type for {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
         task = Task(

@@ -1,5 +1,6 @@
 import functools
 import inspect
+import re
 import textwrap
 from typing import Any, Callable, Mapping, assert_never, cast
 from uuid import UUID
@@ -87,6 +88,9 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         source = inspect.getsource(func)
         source = "\n".join(source.splitlines()[2:]).split("return")[0]  # remove return
         source = textwrap.dedent(source).strip()
+        source = re.sub(r'""".*?"""', "", source, flags=re.DOTALL)
+        source = re.sub(r"'''.*?'''", "", source, flags=re.DOTALL)
+        source = source.strip()
         assert rendered == source
 
         # eval
@@ -135,7 +139,13 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
 
 
 @_render_test
+def test_render_mode(session: Session, package: Package):
+    return {}
+
+
+@_render_test
 def test_render_property(session: Session, package: Package):
+    """Property references should be rendered with `get_property`."""
     prop_1 = Node.get_property("id")
     prop_2 = Page.get_property("title")
     prop_3 = Run.get_property("outputs")
@@ -144,6 +154,7 @@ def test_render_property(session: Session, package: Package):
 
 @_render_test
 def test_render_type_in(session: Session, package: Package):
+    """Type in should be rendered as TypeIn with `to_type`."""
     type_1 = to_type(int)
     type_2 = to_type(str)
     type_3 = Node.partial_type()
@@ -152,6 +163,7 @@ def test_render_type_in(session: Session, package: Package):
 
 @_render_test
 def test_render_path(session: Session, package: Package):
+    """Path elements should be rendered with `path`."""
     path_1 = path(PathElementType.RUN, Run.get_property("inputs"))
     path_2 = path(PathElementType.RUN, Run.get_property("inputs"))
     return {"path_1": path_1, "path_2": path_2}
@@ -159,6 +171,7 @@ def test_render_path(session: Session, package: Package):
 
 @_render_test
 def test_render_partial_object(session: Session, package: Package):
+    """Partial objects should be rendered with the partial helpers."""
     PartialFlow1 = Flow.partial(name="PartialFlow1")
     MessageType1 = Class.new(
         "MessageType1",
@@ -178,12 +191,34 @@ def test_render_partial_object(session: Session, package: Package):
 
 @_render_test
 def test_render_bad_names(session: Session, package: Package):
-    _F_1 = Field.resource("-F_1", str)
-    return {"_F_1": _F_1}
+    """Invalid identifiers should be aliased."""
+    _F_1 = Field.member("-F_1", str)
+    _123_field = Field.member("123_field", int)
+    field_with_spaces = Field.member("field with spaces", bool)
+    class1 = Field.member("class", str)
+    field_email_com = Field.member("field@email.com", float)
+    _special_chars_ = Field.member("$special_chars#", int)
+    if_else = Field.member("if-else", bool)
+    return {
+        "_F_1": _F_1,
+        "_123_field": _123_field,
+        "field_with_spaces": field_with_spaces,
+        "class1": class1,
+        "field_email_com": field_email_com,
+        "_special_chars_": _special_chars_,
+        "if_else": if_else,
+    }
+
+
+@_render_test
+def test_render_node_mode(session: Session, package: Package):
+    """Node mode should be rendered inline."""
+    pass
 
 
 @_render_test
 def test_render_choice_block(session: Session, package: Package):
+    """Options should be rendered inline."""
     ShapeType = Choice.new(
         "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
     )
@@ -192,6 +227,7 @@ def test_render_choice_block(session: Session, package: Package):
 
 @_render_test
 def test_render_message_block(session: Session, package: Package):
+    """Message types should be rendered inline."""
     ShapeType = Choice.new(
         "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
     )
@@ -201,6 +237,7 @@ def test_render_message_block(session: Session, package: Package):
 
 @_render_test
 def test_render_field_with_constraint(session: Session, package: Package):
+    """Constraints should be simplified with `constraint`."""
     Field1 = Field.input(
         "Field1", int, constraint=constraint(min_value=1.0, max_value=10.0, step_value=2.0)
     )
@@ -209,6 +246,7 @@ def test_render_field_with_constraint(session: Session, package: Package):
 
 @_render_test
 def test_render_flow_simple(session: Session, package: Package):
+    """Flows should create Links with `connect`."""
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     Complete = Action.new(ActionType.COMPLETE, "Complete")
@@ -219,6 +257,7 @@ def test_render_flow_simple(session: Session, package: Package):
 
 @_render_test
 def test_render_flow_computed_value(session: Session, package: Package):
+    """Computed values should be rendered nicely."""
     Flow1 = Flow.new(
         "Flow1",
         fields=[
@@ -249,11 +288,6 @@ def test_render_flow_computed_value(session: Session, package: Package):
     Flow1.actions.extend(Start, Complete)
     Forward1 = Start.connect(LinkType.REQUIRE, Complete, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
-
-
-#
-# Other
-#
 
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):

@@ -80,7 +80,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         context: IsRuntime,
         run: RunIn,
         parent: Runner[RunnableNode] | None = None,
-        resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
@@ -92,7 +91,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             run=run,
             parent=parent,
             inputs=inputs,
-            resources=resources,
             outputs=outputs,
         )
         self._interrupted_runners: list[Runner] = []
@@ -162,7 +160,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         incoming: Sequence[Run],
         plan: Plan | None = None,
         task: Task | None = None,
-        resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
         title: TextLine | None = None,
     ) -> Run:
@@ -171,7 +168,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             runtime=self.runtime,
             node=node,
             context=self.context,
-            resources=resources,
             inputs=inputs,
             parent=cast(Runner[RunnableNode], self),
             run="track",
@@ -358,7 +354,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 incoming=(runner.tracked_run,),
                 plan=plan,
                 task=task,
-                resources=task.value,
                 inputs=task.value,
                 title=task.title,
             )
@@ -377,7 +372,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             # start from scratch
             for action in self.node.actions:
                 if action.type == ActionType.START:
-                    self._start(action, resources=None, inputs=self.inputs, incoming=())
+                    self._start(action, inputs=self.inputs, incoming=())
         else:
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?

@@ -37,7 +37,6 @@ class LinkRunner(Runner[Link], ABC):
         run: RunIn,
         flow: "FlowRunner | None" = None,
         parent: Runner | None = None,
-        resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
@@ -47,7 +46,6 @@ class LinkRunner(Runner[Link], ABC):
             options=options,
             context=context,
             parent=parent,
-            resources=resources,
             inputs=inputs,
             outputs=outputs,
             run=run,

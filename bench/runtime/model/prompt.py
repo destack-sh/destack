@@ -142,10 +142,6 @@ class PromptRun(PromptCompound):
                 title="Run", text=f"Run {self.node.runnable!r} ({self.node.status.bench_name})"
             ),
         ]
-        if self.node.resources and self.node.resources.any():
-            parts.append(
-                PromptCustomObject(title="Resources", weight=1, object=self.node.resources)
-            )
         if (
             self.node.inputs
             and self.node.inputs.any()

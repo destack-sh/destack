@@ -3,11 +3,11 @@ from typing import Optional, Union
 
 from bench.language.core import (
     FIELD_BASE_NODE_TYPES,
-    NAME_CONSTRAINT,
     FieldBaseNode,
     FieldType,
     InlineNode,
     IsInstantiable,
+    IsNamed,
     IsTemplatable,
     IsTraceable,
     NodeType,
@@ -39,7 +39,13 @@ if typing.TYPE_CHECKING:
 
 @node_(NodeType.FIELD, has_subtypes=True)
 class Field(
-    IsInstantiable, IsTemplatable, IsTraceable, PackageNode[FieldData], TypeBase, _IntoQuery
+    IsInstantiable,
+    IsTemplatable,
+    IsTraceable,
+    IsNamed,
+    PackageNode[FieldData],
+    TypeBase,
+    _IntoQuery,
 ):
     """
     A custom attribute of some value, the user-defined counterpart to Properties in BuiltinObjects.
@@ -47,12 +53,11 @@ class Field(
 
     parent: Union[FieldBaseNode, None] = p_node_parent(4, *FIELD_BASE_NODE_TYPES)
     type: FieldType = p_internal(30)
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(32, default=INTEGER_ZERO)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
-        33, default=None, require=False, array=False, struct=StructType.TEXT
+        34, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
+    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
 
     # type identity
     # ...TypeInfo[40-69]
@@ -97,15 +102,6 @@ class Field(
             kwargs["constraint"] = constraint
         field = Field(name=name, type=type, **kwargs)
         return field
-
-    @staticmethod
-    def resource(
-        name: str,
-        typ: TypeIn,
-        constraint: TypeConstraintIn | TypeConstraint | None = None,
-        **kwargs,
-    ) -> "Field":
-        return Field.new(name, type=FieldType.RESOURCE, typ=typ, constraint=constraint, **kwargs)
 
     @staticmethod
     def member(

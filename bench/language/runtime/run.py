@@ -250,10 +250,6 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
         interruption_id: Optional[UUID] = None
 
     # content
-    resources_packed: Any = p_value_packed(60)
-    resources: "CustomObject | None" = p_value_runtime(
-        60, type=FieldType.RESOURCE, typ=lambda self: cast("Run", self).resource_type
-    )
     inputs_packed: Any = p_value_packed(61)
     inputs: "CustomObject | None" = p_value_runtime(
         61, type=FieldType.INPUT, typ=lambda self: cast("Run", self).input_type
@@ -354,17 +350,6 @@ class Run(IsTimed, IsRuntime, IsTraceable, IsBased, IsTitled, PackageNode[RunDat
     @property
     def is_active(self) -> bool:
         return self.status not in TERMINAL_RUN_STATUSES
-
-    @property
-    def resource_type(self) -> "TypeBase | None":
-        if (link := self.link) is not None:
-            return link.resource_type
-        elif (action := self.action) is not None:
-            return action.resource_type
-        elif (flow := self.flow) is not None:
-            return flow.resource_type
-        else:
-            return None
 
     @property
     def input_type(self) -> "TypeBase | None":

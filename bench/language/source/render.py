@@ -25,6 +25,7 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     ObjectType,
+    PackageNode,
     Path,
     PathElement,
     PathElementType,
@@ -37,6 +38,7 @@ from bench.language.core import (
     Struct,
     StructType,
     Text,
+    TextLine,
     TypeBase,
     TypeConstraint,
     TypeFormat,
@@ -47,10 +49,9 @@ from bench.language.core import (
     reverse_icon,
     reverse_path_element,
     reverse_type_scalar,
+    text_line_to_markdown,
     text_to_markdown,
 )
-from bench.language.core.node import PackageNode
-from bench.language.core.text import TextLine, text_line_to_markdown
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -83,6 +84,7 @@ class RenderOptions:
         NodeType.OPTION,
         NodeType.TRIGGER,
         NodeType.TASK,
+        NodeType.CLAIM,
     )
     use_code_paths: bool = True
     implicit_partials: bool = False
@@ -110,7 +112,7 @@ class Aliasing:
 
     def add(self, obj: Node | NodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
-        from bench.runtime.code.context import CODE_GLOBALS
+        from bench.runtime.code.context import CODE_GLOBALS, PYTHON_KEYWORDS
 
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
@@ -123,7 +125,12 @@ class Aliasing:
         else:
             alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
             has_given_name = False
-        if alias in self._node_by_alias or alias in CODE_GLOBALS or not has_given_name:
+        if (
+            alias in self._node_by_alias
+            or alias in CODE_GLOBALS
+            or alias in PYTHON_KEYWORDS
+            or not has_given_name
+        ):
             # bump digit at end to make alias unique
             count = regex.search(r"\d+$", alias)
             if count is None:
@@ -161,13 +168,6 @@ class Aliasing:
         alias = self.get(obj)
         if alias is None:
             alias = self.add(obj)
-        return alias
-
-    def get_name(self, node: Node | NodeReference) -> str:
-        """Gets the name for the given node."""
-        alias = self.get(node)
-        if alias is None:
-            raise LookupError(f"no alias for {node!r} in {self!r}")
         return alias
 
     __getitem__ = get_or_error

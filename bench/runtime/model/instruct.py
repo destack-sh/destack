@@ -268,7 +268,6 @@ def make_chat_prompt(
     action: Action,
     runner: "Runner",
     context: "IsRuntime",
-    resources: CustomObject | None,
     inputs: CustomObject | None,
     outputs: CustomObject | None,
     output_type: TypeBase,
@@ -361,15 +360,6 @@ def make_chat_prompt(
         PromptBreak(title=None),
     ]
     projection.collect_node(action, depth=0)
-    if resources is not None and resources.any():
-        projection.collect_custom_object(resources, depth=0)
-        action_parts.append(
-            prompt_region(
-                PromptCustomObject(title="Resources to this Action", weight=1, object=resources),
-                title="Resources to this Action",
-                weight=1,
-            )
-        )
     if inputs is not None and inputs.any():
         projection.collect_custom_object(inputs, depth=0)
         action_parts.append(
@@ -412,12 +402,6 @@ def make_chat_prompt(
         flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
         assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
         flow_parts.append(PromptBreak(title=None))
-        if flow_run.resources is not None and flow_run.resources.any():
-            flow_parts.append(
-                PromptCustomObject(
-                    title="Resources to this Flow", weight=1, object=flow_run.resources
-                )
-            )
         if flow_run.inputs is not None and flow_run.inputs.any():
             flow_parts.append(
                 PromptCustomObject(title="Inputs to this Flow", weight=1, object=flow_run.inputs)

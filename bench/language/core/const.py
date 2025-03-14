@@ -476,11 +476,10 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
     BUILTIN = 10, None, None, "fas fa-cog"
-    PRODUCTION = 20, None, None, "fas fa-globe"
-    DEVELOPMENT = 30, None, None, "fas fa-bug"
-    TEST = 40, None, None, "fas fa-flask"
-    TEMPLATE = 50, None, None, "fas fa-puzzle-piece"
-    ARCHIVE = 100, None, None, "fas fa-box-archive"
+    MAIN = 20, None, None, "fas fa-globe"
+    TEST = 30, None, None, "fas fa-flask"
+    TEMPLATE = 40, None, None, "fas fa-puzzle-piece"
+    ARCHIVE = 50, None, None, "fas fa-box-archive"
 
 
 @enum_(EnumType.NODE_TYPE)
@@ -1381,7 +1380,7 @@ class FieldType(BuiltinEnum):
     MEMBER = 10, "Member", "Member of an object", "fas objects-columns"
     INPUT = 20, "Input to a runnable", "fas fa-arrow-down"
     OUTPUT = 30, "Output from a runnable", "fas fa-arrow-up"
-    RESOURCE = 40, "Resource", "Resource slot", "fas fa-album-colection"
+    # VARIABLE?
 
 
 @enum_(EnumType.TIME_INTERVAL)

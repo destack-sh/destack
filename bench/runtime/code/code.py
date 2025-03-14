@@ -7,6 +7,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    EMPTY_DICT,
     IS_IN_USER_CODE,
     Aliasing,
     Code,
@@ -57,7 +58,6 @@ class CodeRunner(Runner, ABC):
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        resources: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
@@ -67,7 +67,6 @@ class CodeRunner(Runner, ABC):
             context=context,
             parent=parent,
             inputs=inputs,
-            resources=resources,
             outputs=outputs,
             run=run,
         )
@@ -139,9 +138,8 @@ class CodeRunner(Runner, ABC):
             "run": self.closest_tracked_run,
             "runner": self,
             "aliasing": self.aliasing,
-            "resources": self.resources or {},
-            "inputs": self.inputs or {},
-            "outputs": self.outputs or {},
+            "inputs": self.inputs or EMPTY_DICT,
+            "outputs": self.outputs or EMPTY_DICT,
             "get_node": _get_node,
             "get_node_or_error": _get_node_or_error,
             "get_path": _get_path,

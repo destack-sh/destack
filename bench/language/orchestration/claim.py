@@ -8,6 +8,7 @@ from bench.language.core import (
     ColorType,
     EnumType,
     IsInstantiable,
+    IsNamed,
     IsOwnable,
     IsRuntime,
     IsTraceable,
@@ -15,6 +16,7 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     Selection,
+    StructType,
     enum_,
     node_,
     p_internal,
@@ -22,7 +24,6 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.language.core.const import StructType
 from bench.pb2 import ClaimData
 
 if TYPE_CHECKING:
@@ -51,7 +52,14 @@ class ClaimStatus(BuiltinEnum):
 
 
 @node_(NodeType.CLAIM)
-class Claim(IsRuntime, IsOwnable, IsTraceable, IsInstantiable, PackageNode[ClaimData]):
+class Claim(
+    IsRuntime,
+    IsOwnable,
+    IsTraceable,
+    IsInstantiable,
+    IsNamed,
+    PackageNode[ClaimData],
+):
     """A Claim on a Resource (which may be granted/rejected and is eventually closed)."""
 
     # meta
@@ -73,15 +81,31 @@ class Claim(IsRuntime, IsOwnable, IsTraceable, IsInstantiable, PackageNode[Claim
         require=False,
         array=False,
         references=RESOURCE_NODE_TYPES.tuple,
-        description="The Resource this claim is on.",
+        description="The Resource this claim is about.",
     )
     resource_selection: Optional["Selection"] = p_regular(
         65,
         require=False,
         array=False,
         struct=StructType.SELECTION,
-        description="The potential Resources this claim is on.",
+        description="The potential Resources this claim wants.",
     )
+    # resource_filter?
     if TYPE_CHECKING:
         resource_ptr: Optional[NodeReference] = None
         resource_id: Optional[UUID] = None
+
+    @staticmethod
+    def exclusive(name: str, resource: "Resource", **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.EXCLUSIVE, name=name, resource=resource, **kwargs)
+        return claim
+
+    @staticmethod
+    def reserved(name: str, resource: "Resource", **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.RESERVED, name=name, resource=resource, **kwargs)
+        return claim
+
+    @staticmethod
+    def shared(name: str, resource: "Resource", **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.SHARED, name=name, resource=resource, **kwargs)
+        return claim
