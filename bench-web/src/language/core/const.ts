@@ -222,7 +222,7 @@ export const NODE_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt < BlockType.PARAGR
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
 export const FLOW_ACTION_TYPES = ACTION_TYPES.filter((st) => st < 100);
 export const SOURCE_ACTION_TYPES = [ActionType.START];
-export const SINK_ACTION_TYPES = [ActionType.COMPLETE, ActionType.FAIL];
+export const SINK_ACTION_TYPES = [ActionType.COMPLETE];
 export const TOOL_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 100 && st < 200);
 export const DYNAMIC_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 200 && st < 300);
 export const READ_ACTION_TYPES = ACTION_TYPES.filter((st) => st >= 300 && st < 400);

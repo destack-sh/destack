@@ -48,7 +48,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
-import { pkgConnection, pkgGraph, space, spaceConnection } from "@/system/space";
+import { benchConnection, benchGraph, space, spaceConnection } from "@/system/space";
 import { declareActions } from "@/ui/action";
 import { makeIcon } from "@/ui/icon";
 import { log } from "@/utils/log";
@@ -330,7 +330,7 @@ export class Runtime {
 }
 
 const runPtr = computedValue(() => space.value?.runPtr ?? null);
-export const runtime = new Runtime(pkgGraph, () => pkgConnection.tx, runPtr);
+export const runtime = new Runtime(benchGraph, () => benchConnection.tx, runPtr);
 
 export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
   return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;

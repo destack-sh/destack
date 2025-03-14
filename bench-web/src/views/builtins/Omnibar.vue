@@ -2,7 +2,7 @@
 import { INLINE_NODE_TYPES } from "@/language/core/const";
 import { NodeType, ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
-import { canvas, hasLocalPkg, pkgGraph } from "@/system/space";
+import { canvas, hasLocalPkg, benchGraph } from "@/system/space";
 import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/ui/action";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -49,9 +49,9 @@ const indices = computed(() => {
   if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "bench"].includes(mode.value)) {
     indices["Bench"] = graphIndex({
       id: "bench",
-      graph: pkgGraph,
+      graph: benchGraph,
       metatypes: [...INLINE_NODE_TYPES, NodeType.ACTION],
-      roots: [pkgGraph.getOrError(packagePtr.value)],
+      roots: [benchGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically
       maxDepth: isQueryEmpty.value && mode.value != "bench" ? 1 : undefined,

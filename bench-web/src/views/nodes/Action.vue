@@ -123,7 +123,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       <IconInline
         ref="iconRef"
         v-bind="getNodeIcon(action, { base: tool })"
-        class="rounded text-center text-lg text-white"
+        class="rounded text-center text-lg text-gray-800"
       />
     </div>
 

@@ -48,7 +48,7 @@ import {
   RemoteSearchConnection,
   SearchConnectionParams,
 } from "@/system/connection";
-import { benchGraph, pkgGraph } from "@/system/space";
+import { benchGraph } from "@/system/space";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, isActionEnabled, type Action } from "@/ui/action";
 import {
   AVAILABLE_EMOJI_ICONS,
@@ -540,7 +540,7 @@ export function useValueSearch(options: {
       } else {
         // local graph
         const nodeType = valueType.value?.benchType as unknown as NodeType;
-        const graph = benchGraph.nodeTypes.has(nodeType) ? benchGraph : pkgGraph;
+        const graph = benchGraph.nodeTypes.has(nodeType) ? benchGraph : benchGraph;
         let roots: AnyNodeData[] | undefined = undefined;
         let metatypes: NodeType[] = [];
         const subtypes: number[] | undefined = valueType.value?.constraint?.nodeSubtypes;
@@ -1003,7 +1003,7 @@ export function typeIndex(idx: {
   };
   return markRaw(index);
 }
-export const TYPE_INDEX = typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 });
+export const TYPE_INDEX = typeIndex({ id: "type", graph: benchGraph, skipDepth: 2 });
 
 //
 // Icon index

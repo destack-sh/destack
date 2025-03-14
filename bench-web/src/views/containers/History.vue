@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas, pkgGraph, spaceGraph } from "@/system/space";
+import { canvas, benchGraph, spaceGraph } from "@/system/space";
 import { ActionMapKit } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -50,7 +50,7 @@ const history: HistoryState = {
       const view = views.value[viewIdx];
       if (view == null) return;
       const viewNodePtr = view.nodePtr;
-      if (viewNodePtr != null && !pkgGraph.has(viewNodePtr)) continue;
+      if (viewNodePtr != null && !benchGraph.has(viewNodePtr)) continue;
       delta -= Math.sign(delta);
     }
     const view = views.value[viewIdx];

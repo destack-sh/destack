@@ -1,7 +1,7 @@
 import { canvas, supergraph } from "@/globals";
 import { SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
-import { makeNodeName, NodeIn, unpackSubnode } from "@/language/core/node";
+import { makeNodeName, NodeIn } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
 import { newChangeId, type Transaction, type TransactionOptions } from "@/language/runtime/transaction";
 import {
@@ -98,7 +98,6 @@ export class ActionState {
   flow: FlowContext;
   actionPtr: TypedNodeReferenceData<NodeType.ACTION>;
   action: Ref<ActionData | null>;
-  subnode: Ref<any | null>;
   toolPtr: Ref<TypedNodeReferenceData<NodeType.FLOW | NodeType.ACTION> | null>;
   tool: Ref<FlowData | ActionData | null>;
   fields: Ref<FieldData[]>;
@@ -112,10 +111,6 @@ export class ActionState {
     this.flow = flow;
     this.actionPtr = toNodeRef(action);
     this.action = flow.graph.getRef(this.actionPtr, { ignoreAncestors: true });
-    this.subnode = computed(() => {
-      if (this.action.value == null) return null;
-      return unpackSubnode(NodeType.ACTION, this.action.value.type, this.action.value.subnodePacked);
-    });
     this.toolPtr = computedValue(() => {
       if (this.action.value?.type == ActionType.TOOL) {
         return this.action.value.toolPtr as TypedNodeReferenceData<NodeType.FLOW | NodeType.ACTION> | null;

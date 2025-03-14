@@ -14,16 +14,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import {
-  bench,
-  benchConnection,
-  canvas,
-  hasLocalBench,
-  pkg,
-  pkgConnection,
-  pkgGraph,
-  spaceGraph,
-} from "@/system/space";
+import { bench, canvas, hasLocalBench, pkg, benchConnection, benchGraph, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { fireActionById } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -238,10 +229,14 @@ defineExpose<ViewExpose>({ self });
                   () => {
                     if (pkg == null) return;
                     if (nodeType == NodeType.PAGE) {
-                      const page = createPage(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: pkg, page: {} });
+                      const page = createPage(benchConnection.tx, benchGraph, {
+                        anchor: 'inside',
+                        target: pkg,
+                        page: {},
+                      });
                       canvas.goToNode(page);
                     } else if (nodeType == NodeType.CHANNEL) {
-                      const channel = createChannel(pkgConnection.tx, pkgGraph, {
+                      const channel = createChannel(benchConnection.tx, benchGraph, {
                         anchor: 'inside',
                         target: pkg,
                         channel: {},

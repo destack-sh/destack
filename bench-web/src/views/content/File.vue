@@ -21,7 +21,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, canvas, pkg, pkgConnection } from "@/system/space";
+import { bench, canvas, pkg, benchConnection } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
@@ -113,7 +113,7 @@ async function onFileSelected(files: File[]) {
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
   try {
-    upload.value = uploadFile(() => pkgConnection.tx, content, {
+    upload.value = uploadFile(() => benchConnection.tx, content, {
       bench: bench.value,
       pkg: pkg.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,

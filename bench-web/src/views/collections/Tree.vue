@@ -88,14 +88,7 @@ const focusPtr = computedValue(() => {
   }
 });
 
-const { graph, connection } = useExistingConnection(rootPtr, {
-  match: {
-    predicate: (c) => {
-      // NOTE: exclude Bench connection (which also contains package) :ConnectionMatching :RichGraph
-      return !(c as Connection<"get", NodeType>).params.roots.some((r) => r.nodeType == NodeType.BENCH);
-    },
-  },
-});
+const { graph, connection } = useExistingConnection(rootPtr);
 
 //
 // Visible subtree
