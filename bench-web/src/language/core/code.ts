@@ -1,25 +1,16 @@
-import { ObjectType, type CodeData, type CodeLineData } from "@/proto/wire";
+import { ObjectType, type CodeData } from "@/proto/wire";
 import { Text as PmText } from "@codemirror/state";
 
 export function mapCodeToCmDoc(code: CodeData): string {
-  // map lines
-  const linesPm: string[] = [];
-  for (const line of code.lines) {
-    linesPm.push(line.content ?? "");
-  }
-  return linesPm.join("\n");
+  return code.content ?? "";
 }
 
-export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeData {
-  const lines: CodeLineData[] = [];
+export function mapPmDocToCode(doc: PmText): CodeData {
+  const lines: string[] = [];
   for (const linePm of doc.iterLines()) {
-    const line: CodeLineData = { metatype: ObjectType.CODE_LINE };
-    if (linePm.length > 0) {
-      line.content = linePm;
-    }
-    lines.push(line);
+    lines.push(linePm);
   }
-  const code: CodeData = { metatype: ObjectType.CODE, lines };
+  const code: CodeData = { metatype: ObjectType.CODE, content: lines.join("\n") };
   return code;
 }
 
@@ -29,10 +20,9 @@ export function estimateCodeHeight(code: CodeData, width?: number): number {
   const lineHeight = 20;
   const charactersPerLine = 27;
   let height = 10;
-  for (const line of code.lines) {
-    if (line.content == null || line.content.length == 0) height += lineHeight;
-    else height += Math.ceil((line.content ?? "").length / charactersPerLine) * lineHeight;
+  for (const line of code.content?.split("\n") ?? []) {
+    if (line.length == 0) height += lineHeight;
+    else height += Math.ceil(line.length / charactersPerLine) * lineHeight;
   }
   return height;
 }
-

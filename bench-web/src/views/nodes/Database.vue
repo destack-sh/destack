@@ -269,7 +269,7 @@ function getColumnPadding(
   } else if (viewType == ViewType.NUMBER || viewType == ViewType.STRING) {
     return { paddingTop: 6, paddingBottom: 2 };
   } else {
-    return { paddingTop: 3, paddingBottom: 3 };
+    return { paddingTop: 6, paddingBottom: 2 };
   }
 }
 

@@ -79,7 +79,7 @@ function makeEditorView(): EditorView {
     dispatchTransactions(txs, view) {
       // update the state directly for responsiveness
       view.update(txs);
-      const updatedCode = mapPmDocToCode(view.state.doc, props.modelValue);
+      const updatedCode = mapPmDocToCode(view.state.doc);
       if (view?.state.selection != null) {
         // remember selection for this state
         previousSelectionByState[cyrb53a(updatedCode)] = view?.state.selection;

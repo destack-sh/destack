@@ -28,60 +28,38 @@ class CodeType(BuiltinEnum):
     FUNCTION = 3  # Python functions
 
 
-@struct_(StructType.CODE_LINE)
-class CodeLine(Struct):
-    """A line of code."""
-
-    content: str | None = p_regular(32, require=False)
-
-    def __len__(self) -> int:
-        if self.content is None:
-            return 0
-        else:
-            return len(self.content)
-
-    def __contains__(self, other: str) -> bool:
-        if self.content is None:
-            return False
-        else:
-            return other in self.content
-
-
 @struct_(StructType.CODE)
 class Code(Struct):
-    """Code composed of multiple lines."""
-
-    # TODO :Incomplete: support references in nodes (incl. Paths? also in Text?)
+    """Code in some language."""
 
     language: Optional[str] = p_regular(32, require=False)
-    lines: list[CodeLine] = p_regular(35, require=True, array=True, struct=StructType.CODE_LINE)
+    content: Optional[str] = p_regular(40, require=False)
 
     def __content_str__(self) -> str:
-        preview_str = "\\n".join(line.content or "" for line in self.lines[:3])
+        preview_str = self.content or ""
         if len(preview_str) > 100:
             preview_str = preview_str[:100] + "..."
-        return f"'{preview_str}', {len(self.lines)} lines"
+        return f"'{preview_str}'"
 
     def __len__(self) -> int:
-        return sum(len(line) for line in self.lines)
+        return len(self.content or "")
 
     def __contains__(self, other: str) -> bool:
-        return any(other in line for line in self.lines)
+        return other in (self.content or "")
 
     def to_string(self) -> str:
-        return "\n".join(line.content or "" for line in self.lines)
+        return self.content or ""
 
     @staticmethod
-    def from_string(s: str) -> "Code":
+    def from_string(s: str, *, language: Optional[str] = None) -> "Code":
         if not s:
             return Code.empty()
         s = textwrap.dedent(s)
-        lines = [CodeLine(content=line or None) for line in s.split("\n")]
-        return Code(lines=lines)
+        return Code(content=s, language=language)
 
     @staticmethod
     def empty() -> "Code":
-        return Code(lines=[])
+        return Code(content=None)
 
 
 code = Code.from_string

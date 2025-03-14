@@ -775,7 +775,6 @@ class StructType(BuiltinEnum):
 
     # code (12100-12199)
     CODE = 12100, None, None, "fas fa-code"
-    CODE_LINE = 12101
 
     # expression (12200-12699)
     PATH = 12200, None, None, "fas fa-road"
