@@ -50,6 +50,14 @@ class ClaimStatus(BuiltinEnum):
     REJECTED = 31, "Rejected", None, "fas fa-circle-exclamation", ColorType.RED
     RELEASED = 32, "Released", None, "fas fa-circle-check", ColorType.GRAY
 
+    @property
+    def is_open(self) -> bool:
+        return self >= 20 and self < 30
+
+    @property
+    def is_closed(self) -> bool:
+        return self >= 30
+
 
 @node_(NodeType.CLAIM)
 class Claim(

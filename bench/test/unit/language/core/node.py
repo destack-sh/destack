@@ -224,7 +224,9 @@ async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkl
     choice_clone = choice.clone()
     assert choice_clone.equals(choice)
     for option, option_clone in zip(choice.options, choice_clone.options):
-        assert option_clone.equals(option)
+        assert option is not option_clone
+        assert option.id != option_clone.id
+        assert option.equals(option_clone)
     await runtime.commit()
 
 
@@ -253,6 +255,28 @@ async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaW
     action_clone = flow_clone.actions.Action
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
+    await runtime.commit()
+
+
+@simulated_runtime()
+async def test_instance_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    """Instance a subtree."""
+    choice = Choice.new("Letter")
+    for i in range(0, 26):
+        letter = chr(65 + i)
+        choice.options.append(Option.new(letter))
+    runtime.page().append(choice)
+    await runtime.commit()
+
+    choice_instance = choice.instance()
+    assert choice_instance.equals(choice)
+    assert choice_instance.id != choice.id
+    assert choice_instance.template_id == choice.id
+    for option, option_instance in zip(choice.options, choice_instance.options):
+        assert option_instance.id != option.id
+        assert option_instance.ck == option.ck
+        assert option_instance.template_id == option.id
+        assert option.equals(option_instance)
     await runtime.commit()
 
 

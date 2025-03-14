@@ -14,8 +14,6 @@ from bench.language import (
 from .computer import ComputerKit, IComputer
 
 if TYPE_CHECKING:
-    from playwright.async_api import Page as PlaywrightPage
-
     from bench.runtime.core.runner import Runner
 
 
@@ -27,18 +25,15 @@ from bench.builtin.core import class_to_kit
 class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
     """The common interface for a Browser."""
 
-    def _get_pw_page(self, browser: Browser) -> "PlaywrightPage":
-        """Get the Playwright Page for the Browser."""
-        ...  # nocheckin
-
     #
     # Computer
     #
 
     @override
     async def Screenshot(self) -> Annotated[dict[str, File], {"image": File}]:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         screenshot_bytes = await pw_page.screenshot(full_page=False, animations="disabled")
         now = self.session._oracle.utc()
         screenshot = await upload_file(
@@ -51,8 +46,9 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
 
     @override
     async def Click(self, X: int, Y: int, Button: str = "left") -> None:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         if Button == "back":
             await pw_page.go_back()
         elif Button == "forward":
@@ -66,33 +62,38 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
 
     @override
     async def Double_Click(self, X: int, Y: int) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.mouse.dblclick(X, Y)
 
     @override
     async def Press(self, Keys: list[str]) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         for key in Keys:
             await pw_page.keyboard.press(key)
 
     @override
     async def Type(self, String: str) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.keyboard.type(String)
 
     @override
     async def Move(self, X: int, Y: int) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.mouse.move(X, Y)
 
     @override
     async def Scroll(self, X: int, Y: int, Scroll_X: int, Scroll_Y: int) -> None:
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.mouse.wheel(Scroll_X, Scroll_Y)
 
     #
@@ -101,26 +102,30 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
 
     async def Get_Current_Url(self) -> Annotated[dict[str, Any], {"url": str}]:
         """Get the current URL of the browser."""
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         return {"url": pw_page.url}
 
     async def Go_To_Url(self, Url: str) -> None:
         """Go to a URL."""
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.goto(Url)
 
     async def Go_Forward(self) -> None:
         """Go forward in the browser history."""
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.go_forward()
 
     async def Go_Back(self) -> None:
         """Go back in the browser history."""
-        browser = self._get_ready_resource_or_error(Browser)
-        pw_page = self._get_pw_page(browser)
+        browser = self._get_resource(Browser)
+        pw_client = await self.runtime.playwright.get_client(browser)
+        pw_page = pw_client.pages[0]
         await pw_page.go_back()
 
 

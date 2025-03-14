@@ -27,6 +27,7 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Claim,
         Color,
         Flow,
         NodeReference,
@@ -128,6 +129,10 @@ class Link(IsTemplatable, IsModal, IsComputable, PackageNode[LinkData]):
             if isinstance(parent, Flow):
                 return parent
         return None
+
+    @property
+    def claims(self) -> tuple["Claim", ...]:
+        return ()
 
     def to_type_maybe(self) -> "TypeBase | None":
         return None

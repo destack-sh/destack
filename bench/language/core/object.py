@@ -1076,11 +1076,9 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 return True
         return False
 
-    def clone(self, *, reset: bool = True, **kwargs) -> Self:
-        """
-        Create a clone of this object and its descendants (structs/nodes) with the same content.
-        """
-        copy_kwargs = {**kwargs}
+    def _clone_kwargs(self, reset: bool = True):
+        """Clone kwargs for a new instance."""
+        copy_kwargs = {}
         for prop in self.__wired_properties__.values():
             prop_value = getattr(self, prop.name)
             if reset and prop.id < 30:
@@ -1097,6 +1095,14 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                         copy_kwargs[prop.name] = list(prop_value)
                 else:
                     copy_kwargs[prop.name] = prop_value
+        return copy_kwargs
+
+    def clone(self, *, reset: bool = True, **kwargs) -> Self:
+        """
+        Create a clone of this object and its descendants (structs/nodes) with the same content.
+        """
+        copy_kwargs = self._clone_kwargs(reset=reset)
+        copy_kwargs.update(kwargs)
         return self.__class__(**copy_kwargs)
 
     def replace_references(self, new_node_by_id: Mapping[UUID, "Node"]):
