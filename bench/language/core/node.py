@@ -1467,7 +1467,15 @@ class IsInstantiable(IsTemplatable):
 class IsOwnable(BuiltinObject):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional[Owner] = p_node_parent(17, *OWNER_TYPES, ckless=True)
+    owned_by: Optional[Owner] = p_regular(
+        17,
+        require=False,
+        array=False,
+        references=OWNER_TYPES,
+        same_bench=True,
+        baseless=True,
+        ckless=True,
+    )
     if TYPE_CHECKING:
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None

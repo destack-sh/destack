@@ -55,8 +55,8 @@ class BlockType(BuiltinEnum):
     DATABASE = 5090, "Database", "Database to store", "fas fa-database"
     CHANNEL = 5100, "Channel", "Channel to send", "fas fa-envelope"
     ROLE = 5110, "Role", "Role to assign", "fas fa-user-shield"
-    PLAN = 6040, "Plan", "Plan to execute", "fas fa-list-check"
-    TASK = 6041, "Task", "Task to accomplish", "fas fa-square-check"
+    PLAN = 6100, "Plan", "Plan to execute", "fas fa-list-check"
+    TASK = 6110, "Task", "Task to accomplish", "fas fa-square-check"
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

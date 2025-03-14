@@ -1,9 +1,11 @@
 from .auth import *  # noqa: F403
+from .communication import *  # noqa: F403
 from .compute import *  # noqa: F403
 from .connection import *  # noqa: F403
 from .core import *  # noqa: F403
 from .cosmos import *  # noqa: F403
 from .finance import *  # noqa: F403
+from .orchestration import *  # noqa: F403
 from .registry import (
     ANCESTOR_NODE_TYPES,  # noqa: F401
     BENCH_CLASS_BY_NAME,  # noqa: F401
@@ -30,7 +32,6 @@ from .registry import (
 )
 from .runtime import *  # noqa: F403
 from .source import *  # noqa: F403
-from .state import *  # noqa: F403
 
 # after all the imports, we can finalize
 _complete_bench_setup()

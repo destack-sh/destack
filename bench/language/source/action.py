@@ -31,6 +31,7 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Claim,
         Code,
         Field,
         Flow,
@@ -135,6 +136,7 @@ class Action(IsComputable, IsInstantiable, IsNamed, IsTraceable, PackageNode[Act
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
+    claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     @property
     def flow(self) -> "Flow | None":

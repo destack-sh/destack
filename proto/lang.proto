@@ -90,6 +90,8 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_EFFECT = 22031;
   ENUM_TYPE_TRIGGER_STATUS = 22032;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22041;
+  ENUM_TYPE_CLAIM_TYPE = 22050;
+  ENUM_TYPE_CLAIM_STATUS = 22051;
   ENUM_TYPE_ERROR_KIND = 22100;
   ENUM_TYPE_ERROR_TYPE = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
@@ -181,8 +183,9 @@ enum NodeType {
   NODE_TYPE_RUN_SPAN = 6011;
   NODE_TYPE_INTERRUPTION = 6020;
   NODE_TYPE_LOG = 6030;
-  NODE_TYPE_PLAN = 6040;
-  NODE_TYPE_TASK = 6041;
+  NODE_TYPE_PLAN = 6100;
+  NODE_TYPE_TASK = 6110;
+  NODE_TYPE_CLAIM = 6150;
   NODE_TYPE_RECORD = 8000;
   NODE_TYPE_SKIP = 9998;
   NODE_TYPE_EMPTY = 9999;
@@ -290,8 +293,9 @@ enum ObjectType {
   OBJECT_TYPE_RUN_SPAN = 6011;
   OBJECT_TYPE_INTERRUPTION = 6020;
   OBJECT_TYPE_LOG = 6030;
-  OBJECT_TYPE_PLAN = 6040;
-  OBJECT_TYPE_TASK = 6041;
+  OBJECT_TYPE_PLAN = 6100;
+  OBJECT_TYPE_TASK = 6110;
+  OBJECT_TYPE_CLAIM = 6150;
   OBJECT_TYPE_RECORD = 8000;
   OBJECT_TYPE_SKIP = 9998;
   OBJECT_TYPE_EMPTY = 9999;
@@ -395,8 +399,9 @@ enum BenchType {
   BENCH_TYPE_RUN_SPAN = 6011;
   BENCH_TYPE_INTERRUPTION = 6020;
   BENCH_TYPE_LOG = 6030;
-  BENCH_TYPE_PLAN = 6040;
-  BENCH_TYPE_TASK = 6041;
+  BENCH_TYPE_PLAN = 6100;
+  BENCH_TYPE_TASK = 6110;
+  BENCH_TYPE_CLAIM = 6150;
   BENCH_TYPE_RECORD = 8000;
   BENCH_TYPE_SKIP = 9998;
   BENCH_TYPE_EMPTY = 9999;
@@ -533,6 +538,8 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_EFFECT = 22031;
   BENCH_TYPE_TRIGGER_STATUS = 22032;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22041;
+  BENCH_TYPE_CLAIM_TYPE = 22050;
+  BENCH_TYPE_CLAIM_STATUS = 22051;
   BENCH_TYPE_ERROR_KIND = 22100;
   BENCH_TYPE_ERROR_TYPE = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
@@ -1042,8 +1049,8 @@ enum BlockType {
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_CHANNEL = 5100;
   BLOCK_TYPE_ROLE = 5110;
-  BLOCK_TYPE_PLAN = 6040;
-  BLOCK_TYPE_TASK = 6041;
+  BLOCK_TYPE_PLAN = 6100;
+  BLOCK_TYPE_TASK = 6110;
   BLOCK_TYPE_PARAGRAPH = 10001;
   BLOCK_TYPE_HEADING_1 = 10010;
   BLOCK_TYPE_HEADING_2 = 10011;
@@ -1440,6 +1447,22 @@ enum ScheduleFrequency {
   SCHEDULE_FREQUENCY_DAY = 4;
   SCHEDULE_FREQUENCY_HOUR = 5;
   SCHEDULE_FREQUENCY_MINUTE = 6;
+}
+
+enum ClaimType {
+  CLAIM_TYPE_UNSPECIFIED = 0;
+  CLAIM_TYPE_SHARED = 10;
+  CLAIM_TYPE_RESERVED = 20;
+  CLAIM_TYPE_EXCLUSIVE = 30;
+}
+
+enum ClaimStatus {
+  CLAIM_STATUS_UNSPECIFIED = 0;
+  CLAIM_STATUS_PENDING = 10;
+  CLAIM_STATUS_ACTIVE = 20;
+  CLAIM_STATUS_CANCELLED = 30;
+  CLAIM_STATUS_REJECTED = 31;
+  CLAIM_STATUS_RELEASED = 32;
 }
 
 enum ErrorKind {
@@ -2561,6 +2584,129 @@ message MembershipData {
   NodeReferenceData member_ptr = 41;
 }
 
+message MessageData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  MessageType type = 30;
+  optional TextLineData title = 32;
+  MessagePlatform platform = 33;
+  optional NodeReferenceData channel_ptr = 34;
+  optional NodeReferenceData thread_ptr = 35;
+  optional NodeReferenceData scope_ptr = 36;
+  optional NodeReferenceData run_root_ptr = 37;
+  optional NodeReferenceData run_ptr = 38;
+  MessageStatus status = 40;
+  optional google.protobuf.Timestamp failed_at = 42;
+  optional google.protobuf.Timestamp sent_at = 43;
+  optional google.protobuf.Timestamp received_at = 44;
+  optional google.protobuf.Timestamp read_at = 45;
+  optional NodeReferenceData reply_to_ptr = 50;
+  optional NodeReferenceData forwarded_from_ptr = 51;
+  optional TextData text = 61;
+  optional google.protobuf.Value value_packed = 62;
+  optional NodeReferenceData clazz_ptr = 63;
+  repeated NodeReferenceData nodes_ptr = 64;
+  optional SelectionData selection = 65;
+  optional NodeReferenceData created_interruption_ptr = 70;
+  optional NodeReferenceData created_run_ptr = 71;
+  optional NodeReferenceData created_thread_ptr = 72;
+}
+
+message NotificationData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  NotificationType type = 30;
+  optional TextLineData title = 32;
+  optional NodeReferenceData channel_ptr = 33;
+  optional NodeReferenceData thread_ptr = 34;
+  NotificationStatus status = 40;
+  optional google.protobuf.Timestamp failed_at = 42;
+  optional google.protobuf.Timestamp sent_at = 43;
+  optional google.protobuf.Timestamp received_at = 44;
+  optional google.protobuf.Timestamp read_at = 45;
+  optional TextData text = 51;
+  repeated NodeReferenceData nodes_ptr = 53;
+  optional NodeReferenceData message_ptr = 54;
+}
+
+message RecordData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string name = 32;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  NodeReferenceData database_ptr = 36;
+  optional google.protobuf.Value value_packed = 40;
+}
+
+message ThreadData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  ThreadType type = 30;
+  optional TextLineData title = 32;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 36;
+  repeated NodeReferenceData tags_ptr = 38;
+  optional NodeReferenceData channel_ptr = 40;
+  optional NodeReferenceData scope_ptr = 41;
+  optional NodeReferenceData run_root_ptr = 42;
+  optional NodeReferenceData run_ptr = 43;
+  optional NodeReferenceData created_from_ptr = 45;
+  ThreadStatus status = 50;
+  optional google.protobuf.Timestamp closed_at = 55;
+  optional TextData text = 61;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData computer_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
 message BrowserData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2973,6 +3119,117 @@ message UserData {
   bool is_staff = 90;
 }
 
+message ClaimData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  ClaimType type = 30;
+  ClaimStatus status = 50;
+  optional google.protobuf.Duration duration = 51;
+  optional google.protobuf.Timestamp opened_at = 52;
+  optional google.protobuf.Timestamp granted_at = 53;
+  optional google.protobuf.Timestamp closed_at = 54;
+  optional NodeReferenceData resource_ptr = 60;
+  optional SelectionData resource_selection = 65;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData computer_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
+message PlanData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  PlanType type = 30;
+  optional TextLineData title = 32;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  optional NodeReferenceData definition_ptr = 36;
+  repeated NodeReferenceData tags_ptr = 38;
+  PlanTerminationMode on_terminate = 41;
+  PlanFailureMode on_failure = 42;
+  optional NodeReferenceData implemented_by_ptr = 43;
+  PlanStatus status = 50;
+  optional google.protobuf.Duration duration = 51;
+  optional google.protobuf.Timestamp started_at = 52;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional ErrorData error = 56;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData computer_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
+message TaskData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 25;
+  optional google.protobuf.Value subnode_packed = 29;
+  TaskType type = 30;
+  optional TextLineData title = 32;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  optional NodeReferenceData definition_ptr = 36;
+  repeated NodeReferenceData tags_ptr = 38;
+  optional NodeReferenceData implemented_by_ptr = 41;
+  TaskStatus status = 50;
+  optional google.protobuf.Duration duration = 51;
+  optional google.protobuf.Timestamp due_at = 52;
+  optional google.protobuf.Timestamp started_at = 53;
+  optional google.protobuf.Timestamp terminated_at = 56;
+  optional ErrorData error = 57;
+  optional NodeReferenceData clazz_ptr = 60;
+  optional NodeReferenceData target_ptr = 61;
+  optional google.protobuf.Value value_packed = 65;
+  optional NodeReferenceData interruption_ptr = 66;
+  bool is_manual = 70;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData computer_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
 message InterruptionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3028,44 +3285,6 @@ message LogData {
   Severity severity = 31;
   optional string title = 32;
   optional TextData text = 33;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-}
-
-message PlanData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  PlanType type = 30;
-  optional TextLineData title = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  optional NodeReferenceData definition_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 38;
-  PlanTerminationMode on_terminate = 41;
-  PlanFailureMode on_failure = 42;
-  optional NodeReferenceData implemented_by_ptr = 43;
-  PlanStatus status = 50;
-  optional google.protobuf.Duration duration = 51;
-  optional google.protobuf.Timestamp started_at = 52;
-  optional google.protobuf.Timestamp terminated_at = 55;
-  optional ErrorData error = 56;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
@@ -3181,48 +3400,6 @@ message RunSpanData {
   optional NodeReferenceData task_ptr = 85;
   optional NodeReferenceData trigger_ptr = 86;
   optional string trigger_key = 87;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-}
-
-message TaskData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  TaskType type = 30;
-  optional TextLineData title = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  optional NodeReferenceData definition_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 38;
-  optional NodeReferenceData implemented_by_ptr = 41;
-  TaskStatus status = 50;
-  optional google.protobuf.Duration duration = 51;
-  optional google.protobuf.Timestamp due_at = 52;
-  optional google.protobuf.Timestamp started_at = 53;
-  optional google.protobuf.Timestamp terminated_at = 56;
-  optional ErrorData error = 57;
-  optional NodeReferenceData clazz_ptr = 60;
-  optional NodeReferenceData target_ptr = 61;
-  optional google.protobuf.Value value_packed = 65;
-  optional NodeReferenceData interruption_ptr = 66;
-  bool is_manual = 70;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
@@ -3808,129 +3985,6 @@ message ScheduleTriggerData {
 message MessageTriggerData {
 }
 
-message MessageData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  MessageType type = 30;
-  optional TextLineData title = 32;
-  MessagePlatform platform = 33;
-  optional NodeReferenceData channel_ptr = 34;
-  optional NodeReferenceData thread_ptr = 35;
-  optional NodeReferenceData scope_ptr = 36;
-  optional NodeReferenceData run_root_ptr = 37;
-  optional NodeReferenceData run_ptr = 38;
-  MessageStatus status = 40;
-  optional google.protobuf.Timestamp failed_at = 42;
-  optional google.protobuf.Timestamp sent_at = 43;
-  optional google.protobuf.Timestamp received_at = 44;
-  optional google.protobuf.Timestamp read_at = 45;
-  optional NodeReferenceData reply_to_ptr = 50;
-  optional NodeReferenceData forwarded_from_ptr = 51;
-  optional TextData text = 61;
-  optional google.protobuf.Value value_packed = 62;
-  optional NodeReferenceData clazz_ptr = 63;
-  repeated NodeReferenceData nodes_ptr = 64;
-  optional SelectionData selection = 65;
-  optional NodeReferenceData created_interruption_ptr = 70;
-  optional NodeReferenceData created_run_ptr = 71;
-  optional NodeReferenceData created_thread_ptr = 72;
-}
-
-message NotificationData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  NotificationType type = 30;
-  optional TextLineData title = 32;
-  optional NodeReferenceData channel_ptr = 33;
-  optional NodeReferenceData thread_ptr = 34;
-  NotificationStatus status = 40;
-  optional google.protobuf.Timestamp failed_at = 42;
-  optional google.protobuf.Timestamp sent_at = 43;
-  optional google.protobuf.Timestamp received_at = 44;
-  optional google.protobuf.Timestamp read_at = 45;
-  optional TextData text = 51;
-  repeated NodeReferenceData nodes_ptr = 53;
-  optional NodeReferenceData message_ptr = 54;
-}
-
-message RecordData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  NodeReferenceData database_ptr = 36;
-  optional google.protobuf.Value value_packed = 40;
-}
-
-message ThreadData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 25;
-  optional google.protobuf.Value subnode_packed = 29;
-  ThreadType type = 30;
-  optional TextLineData title = 32;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 38;
-  optional NodeReferenceData channel_ptr = 40;
-  optional NodeReferenceData scope_ptr = 41;
-  optional NodeReferenceData run_root_ptr = 42;
-  optional NodeReferenceData run_ptr = 43;
-  optional NodeReferenceData created_from_ptr = 45;
-  ThreadStatus status = 50;
-  optional google.protobuf.Timestamp closed_at = 55;
-  optional TextData text = 61;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-}
-
 enum BuiltinEnum {
   BUILTIN_ENUM_UNSPECIFIED = 0;
 }
@@ -3995,9 +4049,10 @@ message SomeNodeData {
     LogData log = 42;
     PlanData plan = 43;
     TaskData task = 44;
-    RecordData record = 45;
-    SkipData skip = 46;
-    EmptyData empty = 47;
+    ClaimData claim = 45;
+    RecordData record = 46;
+    SkipData skip = 47;
+    EmptyData empty = 48;
   };
 }
 

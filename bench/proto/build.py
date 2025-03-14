@@ -234,8 +234,6 @@ SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES
 InlineNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode)])}]
 TypeBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES])}]
 FieldBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES])}]
-StateNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_state])}]
-RuntimeNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_runtime])}]
 """)
     on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
     on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))
@@ -767,8 +765,6 @@ export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_C
 export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode))}
 export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
 export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
-export type StateNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_state)}
-export type RuntimeNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_runtime)}
 export type StaticResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STATIC_RESOURCE_NODE_TYPES)}
 export type DynamicResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in DYNAMIC_RESOURCE_NODE_TYPES)}
 
