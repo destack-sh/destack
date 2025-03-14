@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.BROWSER_TYPE)
 class BrowserType(BuiltinEnum):
-    CHROMIUM = 1
+    CHROME = 1
 
 
 DEFAULT_BROWSER_WIDTH = 1920.0
@@ -31,7 +31,7 @@ DEFAULT_BROWSER_HEIGHT = 1080.0
 class Browser(Resource[BrowserData]):
     """A Browser instance for web browsing."""
 
-    type: BrowserType = p_regular(30, default=BrowserType.CHROMIUM)
+    type: BrowserType = p_regular(30)
 
     version: str | None = p_regular(60, default=None)
     target_version: Optional[str] = p_regular(61, default=None)
@@ -54,3 +54,7 @@ class Browser(Resource[BrowserData]):
     size: "Vector2 | None" = p_regular(70, require=False, array=False, struct=StructType.VECTOR2)
     is_headless: bool = p_system(75, default=False)
     is_insecure: bool = p_system(76, default=False)
+
+    @staticmethod
+    def new(type: BrowserType, name: str, **kwargs) -> "Browser":
+        return Browser(type=type, name=name, **kwargs)

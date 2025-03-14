@@ -126,6 +126,6 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
 
 BrowserKit = class_to_kit(IBrowser, "Browser", template=ComputerKit)
 ChromeBrowserTemplate = Browser(
-    name="Chrome Browser", type=BrowserType.CHROMIUM, mode=NodeMode.TEMPLATE
+    name="Chrome Browser", type=BrowserType.CHROME, mode=NodeMode.TEMPLATE
 )
 BrowserPage = Page.new("Browser", ChromeBrowserTemplate, BrowserKit)

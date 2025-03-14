@@ -21,7 +21,9 @@ from bench.language.core import (
     FieldType,
     Icon,
     IsComputable,
+    IsModal,
     Node,
+    NodeMode,
     NodeReference,
     NodeType,
     ObjectType,
@@ -68,7 +70,7 @@ from .page import Page
 from .view import View
 
 if TYPE_CHECKING:
-    from bench.language import Plan, Task
+    from bench.language import Claim, Plan, Task
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -461,6 +463,8 @@ def _deconstruct_builtin_object(
         if prop_value is None:
             continue
         kwargs[prop] = prop_value
+    if isinstance(obj, IsModal) and obj.mode != NodeMode.MAIN:
+        kwargs[obj.get_property("mode")] = obj.mode
     return kwargs
 
 
@@ -653,6 +657,21 @@ class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
 
 class ResourceNodeRenderer[T: Resource](NodeRenderer[T]):
     """The base renderer for a ResourceNode."""
+
+    @override
+    def _render_constructor(
+        self,
+        renderer: Renderer,
+        obj: T,
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        view_args = renderer.render_args(
+            rendered_kwargs.pop("type"),
+            rendered_kwargs.pop("name"),
+            renderer.render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"{obj.__class__.__name__}.new({view_args})"
 
 
 NODE_RENDERER = NodeRenderer[Node]()
@@ -941,6 +960,26 @@ class TaskRenderer(NodeRenderer["Task"]):
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Task.{obj.type.name.lower()}({args})"
+
+
+@_renderer(NodeType.CLAIM)
+class ClaimRenderer(NodeRenderer["Claim"]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: "Claim",
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline type and name
+        rendered_kwargs.pop("type", None)
+        args = (
+            rendered_kwargs.pop("name"),
+            rendered_kwargs.pop("resource"),
+            renderer.render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Claim.{obj.type.name.lower()}({renderer.render_args(*args)})"
 
 
 #

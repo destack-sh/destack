@@ -404,7 +404,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __is_stored_value_unraveled__: ClassVar[bool] = False  # custom storage logic (for records)
     __area__: ClassVar[NodeArea]
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
-    __uniques__: ClassVar[tuple[IndexIn, ...]] = ()
 
     # 1-9: node identity
     # Node.metatype: 1
@@ -454,7 +453,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         created_by_type: NodeType | None = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
-    # ...HasTrace[25-29] :Tracing
+    # IsModal.mode: 20
 
     # NOTE :Architecture!: obviously, a better system would store subnodes directly
     #  (but we can't do that yet because we map properties to Postgres columns,
@@ -478,10 +477,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     ):
         # inject :Tracing context
         cls = type(self)
-        if isinstance(self, IsTraceable):
+        if isinstance(self, IsModal):
             if not kwargs.get("mode"):
-                tracing = get_tracing_context()
-                kwargs["mode"] = tracing.mode
+                session = ACTIVE_SESSION.get()
+                if session is not None and session._runtime is not None:
+                    kwargs["mode"] = session._runtime.active_mode
 
         # init object
         super().__init__(**kwargs, _skip_validate_self=True, _skip_extra_kwargs=True)
@@ -1395,26 +1395,10 @@ class IsRuntime(BuiltinObject):
 
 
 @object_()
-class IsTraceable(BuiltinObject):
-    """Context for tracing a Node."""
+class IsModal(BuiltinObject):
+    """A Node that can be in different modes."""
 
-    # tracing :Tracing
-    mode: NodeMode = p_internal(25, default=None, default_sql=str(NodeMode.MAIN.value))
-    # ... more tracing context
-
-
-class TracingContext(NamedTuple):  # :Tracing
-    mode: NodeMode
-
-
-def get_tracing_context() -> TracingContext:
-    """Gather the current runtime tracing context."""
-    session = ACTIVE_SESSION.get(None)
-    if session is not None:
-        mode = session.active_mode
-        return TracingContext(mode=mode)
-    else:
-        return TracingContext(mode=NodeMode.MAIN)
+    mode: NodeMode = p_internal(20, default=NodeMode.MAIN, default_sql=str(NodeMode.MAIN.value))
 
 
 @node_component_()

@@ -57,3 +57,7 @@ class Computer(Resource[ComputerData]):
     ram: float = p_system(
         71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
     )
+
+    @staticmethod
+    def new(type: ComputerType, name: str, **kwargs) -> "Computer":
+        return Computer(type=type, name=name, **kwargs)

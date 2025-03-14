@@ -7,7 +7,7 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsComputable,
-    IsTraceable,
+    IsModal,
     LocalNodeList,
     NodeReference,
     NodeSubtypeStub,
@@ -74,7 +74,7 @@ class ActionType(BuiltinEnum):
 
 
 @node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
-class Action(IsComputable, IsInstantiable, IsNamed, IsTraceable, PackageNode[ActionData]):
+class Action(IsComputable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionData]):
     """
     A data or control flow node in a Flow. Actions are connected by Links.
     """

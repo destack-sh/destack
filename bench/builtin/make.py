@@ -4,7 +4,7 @@ from bench.builtin.source import ActionPage
 from bench.language import (
     BENCH_BUILTIN_PACKAGE_ID,
     BENCH_BUILTIN_PACKAGE_SLUG,
-    IsTraceable,
+    IsModal,
     NodeMode,
     Package,
     PackageType,
@@ -20,6 +20,6 @@ BuiltinPackage.extend(ActionPage, BrowserPage, ComputerPage)
 
 # finalize
 for node in BuiltinPackage._graph.nodes:
-    if isinstance(node, IsTraceable) and node.mode == NodeMode.MAIN:
+    if isinstance(node, IsModal) and node.mode == NodeMode.MAIN:
         node.mode = NodeMode.BUILTIN
 assign_builtin_ids(BuiltinPackage._graph, ignore=(BuiltinPackage,))

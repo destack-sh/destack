@@ -8,9 +8,9 @@ from bench.language.core import (
     CustomObject,
     EnumType,
     FieldType,
+    IsModal,
     IsRuntime,
     IsTimed,
-    IsTraceable,
     NodeReference,
     NodeType,
     PackageNode,
@@ -156,7 +156,7 @@ class InterruptionResponse(BuiltinEnum):
 
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
-class Interruption(IsTimed, IsRuntime, IsTraceable, PackageNode[InterruptionData]):
+class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     """An Interruption in the execution of a Run."""
 
     # meta

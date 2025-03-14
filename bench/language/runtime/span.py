@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    IsModal,
     IsRuntime,
     IsTimed,
-    IsTraceable,
     Node,
     NodeType,
     PackageNode,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.RUN_SPAN)
-class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsTraceable, HasRunContext):
+class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsModal, HasRunContext):
     """
     A RunSpan is a sub-part of a Run that executes a smaller unit of work than a runnable Node.
     RunSpans, unlike Runs, are not individually controllable.

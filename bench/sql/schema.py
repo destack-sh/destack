@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.14.0"
+VERSION = "2025.03.14.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -432,7 +432,7 @@ BROWSER_TABLE = Table(
         Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16, default="1"),
+        Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
@@ -1552,7 +1552,6 @@ RUN_TABLE = Table(
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
-        Column("resources_packed", PrimitiveType.JSON, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
@@ -1856,6 +1855,7 @@ CLAIM_TABLE = Table(
         Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="10"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),

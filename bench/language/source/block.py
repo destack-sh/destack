@@ -6,9 +6,9 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsModal,
     IsNamed,
     IsTemplatable,
-    IsTraceable,
     LocalNodeList,
     Node,
     NodeReference,
@@ -111,7 +111,7 @@ if IS_DEV or IS_TEST:
 
 
 @node_(NodeType.BLOCK, has_subtypes=True)
-class Block(IsTemplatable, IsTraceable, IsNamed, PackageNode[BlockData]):
+class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
     """A Block on a Page."""
 
     parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)

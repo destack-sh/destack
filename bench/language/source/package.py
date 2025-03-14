@@ -5,9 +5,9 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IndexIn,
+    IsModal,
     IsOwnable,
     IsTemplatable,
-    IsTraceable,
     LocalNodeList,
     NodeType,
     PackageNode,
@@ -45,7 +45,7 @@ class PackageType(BuiltinEnum):
 
 
 @node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
-class Package(IsOwnable, IsTemplatable, IsTraceable, IsNamed, PackageNode[PackageData]):
+class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageData]):
     """A Package is a semi-isolated area of a Bench."""
 
     # meta
