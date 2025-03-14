@@ -58,7 +58,7 @@ import {
   TypeConstraintProperty,
   TypeData,
   TypeKind,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
@@ -668,7 +668,7 @@ export class FieldLayout extends NodeLayout<NodeType.FIELD> {
     );
 
     // default value
-    if ((!this.isPartial && this.subtype == FieldType.RESOURCE) || this.subtype == FieldType.MEMBER) {
+    if (this.subtype == FieldType.MEMBER) {
       const defaultView = getViewForType(node as FieldData, { forcePickerDropdown: true });
       if (defaultView?.type != null) {
         commonRows.push({
@@ -779,10 +779,6 @@ export class KitLayout extends NodeLayout<NodeType.KIT> {
   make() {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
-
-    this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
-      actions: [this.actionAddField(FieldType.RESOURCE)],
-    });
   }
 }
 
@@ -827,10 +823,6 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
     if (!this.isPartial) {
       // tools
       this.section("Tools", this.toolRows());
-      // resources
-      this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
-        actions: [this.actionAddField(FieldType.RESOURCE)],
-      });
       // schema
       this.section(
         "Schema",
@@ -885,8 +877,6 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
       this.section(
         "Schema",
         [
-          // tool variables & inputs
-          { type: "fields-list", fieldType: FieldType.RESOURCE, toolPtr: delegatePtr },
           this.rowIcon("fas fa-arrow-down"),
           { type: "fields-list", fieldType: FieldType.INPUT, toolPtr: delegatePtr },
           // arrow
@@ -903,9 +893,6 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
         },
       );
     } else if (node.type == ActionType.CODE || DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
-      this.section("Resources", [{ type: "fields-list", fieldType: FieldType.RESOURCE }], {
-        actions: [this.actionAddField(FieldType.RESOURCE)],
-      });
       this.section(
         "Schema",
         [

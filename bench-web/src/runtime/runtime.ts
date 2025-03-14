@@ -1,10 +1,8 @@
-import { ACTIVE_RUN_STATUSES, getBaseFromNode, isResourceNodeType, TK_LENGTH_B64 } from "@/language/core/const";
+import { ACTIVE_RUN_STATUSES, getBaseFromNode } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import { timesortNode } from "@/language/core/order";
-import { decodeTypeIdentity } from "@/language/core/type";
-import { unpackValue } from "@/language/core/value";
 import {
   getRunType,
   isRunActive,
@@ -34,18 +32,16 @@ import {
   RunProperty,
   RunSpanData,
   RunStatus,
-  StructType,
   Timestamp,
-  type RunData,
+  type RunData
 } from "@/proto/wire";
 import {
   describeNode,
   isNode,
-  isStruct,
   makeDefaultObject,
   propertyReference,
   toNodeRef,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { benchConnection, benchGraph, space, spaceConnection } from "@/system/space";
@@ -268,20 +264,9 @@ export class Runtime {
     if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
     const node = supergraph.get(basePtr);
     if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
-    let resourcesPacked: Record<string, any> | undefined = undefined;
-    for (const [key, valuePacked] of Object.entries(run.resourcesPacked ?? {})) {
-      const type = decodeTypeIdentity(key.slice(TK_LENGTH_B64 + 1));
-      const value = unpackValue(valuePacked, type);
-      if (!(isStruct(value, StructType.NODE_REFERENCE) && isResourceNodeType(value.nodeType))) {
-        // ignore resources
-        if (resourcesPacked == null) resourcesPacked = {};
-        resourcesPacked[key] = valuePacked;
-      }
-    }
     this.start(node, {
       focus: true,
       benchPtr: run.benchPtr,
-      resourcesPacked,
       inputsPacked: run.inputsPacked as Record<string, any> | undefined,
       options: run.options,
       tx: options?.tx,
@@ -376,12 +361,11 @@ export function makeRun(
     packagePtr,
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
-    mode: options?.mode ?? space.value?.mode ?? NodeMode.PRODUCTION,
+    mode: options?.mode ?? space.value?.mode ?? NodeMode.MAIN,
     pagePtr: toNodeRef(page),
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     linkPtr: isNode(runnable, NodeType.LINK) ? toNodeRef(runnable) : undefined,
-    resourcesPacked: options?.resourcesPacked ?? undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),
   });

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { getBaseFromNode } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
-import { makeType } from "@/language/core/type";
 import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/runtime/run";
 import { getTransactionOptionsForType } from "@/language/runtime/transaction";
 import {
@@ -11,13 +10,12 @@ import {
   RunData,
   RunStatus,
   RunStatusOptionInfo,
-  TypeKind,
   ViewData,
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/runtime/runtime";
-import { canvas, benchGraph } from "@/system/space";
+import { benchGraph, canvas } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 import { computedValue } from "@/utils/ref";
@@ -66,15 +64,6 @@ const resourcesPacked = useSubnodeProperty(
 // schema
 const fields = benchGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
 const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
-const variableType = computed(() =>
-  runBasePtr.value != null
-    ? makeType({
-        kind: TypeKind.CUSTOM_OBJECT,
-        baseTypePtr: runBasePtr.value,
-        baseFieldTypes: [FieldType.RESOURCE],
-      })
-    : undefined,
-);
 const inputType = computed(() => (runBase.value != null ? getInputType(runBase.value as RunnableNode) : undefined));
 const outputType = computed(() => (runBase.value != null ? getOutputType(runBase.value as RunnableNode) : undefined));
 
@@ -94,27 +83,24 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
     <!-- NOTE :UX: turn Run into collapsible sections like in Inspect & Hub (factor out Tabs & Sections?) -->
     <!-- New Run -->
     <div v-if="run == null" class="flex flex-col gap-y-1">
-      <!-- Variables/Inputs -->
-      <div v-for="fieldType in [FieldType.RESOURCE, FieldType.INPUT]" :key="fieldType" class="px-5">
-        <SomeObject
-          :id="`fields-${fieldType}`"
-          class="w-full"
-          :value-type="fieldType == FieldType.INPUT ? inputType : variableType"
-          is-inline
-          is-input
-          is-minimal
-          :model-value="fieldType == FieldType.INPUT ? inputsPacked : resourcesPacked"
-          @update:model-value="
-            (value: any, options?: ModelValueOptions) => {
-              const subnode = { [fieldType == FieldType.INPUT ? 'inputsPacked' : 'resourcesPacked']: value };
-              state.update(
-                { metatype: NodeType.VIEW, type: ViewType.RUN, subnode },
-                options?.field != null ? getTransactionOptionsForType(options.field) : { debounce: 'short' },
-              );
-            }
-          "
-        />
-      </div>
+      <!-- Inputs -->
+      <SomeObject
+        id="inputs"
+        class="w-full"
+        :value-type="inputType"
+        is-inline
+        is-input
+        is-minimal
+        :model-value="inputsPacked"
+        @update:model-value="
+          (value: any, options?: ModelValueOptions) => {
+            state.update(
+              { metatype: NodeType.VIEW, type: ViewType.RUN, subnode: { inputsPacked: value } },
+              options?.field != null ? getTransactionOptionsForType(options.field) : { debounce: 'short' },
+            );
+          }
+        "
+      />
     </div>
     <!-- Existing Run -->
     <div v-else class="flex flex-col gap-y-1">
@@ -145,16 +131,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
           </button>
         </div>
       </div>
-      <!-- Variables/Inputs/Outputs -->
-      <SomeObject
-        v-if="run?.resourcesPacked != null"
-        id="fields-variables"
-        class="w-full px-5"
-        :value-type="variableType"
-        is-inline
-        is-minimal
-        :model-value="run?.resourcesPacked"
-      />
+      <!-- Inputs -->
       <SomeObject
         v-if="run?.inputsPacked != null"
         id="fields-input"

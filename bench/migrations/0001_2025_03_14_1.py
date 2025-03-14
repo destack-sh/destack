@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2025.03.13. Edit as needed.
+# This migration was automatically generated on 2025.03.14. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2025.03.13.1"
+VERSION = "2025.03.14.1"
 HAS_GLOBAL = True
 HAS_REGIONAL = True
 HAS_LOCAL = True
@@ -15,8 +15,8 @@ HAS_LOCAL = True
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -314,8 +314,8 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 async def upgrade_regional(cur: psycopg.AsyncCursor):
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -360,7 +360,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -411,7 +410,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -461,7 +459,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -508,13 +505,12 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "owned_by_type" smallint,
         "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
-        "type" smallint NOT NULL DEFAULT 1,
+        "type" smallint NOT NULL,
         "name" varchar,
         "order_key" varchar,
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -570,7 +566,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -628,7 +623,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -671,7 +665,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "region" smallint NOT NULL,
         "scaler_id" uuid,
@@ -756,7 +749,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -776,7 +768,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[]
     )
     """
@@ -840,7 +831,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[]
     )
     """
@@ -871,7 +861,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[]
     )
     """
@@ -884,7 +873,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
         "parent_id" uuid,
-        "parent_ck" uuid,
         "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
@@ -982,7 +970,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[]
     )
     """
@@ -1015,7 +1002,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "options" jsonb,
         "selection" jsonb,
@@ -1032,7 +1018,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
         "parent_id" uuid,
-        "parent_ck" uuid,
         "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
@@ -1072,7 +1057,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_link" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
-        "parent_ck" uuid,
         "parent_type" smallint,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
@@ -1112,9 +1096,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_trigger" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
-        "parent_ck" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1180,7 +1162,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "target_id" uuid,
         "target_ck" uuid,
@@ -1218,7 +1199,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "subviews_packed" jsonb,
         "value_type" jsonb,
@@ -1273,7 +1253,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[]
     )
     """
@@ -1306,7 +1285,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[]
     )
     """
@@ -1336,7 +1314,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "color" smallint
     )
@@ -1378,8 +1355,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "inspection_base_id" uuid,
         "channel_id" uuid,
         "channel_bench_id" uuid,
-        "thread_id" uuid,
-        "thread_bench_id" uuid,
         "run_id" uuid,
         "run_bench_id" uuid,
         "run_base_id" uuid
@@ -1392,9 +1367,9 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         """
     CREATE TABLE "bench_thread" (
         "id" uuid NOT NULL PRIMARY KEY,
+        "ck" uuid NOT NULL,
         "parent_id" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1404,23 +1379,31 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "updated_by_id" uuid,
         "updated_by_type" smallint,
         "deleted_at" timestamp,
+        "template_id" uuid,
+        "template_bench_id" uuid,
+        "template_at" timestamp,
         "owned_by_id" uuid,
         "owned_by_type" smallint,
         "mode" smallint NOT NULL DEFAULT 20,
         "subnode_packed" jsonb,
         "type" smallint NOT NULL DEFAULT 1,
         "title" jsonb,
+        "order_key" varchar,
+        "icon" jsonb,
+        "definition_id" uuid,
+        "tags_id" uuid[],
         "channel_id" uuid,
         "scope_id" uuid,
+        "scope_ck" uuid,
         "scope_type" smallint,
         "scope_bench_id" uuid,
         "run_root_id" uuid,
         "run_root_base_id" uuid,
         "run_id" uuid,
         "run_base_id" uuid,
+        "created_from_id" uuid,
         "status" smallint NOT NULL DEFAULT 10,
         "closed_at" timestamp,
-        "created_from_id" uuid,
         "text" jsonb,
         "session_id" uuid,
         "client_id" uuid,
@@ -1453,6 +1436,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "platform" smallint NOT NULL DEFAULT 1,
         "channel_id" uuid,
         "thread_id" uuid,
+        "thread_ck" uuid,
         "scope_id" uuid,
         "scope_ck" uuid,
         "scope_type" smallint,
@@ -1512,6 +1496,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "title" jsonb,
         "channel_id" uuid,
         "thread_id" uuid,
+        "thread_ck" uuid,
         "status" smallint NOT NULL DEFAULT 30,
         "failed_at" timestamp,
         "sent_at" timestamp,
@@ -1616,7 +1601,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1638,6 +1622,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "page_id" uuid,
         "channel_id" uuid,
         "thread_id" uuid,
+        "thread_ck" uuid,
         "status" smallint NOT NULL DEFAULT 1,
         "attempt" integer,
         "duration" interval,
@@ -1650,7 +1635,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "terminated_at" timestamp,
         "error" jsonb,
         "interruption_id" uuid,
-        "resources_packed" jsonb,
         "inputs_packed" jsonb,
         "outputs_packed" jsonb,
         "text" jsonb,
@@ -1680,7 +1664,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_run_span" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1736,7 +1719,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
     CREATE TABLE "bench_interruption" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1791,7 +1773,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1822,9 +1803,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
         "parent_id" uuid,
-        "parent_ck" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1847,7 +1826,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "on_terminate" smallint NOT NULL,
         "on_failure" smallint NOT NULL,
@@ -1873,9 +1851,7 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "id" uuid NOT NULL PRIMARY KEY,
         "ck" uuid NOT NULL,
         "parent_id" uuid,
-        "parent_ck" uuid,
         "parent_type" smallint,
-        "parent_base_id" uuid,
         "bench_id" uuid NOT NULL,
         "package_id" uuid NOT NULL,
         "created_at" timestamp NOT NULL,
@@ -1898,7 +1874,6 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "icon" jsonb,
         "text" jsonb,
         "definition_id" uuid,
-        "thread_id" uuid,
         "tags_id" uuid[],
         "implemented_by_id" uuid,
         "implemented_by_base_id" uuid,
@@ -1917,6 +1892,49 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         "value_packed" jsonb,
         "interruption_id" uuid,
         "is_manual" boolean NOT NULL DEFAULT false,
+        "session_id" uuid,
+        "client_id" uuid,
+        "computer_id" uuid,
+        "user_id" uuid
+    )
+    """
+    )
+
+    # bench_claim
+    await cur.execute(
+        """
+    CREATE TABLE "bench_claim" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "ck" uuid NOT NULL,
+        "parent_id" uuid,
+        "parent_type" smallint,
+        "bench_id" uuid NOT NULL,
+        "package_id" uuid NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_by_id" uuid,
+        "created_by_type" smallint,
+        "updated_at" timestamp NOT NULL,
+        "updated_by_id" uuid,
+        "updated_by_type" smallint,
+        "deleted_at" timestamp,
+        "template_id" uuid,
+        "template_bench_id" uuid,
+        "template_at" timestamp,
+        "owned_by_id" uuid,
+        "owned_by_type" smallint,
+        "mode" smallint NOT NULL DEFAULT 20,
+        "subnode_packed" jsonb,
+        "type" smallint NOT NULL,
+        "name" varchar,
+        "status" smallint NOT NULL DEFAULT 10,
+        "duration" interval,
+        "opened_at" timestamp,
+        "granted_at" timestamp,
+        "closed_at" timestamp,
+        "resource_id" uuid,
+        "resource_type" smallint,
+        "resource_bench_id" uuid,
+        "resource_selection" jsonb,
         "session_id" uuid,
         "client_id" uuid,
         "computer_id" uuid,
@@ -2157,6 +2175,11 @@ async def upgrade_regional(cur: psycopg.AsyncCursor):
         'CREATE INDEX "bench_task_bench_idx_parent_id" ON "bench_task" USING BTREE (parent_id) INCLUDE (id)'
     )
 
+    # bench_claim
+    await cur.execute(
+        'CREATE INDEX "bench_claim_bench_idx_parent_id" ON "bench_claim" USING BTREE (parent_id) INCLUDE (id)'
+    )
+
 
 async def downgrade_regional(cur: psycopg.AsyncCursor):
     raise NotImplementedError
@@ -2169,9 +2192,9 @@ async def downgrade_regional(cur: psycopg.AsyncCursor):
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
 
     # bench_migration
     await cur.execute(

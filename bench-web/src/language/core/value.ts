@@ -202,7 +202,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
       (value as any)[propName] = prop.default;
     } else if (prop.isList) {
       (value as any)[propName] = [];
-    } 
+    }
   }
   value.metatype = objectType;
   return value;
@@ -381,7 +381,6 @@ export function unpackCustomObject(
 const PROPERTY_NAME_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
   [FieldType.INPUT]: "inputsPacked",
   [FieldType.OUTPUT]: "outputsPacked",
-  [FieldType.RESOURCE]: "resourcesPacked",
   [FieldType.MEMBER]: "valuePacked",
 };
 
@@ -437,7 +436,7 @@ export function unpackPartialNode(
         const prop = subtypeProperties[propId];
         const propName = subtypePropertiesEnum[prop.id];
         const propType = getPropertyType(prop);
-        (subnode)[propName] = unpackValue(valuePacked[key], propType);
+        subnode[propName] = unpackValue(valuePacked[key], propType);
       } else {
         // subtype field not needed yet?
       }

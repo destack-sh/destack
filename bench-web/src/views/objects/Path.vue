@@ -1,7 +1,8 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
 import { isSourceNode } from "@/language/core/const";
-import { makeTypeConstraint, makeType } from "@/language/core/type";
 import { makePath } from "@/language/core/path";
+import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/runtime/run";
 import {
   BenchType,
@@ -13,15 +14,14 @@ import {
   StructType,
   StructTypeOptionInfo,
   TypeKind,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
+import { makeIcon } from "@/ui/icon";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Picker from "@/views/content/Picker.vue";
 import { computed, toRef } from "vue";
-import { makeIcon } from "@/ui/icon";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
@@ -43,11 +43,13 @@ const nodeValueType = computed(() =>
     isRequired: props.valueType?.isRequired ?? false,
     constraint: makeTypeConstraint({
       nodeScopePtr: props.valueType?.constraint?.nodeScopePtr,
-      nodeSubtypes: [FieldType.INPUT, FieldType.OUTPUT, FieldType.RESOURCE],
+      nodeSubtypes: [FieldType.INPUT, FieldType.OUTPUT],
     }),
   }),
 );
-const nodeValue = computed(() => modelValue.value?.elements.findLast((e) => e.type == PathElementType.ATTRIBUTE)?.nodePtr);
+const nodeValue = computed(
+  () => modelValue.value?.elements.findLast((e) => e.type == PathElementType.ATTRIBUTE)?.nodePtr,
+);
 function updateNodeValue(value: NodeReferenceData) {
   // assumes that we want the node's Runtime-field of that type :RunComputedValue
   const { node, graph } = supergraph.getLinkOrError(value);

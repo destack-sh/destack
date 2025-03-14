@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isInlineNode, isSourceNode, isStateNode, toCamelName } from "@/language/core/const";
+import { isInlineNode, isSourceNode, toCamelName } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
 import { isRunnable } from "@/language/runtime/run";
@@ -92,7 +92,7 @@ const targetPropertiesEnum = computed(() =>
 const scope = computed(() => {
   if (delegate.value != null) {
     return delegate.value;
-  } else if (isStateNode(inspection.value) || (isSourceNode(inspection.value) && !isInlineNode(inspection.value))) {
+  } else if (isSourceNode(inspection.value) && !isInlineNode(inspection.value)) {
     return parent.value;
   } else {
     return inspection.value;

@@ -45,20 +45,12 @@ defineExpose<ViewExpose>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex items-center gap-x-1.5 transition-colors duration-75"
+    class="flex items-center gap-x-1.5 rounded pr-2 transition-colors duration-75"
     :class="[
       !isMinimal ? 'w-fit border' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       isSelected ? 'border-gray-400 bg-orange-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
-      field.type == FieldType.RESOURCE
-        ? !isMinimal
-          ? 'rounded-2xl pr-2.5'
-          : 'rounded'
-        : '',
-      field.type == FieldType.INPUT || field.type == FieldType.OUTPUT || field.type == FieldType.MEMBER
-        ? 'rounded pr-2'
-        : '',
     ]"
     data-suppress-drag="select"
   >

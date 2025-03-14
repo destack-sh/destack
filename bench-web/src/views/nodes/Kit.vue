@@ -6,7 +6,6 @@ import {
   ActionData,
   ActionType,
   BenchType,
-  FieldType,
   KitData,
   NodeReferenceData,
   NodeType,
@@ -14,7 +13,7 @@ import {
   PickerVariant,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
@@ -25,7 +24,6 @@ import { generateOrderKey } from "@/utils/fractional";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
-import FieldList from "@/views/objects/FieldList.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, Ref, ref, toRef } from "vue";
 
@@ -171,15 +169,6 @@ defineExpose<ViewExpose>({ self, id, focus });
         <!-- For ...? -->
       </template>
       <template #right="{ style }">
-        <!-- Resources -->
-        <FieldList
-          v-if="style == 'page'"
-          id="type.resource"
-          class=""
-          :prepared-connection="preparedConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.RESOURCE"
-        />
         <!-- Create Action -->
         <button
           class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
