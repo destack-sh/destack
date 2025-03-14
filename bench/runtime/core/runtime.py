@@ -12,7 +12,6 @@ from bench.language import (
     DEFAULT_CHECK_OPTIONS,
     DEFAULT_RESOURCE_TIMEOUT,
     DEFAULT_WAIT_TIMEOUT,
-    NODE_CLASS_BY_TYPE,
     RUN_STATUS_BY_INTERRUPTION_TYPE,
     RUNTIME_NODE_TYPES,
     Action,
@@ -21,6 +20,8 @@ from bench.language import (
     BreakpointSite,
     BuiltinObject,
     CheckOptions,
+    Claim,
+    ClaimStatus,
     ComputedValue,
     ComputedValueKind,
     ComputedValueMode,
@@ -43,7 +44,6 @@ from bench.language import (
     PathOptions,
     ReferenceKind,
     Resource,
-    ResourceStatus,
     Run,
     RunSpan,
     RunSpanType,
@@ -52,9 +52,8 @@ from bench.language import (
     Session,
     SessionStatus,
     Thread,
+    ThreadType,
     TriggerEffect,
-    Type,
-    TypeIn,
     TypeKind,
     ValidationError,
     WatchGetUpdate,
@@ -62,18 +61,13 @@ from bench.language import (
     coerce_value,
     evaluate_path,
     get_custom_object_properties,
-    is_node_type,
-    is_value,
     isolated_graph,
     on_invalid_raise,
     run_span,
     synchronize_nodes,
-    to_type_scalar,
 )
-from bench.language.communication.thread import ThreadType
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
-from bench.utils.naming import generate_random_name
 from bench.utils.oracle import Oracle
 
 from .runner import (
@@ -352,66 +346,22 @@ class Runtime:
             for sub in subs:
                 sub()
 
-    def _get_resource[R: Resource = Resource](
-        self, runner: Runner, resource_type: Type | TypeIn | type[R]
-    ) -> R | None:
-        """Finds a Resource in the current context of a Runner."""
-        resource_type = to_type_scalar(resource_type)
-        assert resource_type.bench_type is not None, f"no bench_type for {resource_type!r}"
+    def _find_resource[R: Resource = Resource](
+        self, runner: Runner, claim: type[R] | R | Claim
+    ) -> R:
+        """Finds a Resource of the given type/template."""
 
         # traverse resources up
-        parent = runner
-        while parent is not None:
-            if parent.resources is not None:
-                for field in parent.resources.fields:
-                    if field.bench_type == resource_type.bench_type:
-                        field_value = parent.resources._do_get(field)
-                        if is_value(field_value, resource_type):
-                            return cast(R, field_value)
-            parent = parent.parent
-        return None
+        raise NotImplementedError(f"nocheckin: _find_resource {runner!r} {claim!r}")
 
-    def _create_resource(self, resource_type: Type, **kwargs: Any) -> Resource:
-        """Create a new Resource of the given type."""
-        # get class
-        node_type = resource_type.bench_type
-        assert is_node_type(node_type), f"invalid resource type {resource_type!r}"
-        node_type = NodeType(node_type)
-        resource_cls = NODE_CLASS_BY_TYPE[node_type]
-        assert issubclass(resource_cls, Resource), f"{resource_cls} in {resource_type!r}"
-        # create resource
-        resource_kwargs: dict[str, Any] = {"name": generate_random_name()}
-        resource_kwargs.update(kwargs)
-        resource = resource_cls(**resource_kwargs)
-        self.bench.append(resource)
+    def _get_resource[R: Resource = Resource](
+        self, runner: Runner, claim: type[R] | R | Claim
+    ) -> R:
+        """Finds a Resource of the given type/template."""
+        resource = self._find_resource(runner, claim)
+        if resource is None:
+            raise LookupError(f"no resource for {claim!r} in {runner!r}")
         return resource
-
-    async def _get_or_create_resources(
-        self,
-        runner: Runner,
-        resources: Sequence[Resource | Type | TypeIn],
-    ) -> list[Resource]:
-        """Get or create the available Resources for the given Runner."""
-        # TODO :Incomplete: reuse resources across (unrelated) Runs? :ExclusiveOwnership
-        #  (also related to switching from ResourceFields to :ResourceClaims somehow?)
-        resource_types = [to_type_scalar(t) for t in resources if not isinstance(t, Resource)]
-        resources_to_acquire: list[Resource] = [r for r in resources if isinstance(r, Resource)]
-        for resource_type in resource_types:
-            node_type = resource_type.bench_type
-            assert is_node_type(node_type), f"invalid resource type {resource_type!r}"
-            node_type = NodeType(node_type)
-            assert node_type.is_resource, f"expected resource type, got {node_type!r}"
-
-            # check context for matching resource or create new one
-            resource = self._get_resource(runner, resource_type)
-            if resource is not None:
-                resources_to_acquire.append(resource)
-                logger.trace("runtime.acquire_resources.reuse", resource=resource)
-            else:
-                resource = self._create_resource(resource_type)
-                resources_to_acquire.append(resource)
-                logger.debug("runtime.acquire_resources.new", resource=resource)
-        return resources_to_acquire
 
     def _set_context(self, node: IsRuntime):
         """Sets the current context on a RunSpan."""
@@ -564,7 +514,8 @@ class Runtime:
         Prepare the Run for execution (only for Runs, not RunSpans).
         A Run is prepared before the first time it's attempted, so only once.
         """
-        assert type(runner.tracked) is Run, f"expected Run, got {runner.tracked!r}"
+        run = runner.tracked_run
+        assert run is not None, f"missing tracked run for {runner!r}"
 
         # compute resources/inputs/options from context
         if isinstance(runner.node, Action):
@@ -572,66 +523,37 @@ class Runtime:
             if runner.inputs is not None:
                 runner.inputs.set_default(runner.node, _skip_validate=True)
         # apply computed values
-        if runner.tracked_run is not None:  # (only in tracked runs)
-            try:
-                for computed_value in runner.node.computed_values:
-                    if computed_value.target_path is not None and computed_value.is_active:
-                        self._apply_computed_value(runner, computed_value)
-            except Exception as e:
-                runner.status = RunStatus.FAILED
-                runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
-                raise
+        try:
+            for computed_value in runner.node.computed_values:
+                if computed_value.target_path is not None and computed_value.is_active:
+                    self._apply_computed_value(runner, computed_value)
+        except Exception as e:
+            runner.status = RunStatus.FAILED
+            runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
+            raise
 
-        # check resources
-        if runner.resource_type is not None and (resource_fields := runner.resource_type._fields):
-            with tracer.start_as_current_span("runtime.check_resources"):
-                resources = runner.resources
-                assert resources is not None, f"missing resources in {runner!r}"
-                try:
-                    missing_resource_fields: list[Field] = []
-                    for field in resource_fields:
-                        resource_value = resources._do_get(field)
-                        if (
-                            resource_value is None
-                            and is_node_type(field.bench_type)
-                            and NodeType(field.bench_type).is_resource
-                        ):
-                            missing_resource_fields.append(field)
-                            continue
-                        else:
-                            check_value(
-                                resource_value,
-                                field,
-                                options=DEFAULT_CHECK_OPTIONS,
-                                invalid=on_invalid_raise,
-                            )
-                except ValidationError as e:
-                    runner.status = RunStatus.FAILED
-                    runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
-                    raise
-
-            # acquire missing resources
-            if missing_resource_fields:
-                with run_span(
-                    tracer, "runtime.acquire_resources", RunSpanType.ACQUIRE, runner=runner
-                ) as span:
-                    resources_nodes = await self._get_or_create_resources(
-                        runner=runner, resources=missing_resource_fields
-                    )
-                    if span is not None:
-                        span.nodes = cast(list["Node"], resources_nodes)
-                    for field, resource in zip(missing_resource_fields, resources_nodes):
-                        resources._do_set(field, resource, validate=False)
-                    await self.wait_for(
-                        nodes=resources_nodes,
-                        condition=lambda: all(
-                            resource.status == ResourceStatus.UP for resource in resources_nodes
-                        ),
-                        timeout=DEFAULT_RESOURCE_TIMEOUT,
-                    )
-                    # TODO :Incomplete!: free/decommission resourcers on Run termination?
-                    #  (use Resource.active_at for timeout/keepalive as backup in Host
-                    #   ... also see above for :ResourceClaims instead/also maybe)
+        # prepare resources
+        open_claims: list[Claim] = []
+        for claim in runner.node.claims:
+            resource = self._find_resource(runner, claim)
+            if resource is None:
+                # create new claim
+                claim = claim.instance(recursive=False, detach=True)
+                claim.parent = run
+                self.session._create(claim)
+        if open_claims:
+            with run_span(
+                tracer, "runtime.acquire_resources", RunSpanType.ACQUIRE, runner=runner
+            ) as span:
+                if span is not None:
+                    span.nodes = cast(list["Node"], open_claims)
+                await self.wait_for(
+                    nodes=open_claims,
+                    condition=lambda: all(
+                        claim.status == ClaimStatus.ACTIVE for claim in open_claims
+                    ),
+                    timeout=DEFAULT_RESOURCE_TIMEOUT,
+                )
 
         # check inputs
         if runner.input_type is not None:

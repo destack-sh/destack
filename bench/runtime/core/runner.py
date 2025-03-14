@@ -23,6 +23,7 @@ from bench.language import (
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
+    Claim,
     Code,
     CustomObject,
     Error,
@@ -51,9 +52,7 @@ from bench.language import (
     RunStatus,
     RunType,
     Session,
-    Type,
     TypeBase,
-    TypeIn,
     active_session,
 )
 from bench.language.core.const import ACTIVE_SESSION
@@ -519,19 +518,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         if self.should_pause:
             self._trap_interruption(InterruptionType.PAUSE)
 
-    def _get_resource[R: Resource = Resource](
-        self, resource_type: Type | TypeIn | type[R]
-    ) -> R | None:
+    def _get_resource[R: Resource = Resource](self, claim: type[R] | R | Claim) -> R:
         """Finds a Resource in the current context of a Runner."""
-        return self.runtime._get_resource(self, resource_type)
-
-    def _get_ready_resource_or_error[R: Resource = Resource](
-        self, resource_type: Type | TypeIn | type[R]
-    ) -> R:
-        """Finds a Resource in the current context of a Runner."""
-        resource = self._get_resource(resource_type)
+        resource = self.runtime._get_resource(self, claim)
         if resource is None:
-            raise LookupError(f"no resource like {resource_type} found in {self!r}")
+            raise LookupError(f"no resource for {claim!r} in {self!r}")
         if resource.status != ResourceStatus.UP:
             raise RuntimeError(f"resource {resource!r} is not ready in {self!r}")
         return resource

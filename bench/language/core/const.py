@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.14.1"
+VERSION = "2025.03.14.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -700,6 +700,7 @@ INLINE_NODE_TYPES = bittuple(
 INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.ACTION,
     NodeType.FIELD,
+    NodeType.OPTION,
     NodeType.DATABASE,
     NodeType.PLAN,
     NodeType.TASK,

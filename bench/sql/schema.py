@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.14.1"
+VERSION = "2025.03.14.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -840,6 +840,7 @@ OPTION_TABLE = Table(
     "bench_option",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),

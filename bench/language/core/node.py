@@ -492,6 +492,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 self.ck = cls.__ck_factory__()  # type: ignore
                 self.id = cls.__id_factory__()
                 self._is_new = True
+            elif self.id is None:
+                self.id = cls.__id_factory__()
+                self._is_new = True
         elif self.id is None:
             self.id = cls.__id_factory__()
             self._is_new = True
@@ -1438,6 +1441,62 @@ class IsTemplatable(BuiltinObject):
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
     template_at: datetime | None = p_system(16, default=None, autoset=True)
+
+    def instance(
+        self,
+        template_at: datetime | None = None,
+        recursive: bool = True,
+        detach: bool = True,
+        map: bool | dict[UUID, "Node"] = True,
+        **kwargs: Any,
+    ) -> Self:
+        """
+        Creates a new instance of this Node.
+        Similar to Node.clone, but sets the original Nodes as the template source.
+        """
+        assert isinstance(self, Node), f"{self!r} must be a Node"
+        assert isinstance(self, IsModal), f"{self!r} must be modal"
+        session = self.active_session
+
+        # instance self
+        instance_kwargs = self._clone_kwargs(reset=True)
+        if self.mode == NodeMode.TEMPLATE:
+            instance_kwargs["mode"] = NodeMode.MAIN
+        if template_at is None:
+            template_at = session._oracle.utc()
+        instance_kwargs.update(kwargs)
+        if isinstance(self, IsInstantiable):
+            instance_kwargs["ck"] = self.ck
+        instance_kwargs["template"] = self
+        instance_kwargs["template_at"] = template_at
+        instance = self.__class__(**instance_kwargs)
+
+        # instance children and append to self
+        if recursive:
+            for child_prop in self.__node_child_properties__.values():
+                if child_prop.reference_list_type is not LocalNodeList:
+                    continue  # only clone local lists
+                child_list = getattr(self, child_prop.name)
+                instance_list = getattr(instance, child_prop.name)
+                for child in child_list:
+                    child_instance = child.instance(recursive=True, detach=True, map=map)
+                    instance_list.append(child_instance)
+                    if type(map) is dict:
+                        map[child.id] = child_instance
+
+        # map new identities
+        if type(map) is dict:
+            for node in map.values():
+                node.replace_references(map)
+
+        # append to our parent to re-attach
+        parent = self.parent
+        if detach:
+            instance.parent_ptr = None
+        elif parent:
+            parent.append(instance)
+
+        return instance
 
 
 @node_component_()

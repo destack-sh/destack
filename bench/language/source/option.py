@@ -3,8 +3,8 @@ from typing import Optional, Union
 
 from bench.language.core import (
     NAME_CONSTRAINT,
+    IsInstantiable,
     IsModal,
-    IsTemplatable,
     NodeType,
     PackageNode,
     StructType,
@@ -24,7 +24,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.OPTION)
-class Option(IsTemplatable, IsModal, PackageNode[OptionData]):
+class Option(IsInstantiable, IsModal, PackageNode[OptionData]):
     """
     An Option in a Choice or something.
     """
