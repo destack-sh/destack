@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import builtins
+import keyword
 from datetime import date, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
@@ -30,6 +31,8 @@ from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from .capture import LogSink
 
 RUNTIME_ERROR_CLASSES = get_subclasses(RuntimeError)
+
+PYTHON_KEYWORDS = set(keyword.kwlist)
 
 # standard python builtins (usually available everywhere)
 BUILTIN_GLOBALS = {k: v for k, v in builtins.__dict__.items() if not k.startswith("_")}

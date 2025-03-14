@@ -185,13 +185,11 @@ LETTER_BY_FIELD_TYPE: dict[FieldType, str] = {
     FieldType.MEMBER: "M",
     FieldType.INPUT: "I",
     FieldType.OUTPUT: "O",
-    FieldType.RESOURCE: "R",
 }
 FIELD_TYPE_BY_LETTER: dict[str, FieldType] = {
     "M": FieldType.MEMBER,
     "I": FieldType.INPUT,
     "O": FieldType.OUTPUT,
-    "R": FieldType.RESOURCE,
 }
 
 STORAGE_KEY_PREFIX_LENGTH = CK_LENGTH_B64 + 1

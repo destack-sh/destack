@@ -95,10 +95,6 @@ class Flow(IsComputable, IsTemplatable, IsTraceable, IsNamed, InlineNode[FlowDat
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def resource_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(of="value", field_types=[FieldType.RESOURCE])
-
-    @cached_property  # :CachedTypeInfo
     def input_type(self) -> "TypeBase | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 

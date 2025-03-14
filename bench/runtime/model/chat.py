@@ -47,7 +47,6 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        resources: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
         super().__init__(
@@ -58,7 +57,6 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             context=context,
             parent=parent,
             inputs=inputs,
-            resources=resources,
             outputs=outputs,
             run=run,
         )
@@ -112,7 +110,6 @@ class ChatModelRunner(ModelRunner[Action], ABC):
                 action=self.node,
                 runner=cast(Runner[RunnableNode], self),
                 context=self.context,
-                resources=self.resources,
                 inputs=self.inputs,
                 outputs=self.outputs,
                 output_type=self.output_type,
@@ -136,7 +133,6 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             aliasing=prompt.aliasing,
             options=ATTEMPT_ONCE,
             context=self.context,
-            resources=self.resources,
             inputs=self.inputs,
             outputs=self.output_type,
             parent=cast(Runner[RunnableNode], self),

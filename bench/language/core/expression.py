@@ -535,7 +535,6 @@ NODE_PROPERTY_KEY_BY_FIELD_TYPE: dict[FieldType, str] = {
     FieldType.INPUT: "inputs_packed",
     FieldType.OUTPUT: "outputs_packed",
     FieldType.MEMBER: "value_packed",
-    FieldType.RESOURCE: "resources_packed",
 }
 
 

@@ -65,16 +65,8 @@ class Class(IsTemplatable, IsTraceable, IsNamed, InlineNode[BlockData]):
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def variable_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.RESOURCE])
-
-    @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.INPUT])
-
-    @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "TypeBase | None":
-        return self.to_type_maybe(field_types=[FieldType.OUTPUT])
+    def member_type(self) -> "TypeBase | None":
+        return self.to_type_maybe(field_types=[FieldType.MEMBER])
 
     @staticmethod
     def new(name: str, *fields: "Field", **kwargs) -> "Class":

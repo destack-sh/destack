@@ -516,7 +516,7 @@ class Runtime:
 
         # gather inputs, resources & outputs
         nodes_ptr_by_id: dict[UUID, NodeReference] = {}
-        for obj in (runner.inputs, runner.resources, runner.outputs):
+        for obj in (runner.inputs, runner.outputs):
             if obj is None:
                 continue
             # properties
@@ -809,8 +809,6 @@ class Runtime:
             if span.status != runner.status:
                 span.status = runner.status
             if type(span) is Run:
-                if span.resources is not runner.resources:
-                    span.resources = runner.resources
                 if span.inputs is not runner.inputs:
                     span.inputs = runner.inputs
                 if span.outputs is not runner.outputs:

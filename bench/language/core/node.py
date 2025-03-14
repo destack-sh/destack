@@ -1399,7 +1399,7 @@ class IsTraceable(BuiltinObject):
     """Context for tracing a Node."""
 
     # tracing :Tracing
-    mode: NodeMode = p_internal(25, default=None, default_sql=str(NodeMode.PRODUCTION.value))
+    mode: NodeMode = p_internal(25, default=None, default_sql=str(NodeMode.MAIN.value))
     # ... more tracing context
 
 
@@ -1414,7 +1414,7 @@ def get_tracing_context() -> TracingContext:
         mode = session.active_mode
         return TracingContext(mode=mode)
     else:
-        return TracingContext(mode=NodeMode.PRODUCTION)
+        return TracingContext(mode=NodeMode.MAIN)
 
 
 @node_component_()

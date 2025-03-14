@@ -20,6 +20,6 @@ BuiltinPackage.extend(ActionPage, BrowserPage, ComputerPage)
 
 # finalize
 for node in BuiltinPackage._graph.nodes:
-    if isinstance(node, IsTraceable) and node.mode == NodeMode.PRODUCTION:
+    if isinstance(node, IsTraceable) and node.mode == NodeMode.MAIN:
         node.mode = NodeMode.BUILTIN
 assign_builtin_ids(BuiltinPackage._graph, ignore=(BuiltinPackage,))

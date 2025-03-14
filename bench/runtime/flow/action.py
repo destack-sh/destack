@@ -57,7 +57,6 @@ class ActionRunner(Runner[Action], ABC):
         options: RunOptions,
         context: IsRuntime,
         parent: Runner | None = None,
-        resources: CustomObject | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
         flow: "FlowRunner | None" = None,
@@ -68,7 +67,6 @@ class ActionRunner(Runner[Action], ABC):
             options=options,
             context=context,
             parent=parent,
-            resources=resources,
             inputs=inputs,
             outputs=outputs,
             run=run,
@@ -117,7 +115,6 @@ class StaticActionRunner(ActionRunner):
                 model_type=model_type,
                 options=self.options,
                 context=self.context,
-                resources=self.resources,
                 inputs=self.inputs,
                 outputs=self.outputs or self.output_type,
                 parent=cast(Runner[Any], self),
@@ -174,7 +171,6 @@ class DynamicActionRunner(ActionRunner):
             model_type=model_type,
             options=self.options,
             context=self.context,
-            resources=self.resources,
             inputs=self.inputs,
             outputs=self.outputs or self.output_type,
             parent=cast(Runner[Any], self),
@@ -237,7 +233,6 @@ class CodeActionRunner(ActionRunner):
             run=RunSpanType.DELEGATE,
             code=code,
             aliasing=Aliasing(),
-            resources=self.resources,
             inputs=self.inputs,
             outputs=self.outputs or self.output_type,
         )
@@ -252,7 +247,6 @@ class ToolActionRunner(StaticActionRunner):
     def _get_resumable_subrunner(
         self,
         node: RunnableNode,
-        resources: CustomObject | None,
         inputs: CustomObject | None,
         output_type: TypeBase | None = None,
     ):
@@ -273,7 +267,6 @@ class ToolActionRunner(StaticActionRunner):
                 node=node,
                 run="track",
                 context=self.context,
-                resources=resources,
                 inputs=inputs,
                 outputs=output_type,
             )
@@ -288,7 +281,6 @@ class ToolActionRunner(StaticActionRunner):
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
                 node=tool,
                 # inputs/resources are both PartialAction with node=tool
-                resources=self.resources,
                 inputs=self.inputs,
                 output_type=self.output_type,
             )
@@ -304,7 +296,6 @@ class ToolActionRunner(StaticActionRunner):
                 options=self.options,
                 context=self.context,
                 parent=cast(Runner[Any], self),
-                resources=self.resources,
                 inputs=self.inputs,
                 outputs=self.output_type or self.outputs,
                 flow=self.flow,
