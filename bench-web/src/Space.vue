@@ -54,6 +54,19 @@ watch(
   },
   { immediate: true },
 );
+
+// sync browser slug
+watch(
+  bench,
+  () => {
+    if (bench.value != null) {
+      globalThis.history.replaceState({}, "", `/${bench.value.slug}`);
+    } else {
+      globalThis.history.replaceState({}, "", "/");
+    }
+  },
+  { immediate: true },
+);
 </script>
 <template>
   <!-- Space -->
