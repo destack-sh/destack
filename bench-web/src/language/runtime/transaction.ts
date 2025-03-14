@@ -30,7 +30,7 @@ import {
   Timestamp,
   type AnyNodeData,
   type EditData,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   arrayEquals,
@@ -327,7 +327,7 @@ export class TransactionBuilder implements Transaction {
 
     // inject :Tracing
     if ("mode" in properties && ((nodeIn as any).mode == null || (nodeIn as any).mode == 0)) {
-      (nodeIn as any).mode = NodeMode.PRODUCTION; // should this be relative to the current Space.mode?
+      (nodeIn as any).mode = NodeMode.MAIN; // should this be relative to the current Space.mode?
     }
 
     // create node

@@ -102,7 +102,7 @@ export const NAME_TYPE = makeType({
 });
 export const TITLE_TYPE = makeType({
   kind: TypeKind.PRIMITIVE,
-  primitiveType: PrimitiveType.STRING
+  primitiveType: PrimitiveType.STRING,
 });
 
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};
@@ -273,13 +273,11 @@ export const LETTER_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
   [FieldType.MEMBER]: "M",
   [FieldType.INPUT]: "I",
   [FieldType.OUTPUT]: "O",
-  [FieldType.RESOURCE]: "R",
 };
 export const FIELD_TYPE_BY_LETTER: Record<string, FieldType> = {
   M: FieldType.MEMBER,
   I: FieldType.INPUT,
   O: FieldType.OUTPUT,
-  R: FieldType.RESOURCE,
 };
 
 /** Gets the eternal storage key for values of this type identity. :FieldStorageKey */

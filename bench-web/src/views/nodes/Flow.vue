@@ -8,10 +8,10 @@ import {
   BenchType,
   ChangeCategory,
   FieldType,
+  LinkData,
   NodeReferenceData,
   NodeType,
   PickerVariant,
-  LinkData,
   PortSide,
   TypeKind,
   ViewData,
@@ -29,9 +29,9 @@ import {
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP,
   FlowContext,
-  pathToSvg,
   LINK_WIDTH,
   LinkPath,
+  pathToSvg,
   SELF_LINK_CONNECTION_DISTANCE,
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
@@ -39,11 +39,11 @@ import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Link from "@/views/nodes/Link.vue";
 import FieldList from "@/views/objects/FieldList.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { MaybeElement, useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
 
@@ -330,15 +330,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
           :prepared-connection="preparedConnection"
           :node-ptr="props.nodePtr"
           :field-type="FieldType.OUTPUT"
-        />
-        <!-- Resources -->
-        <FieldList
-          v-if="style == 'page'"
-          id="type.resource"
-          class=""
-          :prepared-connection="preparedConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.RESOURCE"
         />
       </template>
       <!-- Meta -->

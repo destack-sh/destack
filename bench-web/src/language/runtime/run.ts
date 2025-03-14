@@ -6,20 +6,19 @@ import {
   TERMINAL_RUN_STATUSES,
 } from "@/language/core/const";
 import {
-  BlockType,
   FieldType,
   FlowData,
   InterruptionData,
+  LinkData,
   NodeType,
   ObjectType,
-  LinkData,
   PropertyReferenceData,
   RunProperty,
   RunSpanData,
   RunStatus,
   RunType,
   type ActionData,
-  type RunData,
+  type RunData
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
@@ -50,7 +49,6 @@ export const VERB_BY_RUN_STATUS: Partial<Record<RunStatus, string>> = {
 };
 
 export const RUN_PROPERTY_BY_FIELD_TYPE: Partial<Record<FieldType, PropertyReferenceData>> = {
-  [FieldType.RESOURCE]: propertyReference(ObjectType.RUN, RunProperty.resourcesPacked),
   [FieldType.OUTPUT]: propertyReference(ObjectType.RUN, RunProperty.outputsPacked),
   [FieldType.INPUT]: propertyReference(ObjectType.RUN, RunProperty.inputsPacked),
 };

@@ -11,8 +11,6 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PageDataInfo,
-  PageProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
@@ -20,9 +18,7 @@ import {
   Region,
   ResourceNodeData,
   RunStatus,
-  RuntimeNodeData,
   SourceNodeData,
-  StateNodeData,
   StaticResourceNodeData,
   StructType,
   TaskStatus,
@@ -93,18 +89,8 @@ export function isStateNodeType(nodeType: any): boolean {
   return typeof nodeType == "number" && nodeType >= 5500 && nodeType < 6000;
 }
 
-export function isStateNode(node: any): node is StateNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isStateNodeType(node.metatype as unknown as NodeType);
-}
-
 export function isRuntimeNodeType(nodeType: any): boolean {
   return typeof nodeType == "number" && nodeType >= 6000 && nodeType < 6500;
-}
-
-export function isRuntimeNode(node: any): node is RuntimeNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isRuntimeNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isResourceNodeType(nodeType: any): boolean {

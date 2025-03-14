@@ -960,19 +960,6 @@ export function typeIndex(idx: {
     getItemFromValue: typeItemFromTypeIdentity,
     getValueFromItem: (candidate: TypeItem) => candidate,
     candidates: () => {
-      // NOTE :Cleanup: typeIndex and resource type filter seems clumsy
-      // (but typeIndex in general seems like a mess, probably shouldn't be in regular search/Picker anyway..)
-      if (idx.fieldType == FieldType.RESOURCE) {
-        const allItems: TypeItem[] = [];
-        for (const nodeType of [NodeType.BROWSER, NodeType.COMPUTER]) {
-          const item = typeItemFromTypeIdentity(
-            makeType({ kind: TypeKind.NODE, benchType: nodeType as unknown as BenchType }),
-          );
-          if (item != null) allItems.push(item);
-        }
-        return allItems;
-      }
-
       // primitives
       const primitiveItems = getTypeItemEnumOptions(EnumType.PRIMITIVE_TYPE);
       const typeFormatItems = getTypeItemEnumOptions(EnumType.TYPE_FORMAT);
