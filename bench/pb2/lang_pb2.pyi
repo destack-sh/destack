@@ -229,7 +229,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_TEXT_TABLE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_CELL: _ClassVar[StructType]
     STRUCT_TYPE_CODE: _ClassVar[StructType]
-    STRUCT_TYPE_CODE_LINE: _ClassVar[StructType]
     STRUCT_TYPE_PATH: _ClassVar[StructType]
     STRUCT_TYPE_PATH_ELEMENT: _ClassVar[StructType]
     STRUCT_TYPE_EXPRESSION: _ClassVar[StructType]
@@ -335,7 +334,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_TEXT_TABLE: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_CELL: _ClassVar[ObjectType]
     OBJECT_TYPE_CODE: _ClassVar[ObjectType]
-    OBJECT_TYPE_CODE_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_PATH: _ClassVar[ObjectType]
     OBJECT_TYPE_PATH_ELEMENT: _ClassVar[ObjectType]
     OBJECT_TYPE_EXPRESSION: _ClassVar[ObjectType]
@@ -441,7 +439,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TEXT_TABLE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_CELL: _ClassVar[BenchType]
     BENCH_TYPE_CODE: _ClassVar[BenchType]
-    BENCH_TYPE_CODE_LINE: _ClassVar[BenchType]
     BENCH_TYPE_PATH: _ClassVar[BenchType]
     BENCH_TYPE_PATH_ELEMENT: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION: _ClassVar[BenchType]
@@ -2165,7 +2162,6 @@ STRUCT_TYPE_TEXT_SPAN: StructType
 STRUCT_TYPE_TEXT_TABLE: StructType
 STRUCT_TYPE_TEXT_CELL: StructType
 STRUCT_TYPE_CODE: StructType
-STRUCT_TYPE_CODE_LINE: StructType
 STRUCT_TYPE_PATH: StructType
 STRUCT_TYPE_PATH_ELEMENT: StructType
 STRUCT_TYPE_EXPRESSION: StructType
@@ -2268,7 +2264,6 @@ OBJECT_TYPE_TEXT_SPAN: ObjectType
 OBJECT_TYPE_TEXT_TABLE: ObjectType
 OBJECT_TYPE_TEXT_CELL: ObjectType
 OBJECT_TYPE_CODE: ObjectType
-OBJECT_TYPE_CODE_LINE: ObjectType
 OBJECT_TYPE_PATH: ObjectType
 OBJECT_TYPE_PATH_ELEMENT: ObjectType
 OBJECT_TYPE_EXPRESSION: ObjectType
@@ -2371,7 +2366,6 @@ BENCH_TYPE_TEXT_SPAN: BenchType
 BENCH_TYPE_TEXT_TABLE: BenchType
 BENCH_TYPE_TEXT_CELL: BenchType
 BENCH_TYPE_CODE: BenchType
-BENCH_TYPE_CODE_LINE: BenchType
 BENCH_TYPE_PATH: BenchType
 BENCH_TYPE_PATH_ELEMENT: BenchType
 BENCH_TYPE_EXPRESSION: BenchType
@@ -3574,23 +3568,15 @@ class NodeReferenceData(_message.Message):
     base_id: str
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., node_type: _Optional[_Union[NodeType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., bench_id: _Optional[str] = ..., base_id: _Optional[str] = ...) -> None: ...
 
-class CodeLineData(_message.Message):
-    __slots__ = ("metatype", "content")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    CONTENT_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    content: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., content: _Optional[str] = ...) -> None: ...
-
 class CodeData(_message.Message):
-    __slots__ = ("metatype", "language", "lines")
+    __slots__ = ("metatype", "language", "content")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
-    LINES_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     language: str
-    lines: _containers.RepeatedCompositeFieldContainer[CodeLineData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., language: _Optional[str] = ..., lines: _Optional[_Iterable[_Union[CodeLineData, _Mapping]]] = ...) -> None: ...
+    content: str
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., language: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
 
 class TextSpanData(_message.Message):
     __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")

@@ -12,7 +12,7 @@ from .access import (
     evaluate_use,
     generate_access_matrix,
 )
-from .code import Code, CodeLine, CodeType, code, format_code
+from .code import Code, CodeType, code, format_code
 from .color import Color, ColorIn, to_color
 from .const import (
     ACCESS_KINDS,
@@ -429,7 +429,6 @@ __all__ = [
     "ClientType",
     "Cloud",
     "Code",
-    "CodeLine",
     "CodeType",
     "Color",
     "ColorIn",

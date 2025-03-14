@@ -91,19 +91,6 @@ export interface NodeReferenceData {
     baseId?: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.CodeLineData
- */
-export interface CodeLineData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional string content = 32;
-     */
-    content?: string;
-}
-/**
  * @generated from protobuf message symbolx.bench.CodeData
  */
 export interface CodeData {
@@ -116,9 +103,9 @@ export interface CodeData {
      */
     language?: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.CodeLineData lines = 35;
+     * @generated from protobuf field: optional string content = 40;
      */
-    lines: CodeLineData[];
+    content?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextSpanData
@@ -8159,10 +8146,6 @@ export enum StructType {
      */
     CODE = 12100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 12101;
-     */
-    CODE_LINE = 12101,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_PATH = 12200;
      */
     PATH = 12200,
@@ -8576,10 +8559,6 @@ export enum ObjectType {
      */
     CODE = 12100,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE_LINE = 12101;
-     */
-    CODE_LINE = 12101,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_PATH = 12200;
      */
     PATH = 12200,
@@ -8992,10 +8971,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_CODE = 12100;
      */
     CODE = 12100,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 12101;
-     */
-    CODE_LINE = 12101,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PATH = 12200;
      */
@@ -14526,72 +14501,17 @@ class NodeReferenceData$Type extends MessageType$<NodeReferenceData> {
  */
 export const NodeReferenceData = new NodeReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CodeLineData$Type extends MessageType$<CodeLineData> {
-    constructor() {
-        super("symbolx.bench.CodeLineData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 32, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<CodeLineData>): CodeLineData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<CodeLineData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CodeLineData): CodeLineData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional string content */ 32:
-                    message.content = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: CodeLineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional string content = 32; */
-        if (message.content !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.content);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.CodeLineData
- */
-export const CodeLineData = new CodeLineData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class CodeData$Type extends MessageType$<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 32, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => CodeLineData }
+            { no: 40, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CodeData>): CodeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.lines = [];
         if (value !== undefined)
             reflectionMergePartial<CodeData>(this, message, value);
         return message;
@@ -14607,8 +14527,8 @@ class CodeData$Type extends MessageType$<CodeData> {
                 case /* optional string language */ 32:
                     message.language = reader.string();
                     break;
-                case /* repeated symbolx.bench.CodeLineData lines */ 35:
-                    message.lines.push(CodeLineData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* optional string content */ 40:
+                    message.content = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14628,9 +14548,9 @@ class CodeData$Type extends MessageType$<CodeData> {
         /* optional string language = 32; */
         if (message.language !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.language);
-        /* repeated symbolx.bench.CodeLineData lines = 35; */
-        for (let i = 0; i < message.lines.length; i++)
-            CodeLineData.internalBinaryWrite(message.lines[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional string content = 40; */
+        if (message.content !== undefined)
+            writer.tag(40, WireType.LengthDelimited).string(message.content);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31248,9 +31168,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | TeamData | ClientData | ScalerData | StoreData | ComputerData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData | RecordData | SkipData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | CodeLineData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof TeamData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof ComputerData | typeof BrowserData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof KitData | typeof ViewData | typeof DatabaseData | typeof ChannelData | typeof RoleData | typeof SpaceData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof RunSpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof RecordData | typeof SkipData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof CodeLineData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | ComputerData | BrowserData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData | ThreadData | MessageData | NotificationData | MembershipData | InviteData | SessionData | RunData | RunSpanData | InterruptionData | LogData | PlanData | TaskData | RecordData
 export type ResourceNodeData = ScalerData | StoreData | ComputerData | BrowserData | FileData | StreamData | SecretData
 export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | ViewData | DatabaseData | ChannelData | RoleData | SpaceData
@@ -31544,7 +31464,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.TEXT_TABLE]: TextTableData,
   [ObjectType.TEXT_CELL]: TextCellData,
   [ObjectType.CODE]: CodeData,
-  [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.PATH]: PathData,
   [ObjectType.PATH_ELEMENT]: PathElementData,
   [ObjectType.EXPRESSION]: ExpressionData,
@@ -31649,7 +31568,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.TextTableData"]: ObjectType.TEXT_TABLE,
   ["symbolx.bench.TextCellData"]: ObjectType.TEXT_CELL,
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
-  ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
   ["symbolx.bench.PathData"]: ObjectType.PATH,
   ["symbolx.bench.PathElementData"]: ObjectType.PATH_ELEMENT,
   ["symbolx.bench.ExpressionData"]: ObjectType.EXPRESSION,
@@ -31837,7 +31755,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.TEXT_TABLE]: TextTableData,
   [StructType.TEXT_CELL]: TextCellData,
   [StructType.CODE]: CodeData,
-  [StructType.CODE_LINE]: CodeLineData,
   [StructType.PATH]: PathData,
   [StructType.PATH_ELEMENT]: PathElementData,
   [StructType.EXPRESSION]: ExpressionData,
@@ -32020,7 +31937,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.TEXT_TABLE]: TextTableData,
   [ObjectType.TEXT_CELL]: TextCellData,
   [ObjectType.CODE]: CodeData,
-  [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.PATH]: PathData,
   [ObjectType.PATH_ELEMENT]: PathElementData,
   [ObjectType.EXPRESSION]: ExpressionData,
@@ -33897,12 +33813,7 @@ export enum TextCellProperty {
 export enum CodeProperty {
   metatype = 1,
   language = 32,
-  lines = 35,
-}
-
-export enum CodeLineProperty {
-  metatype = 1,
-  content = 32,
+  content = 40,
 }
 
 export enum PathProperty {
@@ -34127,11 +34038,11 @@ export enum RectangleConstraintProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof TeamProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof BrowserProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof ViewProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof RoleProperty | typeof SpaceProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof RunSpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -34210,7 +34121,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.TEXT_TABLE]: TextTableProperty,
   [ObjectType.TEXT_CELL]: TextCellProperty,
   [ObjectType.CODE]: CodeProperty,
-  [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.PATH]: PathProperty,
   [ObjectType.PATH_ELEMENT]: PathElementProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
@@ -34315,7 +34225,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.TEXT_TABLE]: TextTableProperty,
   [ObjectType.TEXT_CELL]: TextCellProperty,
   [ObjectType.CODE]: CodeProperty,
-  [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.PATH]: PathProperty,
   [ObjectType.PATH_ELEMENT]: PathElementProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
@@ -36103,11 +36012,7 @@ export const TextCellDataInfo: Record<TextCellProperty, PropertyInfo> = {
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CodeProperty.language]: { id: 32, name: 'language', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [CodeProperty.lines]: { id: 35, name: 'lines', component: ObjectType.CODE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE_LINE },
-}
-export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
-  [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [CodeProperty.content]: { id: 40, name: 'content', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
   [PathProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36379,7 +36284,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.TEXT_TABLE]: TextTableDataInfo,
   [ObjectType.TEXT_CELL]: TextCellDataInfo,
   [ObjectType.CODE]: CodeDataInfo,
-  [ObjectType.CODE_LINE]: CodeLineDataInfo,
   [ObjectType.PATH]: PathDataInfo,
   [ObjectType.PATH_ELEMENT]: PathElementDataInfo,
   [ObjectType.EXPRESSION]: ExpressionDataInfo,

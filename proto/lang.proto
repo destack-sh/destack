@@ -217,7 +217,6 @@ enum StructType {
   STRUCT_TYPE_TEXT_TABLE = 12003;
   STRUCT_TYPE_TEXT_CELL = 12004;
   STRUCT_TYPE_CODE = 12100;
-  STRUCT_TYPE_CODE_LINE = 12101;
   STRUCT_TYPE_PATH = 12200;
   STRUCT_TYPE_PATH_ELEMENT = 12201;
   STRUCT_TYPE_EXPRESSION = 12210;
@@ -323,7 +322,6 @@ enum ObjectType {
   OBJECT_TYPE_TEXT_TABLE = 12003;
   OBJECT_TYPE_TEXT_CELL = 12004;
   OBJECT_TYPE_CODE = 12100;
-  OBJECT_TYPE_CODE_LINE = 12101;
   OBJECT_TYPE_PATH = 12200;
   OBJECT_TYPE_PATH_ELEMENT = 12201;
   OBJECT_TYPE_EXPRESSION = 12210;
@@ -429,7 +427,6 @@ enum BenchType {
   BENCH_TYPE_TEXT_TABLE = 12003;
   BENCH_TYPE_TEXT_CELL = 12004;
   BENCH_TYPE_CODE = 12100;
-  BENCH_TYPE_CODE_LINE = 12101;
   BENCH_TYPE_PATH = 12200;
   BENCH_TYPE_PATH_ELEMENT = 12201;
   BENCH_TYPE_EXPRESSION = 12210;
@@ -1991,15 +1988,10 @@ message NodeReferenceData {
   optional string base_id = 34;
 }
 
-message CodeLineData {
-  ObjectType metatype = 1;
-  optional string content = 32;
-}
-
 message CodeData {
   ObjectType metatype = 1;
   optional string language = 32;
-  repeated CodeLineData lines = 35;
+  optional string content = 40;
 }
 
 message TextSpanData {
