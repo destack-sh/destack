@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { isInlineNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
-import { emptyText, renderText, isTextEmpty, trimText } from "@/language/core/text";
+import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createChannel } from "@/language/source/channel";
@@ -29,16 +29,9 @@ import {
 import { describeNode, isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
-import { bench, benchConnection, canvas, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
+import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
-import {
-  ActionMapKit,
-  fireAction,
-  getAction,
-  getNodesForAction,
-  isActionEnabled,
-  MESSAGE_CONTEXT_ACTIONS,
-} from "@/ui/action";
+import { ActionMapKit, fireAction, getAction, getNodesForAction, MESSAGE_CONTEXT_ACTIONS } from "@/ui/action";
 import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -368,7 +361,7 @@ function submit() {
   if (benchPtr.value == null) throw new Error("no bench");
   if (space.value == null) throw new Error("no space");
 
-  let tx = isEnabled.value ? txFactory() : pkgConnection.tx;
+  let tx = isEnabled.value ? txFactory() : benchConnection.tx;
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Submit" } });
   }
@@ -387,8 +380,8 @@ function submit() {
     // channel
     if (space.value?.channelPtr == null) {
       const newChannel =
-        pkgGraph.nodes.find((n) => isNode(n, NodeType.CHANNEL)) ??
-        createChannel(tx, pkgGraph, {
+        benchGraph.nodes.find((n) => isNode(n, NodeType.CHANNEL)) ??
+        createChannel(tx, benchGraph, {
           anchor: "inside",
           target: pkg.value!,
           channel: { name: "General" },
@@ -410,7 +403,7 @@ function submit() {
   }
 
   // create message
-  createMessage(tx, pkgGraph, {
+  createMessage(tx, benchGraph, {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: messageThreadPtr ?? messageChannelPtr,
@@ -535,7 +528,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
 <template>
   <div ref="containerRef" class="relative">
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="pkgGraph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="benchGraph" />
 
     <!-- Drop zone (overlay) -->
     <div

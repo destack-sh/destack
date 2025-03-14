@@ -74,7 +74,6 @@ async def create_default_bench(
             min_count=0,
             target_count=0,
             max_count=4,
-            is_main=True,
         )
 
     return bench

@@ -49,7 +49,7 @@ const actions = computed(() => {
         </div>
         <!-- Run -->
         <div class="absolute left-1/2 flex -translate-x-1/2 flex-row items-center gap-x-1">
-          <NodeReference class="cursor-pointer" :node="base" size="large" @click="canvas.goToNode(base)" />
+          <NodeReference class="cursor-pointer" :node="base" size="base" @click="canvas.goToNode(base)" />
         </div>
         <!-- Meta -->
         <div class="absolute right-5 flex flex-row items-center gap-x-1">

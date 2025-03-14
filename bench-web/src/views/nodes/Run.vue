@@ -17,7 +17,7 @@ import {
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/runtime/runtime";
-import { canvas, pkgGraph } from "@/system/space";
+import { canvas, benchGraph } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 import { computedValue } from "@/utils/ref";
@@ -43,7 +43,7 @@ const state = canvas.registerView(self, id);
 
 // node
 const nodePtr = computedValue(() => props.nodePtr);
-const node = pkgGraph.getRef(nodePtr);
+const node = benchGraph.getRef(nodePtr);
 const nodeIsRunnable = computed(() => isRunnable(node.value));
 
 // run is the focused run if it contains this runnable
@@ -55,7 +55,7 @@ const run = computed(() => {
   }
 });
 const runBasePtr = computed(() => (run.value != null ? getBaseFromNode(run.value) : nodePtr.value));
-const runBase = pkgGraph.getRef(runBasePtr);
+const runBase = benchGraph.getRef(runBasePtr);
 const inputsPacked = useSubnodeProperty(NodeType.VIEW, ViewType.RUN, toRef(props, "subnodePacked"), "inputsPacked");
 const resourcesPacked = useSubnodeProperty(
   NodeType.VIEW,
@@ -64,7 +64,7 @@ const resourcesPacked = useSubnodeProperty(
   "resourcesPacked",
 );
 // schema
-const fields = pkgGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
+const fields = benchGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
 const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
 const variableType = computed(() =>
   runBasePtr.value != null
@@ -186,7 +186,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
       </div>
       <!-- Timeline -->
       <div v-if="run != null" class="mb-5 px-5">
-        <RunTimeline :graph="pkgGraph" :node-ptr="toNodeRef(run)" class="" layout="linear" />
+        <RunTimeline :graph="benchGraph" :node-ptr="toNodeRef(run)" class="" layout="linear" />
       </div>
     </div>
   </div>

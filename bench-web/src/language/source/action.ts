@@ -1,19 +1,8 @@
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 
-import { ActionCategory, ActionData, ActionType, BenchType, FieldType, TypeData, TypeKind } from "@/proto/wire";
+import { ActionData, ActionType, BenchType, FieldType, TypeData, TypeKind } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
-
-export function getActionCategory(action: ActionData | ActionType): ActionCategory {
-  if (typeof action != "number") {
-    action = action.type;
-  }
-  if (action < 100) {
-    return ActionCategory.ORCHESTRATE;
-  } else {
-    return Math.floor(action / 100) as ActionCategory;
-  }
-}
 
 /** Get the Type for an Action */
 export function actionToType(

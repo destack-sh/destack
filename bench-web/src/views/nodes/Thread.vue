@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { Alignment, ChannelData, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
 import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas, pkgGraph } from "@/system/space";
+import { canvas, benchGraph } from "@/system/space";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
@@ -48,7 +48,7 @@ defineExpose<ViewExpose>({ self, id });
 <template>
   <div>
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="pkgGraph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="benchGraph" />
 
     <!-- Chat -->
     <Chat
@@ -56,7 +56,7 @@ defineExpose<ViewExpose>({ self, id });
       :alignment="alignment ?? Alignment.END"
       :node-ptr="nodePtr"
       :focus="focus"
-      :graph="pkgGraph"
+      :graph="benchGraph"
       :size="{
         width: size?.width,
         height: size?.height != null ? size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) : undefined,

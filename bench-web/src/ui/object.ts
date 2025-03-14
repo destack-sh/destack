@@ -32,53 +32,40 @@ import {
   ActionType,
   AnyNodeData,
   BenchType,
-  CreateActionProperty,
-  DeleteActionProperty,
-  DuplicateActionProperty,
   EditOperationData,
   EditOperationType,
   EmptyProperty,
-  FailActionProperty,
   FieldData,
   FieldProperty,
   FieldType,
-  GoToUrlActionProperty,
   IconData,
   LinkProperty,
-  LookActionProperty,
   NodeReferenceData,
   NodeType,
   NodeTypeMapping,
   ObjectType,
   PickerVariant,
-  PressActionProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
-  ReceiveActionProperty,
   RecordProperty,
-  ScrollActionProperty,
   SelectionType,
-  SendActionProperty,
   StructType,
-  TypeActionProperty,
   TypeBaseNodeData,
   TypeConstraintProperty,
   TypeData,
   TypeKind,
-  UpdateActionProperty,
-  ViewType,
-  WaitActionProperty,
+  ViewType
 } from "@/proto/wire";
 import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { getNodeTitle, makeIcon } from "@/ui/icon";
 import { pushPopover } from "@/ui/popover";
 import { typeIndex } from "@/ui/search";
-import { FULL_WIDTH_VIEW_TYPES, getViewForType, makeSelection } from "@/ui/view";
+import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { computedValue } from "@/utils/ref";
@@ -862,29 +849,6 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
     }
   }
 }
-const DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE: Partial<Record<ActionType, number[]>> = {
-  // write
-  [ActionType.CREATE]: [CreateActionProperty.nodePartialPacked, CreateActionProperty.nodePtr],
-  [ActionType.UPDATE]: [UpdateActionProperty.nodePtr, UpdateActionProperty.nodePartialPacked],
-  [ActionType.DUPLICATE]: [
-    DuplicateActionProperty.nodePtr,
-    DuplicateActionProperty.nodePartialPacked,
-    DuplicateActionProperty.duplicatedNodePtr,
-  ],
-  [ActionType.DELETE]: [DeleteActionProperty.nodePtr],
-  // communicate
-  [ActionType.WAIT]: [WaitActionProperty.delay],
-  [ActionType.RECEIVE]: [ReceiveActionProperty.messagePtr],
-  [ActionType.SEND]: [SendActionProperty.messagePtr],
-  // application
-  [ActionType.CLICK]: [],
-  [ActionType.TYPE]: [TypeActionProperty.string],
-  [ActionType.PRESS]: [PressActionProperty.combination],
-  [ActionType.SCROLL]: [ScrollActionProperty.amount],
-  [ActionType.LOOK]: [LookActionProperty.screenshotPtr],
-  // web
-  [ActionType.GO_TO_URL]: [GoToUrlActionProperty.url],
-};
 
 /**
  * NOTE: ActionLayout is a bit complex because we need to support the default view, regular partials *and* input/output partials.
@@ -1015,9 +979,6 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
         }),
       );
     }
-    if (!this.isPartial && (this.node.type == ActionType.CODE || this.node.type == ActionType.TOOL)) {
-      commonRows.push(this.rowProperty(ActionProperty.category));
-    }
 
     // common rows
     if (node.type == ActionType.CODE) {
@@ -1037,19 +998,6 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
           },
         }),
       );
-    } else if (node.type == ActionType.FAIL) {
-      commonRows.push(this.rowProperty(FailActionProperty.errorTitle, { title: "Title", isComputable: true }));
-      commonRows.push(this.rowProperty(FailActionProperty.errorText, { title: "Text", isComputable: true }));
-    } else if (node.type == ActionType.SEND) {
-      // NOTE :Broken: why is this Sendaction.messageInPacked not working?
-      //  (should have Message type pre-filled and edits shown..)
-      // commonRows.push(
-      //   this.rowObjectNested(
-      //     SendActionProperty.messageInPacked,
-      //     makeType({ kind: TypeKind.PARTIAL_OBJECT, benchType: BenchType.MESSAGE }),
-      //     { isComputable: true },
-      //   ),
-      // );
     }
 
     // tools
@@ -1061,11 +1009,6 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
     if (!this.isPartial) {
       this.sectionActionSchema();
     }
-
-    // default subproperties
-    commonRows.push(
-      ...this.actionSubproperties(...(DEFAULT_ACTION_SUBPROPERTIES_BY_TYPE[this.subtype as any as ActionType] ?? [])),
-    );
   }
 }
 

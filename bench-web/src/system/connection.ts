@@ -602,7 +602,11 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         ...(thisGet.ancestorTypes ?? []),
         ...(thisGet.descendantTypes ?? []),
       ];
-      if (thisNodeTypes.some((t) => !LOADED_PACKAGE_NODE_TYPES.includes(t))) {
+      if (
+        thisNodeTypes.some(
+          (t) => t != NodeType.BENCH && t != NodeType.PACKAGE && !LOADED_PACKAGE_NODE_TYPES.includes(t),
+        )
+      ) {
         // NOTE :Broken: we can only assume that node type overlap is enough for source nodes, otherwise check full params
         //  (since they're loaded in a very specific way together with Task.. see :ConnectionMatching :RichGraph)
         return deepContentEquals(params, this.params);
