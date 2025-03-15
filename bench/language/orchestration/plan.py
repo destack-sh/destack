@@ -63,7 +63,7 @@ class PlanStatus(BuiltinEnum):
 
 @enum_(EnumType.PLAN_TERMINATION_MODE)
 class PlanTerminationMode(BuiltinEnum):
-    COMPLETE = 10, "Complete", "Complete the Plan"
+    PASS = 10, "Complete", "Complete the Plan"
     RETURN = 20, "Return", "Return to caller (for more planning)"
 
 

@@ -6,14 +6,13 @@ from bench.language import (
     Breakpoint,
     BreakpointScope,
     ErrorType,
-    Field,
     Flow,
     LinkType,
     RunOptions,
     RunStatus,
     code,
 )
-from bench.runtime import CodeActionRunner, Interrupted, create_run_from_node, make_runner
+from bench.runtime import Interrupted, create_run_from_node, make_runner
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -68,48 +67,6 @@ pass
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
     assert not runner.tracked_run.has(Code2, Code3, Complete)
-
-
-@simulated_runtime()
-async def test_run_flow_plan_tool(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with a tool call Tasks in Plans."""
-    Flow1 = Flow.new("Flow1", fields=[Field.input("Input1", str), Field.output("Output1", str)])
-    Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
-    Tool1 = Action.new(ActionType.TOOL, "Tool1")
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Code1, Tool1, Complete)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, Tool1, is_manual=True)
-    Tool1.connect(LinkType.REQUIRE, Complete, is_manual=True)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    # run tool action directly
-    runner = await runtime.run_in_runtime(
-        Tool1,
-        inputs={"type": ActionType.CODE},
-    )
-    assert len(runner.runners) == 1
-    assert isinstance(runner.runners[0], CodeActionRunner)
-
-    # running flow as is should fail (at tool, because tool is unset)
-    runner = await runtime.run_in_runtime(Flow1, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == ErrorType.RUN_IMPOSSIBLE
-
-    # run tool within flow via calls
-    Code1.code = code("""\
-plan = Plan.serial(
-    "Plan",
-    Task.run("Tool1", Tool1, type=ActionType.CODE),
-    on_terminate=PlanTerminationMode.PASS,
-)
-run.plans.append(plan)
-""")
-    runner = await runtime.run_in_runtime(Flow1)
-    assert runner.status == RunStatus.COMPLETED
-    assert runner.tracked_run
 
 
 @simulated_runtime()
@@ -282,10 +239,6 @@ run.plans.append(plan)
     assert runner.tracked_run
     assert runner.tracked_run.has(Complete)
     assert runner.tracked_run.has(Code1)
-
-
-# nocheckin: track cascading Plan/Task status
-# (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
 
 
 @simulated_runtime(system=True)

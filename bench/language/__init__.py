@@ -35,3 +35,6 @@ from .source import *  # noqa: F403
 
 # after all the imports, we can finalize
 _complete_bench_setup()
+
+# requires finalization
+from .builtin import *  # noqa: E402,F403

@@ -108,7 +108,7 @@ async def shell(
         _default_scope=GraphScope(bench_id=bench_node.id)._to_data(),
         _engines=remote_engines,
         _supervisor=supervisor,
-        _host=host,
+        _self_host=host,
         _supergraph=supergraph,
         _oracle=REAL_ORACLE,
     )

@@ -71,8 +71,8 @@ async def create_default_bench(
             type=ScalerType.COMPUTER,
             strategy=ScalerStrategy.AUTO,
             name="Computer Scaler",
-            min_count=0,
-            target_count=0,
+            min_count=1,
+            target_count=1,
             max_count=4,
         )
 

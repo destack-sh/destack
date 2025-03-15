@@ -87,7 +87,7 @@ async def make_remote_session(
         _engines=engines,
         _origin=client.to_origin(nonce=nonce),
         _supervisor=supervisor_client,
-        _host=host_client,
+        _self_host=host_client,
         _oracle=oracle,
         _supergraph=supergraph,
     )

@@ -25,7 +25,6 @@ from bench.language import (
 from bench.runtime.core import (
     ATTEMPT_ONCE,
     NotSupportedError,
-    RunImpossibleError,
     RunIn,
     Runner,
     Runtime,
@@ -274,36 +273,28 @@ class ToolActionRunner(StaticActionRunner):
 
     @override
     async def run_static(self) -> None:
-        tool = self.node.tool
-        tool_type = self.node.type
-        if tool is not None:
-            # delegate to tool node
+        if self.node.tool_ptr is not None:
+            tool = self.node.tool
+            assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
+            # 'hard-coded' tool
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
-                node=tool,
-                # inputs/resources are both PartialAction with node=tool
-                inputs=self.inputs,
-                output_type=self.output_type,
-            )
-            await self.runtime.run_runner(tool_runner)
-            self.outputs = tool_runner.outputs
-        elif tool_type != ActionType.TOOL:  # if it's still tool it wasn't set
-            # delegate to built-in action
-            tool_runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[tool_type]
-            tool_runner: Runner[Any] = tool_runner_cls(
-                runtime=self.runtime,
-                node=self.node,
-                run=RunSpanType.DELEGATE,
-                options=self.options,
-                context=self.context,
-                parent=cast(Runner[Any], self),
-                inputs=self.inputs,
-                outputs=self.output_type or self.outputs,
-                flow=self.flow,
+                node=tool, inputs=self.inputs, output_type=self.output_type
             )
             await self.runtime.run_runner(tool_runner)
             self.outputs = tool_runner.outputs
         else:
-            raise RunImpossibleError("no tool given")
+            # 'dynamic' tool from task
+            assert self.tracked_run is not None, f"{self!r} must be tracked"
+            task = self.tracked_run.task
+            assert task is not None, f"{self!r} must have a task"
+            tool_ptr = task.target_ptr
+            assert tool_ptr is not None, f"{task!r} for {self!r} must have a tool"
+            tool = task.target
+            assert tool is not None, f"{task!r} for {self!r} is missing {tool_ptr!r}"
+            tool_runner: Runner[Any] = self._get_resumable_subrunner(
+                node=tool, inputs=task.value, output_type=self.output_type
+            )
+            await self.runtime.run_runner(tool_runner)
 
 
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {

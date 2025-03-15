@@ -869,6 +869,9 @@ class Runtime:
             elif isinstance(node, Interruption):
                 self._on_interrupt_updated(runner, node)
 
+    # nocheckin: track cascading Plan/Task/Claim/... status
+    # (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
+
     async def run(
         self,
         run: Run | NodeReference,

@@ -1,4 +1,3 @@
-# builtin benches (pointers) :BuiltinBenches
 from bench.language.core import (
     BENCH_BENCH_ID,
     BENCH_BUILTIN_PACKAGE_ID,
@@ -8,6 +7,7 @@ from bench.language.core import (
     NodeType,
 )
 
+# builtin benches (pointers) :BuiltinBenches
 BENCH_BENCH_PTR = NodeReference(node_type=NodeType.BENCH, id=BENCH_BENCH_ID)
 BENCH_BUILTIN_PACKAGE_PTR = NodeReference(
     node_type=NodeType.PACKAGE, id=BENCH_BUILTIN_PACKAGE_ID, bench_id=BENCH_BENCH_ID

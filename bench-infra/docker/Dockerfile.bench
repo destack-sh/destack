@@ -57,7 +57,7 @@ RUN uv pip install --system --no-cache -r requirements.txt
 # copy relevant files
 COPY bench/ bench/ 
 # prune unnecessary files
-RUN rm -rf bench/system bench/test
+RUN rm -rf bench/system bench/test bench/builtin
 # prune tests
 RUN find bench/ -type f -name 'test_*.py' -delete
 
