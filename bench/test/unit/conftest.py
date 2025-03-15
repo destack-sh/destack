@@ -239,6 +239,7 @@ def simulated_runtime(
             name=test_func.__name__,
             type=WorkloadType.RUNTIME_LAMBDA,
             func=test_func,
+            system=system,
         )
         spec = make_simulation_spec(
             func=test_func,

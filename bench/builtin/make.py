@@ -1,6 +1,3 @@
-from bench.builtin.core import assign_builtin_ids
-from bench.builtin.resource import BrowserPage, ComputerPage
-from bench.builtin.source import ActionPage
 from bench.language import (
     BENCH_BUILTIN_PACKAGE_ID,
     BENCH_BUILTIN_PACKAGE_SLUG,
@@ -9,6 +6,10 @@ from bench.language import (
     Package,
     PackageType,
 )
+
+from .core import assign_builtin_ids
+from .resource import BrowserPage, ComputerPage
+from .source import ActionPage
 
 BuiltinPackage = Package(
     type=PackageType.OPEN,
