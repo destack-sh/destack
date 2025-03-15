@@ -1354,7 +1354,7 @@ enum PlanStatus {
 
 enum PlanTerminationMode {
   PLAN_TERMINATION_MODE_UNSPECIFIED = 0;
-  PLAN_TERMINATION_MODE_COMPLETE = 10;
+  PLAN_TERMINATION_MODE_PASS = 10;
   PLAN_TERMINATION_MODE_RETURN = 20;
 }
 
@@ -1988,7 +1988,7 @@ enum NotificationStatus {
 message GraphScopeData {
   ObjectType metatype = 1;
   optional string bench_id = 30;
-  optional string package_id = 31;
+  repeated string package_ids = 31;
 }
 
 message PropertyReferenceData {

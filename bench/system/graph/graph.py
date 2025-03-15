@@ -887,7 +887,7 @@ def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | N
 
         # graph scope
         graph_scope = edit.scope
-        graph_scope_hash = hash((graph_scope.bench_id, graph_scope.package_id))
+        graph_scope_hash = hash((graph_scope.bench_id, tuple(graph_scope.package_ids)))
         if graph_scope_hash not in graph_scopes:
             graph_scopes[graph_scope_hash] = graph_scope
 
@@ -918,8 +918,6 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     # scope
     if node_cls.__is_in_bench__ and not edit.scope.bench_id:
         raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench_id in {edit!r}")
-    if node_cls.__is_in_package__ and not edit.scope.package_id:
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing package_id in {edit!r}")
 
     # subject
     if subject.client.parent_type == NodeType.USER:

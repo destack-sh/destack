@@ -40,8 +40,8 @@ def test_make_builtin_package(session: Session) -> None:
 @simulated_runtime(system=True)
 async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Test the Builtin package."""
-    from bench.builtin import BENCH_BUILTIN_PACKAGE_PTR
     from bench.builtin import BuiltinPackage as BuiltinPackageRaw
+    from bench.language import BENCH_BUILTIN_PACKAGE_PTR
 
     BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BUILTIN_PACKAGE_PTR)
     assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoaded._graph)

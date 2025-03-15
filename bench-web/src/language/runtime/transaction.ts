@@ -252,18 +252,22 @@ export class TransactionBuilder implements Transaction {
   getScope(node: AnyNodeData): GraphScopeData {
     const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const benchId = (node as any).benchPtr?.id ?? this.scope.benchId;
-    const packageId = (node as any).packagePtr?.id ?? this.scope.packageId;
-    if ("packagePtr" in allProperties && packageId == null)
+    const packageIds = (node as any).packagePtr?.id ?? this.scope.packageIds;
+    if ("packagePtr" in allProperties && packageIds == null)
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
-    return makeScope({ benchId, packageId });
+    return makeScope({ benchId, packageIds });
   }
 
   checkInScope(node: AnyNodeData) {
     if (this.scope.benchId != null && (!("benchPtr" in node) || node.benchPtr?.id != this.scope.benchId)) {
       throw new Error(`node from other bench: ${describeNode(node)} != ${this.scope.benchId}`);
     }
-    if (this.scope.packageId != null && (!("packagePtr" in node) || node.packagePtr?.id != this.scope.packageId)) {
-      throw new Error(`node from other package: ${describeNode(node)} != ${this.scope.packageId}`);
+    if (
+      this.scope.packageIds != null &&
+      this.scope.packageIds.length > 0 &&
+      (!("packagePtr" in node) || !this.scope.packageIds.includes(node.packagePtr?.id ?? ""))
+    ) {
+      throw new Error(`node from other package: ${describeNode(node)} != ${this.scope.packageIds}`);
     }
   }
 

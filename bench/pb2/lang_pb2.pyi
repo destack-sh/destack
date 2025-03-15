@@ -1346,7 +1346,7 @@ class PlanStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class PlanTerminationMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PLAN_TERMINATION_MODE_UNSPECIFIED: _ClassVar[PlanTerminationMode]
-    PLAN_TERMINATION_MODE_COMPLETE: _ClassVar[PlanTerminationMode]
+    PLAN_TERMINATION_MODE_PASS: _ClassVar[PlanTerminationMode]
     PLAN_TERMINATION_MODE_RETURN: _ClassVar[PlanTerminationMode]
 
 class PlanFailureMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -3105,7 +3105,7 @@ PLAN_STATUS_ABORTED: PlanStatus
 PLAN_STATUS_FAILED: PlanStatus
 PLAN_STATUS_COMPLETED: PlanStatus
 PLAN_TERMINATION_MODE_UNSPECIFIED: PlanTerminationMode
-PLAN_TERMINATION_MODE_COMPLETE: PlanTerminationMode
+PLAN_TERMINATION_MODE_PASS: PlanTerminationMode
 PLAN_TERMINATION_MODE_RETURN: PlanTerminationMode
 PLAN_FAILURE_MODE_UNSPECIFIED: PlanFailureMode
 PLAN_FAILURE_MODE_FAIL: PlanFailureMode
@@ -3563,14 +3563,14 @@ REFERENCE_KIND_STRUCT_CHILD: ReferenceKind
 REFERENCE_KIND_PROPERTY: ReferenceKind
 
 class GraphScopeData(_message.Message):
-    __slots__ = ("metatype", "bench_id", "package_id")
+    __slots__ = ("metatype", "bench_id", "package_ids")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     BENCH_ID_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_IDS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     bench_id: str
-    package_id: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., bench_id: _Optional[str] = ..., package_id: _Optional[str] = ...) -> None: ...
+    package_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., bench_id: _Optional[str] = ..., package_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class PropertyReferenceData(_message.Message):
     __slots__ = ("metatype", "object_type", "id", "node_subtype", "references_node_type", "references_meta")

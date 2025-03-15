@@ -73,8 +73,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def __str__(self):
         node_types_str = "|".join(nt.bench_name for nt in self.node_types)
-        if self.scope.package_id:
-            scope_str = f"[bench={self.scope.bench_id}, package={self.scope.package_id}]"
+        if self.scope.package_ids:
+            scope_str = f"[bench={self.scope.bench_id}, packages={', '.join(str(id) for id in self.scope.package_ids)}]"
         elif self.scope.bench_id:
             scope_str = f"[bench={self.scope.bench_id}]"
         else:

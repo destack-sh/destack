@@ -248,7 +248,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         select: Optional["SelectOptions"] = None,
         include_deleted: bool = False,
         first: int | None = None,
-        skip: int | None = None,
     ):
         from .node import Node
 

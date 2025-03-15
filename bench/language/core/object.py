@@ -1345,15 +1345,15 @@ class GraphScope(Struct[GraphScopeData]):
     """The scope for an operation on the Bench graph."""
 
     bench_id: Optional[UUID] = p_internal(30, default=None)
-    package_id: Optional[UUID] = p_internal(31, default=None)
+    package_ids: list[UUID] = p_internal(31, array=True)
 
     def __content_str__(self) -> str:
         return repr_scope(self)
 
 
 def repr_scope(scope: GraphScope | GraphScopeData) -> str:
-    if scope.package_id:
-        return f"[bench_id={scope.bench_id}, package_id={scope.package_id}]"
+    if scope.package_ids:
+        return f"[bench_id={scope.bench_id}, package_ids={', '.join(str(id) for id in scope.package_ids)}]"
     elif scope.bench_id:
         return f"[bench_id={scope.bench_id}]"
     else:
