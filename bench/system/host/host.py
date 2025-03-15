@@ -458,11 +458,21 @@ class HostService(GraphServiceBase, HostBase):
         if self.bench_id == BENCH_BENCH_ID:
             from bench.builtin import BuiltinPackage, sync_node
 
-            async with self.session(readonly=False, commit=True):
+            async with self.session(readonly=False) as session:
                 sync_node(
                     parent=self._bench,
                     target_root=self._main_package,
                     reference_root=BuiltinPackage,
+                    recursive=True,
+                )
+                edits, _ = await session.commit()
+                logger.info(
+                    "host.sync_builtins",
+                    host=self,
+                    bench=self._bench,
+                    main_package=self._main_package,
+                    builtin_package=BuiltinPackage,
+                    edits=len(edits),
                 )
 
         logger.info(

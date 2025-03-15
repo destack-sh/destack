@@ -30,6 +30,7 @@ from opentelemetry import trace
 from bench import pb2
 from bench.language.registry import (
     BUILTIN_OBJECT_CLASS_BY_TYPE,
+    CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     HAS_CHILD_NODE_TYPES,
     NODE_CLASS_BY_NAME,
@@ -735,14 +736,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if map is True:
             map = {self.id: clone}
         if recursive:
-            for child_prop in self.__node_child_properties__.values():
-                if child_prop.reference_list_type is not LocalNodeList:
-                    continue  # only clone local lists
-                child_list = getattr(self, child_prop.name)
-                clone_list = getattr(clone, child_prop.name)
-                for child in child_list:
-                    child_clone = child.clone(recursive=True, detach=True, map=map)
-                    clone_list.append(child_clone)  # re-attach
+            for child_type in CHILD_NODE_TYPES[self.metatype]:
+                for child in self._graph.iter_descendants(self, child_type):
+                    child_clone = child.clone(reset=True, recursive=True, detach=True, map=map)
+                    attach_node(child_clone, clone, clone._graph)  # re-attach
                     if type(map) is dict:
                         map[child.id] = child_clone
 
@@ -1473,16 +1470,25 @@ class IsTemplatable(BuiltinObject):
 
         # instance children and append to self
         if recursive:
-            for child_prop in self.__node_child_properties__.values():
-                if child_prop.reference_list_type is not LocalNodeList:
-                    continue  # only clone local lists
-                child_list = getattr(self, child_prop.name)
-                instance_list = getattr(instance, child_prop.name)
-                for child in child_list:
-                    child_instance = child.instance(recursive=True, detach=True, map=map)
-                    instance_list.append(child_instance)
-                    if type(map) is dict:
-                        map[child.id] = child_instance
+            for child_type in CHILD_NODE_TYPES[self.metatype]:
+                for child in self._graph.iter_descendants(self, child_type):
+                    if isinstance(child, IsInstantiable):
+                        # instance child
+                        child_clone = child.instance(
+                            recursive=True,
+                            detach=True,
+                            map=map,
+                            template_at=template_at,
+                        )
+                        attach_node(child_clone, instance, instance._graph)  # re-attach
+                        if type(map) is dict:
+                            map[child.id] = child_clone
+                    else:
+                        # clone if not instantiable
+                        child_clone = child.clone(reset=True, recursive=True, detach=True, map=map)
+                        attach_node(child_clone, instance, instance._graph)  # re-attach
+                        if type(map) is dict:
+                            map[child.id] = child_clone
 
         # map new identities
         if type(map) is dict:
