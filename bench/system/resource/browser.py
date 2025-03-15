@@ -17,11 +17,7 @@ class BrowserbaseBrowserProvisioner(Provisioner[Browser, Browser]):
     @override
     @isolated_graph()
     async def _do_start(self) -> None:
-        browsers = await Browser.where(
-            Browser.get_property("bench").eq(self.bench)
-            & Browser.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
-            & Browser.get_property("external_id").exists()
-        ).tolist()
+        browsers = await self._get_resources()
         running_browsers = await browserbase_api.get_running_browsers()
         running_browsers_by_external_id = {
             browser.external_id: browser for browser in running_browsers if browser.external_id
@@ -63,10 +59,7 @@ class LocalhostBrowserProvisioner(Provisioner[Browser, Browser]):
     @isolated_graph()
     async def _do_start(self) -> None:
         # local Browsers have to be re-provisioned on start (since playwright is a subprocess)
-        browsers = await Browser.where(
-            Browser.get_property("bench").eq(self.bench)
-            & Browser.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
-        ).tolist()
+        browsers = await self._get_resources()
         async with self.host.session(commit=True):
             for browser in browsers:
                 connection = await playwright_server.start_browser(browser)

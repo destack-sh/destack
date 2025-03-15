@@ -9,8 +9,8 @@ from bench.language import (
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
     PUBLIC_NODE_TYPES,
+    RESOURCE_NODE_TYPES,
     SOURCE_NODE_TYPES,
-    STATIC_RESOURCE_NODE_TYPES,
     Aliasing,
     Bench,
     Client,
@@ -115,9 +115,7 @@ async def shell(
     async with session:
         # load full Bench/Packages
         bench_node = (
-            await Bench.include_descendants(
-                NodeType.HANDLE, NodeType.PACKAGE, *STATIC_RESOURCE_NODE_TYPES
-            )
+            await Bench.include_descendants(NodeType.HANDLE, NodeType.PACKAGE, *RESOURCE_NODE_TYPES)
             .select_all()
             .get(bench_node.to_ref(), mode="both")
         )

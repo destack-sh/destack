@@ -152,7 +152,7 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
 
     @override
     async def _do_start(self) -> None:
-        computers = await Computer.where(Computer.get_property("bench").eq(self.bench)).tolist()
+        computers = await self._get_resources()
         containers: list[docker.models.containers.Container] = self._docker_client.containers.list(
             all=True
         )
@@ -374,7 +374,7 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
 
     @override
     async def _do_start(self) -> None:
-        computers = await Computer.where(Computer.get_property("bench").eq(self.bench)).tolist()
+        computers = await self._get_resources()
         computers_by_external_name: dict[str, Computer] = {
             m.external_name or self._get_external_name(m): m for m in computers
         }
