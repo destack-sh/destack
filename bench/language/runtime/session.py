@@ -168,7 +168,8 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
     _rpc_headers: dict[str, str] | None = p_runtime(default=None)
     _runtime: Optional["Runtime"] = p_runtime(default=None)
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
-    _host: Optional["HostClient"] = p_runtime(default=None)
+    _self_host: Optional["HostClient"] = p_runtime(default=None)
+    _bench_host: Optional["HostClient"] = p_runtime(default=None)
 
     def __content_str__(self):
         status_strs = []
@@ -227,9 +228,14 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         return self._runtime
 
     @property
-    def host(self) -> HostClient:
-        assert self._host is not None, f"no active Host in {self!r}"
-        return self._host
+    def self_host(self) -> HostClient:
+        assert self._self_host is not None, f"no active self Host in {self!r}"
+        return self._self_host
+
+    @property
+    def bench_host(self) -> HostClient:
+        assert self._bench_host is not None, f"no active bench Host in {self!r}"
+        return self._bench_host
 
     @property
     def supervisor(self) -> SupervisorClient:
@@ -857,6 +863,9 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         If not optimistic, we wait for any pending commit to complete, then commit.
         Cascaded edits are only returned for non-optimistic commits.
         """
+        if self._tx is None or (not self._tx.has_edits and not self._tx._touched_engine_ids):
+            return [], []  # nothing to do
+
         assert self.is_open or _ignore_open, f"cannot commit {self!r} when closed"
         trace.get_current_span().set_attribute("optimistic", optimistic)
 
@@ -864,7 +873,6 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             return self.commit_optimistic()
 
         with tracer.start_as_current_span("session.commit.schedule"):
-            assert self._tx is not None, f"no active transaction in {self!r}"
             # wait for any pending commit, then commit directly
             with tracer.start_as_current_span("session.commit.wait"):
                 await self._commit_queue.join()

@@ -9,8 +9,9 @@ import cachetools
 import structlog
 from opentelemetry import trace
 
-from bench import pb2
 from bench.language import (
+    BENCH_BENCH_ID,
+    BENCH_BENCH_PTR,
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
     LOADED_PACKAGE_NODE_TYPES,
@@ -29,7 +30,7 @@ from bench.language import (
     Session,
     User,
 )
-from bench.pb2 import GraphScopeData, HostClient, ResolveHostsRequest, SupervisorClient
+from bench.pb2 import HostClient, ResolveHostsRequest, SupervisorClient
 from bench.proto import Network, ServiceBase, get_rpc_metadata, localize_url, pack_rpc_headers
 from bench.utils.oracle import Oracle
 from bench.utils.sync import CriticalLock
@@ -73,13 +74,13 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         super().__init__(
             id=id, logger=logger, tracer=tracer, network=network, oracle=oracle, on_error=on_error
         )
-        self._mode = mode
+        if client_type == ClientType.COMPUTER and computer_id is None:
+            raise ValueError(f"missing computer_id for {client_type} {client_id}")
 
         # services
         self._supervisor = supervisor
-        self._host: HostClient | None = None
-        if client_type == ClientType.COMPUTER and computer_id is None:
-            raise ValueError(f"missing computer_id for {client_type} {client_id}")
+        self._self_host: HostClient | None = None
+        self._bench_host: HostClient | None = None
         self._client_type = client_type
         self._client_id = client_id
         self._client_access_token = client_access_token
@@ -91,6 +92,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._rpc_headers = pack_rpc_headers(self._rpc_metadata)
 
         # bench
+        self._mode = mode
         self._bench_id = bench_id
         self._bench_ptr = NodeReference(
             node_type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
@@ -98,6 +100,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._supergraph = NodeSuperGraph(name="Runtime", root_ptr=self._bench_ptr)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
+        self._bench_bench: Bench | None = None
         self._session: Session | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}"
@@ -128,12 +131,10 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
     @override
     async def start(self):
         # setup host
-        self._host = await self.resolve_host_client(self._bench_id)
-        bench_scope = GraphScopeData(
-            metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(self._bench_id)
-        )
+        self._self_host = await self.resolve_host_client(self._bench_id)
+        self._bench_host = await self.resolve_host_client(BENCH_BENCH_ID)
         self._engines = (
-            # global engine
+            # global
             RemoteEngine(
                 name="global",
                 scope=EMPTY_SCOPE_DATA,
@@ -142,24 +143,32 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                 write_retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,
             ),
-            # bench engine
+            # self bench engine
             RemoteEngine(
-                name="bench",
-                scope=bench_scope,
+                name="self-bench",
+                scope=GraphScope(bench_id=self._bench_id)._to_data(),
                 node_types=BENCH_NODE_TYPES,
-                remote=self._host,
+                remote=self._self_host,
+                write_retry=RETRY_GRPC_FOREVER,
+                rpc_metadata=self._rpc_metadata,
+            ),
+            # bench bench engine
+            RemoteEngine(
+                name="bench-bench",
+                scope=GraphScope(bench_id=BENCH_BENCH_ID)._to_data(),
+                node_types=BENCH_NODE_TYPES,
+                remote=self._bench_host,
                 write_retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,
             ),
         )
-        # nocheckin: dependencies (hardcoded to BENCH_BENCH_PTR for now)
 
         # setup session
         self._session = Session(
             _default_scope=GraphScope(bench_id=self._bench_id)._to_data(),
             _engines=self._engines,
             _supervisor=self._supervisor,
-            _host=self._host,
+            _self_host=self._self_host,
             _supergraph=self._supergraph,
             _oracle=self.oracle,
         )
@@ -171,6 +180,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             self._main_package = self._bench.main_package
             self._session.parent = self._bench
+            self._bench_bench = await BENCH_QUERY.get(BENCH_BENCH_PTR, live=True)
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._computer_id:

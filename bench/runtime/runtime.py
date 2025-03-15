@@ -17,7 +17,6 @@ from bench.language import ClientType, NodeReference, Run
 from bench.pb2 import (
     HealthCheckRequest,
     HealthClient,
-    HostClient,
     RunRequest,
     RunResponse,
     RuntimeBase,
@@ -102,7 +101,6 @@ class RuntimeThreadHandle:
         # start thread
         if self.mode == RuntimeThreadMode.LOCAL:
             # run directly
-            assert self.service._host is not None, f"no host for {self!r}"
             self._thread = RuntimeThread(
                 id=self.id,
                 bench_id=self.service._bench_id,
@@ -287,11 +285,6 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
     def is_idle(self) -> bool:
         """Check if the service is idle (no pending requests or processing)."""
         return all(t.is_idle for t in self._threads) and super().is_idle
-
-    @property
-    def host(self) -> HostClient:
-        assert self._host is not None, f"no host for {self!r}"
-        return self._host
 
     async def start(self):
         await super().start()
