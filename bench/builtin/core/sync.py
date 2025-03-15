@@ -83,16 +83,18 @@ def patch_node(target: Node, reference: Node) -> None:
             target._do_set(prop.name, reference_value, track=True)
 
 
-def sync_node(*, parent: Node, target_root: Node, reference_root: Node) -> None:
+def sync_node(
+    *, parent: Node, target_root: Node, reference_root: Node, recursive: bool = True
+) -> None:
     """Patches the target node *in place* from the reference node (recursively)."""
 
     # create/update target nodes
     patch_node(target_root, reference_root)
-    for reference in reference_root.iter_descendants(recursive=True):
+    for reference in reference_root.iter_descendants(recursive=False):
         target = target_root._graph.get(reference.id)
         if target is None:
             target = reference.clone(
-                recursive=False,
+                recursive=recursive,
                 reset=False,
                 detach=True,
                 map=False,
@@ -108,6 +110,11 @@ def sync_node(*, parent: Node, target_root: Node, reference_root: Node) -> None:
             target_parent.append(target)
         else:
             patch_node(target, reference)
+            if recursive:
+                for child in reference.iter_descendants(recursive=False):
+                    sync_node(
+                        parent=target, target_root=target, reference_root=child, recursive=recursive
+                    )
 
     # remove old nodes
     for reference in parent.iter_descendants(recursive=True):
