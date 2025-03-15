@@ -274,9 +274,9 @@ class ToolActionRunner(StaticActionRunner):
     @override
     async def run_static(self) -> None:
         if self.node.tool_ptr is not None:
+            # 'hard-coded' tool
             tool = self.node.tool
             assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
-            # 'hard-coded' tool
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
                 node=tool, inputs=self.inputs, output_type=self.output_type
             )

@@ -2,8 +2,11 @@ from typing import TYPE_CHECKING, assert_never
 from uuid import UUID
 
 from bench.language import (
+    BENCH_BENCH_ID,
+    BENCH_BENCH_SLUG,
     BENCH_NODE_TYPES,
     EMPTY_SCOPE_DATA,
+    PUBLIC_NODE_TYPES,
     Client,
     Computer,
     GraphScope,
@@ -14,7 +17,6 @@ from bench.language import (
     Session,
     User,
 )
-from bench.language.core.const import PUBLIC_NODE_TYPES
 from bench.proto.wiring import unpack_builtin_object
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
@@ -51,6 +53,7 @@ async def make_remote_session(
     host: "HostHandle",
     oracle: Oracle,
     supergraph: NodeSuperGraph | None = None,
+    system: bool = False,
 ):
     """Create a Session to a remote Bench's Host"""
     from .computer import ComputerHandle
@@ -58,8 +61,8 @@ async def make_remote_session(
 
     nonce = str(UUID(int=oracle.random.getrandbits(128)))
     supervisor_client = await simulation.supervisor.connect(source_id)
-    host_client = await host.connect(source_id)
-    engines = (
+    self_host_client = await host.connect(source_id)
+    engines = [
         # global engine
         RemoteEngine(
             name="remote-global",
@@ -71,23 +74,36 @@ async def make_remote_session(
         ),
         # bench engine
         RemoteEngine(
-            name="remote-bench",
+            name="remote-self-bench",
             scope=GraphScope(bench_id=bench_id)._to_data(),
             node_types=BENCH_NODE_TYPES,
-            remote=host_client,
+            remote=self_host_client,
             write_retry=RETRY_GRPC_FOREVER,
             rpc_metadata=client.rpc_metadata,
         ),
-    )
+    ]
+    if system:
+        bench_host = simulation.get_host(BENCH_BENCH_SLUG)
+        bench_host_client = await bench_host.connect(source_id)
+        engines.append(
+            RemoteEngine(
+                name="remote-bench-bench",
+                scope=GraphScope(bench_id=BENCH_BENCH_ID)._to_data(),
+                node_types=BENCH_NODE_TYPES,
+                remote=bench_host_client,
+                write_retry=RETRY_GRPC_FOREVER,
+                rpc_metadata=client.rpc_metadata,
+            )
+        )
     if supergraph is None:
         root_ptr = NodeReference(node_type=NodeType.BENCH, id=bench_id, ck=bench_id)
         supergraph = NodeSuperGraph(name="Remote", root_ptr=root_ptr)
     session = Session(
         _default_scope=GraphScope(bench_id=bench_id)._to_data(),
-        _engines=engines,
+        _engines=tuple(engines),
         _origin=client.to_origin(nonce=nonce),
         _supervisor=supervisor_client,
-        _self_host=host_client,
+        _self_host=self_host_client,
         _oracle=oracle,
         _supergraph=supergraph,
     )

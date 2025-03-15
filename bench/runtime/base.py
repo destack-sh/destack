@@ -136,7 +136,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._engines = (
             # global
             RemoteEngine(
-                name="global",
+                name="remote-global",
                 scope=EMPTY_SCOPE_DATA,
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
@@ -145,7 +145,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             ),
             # self bench engine
             RemoteEngine(
-                name="self-bench",
+                name="remote-self-bench",
                 scope=GraphScope(bench_id=self._bench_id)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._self_host,
@@ -154,7 +154,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             ),
             # bench bench engine
             RemoteEngine(
-                name="bench-bench",
+                name="remote-bench-bench",
                 scope=GraphScope(bench_id=BENCH_BENCH_ID)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._bench_host,

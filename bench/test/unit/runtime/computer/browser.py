@@ -42,8 +42,8 @@ async def test_run_flow_browser_go_to_url(simulation: Simulation, runtime: Runti
         "Flow", claims=[Claim.exclusive("Browser", ChromeBrowserTemplate, mode=NodeMode.TEMPLATE)]
     )
     Start = Action.new(ActionType.START)
-    GoToUrl = Action.new(BrowserKit.actions.Go_To_Url, url="https://symbolx.com")
-    Wait = Action.new(ActionKit.actions.Wait, delay=timedelta(seconds=3))
+    GoToUrl = Action.new(BrowserKit.actions.Go_To_Url, Url="https://symbolx.com")
+    Wait = Action.new(ActionKit.actions.Wait, Delay=timedelta(seconds=3))
     Observe = Action.new(BrowserKit.actions.Screenshot)
     Complete = Action.new(ActionType.COMPLETE)
     Flow1.actions.extend(Start, GoToUrl, Wait, Observe, Complete)
