@@ -15,7 +15,6 @@ from bench.language import (
     ANCESTOR_NODE_TYPES,
     CHILD_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
-    DYNAMIC_RESOURCE_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
     ENUM_TYPES,
     FIELD_BASE_NODE_TYPES,
@@ -25,7 +24,6 @@ from bench.language import (
     NODE_CLASSES,
     NODE_TYPES,
     PARENT_NODE_TYPES,
-    STATIC_RESOURCE_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
     STRUCT_TYPES,
@@ -228,8 +226,6 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
 AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode)])}]
 ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource)])}]
-DynamicResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in DYNAMIC_RESOURCE_NODE_TYPES])}]
-StaticResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STATIC_RESOURCE_NODE_TYPES])}]
 SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source])}]
 InlineNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode)])}]
 TypeBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES])}]
@@ -765,8 +761,6 @@ export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_C
 export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode))}
 export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
 export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
-export type StaticResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in STATIC_RESOURCE_NODE_TYPES)}
-export type DynamicResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in DYNAMIC_RESOURCE_NODE_TYPES)}
 
 // Ancestry maps
 {ancestry_maps_str}

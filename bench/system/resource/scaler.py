@@ -10,6 +10,7 @@ from bench.language import (
     Bench,
     Browser,
     Computer,
+    NodeMode,
     NodeType,
     Resource,
     ResourceStatus,
@@ -54,6 +55,38 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
     def slug(self) -> str:
         return self._slug
 
+    def _filter_scaled_resource(self, resource: WT) -> bool:
+        """Whether to consider this Resource for provisioning."""
+        if resource.mode >= NodeMode.TEMPLATE:
+            return False
+        if self.provision_subtype is not None:
+            return getattr(resource, "type", None) == self.provision_subtype
+        return True
+
+    async def _get_scaled_resources(self) -> list[WT]:
+        """Gets all the scaled Resources for this Provisioner."""
+        if self.provision_type in self.bench._graph.node_types:  # :NodeOverload
+            # get from memory
+            resources = cast(
+                list[WT],
+                self.bench._graph.get_descendants(self.bench, self.provision_type, recursive=True),
+            )
+            resources = [r for r in resources if self._filter_scaled_resource(r)]
+        else:
+            # get from database
+            provision_cls = cast(type[WT], NODE_CLASS_BY_TYPE[self.scale_type])
+            resources_query = provision_cls.where(
+                provision_cls.get_property("bench").eq(self.bench)
+                & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+            ).select_all()
+            if self.provision_subtype is not None:
+                resources_query = resources_query.where(
+                    provision_cls.get_property("type").eq(self.provision_subtype)
+                )
+            resources = await resources_query.tolist()
+            resources = [r for r in resources if self._filter_scaled_resource(r)]
+        return resources
+
     @final
     @tracer.start_as_current_span("scaler.reconcile")
     @isolated_graph()
@@ -67,12 +100,7 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
         self._reconcile_event.clear()
 
         # get resources
-        resources_query = self._resource_cls.where(
-            self._resource_cls.get_property("bench").eq(self.bench)
-            & self._resource_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
-            & self._resource_cls.get_property("scaler").exists()
-        ).select_all()
-        resources = cast(list[WT], await resources_query.tolist())
+        resources = await self._get_scaled_resources()
         resources_by_scalar = group_by(resources, lambda r: r.scaler_id)
 
         # bail if nothing to do

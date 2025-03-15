@@ -196,7 +196,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                     f"node {node!r} not in {self!r} (should be in {self._nodes_by_parent[old_parent_id][metatype]}, was {old!r})"
                 )
 
-    def remove(self, node: V):
+    def remove(self, node: V, recursive: bool = True):
         """Remove a node from the graph (incl. all descendants)"""
         assert isinstance(
             node.id, self.key_type
@@ -207,7 +207,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         if self._get_parent_ptr(node) is not None:
             self._remove_from_parent(node)
         # descend
-        if node.id in self._nodes_by_parent:
+        if recursive and node.id in self._nodes_by_parent:
             for child_type in tuple(self._nodes_by_parent[node.id]):
                 for child in tuple(self._nodes_by_parent[node.id][child_type]):
                     self.remove(child)

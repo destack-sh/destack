@@ -2,7 +2,6 @@ import {
   ActionType,
   Anchor,
   BlockType,
-  DynamicResourceNodeData,
   EditType,
   EmptyProperty,
   EnumType,
@@ -19,7 +18,6 @@ import {
   ResourceNodeData,
   RunStatus,
   SourceNodeData,
-  StaticResourceNodeData,
   StructType,
   TaskStatus,
   TypeBaseNodeData,
@@ -106,18 +104,8 @@ export function isStaticResourceNodeType(nodeType: any): boolean {
   return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 2100;
 }
 
-export function isStaticResourceNode(node: any): node is StaticResourceNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isStaticResourceNodeType(node.metatype as unknown as NodeType);
-}
-
 export function isDynamicResourceNodeType(nodeType: any): boolean {
   return typeof nodeType == "number" && nodeType >= 2100 && nodeType < 3000;
-}
-
-export function isDynamicResourceNode(node: any): node is DynamicResourceNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isDynamicResourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isLocalNodeType(nodeType: any): boolean {
@@ -164,8 +152,6 @@ export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
 export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
-export const STATIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isStaticResourceNodeType);
-export const DYNAMIC_RESOURCE_NODE_TYPES = RESOURCE_NODE_TYPES.filter(isDynamicResourceNodeType);
 export const GLOBAL_NODE_TYPES = NODE_TYPES.filter(isGlobalNodeType);
 export const REGIONAL_NODE_TYPES = NODE_TYPES.filter(isRegionalNodeType);
 export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
@@ -187,12 +173,7 @@ export const INLINE_NODE_TYPES = [
   NodeType.PLAN,
 ];
 INLINE_NODE_TYPES.sort();
-export const LOADED_PACKAGE_NODE_TYPES = [
-  ...SOURCE_NODE_TYPES,
-  ...STATIC_RESOURCE_NODE_TYPES,
-  NodeType.PLAN,
-  NodeType.TASK,
-];
+export const LOADED_PACKAGE_NODE_TYPES = [...SOURCE_NODE_TYPES, ...RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
 export const TYPE_NODE_TYPES = [NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];

@@ -7,9 +7,9 @@ from opentelemetry import trace
 
 from bench.language import (
     NODE_CLASS_BY_TYPE,
-    STATIC_RESOURCE_NODE_TYPES,
     VERSION,
     Bench,
+    NodeMode,
     NodeType,
     Resource,
     ResourceStatus,
@@ -43,24 +43,26 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
 
     def _filter_resource(self, resource: PT) -> bool:
         """Whether to consider this Resource for provisioning."""
-        if self.provision_subtype is not None:
-            return getattr(resource, "type", None) == self.provision_subtype
+        if resource.mode >= NodeMode.TEMPLATE:
+            return False
+        if (  # noqa: SIM103
+            self.provision_subtype is not None
+            and getattr(resource, "type", None) != self.provision_subtype
+        ):
+            return False
         return True
 
-    @final
-    async def start(self) -> None:
-        # custom start for provisioner first to update resource status from external state
-        await self._do_start()
-
-        # check resources / provision declared resources
-        if self.provision_type in STATIC_RESOURCE_NODE_TYPES:
+    async def _get_resources(self) -> list[PT]:
+        """Gets all Resource for this Provisioner."""
+        if self.provision_type in self.bench._graph.node_types:  # :NodeOverload
+            # get from memory
             resources = cast(
                 list[PT],
                 self.bench._graph.get_descendants(self.bench, self.provision_type, recursive=True),
             )
-            if self.provision_subtype is not None:
-                resources = [r for r in resources if self._filter_resource(r)]
+            resources = [r for r in resources if self._filter_resource(r)]
         else:
+            # get from database
             provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
             resources_query = provision_cls.where(
                 provision_cls.get_property("bench").eq(self.bench)
@@ -68,10 +70,18 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             ).select_all()
             if self.provision_subtype is not None:
                 resources_query = resources_query.where(
-                    provision_cls.get_property("subtype").eq(self.provision_subtype)
+                    provision_cls.get_property("type").eq(self.provision_subtype)
                 )
             resources = await resources_query.tolist()
             resources = [r for r in resources if self._filter_resource(r)]
+        return resources
+
+    @final
+    async def start(self) -> None:
+        # custom start for provisioner first to update resource status from external state
+        await self._do_start()
+
+        resources = await self._get_resources()
 
         # auto migrate resources to current version
         for resource in resources:

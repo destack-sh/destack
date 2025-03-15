@@ -738,7 +738,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         if recursive:
             for child_type in CHILD_NODE_TYPES[self.metatype]:
                 for child in self._graph.iter_descendants(self, child_type):
-                    child_clone = child.clone(reset=True, recursive=True, detach=True, map=map)
+                    child_clone = child.clone(reset=reset, recursive=True, detach=True, map=map)
                     attach_node(child_clone, clone, clone._graph)  # re-attach
                     if type(map) is dict:
                         map[child.id] = child_clone
@@ -994,8 +994,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @property
     def _ident(self) -> Optional[str]:
         """The Bench identifier of this node (slug if exists, else name if exists)."""
-        if self.metatype == NodeType.PACKAGE and self.parent is not None:
-            return self.parent._ident  # package shares its Bench's identifier
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident

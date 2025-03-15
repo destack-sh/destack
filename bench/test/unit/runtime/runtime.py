@@ -8,6 +8,7 @@ from bench.language import (
     Flow,
     LinkType,
     Message,
+    Package,
     Run,
     RunStatus,
     Session,
@@ -43,8 +44,16 @@ async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWor
     from bench.builtin import BuiltinPackage as BuiltinPackageRaw
     from bench.language import BENCH_BUILTIN_PACKAGE_PTR
 
+    # builtin graph in memory and builtin graph loaded from runtime/bench should be equal
     BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BUILTIN_PACKAGE_PTR)
-    assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoaded._graph)
+    assert isinstance(BuiltinPackageLoaded, Package)
+    BuiltinPackageLoadedGraph = BuiltinPackageLoaded._graph.copy()
+    loaded_bench_bench = BuiltinPackageLoaded.parent
+    assert loaded_bench_bench is not None
+    if (main_store := loaded_bench_bench.main_store) is not None:
+        BuiltinPackageLoadedGraph.remove(main_store)
+    BuiltinPackageLoadedGraph.remove(loaded_bench_bench, recursive=False)
+    assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoadedGraph)
 
 
 @simulated_runtime(system=True, runtimes=True)

@@ -548,7 +548,7 @@ class NodeType(BuiltinEnum):
     CHANNEL = 5100, None, None, "fas fa-hashtag"
     ROLE = 5110, None, None, "fas fa-user-tag"
     # IDENTITY?
-    # BADGE? POLICY? (POLICY_)RULE?
+    # BADGE? POLICY? RULE?
 
     # space
     SPACE = 5200, None, None, "fas fa-space-between"
@@ -565,7 +565,7 @@ class NodeType(BuiltinEnum):
     INVITE = 5610, None, None, "fas fa-user-plus"
     # CHALLENGE?
 
-    # run
+    # runtime
     SESSION = 6000, None, None, "fas fa-circle-play"
     RUN = 6010, None, None, "fas fa-play"
     RUN_SPAN = 6011, None, None, "fas fa-play"
@@ -678,8 +678,6 @@ NODE_TYPES_BY_AREA = {
 
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
-STATIC_RESOURCE_NODE_TYPES = _get_node_types(2000, 2100)
-DYNAMIC_RESOURCE_NODE_TYPES = _get_node_types(2100, 8000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 INLINE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
@@ -725,8 +723,9 @@ BENCH_NODE_TYPES = _get_node_types(
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
+# NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
 LOADED_PACKAGE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES, *STATIC_RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
+    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
 )
 
 #
