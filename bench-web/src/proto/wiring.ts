@@ -33,7 +33,7 @@ export type TypedNodeReferenceData<T extends NodeType> = Omit<NodeReferenceData,
 export type SomeNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 
 export function makeScope(scope: Partial<GraphScopeData>): GraphScopeData {
-  return { metatype: ObjectType.GRAPH_SCOPE, ...scope };
+  return { metatype: ObjectType.GRAPH_SCOPE, packageIds: scope.packageIds ?? [], ...scope };
 }
 
 export const EMPTY_SCOPE = makeScope({});
@@ -41,7 +41,7 @@ export const EMPTY_SCOPE = makeScope({});
 export function describeScope(scope: GraphScopeData): string {
   const scopeParts: string[] = [];
   if (scope.benchId) scopeParts.push(`bench=${scope.benchId}`);
-  if (scope.packageId) scopeParts.push(`package=${scope.packageId}`);
+  if (scope.packageIds) scopeParts.push(`packages=${scope.packageIds.join(",")}`);
   return `[${scopeParts.join(", ")}]`;
 }
 

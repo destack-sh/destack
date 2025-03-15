@@ -28,9 +28,9 @@ export interface GraphScopeData {
      */
     benchId?: string;
     /**
-     * @generated from protobuf field: optional string package_id = 31;
+     * @generated from protobuf field: repeated string package_ids = 31;
      */
-    packageId?: string;
+    packageIds: string[];
 }
 /**
  * @generated from protobuf message symbolx.bench.PropertyReferenceData
@@ -12325,9 +12325,9 @@ export enum PlanTerminationMode {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PLAN_TERMINATION_MODE_COMPLETE = 10;
+     * @generated from protobuf enum value: PLAN_TERMINATION_MODE_PASS = 10;
      */
-    COMPLETE = 10,
+    PASS = 10,
     /**
      * @generated from protobuf enum value: PLAN_TERMINATION_MODE_RETURN = 20;
      */
@@ -14476,12 +14476,13 @@ class GraphScopeData$Type extends MessageType$<GraphScopeData> {
         super("symbolx.bench.GraphScopeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "package_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 31, name: "package_ids", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<GraphScopeData>): GraphScopeData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.packageIds = [];
         if (value !== undefined)
             reflectionMergePartial<GraphScopeData>(this, message, value);
         return message;
@@ -14497,8 +14498,8 @@ class GraphScopeData$Type extends MessageType$<GraphScopeData> {
                 case /* optional string bench_id */ 30:
                     message.benchId = reader.string();
                     break;
-                case /* optional string package_id */ 31:
-                    message.packageId = reader.string();
+                case /* repeated string package_ids */ 31:
+                    message.packageIds.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14518,9 +14519,9 @@ class GraphScopeData$Type extends MessageType$<GraphScopeData> {
         /* optional string bench_id = 30; */
         if (message.benchId !== undefined)
             writer.tag(30, WireType.LengthDelimited).string(message.benchId);
-        /* optional string package_id = 31; */
-        if (message.packageId !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.packageId);
+        /* repeated string package_ids = 31; */
+        for (let i = 0; i < message.packageIds.length; i++)
+            writer.tag(31, WireType.LengthDelimited).string(message.packageIds[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -34075,7 +34076,7 @@ export enum ChangeVignetteProperty {
 export enum GraphScopeProperty {
   metatype = 1,
   benchId = 30,
-  packageId = 31,
+  packageIds = 31,
 }
 
 export enum ClientOriginProperty {
@@ -35077,8 +35078,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35115,8 +35116,8 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.14.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36327,7 +36328,7 @@ export const ChangeVignetteDataInfo: Record<ChangeVignetteProperty, PropertyInfo
 export const GraphScopeDataInfo: Record<GraphScopeProperty, PropertyInfo> = {
   [GraphScopeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRAPH_SCOPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [GraphScopeProperty.benchId]: { id: 30, name: 'bench_id', component: ObjectType.GRAPH_SCOPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [GraphScopeProperty.packageId]: { id: 31, name: 'package_id', component: ObjectType.GRAPH_SCOPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [GraphScopeProperty.packageIds]: { id: 31, name: 'package_ids', component: ObjectType.GRAPH_SCOPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ClientOriginDataInfo: Record<ClientOriginProperty, PropertyInfo> = {
   [ClientOriginProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CLIENT_ORIGIN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37224,7 +37225,7 @@ export const PlanStatusOptionInfo: Partial<Record<PlanStatus, EnumOptionInfo>> =
 }
 
 export const PlanTerminationModeOptionInfo: Partial<Record<PlanTerminationMode, EnumOptionInfo>> = {
-  [PlanTerminationMode.COMPLETE]: { id: 10, name: 'COMPLETE', text: 'Complete the Plan', title: 'Complete' },
+  [PlanTerminationMode.PASS]: { id: 10, name: 'PASS', text: 'Complete the Plan', title: 'Complete' },
   [PlanTerminationMode.RETURN]: { id: 20, name: 'RETURN', text: 'Return to caller (for more planning)', title: 'Return' },
 }
 

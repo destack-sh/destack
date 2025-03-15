@@ -184,7 +184,7 @@ export const packagePtr = computed(() => {
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
 export const BENCH_SCOPE = computedValue(() => makeScope({ benchId: _benchPtr.value?.id }));
 export const PACKAGE_SCOPE = computedValue(() =>
-  makeScope({ benchId: _benchPtr.value?.id, packageId: packagePtr.value?.id }),
+  makeScope({ benchId: _benchPtr.value?.id, packageIds: packagePtr.value?.id != null ? [packagePtr.value.id] : [] }),
 );
 
 // current local Space graph (not yet persisted).
@@ -196,7 +196,7 @@ const _spaceLocal = {
   benchPtr: LOCAL_BENCH_PTR,
 } as SpaceData;
 const _spaceGraphLocal = new NodeGraph({
-  scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),
+  scope: makeScope({ benchId: LOCAL_BENCH_ID, packageIds: [LOCAL_PACKAGE_ID] }),
   nodeTypes: new Set(NODE_TYPES),
 });
 _spaceGraphLocal.add(_spaceLocal);

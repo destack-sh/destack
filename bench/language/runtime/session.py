@@ -40,7 +40,6 @@ from bench.language.core import (
     NodeDataGraph,
     NodeGraph,
     NodeMode,
-    NodeReference,
     NodeType,
     PackageNode,
     SessionStatus,
@@ -74,7 +73,6 @@ from .transaction import Transaction
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
-        NodeReference,
         Query,
     )
     from bench.runtime.core import Runtime
@@ -252,20 +250,21 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):
-            scope.package_id = uuid_to_str(n.package_id) or self._default_scope.package_id
-        return scope
-
-    def _get_scope_for_node_ptr(self, ptr: NodeReference) -> GraphScopeData:
-        """Get the scope for a node pointer in this session."""
-        scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
-        if ptr.bench_id is not None:
-            scope.bench_id = uuid_to_str(ptr.bench_id) or ""
+            package_id = uuid_to_str(n.package_id)
+            if package_id is not None:
+                scope.package_ids.append(package_id)
         return scope
 
     def _get_scope_for_query(self, query: "Query") -> GraphScopeData:
         """Get the scope for a query in this session."""
         if query._base_type is not None:
             return self._get_scope_for_node(query._base_type)
+        elif query._roots:
+            scope = GraphScopeData(metatype=pb2.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
+            for root in query._roots:
+                if not scope.bench_id and root.bench_id:
+                    scope.bench_id = str(root.bench_id)
+            return scope
         else:
             return self._default_scope
 
@@ -369,9 +368,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
 
         # set context
         if self.parent is not None:
-            self._default_scope = GraphScopeData(
-                bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
-            )
+            self._default_scope = GraphScopeData(bench_id=uuid_to_str(self.parent.bench_id))
         if _set_in_context:
             self._active_session_tokens.append(ACTIVE_SESSION.set(self))
 
