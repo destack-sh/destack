@@ -1641,6 +1641,7 @@ declareActions<"space">({
     text: "Replace in this space",
     shortcuts: ["mod+shift+r"],
   },
+  // launch
   "space.launch.discord": {
     title: "Open Discord",
     text: "Join the community on Discord",
@@ -1660,6 +1661,22 @@ declareActions<"space">({
       if (isFullscreen) document.exitFullscreen();
       else document.documentElement.requestFullscreen();
     },
+  },
+  // create
+  "space.create.page": {
+    title: "Create Page",
+    icon: "far fa-file",
+    text: "Create a new page",
+  },
+  "space.create.thread": {
+    title: "Create Thread",
+    icon: "fas fa-reel",
+    text: "Create a new thread",
+  },
+  "space.create.channel": {
+    title: "Create Channel",
+    icon: "far fa-channel",
+    text: "Create a new channel",
   },
 });
 

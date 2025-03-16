@@ -164,7 +164,7 @@ const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   bench: ["mod+shift+f"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
-  everywhere: "Search (almost) anything",
+  everywhere: "Search everything",
   actions: "Find an action to run",
   bench: "Search across this Bench",
 };
@@ -177,7 +177,7 @@ for (const inMode of OMNIBAR_MODES) {
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
     action: () => open(inMode),
-    isEnabled: computed(() => props.box.width >= PANEL_WIDTH && (!isActive.value || inMode != mode.value)),
+    isEnabled: computed(() => props.box.width >= PANEL_WIDTH),
   });
 }
 

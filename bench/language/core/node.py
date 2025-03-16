@@ -127,6 +127,7 @@ if TYPE_CHECKING:
         Tag,
         Text,
         TextLine,
+        Thread,
         Type,
         User,
     )
@@ -1637,6 +1638,14 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
         references=NodeType.BLOCK,
         same_bench=True,
         description="The Block where this Node is 'defined'.",
+    )
+    thread: Optional["Thread"] = p_regular(
+        37,
+        require=False,
+        array=False,
+        references=NodeType.THREAD,
+        same_bench=True,
+        description="The current main Thread for this Node.",
     )
     tags: list["Tag"] = p_internal(
         38, require=False, array=True, same_bench=True, references=NodeType.TAG

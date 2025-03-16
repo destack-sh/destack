@@ -34,7 +34,7 @@ from bench.language import (
     Text,
     TextLine,
 )
-from bench.language.source.channel import Channel
+from bench.language.communication.channel import Channel
 from bench.language.source.view import ChatView, View, ViewType
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation

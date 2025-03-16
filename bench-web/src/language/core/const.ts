@@ -173,7 +173,13 @@ export const INLINE_NODE_TYPES = [
   NodeType.PLAN,
 ];
 INLINE_NODE_TYPES.sort();
-export const LOADED_PACKAGE_NODE_TYPES = [...SOURCE_NODE_TYPES, ...RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK];
+export const LOADED_PACKAGE_NODE_TYPES = [
+  ...SOURCE_NODE_TYPES,
+  ...RESOURCE_NODE_TYPES,
+  NodeType.CHANNEL,
+  NodeType.PLAN,
+  NodeType.TASK,
+];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
 export const TYPE_NODE_TYPES = [NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];
