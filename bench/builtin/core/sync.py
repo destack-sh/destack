@@ -84,39 +84,48 @@ def patch_node(target: Node, reference: Node) -> None:
 
 
 def sync_node(
-    *, parent: Node, target_root: Node, reference_root: Node, recursive: bool = True
+    *,
+    parent: Node,
+    target: Node | None,
+    reference: Node,
+    recursive: bool = True,
+    _is_root: bool = True,
 ) -> None:
     """Patches the target node *in place* from the reference node (recursively)."""
 
-    # create/update target nodes
-    patch_node(target_root, reference_root)
-    for reference in reference_root.iter_descendants(recursive=False):
-        target = target_root._graph.get(reference.id)
-        if target is None:
-            target = reference.clone(
-                recursive=recursive,
-                reset=False,
-                detach=True,
-                map=False,
-                _graph=target_root._graph,
-            )
-            if reference.parent_ptr is None:
-                target_parent = target_root
-            else:
-                parent_id = reference.parent_ptr.id
-                assert parent_id is not None, f"unexpected {reference!r} has no parent"
-                target_parent = target_root._graph.get(parent_id)
-                assert target_parent is not None, f"missing parent {parent_id!r} for {reference!r}"
-            target_parent.append(target)
+    if target is None:
+        # target doesn't have that node, create id
+        target = reference.clone(
+            recursive=recursive,
+            reset=False,
+            detach=True,
+            map=False,
+            _graph=parent._graph,
+        )
+        if reference.parent_ptr is None:
+            target_parent = parent
         else:
-            patch_node(target, reference)
-            if recursive:
-                for child in reference.iter_descendants(recursive=False):
-                    sync_node(
-                        parent=target, target_root=target, reference_root=child, recursive=recursive
-                    )
+            parent_id = reference.parent_ptr.id
+            assert parent_id is not None, f"unexpected {reference!r} has no parent"
+            target_parent = parent._graph.get(parent_id)
+            assert target_parent is not None, f"missing parent {parent_id!r} for {reference!r}"
+        target_parent.append(target)
+    else:
+        # target has that node, diff it
+        patch_node(target, reference)
+        if recursive:
+            for reference_child in reference.iter_descendants(recursive=False):
+                target_child = target._graph.get(reference_child.id)
+                sync_node(
+                    parent=target,
+                    target=target_child,
+                    reference=reference_child,
+                    recursive=recursive,
+                    _is_root=False,
+                )
 
     # remove old nodes
-    for reference in parent.iter_descendants(recursive=True):
-        if reference.id not in target_root._graph:
-            reference.delete()
+    if _is_root:
+        for reference in parent.iter_descendants(recursive=True):
+            if reference.id not in target._graph:
+                reference.delete()

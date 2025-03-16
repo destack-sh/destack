@@ -461,8 +461,8 @@ class HostService(GraphServiceBase, HostBase):
             async with self.session(readonly=False) as session:
                 sync_node(
                     parent=self._bench,
-                    target_root=self._main_package,
-                    reference_root=BuiltinPackage,
+                    target=self._main_package,
+                    reference=BuiltinPackage,
                     recursive=True,
                 )
                 edits, _ = await session.commit()
