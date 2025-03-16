@@ -14,9 +14,9 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, canvas, hasLocalBench, pkg, benchConnection, benchGraph, spaceGraph } from "@/system/space";
+import { bench, benchConnection, benchGraph, canvas, hasLocalBench, pkg, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
-import { fireActionById } from "@/ui/action";
+import { ActionBuiltinId, fireActionById, getAction } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
@@ -26,8 +26,6 @@ import Tree from "@/views/collections/Tree.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
-import Activity from "@/views/helpers/Activity.vue";
-import Catalog from "@/views/helpers/Catalog.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
@@ -138,9 +136,9 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 flex max-w-full flex-shrink-0 flex-row items-center gap-x-2 py-1.5 pl-2 pr-1"
+      class="mx-2 flex max-w-full flex-shrink-0 flex-col gap-x-2 py-1.5 pl-2 pr-1"
       :style="{
-        height: `${BAR_HEADER_HEIGHT}px`,
+        minHeight: `${BAR_HEADER_HEIGHT}px`,
       }"
       role="button"
     >
@@ -148,6 +146,9 @@ defineExpose<ViewExpose>({ self });
       <button
         v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
         class="flex flex-row items-center gap-x-1.5 truncate rounded transition-colors duration-75 hover:bg-gray-100"
+        :style="{
+          height: `${BAR_HEADER_HEIGHT}px`,
+        }"
       >
         <IconInline
           v-tooltip="{ title: 'Change icon', small: true }"
@@ -166,32 +167,14 @@ defineExpose<ViewExpose>({ self });
         <span v-if="bench" class="truncate font-medium">{{ bench.slug }}</span>
         <span v-else class="italic"> Bench </span>
       </button>
-      <!-- Tabs -->
-      <div class="ml-auto flex flex-shrink-0 flex-row items-center" @click.stop>
-        <button
-          v-for="a in visibleAspects"
-          :key="a"
-          v-tooltip="{
-            small: true,
-            text: toCamelName(SidebarAspect, a),
-            group: 'sidebar',
-          }"
-          class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
-          :class="[
-            a == aspect
-              ? 'bg-gray-100 font-medium text-gray-900'
-              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
-          ]"
-          @click="
-            state.update(
-              { metatype: NodeType.VIEW, type: ViewType.SIDEBAR, subnode: { aspect: a } },
-              { debounce: 'short' },
-            )
-          "
-        >
-          <IconInline v-bind="ICON_BY_SIDEBAR_ASPECT[a]" />
-        </button>
-      </div>
+      <button
+        v-for="action in (
+          ['space.create.page', 'space.create.thread', 'space.create.channel'] as ActionBuiltinId[]
+        ).map(getAction)"
+        :key="action.id"
+      >
+        {{ action.title }}
+      </button>
     </div>
 
     <!-- Content -->
@@ -209,71 +192,23 @@ defineExpose<ViewExpose>({ self });
           minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
         }"
       >
-        <div v-if="aspect == SidebarAspect.BENCH">
-          <!-- Package -->
-          <div
-            class="group/header mx-4 flex flex-row items-center"
-            :style="{
-              height: `${HEADER_HEIGHT}px`,
-            }"
-          >
-            <span class="font-medium">Package</span>
-            <!-- Create -->
-            <div v-if="pkg != null" class="ml-auto flex flex-row items-center gap-x-1">
-              <button
-                v-for="nodeType in [NodeType.PAGE, NodeType.CHANNEL]"
-                :key="nodeType"
-                v-tooltip="{ small: true, text: toCamelName(NodeType, nodeType), group: 'hub' }"
-                class="ml-auto rounded px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-200 hover:text-gray-700 group-hover/header:opacity-100"
-                @click.stop="
-                  () => {
-                    if (pkg == null) return;
-                    if (nodeType == NodeType.PAGE) {
-                      const page = createPage(benchConnection.tx, benchGraph, {
-                        anchor: 'inside',
-                        target: pkg,
-                        page: {},
-                      });
-                      canvas.goToNode(page);
-                    } else if (nodeType == NodeType.CHANNEL) {
-                      const channel = createChannel(benchConnection.tx, benchGraph, {
-                        anchor: 'inside',
-                        target: pkg,
-                        channel: {},
-                      });
-                      canvas.goToNode(channel);
-                    }
-                  }
-                "
-              >
-                <IconInline v-bind="makeIcon(NodeTypeOptionInfo[nodeType]!.icon!)" />
-              </button>
-            </div>
-          </div>
-          <Tree
-            id="pages"
-            class=""
-            :node-ptr="props.nodePtr"
-            :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.PACKAGE })"
-            size-is-dynamic
-            v-bind="state.getChildState('scroll.pages')"
-          />
+        <!-- Package -->
+        <div
+          class="group/header mx-4 flex flex-row items-center"
+          :style="{
+            height: `${HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-medium">Package</span>
         </div>
-        <!-- Activity -->
-        <Activity
-          v-else-if="aspect == SidebarAspect.ACTIVITY"
-          id="activity"
-          :size="{ width: size?.width, height: bodyHeight }"
+        <Tree
+          id="package"
+          class=""
+          :node-ptr="props.nodePtr"
+          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.PACKAGE })"
+          size-is-dynamic
+          v-bind="state.getChildState('scroll.package')"
         />
-        <!-- Catalog -->
-        <Catalog
-          v-else-if="aspect == SidebarAspect.CATALOG"
-          id="catalog"
-          :size="{ width: size?.width, height: bodyHeight }"
-        />
-        <div v-else class="mx-5">
-          <span class="text-red-600">{{ toCamelName(SidebarAspect, aspect) }}</span>
-        </div>
       </div>
 
       <!-- Selection overlay -->

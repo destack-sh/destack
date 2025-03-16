@@ -18,7 +18,7 @@ import {
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
-import { useExistingConnection, type Connection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionMapKit } from "@/ui/action";
 import {
@@ -267,7 +267,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       >
         <!-- Node -->
         <li
-          v-for="({ node, depth, hasChildren }, i) in expandedItems"
+          v-for="({ node, depth }, i) in expandedItems"
           :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
           :key="node.id"
           data-contextmenu-items="space.navigate.open"
@@ -311,11 +311,9 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           <button class="group/icon relative mr-1 flex-shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
             <IconInline
               v-bind="getNodeIcon(node)"
-              class="w-5 text-center transition-colors duration-75"
-              :class="hasChildren ? 'group-hover/node:opacity-0' : ''"
+              class="w-5 text-center transition-colors duration-75 group-hover/node:opacity-0"
             />
             <span
-              v-if="hasChildren"
               class="absolute left-0 w-5 rounded bg-gray-100 text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
               :class="isExpanded(node) ? 'rotate-90' : 'rotate-9'"
             >
@@ -346,24 +344,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           <NodeMetadata class="ml-1.5" size="sm" :node="node" />
           <!-- Meta -->
           <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[7px]">
-            <!-- Create inside -->
-            <button
-              v-if="isNode(node, NodeType.PAGE)"
-              aria-hidden
-              class="text-gray-400 opacity-0 hover:text-gray-400 group-hover/node:opacity-100"
-              @click.stop="
-                () => {
-                  const page = createBlock(connection.tx, graph, {
-                    anchor: 'inside',
-                    target: node,
-                    block: { type: BlockType.PAGE },
-                  });
-                  canvas.goToNode(page);
-                }
-              "
-            >
-              <i class="fas fa-plus" />
-            </button>
+            <!-- ... -->
           </div>
           <!-- ... -->
         </li>

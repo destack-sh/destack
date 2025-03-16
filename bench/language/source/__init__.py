@@ -1,6 +1,5 @@
 from .action import Action, ActionType
 from .block import BLOCK_TYPES, NODE_BLOCK_TYPES, TEXT_BLOCK_TYPES, Block, BlockType
-from .channel import Channel, ChannelType
 from .choice import Choice
 from .clazz import Class
 from .database import Database
@@ -65,8 +64,6 @@ __all__ = [
     "Anchor",
     "Block",
     "BlockType",
-    "Channel",
-    "ChannelType",
     "Choice",
     "Class",
     "Database",

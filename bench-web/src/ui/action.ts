@@ -24,13 +24,18 @@ export type OmnibarMode = "everywhere" | "actions" | "bench";
 export const OMNIBAR_MODES: OmnibarMode[] = ["everywhere", "actions", "bench"];
 
 export const ACTION_BUILTIN_IDS = [
-  // space
+  // omnibar
   // (:OmnibarModes)
   "space.omnibar.everywhere",
   "space.omnibar.actions",
   "space.omnibar.bench",
+  // launch
   "space.launch.discord",
   "space.launch.fullscreen",
+  // create
+  "space.create.page",
+  "space.create.thread",
+  "space.create.channel",
   // history
   "space.history.undo",
   "space.history.redo",

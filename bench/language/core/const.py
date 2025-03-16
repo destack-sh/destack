@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.14.2"
+VERSION = "2025.03.16.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -545,7 +545,6 @@ class NodeType(BuiltinEnum):
     KIT = 5060, None, None, "fas fa-screwdriver-wrench"
     VIEW = 5080, None, None, "fas fa-window-frame"
     DATABASE = 5090, None, None, "fas fa-database"
-    CHANNEL = 5100, None, None, "fas fa-hashtag"
     ROLE = 5110, None, None, "fas fa-user-tag"
     # IDENTITY?
     # BADGE? POLICY? RULE?
@@ -554,8 +553,9 @@ class NodeType(BuiltinEnum):
     SPACE = 5200, None, None, "fas fa-space-between"
 
     # communication
-    THREAD = 5501, None, None, "fas fa-reel"
-    MESSAGE = 5502, None, None, "fas fa-message"
+    CHANNEL = 5500, None, None, "fas fa-hashtag"
+    THREAD = 5510, None, None, "fas fa-reel"
+    MESSAGE = 5520, None, None, "fas fa-message"
     # POLL?
     # REACTION?
     NOTIFICATION = 5540, None, None, "fas fa-bell"
@@ -706,13 +706,13 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.CLAIM,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, *INSTANTIABLE_NODE_TYPES
+    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, *INSTANTIABLE_NODE_TYPES, NodeType.CHANNEL
 )
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
 PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
-    1000,
+    2000,
     10000,
     NodeType.BENCH,
     NodeType.PACKAGE,
@@ -725,7 +725,7 @@ PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENC
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 # NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
 LOADED_PACKAGE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.PLAN, NodeType.TASK
+    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.CHANNEL, NodeType.PLAN, NodeType.TASK
 )
 
 #
