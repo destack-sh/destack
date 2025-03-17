@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.PAGE, passthrough_get=("fields",))
+@node_(NodeType.PAGE)
 class Page(IsTemplatable, IsModal, IsTitled, InlineNode[BlockData]):
     """A Page of Blocks."""
 

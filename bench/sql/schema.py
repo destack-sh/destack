@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.17.0"
+VERSION = "2025.03.17.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1702,7 +1702,8 @@ INTERRUPTION_TABLE = Table(
         Column("action_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("link_id", PrimitiveType.UUID, is_nullable=True),
         Column("link_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("attempt", PrimitiveType.INT32, is_nullable=True),
+        Column("span_id", PrimitiveType.UUID, is_nullable=True),
+        Column("span_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("breakpoint_site", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="10"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),

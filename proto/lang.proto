@@ -1326,7 +1326,7 @@ enum RunSpanType {
   RUN_SPAN_TYPE_ATTEMPT = 1;
   RUN_SPAN_TYPE_WAIT = 2;
   RUN_SPAN_TYPE_ACQUIRE = 3;
-  RUN_SPAN_TYPE_DELEGATE = 10;
+  RUN_SPAN_TYPE_CODE = 10;
   RUN_SPAN_TYPE_FLOW_PLAN = 100;
   RUN_SPAN_TYPE_MODEL_PREPARE = 300;
   RUN_SPAN_TYPE_MODEL_GENERATE = 310;
@@ -3266,6 +3266,47 @@ message TaskData {
   optional NodeReferenceData user_ptr = 95;
 }
 
+message RunSpanData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  RunSpanType type = 30;
+  optional NodeReferenceData root_ptr = 31;
+  Severity severity = 33;
+  RunStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional google.protobuf.Timestamp terminated_at = 43;
+  optional google.protobuf.Timestamp interrupted_at = 44;
+  optional NodeReferenceData interruption_ptr = 53;
+  optional ErrorData error = 54;
+  optional string title = 60;
+  optional TextData text = 61;
+  optional CodeData code = 62;
+  repeated NodeReferenceData nodes_ptr = 65;
+  optional NodeReferenceData flow_ptr = 80;
+  optional NodeReferenceData kit_ptr = 81;
+  optional NodeReferenceData action_ptr = 82;
+  optional NodeReferenceData link_ptr = 83;
+  optional NodeReferenceData plan_ptr = 84;
+  optional NodeReferenceData task_ptr = 85;
+  optional NodeReferenceData trigger_ptr = 86;
+  optional string trigger_key = 87;
+  optional NodeReferenceData session_ptr = 90;
+  optional NodeReferenceData client_ptr = 93;
+  optional NodeReferenceData computer_ptr = 94;
+  optional NodeReferenceData user_ptr = 95;
+}
+
 message InterruptionData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3285,7 +3326,7 @@ message InterruptionData {
   optional NodeReferenceData flow_ptr = 33;
   optional NodeReferenceData action_ptr = 34;
   optional NodeReferenceData link_ptr = 35;
-  optional int32 attempt = 37;
+  optional NodeReferenceData span_ptr = 37;
   optional BreakpointSite breakpoint_site = 38;
   InterruptionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
@@ -3394,47 +3435,6 @@ message SessionData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
   optional google.protobuf.Timestamp closed_at = 43;
-  optional NodeReferenceData session_ptr = 90;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-}
-
-message RunSpanData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  RunSpanType type = 30;
-  optional NodeReferenceData root_ptr = 31;
-  Severity severity = 33;
-  RunStatus status = 40;
-  optional google.protobuf.Duration duration = 41;
-  optional google.protobuf.Timestamp started_at = 42;
-  optional google.protobuf.Timestamp terminated_at = 43;
-  optional google.protobuf.Timestamp interrupted_at = 44;
-  optional NodeReferenceData interruption_ptr = 53;
-  optional ErrorData error = 54;
-  optional string title = 60;
-  optional TextData text = 61;
-  optional CodeData code = 62;
-  repeated NodeReferenceData nodes_ptr = 65;
-  optional NodeReferenceData flow_ptr = 80;
-  optional NodeReferenceData kit_ptr = 81;
-  optional NodeReferenceData action_ptr = 82;
-  optional NodeReferenceData link_ptr = 83;
-  optional NodeReferenceData plan_ptr = 84;
-  optional NodeReferenceData task_ptr = 85;
-  optional NodeReferenceData trigger_ptr = 86;
-  optional string trigger_key = 87;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;

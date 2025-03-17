@@ -34,7 +34,7 @@ class FlowType(BuiltinEnum):
     ACTION = 10, "Action", "Link Actions into a single Flow"
 
 
-@node_(NodeType.FLOW, passthrough_get=("fields",))
+@node_(NodeType.FLOW)
 class Flow(IsComputable, IsTemplatable, IsModal, IsNamed, InlineNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 

@@ -456,7 +456,7 @@ class Runtime:
     async def _prefetch_context(self, runner: Runner):
         """
         Load remote Nodes that are (probably) required for the given Runner.
-        nocheckin :Architecture: unclear which remote Nodes to load for Runs and how
+        TODO :Architecture: unclear which remote Nodes to load for Runs and how
          (should we only load top level references? Text mentions? expand Messages into Threads?
            entire Run trees? this seems related to the context/projection stuff in model instruct)
         NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?

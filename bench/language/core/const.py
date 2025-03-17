@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.17.0"
+VERSION = "2025.03.17.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -577,7 +577,7 @@ class NodeType(BuiltinEnum):
     PLAN = 6100, None, None, "fas fa-list-check"
     TASK = 6110, None, None, "far fa-square-check"
     CLAIM = 6150, None, None, "fas fa-stamp"
-    # CURSOR, POOL, LOCK, BARRIER, CONDITION, ...?
+    # ENTITLEMENT, CURSOR, POOL, LOCK, BARRIER, ...?
 
     #
     # Local (8000-10000)
@@ -1439,7 +1439,7 @@ class RunSpanType(BuiltinEnum):
     ATTEMPT = 1, None, None, "fas fa-play"
     WAIT = 2, None, None, "fas fa-hourglass-end"
     ACQUIRE = 3, None, None, "fas fa-toolbox"
-    DELEGATE = 10, None, None, "fas fa-play"
+    CODE = 10, None, None, "fas fa-code"
     # flow
     FLOW_PLAN = 100, None, None, "fas fa-hexagon-nodes"
     # action

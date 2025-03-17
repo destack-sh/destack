@@ -70,9 +70,9 @@ tracer = trace.get_tracer(__name__)
 class Interrupted(Exception):  # noqa: N818
     """A Runner/Run is interrupted."""
 
-    def __init__(self, runner: "Runner", run: Run, interruption: Interruption):
+    def __init__(self, runner: "Runner", span: Run | RunSpan, interruption: Interruption):
         self.runner = runner
-        self.run = run
+        self.span = span
         self.interruption = interruption
 
 
@@ -431,8 +431,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
 
     @property
     def interruption(self) -> Interruption | None:
-        assert self.tracked_run is not None, f"{self!r} is not tracked"
-        return self.tracked_run.interruption
+        return self.tracked.interruption
 
     @property
     def breakpoints(self) -> Sequence[Breakpoint]:
@@ -456,22 +455,22 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self,
         kind: InterruptionType,
         *,
-        attempt: int | None = None,
         breakpoint: BreakpointSite | None = None,
     ):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
-        assert self.tracked_run is not None, f"{self!r} is not tracked"
-        for interruption in self.tracked_run._graph.iter_descendants(
-            self.tracked_run, NodeType.INTERRUPTION
-        ):
+        run = self.closest_tracked_run
+        assert run is not None, f"{self!r} is not tracked"
+        for interruption in run._graph.iter_descendants(run, NodeType.INTERRUPTION):
             interruption = cast(Interruption, interruption)
             if (
                 interruption.type == kind
-                and interruption.attempt == attempt
+                and interruption.span_id == self.id
                 and interruption.breakpoint_site == breakpoint
             ):
                 return interruption
-        interruption = Interruption.from_run(kind, self.tracked_run, breakpoint=breakpoint)
+        interruption = Interruption.from_run(
+            kind, run, span=self.tracked_span, breakpoint=breakpoint
+        )
         self.session._create(interruption)
         return interruption
 
@@ -479,14 +478,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self,
         kind: InterruptionType,
         *,
-        attempt: int | None = None,
         breakpoint: BreakpointSite | None = None,
     ):
         """Yield/resume an Interrupt of the given kind if set in this Runner."""
-        assert self.tracked_run is not None, f"{self!r} is not tracked"
-        interruption = self._get_or_create_interruption(
-            kind, attempt=attempt, breakpoint=breakpoint
-        )
+        interruption = self._get_or_create_interruption(kind, breakpoint=breakpoint)
         if interruption.status == InterruptionStatus.COMPLETED:
             logger.trace(
                 f"runtime.{kind.name.lower()}.completed", runner=self, interrupt=interruption
@@ -499,13 +494,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             raise InterruptionCancelledError(f"{interruption!r} is cancelled")
         else:
             logger.trace(f"runtime.{kind.name.lower()}", runner=self, interrupt=interruption)
-            raise Interrupted(self, self.tracked_run, interruption)
+            raise Interrupted(self, self.tracked, interruption)
 
     @final
     def _trap_breakpoint(self, site: BreakpointSite, *alias_sites: BreakpointSite):
         """Yield/resume the given kind of breakpoint if set in this Runner."""
-        if self.tracked_run is None:
-            return  # can't break into untracked Run
         # handle applicable breakpoint (if any)
         if self._has_breakpoint_set(site, *alias_sites):
             self._trap_interruption(InterruptionType.YIELD, breakpoint=site)
@@ -513,8 +506,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     @final
     def _trap_pause(self):
         """Yield/resume a pause the given Runner if required."""
-        if self.tracked_run is None:
-            return  # can't break into untracked Run
         if self.should_pause:
             self._trap_interruption(InterruptionType.PAUSE)
 
