@@ -800,6 +800,10 @@ class Runtime:
     # Orchestration
     #
 
+    def get_runner(self, span: Run | RunSpan) -> Runner | None:
+        """Get a Runner for a Run or RunSpan."""
+        return self._owned_runners_by_id.get(span.id)
+
     def restore_runner(self, run: Run) -> Runner:
         """Restore a Runner from a Run."""
         if (runner := self._owned_runners_by_id.get(run.id)) is not None:

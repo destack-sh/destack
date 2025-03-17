@@ -265,6 +265,7 @@ class Run(IsTimed, IsRuntime, IsModal, IsBased, IsTitled, PackageNode[RunData], 
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
+    interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
     logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
 
