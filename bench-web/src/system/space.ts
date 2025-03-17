@@ -33,6 +33,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
 );
 export const bench = benchGraph.getRef(local.benchPtr);
 export const pkg = benchGraph.getRef(local.packagePtr);
+// nocheckin: builtin package
 export const hasLocalPkg = computed(() => pkg.value != null);
 export const hasLocalBench = computed(() => bench.value != null);
 benchConnection.onError((e) => {

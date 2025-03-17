@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.17.1"
+VERSION = "2025.03.17.6"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -946,7 +946,6 @@ FLOW_TABLE = Table(
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
-        Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
@@ -981,7 +980,6 @@ ACTION_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
-        Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
@@ -1903,15 +1901,16 @@ CLAIM_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("status", PrimitiveType.INT16, default="10"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("granted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("resource_id", PrimitiveType.UUID, is_nullable=True),
-        Column("resource_type", PrimitiveType.INT16, is_nullable=True),
-        Column("resource_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("resource_selection", PrimitiveType.JSON, is_nullable=True),
+        Column("target_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("target_type", PrimitiveType.INT16, is_nullable=True),
+        Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),

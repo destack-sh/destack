@@ -67,6 +67,7 @@ class ViewType(BuiltinEnum):
     PATH = 10004
     COMPUTED_VALUE = 10005
     SELECTION = 10006
+    CLAIM_LIST = 10007
 
     # helpers (20000-30000)
     USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"
