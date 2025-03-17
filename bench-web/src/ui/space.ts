@@ -1,11 +1,5 @@
 import { canvas, supergraph } from "@/globals";
-import {
-  getBaseFromNode,
-  HELPER_VIEW_TYPES,
-  isInlineNode,
-  ROOT_VIEW_TYPES,
-  toCamelName,
-} from "@/language/core/const";
+import { getBaseFromNode, HELPER_VIEW_TYPES, isInlineNode, ROOT_VIEW_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/core/graph";
 import {
   cloneNode,
@@ -25,6 +19,8 @@ import {
   TransactionOptions,
   type Transaction,
 } from "@/language/runtime/transaction";
+import { createChannel } from "@/language/source/channel";
+import { createPage } from "@/language/source/page";
 import {
   BlockType,
   ChangeCategory,
@@ -54,7 +50,7 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { inspectionPtr, pkg, space } from "@/system/space";
+import { benchConnection, benchGraph, inspectionPtr, pkg, space } from "@/system/space";
 import { Action, ActionContext, declareActions, getNodesForAction } from "@/ui/action";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
@@ -854,7 +850,7 @@ export class SpaceCanvas {
   /** Add a new view to the canvas at the current root.  */
   addView(view: ViewIn, options?: OpenViewOptions) {
     let tx = this.tx();
-    // NOTE :UX: should we always ignore inactive views? would it be useful to consider them sometimes? 
+    // NOTE :UX: should we always ignore inactive views? would it be useful to consider them sometimes?
     //  (like when there's an inactive view like the one you want in history, maybe we should duplicate that)
     const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, filter: options?.filter, isActive: true });
 
@@ -1412,6 +1408,21 @@ export function deleteSelection(action: Action, ctx: ActionContext): boolean {
 
 // space
 declareActions<"space">({
+  "space.omnibar.everywhere": {
+    title: "Search everything",
+    text: "Search everything",
+    shortcuts: ["mod+k"],
+  },
+  "space.omnibar.actions": {
+    title: "Find an action to run",
+    text: "Find an action to run",
+    shortcuts: ["mod+shift+a"],
+  },
+  "space.omnibar.bench": {
+    title: "Search across this Bench",
+    text: "Search across this Bench",
+    shortcuts: ["mod+shift+f"],
+  },
   // edit
   "space.edit.rename": {
     icon: "fas fa-pencil",
@@ -1667,16 +1678,29 @@ declareActions<"space">({
     title: "Create Page",
     icon: "far fa-file",
     text: "Create a new page",
+    action: () => {
+      const page = createPage(benchConnection.tx, benchGraph, { anchor: "inside", target: pkg.value!, page: {} });
+      canvas.goToNode(page);
+    },
   },
   "space.create.thread": {
     title: "Create Thread",
     icon: "fas fa-reel",
     text: "Create a new thread",
+    action: () => {},
   },
   "space.create.channel": {
     title: "Create Channel",
-    icon: "far fa-channel",
+    icon: "fas fa-hashtag",
     text: "Create a new channel",
+    action: () => {
+      const channel = createChannel(benchConnection.tx, benchGraph, {
+        anchor: "inside",
+        target: pkg.value!,
+        channel: {},
+      });
+      canvas.goToNode(channel);
+    },
   },
 });
 

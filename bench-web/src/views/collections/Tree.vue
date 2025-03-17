@@ -41,7 +41,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
-const ITEM_HEIGHT = 28;
+const ITEM_HEIGHT = 30;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
 const props = defineProps<
@@ -274,7 +274,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-type="node.metatype"
-          class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded border py-[3px] transition-colors duration-150 hover:cursor-pointer"
+          class="group/node relative mx-2 flex max-w-full flex-row items-center rounded border transition-colors duration-150 hover:cursor-pointer"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
@@ -287,7 +287,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             isDragging(node) ? 'opacity-50' : '',
           ]"
           :style="{
-            paddingLeft: 6 + depth * DEPTH_OFFSET + 'px',
+            paddingLeft: 8 + depth * DEPTH_OFFSET + 'px',
             paddingRight: 8 + 'px',
             height: ITEM_HEIGHT + 'px',
           }"

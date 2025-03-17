@@ -348,8 +348,13 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnchor?: FocusAnchor) {
   if (anchor == null || typeof anchor == "string") {
-    // just focus page
-    focusText("bottom");
+    if (isEmpty.value) {
+      // focus title
+      pageHeaderRef.value?.focusIdentifier("left");
+    } else {
+      // focus page
+      focusText("bottom");
+    }
   } else {
     // focus block
     focusInText(!isNodeRef(anchor) ? toNodeRef(anchor) : anchor);
