@@ -2,7 +2,7 @@
 import { isInlineNode, toCamelName } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
-import { STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
+import { isTextLineEmpty, STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
 import { uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createBlock } from "@/language/source/block";
@@ -90,7 +90,9 @@ const widths = computed(() => {
   return { block: blockWidth, gutter: gutterWidth };
 });
 const isEmpty = computed(
-  () => blocks.value.length == 0 || blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && b.line == null),
+  () =>
+    blocks.value.length == 0 ||
+    blocks.value.every((b) => b.type >= BlockType.PARAGRAPH && (b.line == null || isTextLineEmpty(b.line))),
 );
 
 //
@@ -329,7 +331,7 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
     if (firstBlock == null) {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
     } else if (firstBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(firstBlock.line?.type!)) {
-      focus(firstBlock, "top");
+      focusInText(toNodeRef(firstBlock));
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "before", firstBlock);
     }
@@ -338,7 +340,7 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
     if (lastBlock == null) {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "inside", page.value!);
     } else if (lastBlock.type >= BlockType.PARAGRAPH && STANDARD_TEXT_LINE_TYPES.includes(lastBlock.line?.type!)) {
-      focus(lastBlock, "bottom");
+      focusInText(toNodeRef(lastBlock));
     } else {
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, "after", lastBlock);
     }
@@ -347,14 +349,12 @@ function focusText(anchor: "top" | "bottom" = "bottom") {
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnchor?: FocusAnchor) {
-  if (anchor == null || typeof anchor == "string") {
-    if (isEmpty.value) {
-      // focus title
-      pageHeaderRef.value?.focusIdentifier("left");
-    } else {
-      // focus page
-      focusText("bottom");
-    }
+  if (isEmpty.value && (page.value?.title == null || isTextLineEmpty(page.value.title))) {
+    // focus title
+    pageHeaderRef.value?.focusIdentifier("left");
+  } else if (anchor == null || typeof anchor == "string") {
+    // focus page
+    focusText("bottom");
   } else {
     // focus block
     focusInText(!isNodeRef(anchor) ? toNodeRef(anchor) : anchor);
