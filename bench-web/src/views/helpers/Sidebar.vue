@@ -16,7 +16,7 @@ import {
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, benchConnection, benchGraph, canvas, hasLocalBench, pkg, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
-import { ActionBuiltinId, fireActionById, getAction } from "@/ui/action";
+import { ActionBuiltinId, fireAction, fireActionById, getAction } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
@@ -136,7 +136,7 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 flex max-w-full flex-shrink-0 flex-col gap-x-2 py-1.5 pl-2 pr-1"
+      class="mx-2 flex max-w-full flex-shrink-0 flex-col gap-x-2 pb-2"
       :style="{
         minHeight: `${BAR_HEADER_HEIGHT}px`,
       }"
@@ -145,9 +145,9 @@ defineExpose<ViewExpose>({ self });
       <!-- Bench button -->
       <button
         v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-        class="flex flex-row items-center gap-x-1.5 truncate rounded transition-colors duration-75 hover:bg-gray-100"
+        class="my-1.5 flex flex-row items-center truncate rounded px-2 transition-colors duration-75 hover:bg-gray-100"
         :style="{
-          height: `${BAR_HEADER_HEIGHT}px`,
+          height: `${BAR_HEADER_HEIGHT - 12}px`,
         }"
       >
         <IconInline
@@ -163,17 +163,25 @@ defineExpose<ViewExpose>({ self });
             })
           "
           v-bind="bench != null ? getNodeIcon(bench) : makeIcon(NodeTypeOptionInfo[NodeType.BENCH]!.icon!)"
+          class="mr-1 w-5 text-center"
         />
         <span v-if="bench" class="truncate font-medium">{{ bench.slug }}</span>
         <span v-else class="italic"> Bench </span>
       </button>
+      <!-- Quick/Global actions -->
       <button
         v-for="action in (
-          ['space.create.page', 'space.create.thread', 'space.create.channel'] as ActionBuiltinId[]
+          ['space.omnibar.everywhere', 'space.create.page', 'space.create.thread'] as ActionBuiltinId[]
         ).map(getAction)"
         :key="action.id"
+        class="group/button flex flex-row items-center truncate rounded border border-transparent px-2 py-[5px] transition-colors duration-150 hover:bg-gray-100"
+        :style="{}"
+        @click="fireAction(action)"
       >
-        {{ action.title }}
+        <IconInline class="mr-1 w-5 text-center" v-bind="action.icon" />
+        <span class="">
+          {{ action.title }}
+        </span>
       </button>
     </div>
 

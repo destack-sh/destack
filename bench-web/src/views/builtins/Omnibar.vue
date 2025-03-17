@@ -172,7 +172,7 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
 for (const inMode of OMNIBAR_MODES) {
   addAction("static", {
     id: ("space.omnibar." + inMode) as ActionBuiltinId,
-    title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
+    title: inMode == "everywhere" ? "Search" : `Search ${toCasing(inMode, Casing.CAMEL)}`,
     shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
@@ -226,7 +226,7 @@ defineExpose({ isActive, open });
             :style="{ height: PANEL_HEADER_HEIGHT + 'px' }"
           >
             <!-- Icon -->
-            <i class="fas text-base fa-magnifying-glass w-5 text-center text-gray-500" />
+            <i class="fas fa-magnifying-glass w-5 text-center text-base text-gray-500" />
             <!-- Mode -->
             <span v-if="mode != 'everywhere'" class="select-none font-semibold">
               {{ toCasing(mode, Casing.CAMEL) }}
