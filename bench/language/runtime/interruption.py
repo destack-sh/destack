@@ -12,6 +12,7 @@ from bench.language.core import (
     IsModal,
     IsRuntime,
     IsTimed,
+    Node,
     NodeReference,
     NodeType,
     PackageNode,
@@ -28,7 +29,6 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
-from bench.language.runtime.span import RunSpan
 from bench.pb2 import InterruptionData
 
 if TYPE_CHECKING:
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
         Message,
         Page,
         Run,
+        RunSpan,
         Task,
         Text,
         Trigger,
@@ -162,7 +163,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     """An Interruption in the execution of a Run."""
 
     # meta
-    parent: "Run" = p_node_parent(4, NodeType.RUN)
+    parent: Optional["Run"] = p_node_parent(4, NodeType.RUN)
     type: InterruptionType = p_regular(30, require=True)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
@@ -177,7 +178,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         link_ptr: Optional[NodeReference] = None
-    span: Optional[RunSpan] = p_internal(
+    span: Optional["RunSpan"] = p_internal(
         37, require=False, default=None, references=NodeType.RUN_SPAN
     )
     breakpoint_site: BreakpointSite | None = p_internal(38)
@@ -280,6 +281,13 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     def is_closed(self) -> bool:
         return self.status == InterruptionStatus.COMPLETED
 
+    def is_in(self, *nodes: Node, recursive: bool = True) -> bool:
+        """Whether the Interruption is a descendant of a Run of any of the given Nodes."""
+        if (parent := self.parent) is None:
+            return False
+        else:
+            return parent.is_in(*nodes, recursive=recursive)
+
     def complete(self, outputs: CustomObject | None = None, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as closed."""
         assert not self.is_closed, f"{self!r} is already closed"
@@ -309,8 +317,8 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     def from_run(
         kind: InterruptionType,
         run: "Run",
-        span: Optional[RunSpan] = None,
-        breakpoint: BreakpointSite | None = None,
+        span: Optional["RunSpan"] = None,
+        breakpoint_site: BreakpointSite | None = None,
     ) -> "Interruption":
         return Interruption(
             type=kind,
@@ -321,6 +329,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             action=run.action,
             link=run.link,
             span=span,
-            breakpoint_site=breakpoint,
+            breakpoint_site=breakpoint_site,
             mode=run.mode,
         )

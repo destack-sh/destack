@@ -470,7 +470,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             ):
                 return interruption
         interruption = Interruption.from_run(
-            kind, run, span=self.tracked_span, breakpoint=breakpoint_site
+            kind, run, span=self.tracked_span, breakpoint_site=breakpoint_site
         )
         self.session._create(interruption)
         return interruption

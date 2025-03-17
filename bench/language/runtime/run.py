@@ -396,6 +396,17 @@ class Run(IsTimed, IsRuntime, IsModal, IsBased, IsTitled, PackageNode[RunData], 
                 return True
         return False
 
+    def is_in(self, *nodes: Node, recursive: bool = True) -> bool:
+        """Whether the Run is a descendant of a Run of any of the given Nodes."""
+        run = self
+        while isinstance(run, Run):
+            if (runnable_ptr := run.runnable_ptr) is not None and any(
+                runnable_ptr.id == n.id for n in nodes
+            ):
+                return True
+            run = run.parent
+        return False
+
     def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
         """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
