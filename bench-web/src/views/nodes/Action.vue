@@ -117,7 +117,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       v-tooltip="{ small: true, text: `Change icon` }"
       class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer hover:saturate-200"
       :style="{
-        backgroundColor: getNodeColorHex(action, ColorShade.S500),
+        backgroundColor: getNodeColorHex(action, ColorShade.S400),
       }"
     >
       <IconInline

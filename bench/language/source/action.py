@@ -1,13 +1,16 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
+    ColorType,
     EnumType,
     FieldType,
     IsComputable,
+    IsInstantiable,
     IsModal,
+    IsNamed,
     LocalNodeList,
     NodeReference,
     NodeSubtypeStub,
@@ -23,8 +26,9 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
+    p_value_packed,
+    p_value_runtime,
 )
-from bench.language.core.node import IsInstantiable, IsNamed
 from bench.pb2.lang_pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -55,15 +59,15 @@ _type = type
 @enum_(EnumType.ACTION_TYPE)
 class ActionType(BuiltinEnum):
     # orchestrate
-    START = 10, "Start", "Begin the Flow", "fas fa-circle-play"
-    RECEIVE = 11, "Receive", "Receive a Message", "fas fa-inbox-in"
-    COMPLETE = 20, "Complete", "Complete the entire Flow", "fas fa-flag-checkered"
+    START = 10, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
+    RECEIVE = 11, "Receive", "Receive a Message", "fas fa-inbox-in", ColorType.YELLOW
+    COMPLETE = 20, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
     # WAIT = 30, "Wait", "Wait for some trigger"
 
-    # act
-    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench"
-    CODE = 101, "Code", "Run some Code", "fas fa-code"
-    DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer"
+    # action
+    TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.ORANGE
+    CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.ORANGE
+    DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.ORANGE
 
     # containers
     # GROUP, LOOP, ...
@@ -105,8 +109,11 @@ class Action(IsComputable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionD
         struct=StructType.SELECTION,
         description="The selection of Tools to use.",
     )
+    position: Optional["Vector2"] = p_regular(
+        45, default=None, require=False, array=False, struct=StructType.VECTOR2
+    )
 
-    # inputs
+    # content
     code: Optional["Code"] = p_regular(
         52,
         default=None,
@@ -122,15 +129,14 @@ class Action(IsComputable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionD
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
     )
+    inputs_packed: Any = p_value_packed(55)
+    inputs: Any = p_value_runtime(
+        55, type=FieldType.INPUT, typ=lambda self: cast(Action, self).input_type
+    )
     if TYPE_CHECKING:
         tool_ptr: "NodeReference | None" = None
         tool_id: Optional[UUID] = None
         tool_ck: Optional[UUID] = None
-
-    # flow
-    position: Optional["Vector2"] = p_regular(
-        80, default=None, require=False, array=False, struct=StructType.VECTOR2
-    )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)

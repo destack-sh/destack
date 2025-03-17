@@ -1619,7 +1619,7 @@ TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 
 @node_component_()
 class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
-    """A Node that can be defined 'inline' in a Block on a Page."""
+    """A Node that can be defined 'inline' on a Block/Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
     # name: 31

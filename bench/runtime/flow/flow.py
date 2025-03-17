@@ -27,10 +27,10 @@ from bench.language import (
     RunStatus,
     RunType,
     Task,
+    TextLine,
     TypeBase,
     coerce_custom_object_scalar,
 )
-from bench.language.core.text import TextLine
 from bench.runtime.core import (
     Interrupted,
     RetryableError,

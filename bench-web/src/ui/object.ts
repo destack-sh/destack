@@ -54,6 +54,7 @@ import {
   RecordProperty,
   SelectionType,
   StructType,
+  TaskProperty,
   TypeBaseNodeData,
   TypeConstraintProperty,
   TypeData,
@@ -1046,6 +1047,16 @@ export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
   }
 }
 
+export class TaskLayout extends NodeLayout<NodeType.TASK> {
+  make() {
+    this.section(undefined, [
+      this.rowProperty(TaskProperty.status),
+      this.rowProperty(TaskProperty.ownedByPtr, { title: "Owner" }),
+      this.rowProperty(TaskProperty.dueAt, { title: "Due" }),
+    ]);
+  }
+}
+
 /** CustomObject layout with only Fields */
 export class CustomLayout extends BaseObjectLayout {
   valuePacked: Record<string, any>;
@@ -1122,6 +1133,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.FIELD]: FieldLayout,
   [NodeType.CHANNEL]: ChannelLayout,
   [NodeType.THREAD]: ThreadLayout,
+  [NodeType.TASK]: TaskLayout,
 };
 
 /** Use the object layout for a node, partial or custom object */

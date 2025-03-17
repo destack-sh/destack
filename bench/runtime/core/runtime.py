@@ -519,9 +519,9 @@ class Runtime:
 
         # compute resources/inputs/options from context
         if isinstance(runner.node, Action):
-            # init inputs from action (Action partial becomes inputs)
-            if runner.inputs is not None:
-                runner.inputs.set_default(runner.node, _skip_validate=True)
+            # init inputs from action
+            if runner.inputs is not None and runner.node.inputs_packed is not None:
+                runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
         # apply computed values
         try:
             for computed_value in runner.node.computed_values:
