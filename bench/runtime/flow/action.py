@@ -24,7 +24,6 @@ from bench.language import (
 )
 from bench.runtime.core import (
     ATTEMPT_ONCE,
-    NotSupportedError,
     RunIn,
     Runner,
     Runtime,
@@ -82,6 +81,34 @@ class ActionRunner(Runner[Action], ABC):
                     return True
         return False
 
+    def _get_resumable_subrunner(
+        self,
+        node: RunnableNode,
+        inputs: CustomObject | None,
+        output_type: TypeBase | None = None,
+    ):
+        """
+        Gets the Runner for the given Node within this Runner.
+        If there is an interrupted Run inside the current Run for the node, we'll just return that.
+        NOTE: we assume there will only be one Runner for a given RunAttempt and Node.
+        """
+        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        for run in self.tracked_run.runs:
+            # try to resume interrupted Run
+            if run.status.is_interrupted and run.runnable == node:
+                return self.runtime.restore_runner(run)
+        else:
+            # make new Runner
+            runner = make_runner(
+                runtime=self.runtime,
+                node=node,
+                run="track",
+                context=self.context,
+                inputs=inputs,
+                outputs=output_type,
+            )
+            return runner
+
 
 class StaticActionRunner(ActionRunner):
     @final
@@ -134,63 +161,6 @@ class StaticActionRunner(ActionRunner):
         ...
 
 
-class DynamicActionRunner(ActionRunner):
-    @final
-    @override
-    async def run(self) -> None:
-        from bench.runtime.model import (
-            AnthropicChatModelRunner,
-            GeminiChatModelRunner,
-            OpenaiChatModelRunner,
-        )
-
-        # determine model
-        model_developer = self.options.model_developer or ModelDeveloper.OPENAI
-        if model_developer == ModelDeveloper.OPENAI:
-            model_runner_cls = OpenaiChatModelRunner
-            model_type = self.options.model_type or ModelType.OPENAI_GPT4_5
-        elif model_developer == ModelDeveloper.ANTHROPIC:
-            model_runner_cls = AnthropicChatModelRunner
-            model_type = self.options.model_type or ModelType.ANTHROPIC_CLAUDE_3_7_SONNET
-        elif model_developer == ModelDeveloper.GOOGLE:
-            model_runner_cls = GeminiChatModelRunner
-            model_type = self.options.model_type or ModelType.GOOGLE_GEMINI_2_0_FLASH
-        else:
-            raise NotSupportedError(f"unsupported model developer {model_developer!r}")
-
-        # run model
-        # nocheckin: implicit Flow for 'dynamic' Actions (Package.main_flow -> builtin/... by default?)
-        #  wait isn't there a turtles problem with implementing DynamicActions using dynamic actions?
-        #  or it just a Receive with a Tool in the middle?
-        #  or maybe just leave Package.main_flow for another 'default Flow'
-        #   and actually implement dynamic Actions right here somehow?
-        model_runner = model_runner_cls(
-            runtime=self.runtime,
-            node=self.node,
-            model_type=model_type,
-            options=self.options,
-            context=self.context,
-            inputs=self.inputs,
-            outputs=self.outputs or self.output_type,
-            parent=cast(Runner[Any], self),
-            run=RunSpanType.MODEL_GENERATE,
-        )
-        try:
-            await self.runtime.run_runner(model_runner)
-        finally:
-            if model_runner.code is not None:
-                # track code in both RunSpan and Run
-                self.tracked.code = model_runner.code
-                if self.tracked_run is not None and self.tracked_run is not self.tracked:
-                    self.tracked_run.code = model_runner.code
-            self.outputs = model_runner.outputs
-
-
-#
-# Flow
-#
-
-
 class StartActionRunner(StaticActionRunner):
     @override
     async def run_static(self) -> None:
@@ -210,9 +180,31 @@ class CompleteActionRunner(ActionRunner):
             self.flow._complete(outputs=self.outputs)
 
 
-#
-# Tool
-#
+class ToolActionRunner(StaticActionRunner):
+    @override
+    async def run_static(self) -> None:
+        assert self.tracked_run is not None, f"{self!r} must be in a Run"
+        if self.node.tool_ptr is not None:
+            # static tool
+            tool = self.node.tool
+            assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
+            tool_runner: Runner[Any] = self._get_resumable_subrunner(
+                node=tool, inputs=self.inputs, output_type=self.output_type
+            )
+            await self.runtime.run_runner(tool_runner)
+            self.outputs = tool_runner.outputs
+        else:
+            # dynamic tool (from Task)
+            task = self.tracked_run.task
+            assert task is not None, f"{self!r} must have a Task (as tool is not provided)"
+            tool_ptr = task.tool_ptr
+            assert tool_ptr is not None, f"{task!r} for {self!r} must have a tool"
+            tool = task.target
+            assert tool is not None, f"{task!r} for {self!r} is missing {tool_ptr!r}"
+            tool_runner: Runner[Any] = self._get_resumable_subrunner(
+                node=tool, inputs=task.value, output_type=self.output_type
+            )
+            await self.runtime.run_runner(tool_runner)
 
 
 class CodeActionRunner(ActionRunner):
@@ -229,7 +221,7 @@ class CodeActionRunner(ActionRunner):
             node=self.node,
             options=ATTEMPT_ONCE,
             context=self.context,
-            run=RunSpanType.DELEGATE,
+            run=RunSpanType.CODE,
             code=code,
             aliasing=Aliasing(),
             inputs=self.inputs,
@@ -242,59 +234,21 @@ class CodeActionRunner(ActionRunner):
         self.outputs = code_runner.outputs
 
 
-class ToolActionRunner(StaticActionRunner):
-    def _get_resumable_subrunner(
-        self,
-        node: RunnableNode,
-        inputs: CustomObject | None,
-        output_type: TypeBase | None = None,
-    ):
-        """
-        Gets the Runner for the given Node within this Runner.
-        If there is an interrupted Run inside the current Run for the node, we'll just return that.
-        NOTE: we assume there will only be one Runner for a given RunAttempt and Node.
-        """
-        assert self.tracked_run is not None, f"{self!r} must be tracked"
-        for run in self.tracked_run.runs:
-            # try to resume interrupted Run
-            if run.status.is_interrupted and run.runnable == node:
-                return self.runtime.restore_runner(run)
-        else:
-            # make new Runner
-            runner = make_runner(
-                runtime=self.runtime,
-                node=node,
-                run="track",
-                context=self.context,
-                inputs=inputs,
-                outputs=output_type,
-            )
-            return runner
-
+class DynamicActionRunner(ActionRunner):
+    @final
     @override
-    async def run_static(self) -> None:
-        assert self.tracked_run is not None, f"{self!r} must be in a Run"
-        if self.node.tool_ptr is not None:
-            # 'hard-coded' tool
-            tool = self.node.tool
-            assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
-            tool_runner: Runner[Any] = self._get_resumable_subrunner(
-                node=tool, inputs=self.inputs, output_type=self.output_type
-            )
-            await self.runtime.run_runner(tool_runner)
-            self.outputs = tool_runner.outputs
-        else:
-            # 'dynamic' tool from task
-            task = self.tracked_run.task
-            assert task is not None, f"{self!r} must have a Task (as tool is not provided)"
-            tool_ptr = task.tool_ptr
-            assert tool_ptr is not None, f"{task!r} for {self!r} must have a tool"
-            tool = task.target
-            assert tool is not None, f"{task!r} for {self!r} is missing {tool_ptr!r}"
-            tool_runner: Runner[Any] = self._get_resumable_subrunner(
-                node=tool, inputs=task.value, output_type=self.output_type
-            )
-            await self.runtime.run_runner(tool_runner)
+    async def run(self) -> None:
+        from bench.builtin import AgentFlow
+
+        flow_runner = self._get_resumable_subrunner(
+            node=AgentFlow,
+            inputs=self.inputs,
+            output_type=self.output_type,
+        )
+        try:
+            await self.runtime.run_runner(flow_runner)
+        finally:
+            self.outputs = flow_runner.outputs
 
 
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
@@ -302,9 +256,7 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
     ActionType.START: StartActionRunner,
     ActionType.RECEIVE: ReceiveActionRunner,
     ActionType.COMPLETE: CompleteActionRunner,
-    # tool
-    ActionType.CODE: CodeActionRunner,
     ActionType.TOOL: ToolActionRunner,
-    # dynamic
+    ActionType.CODE: CodeActionRunner,
     ActionType.DO: DynamicActionRunner,
 }

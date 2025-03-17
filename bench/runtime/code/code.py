@@ -1,3 +1,4 @@
+import asyncio
 import functools
 from abc import ABC
 from contextlib import contextmanager
@@ -29,6 +30,7 @@ from bench.language import (
     upload_file,
 )
 from bench.runtime.core import CodeInvalidError, RunIn, Runner, Runtime
+from bench.runtime.core.runner import Interrupted
 
 from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
@@ -131,7 +133,8 @@ class CodeRunner(Runner, ABC):
             # static
             **self.combined_glbls,
             # dynamic
-            "self": self.node,
+            "self": self,
+            "node": self.node,
             "session": self.runtime.session,
             "runtime": self.runtime,
             "bench": self.runtime.bench,
@@ -240,6 +243,23 @@ class CodeFunctionRunner(CodeRunner):
                 logger.debug(
                     "code.run", runner=self, code=cast(Code, self.code).to_string(), span="current"
                 )
+            except asyncio.CancelledError:
+                logger.debug(
+                    "code.run.cancelled",
+                    runner=self,
+                    code=cast(Code, self.code).to_string(),
+                    span="current",
+                )
+                raise
+            except Interrupted as e:
+                logger.debug(
+                    "code.run.interrupted",
+                    runner=self,
+                    code=cast(Code, self.code).to_string(),
+                    span="current",
+                    interruption=e.interruption,
+                )
+                raise
             except Exception as e:
                 logger.debug(
                     "code.run.error",

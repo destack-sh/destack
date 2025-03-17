@@ -77,7 +77,7 @@ class ActionType(BuiltinEnum):
         return self < 40
 
 
-@node_(NodeType.ACTION, passthrough_get=("value", "fields"), has_subtypes=True)
+@node_(NodeType.ACTION, has_subtypes=True)
 class Action(IsComputable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionData]):
     """
     A data or control flow node in a Flow. Actions are connected by Links.

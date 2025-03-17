@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Any, Optional, cast
+from uuid import UUID
 
 from git import TYPE_CHECKING
 
@@ -27,6 +28,7 @@ from bench.language.core import (
     struct_,
     timed_node_,
 )
+from bench.language.runtime.span import RunSpan
 from bench.pb2 import InterruptionData
 
 if TYPE_CHECKING:
@@ -165,8 +167,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    if TYPE_CHECKING:
-        root_ptr: Optional[NodeReference] = None
     page: Optional["Page"] = p_internal(32, require=False, array=False, references=NodeType.PAGE)
     flow: Optional["Flow"] = p_internal(33, require=False, array=False, references=NodeType.FLOW)
     action: Optional["Action"] = p_internal(
@@ -177,8 +177,23 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         link_ptr: Optional[NodeReference] = None
-    attempt: Optional[int] = p_internal(37, require=False, default=None)
+    span: Optional[RunSpan] = p_internal(
+        37, require=False, default=None, references=NodeType.RUN_SPAN
+    )
     breakpoint_site: BreakpointSite | None = p_internal(38)
+    if TYPE_CHECKING:
+        root_id: Optional[UUID] = None
+        root_ptr: Optional[NodeReference] = None
+        page_id: Optional[UUID] = None
+        page_ptr: Optional[NodeReference] = None
+        flow_id: Optional[UUID] = None
+        flow_ptr: Optional[NodeReference] = None
+        action_id: Optional[UUID] = None
+        action_ptr: Optional[NodeReference] = None
+        link_id: Optional[UUID] = None
+        link_ptr: Optional[NodeReference] = None
+        span_id: Optional[UUID] = None
+        span_ptr: Optional[NodeReference] = None
 
     # status
     status: InterruptionStatus = p_internal(40, default=InterruptionStatus.OPEN)
@@ -294,7 +309,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     def from_run(
         kind: InterruptionType,
         run: "Run",
-        attempt: Optional[int] = None,
+        span: Optional[RunSpan] = None,
         breakpoint: BreakpointSite | None = None,
     ) -> "Interruption":
         return Interruption(
@@ -305,7 +320,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             flow=run.flow,
             action=run.action,
             link=run.link,
-            attempt=attempt,
+            span=span,
             breakpoint_site=breakpoint,
             mode=run.mode,
         )

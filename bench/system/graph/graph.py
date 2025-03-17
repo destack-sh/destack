@@ -925,20 +925,21 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         # subject must match user
         if not edit.subject_ptr or edit.subject_ptr.id != user_id:
             raise GRPCError(
-                GRPCStatus.PERMISSION_DENIED,
-                f"subject mismatch in {edit!r}: {edit.subject_ptr} != {user_id}",
+                GRPCStatus.INVALID_ARGUMENT,
+                f"subject mismatch in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r} != {user_id}",
             )
     else:
         # subject must be a Run/Server
         if not edit.subject_ptr or edit.subject_ptr.node_type not in EDIT_SUBJECT_TYPES:
             raise GRPCError(
-                GRPCStatus.PERMISSION_DENIED, f"bad created_by in {edit!r}: {edit.subject_ptr!r}"
+                GRPCStatus.INVALID_ARGUMENT,
+                f"bad subject in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r}",
             )
     # origin
     if not edit.origin.id or UUID(edit.origin.id) != subject.client.id:
         raise GRPCError(
-            GRPCStatus.PERMISSION_DENIED,
-            f"origin mismatch in {edit!r}: {edit.origin!r} != {subject.client!r}",
+            GRPCStatus.INVALID_ARGUMENT,
+            f"origin mismatch in {wiring.describe_edit(edit)!r}: {(edit.origin)!r} != {subject.client!r}",
         )
 
     # time
@@ -961,8 +962,11 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     if should_set_node_data != edit.HasField("node_data"):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad node_data in {edit!r}: {edit.node_data}",
+            f"bad node_data in {wiring.describe_edit(edit)!r}: {edit.node_data}",
         )
     # properties
     if edit.operations and edit.type not in (EditType.UPDATE, EditType.MOVE):
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"cannot add operations to {edit!r}")
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT,
+            f"cannot add operations to {wiring.describe_edit(edit)!r}",
+        )

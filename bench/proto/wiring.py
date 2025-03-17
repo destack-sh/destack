@@ -63,22 +63,25 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[B
 
 def describe_node_ptr(ptr: NodeReferenceData) -> str:
     """Describe a pointer."""
-    node_type = unpack_enum(NodeType, ptr.node_type)
+    try:
+        node_type_name = NodeType(ptr.node_type).name
+    except ValueError:
+        node_type_name = "???"
     if ptr.ck:
-        return f"{node_type.name}[id={ptr.id}, ck={ptr.ck}]"
+        return f"{node_type_name}[id={ptr.id}, ck={ptr.ck}]"
     else:
-        return f"{node_type.name}[id={ptr.id}]"
+        return f"{node_type_name}[id={ptr.id}]"
 
 
 def describe_node(node: AnyNodeData) -> str:
     """Describe a node."""
     node_type = unpack_enum(NodeType, node.metatype)
-    node_parts: list[str] = [f"id={node.id}"]
+    node_parts: list[str] = [f"id={node.id or '???'}"]
     if node.HasField("ck"):
-        node_parts.append(f"ck={node.ck}")  # type: ignore
-    if node.HasField("name"):
+        node_parts.append(f"ck={node.ck or '???'}")  # type: ignore
+    if node.HasField("name") and node.name:  # type: ignore
         node_parts.append(f"name={node.name}")  # type: ignore
-    if node.HasField("slug"):
+    if node.HasField("slug") and node.slug:  # type: ignore
         node_parts.append(f"slug={node.slug}")  # type: ignore
     return f"{node_type.name}({', '.join(node_parts)})"
 

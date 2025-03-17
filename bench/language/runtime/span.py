@@ -32,7 +32,13 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.RUN_SPAN)
-class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsModal, HasRunContext):
+class RunSpan(
+    IsTimed,
+    IsRuntime,
+    IsModal,
+    HasRunContext,
+    PackageNode[RunSpanData],
+):
     """
     A RunSpan is a sub-part of a Run that executes a smaller unit of work than a runnable Node.
     RunSpans, unlike Runs, are not individually controllable.
@@ -52,7 +58,6 @@ class RunSpan(IsTimed, PackageNode[RunSpanData], IsRuntime, IsModal, HasRunConte
     # status
     status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
     duration: Optional[timedelta] = p_regular(41, default=None)
-    # cached_duration, active_duration, ...?
     started_at: Optional[datetime] = p_regular(42, default=None)
     terminated_at: Optional[datetime] = p_regular(43, default=None)
     interrupted_at: Optional[datetime] = p_regular(44, default=None)

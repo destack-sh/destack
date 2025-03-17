@@ -9,7 +9,7 @@ from bench.language import (
 
 from .core import assign_builtin_ids
 from .resource import BrowserPage, ComputerPage
-from .source import ActionPage
+from .source import ActionPage, FlowPage
 
 BuiltinPackage = Package(
     type=PackageType.OPEN,
@@ -17,7 +17,7 @@ BuiltinPackage = Package(
     slug=BENCH_BUILTIN_PACKAGE_SLUG,
     _is_new=True,
 )
-BuiltinPackage.extend(ActionPage, BrowserPage, ComputerPage)
+BuiltinPackage.extend(ActionPage, BrowserPage, FlowPage, ComputerPage)
 
 # finalize
 for node in BuiltinPackage._graph.nodes:
