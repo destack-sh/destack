@@ -16,6 +16,7 @@ from bench.language import (
     ModelType,
     RunnableNode,
     RunOptions,
+    RunSpan,
     RunSpanType,
     RunType,
     TypeBase,
@@ -208,25 +209,39 @@ class ToolActionRunner(StaticActionRunner):
 
 
 class CodeActionRunner(ActionRunner):
-    # NOTE: Code runner is static and must generate its own Plans (i.e. we don't auto-generate them)
-    #  (because this is only used for manual stuff; therefore we don't inherit StaticActionRunner)
-
     @override
     async def run(self) -> None:
+        assert self.tracked_run is not None, f"{self!r} must be in a Run"
         from bench.runtime.code import CodeFunctionRunner
 
-        code = self.node.code or CODE_PASS
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            options=ATTEMPT_ONCE,
-            context=self.context,
-            run=RunSpanType.CODE,
-            code=code,
-            aliasing=Aliasing(),
-            inputs=self.inputs,
-            outputs=self.outputs or self.output_type,
-        )
+        # try to resume interrupted span (in a new Runner)
+        resumed_span: RunSpan | None = None
+        resumed_runner: Runner | None = None
+        for span in self.tracked_run.spans:
+            if (
+                span.status.is_interrupted
+                and span.type == RunSpanType.CODE
+                and span.action_id == self.node.id
+            ):
+                resumed_span = span
+                resumed_runner = self.runtime.get_runner(resumed_span)
+                break
+
+        code = (resumed_span.code if resumed_span else self.node.code) or CODE_PASS
+        if resumed_runner is not None:
+            code_runner = resumed_runner
+        else:
+            code_runner = CodeFunctionRunner(
+                runtime=self.runtime,
+                node=self.node,
+                options=ATTEMPT_ONCE,
+                context=self.context,
+                run=resumed_span or RunSpanType.CODE,
+                code=code,
+                aliasing=Aliasing(),
+                inputs=self.inputs,
+                outputs=self.outputs or self.output_type,
+            )
         self.tracked.code = code
         if self.tracked_run is not None and self.tracked_run is not self.tracked:
             self.tracked_run.code = code
@@ -235,7 +250,6 @@ class CodeActionRunner(ActionRunner):
 
 
 class DynamicActionRunner(ActionRunner):
-    @final
     @override
     async def run(self) -> None:
         from bench.builtin import AgentFlow

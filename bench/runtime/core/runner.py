@@ -233,7 +233,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 tracked_run = Run(
                     parent=parent_run or package,
                     type=typ,
-                    flow=flow,
+                    # (default to parent Run's .flow if we're not in one)
+                    flow=flow or (parent_run.flow if parent_run else None),
                     kit=kit,
                     action=action,
                     link=link,
@@ -455,21 +456,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self,
         kind: InterruptionType,
         *,
-        breakpoint: BreakpointSite | None = None,
+        breakpoint_site: BreakpointSite | None = None,
     ):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
         run = self.closest_tracked_run
         assert run is not None, f"{self!r} is not tracked"
-        for interruption in run._graph.iter_descendants(run, NodeType.INTERRUPTION):
+        for interruption in run.interruptions:
             interruption = cast(Interruption, interruption)
             if (
                 interruption.type == kind
-                and interruption.span_id == self.id
-                and interruption.breakpoint_site == breakpoint
+                and (interruption.span_ptr is None or interruption.span_ptr.id == self.id)
+                and interruption.breakpoint_site == breakpoint_site
             ):
                 return interruption
         interruption = Interruption.from_run(
-            kind, run, span=self.tracked_span, breakpoint=breakpoint
+            kind, run, span=self.tracked_span, breakpoint=breakpoint_site
         )
         self.session._create(interruption)
         return interruption
@@ -478,10 +479,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self,
         kind: InterruptionType,
         *,
-        breakpoint: BreakpointSite | None = None,
+        breakpoint_site: BreakpointSite | None = None,
     ):
         """Yield/resume an Interrupt of the given kind if set in this Runner."""
-        interruption = self._get_or_create_interruption(kind, breakpoint=breakpoint)
+        interruption = self._get_or_create_interruption(kind, breakpoint_site=breakpoint_site)
         if interruption.status == InterruptionStatus.COMPLETED:
             logger.trace(
                 f"runtime.{kind.name.lower()}.completed", runner=self, interrupt=interruption
@@ -501,7 +502,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """Yield/resume the given kind of breakpoint if set in this Runner."""
         # handle applicable breakpoint (if any)
         if self._has_breakpoint_set(site, *alias_sites):
-            self._trap_interruption(InterruptionType.YIELD, breakpoint=site)
+            self._trap_interruption(InterruptionType.YIELD, breakpoint_site=site)
 
     @final
     def _trap_pause(self):
