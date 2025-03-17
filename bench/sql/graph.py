@@ -687,12 +687,9 @@ def _pg_pack_node_reference_into_row(
 def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNodeData) -> None:
     """
     'Ravels' a wired pointer from (one or more) stored columns :StoredPointers
+    NOTE :Robustness: the way we figure out 'bench_id' here is a bit flaky but works for now
+     (we also ignore bench implicit flags)
     """
-
-    # get bench id
-    bench_id = row.get("id") if node.metatype == NodeType.BENCH else row.get("bench_id")
-    if bench_id is not None:
-        bench_id = str(bench_id)
 
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
     assert prop.reference_stored_metas is not None, f"no stored extras for {prop!r}"
@@ -708,6 +705,12 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 ptr.metatype = pb2.ObjectType.OBJECT_TYPE_NODE_REFERENCE
                 ptr.id = str(id)
                 ptr.node_type = cast(list[pb2.NodeType], stored_prop.reference_nodes)[0]
+                if ptr.node_type == NodeType.BENCH:
+                    ptr.bench_id = ptr.id
+                elif node.metatype == NodeType.BENCH:
+                    ptr.bench_id = node.id
+                elif (bench_id := row.get("bench_id")) is not None:
+                    ptr.bench_id = str(bench_id)  # type: ignore
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
             for meta_type, meta_prop in prop.reference_stored_metas.items():
@@ -724,8 +727,6 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 setattr(ptr, meta_key, extra_value)
             if not ptr.ck:
                 ptr.ck = ptr.id
-            if bench_id and not ptr.bench_id:
-                ptr.bench_id = bench_id
     else:  # single reference
         # pointer id/ck
         for stored_prop in prop.reference_stored_ids:
@@ -756,8 +757,12 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             setattr(ptr, meta_key, extra_value)
         if not ptr.ck:
             ptr.ck = ptr.id
-        if bench_id and not ptr.bench_id:
-            ptr.bench_id = bench_id
+        if ptr.node_type == NodeType.BENCH:
+            ptr.bench_id = ptr.id
+        elif node.metatype == NodeType.BENCH:
+            ptr.bench_id = node.id
+        elif (bench_id := row.get("bench_id")) is not None:
+            ptr.bench_id = str(bench_id)  # type: ignore
         getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
 
 

@@ -233,8 +233,9 @@ function setBench(set: {
   space?: TypedNodeReferenceData<NodeType.SPACE> | null;
 }) {
   log.trace("local.setBench", set);
-  if (set.pkg.benchId == null || set.pkg.benchId == LOCAL_BENCH_ID)
+  if (set.pkg.benchId == null || set.pkg.benchId == LOCAL_BENCH_ID) {
     throw new Error(`package ${set.pkg?.id} is not in a real Bench?`);
+  }
 
   // set bench/package
   const bench = nodeReference(NodeType.BENCH, set.pkg.benchId!);

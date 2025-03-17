@@ -131,7 +131,6 @@ export async function assignSpaceInPackage(pkg: PackageData) {
 /** 'Goes' to a Bench and sets it as the current main Bench. **/
 export async function goToBench(go: {
   bench: TypedNodeReferenceData<NodeType.BENCH>;
-  pkg?: TypedNodeReferenceData<NodeType.PACKAGE>;
   space?: TypedNodeReferenceData<NodeType.SPACE>;
 }) {
   log.info("space.goToBench", go);
@@ -145,7 +144,7 @@ export async function goToBench(go: {
   const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.PACKAGE]) });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
-  const packagePtr = go.pkg ?? bench.mainPackagePtr!;
+  const packagePtr = bench.mainPackagePtr!;
   local.setBench({
     pkg: typeNodeReference(NodeType.PACKAGE, packagePtr),
     space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),
