@@ -42,7 +42,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.17.1"
+VERSION = "2025.03.17.6"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -725,7 +725,12 @@ PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENC
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 # NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
 LOADED_PACKAGE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, NodeType.CHANNEL, NodeType.PLAN, NodeType.TASK
+    *SOURCE_NODE_TYPES,
+    *RESOURCE_NODE_TYPES,
+    NodeType.CHANNEL,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.CLAIM,
 )
 
 #

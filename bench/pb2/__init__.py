@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.03.17.1"
+VERSION = "2025.03.17.6"
 
 # import from all generated files
 from .runtime_pb2 import *

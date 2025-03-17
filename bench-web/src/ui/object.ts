@@ -1,12 +1,5 @@
 import { canvas, supergraph } from "@/globals";
-import {
-  DYNAMIC_ACTION_TYPES,
-  getBaseFromNode,
-  getPropertyTitle,
-  isNodeType,
-  isSourceNodeType,
-  toCamelName,
-} from "@/language/core/const";
+import { getBaseFromNode, getPropertyTitle, isNodeType, isSourceNodeType, toCamelName } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
 import {
@@ -97,6 +90,9 @@ export type FieldsListRow = RowBase & {
   fieldType: FieldType;
   toolPtr?: NodeReferenceData;
 };
+export type ClaimsListRow = RowBase & {
+  type: "claims-list";
+};
 export type ViewRow = RowBase & {
   type: "view";
   isFullWidth: boolean;
@@ -133,7 +129,16 @@ export type TextRow = RowBase & {
   type: "text";
   text: string;
 };
-export type Row = FieldsListRow | ViewRow | PropertyRow | FieldRow | ObjectRow | IconRow | TextRow | LineRow;
+export type Row =
+  | FieldsListRow
+  | ClaimsListRow
+  | ViewRow
+  | PropertyRow
+  | FieldRow
+  | ObjectRow
+  | IconRow
+  | TextRow
+  | LineRow;
 
 export type BaseObjectInfo = {
   isInput: boolean;
@@ -514,24 +519,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     return row;
   }
 
-  /** Add field action */
-  actionAddField(
-    fieldType: FieldType,
-    icon: IconData | string = "fas fa-plus",
-    options?: { toolPtr?: NodeReferenceData },
-  ): ObjectAction {
-    return {
-      title: `Add ${toCamelName(FieldType, fieldType)}`,
-      icon: makeIcon(icon),
-      action: (e) => {
-        const tool = options?.toolPtr != null ? this.graph.get(options.toolPtr) : null;
-        addFieldPopover(e, fieldType, (tool ?? this.node) as TypeBaseNodeData, this.graph, this.txFactory, {
-          dontFocus: true,
-        });
-      },
-    };
-  }
-
   /** Nested object row */
   rowObjectNested(
     propertyId: number,
@@ -769,49 +756,25 @@ export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
 
     // schema
     if (!this.isPartial) {
-      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {
-        actions: [this.actionAddField(FieldType.MEMBER)],
-      });
+      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {});
     }
   }
 }
 
-export class KitLayout extends NodeLayout<NodeType.KIT> {
-  make() {
-    const commonRows: Row[] = [];
-    this.section(undefined, commonRows);
+abstract class RunnableNodeLayout<T extends NodeType.FLOW | NodeType.KIT | NodeType.ACTION> extends NodeLayout<T> {
+  /** Edit the Claims list of Resources/tool Nodes */
+  claimRows() {
+    const rows: Row[] = [];
+    rows.push({ type: "claims-list", title: undefined });
+    return rows;
   }
 }
 
-abstract class RunnableNodeLayout<T extends NodeType.FLOW | NodeType.ACTION> extends NodeLayout<T> {
-  toolRows() {
-    const rows: Row[] = [];
-    rows.push({
-      type: "view",
-      title: undefined,
-      isFullWidth: true,
-      viewType: ViewType.PICKER,
-      viewProps: {
-        isInput: true,
-        // TODO :Architecture: argghh this screams for a better Union Type somehow?...
-        icon: makeIcon("fas fa-wrench"),
-        title: "Tool",
-        valueType: makeType({
-          kind: TypeKind.NODE,
-          constraint: makeTypeConstraint({ nodeTypes: [NodeType.KIT, NodeType.FLOW, NodeType.PAGE] }),
-          isList: true,
-        }),
-      },
-      read: () => {
-        return this.node?.selection?.nodesPtr;
-      },
-      write: (newValue) => {
-        this.update({
-          selection: makeStruct({ metatype: StructType.SELECTION, type: SelectionType.LIST, nodesPtr: newValue }),
-        });
-      },
-    });
-    return rows;
+export class KitLayout extends RunnableNodeLayout<NodeType.KIT> {
+  make() {
+    const commonRows: Row[] = [];
+    this.section(undefined, commonRows);
+    this.section("Tools & Resources", this.claimRows());
   }
 }
 
@@ -822,9 +785,7 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
 
     // schema
     if (!this.isPartial) {
-      // tools
-      this.section("Tools", this.toolRows());
-      // schema
+      this.section("Tools & Resources", this.claimRows());
       this.section(
         "Schema",
         [
@@ -832,12 +793,7 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
           { type: "icon", icon: makeIcon("fas fa-arrow-down") },
           { type: "fields-list", fieldType: FieldType.OUTPUT },
         ],
-        {
-          actions: [
-            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
-            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
-          ],
-        },
+        {},
       );
     }
   }
@@ -847,53 +803,59 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
  * NOTE: ActionLayout is a bit complex because we need to support the default view, regular partials *and* input/output partials.
  */
 export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
-  /** The schema(s) for this Action (for full node) */
-  sectionActionSchema() {
+  make() {
     const node = this.node!;
-    const nodePtr = toNodeRef(node as ActionData);
-    let delegatePtr: NodeReferenceData | undefined = undefined;
-    if (node.type == ActionType.START || node.type == ActionType.COMPLETE) {
-      delegatePtr = node.parentPtr;
-    } else if (node.type == ActionType.TOOL) {
-      delegatePtr = node.toolPtr;
-    }
+
+    const commonRows: Row[] = [];
+    this.section(undefined, commonRows);
+
     if (node.type == ActionType.START) {
       // flow inputs
       this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
-        actions: [this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down"), { toolPtr: node.parentPtr })],
       });
     } else if (node.type == ActionType.COMPLETE) {
       // ƒlow outputs as action inputs
       this.section("Schema", [{ type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
-        actions: [
-          this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up"), {
-            toolPtr: node.parentPtr,
-          }),
-        ],
       });
-    } else if (node.type == ActionType.TOOL && delegatePtr != null) {
-      // own schema with tool schema
+    } else if (node.type == ActionType.TOOL) {
+      const toolRows: Row[] = [];
+      if (node.toolPtr != null) {
+        toolRows.push(
+          this.rowProperty(ActionProperty.toolPtr, {
+            isComputable: true,
+            isFullWidth: false,
+            extendUpdate: (newValue) => {
+              // also update node name if tool changes
+              const tool = newValue != null ? this.graph.get(newValue) : null;
+              const name = tool != null ? getNodeTitle(tool) : null;
+              return name != null ? { name } : {};
+            },
+          }),
+        );
+      } else {
+        toolRows.push(...this.claimRows());
+      }
+      this.section("Tools & Resources", toolRows);
+      // tool schema
       this.section(
         "Schema",
         [
+          { type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.toolPtr },
           this.rowIcon("fas fa-arrow-down"),
-          { type: "fields-list", fieldType: FieldType.INPUT, toolPtr: delegatePtr },
-          // arrow
-          this.rowIcon("fas fa-arrow-down"),
-          // outputs
-          { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: delegatePtr },
+          { type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: node.toolPtr },
         ],
         {
-          subtitle: "(Tool)",
-          actions: [
-            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
-            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
-          ],
+          subtitle: node.toolPtr != null ? "(Tool)" : undefined,
         },
       );
-    } else if (node.type == ActionType.CODE || DYNAMIC_ACTION_TYPES.includes(node.type as ActionType)) {
+    } else if (node.type == ActionType.CODE) {
+      if (IS_DEVELOPER_MODE.value) {
+        commonRows.push(this.rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
+      }
+
+      // code schema
       this.section(
         "Schema",
         [
@@ -901,101 +863,8 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
           this.rowIcon("fas fa-arrow-down"),
           { type: "fields-list", fieldType: FieldType.OUTPUT },
         ],
-        {
-          actions: [
-            this.actionAddField(FieldType.INPUT, makeIcon("fas fa-arrow-down")),
-            this.actionAddField(FieldType.OUTPUT, makeIcon("fas fa-arrow-up")),
-          ],
-        },
+        {},
       );
-    }
-  }
-
-  /** Rows for Action subproperties */
-  actionSubproperties(...subproperties: number[]) {
-    const rows: Row[] = [];
-    const isComputable = !(this.isPartial && this.propertyFieldTypes.length > 0);
-    subproperties = subproperties ?? Object.values(this.subpropertyEnum ?? {});
-    for (let i = 0; i < subproperties.length; i++) {
-      const subproperty = subproperties[i];
-      if (typeof subproperty !== "number") {
-        continue;
-      }
-      const { prop } = this.getProperty(subproperty as any);
-      if (
-        prop == null ||
-        (this.propertyFieldTypes.length > 0 && !this.propertyFieldTypes.includes(prop.fieldType!)) ||
-        (this.propertyFieldTypes.length == 0 && prop.fieldType == FieldType.OUTPUT)
-      ) {
-        continue; // hide properties of different types (and hide output properties by default unless explicitly shown)
-      }
-
-      if (prop.valueIsPartial) {
-        // no nested partials
-        if (!this.isPartial) {
-          this.section("Node", [
-            this.rowObjectNested(subproperty, makeType({ kind: TypeKind.PARTIAL_OBJECT }), {
-              title: false,
-              isComputable,
-            }),
-          ]);
-        }
-      } else {
-        rows.push(this.rowProperty(subproperty, { isComputable }));
-      }
-    }
-    return rows;
-  }
-
-  make() {
-    const node = this.node!;
-
-    const commonRows: Row[] = [];
-    this.section(undefined, commonRows);
-
-    if (
-      this.propertyFieldTypes.length == 0 ||
-      (this.subtype == ActionType.TOOL && this.propertyFieldTypes.includes(FieldType.INPUT))
-    ) {
-      commonRows.push(
-        this.rowProperty(ActionProperty.type, {
-          extendUpdate: (newValue) => {
-            // also update node name if action type changes
-            const name = generateNodeName({ ...node, type: newValue }, this.graph.getChildren(node.parentPtr!));
-            return name != null ? { name } : {};
-          },
-        }),
-      );
-    }
-
-    // common rows
-    if (node.type == ActionType.CODE) {
-      if (IS_DEVELOPER_MODE.value) {
-        commonRows.push(this.rowProperty(ActionProperty.code, { isFullWidth: true, isComputable: true }));
-      }
-    } else if (node.type == ActionType.TOOL) {
-      commonRows.push(
-        this.rowProperty(ActionProperty.toolPtr, {
-          isComputable: true,
-          isFullWidth: false,
-          extendUpdate: (newValue) => {
-            // also update node name if tool changes
-            const tool = newValue != null ? this.graph.get(newValue) : null;
-            const name = tool != null ? getNodeTitle(tool) : null;
-            return name != null ? { name } : {};
-          },
-        }),
-      );
-    }
-
-    // tools
-    if ((this.subtype == ActionType.TOOL || DYNAMIC_ACTION_TYPES.includes(this.subtype as any)) && !this.isPartial) {
-      this.section("Tools", this.toolRows());
-    }
-
-    // schema
-    if (!this.isPartial) {
-      this.sectionActionSchema();
     }
   }
 }

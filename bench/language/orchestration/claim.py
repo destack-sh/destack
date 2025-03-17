@@ -15,8 +15,6 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     PackageNode,
-    Selection,
-    StructType,
     enum_,
     node_,
     p_internal,
@@ -24,7 +22,9 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
+from bench.language.core.const import bittuple
 from bench.pb2 import ClaimData
+from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import Action, Flow, Kit, Page, Resource, Run
@@ -34,9 +34,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.CLAIM_TYPE)
 class ClaimType(BuiltinEnum):
-    SHARED = 10, "Shared", "Shared concurrent access", "fas fa-users"
-    RESERVED = 20, "Reserved", "Shared, but reserved for exclusive use", "fas fa-user-unlock"
-    EXCLUSIVE = 30, "Exclusive", "Exclusive access", "fas fa-lock"
+    SHARED = 20, "Shared", "Shared concurrent access", "fas fa-users"
+    RESERVED = 30, "Reserved", "Shared, but reserved for exclusive use", "fas fa-user-unlock"
+    EXCLUSIVE = 40, "Exclusive", "Exclusive access", "fas fa-lock"
 
 
 @enum_(EnumType.CLAIM_STATUS)
@@ -59,6 +59,12 @@ class ClaimStatus(BuiltinEnum):
         return self >= 30
 
 
+Claimable = Union["Resource", "Flow", "Action", "Kit"]
+CLAIMABLE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES.tuple, NodeType.FLOW, NodeType.ACTION, NodeType.KIT
+)
+
+
 @node_(NodeType.CLAIM)
 class Claim(
     IsRuntime,
@@ -68,13 +74,17 @@ class Claim(
     IsNamed,
     PackageNode[ClaimData],
 ):
-    """A Claim on a Resource (which may be granted/rejected and is eventually closed)."""
+    """
+    A Claim on something (like a Resource or runnable tool Node for a 'tool').
+    Depending on the claim, a Claim may be instantiated and granted/rejected at runtime.
+    """
 
     # meta
     parent: Union["Page", "Kit", "Flow", "Action", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.KIT, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, ckless=True
     )
     type: ClaimType = p_system(30, require=True)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # status
     status: ClaimStatus = p_regular(50, default=ClaimStatus.PENDING)
@@ -84,36 +94,29 @@ class Claim(
     closed_at: Optional[datetime] = p_internal(54, default=None)
 
     # content
-    resource: Optional["Resource"] = p_regular(
+    target: Optional[Claimable] = p_regular(
         60,
         require=False,
         array=False,
-        references=RESOURCE_NODE_TYPES.tuple,
-        description="The Resource this claim is about.",
+        references=CLAIMABLE_NODE_TYPES.tuple,
+        description="The target Node this claim is about.",
     )
-    resource_selection: Optional["Selection"] = p_regular(
-        65,
-        require=False,
-        array=False,
-        struct=StructType.SELECTION,
-        description="The potential Resources this claim wants.",
-    )
-    # resource_filter?
+    # target_selection/filter/....?
     if TYPE_CHECKING:
-        resource_ptr: Optional[NodeReference] = None
-        resource_id: Optional[UUID] = None
+        target_ptr: Optional[NodeReference] = None
+        target_id: Optional[UUID] = None
 
     @staticmethod
-    def exclusive(name: str, resource: "Resource", **kwargs) -> "Claim":
-        claim = Claim(type=ClaimType.EXCLUSIVE, name=name, resource=resource, **kwargs)
+    def exclusive(name: str, target: Claimable, **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.EXCLUSIVE, name=name, target=target, **kwargs)
         return claim
 
     @staticmethod
-    def reserved(name: str, resource: "Resource", **kwargs) -> "Claim":
-        claim = Claim(type=ClaimType.RESERVED, name=name, resource=resource, **kwargs)
+    def reserved(name: str, target: Claimable, **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.RESERVED, name=name, target=target, **kwargs)
         return claim
 
     @staticmethod
-    def shared(name: str, resource: "Resource", **kwargs) -> "Claim":
-        claim = Claim(type=ClaimType.SHARED, name=name, resource=resource, **kwargs)
+    def shared(name: str, target: Claimable, **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.SHARED, name=name, target=target, **kwargs)
         return claim

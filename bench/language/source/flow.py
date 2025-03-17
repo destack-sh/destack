@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Claim, Field, Link, Page, Role, RunOptions, Selection
+    from bench.language import Action, Claim, Field, Link, Page, Role, RunOptions
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,14 +44,6 @@ class Flow(IsComputable, IsTemplatable, IsModal, IsNamed, InlineNode[FlowData]):
     # meta
     options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
-    selection: Optional["Selection"] = p_regular(
-        41,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.SELECTION,
-        description="The selection of Tools to use.",
     )
     roles: list["Role"] = p_regular(42, require=False, array=True, references=NodeType.ROLE)
 

@@ -9,6 +9,7 @@ import { ObjectSection, useObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
+import ClaimList from "@/views/objects/ClaimList.vue";
 import FieldList from "@/views/objects/FieldList.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { toRef } from "vue";
@@ -157,6 +158,14 @@ defineExpose<ViewExpose>({ self, id });
               is-minimal
             />
           </div>
+          <div v-else-if="row.type == 'claims-list'" class="w-full rounded border border-gray-200">
+            <ClaimList
+              :id="row.title ?? `type-${i}`"
+              :orientation="Orientation.VERTICAL"
+              :node-ptr="nodePtr"
+              is-minimal
+            />
+          </div>
           <!-- Dynamic View -->
           <component
             :is="getViewComponent(row.viewType)"
@@ -180,7 +189,7 @@ defineExpose<ViewExpose>({ self, id });
             :id="i + '.object.value'"
             class=""
             :style="{ width: '100%', minHeight: ROW_HEIGHT_MIN + 'px' }"
-            v-bind="(row.viewProps as any)"
+            v-bind="row.viewProps as any"
             :model-value="row.read()"
             @update:model-value="(value: any, path?: ModelValueOptions) => row.write(value, path)"
           />

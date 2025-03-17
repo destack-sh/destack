@@ -45,7 +45,6 @@ if TYPE_CHECKING:
         LinkType,
         NodeReference,
         RunOptions,
-        Selection,
         Text,
         Trigger,
         Vector2,
@@ -100,14 +99,6 @@ class Action(IsComputable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionD
     # meta
     options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
-    selection: Optional["Selection"] = p_regular(
-        41,
-        default=None,
-        require=False,
-        array=False,
-        struct=StructType.SELECTION,
-        description="The selection of Tools to use.",
     )
     position: Optional["Vector2"] = p_regular(
         45, default=None, require=False, array=False, struct=StructType.VECTOR2
