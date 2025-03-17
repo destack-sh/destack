@@ -408,14 +408,14 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
         # run up to yield
         runner = await runtime.run_in_runtime(run)
         assert runner.status == RunStatus.YIELDED
-        assert runner.interruption and runner.interruption.runnable == yield_point
+        assert runner.interruption and runner.interruption.is_in(yield_point)
         assert runner.tracked_run
         run = runner.tracked_run
 
         # run up to yield again (without handling Interruption)
         runner = await runtime.run_in_runtime(run)
         assert runner.status == RunStatus.YIELDED
-        assert runner.interruption and runner.interruption.runnable == yield_point
+        assert runner.interruption and runner.interruption.is_in(yield_point)
         assert runner.tracked_run
         run = runner.tracked_run
 

@@ -49,7 +49,7 @@ class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageDat
     """A Package is a semi-isolated area of a Bench."""
 
     # meta
-    parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
+    parent: Optional["Bench"] = p_node_parent(4, NodeType.BENCH)
     type: PackageType = p_regular(30, require=True)
     slug: str | None = p_regular(34, constraint=SLUG_CONSTRAINT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
