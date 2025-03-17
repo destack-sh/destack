@@ -273,6 +273,7 @@ class ToolActionRunner(StaticActionRunner):
 
     @override
     async def run_static(self) -> None:
+        assert self.tracked_run is not None, f"{self!r} must be in a Run"
         if self.node.tool_ptr is not None:
             # 'hard-coded' tool
             tool = self.node.tool
@@ -284,10 +285,9 @@ class ToolActionRunner(StaticActionRunner):
             self.outputs = tool_runner.outputs
         else:
             # 'dynamic' tool from task
-            assert self.tracked_run is not None, f"{self!r} must be tracked"
             task = self.tracked_run.task
-            assert task is not None, f"{self!r} must have a task"
-            tool_ptr = task.target_ptr
+            assert task is not None, f"{self!r} must have a Task (as tool is not provided)"
+            tool_ptr = task.tool_ptr
             assert tool_ptr is not None, f"{task!r} for {self!r} must have a tool"
             tool = task.target
             assert tool is not None, f"{task!r} for {self!r} is missing {tool_ptr!r}"

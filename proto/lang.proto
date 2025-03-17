@@ -2583,6 +2583,31 @@ message MembershipData {
   NodeReferenceData member_ptr = 41;
 }
 
+message ChannelData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 8;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  ChannelType type = 30;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional TextData text = 35;
+  optional NodeReferenceData definition_ptr = 36;
+  optional NodeReferenceData thread_ptr = 37;
+  repeated NodeReferenceData tags_ptr = 38;
+}
+
 message MessageData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3231,6 +3256,7 @@ message TaskData {
   optional ErrorData error = 57;
   optional NodeReferenceData clazz_ptr = 60;
   optional NodeReferenceData target_ptr = 61;
+  optional NodeReferenceData tool_ptr = 62;
   optional google.protobuf.Value value_packed = 65;
   optional NodeReferenceData interruption_ptr = 66;
   bool is_manual = 70;
@@ -3439,9 +3465,10 @@ message ActionData {
   optional TextData text = 36;
   optional RunOptionsData options = 40;
   optional SelectionData selection = 41;
+  optional Vector2Data position = 45;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
-  optional Vector2Data position = 80;
+  optional google.protobuf.Value inputs_packed = 55;
 }
 
 message BlockData {
@@ -3464,31 +3491,6 @@ message BlockData {
   string order_key = 33;
   optional TextLineData line = 40;
   optional NodeReferenceData node_ptr = 41;
-}
-
-message ChannelData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 8;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  ChannelType type = 30;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional TextData text = 35;
-  optional NodeReferenceData definition_ptr = 36;
-  optional NodeReferenceData thread_ptr = 37;
-  repeated NodeReferenceData tags_ptr = 38;
 }
 
 message ChoiceData {

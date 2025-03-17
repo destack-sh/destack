@@ -21,7 +21,7 @@ import { DateTime, WeekdayNumbers } from "luxon";
 import { computed, Ref, ref, toRef, watch } from "vue";
 
 const MIN_WIDTH = 280;
-const DEFAULT_WIDTH = 400;
+const DEFAULT_WIDTH = 320;
 
 const props = defineProps<
   {

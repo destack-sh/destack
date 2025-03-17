@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.16.0"
+VERSION = "2025.03.17.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -982,12 +982,13 @@ ACTION_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("selection", PrimitiveType.JSON, is_nullable=True),
+        Column("position", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("tool_id", PrimitiveType.UUID, is_nullable=True),
         Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tool_type", PrimitiveType.INT16, is_nullable=True),
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("position", PrimitiveType.JSON, is_nullable=True),
+        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1858,6 +1859,10 @@ TASK_TABLE = Table(
         Column("target_ck", PrimitiveType.UUID, is_nullable=True),
         Column("target_type", PrimitiveType.INT16, is_nullable=True),
         Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("tool_id", PrimitiveType.UUID, is_nullable=True),
+        Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("tool_type", PrimitiveType.INT16, is_nullable=True),
+        Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
         Column("is_manual", PrimitiveType.BOOLEAN, default="false"),

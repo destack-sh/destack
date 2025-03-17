@@ -129,6 +129,12 @@ class Task(
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The target Node to run.",
     )
+    tool: Union["Flow", "Action", None] = p_regular(
+        62,
+        require=False,
+        references=(NodeType.FLOW, NodeType.ACTION),
+        description="The tool Node to use (at the target).",
+    )
     value_packed: Any = p_value_packed(65)
     value: Any = p_value_runtime(
         65, type=FieldType.INPUT, typ=lambda self: cast(Task, self).value_type
@@ -146,6 +152,8 @@ class Task(
         clazz_id: Optional[UUID] = None
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
+        tool_ptr: Optional[NodeReference] = None
+        tool_id: Optional[UUID] = None
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
 
@@ -166,12 +174,12 @@ class Task(
 
     @cached_property
     def value_type(self) -> Optional["TypeBase"]:
-        node = self.target
-        return (
-            node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-            if node is not None
-            else None
-        )
+        if (tool := self.tool) is not None:
+            return tool.to_type_maybe(of="value", field_types=[FieldType.INPUT])
+        elif (node := self.target) is not None:
+            return node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
+        else:
+            return None
 
     @staticmethod
     def generic(
@@ -202,6 +210,7 @@ class Task(
         node: "Flow | Action",
         value: CustomObject | None = None,
         *,
+        tool: "Flow | Action | None" = None,
         text: "Text | None" = None,
         **kwargs,
     ) -> "Task":
@@ -210,13 +219,18 @@ class Task(
         if not isinstance(node, (Block, Action)):
             raise ValueError(f"invalid node type for Call: {type(node)}")
 
-        value_type = node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-        assert value_type is not None, f"no call value type for {node!r}"
+        if tool is not None:
+            value_type = tool.to_type_maybe(of="value", field_types=[FieldType.INPUT])
+            assert value_type is not None, f"no call value type for tool {tool!r}"
+        else:
+            value_type = node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
+            assert value_type is not None, f"no call value type for node {node!r}"
         value = coerce_custom_object_scalar(value or kwargs, value_type)
         task = Task(
             type=TaskType.RUN,
             title=text_line(title) if title is not None else None,
             target=node,
             value=value,
+            text=text,
         )
         return task
