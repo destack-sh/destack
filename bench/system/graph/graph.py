@@ -27,7 +27,7 @@ from bench.language import (
     EMPTY_SCOPE_DATA,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
-    SUBJECT_TYPES,
+    SUBJECT_NODE_TYPES,
     AccessError,
     Bench,
     Context,
@@ -55,7 +55,6 @@ from bench.language import (
     ValidationError,
     bittuple,
     edit_data_graph,
-    evaluate_and_adapt_read,
     evaluate_edit,
     generate_access_matrix,
     on_invalid_raise,
@@ -566,6 +565,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         {"connection_hash": connection.hash, "connection_token": connection.token}
                     )
 
+        # TODO :Security :BadAccess: check get access
+
         # check if all roots are found (if not optional)
         if not request.is_optional and any(
             cast(str, root.id) not in result.graph for root in request.roots
@@ -573,31 +574,17 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             missing_roots = tuple(root for root in roots if str(root.id) not in result.graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
-        # check access & prune result
-        with self.tracer.start_as_current_span(f"{self.name}.get.check_access"):
-            matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
-            decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix,
-                result.graph,
-                root_node_type=node_type,
-                query=adapted_query,
-                required_nodes=request.roots,
-            )
-            if decision != PolicyEffect.ALLOW:
-                raise AccessError(accesses)
-
         self.logger.info(
             f"{self.name}.get",
             subject=subject,
             query=query,
             connection=connection,
             graph=result.graph,
-            nodes=len(adapted_nodes),
             epoch=self._local_epoch,
             span="current",
         )
         return GetNodesResponse(
-            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
+            nodes=[wiring.wrap_some_node(n) for n in result.graph.nodes],
             connection_token=connection.token,
             epoch=self._local_epoch,
         )
@@ -703,18 +690,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         {"connection_hash": connection.hash, "connection_token": connection.token}
                     )
 
-        # check access & prune result
-        with self.tracer.start_as_current_span(f"{self.name}.search.check_access"):
-            matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
-            decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix,
-                result.graph,
-                root_node_type=node_type,
-                query=adapted_query,
-                required_nodes=[request.base_type_ptr] if request.base_type_ptr.metatype else [],
-            )
-            if decision != PolicyEffect.ALLOW:
-                raise AccessError(accesses)
+            # TODO :Security :BadAccess: check search access
 
         self.logger.info(
             f"{self.name}.search",
@@ -722,13 +698,12 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             query=query,
             connection=connection,
             graph=result.graph,
-            nodes=len(adapted_nodes),
             epoch=self._local_epoch,
             span="current",
         )
         return SearchNodesResponse(
             roots_ptr=result.roots_ptr,
-            nodes=[wiring.wrap_some_node(n) for n in adapted_nodes],
+            nodes=[wiring.wrap_some_node(n) for n in result.graph.nodes],
             total=result.total,
             connection_token=connection.token,
             epoch=self._local_epoch,
@@ -930,7 +905,7 @@ def validate_edit(edit: EditData, subject: PolicySubject, now: datetime) -> None
             )
     else:
         # subject one of our member types
-        if not edit.subject_ptr or edit.subject_ptr.node_type not in SUBJECT_TYPES:
+        if not edit.subject_ptr or edit.subject_ptr.node_type not in SUBJECT_NODE_TYPES:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
                 f"bad subject in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r}",

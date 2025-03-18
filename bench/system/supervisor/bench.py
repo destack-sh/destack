@@ -18,9 +18,9 @@ from bench.language import (
 class CreateBenchOptions(NamedTuple):
     bench_id: UUID | None = None
     main_package_id: UUID | None = None
-    main_package_name: str = "Main Package"
+    main_package_name: str = "Main"
     main_package_slug: str = "main"
-    local_store_name: str = "Local Store"
+    local_store_name: str = "Local"
     create_computer_scaler: bool = True
 
 

@@ -272,9 +272,9 @@ class HostService(GraphServiceBase, HostBase):
                     )
             if isinstance(client.parent, User):
                 if client.parent.main_bench_id == self._bench.id:
-                    owned = [client.parent, self._bench]
+                    owned = [client.parent, self._bench]  # type: ignore
                 else:
-                    owned = [client.parent]
+                    owned = [client.parent]  # type: ignore
                 is_staff = client.parent.is_staff
                 user = client.parent
             elif isinstance(client.parent, Bench):
@@ -295,7 +295,7 @@ class HostService(GraphServiceBase, HostBase):
             client=client,
             user=user,
             computer=computer,
-            owned=owned,
+            owned=owned,  # type: ignore
             _supergraph=supergraph,
         )
         return subject

@@ -1,7 +1,18 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
+import { packSubnode } from "@/language/core/node";
+import { makeType, TypeIdentity } from "@/language/core/type";
 import { createField, useFieldList } from "@/language/source/field";
-import { FieldType, NodeType, Orientation, TypeBaseNodeData, ViewData } from "@/proto/wire";
+import {
+  BenchType,
+  FieldType,
+  NodeType,
+  Orientation,
+  PickerVariant,
+  TypeBaseNodeData,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -14,10 +25,11 @@ import {
   useSelectionZone,
 } from "@/ui/drag";
 import { useNodeListActions } from "@/ui/list";
-import { addFieldPopover } from "@/ui/object";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
+import { pushPopover } from "@/ui/popover";
+import { typeIndex } from "@/ui/search";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -103,7 +115,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
     <ul
-      class="flex gap-x-2 gap-y-1 rounded"
+      class="flex gap-x-2 rounded"
       :class="[isHorizontal ? 'flex-row' : 'flex-col', isMinimal ? 'px-0.5 py-0.5' : '']"
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
@@ -150,8 +162,33 @@ defineExpose<ViewExpose>({ self, id, actions });
       <!-- Create -->
       <button
         class="h-[28px] rounded px-2.5 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
-        :class="isHorizontal ? '' : 'mx-1.5'"
-        @click="(e) => addFieldPopover(e, fieldType, base!, graph, () => connection.tx)"
+        @click="
+          (e) => {
+            const button = (e.target as HTMLElement).closest('button')!;
+            pushPopover({
+              kind: 'view',
+              trigger: button,
+              reference: button,
+              title: `Add ${toCamelName(FieldType, fieldType)}`,
+              component: ViewType.PICKER,
+              placement: 'bottom-left',
+              offset: 'referenceWidth',
+              props: {
+                valueType: makeType({ benchType: BenchType.TYPE }),
+                subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
+                // @ts-expect-error index is only for Picker props
+                index: typeIndex({ id: 'type', graph }),
+              },
+              onApply: (typeInfo: TypeIdentity) => {
+                createField(connection.tx, graph, {
+                  anchor: 'inside',
+                  target: base!,
+                  field: { ...typeInfo, metatype: undefined, icon: undefined, type: fieldType },
+                });
+              },
+            });
+          }
+        "
       >
         <i class="fas fa-plus mr-1.5" />
         <span> {{ toCamelName(FieldType, props.fieldType) }} </span>
