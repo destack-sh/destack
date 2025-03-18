@@ -35,6 +35,7 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
+    Trigger,
     constraint,
     format_code,
     path,
@@ -259,11 +260,13 @@ def test_render_field_with_constraint(session: Session, package: Package):
 def test_render_flow_simple(session: Session, package: Package):
     """Flows should create Links with `connect`."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Complete)
-    Forward1 = Start.connect(LinkType.REQUIRE, Complete, "Forward1")
-    return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
+    Start = Action.new(
+        ActionType.START, "Start", triggers=[Trigger.on_start(), Trigger.on_message()]
+    )
+    End = Action.new(ActionType.END, "End")
+    Flow1.actions.extend(Start, End)
+    Forward1 = Start.connect(LinkType.REQUIRE, End, "Forward1")
+    return {"Flow1": Flow1, "Start": Start, "End": End, "Forward1": Forward1}
 
 
 @_render_test
@@ -281,9 +284,9 @@ def test_render_flow_computed_value(session: Session, package: Package):
         ],
     )
     Start = Action.new(ActionType.START, "Start")
-    Complete = Action.new(
-        ActionType.COMPLETE,
-        "Complete",
+    End = Action.new(
+        ActionType.END,
+        "End",
         computed_values=[
             ComputedValue.new(
                 target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
@@ -296,9 +299,9 @@ def test_render_flow_computed_value(session: Session, package: Package):
             ),
         ],
     )
-    Flow1.actions.extend(Start, Complete)
-    Forward1 = Start.connect(LinkType.REQUIRE, Complete, "Forward1")
-    return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Forward1": Forward1}
+    Flow1.actions.extend(Start, End)
+    Forward1 = Start.connect(LinkType.REQUIRE, End, "Forward1")
+    return {"Flow1": Flow1, "Start": Start, "End": End, "Forward1": Forward1}
 
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):

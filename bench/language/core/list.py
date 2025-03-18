@@ -236,7 +236,9 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
     def append(
         self, node: V, move: bool = False, after: V | None = None, before: V | None = None
     ) -> V:
-        super().append(node, move=move)
+        parent = self._get_parent()
+        graph = self._get_child_graph(parent)
+        attach_node(node, parent=parent, graph=graph, move=move)
         # assign order key to ordered nodes
         if hasattr(node, "order_key"):
             ok = get_order_key(*get_key_bounds(self.nodes, after, before))

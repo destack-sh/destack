@@ -1411,8 +1411,9 @@ class Severity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class TriggerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRIGGER_TYPE_UNSPECIFIED: _ClassVar[TriggerType]
-    TRIGGER_TYPE_SCHEDULE: _ClassVar[TriggerType]
+    TRIGGER_TYPE_START: _ClassVar[TriggerType]
     TRIGGER_TYPE_MESSAGE: _ClassVar[TriggerType]
+    TRIGGER_TYPE_SCHEDULE: _ClassVar[TriggerType]
 
 class TriggerEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1582,8 +1583,7 @@ class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ACTION_TYPE_UNSPECIFIED: _ClassVar[ActionType]
     ACTION_TYPE_START: _ClassVar[ActionType]
-    ACTION_TYPE_RECEIVE: _ClassVar[ActionType]
-    ACTION_TYPE_COMPLETE: _ClassVar[ActionType]
+    ACTION_TYPE_END: _ClassVar[ActionType]
     ACTION_TYPE_TOOL: _ClassVar[ActionType]
     ACTION_TYPE_CODE: _ClassVar[ActionType]
     ACTION_TYPE_DO: _ClassVar[ActionType]
@@ -3148,8 +3148,9 @@ SEVERITY_WARNING: Severity
 SEVERITY_ERROR: Severity
 SEVERITY_PANIC: Severity
 TRIGGER_TYPE_UNSPECIFIED: TriggerType
-TRIGGER_TYPE_SCHEDULE: TriggerType
+TRIGGER_TYPE_START: TriggerType
 TRIGGER_TYPE_MESSAGE: TriggerType
+TRIGGER_TYPE_SCHEDULE: TriggerType
 TRIGGER_EFFECT_UNSPECIFIED: TriggerEffect
 TRIGGER_EFFECT_START_RUN: TriggerEffect
 TRIGGER_EFFECT_ENSURE_RUN: TriggerEffect
@@ -3262,8 +3263,7 @@ CODE_TYPE_SCRIPT: CodeType
 CODE_TYPE_FUNCTION: CodeType
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_START: ActionType
-ACTION_TYPE_RECEIVE: ActionType
-ACTION_TYPE_COMPLETE: ActionType
+ACTION_TYPE_END: ActionType
 ACTION_TYPE_TOOL: ActionType
 ACTION_TYPE_CODE: ActionType
 ACTION_TYPE_DO: ActionType

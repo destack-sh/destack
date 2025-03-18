@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
-import { useSubnodeProperty } from "@/language/core/node";
-import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import { IconInline } from "@/ui/icon";
-import { ObjectSection, useObjectLayout } from "@/ui/object";
+import { useObjectLayout } from "@/ui/object";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
@@ -44,41 +43,6 @@ const { node, connection, layout } = useObjectLayout({
   },
 });
 
-// sections
-const expandedSections = useSubnodeProperty(NodeType.VIEW, ViewType.OBJECT, subnodePacked, "expandedSections");
-const collapsedSections = useSubnodeProperty(NodeType.VIEW, ViewType.OBJECT, subnodePacked, "collapsedSections");
-function isSectionExpanded(section: ObjectSection) {
-  if (section.key == null) return true;
-  if (section.isDefaultCollapsed) return expandedSections.value?.includes(section.key);
-  else return !collapsedSections.value?.includes(section.key);
-}
-function toggleSection(section: ObjectSection) {
-  if (section.title == null) throw new Error("cannot toggle a section without a title");
-  if (section.isDefaultCollapsed) {
-    let newExpandedSections;
-    if (isSectionExpanded(section)) {
-      newExpandedSections = expandedSections.value.filter((key) => section.key && key != section.key);
-    } else {
-      newExpandedSections = [...(expandedSections.value ?? []), section.key!];
-    }
-    state.update(
-      { metatype: NodeType.VIEW, type: ViewType.OBJECT, subnode: { expandedSections: newExpandedSections } },
-      { debounce: "long" },
-    );
-  } else {
-    let newCollapsedSections;
-    if (isSectionExpanded(section)) {
-      newCollapsedSections = [...(collapsedSections.value ?? []), section.key!];
-    } else {
-      newCollapsedSections = collapsedSections.value.filter((key) => section.key && key != section.key);
-    }
-    state.update(
-      { metatype: NodeType.VIEW, type: ViewType.OBJECT, subnode: { collapsedSections: newCollapsedSections } },
-      { debounce: "long" },
-    );
-  }
-}
-
 defineExpose<ViewExpose>({ self, id });
 </script>
 <template>
@@ -90,13 +54,7 @@ defineExpose<ViewExpose>({ self, id });
         v-if="section.title"
         class="group/section-header relative mx-1 flex flex-row items-center rounded px-3"
         :style="{ height: `${SECTION_HEADER_HEIGHT}px` }"
-        @click="toggleSection(section)"
       >
-        <!-- Expand/collapse indicator -->
-        <i
-          class="fas fa-chevron-right absolute left-0 text-xs text-gray-400 opacity-0 transition-all duration-75 group-hover/section-header:text-gray-700 group-hover/section:opacity-100"
-          :class="isSectionExpanded(section) ? 'rotate-90' : 'rotate-0'"
-        />
         <!-- Title -->
         <span class="font-medium">{{ section.title }}</span>
         <!-- Subtitle -->
@@ -104,7 +62,7 @@ defineExpose<ViewExpose>({ self, id });
         <!-- Meta -->
         <div class="ml-auto flex flex-row items-center gap-x-1 pr-1">
           <!-- Summary -->
-          <span v-if="!isSectionExpanded(section) && section.summary != null" class="text-gray-400">
+          <span v-if="section.summary != null" class="text-gray-400">
             {{ section.summary }}
           </span>
           <!-- Actions -->
@@ -117,7 +75,6 @@ defineExpose<ViewExpose>({ self, id });
             @click.stop="
               (e) => {
                 action.action(e);
-                if (!isSectionExpanded(section)) toggleSection(section);
               }
             "
           >
@@ -126,7 +83,7 @@ defineExpose<ViewExpose>({ self, id });
         </div>
       </div>
       <!-- Section content -->
-      <div v-if="section.rows.length > 0 && isSectionExpanded(section)" class="flex flex-col gap-y-1.5">
+      <div v-if="section.rows.length > 0" class="flex flex-col gap-y-1.5">
         <!-- Row -->
         <div
           v-for="(row, i) in section.rows"

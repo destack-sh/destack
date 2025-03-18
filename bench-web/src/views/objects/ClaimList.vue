@@ -72,7 +72,7 @@ defineExpose<ViewExpose>({ self, id, actions });
         :data-node-id="claim.id"
         :data-node-type="claim.metatype"
       >
-        <NodeReference :node-ptr="claim.targetPtr" size="sm" />
+        <NodeReference :node-ptr="claim.targetPtr" is-light size="sm" />
       </li>
       <!-- Create -->
       <button

@@ -67,6 +67,7 @@ from .flow import Flow
 from .link import Link
 from .option import Option
 from .page import Page
+from .trigger import Trigger, TriggerEffect
 from .view import View
 
 if TYPE_CHECKING:
@@ -916,6 +917,27 @@ class OptionRenderer(PackageNodeRenderer[Option]):
         return f"Option.new({renderer.render_args(*args)})"
 
 
+@_renderer(NodeType.TRIGGER)
+class TriggerRenderer(NodeRenderer["Trigger"]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: "Trigger",
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        rendered_kwargs.pop("type", None)
+        if obj.effect == TriggerEffect.START_RUN:
+            rendered_kwargs.pop("effect", None)
+        args = (
+            rendered_kwargs.pop("name", None),
+            rendered_kwargs.pop("text", None),
+            renderer.render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Trigger.on_{obj.type.name.lower()}({renderer.render_args(*args)})"
+
+
 @_renderer(NodeType.PLAN)
 class PlanRenderer(NodeRenderer["Plan"]):
     @override
@@ -976,7 +998,7 @@ class ClaimRenderer(NodeRenderer["Claim"]):
         rendered_kwargs.pop("type", None)
         args = (
             rendered_kwargs.pop("name"),
-            rendered_kwargs.pop("resource"),
+            rendered_kwargs.pop("target"),
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Claim.{obj.type.name.lower()}({renderer.render_args(*args)})"

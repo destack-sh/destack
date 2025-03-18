@@ -23,7 +23,7 @@ export function actionToType(
       } else {
         return undefined;
       }
-    } else if (action.type == ActionType.COMPLETE) {
+    } else if (action.type == ActionType.END) {
       if (action.parentPtr != null && (!fieldTypes.length || fieldTypes.includes(FieldType.INPUT))) {
         return makeType({
           kind: TypeKind.CUSTOM_OBJECT,

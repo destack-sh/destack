@@ -814,7 +814,7 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
       this.section("Schema", [{ type: "fields-list", fieldType: FieldType.INPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
       });
-    } else if (node.type == ActionType.COMPLETE) {
+    } else if (node.type == ActionType.END) {
       // ƒlow outputs as action inputs
       this.section("Schema", [{ type: "fields-list", fieldType: FieldType.OUTPUT, toolPtr: node.parentPtr }], {
         subtitle: "(Flow)",
@@ -1075,7 +1075,7 @@ export function useObjectLayout(options: {
     if (node == null) return null;
     if (isNode(node, NodeType.ACTION) && node.type == ActionType.TOOL) {
       return node.toolPtr;
-    } else if (isNode(node, NodeType.ACTION) && (node.type == ActionType.START || node.type == ActionType.COMPLETE)) {
+    } else if (isNode(node, NodeType.ACTION) && (node.type == ActionType.START || node.type == ActionType.END)) {
       return node.parentPtr;
     } else if (node != null) {
       return getBaseFromNode(node);

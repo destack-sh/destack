@@ -168,12 +168,6 @@ class StartActionRunner(StaticActionRunner):
         pass  # nothing to do
 
 
-class ReceiveActionRunner(StaticActionRunner):
-    @override
-    async def run_static(self) -> None:
-        pass  # nothing to do?
-
-
 class CompleteActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
@@ -268,8 +262,7 @@ class DynamicActionRunner(ActionRunner):
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
     # flow
     ActionType.START: StartActionRunner,
-    ActionType.RECEIVE: ReceiveActionRunner,
-    ActionType.COMPLETE: CompleteActionRunner,
+    ActionType.END: CompleteActionRunner,
     ActionType.TOOL: ToolActionRunner,
     ActionType.CODE: CodeActionRunner,
     ActionType.DO: DynamicActionRunner,

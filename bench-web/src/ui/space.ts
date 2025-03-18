@@ -1687,7 +1687,9 @@ declareActions<"space">({
     title: "Create Thread",
     icon: "fas fa-reel",
     text: "Create a new thread",
-    action: () => {},
+    action: () => {
+      
+    },
   },
   "space.create.channel": {
     title: "Create Channel",

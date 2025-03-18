@@ -15,7 +15,6 @@ from bench.language.core import (
     StructType,
     Text,
     enum_,
-    generate_node_name,
     node_,
     p_node_parent,
     p_regular,
@@ -43,8 +42,10 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TRIGGER_TYPE)
 class TriggerType(BuiltinEnum):
-    SCHEDULE = 10, "Schedule", "Run on a schedule", "fas fa-clock"
+    # flow
+    START = 10, "Start", "Run when a Flow is started", "fas fa-play"
     MESSAGE = 20, "Message", "Run when a Message is received", "fas fa-envelope"
+    SCHEDULE = 30, "Schedule", "Run on a schedule", "fas fa-clock"
     # RECORD, LOG, EDIT, ...
 
 
@@ -134,19 +135,14 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         return self.status.is_open
 
     @staticmethod
-    def on_schedule(
+    def on_start(
         name: str | None = None,
         text: Text | None = None,
         *,
         effect: TriggerEffect = TriggerEffect.START_RUN,
         scope: Union["Page", "Package", None] = None,
     ) -> "Trigger":
-        if name is None:
-            name = generate_node_name(NodeType.TRIGGER, TriggerType.SCHEDULE, siblings=())
-        trigger = Trigger(
-            type=TriggerType.SCHEDULE, name=name, text=text, effect=effect, scope=scope
-        )
-        return trigger
+        return Trigger(type=TriggerType.START, name=name, text=text, effect=effect, scope=scope)
 
     @staticmethod
     def on_message(
@@ -156,8 +152,6 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         effect: TriggerEffect = TriggerEffect.START_RUN,
         scope: Union["Page", "Package", None] = None,
     ) -> "Trigger":
-        if name is None:
-            name = generate_node_name(NodeType.TRIGGER, TriggerType.MESSAGE, siblings=())
         trigger = Trigger(
             type=TriggerType.MESSAGE, name=name, text=text, effect=effect, scope=scope
         )

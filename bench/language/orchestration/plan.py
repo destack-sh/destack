@@ -70,7 +70,7 @@ class PlanTerminationMode(BuiltinEnum):
 @enum_(EnumType.PLAN_FAILURE_MODE)
 class PlanFailureMode(BuiltinEnum):
     FAIL = 10, "Fail", "Fail the Plan"
-    COMPLETE = 20, "Complete", "Complete the Plan"
+    END = 20, "Complete", "Complete the Plan"
     CONTINUE = 30, "Continue", "Continue the Plan (skip failures)"
 
 
@@ -123,7 +123,7 @@ class Plan(
         title: "TextLineIn",
         *tasks: "Task",
         on_terminate: PlanTerminationMode,
-        on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
+        on_failure: PlanFailureMode = PlanFailureMode.END,
     ) -> "Plan":
         plan = Plan(
             type=PlanType.SERIAL,
@@ -139,7 +139,7 @@ class Plan(
         title: "TextLineIn",
         *tasks: "Task",
         on_terminate: PlanTerminationMode,
-        on_failure: PlanFailureMode = PlanFailureMode.COMPLETE,
+        on_failure: PlanFailureMode = PlanFailureMode.END,
     ) -> "Plan":
         plan = Plan(
             type=PlanType.PARALLEL,

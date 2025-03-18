@@ -74,9 +74,9 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     """Create a Run from a Message in a Flow. Should be lifted into a Flow Run."""
     Channel1 = Channel.new("General")
     Flow1 = Flow.new("Flow1")
-    Receive1 = Action.new(ActionType.RECEIVE, "Receive1", triggers=[Trigger.on_message()])
-    Complete1 = Action.new(ActionType.COMPLETE, "Complete1")
-    Flow1.extend(Receive1, Complete1)
+    Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
+    End1 = Action.new(ActionType.END, "End1")
+    Flow1.extend(Start1, End1)
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
@@ -90,23 +90,23 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
 
 @simulated_runtime(system=True, runtimes=True)
 async def test_reply_to_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Reply to a Message in a Flow. Should complete and not recurse endlessly."""
+    """Reply to a Message in a Flow. Should end and not recurse endlessly."""
     Channel1 = Channel.new("General")
     Flow1 = Flow.new("Flow1")
-    Receive1 = Action.new(ActionType.RECEIVE, "Receive1", triggers=[Trigger.on_message()])
+    Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
         code=code("""\
-message_in = runner.get_latest_run(Receive1).inputs.message
+message_in = runner.get_latest_run(Start1).inputs.message
 reply = Message.new(title="Hi.", reply_to=message_in)
 message_in.parent.append(reply)
 """),
     )
-    Complete1 = Action.new(ActionType.COMPLETE, "Complete1")
-    Flow1.extend(Receive1, Code1, Complete1)
-    Receive1.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, Complete1, is_manual=True)
+    End1 = Action.new(ActionType.END, "End1")
+    Flow1.extend(Start1, Code1, End1)
+    Start1.connect(LinkType.REQUIRE, Code1, is_manual=True)
+    Code1.connect(LinkType.REQUIRE, End1, is_manual=True)
     runtime.page().extend(Channel1, Flow1)
     await runtime.commit()
 
@@ -118,7 +118,7 @@ message_in.parent.append(reply)
     assert Run1.status == RunStatus.COMPLETED
 
 
-# NOTE :Incomplete: wait, could we just use Interruptions to handle runtime "Triggers" for Messages?
+# nocheckin :Incomplete: wait, could we just use Interruptions to handle runtime "Triggers" for Messages?
 #  (we could just Interrupt and then manually resolve that Interrupt whenever we send a Message
 #   .. somehow? doesn't that move the logic to the client?)
 
@@ -127,12 +127,12 @@ message_in.parent.append(reply)
 async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start")
+    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
-    Complete = Action.new(ActionType.COMPLETE, "Complete")
-    Flow1.actions.extend(Start, Action1, Complete)
+    End = Action.new(ActionType.END, "End")
+    Flow1.actions.extend(Start, Action1, End)
     Start.connect(LinkType.REQUIRE, Action1, is_manual=True)
-    Action1.connect(LinkType.REQUIRE, Complete, is_manual=True)
+    Action1.connect(LinkType.REQUIRE, End, is_manual=True)
     runtime.page().append(Flow1)
     await runtime.commit()
 

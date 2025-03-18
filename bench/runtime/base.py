@@ -184,7 +184,11 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._computer_id:
-                self._computer = await Computer.get(id=self._computer_id)
+                computer = self._bench._graph.get(self._computer_id)
+                assert isinstance(
+                    computer, Computer
+                ), f"{self._bench!r} has no computer {self._computer_id}"
+                self._computer = computer
 
         # update session context
         self._session.client = self._client

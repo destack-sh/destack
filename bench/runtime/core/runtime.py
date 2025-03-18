@@ -946,6 +946,7 @@ class Runtime:
 
             # create Thread for top-level Run
             if run.thread_ptr is None:
+                # nocheckin: lift Run into Thread (instead of Thread into Run)
                 thread = Thread(parent=run, type=ThreadType.RUN, run_root=run, run=run)
                 self._set_context(thread)
                 self.session._create(thread)
