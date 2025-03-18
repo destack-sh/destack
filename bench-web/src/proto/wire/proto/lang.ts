@@ -2075,19 +2075,15 @@ export interface TeamData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -2172,19 +2168,15 @@ export interface ChannelData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -2596,15 +2588,15 @@ export interface ThreadData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -2737,19 +2729,15 @@ export interface BrowserData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -2914,19 +2902,15 @@ export interface ComputerData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -3079,19 +3063,15 @@ export interface FileData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -3268,19 +3248,15 @@ export interface ScalerData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -3421,19 +3397,15 @@ export interface SecretData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -3562,19 +3534,15 @@ export interface StoreData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -3715,19 +3683,15 @@ export interface StreamData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -4378,19 +4342,15 @@ export interface PlanData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -4527,19 +4487,15 @@ export interface TaskData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -4571,15 +4527,19 @@ export interface TaskData {
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData clazz_ptr = 60;
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 60;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData clazz_ptr = 61;
      */
     clazzPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData target_ptr = 61;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData target_ptr = 62;
      */
     targetPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData tool_ptr = 62;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData tool_ptr = 63;
      */
     toolPtr?: NodeReferenceData;
     /**
@@ -5539,19 +5499,15 @@ export interface ChoiceData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -5628,19 +5584,15 @@ export interface ClassData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -5721,19 +5673,15 @@ export interface DatabaseData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -6024,25 +5972,25 @@ export interface FlowData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.RunOptionsData options = 40;
      */
     options?: RunOptionsData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 41;
+     */
+    text?: TextData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 42;
      */
@@ -6121,25 +6069,25 @@ export interface KitData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData target_ptr = 40;
      */
     targetPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 41;
+     */
+    text?: TextData;
 }
 /**
  * @generated from protobuf message symbolx.bench.LinkData
@@ -6493,19 +6441,15 @@ export interface PageData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -6721,19 +6665,15 @@ export interface ViewData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -7039,19 +6979,15 @@ export interface RoleData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
     /**
@@ -7233,19 +7169,15 @@ export interface TagData {
      */
     icon?: IconData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 35;
-     */
-    text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 37;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 36;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 38;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData tags_ptr = 37;
      */
     tagsPtr: NodeReferenceData[];
 }
@@ -20101,10 +20033,9 @@ class TeamData$Type extends MessageType$<TeamData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<TeamData>): TeamData {
@@ -20183,16 +20114,13 @@ class TeamData$Type extends MessageType$<TeamData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -20267,18 +20195,15 @@ class TeamData$Type extends MessageType$<TeamData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20312,10 +20237,9 @@ class ChannelData$Type extends MessageType$<ChannelData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChannelData>): ChannelData {
@@ -20392,16 +20316,13 @@ class ChannelData$Type extends MessageType$<ChannelData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -20473,18 +20394,15 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21191,9 +21109,9 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "run_root_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21286,13 +21204,13 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData channel_ptr */ 40:
@@ -21403,15 +21321,15 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData channel_ptr = 40; */
         if (message.channelPtr)
             NodeReferenceData.internalBinaryWrite(message.channelPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -21481,10 +21399,9 @@ class BrowserData$Type extends MessageType$<BrowserData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -21584,16 +21501,13 @@ class BrowserData$Type extends MessageType$<BrowserData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -21725,18 +21639,15 @@ class BrowserData$Type extends MessageType$<BrowserData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -21830,10 +21741,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -21932,16 +21842,13 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -22064,18 +21971,15 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -22160,10 +22064,9 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -22267,16 +22170,13 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -22417,18 +22317,15 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -22531,10 +22428,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -22633,16 +22529,13 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -22759,18 +22652,15 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -22848,10 +22738,9 @@ class SecretData$Type extends MessageType$<SecretData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -22936,16 +22825,13 @@ class SecretData$Type extends MessageType$<SecretData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -23047,18 +22933,15 @@ class SecretData$Type extends MessageType$<SecretData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -23125,10 +23008,9 @@ class StoreData$Type extends MessageType$<StoreData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -23222,16 +23104,13 @@ class StoreData$Type extends MessageType$<StoreData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -23345,18 +23224,15 @@ class StoreData$Type extends MessageType$<StoreData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -23432,10 +23308,9 @@ class StreamData$Type extends MessageType$<StreamData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
@@ -23522,16 +23397,13 @@ class StreamData$Type extends MessageType$<StreamData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.Region region */ 40:
@@ -23630,18 +23502,15 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.Region region = 40; */
         if (message.region !== 0)
             writer.tag(40, WireType.Varint).int32(message.region);
@@ -24835,10 +24704,9 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 41, name: "on_terminate", kind: "enum", T: () => ["symbolx.bench.PlanTerminationMode", PlanTerminationMode, "PLAN_TERMINATION_MODE_"] },
             { no: 42, name: "on_failure", kind: "enum", T: () => ["symbolx.bench.PlanFailureMode", PlanFailureMode, "PLAN_FAILURE_MODE_"] },
             { no: 43, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24933,16 +24801,13 @@ class PlanData$Type extends MessageType$<PlanData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.PlanTerminationMode on_terminate */ 41:
@@ -25053,18 +24918,15 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.PlanTerminationMode on_terminate = 41; */
         if (message.onTerminate !== 0)
             writer.tag(41, WireType.Varint).int32(message.onTerminate);
@@ -25135,10 +24997,9 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 41, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.TaskStatus", TaskStatus, "TASK_STATUS_"] },
             { no: 51, name: "duration", kind: "message", T: () => Duration },
@@ -25146,9 +25007,10 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 53, name: "started_at", kind: "message", T: () => Timestamp },
             { no: 56, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 57, name: "error", kind: "message", T: () => ErrorData },
-            { no: 60, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 61, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 62, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 60, name: "text", kind: "message", T: () => TextData },
+            { no: 61, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 62, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 63, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 65, name: "value_packed", kind: "message", T: () => Value },
             { no: 66, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "is_manual", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -25237,16 +25099,13 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 41:
@@ -25270,13 +25129,16 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional symbolx.bench.ErrorData error */ 57:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData clazz_ptr */ 60:
+                case /* optional symbolx.bench.TextData text */ 60:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData clazz_ptr */ 61:
                     message.clazzPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clazzPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData target_ptr */ 61:
+                case /* optional symbolx.bench.NodeReferenceData target_ptr */ 62:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData tool_ptr */ 62:
+                case /* optional symbolx.bench.NodeReferenceData tool_ptr */ 63:
                     message.toolPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.toolPtr);
                     break;
                 case /* optional google.protobuf.Value value_packed */ 65:
@@ -25372,18 +25234,15 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41; */
         if (message.implementedByPtr)
             NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
@@ -25405,15 +25264,18 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbolx.bench.ErrorData error = 57; */
         if (message.error)
             ErrorData.internalBinaryWrite(message.error, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData clazz_ptr = 60; */
+        /* optional symbolx.bench.TextData text = 60; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData clazz_ptr = 61; */
         if (message.clazzPtr)
-            NodeReferenceData.internalBinaryWrite(message.clazzPtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData target_ptr = 61; */
+            NodeReferenceData.internalBinaryWrite(message.clazzPtr, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData target_ptr = 62; */
         if (message.targetPtr)
-            NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData tool_ptr = 62; */
+            NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData tool_ptr = 63; */
         if (message.toolPtr)
-            NodeReferenceData.internalBinaryWrite(message.toolPtr, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.toolPtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value value_packed = 65; */
         if (message.valuePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(65, WireType.LengthDelimited).fork(), options).join();
@@ -27213,10 +27075,9 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChoiceData>): ChoiceData {
@@ -27285,16 +27146,13 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -27360,18 +27218,15 @@ class ChoiceData$Type extends MessageType$<ChoiceData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27403,10 +27258,9 @@ class ClassData$Type extends MessageType$<ClassData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ClassData>): ClassData {
@@ -27475,16 +27329,13 @@ class ClassData$Type extends MessageType$<ClassData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -27550,18 +27401,15 @@ class ClassData$Type extends MessageType$<ClassData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27594,10 +27442,9 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<DatabaseData>): DatabaseData {
@@ -27670,16 +27517,13 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -27748,18 +27592,15 @@ class DatabaseData$Type extends MessageType$<DatabaseData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28245,11 +28086,11 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "options", kind: "message", T: () => RunOptionsData },
+            { no: 41, name: "text", kind: "message", T: () => TextData },
             { no: 42, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
@@ -28328,20 +28169,20 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.RunOptionsData options */ 40:
                     message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
+                    break;
+                case /* optional symbolx.bench.TextData text */ 41:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 42:
                     message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -28415,21 +28256,21 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.RunOptionsData options = 40; */
         if (message.options)
             RunOptionsData.internalBinaryWrite(message.options, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 41; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData roles_ptr = 42; */
         for (let i = 0; i < message.rolesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -28464,11 +28305,11 @@ class KitData$Type extends MessageType$<KitData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 40, name: "target_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 40, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "text", kind: "message", T: () => TextData }
         ]);
     }
     create(value?: PartialMessage<KitData>): KitData {
@@ -28537,20 +28378,20 @@ class KitData$Type extends MessageType$<KitData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData target_ptr */ 40:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
+                    break;
+                case /* optional symbolx.bench.TextData text */ 41:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28615,21 +28456,21 @@ class KitData$Type extends MessageType$<KitData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData target_ptr = 40; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 41; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29257,10 +29098,9 @@ class PageData$Type extends MessageType$<PageData> {
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PageData>): PageData {
@@ -29329,16 +29169,13 @@ class PageData$Type extends MessageType$<PageData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -29404,18 +29241,15 @@ class PageData$Type extends MessageType$<PageData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29755,10 +29589,9 @@ class ViewData$Type extends MessageType$<ViewData> {
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 39, name: "subviews_packed", kind: "message", T: () => Value },
             { no: 41, name: "value_type", kind: "message", T: () => TypeData },
             { no: 42, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -29859,16 +29692,13 @@ class ViewData$Type extends MessageType$<ViewData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional google.protobuf.Value subviews_packed */ 39:
@@ -29997,18 +29827,15 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value subviews_packed = 39; */
         if (message.subviewsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subviewsPacked), writer.tag(39, WireType.LengthDelimited).fork(), options).join();
@@ -30671,10 +30498,9 @@ class RoleData$Type extends MessageType$<RoleData> {
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] }
         ]);
     }
@@ -30741,16 +30567,13 @@ class RoleData$Type extends MessageType$<RoleData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.ColorType color */ 40:
@@ -30816,18 +30639,15 @@ class RoleData$Type extends MessageType$<RoleData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ColorType color = 40; */
         if (message.color !== undefined)
             writer.tag(40, WireType.Varint).int32(message.color);
@@ -31074,10 +30894,9 @@ class TagData$Type extends MessageType$<TagData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "text", kind: "message", T: () => TextData },
-            { no: 36, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<TagData>): TagData {
@@ -31146,16 +30965,13 @@ class TagData$Type extends MessageType$<TagData> {
                 case /* optional symbolx.bench.IconData icon */ 34:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbolx.bench.TextData text */ 35:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 37:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 36:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 38:
+                case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -31221,18 +31037,15 @@ class TagData$Type extends MessageType$<TagData> {
         /* optional symbolx.bench.IconData icon = 34; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 35; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData definition_ptr = 36; */
+        /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
-            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 37; */
+            NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 36; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 38; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32836,10 +32649,9 @@ export enum ScalerProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -32877,10 +32689,9 @@ export enum StoreProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -32917,10 +32728,9 @@ export enum ComputerProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -32960,10 +32770,9 @@ export enum BrowserProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -33006,10 +32815,9 @@ export enum FileProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -33055,10 +32863,9 @@ export enum StreamProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -33089,10 +32896,9 @@ export enum SecretProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   region = 40,
   scalerPtr = 41,
   status = 50,
@@ -33166,10 +32972,9 @@ export enum PageProperty {
   title = 32,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum BlockProperty {
@@ -33212,10 +33017,9 @@ export enum ChoiceProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum ClassProperty {
@@ -33236,10 +33040,9 @@ export enum ClassProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum FieldProperty {
@@ -33319,10 +33122,9 @@ export enum TagProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum FlowProperty {
@@ -33345,11 +33147,11 @@ export enum FlowProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   options = 40,
+  text = 41,
   rolesPtr = 42,
 }
 
@@ -33459,11 +33261,11 @@ export enum KitProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   targetPtr = 40,
+  text = 41,
 }
 
 export enum ViewProperty {
@@ -33486,10 +33288,9 @@ export enum ViewProperty {
   title = 32,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   subviewsPacked = 39,
   valueType = 41,
   nodePtr = 42,
@@ -33530,10 +33331,9 @@ export enum DatabaseProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum RoleProperty {
@@ -33553,10 +33353,9 @@ export enum RoleProperty {
   subnodePacked = 29,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   color = 40,
 }
 
@@ -33607,10 +33406,9 @@ export enum ChannelProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum ThreadProperty {
@@ -33634,9 +33432,9 @@ export enum ThreadProperty {
   title = 32,
   orderKey = 33,
   icon = 34,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   channelPtr = 40,
   scopePtr = 41,
   runRootPtr = 42,
@@ -33737,10 +33535,9 @@ export enum TeamProperty {
   name = 31,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
 }
 
 export enum MembershipProperty {
@@ -33972,10 +33769,9 @@ export enum PlanProperty {
   title = 32,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   onTerminate = 41,
   onFailure = 42,
   implementedByPtr = 43,
@@ -34011,10 +33807,9 @@ export enum TaskProperty {
   title = 32,
   orderKey = 33,
   icon = 34,
-  text = 35,
-  definitionPtr = 36,
-  threadPtr = 37,
-  tagsPtr = 38,
+  definitionPtr = 35,
+  threadPtr = 36,
+  tagsPtr = 37,
   implementedByPtr = 41,
   status = 50,
   duration = 51,
@@ -34022,9 +33817,10 @@ export enum TaskProperty {
   startedAt = 53,
   terminatedAt = 56,
   error = 57,
-  clazzPtr = 60,
-  targetPtr = 61,
-  toolPtr = 62,
+  text = 60,
+  clazzPtr = 61,
+  targetPtr = 62,
+  toolPtr = 63,
   valuePacked = 65,
   interruptionPtr = 66,
   isManual = 70,
@@ -35171,10 +34967,9 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.name]: { id: 31, name: 'name', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SCALER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ScalerProperty.text]: { id: 35, name: 'text', component: ObjectType.SCALER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ScalerProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ScalerProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ScalerProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.SCALER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ScalerProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ScalerProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ScalerProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.SCALER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.region]: { id: 40, name: 'region', component: ObjectType.SCALER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.status]: { id: 50, name: 'status', component: ObjectType.SCALER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35211,10 +35006,9 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.name]: { id: 31, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.icon]: { id: 34, name: 'icon', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [StoreProperty.text]: { id: 35, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StoreProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.STORE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.STORE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.region]: { id: 40, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.status]: { id: 50, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35250,10 +35044,9 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.name]: { id: 31, name: 'name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COMPUTER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ComputerProperty.text]: { id: 35, name: 'text', component: ObjectType.COMPUTER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ComputerProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.COMPUTER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ComputerProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ComputerProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ComputerProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.COMPUTER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.region]: { id: 40, name: 'region', component: ObjectType.COMPUTER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.status]: { id: 50, name: 'status', component: ObjectType.COMPUTER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35292,10 +35085,9 @@ export const BrowserDataInfo: Record<BrowserProperty, PropertyInfo> = {
   [BrowserProperty.name]: { id: 31, name: 'name', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BROWSER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.icon]: { id: 34, name: 'icon', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BrowserProperty.text]: { id: 35, name: 'text', component: ObjectType.BROWSER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [BrowserProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BrowserProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [BrowserProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.BROWSER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [BrowserProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.BROWSER, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.region]: { id: 40, name: 'region', component: ObjectType.BROWSER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BrowserProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.BROWSER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [BrowserProperty.status]: { id: 50, name: 'status', component: ObjectType.BROWSER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35337,10 +35129,9 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.name]: { id: 31, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [FileProperty.text]: { id: 35, name: 'text', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FileProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.FILE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.FILE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.region]: { id: 40, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.status]: { id: 50, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35385,10 +35176,9 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.name]: { id: 31, name: 'name', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.icon]: { id: 34, name: 'icon', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [StreamProperty.text]: { id: 35, name: 'text', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [StreamProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StreamProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [StreamProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.STREAM, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.STREAM, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.region]: { id: 40, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.status]: { id: 50, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35418,10 +35208,9 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.name]: { id: 31, name: 'name', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [SecretProperty.text]: { id: 35, name: 'text', component: ObjectType.SECRET, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [SecretProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SecretProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [SecretProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.SECRET, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.SECRET, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.region]: { id: 40, name: 'region', component: ObjectType.SECRET, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.SECRET, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.status]: { id: 50, name: 'status', component: ObjectType.SECRET, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -35492,10 +35281,9 @@ export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.title]: { id: 32, name: 'title', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [PageProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [PageProperty.text]: { id: 35, name: 'text', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [PageProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PageProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [PageProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.PAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [PageProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [PageProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [PageProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.PAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35536,10 +35324,9 @@ export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
   [ChoiceProperty.name]: { id: 31, name: 'name', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChoiceProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ChoiceProperty.text]: { id: 35, name: 'text', component: ObjectType.CHOICE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ChoiceProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ChoiceProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ChoiceProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.CHOICE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ChoiceProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ChoiceProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.CHOICE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ChoiceProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.CHOICE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CLASS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35559,10 +35346,9 @@ export const ClassDataInfo: Record<ClassProperty, PropertyInfo> = {
   [ClassProperty.name]: { id: 31, name: 'name', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLASS, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClassProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ClassProperty.text]: { id: 35, name: 'text', component: ObjectType.CLASS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ClassProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ClassProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ClassProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.CLASS, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ClassProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ClassProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.CLASS, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ClassProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.CLASS, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35639,10 +35425,9 @@ export const TagDataInfo: Record<TagProperty, PropertyInfo> = {
   [TagProperty.name]: { id: 31, name: 'name', component: ObjectType.TAG, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [TagProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TAG, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TagProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TAG, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [TagProperty.text]: { id: 35, name: 'text', component: ObjectType.TAG, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [TagProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.TAG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TagProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.TAG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [TagProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.TAG, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [TagProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TAG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TagProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.TAG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [TagProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.TAG, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FLOW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35664,11 +35449,11 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.name]: { id: 31, name: 'name', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [FlowProperty.text]: { id: 35, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FlowProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FlowProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [FlowProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.options]: { id: 40, name: 'options', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [FlowProperty.text]: { id: 41, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FlowProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
@@ -35774,11 +35559,11 @@ export const KitDataInfo: Record<KitProperty, PropertyInfo> = {
   [KitProperty.name]: { id: 31, name: 'name', component: ObjectType.KIT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [KitProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.KIT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [KitProperty.icon]: { id: 34, name: 'icon', component: ObjectType.KIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [KitProperty.text]: { id: 35, name: 'text', component: ObjectType.KIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [KitProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.KIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [KitProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.KIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [KitProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.KIT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [KitProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.KIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [KitProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.KIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [KitProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.KIT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [KitProperty.targetPtr]: { id: 40, name: 'target_ptr', component: ObjectType.KIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.CHOICE, NodeType.CLASS, NodeType.DATABASE, NodeType.FLOW, NodeType.KIT, NodeType.PAGE, NodeType.ROLE, NodeType.VIEW, NodeType.TAG, NodeType.TASK, NodeType.PLAN, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM], referenceStruct: StructType.NODE_REFERENCE },
+  [KitProperty.text]: { id: 41, name: 'text', component: ObjectType.KIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
 }
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35800,10 +35585,9 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.title]: { id: 32, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.icon]: { id: 34, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ViewProperty.text]: { id: 35, name: 'text', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ViewProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.VIEW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.subviewsPacked]: { id: 39, name: 'subviews_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ViewProperty.valueType]: { id: 41, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE },
   [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -35843,10 +35627,9 @@ export const DatabaseDataInfo: Record<DatabaseProperty, PropertyInfo> = {
   [DatabaseProperty.name]: { id: 31, name: 'name', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.DATABASE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [DatabaseProperty.icon]: { id: 34, name: 'icon', component: ObjectType.DATABASE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [DatabaseProperty.text]: { id: 35, name: 'text', component: ObjectType.DATABASE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [DatabaseProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [DatabaseProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.DATABASE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [DatabaseProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [DatabaseProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.DATABASE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [DatabaseProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.DATABASE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ROLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35865,10 +35648,9 @@ export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RoleProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ROLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RoleProperty.icon]: { id: 34, name: 'icon', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [RoleProperty.text]: { id: 35, name: 'text', component: ObjectType.ROLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [RoleProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [RoleProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.ROLE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.ROLE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [RoleProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.ROLE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [RoleProperty.color]: { id: 40, name: 'color', component: ObjectType.ROLE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
@@ -35917,10 +35699,9 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.name]: { id: 31, name: 'name', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.icon]: { id: 34, name: 'icon', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ChannelProperty.text]: { id: 35, name: 'text', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ChannelProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.CHANNEL, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.CHANNEL, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.THREAD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35943,9 +35724,9 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.title]: { id: 32, name: 'title', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [ThreadProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.icon]: { id: 34, name: 'icon', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [ThreadProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.THREAD, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.THREAD, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.channelPtr]: { id: 40, name: 'channel_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.scopePtr]: { id: 41, name: 'scope_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.CHOICE, NodeType.CLASS, NodeType.DATABASE, NodeType.FLOW, NodeType.KIT, NodeType.PAGE, NodeType.ROLE, NodeType.VIEW, NodeType.TAG, NodeType.TASK, NodeType.PLAN, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.runRootPtr]: { id: 42, name: 'run_root_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
@@ -36043,10 +35824,9 @@ export const TeamDataInfo: Record<TeamProperty, PropertyInfo> = {
   [TeamProperty.name]: { id: 31, name: 'name', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TEAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TeamProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TEAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [TeamProperty.text]: { id: 35, name: 'text', component: ObjectType.TEAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [TeamProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TeamProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [TeamProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.TEAM, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [TeamProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TeamProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.TEAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [TeamProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.TEAM, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36270,10 +36050,9 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.title]: { id: 32, name: 'title', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [PlanProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [PlanProperty.text]: { id: 35, name: 'text', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [PlanProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.PLAN, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.PLAN, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.onTerminate]: { id: 41, name: 'on_terminate', component: ObjectType.PLAN, enumType: EnumType.PLAN_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.onFailure]: { id: 42, name: 'on_failure', component: ObjectType.PLAN, enumType: EnumType.PLAN_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.implementedByPtr]: { id: 43, name: 'implemented_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
@@ -36308,10 +36087,9 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.title]: { id: 32, name: 'title', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [TaskProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [TaskProperty.text]: { id: 35, name: 'text', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [TaskProperty.definitionPtr]: { id: 36, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.threadPtr]: { id: 37, name: 'thread_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.tagsPtr]: { id: 38, name: 'tags_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.implementedByPtr]: { id: 41, name: 'implemented_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.status]: { id: 50, name: 'status', component: ObjectType.TASK, enumType: EnumType.TASK_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.duration]: { id: 51, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36319,9 +36097,10 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.startedAt]: { id: 53, name: 'started_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.terminatedAt]: { id: 56, name: 'terminated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.error]: { id: 57, name: 'error', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [TaskProperty.clazzPtr]: { id: 60, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.targetPtr]: { id: 61, name: 'target_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.toolPtr]: { id: 62, name: 'tool_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.text]: { id: 60, name: 'text', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [TaskProperty.clazzPtr]: { id: 61, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.targetPtr]: { id: 62, name: 'target_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.toolPtr]: { id: 63, name: 'tool_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.valuePacked]: { id: 65, name: 'value_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TaskProperty.interruptionPtr]: { id: 66, name: 'interruption_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.isManual]: { id: 70, name: 'is_manual', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },

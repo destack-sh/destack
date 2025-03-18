@@ -123,7 +123,6 @@ if TYPE_CHECKING:
         SearchConnection,
         Session,
         Tag,
-        Text,
         TextLine,
         Thread,
         Type,
@@ -1644,12 +1643,8 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )
-    # nocheckin: do we really need InlineNode.text?
-    text: Optional["Text"] = p_regular(
-        35, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     definition: "Block | None" = p_regular(
-        36,
+        35,
         require=False,
         array=False,
         references=NodeType.BLOCK,
@@ -1657,7 +1652,7 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
         description="The Block where this Node is 'defined'.",
     )
     thread: Optional["Thread"] = p_regular(
-        37,
+        36,
         require=False,
         array=False,
         references=NodeType.THREAD,
@@ -1665,7 +1660,7 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
         description="The current main Thread for this Node.",
     )
     tags: list["Tag"] = p_internal(
-        38, require=False, array=True, same_bench=True, references=NodeType.TAG
+        37, require=False, array=True, same_bench=True, references=NodeType.TAG
     )
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None

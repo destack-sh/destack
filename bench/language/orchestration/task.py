@@ -116,21 +116,24 @@ class Task(
     error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
 
     # content
+    text: Optional["Text"] = p_regular(
+        60, default=None, require=False, array=False, struct=StructType.TEXT
+    )
     clazz: Optional["Class"] = p_internal(
-        60,
+        61,
         require=False,
         array=False,
         references=NodeType.CLASS,
         description="The Task class.",
     )
     target: Union["Flow", "Action", None] = p_regular(
-        61,
+        62,
         require=False,
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The target Node to run.",
     )
     tool: Union["Flow", "Action", None] = p_regular(
-        62,
+        63,
         require=False,
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The tool Node to use (at the target).",
