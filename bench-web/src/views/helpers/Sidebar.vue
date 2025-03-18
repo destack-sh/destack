@@ -22,6 +22,7 @@ import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
+import List from "@/views/collections/List.vue";
 import Tree from "@/views/collections/Tree.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -207,7 +208,7 @@ defineExpose<ViewExpose>({ self });
             height: `${HEADER_HEIGHT}px`,
           }"
         >
-          <span class="font-medium">Package</span>
+          <span class="font-medium">Pages</span>
         </div>
         <Tree
           id="package"
@@ -216,6 +217,20 @@ defineExpose<ViewExpose>({ self });
           :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.PACKAGE })"
           size-is-dynamic
           v-bind="state.getChildState('scroll.package')"
+        />
+        <!-- Threads -->
+        <!-- ... -->
+        <div
+          class="group/header mx-4 flex flex-row items-center"
+          :style="{
+            height: `${HEADER_HEIGHT}px`,
+          }"
+        >
+          <span class="font-medium">Threads</span>
+        </div>
+        <List
+          id="threads"
+          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.LIST, { queryNodeType: NodeType.THREAD })"
         />
       </div>
 

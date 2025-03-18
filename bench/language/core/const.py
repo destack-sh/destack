@@ -281,6 +281,16 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
         items = tuple(ordered_members[o] for o in combined.search(True))
         return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
 
+    def __sub__(self, other: "bittuple[EnumT]") -> "bittuple[EnumT]":
+        assert type(other) is bittuple, f"invalid type: {type(other)}"
+        assert (
+            self.enum_cls == other.enum_cls
+        ), f"invalid enum_cls: {self.enum_cls} != {other.enum_cls}"
+        combined = self.bits & ~other.bits
+        ordered_members = _get_enum_members_by_ord(self.enum_cls)
+        items = tuple(ordered_members[o] for o in combined.search(True))
+        return bittuple(items, enum_cls=self.enum_cls)  # type: ignore
+
     def __iter__(self):
         return iter(self.tuple)
 
@@ -822,9 +832,10 @@ JOINABLE_NODE_TYPES = bittuple(
 )
 
 # NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
+UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE, NodeType.STREAM)
 LOADED_PACKAGE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES,
-    *RESOURCE_NODE_TYPES,
+    *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
     NodeType.CHANNEL,
     NodeType.PLAN,
     NodeType.TASK,

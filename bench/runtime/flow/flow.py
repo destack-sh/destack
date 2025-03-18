@@ -28,6 +28,7 @@ from bench.language import (
     RunType,
     Task,
     TextLine,
+    TriggerType,
     TypeBase,
     coerce_custom_object_scalar,
 )
@@ -280,7 +281,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             if is_failed:
                 if plan.on_failure == PlanFailureMode.FAIL:
                     plan.fail(run.error)
-                elif plan.on_failure == PlanFailureMode.COMPLETE:
+                elif plan.on_failure == PlanFailureMode.END:
                     plan.complete()
                     suppressed_fail = True
 
@@ -371,7 +372,10 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         if not runs:
             # start from scratch
             for action in self.node.actions:
-                if action.type == ActionType.START:
+                if action.type == ActionType.START and any(
+                    trigger.type == TriggerType.START and trigger.status.is_open
+                    for trigger in action.triggers
+                ):
                     self._start(action, inputs=self.inputs, incoming=())
         else:
             # resume from interrupted

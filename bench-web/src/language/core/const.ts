@@ -173,9 +173,10 @@ export const INLINE_NODE_TYPES = [
   NodeType.PLAN,
 ];
 INLINE_NODE_TYPES.sort();
+export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE, NodeType.STREAM];
 export const LOADED_PACKAGE_NODE_TYPES = [
   ...SOURCE_NODE_TYPES,
-  ...RESOURCE_NODE_TYPES,
+  ...RESOURCE_NODE_TYPES.filter((t) => !UNLOADED_RESOURCE_NODE_TYPES.includes(t)),
   NodeType.CHANNEL,
   NodeType.CLAIM,
   NodeType.PLAN,
@@ -196,7 +197,7 @@ export const NODE_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt < BlockType.PARAGR
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
 export const FLOW_ACTION_TYPES = ACTION_TYPES.filter((st) => st < 100);
 export const SOURCE_ACTION_TYPES = [ActionType.START];
-export const SINK_ACTION_TYPES = [ActionType.COMPLETE];
+export const SINK_ACTION_TYPES = [ActionType.END];
 
 // run
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];

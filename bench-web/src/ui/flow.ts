@@ -126,7 +126,7 @@ export class ActionState {
       const actionType = this.action.value?.type;
       if (actionType == ActionType.START) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.INPUT);
-      } else if (actionType == ActionType.COMPLETE) {
+      } else if (actionType == ActionType.END) {
         return this.flow.fields.value.filter((f) => f.type == FieldType.OUTPUT);
       } else if (actionType == ActionType.TOOL) {
         if (this.action.value?.toolPtr != null) {
@@ -1231,19 +1231,24 @@ export class FlowContext {
       parentPtr,
       packagePtr,
     });
-    if (action.type == ActionType.RECEIVE) {
-      // new message trigger
+    if (action.type == ActionType.START) {
+      // default triggers
+      tx.create({
+        metatype: NodeType.TRIGGER,
+        type: TriggerType.START,
+        benchPtr: action.benchPtr,
+        packagePtr: action.packagePtr,
+        parentPtr: toNodeRef(action),
+        name: "Start",
+        effect: TriggerEffect.REPLACE_RUN,
+      });
       tx.create({
         metatype: NodeType.TRIGGER,
         type: TriggerType.MESSAGE,
         benchPtr: action.benchPtr,
         packagePtr: action.packagePtr,
         parentPtr: toNodeRef(action),
-        name: makeNodeName(this.graph, {
-          metatype: ObjectType.TRIGGER,
-          type: TriggerType.MESSAGE,
-          parentPtr: toNodeRef(action),
-        }),
+        name: "Message",
         effect: TriggerEffect.REPLACE_RUN,
       });
     }
@@ -1367,7 +1372,7 @@ export function getActionFields(
       fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.type == FieldType.INPUT) : [],
       fieldParent: related.flow!,
     };
-  } else if (action.type == ActionType.COMPLETE) {
+  } else if (action.type == ActionType.END) {
     // from flow's output fields
     if (related.flow == null) return null;
     return {

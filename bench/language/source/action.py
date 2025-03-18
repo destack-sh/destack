@@ -61,8 +61,7 @@ _type = type
 class ActionType(BuiltinEnum):
     # orchestrate
     START = 10, "Start", "Begin the Flow", "fas fa-circle-play", ColorType.YELLOW
-    RECEIVE = 11, "Receive", "Receive a Message", "fas fa-inbox-in", ColorType.YELLOW
-    COMPLETE = 20, "Complete", "Complete the entire Flow", "fas fa-flag-checkered", ColorType.YELLOW
+    END = 20, "End", "Complete the Flow", "fas fa-flag-checkered", ColorType.YELLOW
     # WAIT = 30, "Wait", "Wait for some trigger"
 
     # action
@@ -215,7 +214,7 @@ class Action(
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
         else:
-            if self.type == ActionType.COMPLETE:
+            if self.type == ActionType.END:
                 if field_types and FieldType.INPUT not in field_types:
                     return None
                 base = self.parent

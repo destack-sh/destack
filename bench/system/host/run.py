@@ -24,6 +24,7 @@ from bench.language import (
     bittuple,
     isolated_graph,
 )
+from bench.language.core.const import NodeMode
 from bench.proto import RunRequest, RuntimeClient
 from bench.system.host import Commit, HostPlugin
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
@@ -95,16 +96,14 @@ class RunPlugin(HostPlugin[Run]):
         log = logger.bind(host=self, run=run, retry=op.retry)
 
         # select computers to process run on
-        # NOTE :Performance: maybe not re-load available Computers in RunPlugin every time?
-        available_computers = (
-            await Computer.where(
-                Computer.get_property("bench").eq(self.bench)
-                & Computer.get_property("status").eq(ResourceStatus.UP)
-                & Computer.get_property("type").eq(ComputerType.RUNTIME)
-            )
-            .select_all()
-            .to_list()
-        )
+        assert NodeType.COMPUTER in self.bench._graph.node_types, f"not loaded in {self.bench!r}"
+        available_computers = [
+            computer
+            for computer in self.bench._graph.nodes_of_type(Computer)
+            if computer.type == ComputerType.RUNTIME
+            and computer.status == ResourceStatus.UP
+            and computer.mode < NodeMode.TEMPLATE
+        ]
         # if last computer is still available, use that
         existing_computer = first((m for m in available_computers if m.id == run.computer_id), None)
         if existing_computer:

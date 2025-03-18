@@ -12647,13 +12647,17 @@ export enum TriggerType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TRIGGER_TYPE_SCHEDULE = 10;
+     * @generated from protobuf enum value: TRIGGER_TYPE_START = 10;
      */
-    SCHEDULE = 10,
+    START = 10,
     /**
      * @generated from protobuf enum value: TRIGGER_TYPE_MESSAGE = 20;
      */
-    MESSAGE = 20
+    MESSAGE = 20,
+    /**
+     * @generated from protobuf enum value: TRIGGER_TYPE_SCHEDULE = 30;
+     */
+    SCHEDULE = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.TriggerEffect
@@ -13201,13 +13205,9 @@ export enum ActionType {
      */
     START = 10,
     /**
-     * @generated from protobuf enum value: ACTION_TYPE_RECEIVE = 11;
+     * @generated from protobuf enum value: ACTION_TYPE_END = 20;
      */
-    RECEIVE = 11,
-    /**
-     * @generated from protobuf enum value: ACTION_TYPE_COMPLETE = 20;
-     */
-    COMPLETE = 20,
+    END = 20,
     /**
      * @generated from protobuf enum value: ACTION_TYPE_TOOL = 100;
      */
@@ -36602,7 +36602,7 @@ export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ScheduleTriggerDataInfo: Record<ScheduleTriggerProperty, PropertyInfo> = {
-  [ScheduleTriggerProperty.schedule]: { id: 100, name: 'schedule', component: ObjectType.TRIGGER, componentSubtype: 10, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
+  [ScheduleTriggerProperty.schedule]: { id: 100, name: 'schedule', component: ObjectType.TRIGGER, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
 }
 export const MessageTriggerDataInfo: Record<MessageTriggerProperty, PropertyInfo> = {
 
@@ -37652,8 +37652,9 @@ export const SeverityOptionInfo: Partial<Record<Severity, EnumOptionInfo>> = {
 }
 
 export const TriggerTypeOptionInfo: Partial<Record<TriggerType, EnumOptionInfo>> = {
-  [TriggerType.SCHEDULE]: { id: 10, name: 'SCHEDULE', text: 'Run on a schedule', title: 'Schedule', icon: 'fas fa-clock' },
+  [TriggerType.START]: { id: 10, name: 'START', text: 'Run when a Flow is started', title: 'Start', icon: 'fas fa-play' },
   [TriggerType.MESSAGE]: { id: 20, name: 'MESSAGE', text: 'Run when a Message is received', title: 'Message', icon: 'fas fa-envelope' },
+  [TriggerType.SCHEDULE]: { id: 30, name: 'SCHEDULE', text: 'Run on a schedule', title: 'Schedule', icon: 'fas fa-clock' },
 }
 
 export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionInfo>> = {
@@ -37725,8 +37726,7 @@ export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionIn
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
   [ActionType.START]: { id: 10, name: 'START', text: 'Begin the Flow', title: 'Start', color: ColorType.YELLOW, icon: 'fas fa-circle-play' },
-  [ActionType.RECEIVE]: { id: 11, name: 'RECEIVE', text: 'Receive a Message', title: 'Receive', color: ColorType.YELLOW, icon: 'fas fa-inbox-in' },
-  [ActionType.COMPLETE]: { id: 20, name: 'COMPLETE', text: 'Complete the entire Flow', title: 'Complete', color: ColorType.YELLOW, icon: 'fas fa-flag-checkered' },
+  [ActionType.END]: { id: 20, name: 'END', text: 'Complete the Flow', title: 'End', color: ColorType.YELLOW, icon: 'fas fa-flag-checkered' },
   [ActionType.TOOL]: { id: 100, name: 'TOOL', text: 'Delegate to a specific tool', title: 'Tool', color: ColorType.ORANGE, icon: 'fas fa-screwdriver-wrench' },
   [ActionType.CODE]: { id: 101, name: 'CODE', text: 'Run some Code', title: 'Code', color: ColorType.ORANGE, icon: 'fas fa-code' },
   [ActionType.DO]: { id: 200, name: 'DO', text: 'Perform an arbitrary action', title: 'Do', color: ColorType.ORANGE, icon: 'fas fa-hammer' },

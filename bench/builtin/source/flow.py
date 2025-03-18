@@ -5,7 +5,7 @@ AgentFlow = Flow.new(
 )
 Start1 = Action.new(ActionType.START, "Start")
 Tool1 = Action.new(ActionType.TOOL, "Tool")
-Complete1 = Action.new(ActionType.COMPLETE, "Complete")
+Complete1 = Action.new(ActionType.END, "Complete")
 AgentFlow.actions.extend(Start1, Tool1, Complete1)
 Start1.connect(LinkType.REQUIRE, Tool1)
 Tool1.connect(LinkType.DECIDE, Tool1)
