@@ -47,7 +47,6 @@ benchConnection.onError((e) => {
 });
 
 // dependencies (hard-coded to just the builtin bench for now)
-// nocheckin: builtin package
 export const { graph: builtinGraph, connection: builtinConnection } = useGetConnection(
   { name: "dependency.bench.builtin", live: true },
   computed(() => ({

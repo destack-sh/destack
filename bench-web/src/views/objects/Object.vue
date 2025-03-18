@@ -149,7 +149,7 @@ defineExpose<ViewExpose>({ self, id });
 
           <!-- Body -->
           <!-- Fields -->
-          <div v-if="row.type == 'fields-list'" class="w-full rounded border border-gray-200 px-0.5 py-0.5">
+          <div v-if="row.type == 'fields-list'" class="w-full rounded border border-gray-200 px-1 py-1">
             <FieldList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
@@ -158,7 +158,7 @@ defineExpose<ViewExpose>({ self, id });
               is-minimal
             />
           </div>
-          <div v-else-if="row.type == 'claims-list'" class="w-full rounded border border-gray-200 px-0.5 py-0.5">
+          <div v-else-if="row.type == 'claims-list'" class="w-full rounded border border-gray-200 px-1 py-1">
             <ClaimList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"

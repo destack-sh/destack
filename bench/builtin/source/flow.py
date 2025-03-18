@@ -1,6 +1,8 @@
-from bench.language import Action, ActionType, Flow, LinkType, Page, text
+from bench.language import Action, ActionType, Flow, LinkType, Page, icon, text
 
-AgentFlow = Flow.new("Agent", text=text("The minimal, default Agent Flow."))
+AgentFlow = Flow.new(
+    "Agent", icon=icon("fas fa-robot"), text=text("The minimal, default Agent Flow.")
+)
 Start1 = Action.new(ActionType.START, "Start")
 Tool1 = Action.new(ActionType.TOOL, "Tool")
 Complete1 = Action.new(ActionType.COMPLETE, "Complete")

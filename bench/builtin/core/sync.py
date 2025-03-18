@@ -5,6 +5,7 @@ from bench.language import (
     UUID_NAMESPACE,
     Block,
     IsInstantiable,
+    IsTemplatable,
     Node,
     NodeGraph,
     NodeReference,
@@ -126,6 +127,8 @@ def sync_node(
 
     # remove old nodes
     if _is_root:
-        for reference in parent.iter_descendants(recursive=True):
-            if reference.id not in target._graph:
-                reference.delete()
+        for target_child in target.iter_descendants(recursive=True):
+            if target_child.id not in reference._graph and (
+                not isinstance(target_child, IsTemplatable) or target_child.template_ptr is not None
+            ):
+                target_child.delete()

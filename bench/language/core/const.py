@@ -493,18 +493,49 @@ enum_(EnumType.ENUM_TYPE)(EnumType)
 ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
 ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
-#
-# Node metatypes
-#
+
+@enum_(EnumType.COLOR_TYPE)
+class ColorType(BuiltinEnum):
+    """Built-in color types a la SwiftUI or Tailwind."""
+
+    # surface
+    PRIMARY = 1
+    SECONDARY = 2
+    ACCENT = 3
+    CANVAS = 4
+    # semantic
+    SUCCESS = 10
+    HINT = 11
+    WARNING = 12
+    DANGER = 13
+    # actual
+    GRAY = 30
+    RED = 31
+    ORANGE = 32
+    AMBER = 33
+    YELLOW = 34
+    LIME = 35
+    GREEN = 36
+    EMERALD = 37
+    TEAL = 38
+    CYAN = 39
+    SKY = 40
+    BLUE = 41
+    INDIGO = 42
+    VIOLET = 43
+    PURPLE = 44
+    FUCHSIA = 45
+    PINK = 46
+    ROSE = 47
 
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
-    BUILTIN = 10, "Builtin", "Provided by the Bench system", "fas fa-cog"
-    MAIN = 20, "Main", "Active and available", "fas fa-globe"
-    TEST = 30, "Test", "Active in test mode", "fas fa-flask"
-    TEMPLATE = 40, "Template", "Template to instantiate", "fas fa-puzzle-piece"
-    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive"
+    BUILTIN = 10, "Builtin", "Provided by the Bench system", "fas fa-cog", ColorType.YELLOW
+    MAIN = 20, "Main", "Active and available", "fas fa-globe", ColorType.GREEN
+    TEST = 30, "Test", "Active in test mode", "fas fa-flask", ColorType.BLUE
+    TEMPLATE = 40, "Template", "Template to instantiate", "fas fa-puzzle-piece", ColorType.VIOLET
+    ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive", ColorType.GRAY
 
 
 @enum_(EnumType.NODE_TYPE)
@@ -1245,46 +1276,6 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
 class AccessMode(BuiltinEnum):
     ADAPTIVE = 1
     ATOMIC = 2
-
-
-#
-# Other stuff
-#
-
-
-@enum_(EnumType.COLOR_TYPE)
-class ColorType(BuiltinEnum):
-    """Built-in color types a la SwiftUI or Tailwind."""
-
-    # surface
-    PRIMARY = 1
-    SECONDARY = 2
-    ACCENT = 3
-    CANVAS = 4
-    # semantic
-    SUCCESS = 10
-    HINT = 11
-    WARNING = 12
-    DANGER = 13
-    # actual
-    GRAY = 30
-    RED = 31
-    ORANGE = 32
-    AMBER = 33
-    YELLOW = 34
-    LIME = 35
-    GREEN = 36
-    EMERALD = 37
-    TEAL = 38
-    CYAN = 39
-    SKY = 40
-    BLUE = 41
-    INDIGO = 42
-    VIOLET = 43
-    PURPLE = 44
-    FUCHSIA = 45
-    PINK = 46
-    ROSE = 47
 
 
 @enum_(EnumType.COLOR_SHADE)

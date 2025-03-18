@@ -7,14 +7,16 @@ from bench.language import (
     FileFormat,
     FileType,
     NodeMode,
+    NodeType,
     Page,
     upload_file,
 )
+from bench.language.core import icon
 
 from .computer import ComputerKit, IComputer
 
 if TYPE_CHECKING:
-    from bench.runtime.core.runner import Runner
+    from bench.runtime import Runner
 
 
 from bench.builtin.core import class_to_kit
@@ -129,8 +131,11 @@ class IBrowser(IComputer, Runner if TYPE_CHECKING else object):
         await pw_page.go_back()
 
 
-BrowserKit = class_to_kit(IBrowser, "Browser", template=ComputerKit)
+BrowserKit = class_to_kit(IBrowser, "Browser Kit", icon=NodeType.BROWSER.icon, template=ComputerKit)
 ChromeBrowserTemplate = Browser(
-    name="Chrome Browser", type=BrowserType.CHROME, mode=NodeMode.TEMPLATE
+    name="Chrome Browser",
+    type=BrowserType.CHROME,
+    mode=NodeMode.TEMPLATE,
+    icon=icon("fab fa-chrome"),
 )
 BrowserPage = Page.new("Browser", ChromeBrowserTemplate, BrowserKit)

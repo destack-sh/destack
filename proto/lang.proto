@@ -2244,10 +2244,11 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
-  repeated NodeType node_types = 70;
-  repeated NodeReferenceData node_scope_ptr = 71;
-  optional int32 node_max_depth = 72;
-  repeated int32 node_subtypes = 73;
+  optional NodeMode node_mode = 70;
+  repeated NodeType node_types = 71;
+  repeated NodeReferenceData node_scope_ptr = 72;
+  optional int32 node_max_depth = 73;
+  repeated int32 node_subtypes = 74;
 }
 
 message TypeData {

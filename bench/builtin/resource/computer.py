@@ -6,6 +6,7 @@ from bench.language import (
     ComputerType,
     File,
     NodeMode,
+    NodeType,
     Page,
 )
 
@@ -78,11 +79,8 @@ class IComputer(abc.ABC):
         ...
 
 
-ComputerKit = class_to_kit(IComputer, "Computer")
-RuntimeComputerTemplate = Computer(
-    name="Runtime Computer", type=ComputerType.RUNTIME, mode=NodeMode.TEMPLATE
-)
+ComputerKit = class_to_kit(IComputer, "Computer Kit", icon=NodeType.COMPUTER.icon)
 UbuntuComputerTemplate = Computer(
     name="Ubuntu Computer", type=ComputerType.UBUNTU, mode=NodeMode.TEMPLATE
 )
-ComputerPage = Page.new("Computer", RuntimeComputerTemplate, UbuntuComputerTemplate, ComputerKit)
+ComputerPage = Page.new("Computer", UbuntuComputerTemplate, ComputerKit)

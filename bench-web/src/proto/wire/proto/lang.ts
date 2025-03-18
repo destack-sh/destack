@@ -869,19 +869,23 @@ export interface TypeConstraintData {
      */
     endsWith?: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 70;
+     * @generated from protobuf field: optional symbolx.bench.NodeMode node_mode = 70;
+     */
+    nodeMode?: NodeMode;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 71;
      */
     nodeTypes: NodeType[];
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData node_scope_ptr = 71;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData node_scope_ptr = 72;
      */
     nodeScopePtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: optional int32 node_max_depth = 72;
+     * @generated from protobuf field: optional int32 node_max_depth = 73;
      */
     nodeMaxDepth?: number;
     /**
-     * @generated from protobuf field: repeated int32 node_subtypes = 73;
+     * @generated from protobuf field: repeated int32 node_subtypes = 74;
      */
     nodeSubtypes: number[];
 }
@@ -16899,10 +16903,11 @@ class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
             { no: 60, name: "regex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 61, name: "starts_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "ends_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 70, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 71, name: "node_scope_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 72, name: "node_max_depth", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 73, name: "node_subtypes", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
+            { no: 70, name: "node_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
+            { no: 71, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 72, name: "node_scope_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 73, name: "node_max_depth", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 74, name: "node_subtypes", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<TypeConstraintData>): TypeConstraintData {
@@ -16947,20 +16952,23 @@ class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
                 case /* optional string ends_with */ 62:
                     message.endsWith = reader.string();
                     break;
-                case /* repeated symbolx.bench.NodeType node_types */ 70:
+                case /* optional symbolx.bench.NodeMode node_mode */ 70:
+                    message.nodeMode = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.NodeType node_types */ 71:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.nodeTypes.push(reader.int32());
                     else
                         message.nodeTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData node_scope_ptr */ 71:
+                case /* repeated symbolx.bench.NodeReferenceData node_scope_ptr */ 72:
                     message.nodeScopePtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional int32 node_max_depth */ 72:
+                case /* optional int32 node_max_depth */ 73:
                     message.nodeMaxDepth = reader.int32();
                     break;
-                case /* repeated int32 node_subtypes */ 73:
+                case /* repeated int32 node_subtypes */ 74:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.nodeSubtypes.push(reader.int32());
@@ -17006,22 +17014,25 @@ class TypeConstraintData$Type extends MessageType$<TypeConstraintData> {
         /* optional string ends_with = 62; */
         if (message.endsWith !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.endsWith);
-        /* repeated symbolx.bench.NodeType node_types = 70; */
+        /* optional symbolx.bench.NodeMode node_mode = 70; */
+        if (message.nodeMode !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.nodeMode);
+        /* repeated symbolx.bench.NodeType node_types = 71; */
         if (message.nodeTypes.length) {
-            writer.tag(70, WireType.LengthDelimited).fork();
+            writer.tag(71, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.nodeTypes.length; i++)
                 writer.int32(message.nodeTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.NodeReferenceData node_scope_ptr = 71; */
+        /* repeated symbolx.bench.NodeReferenceData node_scope_ptr = 72; */
         for (let i = 0; i < message.nodeScopePtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodeScopePtr[i], writer.tag(71, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 node_max_depth = 72; */
+            NodeReferenceData.internalBinaryWrite(message.nodeScopePtr[i], writer.tag(72, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 node_max_depth = 73; */
         if (message.nodeMaxDepth !== undefined)
-            writer.tag(72, WireType.Varint).int32(message.nodeMaxDepth);
-        /* repeated int32 node_subtypes = 73; */
+            writer.tag(73, WireType.Varint).int32(message.nodeMaxDepth);
+        /* repeated int32 node_subtypes = 74; */
         if (message.nodeSubtypes.length) {
-            writer.tag(73, WireType.LengthDelimited).fork();
+            writer.tag(74, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.nodeSubtypes.length; i++)
                 writer.int32(message.nodeSubtypes[i]);
             writer.join();
@@ -34544,10 +34555,11 @@ export enum TypeConstraintProperty {
   regex = 60,
   startsWith = 61,
   endsWith = 62,
-  nodeTypes = 70,
-  nodeScopePtr = 71,
-  nodeMaxDepth = 72,
-  nodeSubtypes = 73,
+  nodeMode = 70,
+  nodeTypes = 71,
+  nodeScopePtr = 72,
+  nodeMaxDepth = 73,
+  nodeSubtypes = 74,
 }
 
 export enum FileInfoProperty {
@@ -36760,7 +36772,7 @@ export const PolicySubjectDataInfo: Record<PolicySubjectProperty, PropertyInfo> 
   [PolicySubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [PolicySubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [PolicySubjectProperty.computerPtr]: { id: 43, name: 'computer_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [PolicySubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PolicySubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.BROWSER, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.THREAD, NodeType.BENCH, NodeType.CLAIM, NodeType.PLAN, NodeType.TASK, NodeType.PACKAGE, NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
   [PolicySubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.POLICY_SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
@@ -36813,10 +36825,11 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
   [TypeConstraintProperty.regex]: { id: 60, name: 'regex', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.startsWith]: { id: 61, name: 'starts_with', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.endsWith]: { id: 62, name: 'ends_with', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.nodeTypes]: { id: 70, name: 'node_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.nodeScopePtr]: { id: 71, name: 'node_scope_ptr', component: ObjectType.TYPE_CONSTRAINT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TypeConstraintProperty.nodeMaxDepth]: { id: 72, name: 'node_max_depth', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.nodeSubtypes]: { id: 73, name: 'node_subtypes', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.nodeMode]: { id: 70, name: 'node_mode', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.nodeTypes]: { id: 71, name: 'node_types', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.nodeScopePtr]: { id: 72, name: 'node_scope_ptr', component: ObjectType.TYPE_CONSTRAINT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [TypeConstraintProperty.nodeMaxDepth]: { id: 73, name: 'node_max_depth', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.nodeSubtypes]: { id: 74, name: 'node_subtypes', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37383,11 +37396,11 @@ export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> =
 }
 
 export const NodeModeOptionInfo: Partial<Record<NodeMode, EnumOptionInfo>> = {
-  [NodeMode.BUILTIN]: { id: 10, name: 'BUILTIN', text: 'Provided by the Bench system', title: 'Builtin', icon: 'fas fa-cog' },
-  [NodeMode.MAIN]: { id: 20, name: 'MAIN', text: 'Active and available', title: 'Main', icon: 'fas fa-globe' },
-  [NodeMode.TEST]: { id: 30, name: 'TEST', text: 'Active in test mode', title: 'Test', icon: 'fas fa-flask' },
-  [NodeMode.TEMPLATE]: { id: 40, name: 'TEMPLATE', text: 'Template to instantiate', title: 'Template', icon: 'fas fa-puzzle-piece' },
-  [NodeMode.ARCHIVE]: { id: 50, name: 'ARCHIVE', text: 'Inactive and hidden', title: 'Archive', icon: 'fas fa-box-archive' },
+  [NodeMode.BUILTIN]: { id: 10, name: 'BUILTIN', text: 'Provided by the Bench system', title: 'Builtin', color: ColorType.YELLOW, icon: 'fas fa-cog' },
+  [NodeMode.MAIN]: { id: 20, name: 'MAIN', text: 'Active and available', title: 'Main', color: ColorType.GREEN, icon: 'fas fa-globe' },
+  [NodeMode.TEST]: { id: 30, name: 'TEST', text: 'Active in test mode', title: 'Test', color: ColorType.BLUE, icon: 'fas fa-flask' },
+  [NodeMode.TEMPLATE]: { id: 40, name: 'TEMPLATE', text: 'Template to instantiate', title: 'Template', color: ColorType.VIOLET, icon: 'fas fa-puzzle-piece' },
+  [NodeMode.ARCHIVE]: { id: 50, name: 'ARCHIVE', text: 'Inactive and hidden', title: 'Archive', color: ColorType.GRAY, icon: 'fas fa-box-archive' },
 }
 
 export const PackageTypeOptionInfo: Partial<Record<PackageType, EnumOptionInfo>> = {

@@ -116,7 +116,7 @@ defineExpose<ViewExpose>({ self, id, actions });
     </div>
     <ul
       class="flex gap-x-2 rounded"
-      :class="[isHorizontal ? 'flex-row' : 'flex-col', isMinimal ? 'px-0.5 py-0.5' : '']"
+      :class="[isHorizontal ? 'flex-row' : 'flex-col']"
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
       <!-- Field wrapper -->
@@ -145,9 +145,8 @@ defineExpose<ViewExpose>({ self, id, actions });
         <Field
           :id="field.id"
           :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
-          class="cursor-pointer truncate transition-colors duration-150"
+          class="h-[30px] cursor-pointer truncate px-1.5 transition-colors duration-150"
           :class="[
-            isMinimal ? 'px-1 py-[3px]' : '',
             orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]',
             isDragging(field) ? 'opacity-50' : '',
           ]"
@@ -161,7 +160,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       </li>
       <!-- Create -->
       <button
-        class="h-[28px] rounded px-2.5 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] rounded px-2.5 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e) => {
             const button = (e.target as HTMLElement).closest('button')!;

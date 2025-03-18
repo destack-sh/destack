@@ -7,7 +7,6 @@ import {
   AnyNodeData,
   BenchType,
   ChangeCategory,
-  FieldType,
   LinkData,
   NodeReferenceData,
   NodeType,
@@ -15,7 +14,7 @@ import {
   PortSide,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -42,7 +41,6 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Link from "@/views/nodes/Link.vue";
-import FieldList from "@/views/objects/FieldList.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { MaybeElement, useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
@@ -309,28 +307,6 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
       <template #left="{ style }">
         <!-- Identity/Roles -->
         <!-- ... -->
-        <!-- Inputs -->
-        <FieldList
-          v-if="style == 'page'"
-          id="type.input"
-          class=""
-          :prepared-connection="preparedConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.INPUT"
-        />
-        <i
-          v-if="style == 'page' && fields?.some((f) => f.type == FieldType.INPUT || f.type == FieldType.OUTPUT)"
-          class="fas fa-arrow-right-long text-base text-gray-400"
-        />
-        <!-- Outputs -->
-        <FieldList
-          v-if="style == 'page'"
-          id="type.output"
-          class=""
-          :prepared-connection="preparedConnection"
-          :node-ptr="props.nodePtr"
-          :field-type="FieldType.OUTPUT"
-        />
       </template>
       <!-- Meta -->
       <template #right="{ style }">

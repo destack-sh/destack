@@ -4011,7 +4011,7 @@ class SelectOptionsData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., select_all_properties: bool = ..., include_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., exclude_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ..., select_fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class TypeConstraintData(_message.Message):
-    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_types", "node_scope_ptr", "node_max_depth", "node_subtypes")
+    __slots__ = ("metatype", "min_value", "max_value", "step_value", "min_length", "max_length", "regex", "starts_with", "ends_with", "node_mode", "node_types", "node_scope_ptr", "node_max_depth", "node_subtypes")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
     MAX_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -4021,6 +4021,7 @@ class TypeConstraintData(_message.Message):
     REGEX_FIELD_NUMBER: _ClassVar[int]
     STARTS_WITH_FIELD_NUMBER: _ClassVar[int]
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
+    NODE_MODE_FIELD_NUMBER: _ClassVar[int]
     NODE_TYPES_FIELD_NUMBER: _ClassVar[int]
     NODE_SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
     NODE_MAX_DEPTH_FIELD_NUMBER: _ClassVar[int]
@@ -4034,11 +4035,12 @@ class TypeConstraintData(_message.Message):
     regex: str
     starts_with: str
     ends_with: str
+    node_mode: NodeMode
     node_types: _containers.RepeatedScalarFieldContainer[NodeType]
     node_scope_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     node_max_depth: int
     node_subtypes: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_max_depth: _Optional[int] = ..., node_subtypes: _Optional[_Iterable[int]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_value: _Optional[float] = ..., max_value: _Optional[float] = ..., step_value: _Optional[float] = ..., min_length: _Optional[int] = ..., max_length: _Optional[int] = ..., regex: _Optional[str] = ..., starts_with: _Optional[str] = ..., ends_with: _Optional[str] = ..., node_mode: _Optional[_Union[NodeMode, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., node_scope_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., node_max_depth: _Optional[int] = ..., node_subtypes: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class TypeData(_message.Message):
     __slots__ = ("metatype", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_types", "property_field_types", "oneof_ptr", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret")

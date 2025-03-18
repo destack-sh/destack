@@ -68,7 +68,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       <li
         v-for="claim in claims"
         :key="claim.id"
-        class="flex h-[28px] flex-row items-center px-1.5 transition-colors duration-150 hover:bg-gray-100"
+        class="flex h-[30px] flex-row items-center px-1.5 transition-colors duration-150 hover:bg-gray-100"
         :data-node-id="claim.id"
         :data-node-type="claim.metatype"
       >
@@ -76,7 +76,7 @@ defineExpose<ViewExpose>({ self, id, actions });
       </li>
       <!-- Create -->
       <button
-        class="h-[28px] rounded px-2.5 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] rounded px-2.5 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e: MouseEvent) => {
             const button = (e.target as HTMLElement).closest('button')!;
@@ -91,7 +91,7 @@ defineExpose<ViewExpose>({ self, id, actions });
                 valueType: makeType({
                   kind: TypeKind.NODE,
                   constraint: makeTypeConstraint({
-                    nodeTypes: [...RESOURCE_NODE_TYPES, NodeType.KIT, NodeType.FLOW],
+                    nodeTypes: [NodeType.BROWSER, NodeType.COMPUTER, NodeType.KIT, NodeType.FLOW],
                   }),
                 }),
               },
