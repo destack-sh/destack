@@ -1,7 +1,9 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
+import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas, benchGraph, spaceGraph } from "@/system/space";
+import { benchGraph, canvas, spaceGraph } from "@/system/space";
 import { ActionMapKit } from "@/ui/action";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -14,7 +16,7 @@ const props = defineProps<
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
-  } & Pick<ViewData, "icon" | "nodePtr" | "focus" | "subnodePacked">
+  } & Pick<ViewData, "icon" | "focus" | "subnodePacked">
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -48,9 +50,17 @@ const history: HistoryState = {
     while (delta != 0) {
       viewIdx += Math.sign(delta);
       const view = views.value[viewIdx];
-      if (view == null) return;
+      if (view == null) {
+        return; // view doesn't exist anymore
+      }
       const viewNodePtr = view.nodePtr;
-      if (viewNodePtr != null && !benchGraph.has(viewNodePtr)) continue;
+      if (
+        viewNodePtr != null &&
+        supergraph.get(viewNodePtr) == null &&
+        LOADED_PACKAGE_NODE_TYPES.includes(viewNodePtr.nodeType)
+      ) {
+        continue; // node does not exist anymore (probably?)
+      }
       delta -= Math.sign(delta);
     }
     const view = views.value[viewIdx];
