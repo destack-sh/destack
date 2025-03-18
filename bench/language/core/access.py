@@ -245,7 +245,7 @@ class PolicyRule(Struct):
             for verb_kind in self.verb_kinds or ():
                 self._verb_mask[verb_kind.from_ord : verb_kind.to_ord + 1] = True
 
-    def matches_subject(self, subject: "Subject", root_id: UUID) -> bool:
+    def matches_subject(self, subject: "PolicySubject", root_id: UUID) -> bool:
         if self.subject_is_delegated:
             # subject always matches (by definition) if the policy is delegated
             return True
@@ -331,8 +331,8 @@ class PolicyRule(Struct):
         return self
 
 
-@struct_(StructType.SUBJECT)
-class Subject(Struct):
+@struct_(StructType.POLICY_SUBJECT)
+class PolicySubject(Struct):
     """
     The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
@@ -390,26 +390,28 @@ class Subject(Struct):
     def is_anonymous(self) -> bool:
         return not self.is_authenticated and not self.is_staff
 
-    def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:
+    def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["PolicySubject", ...]:
         """
         Split into different subjects that may have different access and are relevant in the given graph.
          (The graph is assumed to contain all relevant owners!).
         Basically, acting subject X in "subject is acting as X" (where X may have different access).
         """
 
-        subjects: list[Subject] = [Subject(is_authenticated=False)]  # anonymous
+        subjects: list[PolicySubject] = [PolicySubject(is_authenticated=False)]  # anonymous
         if self.is_authenticated:
-            subjects.append(Subject(is_authenticated=True))
+            subjects.append(PolicySubject(is_authenticated=True))
         if self.is_staff:
-            subjects.append(Subject(is_staff=True))
+            subjects.append(PolicySubject(is_staff=True))
         if self.user:
-            subjects.append(Subject(user=self.user, _supergraph=self._supergraph))
+            subjects.append(PolicySubject(user=self.user, _supergraph=self._supergraph))
         for owner in self.owned or ():
             if str(owner.id) in graph:
-                subjects.append(Subject(owned=[owner], _supergraph=self._supergraph))
+                subjects.append(PolicySubject(owned=[owner], _supergraph=self._supergraph))
         for membership in self.memberships or ():
             if str(membership.parent_id) in graph:
-                subjects.append(Subject(memberships=[membership], _supergraph=self._supergraph))
+                subjects.append(
+                    PolicySubject(memberships=[membership], _supergraph=self._supergraph)
+                )
 
         assert len(subjects) > 0, f"no applicable principals in {self!r}"
         return tuple(subjects)
@@ -517,7 +519,7 @@ class AccessZone(Struct):
     scope_id: str = p_system(30)
     _scope: Optional[AnyNodeData] = p_runtime(default=None)
     identity_id: int = p_system(31)
-    _identity: Optional[Subject] = p_runtime(default=None)
+    _identity: Optional[PolicySubject] = p_runtime(default=None)
     rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
 
     def __content_str__(self) -> str:
@@ -528,8 +530,8 @@ class AccessZone(Struct):
 class AccessMatrix(Struct):
     """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
 
-    subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
-    identities: list[Subject] = p_system(32, array=True, struct=StructType.SUBJECT)
+    subject: PolicySubject = p_system(30, require=True, struct=StructType.POLICY_SUBJECT)
+    identities: list[PolicySubject] = p_system(32, array=True, struct=StructType.POLICY_SUBJECT)
     scoped_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
     base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
 
@@ -581,7 +583,7 @@ class AccessError(BenchError):
 
 @tracer.start_as_current_span("access.generate_access_matrix")
 def generate_access_matrix(
-    subject: Subject,
+    subject: PolicySubject,
     graph: NodeDataGraph,
     supergraph: NodeSuperGraph | None,
     base_policies: Collection[Policy] | None = None,

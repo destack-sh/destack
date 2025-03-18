@@ -7,6 +7,7 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    IsSubject,
     LocalNodeList,
     Node,
     NodeType,
@@ -37,7 +38,7 @@ class UserStatus(BuiltinEnum):
 
 
 @node_(NodeType.USER, roots=())
-class User(Node[UserData]):
+class User(IsSubject, Node[UserData]):
     """A User."""
 
     slug: Optional[str] = p_system(31, unique=True)  # must match main handle

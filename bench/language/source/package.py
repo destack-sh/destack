@@ -62,12 +62,14 @@ class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageDat
         array=False,
         references=NodeType.CHANNEL,
         same_bench=True,
+        ckless=True,
         description="The default Channel to communicate with.",
     )
     main_flow: Optional["Flow"] = p_regular(
         51,
         require=False,
         array=False,
+        ckless=True,
         references=NodeType.FLOW,
         description="The default Flow for dynamic behavior.",
     )

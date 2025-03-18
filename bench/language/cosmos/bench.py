@@ -8,6 +8,8 @@ from bench.language.core import (
     BenchNode,
     BuiltinEnum,
     EnumType,
+    IsJoinable,
+    IsOwnable,
     LocalNodeList,
     NodeType,
     Region,
@@ -20,7 +22,6 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.language.core.node import IsOwnable
 from bench.pb2 import BenchData
 from bench.utils.func import generate_encryption_key
 
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Handle,
         Icon,
+        Membership,
         NodeReference,
         Package,
         Region,
@@ -47,7 +49,7 @@ class BenchStatus(BuiltinEnum):
 
 
 @node_(NodeType.BENCH, roots=())
-class Bench(IsOwnable, BenchNode[BenchData]):
+class Bench(IsOwnable, IsJoinable, BenchNode[BenchData]):
     """
     A Bench is an AI-native operating system for higher order software.
     """
@@ -95,6 +97,7 @@ class Bench(IsOwnable, BenchNode[BenchData]):
         main_package_ptr: Optional[NodeReference] = None
 
     packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
+    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
 
     @property
     def is_attached(self) -> bool:

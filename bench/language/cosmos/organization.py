@@ -5,6 +5,9 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    IsJoinable,
+    IsSubject,
+    LocalNodeList,
     Node,
     NodeReference,
     NodeType,
@@ -12,13 +15,14 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
+    p_node_children,
     p_regular,
     p_system,
 )
 from bench.pb2 import OrganizationData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, Icon, Text
+    from bench.language import Bench, Handle, Icon, Membership, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -30,7 +34,7 @@ class OrganizationStatus(BuiltinEnum):
 
 
 @node_(NodeType.ORGANIZATION, roots=())
-class Organization(Node[OrganizationData]):
+class Organization(IsJoinable, IsSubject, Node[OrganizationData]):
     """
     An Organization with Users and Teams.
     """
@@ -54,3 +58,5 @@ class Organization(Node[OrganizationData]):
         main_bench_ptr: Optional[NodeReference] = None
         main_handle_id: Optional[UUID] = None
         main_handle_ptr: Optional[NodeReference] = None
+
+    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)

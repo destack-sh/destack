@@ -13,8 +13,8 @@ from opentelemetry import trace
 from bench.language import (
     Bench,
     NodeArea,
+    PolicySubject,
     Store,
-    Subject,
 )
 from bench.proto import (
     AggregateNodesRequest,
@@ -138,7 +138,9 @@ class HostRouterService(ServiceBase, HostBase):
                     host = await self._start_host(bench_id)
         return host
 
-    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
+    async def get_request_subject(
+        self, request: ProtoMessage, metadata: RpcMetadata
+    ) -> PolicySubject:
         host = await self._get_host(request)
         return await host.get_request_subject(request, metadata)
 

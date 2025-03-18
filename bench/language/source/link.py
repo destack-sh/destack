@@ -8,6 +8,7 @@ from bench.language.core import (
     EnumType,
     IsComputable,
     IsModal,
+    IsSubject,
     IsTemplatable,
     NodeType,
     PackageNode,
@@ -66,7 +67,7 @@ LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.it
 
 
 @node_(NodeType.LINK, has_subtypes=True)
-class Link(IsTemplatable, IsModal, IsComputable, PackageNode[LinkData]):
+class Link(IsTemplatable, IsModal, IsSubject, IsComputable, PackageNode[LinkData]):
     """
     A Link between Actions in a Flow (source = outgoing, target = incoming).
     """

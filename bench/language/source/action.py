@@ -7,10 +7,12 @@ from bench.language.core import (
     ColorType,
     EnumType,
     FieldType,
+    IsClaimable,
     IsComputable,
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsSubject,
     LocalNodeList,
     NodeReference,
     NodeSubtypeStub,
@@ -29,7 +31,7 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.pb2.lang_pb2 import ActionData
+from bench.pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -77,7 +79,9 @@ class ActionType(BuiltinEnum):
 
 
 @node_(NodeType.ACTION, has_subtypes=True)
-class Action(IsComputable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionData]):
+class Action(
+    IsComputable, IsSubject, IsClaimable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionData]
+):
     """
     A data or control flow node in a Flow. Actions are connected by Links.
     """

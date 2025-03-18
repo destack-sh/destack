@@ -4,9 +4,11 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     InlineNode,
+    IsInstantiable,
+    IsJoinable,
     IsModal,
     IsNamed,
-    IsTemplatable,
+    LocalNodeList,
     NodeType,
     RemoteNodeList,
     enum_,
@@ -18,7 +20,7 @@ from bench.language.core import (
 from bench.pb2 import ChannelData, MessageData
 
 if TYPE_CHECKING:
-    from bench.language import Message, Package, Page
+    from bench.language import Membership, Message, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,7 +33,7 @@ class ChannelType(BuiltinEnum):
 
 
 @timed_node_(NodeType.CHANNEL, has_subtypes=True)
-class Channel(IsTemplatable, IsModal, IsNamed, InlineNode[ChannelData]):
+class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
     """
@@ -43,6 +45,7 @@ class Channel(IsTemplatable, IsModal, IsNamed, InlineNode[ChannelData]):
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
     )
+    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
 
     @staticmethod
     def new(name: str, *, type: ChannelType = ChannelType.TEXT) -> "Channel":

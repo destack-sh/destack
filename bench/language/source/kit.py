@@ -4,6 +4,7 @@ from typing import Optional, Union
 from bench.language.core import (
     INLINE_NODE_TYPES,
     InlineNode,
+    IsClaimable,
     IsModal,
     IsNamed,
     IsTemplatable,
@@ -24,7 +25,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.KIT)
-class Kit(IsTemplatable, IsModal, IsNamed, InlineNode[KitData]):
+class Kit(IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNode[KitData]):
     """
     A Kit of Actions for a Node.
     """

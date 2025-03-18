@@ -19,9 +19,9 @@ from bench.language import (
     NodeType,
     Organization,
     OrganizationStatus,
+    PolicySubject,
     Region,
     Store,
-    Subject,
     TypeBaseNode,
     User,
     UserStatus,
@@ -125,18 +125,20 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         return (self._global_pg_engine,)
 
     @tracer.start_as_current_span("supervisor.get_request_subject")
-    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
+    async def get_request_subject(
+        self, request: ProtoMessage, metadata: RpcMetadata
+    ) -> PolicySubject:
         # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
         #  (like we do in Host, since we have the entire Bench cached and ready there,
         #   and we don't expect to need Bench-level auth in the Supervisor for now).
         async with global_session(self._global_store, self.get_engines(), self.oracle):
             # request will use the subject's supergraph, so ensure all subjects are created in session
             if not metadata.client_id or not metadata.client_access_token:
-                return Subject(is_authenticated=False)
+                return PolicySubject(is_authenticated=False)
             client_id = UUID(metadata.client_id)
             client = await get_client_or_error(client_id, metadata.client_access_token)
             if isinstance(client.parent, User):
-                return Subject(
+                return PolicySubject(
                     is_authenticated=True,
                     is_staff=client.parent.is_staff,
                     client=client,
@@ -146,7 +148,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             elif isinstance(client.parent, Bench):
                 bench = client.parent
                 assert bench is not None, f"{client!r} has no bench"
-                return Subject(
+                return PolicySubject(
                     is_authenticated=True, client=client, computer=client.computer, owned=[bench]
                 )
             else:

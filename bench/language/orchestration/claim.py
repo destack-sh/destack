@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    RESOURCE_NODE_TYPES,
+    CLAIMABLE_NODE_TYPES,
     BuiltinEnum,
+    Claimable,
     ColorType,
     EnumType,
     IsInstantiable,
@@ -12,6 +13,7 @@ from bench.language.core import (
     IsNamed,
     IsOwnable,
     IsRuntime,
+    IsSubject,
     NodeReference,
     NodeType,
     PackageNode,
@@ -22,12 +24,11 @@ from bench.language.core import (
     p_regular,
     p_system,
 )
-from bench.language.core.const import bittuple
 from bench.pb2 import ClaimData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Action, Flow, Kit, Page, Resource, Run
+    from bench.language import Action, Flow, Kit, Page, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -59,16 +60,11 @@ class ClaimStatus(BuiltinEnum):
         return self >= 30
 
 
-Claimable = Union["Resource", "Flow", "Action", "Kit"]
-CLAIMABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES.tuple, NodeType.FLOW, NodeType.ACTION, NodeType.KIT
-)
-
-
 @node_(NodeType.CLAIM)
 class Claim(
     IsRuntime,
     IsOwnable,
+    IsSubject,
     IsModal,
     IsInstantiable,
     IsNamed,
