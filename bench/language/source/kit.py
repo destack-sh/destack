@@ -10,6 +10,7 @@ from bench.language.core import (
     IsTemplatable,
     LocalNodeList,
     NodeType,
+    StructType,
     node_,
     p_node_children,
     p_node_parent,
@@ -18,7 +19,7 @@ from bench.language.core import (
 from bench.pb2 import KitData
 
 if typing.TYPE_CHECKING:
-    from bench.language import Action, Claim, Package, Page
+    from bench.language import Action, Claim, Package, Page, Text
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -34,6 +35,9 @@ class Kit(IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNode[KitData]):
 
     target: Optional["InlineNode"] = p_regular(
         40, require=False, array=False, references=INLINE_NODE_TYPES.tuple
+    )
+    text: Optional["Text"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.TEXT
     )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)

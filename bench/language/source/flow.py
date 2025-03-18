@@ -15,6 +15,7 @@ from bench.language.core import (
     LocalNodeList,
     NodeType,
     StructType,
+    Text,
     TypeBase,
     TypeKind,
     enum_,
@@ -48,6 +49,9 @@ class Flow(
     # meta
     options: Optional["RunOptions"] = p_regular(
         40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
+    )
+    text: Optional["Text"] = p_regular(
+        41, default=None, require=False, array=False, struct=StructType.TEXT
     )
     roles: list["Role"] = p_regular(42, require=False, array=True, references=NodeType.ROLE)
 
