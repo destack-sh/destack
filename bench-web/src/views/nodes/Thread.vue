@@ -42,8 +42,13 @@ const scope = supergraph.getRef(scopePtr);
 
 // view
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
+const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
 
-defineExpose<ViewExpose>({ self, id });
+function focus() {
+  chatRef.value?.focus?.();
+}
+
+defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <div>
@@ -53,9 +58,10 @@ defineExpose<ViewExpose>({ self, id });
     <!-- Chat -->
     <Chat
       id="chat"
+      ref="chatRef"
       :alignment="alignment ?? Alignment.END"
       :node-ptr="nodePtr"
-      :focus="focus"
+      :focus="props.focus"
       :graph="benchGraph"
       :size="{
         width: size?.width,
@@ -83,7 +89,8 @@ defineExpose<ViewExpose>({ self, id });
           <span>
             This is the beginning of this
             {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???"
-            }}<span v-if="isNode(node, NodeType.THREAD) && channel != null"> in #{{ (channel as ChannelData)?.name ?? "???" }}</span
+            }}<span v-if="isNode(node, NodeType.THREAD) && channel != null">
+              in #{{ (channel as ChannelData)?.name ?? "???" }}</span
             ><span v-if="(scope as any)?.name != null"> on {{ (scope as any).name }}</span
             >.
           </span>
