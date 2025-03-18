@@ -179,13 +179,14 @@ defineExpose<ViewExpose>({
     />
 
     <!-- Dropdown -->
-    <button
+    <div
       v-if="!isInline"
       ref="containerRef"
       v-hovermenu="HOVER_MENU"
-      class="group flex w-full flex-row items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-200"
+      role="button"
+      class="group flex w-full items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-200"
       :class="[
-        !isMinimal ? 'border px-2.5 py-1' : '',
+        isMinimal ? '' : 'border px-2.5 py-1',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-400 outline outline-1 outline-gray-400' : 'border-gray-200 hover:border-gray-200',
         isMinimal && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
@@ -194,7 +195,11 @@ defineExpose<ViewExpose>({
     >
       <!-- Current value -->
       <span v-if="optimisticValue != null" :class="[loadFailed ? 'text-danger-600' : 'text-gray-700']">
-        <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'" />
+        <IconInline
+          v-bind="facetIcon"
+          class="mr-1.5 w-5 text-center"
+          :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
+        />
         <a
           class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-gray-700"
           :class="download?.getUrl.value != null ? 'hover:underline' : ''"
@@ -235,7 +240,7 @@ defineExpose<ViewExpose>({
           <i class="fas fa-caret-down" />
         </button>
       </div>
-    </button>
+    </div>
 
     <!-- Inline drop area -->
     <div
@@ -266,7 +271,9 @@ defineExpose<ViewExpose>({
       ref="containerRef"
       class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
-        !isMinimal ? 'border' : '',
+        !isMinimal && !INLINE_FILE_TYPES.includes(optimisticValue?.type)
+          ? 'border bg-gray-100 px-3 py-1.5 text-base'
+          : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
@@ -309,6 +316,7 @@ defineExpose<ViewExpose>({
         <span>
           <IconInline
             v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
+            class="w-5 text-center"
             :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
           />
           <a
@@ -361,7 +369,7 @@ defineExpose<ViewExpose>({
         </div>
         <!-- Meta/Controls -->
         <div
-          v-if="!isMinimal"
+          v-if="!isMinimal && INLINE_FILE_TYPES.includes(optimisticValue?.type)"
           class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->

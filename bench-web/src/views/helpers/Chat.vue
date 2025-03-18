@@ -211,6 +211,7 @@ type MessageView = {
   authorIcon: IconData | null;
   authorName: string | null;
   replyTo: MessageView | null;
+  isEmpty: boolean;
   isNewGroup: boolean;
   isNewDate: boolean;
   isEdited: boolean;
@@ -242,6 +243,7 @@ const messageViews = computed(() => {
           MESSAGE_MAX_TIME_DELTA_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
     }
+    const isEmpty = message.text == null || isTextEmpty(message.text);
     const isEdited = message.updatedAt?.seconds != message.createdAt?.seconds;
     const isEditing = editingPtr.value?.id == message.id;
     const isReplyingTo = draftReplyTo.value?.id == message.id;
@@ -253,6 +255,7 @@ const messageViews = computed(() => {
       author,
       authorIcon,
       authorName,
+      isEmpty,
       isNewGroup,
       isNewDate,
       isEdited,
@@ -348,7 +351,7 @@ function submitEdit() {
   const message = messages.value.find((m) => m.id == editingPtr.value?.id);
   if (message == null) throw new Error("message not found");
   const text = trimText(editingText.value ?? emptyText());
-  if (isTextEmpty(text)) return; // don't create empty messages
+  if (isTextEmpty(text) && draftNodesPtr.value.length == 0) return; // don't create empty messages
   const { connection } = supergraph.getLinkOrError(toNodeRef(message));
   connection.tx.update(message, { text });
 }
@@ -357,7 +360,7 @@ function submitEdit() {
 
 function submit() {
   const text = trimText(draftText.value ?? emptyText());
-  if (isTextEmpty(text)) return; // don't create empty messages
+  if (isTextEmpty(text) && draftNodesPtr.value.length == 0) return; // don't create empty messages
   if (benchPtr.value == null) throw new Error("no bench");
   if (space.value == null) throw new Error("no space");
 
@@ -575,6 +578,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             replyTo,
             authorIcon,
             authorName,
+            isEmpty,
             isEdited,
             isNewGroup,
             isNewDate,
@@ -693,16 +697,14 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                 </button>
               </div>
               <!-- Content -->
-              <template v-if="!isEditing">
-                <Text
-                  v-if="!isEditing"
-                  :id="'text-' + message.id"
-                  placeholder="Empty message"
-                  is-minimal
-                  :model-value="message.text"
-                />
-              </template>
-              <div v-else class="my-1">
+              <Text
+                v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)"
+                :id="'text-' + message.id"
+                placeholder="Empty message"
+                is-minimal
+                :model-value="message.text"
+              />
+              <div v-if="isEditing" class="my-1">
                 <Text
                   :id="'text-' + message.id"
                   ref="editingTextRefs"
@@ -743,14 +745,18 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                 </div>
               </div>
               <!-- Extras -->
-              <div v-if="filesPtr.length > 0" class="mb-2 mt-0.5 flex flex-row flex-wrap gap-x-2 gap-y-2">
+              <!-- NOTE :UX: this should be a proper :FileGallery -->
+              <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap gap-x-2 gap-y-2">
                 <File
                   v-for="filePtr in filesPtr"
                   :id="'file-' + filePtr.id"
                   :key="filePtr.id"
-                  is-minimal
                   is-inline
                   :model-value="toNodeRef(filePtr)"
+                  :size="{
+                    height: size?.height != null ? Math.min(300, size.height / 2) : undefined,
+                  }"
+                  class=""
                 />
               </div>
             </div>
@@ -856,22 +862,22 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
               />
               <!-- Extras -->
               <div v-if="draftFiles.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
+                <!-- should also be a proper :FileGallery -->
                 <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
                   <File
                     :id="'file-' + file.id"
-                    is-minimal
                     is-inline
                     :model-value="toNodeRef(file)"
                     :size="{
                       height:
                         size?.height != null && INLINE_FILE_TYPES.includes(file.type)
-                          ? Math.min(300, size.height / 2)
+                          ? Math.min(200, size.height / 3)
                           : undefined,
                     }"
                   />
                   <!-- Remove -->
                   <button
-                    class="absolute right-1 top-1 rounded-full bg-white/80 px-1.5 py-0.5 text-gray-700 transition-colors duration-150 group-hover/file:bg-white/100 group-hover/file:text-gray-900"
+                    class="absolute right-1 top-2 rounded-full bg-gray-100/80 px-1.5 py-0.5 text-gray-700 transition-colors duration-150 group-hover/file:bg-white/100 group-hover/file:text-gray-900"
                     @click.stop="removeFiles([file])"
                   >
                     <i class="fas fa-xmark" />
