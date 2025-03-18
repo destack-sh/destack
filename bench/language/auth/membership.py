@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     JOINABLE_NODE_TYPES,
-    SUBJECT_TYPES,
+    SUBJECT_NODE_TYPES,
     BenchNode,
     BuiltinEnum,
     EnumType,
@@ -43,4 +43,4 @@ class Membership(BenchNode[MembershipData]):
     type: MembershipType = p_regular(30, require=True)
 
     # content
-    member: Subject = p_internal(41, require=True, array=False, references=SUBJECT_TYPES.tuple)
+    member: Subject = p_internal(41, require=True, array=False, references=SUBJECT_NODE_TYPES.tuple)

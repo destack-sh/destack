@@ -72,6 +72,7 @@ def _complete_bench_setup():
         CustomObject,
         IsClaimable,
         IsJoinable,
+        IsOwnable,
         IsSubject,
         Node,
         Struct,
@@ -248,7 +249,8 @@ def _complete_bench_setup():
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
             (IsJoinable, const.JOINABLE_NODE_TYPES.tuple),
             (IsClaimable, const.CLAIMABLE_NODE_TYPES.tuple),
-            (IsSubject, const.SUBJECT_TYPES.tuple),
+            (IsSubject, const.SUBJECT_NODE_TYPES.tuple),
+            (IsOwnable, const.OWNABLE_NODE_TYPES.tuple),
         ]:
             actual_node_types = [
                 cast(Node, n).metatype

@@ -1,8 +1,6 @@
 from collections import defaultdict
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
-    Any,
     Collection,
     NamedTuple,
     Optional,
@@ -17,14 +15,13 @@ import structlog
 from bitarray import bitarray
 from opentelemetry import trace
 
-from bench import pb2
 from bench.language.registry import CHILD_NODE_TYPES, _on_completing_setup
 from bench.pb2 import AnyNodeData, EditData, NodeReferenceData
-from bench.pb2.lang_pb2 import SkipData
 
 from .const import (
     ACCESS_CLASSES,
     NODE_TYPES,
+    OWNABLE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     ROOT_NODE_TYPES,
     RUNTIME_NODE_TYPES,
@@ -37,10 +34,7 @@ from .const import (
     NodeType,
     ObjectType,
     PolicyEffect,
-    QueryType,
     StructType,
-    UseType,
-    bittuple,
     new_struct_id,
 )
 from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
@@ -51,7 +45,7 @@ from .text import Text
 from .validation import NAME_CONSTRAINT, ValidationError
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Computer, Organization, Query, User
+    from bench.language import Bench, Block, Client, Computer, Organization, User
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -59,20 +53,9 @@ tracer = trace.get_tracer(__name__)
 
 #
 # Access checking
-# TODO :Performance :Architecture: overhaul Access/Policies/Roles/etc. :RichGraph
+# TODO :Performance! :Architecture!: overhaul Access/Policies/etc. :Security :BadAccess :RichGraph
 #  This was created in a much earlier time and we need to overhaul it badly.
-#  It should be clearer where you can allow/deny certain access, and how that may be nested.
-#  For instance: can I allow access to a child node whose parent is denied? How do the paths work?
 #
-
-
-# 'owner' refers to both the root node and any user with root-level access to that root node.
-# This is effectively the 'root user' who can do anything with descendants of the root node*.
-#  (unless a system policy says otherwise)
-Ownable = Union["User", "Organization", "Bench"]
-OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH
-)
 
 
 @struct_(StructType.POLICY)
@@ -365,7 +348,7 @@ class PolicySubject(Struct):
         computer_id: Optional[UUID] = None
 
     # accessories
-    owned: list[Ownable] = p_system(
+    owned: list[Union["User", "Bench", "Organization"]] = p_system(
         52, array=True, require=False, references=OWNABLE_NODE_TYPES.tuple
     )
     memberships: list[Union["Bench", "Organization"]] = p_system(
@@ -738,9 +721,6 @@ def evaluate_access(
     NOTE: assumes verb & object_properties are equivalent for every object_node_type in request
     """
 
-    # NOTE :Performance: we can probably cache evaluate_access more aggressively
-    #  (e.g. cache the entire result, not just per identity+start zone)
-
     verb = verb.to(AccessType)
     composite_allowed_properties = bitarray(len(wanted_properties))
     node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -824,117 +804,6 @@ def evaluate_access(
     else:
         assert_never(mode)
     return decision, composite_allowed_properties
-
-
-@tracer.start_as_current_span("access.evaluate_and_adapt_read")
-def evaluate_and_adapt_read(
-    matrix: AccessMatrix,
-    graph: NodeDataGraph,
-    root_node_type: NodeType,
-    query: "Query",
-    *,
-    required_nodes: Collection[NodeReferenceData] | None = None,
-) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
-    """
-    Evaluate *and* adapt access to all nodes in the given graph, pruning nodes & properties as needed.
-     -> unlike for other accesses, we don't outright reject GET reads, you just get less (or zero) data.
-    Node types not in the original (unadapted) options are pruned (e.g. when querying Records, we adapt
-      options to load Record->Block->...->Package->Branch->Bench to evaluate, but we only want Records)
-
-    In case a node was completely denied but its children weren't, we include a Skip node in the result.
-    If no overall owner is given, the owners (i.e. actual roots) must be in the graph.
-
-    NOTE: assumes that all policies are valid.
-    NOTE: nodes are returned in pre-order (parents before children).
-    """
-    trace.get_current_span().set_attribute("nodes", len(graph))
-    requested_node_types = bittuple(root_node_type, *query.all_node_types)
-    requested_nodes_preorder: list[AnyNodeData] = []
-    visible_nodes: list[AnyNodeData] = []
-    allowed_properties_by_node_id: dict[str, bitarray] = {}
-    skipped: set[str] = set()
-    cache: dict[Any, Any] = {}
-    required_nodes_ids: set[str] = {str(n.id) for n in required_nodes or ()}
-
-    # evaluate access per node
-    with tracer.start_as_current_span("access.evaluate_read", attributes={"nodes": len(graph)}):
-        for root in graph.find_roots():
-            assert root.id, f"no id for {root!r}"
-            descendants = graph.get_descendants(root, recursive=True)
-            for node in chain((root,), descendants):
-                assert node.id, f"no id for {node!r}"
-                # evaluate access
-                node_type = NodeType(node.metatype)
-                node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
-                decision, allowed_properties = evaluate_access(
-                    matrix=matrix,
-                    verb=QueryType.GET,  # same for all?
-                    node_type=node_type,
-                    wanted_properties=node_properties,
-                    root_id=root.id,
-                    scope_id=node.id,
-                    mode=AccessMode.ADAPTIVE,
-                    cache=cache,
-                )
-                if decision != PolicyEffect.DENY:
-                    allowed_properties_by_node_id[node.id] = allowed_properties
-                elif node.id in required_nodes_ids:
-                    node_cls = NODE_CLASS_BY_TYPE[node_type]
-                    access = Access(
-                        mode=AccessMode.ADAPTIVE,
-                        decision=decision,
-                        verb=QueryType.GET,
-                        node_type=node_type,
-                        allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
-                    )
-                    return decision, (access,), ()
-                if node_type in requested_node_types:
-                    requested_nodes_preorder.append(node)
-
-    # adapt & filter nodes
-    with tracer.start_as_current_span("access.adapt_read", attributes={"nodes": len(graph)}):
-        for node in requested_nodes_preorder:
-            assert node.id, f"no id for {node!r}"
-            node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node.metatype)]
-            allowed_properties = allowed_properties_by_node_id.get(node.id)
-            node_type = cast(NodeType, node.metatype)
-            node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
-            if allowed_properties is None:
-                # skip (will be added in as skip if needed below)
-                skipped.add(node.id)
-            elif allowed_properties == node_properties:
-                # add as is (with all properties)
-                visible_nodes.append(node)
-            else:
-                # prune node properties to only allowed ones
-                node_copy = type(node)()  # type: ignore
-                node_copy.CopyFrom(node)  # type: ignore
-                for prop_ord in allowed_properties.search(False):
-                    prop = node_cls.__properties_in_order__[prop_ord]
-                    if prop.reference_wired_ptr is not None:
-                        prop = prop.reference_wired_ptr
-                    node_copy.ClearField(prop.name)
-                node_copy.metatype = node.metatype  # always keep metatype
-                visible_nodes.append(node_copy)
-
-    # add any required skipped nodes back in (as Skips)
-    skips: dict[str, SkipData] = {}
-    for node in visible_nodes:
-        if node.parent_ptr.id in skipped:
-            if node.parent_ptr.id in skips:
-                continue
-            skip = SkipData(
-                metatype=pb2.OBJECT_TYPE_SKIP,
-                id=node.id,
-                parent_ptr=node.parent_ptr,
-                order_key=getattr(node, "order_key", None),
-                reference_ptr=NodeReference._ref_data_from_node_data(node),
-            )
-            skips[node.parent_ptr.id] = skip
-    visible_nodes.extend(skips.values())
-
-    # if we got here none of the required nodes were denied (above)
-    return PolicyEffect.ALLOW, (), visible_nodes
 
 
 @tracer.start_as_current_span("access.evaluate_edit")
@@ -1027,34 +896,3 @@ def evaluate_edit(
 
     # at this point no implicit or explicit denies have happened -> explicit allow
     return PolicyEffect.ALLOW, ()
-
-
-@tracer.start_as_current_span("access.evaluate_use")
-def evaluate_use(
-    matrix: AccessMatrix,
-    use_type: UseType,
-    node: "Block",
-) -> tuple[PolicyEffect, Collection[Access]]:
-    """
-    Evaluates whether the given policies (base and in graph) allow the given run access.
-    Assumes that all policies are valid.
-    """
-    node_cls = NODE_CLASS_BY_TYPE[node.metatype]
-    decision, allowed_properties = evaluate_access(
-        matrix=matrix,
-        verb=use_type,
-        node_type=node.metatype,
-        wanted_properties=node_cls.__properties_mask_set__,
-        scope_id=str(node.id),
-        root_id=str(node.bench_id),
-        mode=AccessMode.ATOMIC,
-        cache=None,
-    )
-    access = Access(
-        mode=AccessMode.ATOMIC,
-        decision=decision,
-        verb=use_type,
-        node_type=node.metatype,
-        allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
-    )
-    return decision, [access]

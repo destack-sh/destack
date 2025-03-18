@@ -63,7 +63,7 @@ defineExpose<ViewExpose>({ self, id, actions });
 </script>
 <template>
   <div ref="containerRef" class="relative">
-    <ul class="flex flex-col gap-y-1 rounded">
+    <ul class="flex flex-col rounded">
       <!-- Claims -->
       <li
         v-for="claim in claims"

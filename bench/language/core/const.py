@@ -40,11 +40,15 @@ if TYPE_CHECKING:
         Link,
         Node,
         Organization,
+        Package,
+        Plan,
         Resource,
         RunSpan,
         RunSpanType,
         Session,
         Severity,
+        Space,
+        Task,
         Team,
         Text,
         Thread,
@@ -749,9 +753,20 @@ BENCH_NODE_TYPES = _get_node_types(
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 
+Ownable = Union["Resource", "Thread", "Bench", "Claim", "Plan", "Task", "Package", "Space"]
+OWNABLE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES.tuple,
+    NodeType.THREAD,
+    NodeType.BENCH,
+    NodeType.CLAIM,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.PACKAGE,
+    NodeType.SPACE,
+)
 
 Subject = Union["User", "Organization", "Flow", "Action", "Computer", "Link", "Claim"]
-SUBJECT_TYPES = bittuple(
+SUBJECT_NODE_TYPES = bittuple(
     NodeType.USER,
     NodeType.ORGANIZATION,
     NodeType.FLOW,
