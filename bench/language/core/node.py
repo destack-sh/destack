@@ -69,7 +69,7 @@ from .const import (
     bittuple,
 )
 from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph
-from .list import LocalNodeList, attach_node
+from .list import attach_node
 from .object import (
     EMPTY_SCOPE_DATA,
     BuiltinObject,
@@ -709,11 +709,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def iter_descendants(self, recursive: bool = False) -> Iterable["Node"]:
         """Iterate over all descendants of this node."""
-        for child_prop in self.__node_child_properties__.values():
-            child_list = getattr(self, child_prop.name)
-            if type(child_list) is not LocalNodeList:
-                continue  # only iterate over local lists
-            for child in child_list:
+        for child_type in CHILD_NODE_TYPES[self.metatype]:
+            for child in self._graph.iter_descendants(self, child_type):
                 yield child
                 if recursive:
                     yield from child.iter_descendants(recursive=True)

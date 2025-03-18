@@ -24,6 +24,7 @@ from .const import (
     BuiltinEnum,
     EnumType,
     FieldType,
+    NodeMode,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
@@ -223,11 +224,12 @@ class TypeConstraint(Struct):
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
     # node-ish
-    node_types: list["NodeType"] = p_regular(70, array=True)
-    node_scope: list["Node"] = p_regular(71, require=False, array=True, references="any")
-    node_max_depth: Optional[int] = p_regular(72, require=False, default=None)
+    node_mode: Optional[NodeMode] = p_regular(70, require=False, default=None)
+    node_types: list["NodeType"] = p_regular(71, array=True)
+    node_scope: list["Node"] = p_regular(72, require=False, array=True, references="any")
+    node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
     # NOTE :Architecture: TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
-    node_subtypes: list[int] = p_regular(73, array=True)
+    node_subtypes: list[int] = p_regular(74, array=True)
     # specific node-ish
     # ...?
 

@@ -1,6 +1,14 @@
 <script lang="ts" setup>
-import { isResourceNode } from "@/language/core/const";
-import { AnyNodeData, NodeType, ResourceStatusOptionInfo, RunStatusOptionInfo } from "@/proto/wire";
+import { isResourceNode, toCamelName } from "@/language/core/const";
+import {
+  AnyNodeData,
+  ColorShade,
+  NodeMode,
+  NodeModeOptionInfo,
+  NodeType,
+  ResourceStatusOptionInfo,
+  RunStatusOptionInfo,
+} from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex } from "@/ui/style";
 import { humanizeBytes } from "@/utils/string";
@@ -26,20 +34,21 @@ const textClass = computed(() => [
 </script>
 <template>
   <div>
-    <span v-if="isNode(node, NodeType.FILE)">
-      <span class="ml-1.5 flex-shrink-0 text-xs text-gray-400">
-        {{ humanizeBytes(Number(node.size)) }}
-      </span>
-    </span>
-    <span v-if="isResourceNode(node)">
+    <span v-if="isResourceNode(node) && node.mode < NodeMode.TEMPLATE">
       <!-- Resource metadata -->
       <span
         class="fas fa-circle-small w-5 text-center"
         :class="iconClass"
         :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
       />
+      <!-- File metadata -->
+      <span v-if="isNode(node, NodeType.FILE)">
+        <span class="ml-0.5 flex-shrink-0 text-xs text-gray-400">
+          {{ humanizeBytes(Number(node.size)) }}
+        </span>
+      </span>
     </span>
-    <span v-else-if="isNode(node, NodeType.RUN)">
+    <span v-if="isNode(node, NodeType.RUN)">
       <!-- Run metadata -->
       <span
         class="fas fa-circle-small w-5 text-center"
@@ -48,5 +57,15 @@ const textClass = computed(() => [
       />
     </span>
     <!-- Node mode, ... -->
+    <span
+      v-if="'mode' in node && node.mode != NodeMode.MAIN"
+      class="ml-0.5 rounded-sm border px-1 py-0.5 text-xs text-gray-900"
+      :style="{
+        backgroundColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S200),
+        borderColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S300),
+      }"
+    >
+      {{ toCamelName(NodeMode, node.mode) }}
+    </span>
   </div>
 </template>

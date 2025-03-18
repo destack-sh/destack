@@ -456,7 +456,7 @@ class HostService(GraphServiceBase, HostBase):
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
 
-        # sync builtins if we're the system bench
+        # sync builtins if we're the builtin bench
         if self.bench_id == BENCH_BENCH_ID:
             from bench.builtin import BuiltinPackage, sync_node
 

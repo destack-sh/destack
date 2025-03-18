@@ -2,19 +2,35 @@ import inspect
 import re
 from typing import Annotated, Any, cast, get_args, get_origin
 
-from bench.language import Action, ActionType, Field, Icon, Kit, NodeMode, TypeIn, code, text
+from bench.language import (
+    Action,
+    ActionType,
+    Field,
+    Icon,
+    IconIn,
+    Kit,
+    NodeMode,
+    TypeIn,
+    code,
+    text,
+    to_icon,
+)
 from bench.utils.func import parse_py_annotation
 
 
 def class_to_kit(
-    cls: type[Any], name: str, mode: NodeMode = NodeMode.BUILTIN, template: Kit | None = None
+    cls: type[Any],
+    name: str,
+    mode: NodeMode = NodeMode.BUILTIN,
+    icon: IconIn | None = None,
+    template: Kit | None = None,
 ) -> Kit:
     """
     Turn a class into a Kit. Methods become Actions, their signature become Fields.
     Also parses out special metadata like ICON=...
     """
 
-    kit = Kit.new(name, mode=mode, template=template)
+    kit = Kit.new(name, mode=mode, icon=to_icon(icon) if icon else None, template=template)
     text_value = inspect.getdoc(cls) or ""
     if text_value:
         kit.text = text(text_value)

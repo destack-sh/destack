@@ -39,7 +39,7 @@ class IActionKit(ActionRunner if TYPE_CHECKING else object):
         _ = self._trap_interruption(InterruptionType.YIELD)
 
 
-ActionKit = class_to_kit(IActionKit, "ActionKit")
+ActionKit = class_to_kit(IActionKit, "Action Kit")
 # specialized dynamic actions
 ActionKit.actions.extend(
     Action.new(

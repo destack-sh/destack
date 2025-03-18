@@ -1,5 +1,5 @@
 from .browser import BrowserKit, BrowserPage, ChromeBrowserTemplate
-from .computer import ComputerKit, ComputerPage, RuntimeComputerTemplate, UbuntuComputerTemplate
+from .computer import ComputerKit, ComputerPage, UbuntuComputerTemplate
 
 __all__ = [
     "BrowserKit",
@@ -7,6 +7,5 @@ __all__ = [
     "ChromeBrowserTemplate",
     "ComputerKit",
     "ComputerPage",
-    "RuntimeComputerTemplate",
     "UbuntuComputerTemplate",
 ]

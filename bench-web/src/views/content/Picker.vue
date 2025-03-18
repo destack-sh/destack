@@ -435,7 +435,7 @@ defineExpose<ViewExpose>({
           <li
             :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
             role="menuitem"
-            class="mb-[1px] mr-0.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center truncate rounded border border-transparent px-1.5 hover:bg-gray-100"
+            class="mb-[1px] mr-0.5 mt-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded border border-transparent px-1.5 hover:bg-gray-100"
             :class="[isActive(item) ? 'bg-gray-100' : '']"
             :data-selected="isSelected(item)"
             :data-active="isActive(item)"
