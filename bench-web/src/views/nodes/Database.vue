@@ -264,7 +264,7 @@ function getColumnPadding(
   // calibrated against ROW_HEIGHT to ensure all types look center-aligned at the default height
   if (viewType == ViewType.TOGGLE) {
     return { paddingTop: 5, paddingBottom: 0 };
-  } else if (viewType == ViewType.TEXT) {
+  } else if (viewType == ViewType.TEXT || viewType == ViewType.FILE) {
     return { paddingTop: 3, paddingBottom: 2 };
   } else if (viewType == ViewType.NUMBER || viewType == ViewType.STRING) {
     return { paddingTop: 6, paddingBottom: 2 };
