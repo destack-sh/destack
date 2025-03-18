@@ -94,7 +94,10 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
           v-bind="getNodeIcon(node)"
           class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
         />
-        <span class="max-w-full select-none truncate">{{ getNodeTitle(node) ?? "???" }}</span>
+        <span v-if="getNodeTitle(node) != null" class="max-w-full select-none truncate">{{ getNodeTitle(node) }}</span>
+        <span v-else class="max-w-full select-none truncate text-gray-400">
+          {{ toCamelName(NodeType, node.metatype) }}
+        </span>
         <!-- Metadata -->
         <NodeMetadata class="ml-1.5" size="sm" :node="node" />
         <!-- Actions -->

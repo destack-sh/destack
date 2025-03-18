@@ -118,11 +118,6 @@ message_in.parent.append(reply)
     assert Run1.status == RunStatus.COMPLETED
 
 
-# nocheckin :Incomplete: wait, could we just use Interruptions to handle runtime "Triggers" for Messages?
-#  (we could just Interrupt and then manually resolve that Interrupt whenever we send a Message
-#   .. somehow? doesn't that move the logic to the client?)
-
-
 @simulated_runtime(system=True, runtimes=True)
 async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""

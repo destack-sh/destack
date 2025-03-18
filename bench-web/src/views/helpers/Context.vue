@@ -1,54 +1,27 @@
 <script lang="ts" setup>
-import { isInlineNode, isSourceNode, toCamelName } from "@/language/core/const";
-import { makeAndConditional, makeExpression } from "@/language/core/expression";
-import { packSubnode, useSubnodeProperty } from "@/language/core/node";
+import { isInlineNode, isSourceNode } from "@/language/core/const";
 import { isRunnable } from "@/language/runtime/run";
-import {
-  BlockType,
-  ContextAspect,
-  ExpressionType,
-  IconData,
-  NodeType,
-  Orientation,
-  PageData,
-  PROPERTY_ENUM_BY_TYPE,
-  RunData,
-  RunProperty,
-  RunType,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewData } from "@/proto/wire";
+import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { IconInline, makeIcon } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import List from "@/views/collections/List.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Text from "@/views/content/Text.vue";
 import Chat from "@/views/helpers/Chat.vue";
 import Run from "@/views/nodes/Run.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, Ref, toRef } from "vue";
+import { computed, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 0;
-
-const ICON_BY_CONTEXT_ASPECT: Record<ContextAspect, IconData> = {
-  [ContextAspect.UNSPECIFIED]: makeIcon("fas fa-question"),
-  [ContextAspect.DETAIL]: makeIcon("fas fa-eye"),
-  [ContextAspect.RUN]: makeIcon("fas fa-play"),
-  [ContextAspect.CHAT]: makeIcon("fas fa-message"),
-  [ContextAspect.LOG]: makeIcon("fas fa-file-lines"),
-};
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
@@ -129,27 +102,6 @@ const selfRun: Ref<RunData | null> = computed(() => {
     return null;
   }
 });
-function start() {
-  if (startRef.value != null) {
-    startRef.value.start();
-  } else {
-    setAspect(ContextAspect.RUN);
-    nextTick(() => startRef.value?.start());
-  }
-}
-
-// view :DefaultViewAspect
-const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.CONTEXT, toRef(props, "subnodePacked"), "aspect");
-function setAspect(aspect: ContextAspect) {
-  state.update({ metatype: NodeType.VIEW, type: ViewType.CONTEXT, subnode: { aspect } });
-}
-const visibleAspects = [ContextAspect.DETAIL, ContextAspect.CHAT, ContextAspect.RUN];
-function selectAspect(aspect: ContextAspect) {
-  state.update({ metatype: NodeType.VIEW, type: ViewType.CONTEXT, subnode: { aspect } });
-  if (aspect == ContextAspect.CHAT) {
-    nextTick(() => chatRef.value?.focus?.());
-  }
-}
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -192,42 +144,13 @@ defineExpose<ViewExpose>({ self });
 
       <!-- Tabs -->
       <div class="ml-auto flex flex-row items-center">
-        <button
-          v-for="a in visibleAspects"
-          :key="a"
-          v-tooltip="{ title: toCamelName(ContextAspect, a), small: true, group: 'context.tabs' }"
-          class="flex flex-shrink-0 cursor-pointer flex-row items-center rounded px-2 py-1 transition-colors duration-75"
-          :class="[
-            a == aspect
-              ? 'bg-gray-100 font-medium text-gray-700'
-              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700',
-          ]"
-          @click="selectAspect(a)"
-        >
-          <IconInline v-bind="ICON_BY_CONTEXT_ASPECT[a]" />
-        </button>
+        <!-- ... -->
       </div>
     </div>
 
     <!-- Header -->
     <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-2" :style="{}">
-      <!-- NOTE :UX: the Context header thing is ugly -->
-      <template v-if="aspect == ContextAspect.DETAIL">
-        <!-- Detail text -->
-        <Text
-          v-if="target != null && 'text' in targetPropertiesEnum"
-          id="text"
-          is-small
-          is-input
-          placeholder="Text"
-          class="mx-1 my-1 w-full"
-          :model-value="(target as any).text"
-          @update:model-value="
-            inspectionConnection?.tx.update(target as PageData, { text: $event }, { debounce: 'long' })
-          "
-        />
-        <span v-else class="mx-1 text-gray-400">No text available.</span>
-      </template>
+      <!-- ... -->
     </div>
 
     <!-- Content -->
@@ -247,64 +170,12 @@ defineExpose<ViewExpose>({ self });
       >
         <!-- Detail -->
         <SomeObject
-          v-if="aspect == ContextAspect.DETAIL"
           id="detail"
           :node-ptr="targetPtr"
           is-input
           v-bind="state.getChildState('scroll.detail', { nodePtr: targetPtr, isInput: true, isMinimal: false })"
           data-contextmenu="ignore"
         />
-        <!-- Chat -->
-        <Chat
-          v-else-if="aspect == ContextAspect.CHAT"
-          id="chat"
-          ref="chatRef"
-          :key="threadPtr?.id"
-          :node-ptr="threadPtr"
-          v-bind="state.getChildState('scroll.chat', { nodePtr: threadPtr })"
-          :size="{ width: size?.width, height: bodyHeight }"
-          data-contextmenu="ignore"
-        />
-        <!-- Run -->
-        <div v-else-if="aspect == ContextAspect.RUN">
-          <Run
-            id="run.run"
-            ref="startRef"
-            :node-ptr="targetPtr"
-            v-bind="state.getChildState('scroll.start', { nodePtr: targetPtr })"
-            data-contextmenu="ignore"
-          />
-          <!-- Prior -->
-          <div class="mx-4 mt-2 flex flex-row items-center gap-x-2" :style="{ height: `${HEADER_HEIGHT}px` }">
-            <span class="font-medium">Prior Runs</span>
-          </div>
-          <List
-            id="run.recent"
-            :subnode-packed="
-              packSubnode(NodeType.VIEW, ViewType.LIST, {
-                queryNodeType: NodeType.RUN,
-                filter: makeAndConditional([
-                  makeExpression({
-                    type: ExpressionType.EQUALS,
-                    propertyPtr: propertyReference(NodeType.RUN, RunProperty.type),
-                    value: RunType.FLOW,
-                  }),
-                  makeExpression({
-                    type: ExpressionType.EQUALS,
-                    propertyPtr: propertyReference(NodeType.RUN, RunProperty.flowPtr),
-                    value: scope != null ? toNodeRef(scope) : undefined,
-                  }),
-                ]),
-                sort: [
-                  makeExpression({
-                    type: ExpressionType.DESCENDING,
-                    propertyPtr: propertyReference(NodeType.RUN, RunProperty.createdAt),
-                  }),
-                ],
-              })
-            "
-          />
-        </div>
       </div>
 
       <!-- Selection overlay -->

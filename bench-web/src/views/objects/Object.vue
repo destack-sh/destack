@@ -48,7 +48,11 @@ defineExpose<ViewExpose>({ self, id });
 <template>
   <div v-if="layout" class="flex flex-col gap-y-2">
     <!-- Sections -->
-    <div v-for="(section, i) in layout.sections" :key="section.title ?? i" class="group/section">
+    <div
+      v-for="(section, i) in layout.sections.filter((s) => s.rows.length > 0)"
+      :key="section.title ?? i"
+      class="group/section"
+    >
       <!-- Section header -->
       <div
         v-if="section.title"

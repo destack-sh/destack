@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { isInlineNode } from "@/language/core/const";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createChannel } from "@/language/source/channel";
+import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
@@ -26,7 +26,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { describeNode, isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
@@ -92,10 +92,10 @@ const threadPtr = computed(() => {
 // Messages
 //
 
-const isEnabled = computed(() => channelPtr.value != null);
+const isEnabled = computed(() => threadPtr.value != null);
 const filter = computed(() => {
   const filters: ExpressionData[] = [];
-  // channel (must exist if enabled)
+  // channel
   if (channelPtr.value != null) {
     filters.push(
       makeExpression({
@@ -365,41 +365,19 @@ function submit() {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Submit" } });
   }
-  let messageChannelPtr = channelPtr.value;
-  let messageThreadPtr = threadPtr.value;
+  const messageChannelPtr = channelPtr.value ?? undefined;
+  let messageThreadPtr = threadPtr.value ?? undefined;
 
-  // create channel/thread if needed
-  // (channelPtr is null means we're given just a scope,
-  //  so we need to create a thread for it in some channel)
-  if (messageChannelPtr == null) {
-    if (nodePtr.value == null) throw new Error("no scope");
-    const node = supergraph.get(nodePtr.value);
-    if (!isInlineNode(node)) {
-      throw new Error(`cannot chat with ${describeNode(node ?? nodePtr.value)}`);
-    }
-    // channel
-    if (space.value?.channelPtr == null) {
-      const newChannel =
-        benchGraph.nodes.find((n) => isNode(n, NodeType.CHANNEL)) ??
-        createChannel(tx, benchGraph, {
-          anchor: "inside",
-          target: pkg.value!,
-          channel: { name: "General" },
-        });
-      messageChannelPtr = toNodeRef(newChannel);
-      tx.update(space.value, { channelPtr: messageChannelPtr });
-    } else {
-      messageChannelPtr = space.value.channelPtr;
-    }
-    const newThread = tx.create({
-      metatype: NodeType.THREAD,
-      benchPtr: benchPtr.value,
-      packagePtr: node.packagePtr,
-      parentPtr: messageChannelPtr,
-      channelPtr: messageChannelPtr,
+  // create thread if needed
+  if (messageThreadPtr == null) {
+    if (messageChannelPtr == null) throw new Error("no channel");
+    const thread = createThread(tx, benchGraph, {
+      thread: {
+        parentPtr: messageChannelPtr,
+        packagePtr: packagePtr.value!,
+      },
     });
-    messageThreadPtr = toNodeRef(newThread);
-    tx.update(node, { threadPtr: messageThreadPtr });
+    messageThreadPtr = toNodeRef(thread);
   }
 
   // create message

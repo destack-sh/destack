@@ -1644,6 +1644,7 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )
+    # nocheckin: do we really need InlineNode.text?
     text: Optional["Text"] = p_regular(
         35, default=None, require=False, array=False, struct=StructType.TEXT
     )

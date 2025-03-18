@@ -117,7 +117,9 @@ def unpack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: Any) ->
 def pack_subnode(node_cls: type[Node], subnode: dict[str, Any]):
     subnode_packed: dict[str, dict[str, JsonValue]] = {}
     for subnode_key in subnode:
-        subtype_cls = node_cls.__subclass_by_subtype__[int(subnode_key)]  # type: ignore
+        subtype_cls = node_cls.__subclass_by_subtype__.get(int(subnode_key))  # type: ignore
+        if subtype_cls is None:
+            continue
         subnode_packed[subnode_key] = {}
         for p in subtype_cls.__subtype_extra_properties__.values():
             if p.key in subnode[subnode_key] and p._type_info is not None:
@@ -130,7 +132,9 @@ def pack_subnode(node_cls: type[Node], subnode: dict[str, Any]):
 def unpack_subnode(node_cls: type[Node], subnode_packed: dict) -> dict[str, Any]:
     subnode_unpacked: dict[str, Any] = {}
     for subnode_key in subnode_packed:
-        subnode_cls = node_cls.__subclass_by_subtype__[int(subnode_key)]  # type: ignore
+        subnode_cls = node_cls.__subclass_by_subtype__.get(int(subnode_key))  # type: ignore
+        if subnode_cls is None:
+            continue
         subnode_unpacked[subnode_key] = {}
         for p_key, prop_value_packed in cast(dict, subnode_packed[subnode_key]).items():
             p = subnode_cls.__properties_by_id__.get(int(p_key))

@@ -135,8 +135,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ALIGNMENT: _ClassVar[EnumType]
     ENUM_TYPE_USER_WIZARD_STAGE: _ClassVar[EnumType]
     ENUM_TYPE_TREE_VIEW_PRESET: _ClassVar[EnumType]
-    ENUM_TYPE_SIDEBAR_ASPECT: _ClassVar[EnumType]
-    ENUM_TYPE_CONTEXT_ASPECT: _ClassVar[EnumType]
     ENUM_TYPE_BUTTON_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_PICKER_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
@@ -583,8 +581,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ALIGNMENT: _ClassVar[BenchType]
     BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
     BENCH_TYPE_TREE_VIEW_PRESET: _ClassVar[BenchType]
-    BENCH_TYPE_SIDEBAR_ASPECT: _ClassVar[BenchType]
-    BENCH_TYPE_CONTEXT_ASPECT: _ClassVar[BenchType]
     BENCH_TYPE_BUTTON_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_PICKER_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
@@ -1354,7 +1350,7 @@ class PlanFailureMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PLAN_FAILURE_MODE_UNSPECIFIED: _ClassVar[PlanFailureMode]
     PLAN_FAILURE_MODE_FAIL: _ClassVar[PlanFailureMode]
-    PLAN_FAILURE_MODE_COMPLETE: _ClassVar[PlanFailureMode]
+    PLAN_FAILURE_MODE_END: _ClassVar[PlanFailureMode]
     PLAN_FAILURE_MODE_CONTINUE: _ClassVar[PlanFailureMode]
 
 class TaskType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1862,22 +1858,6 @@ class TreeViewPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TREE_VIEW_PRESET_PACKAGE: _ClassVar[TreeViewPreset]
     TREE_VIEW_PRESET_OUTLINE: _ClassVar[TreeViewPreset]
 
-class SidebarAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SIDEBAR_ASPECT_UNSPECIFIED: _ClassVar[SidebarAspect]
-    SIDEBAR_ASPECT_BENCH: _ClassVar[SidebarAspect]
-    SIDEBAR_ASPECT_ACTIVITY: _ClassVar[SidebarAspect]
-    SIDEBAR_ASPECT_CATALOG: _ClassVar[SidebarAspect]
-    SIDEBAR_ASPECT_LIBRARY: _ClassVar[SidebarAspect]
-
-class ContextAspect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CONTEXT_ASPECT_UNSPECIFIED: _ClassVar[ContextAspect]
-    CONTEXT_ASPECT_DETAIL: _ClassVar[ContextAspect]
-    CONTEXT_ASPECT_RUN: _ClassVar[ContextAspect]
-    CONTEXT_ASPECT_CHAT: _ClassVar[ContextAspect]
-    CONTEXT_ASPECT_LOG: _ClassVar[ContextAspect]
-
 class ButtonVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     BUTTON_VARIANT_UNSPECIFIED: _ClassVar[ButtonVariant]
@@ -2097,8 +2077,6 @@ ENUM_TYPE_ORIENTATION: EnumType
 ENUM_TYPE_ALIGNMENT: EnumType
 ENUM_TYPE_USER_WIZARD_STAGE: EnumType
 ENUM_TYPE_TREE_VIEW_PRESET: EnumType
-ENUM_TYPE_SIDEBAR_ASPECT: EnumType
-ENUM_TYPE_CONTEXT_ASPECT: EnumType
 ENUM_TYPE_BUTTON_VARIANT: EnumType
 ENUM_TYPE_PICKER_VARIANT: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
@@ -2533,8 +2511,6 @@ BENCH_TYPE_ORIENTATION: BenchType
 BENCH_TYPE_ALIGNMENT: BenchType
 BENCH_TYPE_USER_WIZARD_STAGE: BenchType
 BENCH_TYPE_TREE_VIEW_PRESET: BenchType
-BENCH_TYPE_SIDEBAR_ASPECT: BenchType
-BENCH_TYPE_CONTEXT_ASPECT: BenchType
 BENCH_TYPE_BUTTON_VARIANT: BenchType
 BENCH_TYPE_PICKER_VARIANT: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
@@ -3112,7 +3088,7 @@ PLAN_TERMINATION_MODE_PASS: PlanTerminationMode
 PLAN_TERMINATION_MODE_RETURN: PlanTerminationMode
 PLAN_FAILURE_MODE_UNSPECIFIED: PlanFailureMode
 PLAN_FAILURE_MODE_FAIL: PlanFailureMode
-PLAN_FAILURE_MODE_COMPLETE: PlanFailureMode
+PLAN_FAILURE_MODE_END: PlanFailureMode
 PLAN_FAILURE_MODE_CONTINUE: PlanFailureMode
 TASK_TYPE_UNSPECIFIED: TaskType
 TASK_TYPE_GENERIC: TaskType
@@ -3490,16 +3466,6 @@ USER_WIZARD_VIEW_STAGE_LOG_IN: UserWizardViewStage
 TREE_VIEW_PRESET_UNSPECIFIED: TreeViewPreset
 TREE_VIEW_PRESET_PACKAGE: TreeViewPreset
 TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
-SIDEBAR_ASPECT_UNSPECIFIED: SidebarAspect
-SIDEBAR_ASPECT_BENCH: SidebarAspect
-SIDEBAR_ASPECT_ACTIVITY: SidebarAspect
-SIDEBAR_ASPECT_CATALOG: SidebarAspect
-SIDEBAR_ASPECT_LIBRARY: SidebarAspect
-CONTEXT_ASPECT_UNSPECIFIED: ContextAspect
-CONTEXT_ASPECT_DETAIL: ContextAspect
-CONTEXT_ASPECT_RUN: ContextAspect
-CONTEXT_ASPECT_CHAT: ContextAspect
-CONTEXT_ASPECT_LOG: ContextAspect
 BUTTON_VARIANT_UNSPECIFIED: ButtonVariant
 BUTTON_VARIANT_PRIMARY: ButtonVariant
 BUTTON_VARIANT_SECONDARY: ButtonVariant
@@ -4346,6 +4312,44 @@ class ChangeData(_message.Message):
     edits: _containers.RepeatedCompositeFieldContainer[EditData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., key: _Optional[str] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
+class ScheduleData(_message.Message):
+    __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    FREQUENCY_FIELD_NUMBER: _ClassVar[int]
+    INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    WEEK_START_FIELD_NUMBER: _ClassVar[int]
+    BY_SET_POS_FIELD_NUMBER: _ClassVar[int]
+    BY_MONTH_FIELD_NUMBER: _ClassVar[int]
+    BY_MONTH_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_YEAR_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_EASTER_FIELD_NUMBER: _ClassVar[int]
+    BY_WEEK_NO_FIELD_NUMBER: _ClassVar[int]
+    BY_WEEK_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_HOUR_FIELD_NUMBER: _ClassVar[int]
+    BY_MINUTE_FIELD_NUMBER: _ClassVar[int]
+    BY_SECOND_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    frequency: ScheduleFrequency
+    interval: int
+    start: _timestamp_pb2.Timestamp
+    end: _timestamp_pb2.Timestamp
+    count: int
+    week_start: Day
+    by_set_pos: _containers.RepeatedScalarFieldContainer[int]
+    by_month: _containers.RepeatedScalarFieldContainer[Month]
+    by_month_day: _containers.RepeatedScalarFieldContainer[int]
+    by_year_day: _containers.RepeatedScalarFieldContainer[int]
+    by_easter: _containers.RepeatedScalarFieldContainer[int]
+    by_week_no: _containers.RepeatedScalarFieldContainer[int]
+    by_week_day: _containers.RepeatedScalarFieldContainer[Day]
+    by_hour: _containers.RepeatedScalarFieldContainer[int]
+    by_minute: _containers.RepeatedScalarFieldContainer[int]
+    by_second: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., frequency: _Optional[_Union[ScheduleFrequency, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[Day, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[Month, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[Day, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
+
 class FontData(_message.Message):
     __slots__ = ("metatype", "type", "weight", "size")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4471,44 +4475,6 @@ class RectangleConstraintData(_message.Message):
     min_height: int
     max_height: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_width: _Optional[int] = ..., max_width: _Optional[int] = ..., min_height: _Optional[int] = ..., max_height: _Optional[int] = ...) -> None: ...
-
-class ScheduleData(_message.Message):
-    __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FREQUENCY_FIELD_NUMBER: _ClassVar[int]
-    INTERVAL_FIELD_NUMBER: _ClassVar[int]
-    START_FIELD_NUMBER: _ClassVar[int]
-    END_FIELD_NUMBER: _ClassVar[int]
-    COUNT_FIELD_NUMBER: _ClassVar[int]
-    WEEK_START_FIELD_NUMBER: _ClassVar[int]
-    BY_SET_POS_FIELD_NUMBER: _ClassVar[int]
-    BY_MONTH_FIELD_NUMBER: _ClassVar[int]
-    BY_MONTH_DAY_FIELD_NUMBER: _ClassVar[int]
-    BY_YEAR_DAY_FIELD_NUMBER: _ClassVar[int]
-    BY_EASTER_FIELD_NUMBER: _ClassVar[int]
-    BY_WEEK_NO_FIELD_NUMBER: _ClassVar[int]
-    BY_WEEK_DAY_FIELD_NUMBER: _ClassVar[int]
-    BY_HOUR_FIELD_NUMBER: _ClassVar[int]
-    BY_MINUTE_FIELD_NUMBER: _ClassVar[int]
-    BY_SECOND_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    frequency: ScheduleFrequency
-    interval: int
-    start: _timestamp_pb2.Timestamp
-    end: _timestamp_pb2.Timestamp
-    count: int
-    week_start: Day
-    by_set_pos: _containers.RepeatedScalarFieldContainer[int]
-    by_month: _containers.RepeatedScalarFieldContainer[Month]
-    by_month_day: _containers.RepeatedScalarFieldContainer[int]
-    by_year_day: _containers.RepeatedScalarFieldContainer[int]
-    by_easter: _containers.RepeatedScalarFieldContainer[int]
-    by_week_no: _containers.RepeatedScalarFieldContainer[int]
-    by_week_day: _containers.RepeatedScalarFieldContainer[Day]
-    by_hour: _containers.RepeatedScalarFieldContainer[int]
-    by_minute: _containers.RepeatedScalarFieldContainer[int]
-    by_second: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., frequency: _Optional[_Union[ScheduleFrequency, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[Day, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[Month, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[Day, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class BaseNodeData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed")
@@ -6960,6 +6926,74 @@ class PageData(_message.Message):
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
+class TriggerData(_message.Message):
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "text", "effect", "scope_ptr", "run_root_ptr", "run_ptr", "interruption_ptr", "status", "processed_at", "processed_count", "processed_key", "closed_at")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
+    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
+    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
+    TEMPLATE_AT_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    EFFECT_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
+    RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
+    RUN_PTR_FIELD_NUMBER: _ClassVar[int]
+    INTERRUPTION_PTR_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_AT_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PROCESSED_KEY_FIELD_NUMBER: _ClassVar[int]
+    CLOSED_AT_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    parent_ptr: NodeReferenceData
+    bench_ptr: NodeReferenceData
+    package_ptr: NodeReferenceData
+    created_at: _timestamp_pb2.Timestamp
+    created_by_ptr: NodeReferenceData
+    updated_at: _timestamp_pb2.Timestamp
+    updated_by_ptr: NodeReferenceData
+    deleted_at: _timestamp_pb2.Timestamp
+    template_ptr: NodeReferenceData
+    template_at: _timestamp_pb2.Timestamp
+    mode: NodeMode
+    subnode_packed: _struct_pb2.Value
+    type: TriggerType
+    name: str
+    text: TextData
+    effect: TriggerEffect
+    scope_ptr: NodeReferenceData
+    run_root_ptr: NodeReferenceData
+    run_ptr: NodeReferenceData
+    interruption_ptr: NodeReferenceData
+    status: TriggerStatus
+    processed_at: _timestamp_pb2.Timestamp
+    processed_count: int
+    processed_key: str
+    closed_at: _timestamp_pb2.Timestamp
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[TriggerType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., effect: _Optional[_Union[TriggerEffect, str]] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[TriggerStatus, str]] = ..., processed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., processed_count: _Optional[int] = ..., processed_key: _Optional[str] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ScheduleTriggerData(_message.Message):
+    __slots__ = ("schedule",)
+    SCHEDULE_FIELD_NUMBER: _ClassVar[int]
+    schedule: ScheduleData
+    def __init__(self, schedule: _Optional[_Union[ScheduleData, _Mapping]] = ...) -> None: ...
+
+class MessageTriggerData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class ViewData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "title", "order_key", "icon", "text", "definition_ptr", "thread_ptr", "tags_ptr", "subviews_packed", "value_type", "node_ptr", "position", "size", "margin", "padding", "orientation", "alignment", "transform", "constraint", "selection", "focus", "is_hidden", "is_disabled", "is_input", "is_inline", "is_minimal", "is_loading")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -7079,18 +7113,6 @@ class ChatViewData(_message.Message):
     draft_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     draft_reply_to_ptr: NodeReferenceData
     def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
-
-class SidebarViewData(_message.Message):
-    __slots__ = ("aspect",)
-    ASPECT_FIELD_NUMBER: _ClassVar[int]
-    aspect: SidebarAspect
-    def __init__(self, aspect: _Optional[_Union[SidebarAspect, str]] = ...) -> None: ...
-
-class ContextViewData(_message.Message):
-    __slots__ = ("aspect",)
-    ASPECT_FIELD_NUMBER: _ClassVar[int]
-    aspect: ContextAspect
-    def __init__(self, aspect: _Optional[_Union[ContextAspect, str]] = ...) -> None: ...
 
 class ListViewData(_message.Message):
     __slots__ = ("query_node_type", "filter", "sort")
@@ -7287,74 +7309,6 @@ class TagData(_message.Message):
     thread_ptr: NodeReferenceData
     tags_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
-
-class TriggerData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "text", "effect", "scope_ptr", "run_root_ptr", "run_ptr", "interruption_ptr", "status", "processed_at", "processed_count", "processed_key", "closed_at")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    BENCH_PTR_FIELD_NUMBER: _ClassVar[int]
-    PACKAGE_PTR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    CREATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
-    DELETED_AT_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
-    TEMPLATE_AT_FIELD_NUMBER: _ClassVar[int]
-    MODE_FIELD_NUMBER: _ClassVar[int]
-    SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    EFFECT_FIELD_NUMBER: _ClassVar[int]
-    SCOPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    RUN_ROOT_PTR_FIELD_NUMBER: _ClassVar[int]
-    RUN_PTR_FIELD_NUMBER: _ClassVar[int]
-    INTERRUPTION_PTR_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    PROCESSED_AT_FIELD_NUMBER: _ClassVar[int]
-    PROCESSED_COUNT_FIELD_NUMBER: _ClassVar[int]
-    PROCESSED_KEY_FIELD_NUMBER: _ClassVar[int]
-    CLOSED_AT_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    id: str
-    parent_ptr: NodeReferenceData
-    bench_ptr: NodeReferenceData
-    package_ptr: NodeReferenceData
-    created_at: _timestamp_pb2.Timestamp
-    created_by_ptr: NodeReferenceData
-    updated_at: _timestamp_pb2.Timestamp
-    updated_by_ptr: NodeReferenceData
-    deleted_at: _timestamp_pb2.Timestamp
-    template_ptr: NodeReferenceData
-    template_at: _timestamp_pb2.Timestamp
-    mode: NodeMode
-    subnode_packed: _struct_pb2.Value
-    type: TriggerType
-    name: str
-    text: TextData
-    effect: TriggerEffect
-    scope_ptr: NodeReferenceData
-    run_root_ptr: NodeReferenceData
-    run_ptr: NodeReferenceData
-    interruption_ptr: NodeReferenceData
-    status: TriggerStatus
-    processed_at: _timestamp_pb2.Timestamp
-    processed_count: int
-    processed_key: str
-    closed_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[TriggerType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., effect: _Optional[_Union[TriggerEffect, str]] = ..., scope_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[TriggerStatus, str]] = ..., processed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., processed_count: _Optional[int] = ..., processed_key: _Optional[str] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class ScheduleTriggerData(_message.Message):
-    __slots__ = ("schedule",)
-    SCHEDULE_FIELD_NUMBER: _ClassVar[int]
-    schedule: ScheduleData
-    def __init__(self, schedule: _Optional[_Union[ScheduleData, _Mapping]] = ...) -> None: ...
-
-class MessageTriggerData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
 
 class SomeNodeData(_message.Message):
     __slots__ = ("bench", "handle", "user", "organization", "client", "scaler", "store", "computer", "browser", "file", "stream", "secret", "package", "dependency", "page", "block", "choice", "field", "option", "tag", "flow", "action", "link", "trigger", "kit", "view", "database", "role", "space", "channel", "thread", "message", "notification", "team", "membership", "invite", "session", "run", "run_span", "interruption", "log", "plan", "task", "claim", "record", "skip", "empty")
