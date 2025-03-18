@@ -1,20 +1,20 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
+import { makeExpression } from "@/language/core/expression";
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
-import { createChannel } from "@/language/source/channel";
-import { createPage } from "@/language/source/page";
 import {
+  ExpressionType,
   IconData,
   NodeType,
   NodeTypeOptionInfo,
   Orientation,
-  SidebarAspect,
+  ThreadProperty,
+  ThreadStatus,
   TreeViewPreset,
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, benchConnection, benchGraph, canvas, hasLocalBench, pkg, spaceGraph } from "@/system/space";
+import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
+import { bench, benchConnection, canvas, hasLocalBench, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { ActionBuiltinId, fireAction, fireActionById, getAction } from "@/ui/action";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -33,14 +33,6 @@ import { computed, Ref, ref, toRef } from "vue";
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 42;
-
-const ICON_BY_SIDEBAR_ASPECT: Record<SidebarAspect, IconData> = {
-  [SidebarAspect.UNSPECIFIED]: makeIcon("fas fa-question"),
-  [SidebarAspect.BENCH]: makeIcon("far fa-file"),
-  [SidebarAspect.ACTIVITY]: makeIcon("fas fa-wave-pulse"),
-  [SidebarAspect.CATALOG]: makeIcon("fas fa-album-collection"),
-  [SidebarAspect.LIBRARY]: makeIcon("fas fa-book"),
-};
 
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
@@ -122,8 +114,6 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
-const aspect = useSubnodeProperty(NodeType.VIEW, ViewType.SIDEBAR, toRef(props, "subnodePacked"), "aspect");
-const visibleAspects = [SidebarAspect.BENCH, SidebarAspect.ACTIVITY, SidebarAspect.CATALOG]; // :DefaultViewAspect
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
@@ -230,7 +220,16 @@ defineExpose<ViewExpose>({ self });
         </div>
         <List
           id="threads"
-          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.LIST, { queryNodeType: NodeType.THREAD })"
+          :subnode-packed="
+            packSubnode(NodeType.VIEW, ViewType.LIST, {
+              queryNodeType: NodeType.THREAD,
+              filter: makeExpression({
+                type: ExpressionType.IN,
+                propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.status),
+                value: [ThreadStatus.OPEN],
+              }),
+            })
+          "
         />
       </div>
 

@@ -26,7 +26,7 @@ const state = canvas.registerView(self, id);
 
 // state
 const nodePtr = toRef(props, "nodePtr");
-const { node, connection } = supergraph.getLinkRef(nodePtr);
+const { node, connection, graph } = supergraph.getLinkRef(nodePtr);
 const channelPtr = computed(() => {
   if (node.value == null) return null;
   if (isNode(node.value, NodeType.THREAD)) return node.value.channelPtr;
@@ -48,7 +48,7 @@ defineExpose<ViewExpose>({ self, id });
 <template>
   <div>
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="benchGraph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="graph" />
 
     <!-- Chat -->
     <Chat
@@ -83,7 +83,7 @@ defineExpose<ViewExpose>({ self, id });
           <span>
             This is the beginning of this
             {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???"
-            }}<span v-if="isNode(node, NodeType.THREAD)"> in #{{ (channel as ChannelData)?.name ?? "???" }}</span
+            }}<span v-if="isNode(node, NodeType.THREAD) && channel != null"> in #{{ (channel as ChannelData)?.name ?? "???" }}</span
             ><span v-if="(scope as any)?.name != null"> on {{ (scope as any).name }}</span
             >.
           </span>

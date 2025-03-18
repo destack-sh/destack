@@ -51,6 +51,9 @@ from .view import (
     Vector4,
     View,
     ViewType,
+    vector2,
+    vector3,
+    vector4,
 )
 
 __all__ = [
@@ -113,4 +116,7 @@ __all__ = [
     "render_expressions",
     "render_statement",
     "render_value",
+    "vector2",
+    "vector3",
+    "vector4",
 ]

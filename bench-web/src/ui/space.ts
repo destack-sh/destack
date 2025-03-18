@@ -21,17 +21,16 @@ import {
 } from "@/language/runtime/transaction";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
+import { createThread } from "@/language/source/thread";
 import {
   BlockType,
   ChangeCategory,
-  ContextAspect,
   NodeMode,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
   SelectionData,
-  SidebarAspect,
   SpaceData,
   StructType,
   ViewData,
@@ -1082,14 +1081,7 @@ export class SpaceCanvas {
       this.tx().update(this.space.value!, { runPtr }, { debounce: "tick" });
       const helpView = this.findView({ type: ViewType.CONTEXT });
       if (helpView != null) {
-        this.tx().update(
-          helpView,
-          makeEditFromSubnode(helpView, {
-            metatype: NodeType.VIEW,
-            type: ViewType.CONTEXT,
-            subnode: { aspect: ContextAspect.RUN },
-          }),
-        );
+        this.tx().update(helpView, makeEditFromSubnode(helpView, { metatype: NodeType.VIEW, type: ViewType.CONTEXT }));
       }
     }
 
@@ -1340,7 +1332,6 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       name: "Sidebar",
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 320 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 300, maxWidth: 600 }),
-      subnode: { aspect: SidebarAspect.BENCH },
     },
     {
       type: ViewType.HISTORY,
@@ -1354,7 +1345,6 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 600 }),
       constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600, maxWidth: 900 }),
-      subnode: { aspect: ContextAspect.DETAIL },
     },
   ]);
   return { primary: layout.viewsByName["Main"] };
@@ -1688,7 +1678,13 @@ declareActions<"space">({
     icon: "fas fa-reel",
     text: "Create a new thread",
     action: () => {
-      
+      const thread = createThread(benchConnection.tx, benchGraph, {
+        thread: {
+          parentPtr: toNodeRef(pkg.value!),
+          packagePtr: toNodeRef(pkg.value!),
+        },
+      });
+      canvas.goToNode(thread);
     },
   },
   "space.create.channel": {

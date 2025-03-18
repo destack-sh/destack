@@ -12,18 +12,21 @@ const props = defineProps<{
   self?: TypedNodeReferenceData<NodeType.VIEW>;
   nodePtr?: NodeReferenceData;
   focus?: SelectionData;
-  graph: ReadNodeGraph;
+  graph?: ReadNodeGraph | null;
 }>();
 </script>
 <template>
-  <div
-    class="group flex w-full max-w-full flex-row items-center px-2"
-    :style="{ height: HEADER_HEIGHT + 'px' }"
-  >
+  <div class="group flex w-full max-w-full flex-row items-center px-2" :style="{ height: HEADER_HEIGHT + 'px' }">
     <!-- History -->
     <HistoryNavigator :self="self" />
     <!-- Breadcrumb -->
-    <NodePath v-if="nodePtr" :container="nodePtr" :self="nodePtr" :focus="props.focus?.nodesPtr[0]" :graph="graph" />
+    <NodePath
+      v-if="nodePtr && graph"
+      :container="nodePtr"
+      :self="nodePtr"
+      :focus="props.focus?.nodesPtr[0]"
+      :graph="graph"
+    />
     <!-- Meta & Controls -->
     <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
       <slot name="meta" />

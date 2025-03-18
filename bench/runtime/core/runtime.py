@@ -873,7 +873,7 @@ class Runtime:
             elif isinstance(node, Interruption):
                 self._on_interrupt_updated(runner, node)
 
-    # nocheckin: track cascading Plan/Task/Claim/... status
+    # nocheckin: track cascading Plan/Task/Claim/Thread/... status
     # (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
 
     async def run(
@@ -930,7 +930,7 @@ class Runtime:
                 ):
                     # nocheckin: handle ENSURE_RUN/REPLACE_RUN Triggers
                     #  (how are we going to route that when there are multiple Runtimes?
-                    #   need to deterministically shard or otherwise decide where to put Run..)
+                    #   need to deterministically shard .. use thread id/ck?)
                     # lift into new flow
                     self.session.commit_optimistic()
                     outer_run = create_run_from_node(

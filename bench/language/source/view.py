@@ -324,6 +324,10 @@ class Vector2(Struct):
     y: float = p_regular(31)
 
 
+def vector2(x: float, y: float) -> "Vector2":
+    return Vector2(x=float(x), y=float(y))
+
+
 @struct_(StructType.VECTOR3)
 class Vector3(Struct):
     """A 3D vector."""
@@ -331,6 +335,10 @@ class Vector3(Struct):
     x: float = p_regular(30)
     y: float = p_regular(31)
     z: float = p_regular(32)
+
+
+def vector3(x: float, y: float, z: float) -> "Vector3":
+    return Vector3(x=float(x), y=float(y), z=float(z))
 
 
 @struct_(StructType.VECTOR4)
@@ -341,6 +349,10 @@ class Vector4(Struct):
     y: float = p_regular(31)
     z: float = p_regular(32)
     w: float = p_regular(33)
+
+
+def vector4(x: float, y: float, z: float, w: float) -> "Vector4":
+    return Vector4(x=float(x), y=float(y), z=float(z), w=float(w))
 
 
 @struct_(StructType.LINE)
@@ -526,37 +538,6 @@ class ChatView(View):
     if TYPE_CHECKING:
         draft_nodes_ptr: list["NodeReference"] = []
         draft_reply_to_ptr: Optional["NodeReference"] = None
-
-
-# NOTE :Cleanup: Sidebar/Context :DefaultViewAspects should probably just be tabs?
-#  (we can still recommend/enforce a default structure, but more softly, and in a way
-#   that's more compatible with the configurable drag-n-drop nature of the other views)
-
-
-@enum_(EnumType.SIDEBAR_ASPECT)
-class SidebarAspect(BuiltinEnum):  # :DefaultViewAspects
-    BENCH = 1
-    ACTIVITY = 2
-    CATALOG = 3
-    LIBRARY = 4
-
-
-@subnode_(ViewType.SIDEBAR)
-class SidebarView(View):
-    aspect: SidebarAspect | None = p_regular(100, default=None)
-
-
-@enum_(EnumType.CONTEXT_ASPECT)
-class ContextAspect(BuiltinEnum):  # :DefaultViewAspects
-    DETAIL = 1
-    RUN = 2
-    CHAT = 3
-    LOG = 4
-
-
-@subnode_(ViewType.CONTEXT)
-class ContextView(View):
-    aspect: ContextAspect | None = p_regular(100, default=None)
 
 
 #
