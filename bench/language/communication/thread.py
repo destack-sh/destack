@@ -3,15 +3,18 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    INLINE_NODE_TYPES,
     BuiltinEnum,
     EnumType,
     InlineNode,
     IsInstantiable,
+    IsJoinable,
     IsModal,
     IsOwnable,
     IsRuntime,
     IsTimed,
     IsTitled,
+    LocalNodeList,
     Node,
     NodeReference,
     NodeType,
@@ -26,11 +29,10 @@ from bench.language.core import (
     p_system,
     timed_node_,
 )
-from bench.language.core.const import INLINE_NODE_TYPES
 from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Message, Package, Page, Run
+    from bench.language import Channel, Membership, Message, Package, Page, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -51,6 +53,7 @@ class ThreadStatus(BuiltinEnum):
 class Thread(
     IsTimed,
     IsOwnable,
+    IsJoinable,
     IsTitled,
     IsModal,
     IsRuntime,
@@ -118,6 +121,7 @@ class Thread(
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
     )
+    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
 
     @property
     def container(self) -> "Node | None":

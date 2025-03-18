@@ -41,10 +41,10 @@ from bench.language import (
     NodeType,
     Ownable,
     Package,
+    PolicySubject,
     Query,
     Session,
     Store,
-    Subject,
     TypeBaseNode,
     User,
     bittuple,
@@ -246,7 +246,9 @@ class HostService(GraphServiceBase, HostBase):
                 await self._session.commit()
 
     @tracer.start_as_current_span("host.get_request_subject")
-    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
+    async def get_request_subject(
+        self, request: ProtoMessage, metadata: RpcMetadata
+    ) -> PolicySubject:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._session is not None, f"session not ready in {self!r}"
 
@@ -287,7 +289,7 @@ class HostService(GraphServiceBase, HostBase):
 
         # use new supergraph instance for session
         supergraph = self._supergraph.instance(name="Request")
-        subject = Subject(
+        subject = PolicySubject(
             is_authenticated=client is not None,
             is_staff=is_staff,
             client=client,
@@ -500,7 +502,7 @@ class HostService(GraphServiceBase, HostBase):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _parse_commit(self, subject: Subject, context: IsRuntime, edits: Sequence[EditData]):
+    def _parse_commit(self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]):
         assert subject.client and subject.client_ptr, f"no client for {subject!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
@@ -516,7 +518,7 @@ class HostService(GraphServiceBase, HostBase):
         return scope
 
     @override
-    def _adapt_read_query(self, subject: Subject, query: Query) -> Query:
+    def _adapt_read_query(self, subject: PolicySubject, query: Query) -> Query:
         query = super()._adapt_read_query(subject, query)
 
         # restrict to this bench if it's a in-bench query
@@ -780,7 +782,7 @@ class HostService(GraphServiceBase, HostBase):
 
 
 @tracer.start_as_current_span("host.validate_context")
-def validate_context(subject: Subject, context: IsRuntime, edits: Sequence[EditData]):
+def validate_context(subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]):
     """Checks the session context and per edit context for consistency."""
     assert subject.client and subject.client_ptr, f"no client for {subject!r}"
     if not context.client_ptr or context.client_ptr.id != subject.client_ptr.id:

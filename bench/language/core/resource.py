@@ -16,6 +16,7 @@ from .const import (
 )
 from .node import (
     InlineNode,
+    IsClaimable,
     IsModal,
     IsNamed,
     IsOwnable,
@@ -64,7 +65,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 @node_component_()
 class Resource[NodeDataT: AnyNodeData](
-    IsModal, IsTemplatable, IsOwnable, IsNamed, InlineNode[NodeDataT]
+    IsModal, IsTemplatable, IsOwnable, IsNamed, IsClaimable, InlineNode[NodeDataT]
 ):
     """
     A Resource in a Bench.

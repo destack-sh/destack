@@ -24,10 +24,10 @@ from opentelemetry import trace
 
 from bench.language import (
     ANCESTOR_NODE_TYPES,
-    EDIT_SUBJECT_TYPES,
     EMPTY_SCOPE_DATA,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
+    SUBJECT_TYPES,
     AccessError,
     Bench,
     Context,
@@ -46,11 +46,11 @@ from bench.language import (
     NodeSuperGraph,
     NodeType,
     PolicyEffect,
+    PolicySubject,
     Query,
     QueryType,
     SelectOptions,
     Session,
-    Subject,
     TypeBaseNode,
     ValidationError,
     bittuple,
@@ -215,7 +215,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
             )
 
-    def _adapt_read_query(self, subject: Subject, query: "Query") -> "Query":
+    def _adapt_read_query(self, subject: PolicySubject, query: "Query") -> "Query":
         """
         Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
         Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
@@ -277,7 +277,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         )
 
     def _parse_commit(
-        self, subject: Subject, context: IsRuntime, edits: Sequence[EditData]
+        self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
         area = extract_commit_area(edits, base_graph=None)
@@ -364,7 +364,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         *,
         area: "CommitArea",
         scope: GraphScopeData,
-        subject: Subject,
+        subject: PolicySubject,
         context: IsRuntime,
         edits: Sequence[EditData],
     ) -> tuple[Sequence[EditData], Sequence[EditData]]:
@@ -909,7 +909,7 @@ def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
     return abs((now - dt).total_seconds()) <= MAX_TIME_DRIFT_SECONDS
 
 
-def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
+def validate_edit(edit: EditData, subject: PolicySubject, now: datetime) -> None:
     """Checks the given (non-system) edit for basic validity."""
     assert subject.client, f"{subject!r} has no client"
     node_type = NodeType(edit.node_ptr.node_type)
@@ -929,8 +929,8 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
                 f"subject mismatch in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r} != {user_id}",
             )
     else:
-        # subject must be a Run/Server
-        if not edit.subject_ptr or edit.subject_ptr.node_type not in EDIT_SUBJECT_TYPES:
+        # subject one of our member types
+        if not edit.subject_ptr or edit.subject_ptr.node_type not in SUBJECT_TYPES:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
                 f"bad subject in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r}",

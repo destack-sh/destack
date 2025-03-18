@@ -52,6 +52,7 @@ from .const import (
     IS_IN_USER_CODE,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
+    SUBJECT_TYPES,
     UNSET,
     BuiltinEnum,
     FieldType,
@@ -62,6 +63,7 @@ from .const import (
     QueryType,
     ReferenceKind,
     StructType,
+    Subject,
     TypeKind,
     active_session,
     bittuple,
@@ -69,14 +71,10 @@ from .const import (
 from .graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph
 from .list import LocalNodeList, attach_node
 from .object import (
-    EDIT_SUBJECT_TYPES,
     EMPTY_SCOPE_DATA,
-    OWNER_TYPES,
     BuiltinObject,
-    EditSubject,
     FieldOrProperty,
     NodeTypeOrClass,
-    Owner,
     _process_object_cls,
     _trace_edit_operation,
     object_,
@@ -418,30 +416,30 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         parent_ck: Optional[UUID] = None
         parent_ptr: Optional[NodeReference] = None
     # BenchNode.bench: 5
-    # AuthNode.organization/user: 6-7
-    # SourceNode.package: 8
+    # PackageNode.package: 6
+    # AuthNode.organization/team/user: 7-9
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
-    created_by: Optional[EditSubject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
+    created_by: Optional[Subject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
         11,
         default=None,
         require=False,
         array=False,
         autoset=True,
-        references=EDIT_SUBJECT_TYPES,
+        references=SUBJECT_TYPES.tuple,
         same_bench=True,
         baseless=True,
         ckless=True,
     )
     updated_at: datetime = p_system(12, default=None, require=True, autoset=True)
-    updated_by: Optional[EditSubject] = p_system(  # type: ignore (see above)
+    updated_by: Optional[Subject] = p_system(  # type: ignore (see above)
         13,
         default=None,
         require=False,
         array=False,
         autoset=True,
-        references=EDIT_SUBJECT_TYPES,
+        references=SUBJECT_TYPES.tuple,
         same_bench=True,
         baseless=True,
         ckless=True,
@@ -1421,7 +1419,7 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A Node in a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(
-        8, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
+        9, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
@@ -1512,14 +1510,21 @@ class IsInstantiable(IsTemplatable):
 
 
 @node_component_()
+class IsSubject(BuiltinObject):
+    """A Node that can be a Subject."""
+
+    pass
+
+
+@node_component_()
 class IsOwnable(BuiltinObject):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional[Owner] = p_regular(
+    owned_by: Optional[Subject] = p_regular(
         17,
         require=False,
         array=False,
-        references=OWNER_TYPES,
+        references=SUBJECT_TYPES.tuple,
         same_bench=True,
         baseless=True,
         ckless=True,
@@ -1528,6 +1533,20 @@ class IsOwnable(BuiltinObject):
         owned_by_id: Optional[UUID] = None
         owned_by_type: Optional[NodeType] = None
         owned_by_ptr: Optional[NodeReference] = None
+
+
+@node_component_()
+class IsJoinable(BuiltinObject):
+    """A Node that can be joined by a Subject."""
+
+    pass
+
+
+@node_component_()
+class IsClaimable(BuiltinObject):
+    """A Node that can be claimed by a Subject."""
+
+    pass
 
 
 @node_component_()

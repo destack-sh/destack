@@ -63,22 +63,7 @@ from .property import (
 from .validation import ValidationHandler, on_invalid_raise
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Action,
-        Claim,
-        Computer,
-        CustomObject,
-        Field,
-        Flow,
-        Link,
-        Node,
-        NodeReference,
-        Organization,
-        PropertyReference,
-        Run,
-        Session,
-        User,
-    )
+    from bench.language import CustomObject, Field, Node, NodeReference, PropertyReference, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -89,25 +74,6 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
-EditSubject = Union["User", "Computer", "Flow", "Action", "Run"]
-EDIT_SUBJECT_TYPES = (
-    NodeType.USER,
-    NodeType.COMPUTER,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.RUN,
-)
-
-Owner = Union["User", "Organization", "Flow", "Action", "Computer", "Link", "Claim"]
-OWNER_TYPES = (
-    NodeType.USER,
-    NodeType.ORGANIZATION,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.LINK,
-    NodeType.COMPUTER,
-    NodeType.CLAIM,
-)
 
 
 class _SetupStage(IntEnum):

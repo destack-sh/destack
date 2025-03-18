@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.17.6"
+VERSION = "2025.03.18.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -170,45 +170,6 @@ ORGANIZATION_TABLE = Table(
         Column("main_handle_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
-    constraints=(
-        Constraint(
-            "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
-        ),
-    ),
-)
-
-TEAM_TABLE = Table(
-    "bench_team",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("team_id", PrimitiveType.UUID, is_nullable=True),
-        Column("organization_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column(
-            "main_bench_id",
-            PrimitiveType.UUID,
-            is_foreign_key_to="bench_bench",
-            on_delete=CascadeAction.SET_NULL,
-            is_nullable=True,
-        ),
-    ),
-    indexes=(
-        Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),
-        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
-    ),
     constraints=(
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
@@ -1263,6 +1224,7 @@ SPACE_TABLE = Table(
         Column("inspection_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("channel_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1275,6 +1237,7 @@ CHANNEL_TABLE = Table(
     "bench_channel",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
@@ -1339,6 +1302,7 @@ THREAD_TABLE = Table(
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
@@ -1383,6 +1347,7 @@ MESSAGE_TABLE = Table(
         Column("title", PrimitiveType.JSON, is_nullable=True),
         Column("platform", PrimitiveType.INT16, default="1"),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
@@ -1445,6 +1410,7 @@ NOTIFICATION_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("title", PrimitiveType.JSON, is_nullable=True),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="30"),
@@ -1467,6 +1433,43 @@ NOTIFICATION_TABLE = Table(
     ),
 )
 
+TEAM_TABLE = Table(
+    "bench_team",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("organization_id", PrimitiveType.UUID, is_nullable=True),
+        Column("team_id", PrimitiveType.UUID, is_nullable=True),
+        Column("team_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("team_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("package_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="20"),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("definition_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+    ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
 MEMBERSHIP_TABLE = Table(
     "bench_membership",
     (
@@ -1483,10 +1486,10 @@ MEMBERSHIP_TABLE = Table(
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
-        Column("to_id", PrimitiveType.UUID),
-        Column("to_type", PrimitiveType.INT16),
-        Column("to_bench_id", PrimitiveType.UUID),
         Column("member_id", PrimitiveType.UUID),
+        Column("member_ck", PrimitiveType.UUID),
+        Column("member_type", PrimitiveType.INT16),
+        Column("member_bench_id", PrimitiveType.UUID),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1574,6 +1577,7 @@ RUN_TABLE = Table(
         Column("options", PrimitiveType.JSON),
         Column("page_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),

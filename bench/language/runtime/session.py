@@ -32,7 +32,6 @@ from bench.language.core import (
     NODE_TYPES,
     BenchError,
     BenchNode,
-    EditSubject,
     EditType,
     IsModal,
     IsRuntime,
@@ -43,6 +42,7 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     SessionStatus,
+    Subject,
     bittuple,
     p_node_parent,
     p_regular,
@@ -133,7 +133,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
 
     # context
     _origin: ClientOriginData | None = p_runtime(default=None)
-    _subject: EditSubject | None = p_runtime(default=None)
+    _subject: Subject | None = p_runtime(default=None)
     _context_data: ContextData | None = p_runtime(default=None)
     _is_suspended: bool = p_runtime(default=False)
 

@@ -384,12 +384,12 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
         return None
 
 
-def assert_collections_equal[T](a: Collection[T], b: Collection[T]):
+def assert_collections_equal[T](name: str, a: Collection[T], b: Collection[T]):
     a = set(a)
     b = set(b)
     difference = a.symmetric_difference(b)
     if difference:
-        raise ValueError(f"collections are not equal: {difference}")
+        raise ValueError(f"{name} collections are not equal: {difference}")
 
 
 def cyrb53a(s: str, seed: int = 0) -> int:

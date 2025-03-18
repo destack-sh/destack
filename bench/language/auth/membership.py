@@ -1,12 +1,14 @@
-from typing import TYPE_CHECKING, Optional, Union
-from uuid import UUID
+from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
+    JOINABLE_NODE_TYPES,
+    SUBJECT_TYPES,
     BenchNode,
     BuiltinEnum,
     EnumType,
-    NodeReference,
+    Joinable,
     NodeType,
+    Subject,
     enum_,
     node_,
     p_internal,
@@ -16,7 +18,7 @@ from bench.language.core import (
 from bench.pb2.lang_pb2 import MembershipData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Channel, Organization, Team, Thread, User
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,31 +38,9 @@ class Membership(BenchNode[MembershipData]):
     A Membership to something for someone.
     """
 
-    parent: Union["Bench", None] = p_node_parent(
-        4, NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM
-    )
-    if TYPE_CHECKING:
-        bench_id: Optional[UUID] = None
-        bench_ptr: Optional[NodeReference] = None
-        organization_id: Optional[UUID] = None
-        organization_ptr: Optional[NodeReference] = None
-
+    parent: Union[Joinable, None] = p_node_parent(4, *JOINABLE_NODE_TYPES)
     # meta
     type: MembershipType = p_regular(30, require=True)
 
     # content
-    to: Union["Bench", "Organization", "Team", "Channel", "Thread"] = p_regular(
-        40,
-        require=True,
-        array=False,
-        baseless=True,
-        ckless=True,
-        references=(
-            NodeType.BENCH,
-            NodeType.ORGANIZATION,
-            NodeType.TEAM,
-            NodeType.CHANNEL,
-            NodeType.THREAD,
-        ),
-    )
-    member: "User" = p_internal(41, require=True, array=False, references=NodeType.USER)
+    member: Subject = p_internal(41, require=True, array=False, references=SUBJECT_TYPES.tuple)

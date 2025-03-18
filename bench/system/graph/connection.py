@@ -17,12 +17,12 @@ from bench.language import (
     NodeDataGraph,
     NodeReference,
     NodeType,
+    PolicySubject,
     Query,
     QueryType,
     SearchOptions,
     SearchResultData,
     Session,
-    Subject,
     WatchAggregateUpdateData,
     WatchGetUpdateData,
     WatchSearchUpdateData,
@@ -126,7 +126,7 @@ class Connection[
 
     @final
     async def subscribe(
-        self, subject: Subject, since_epoch: int
+        self, subject: PolicySubject, since_epoch: int
     ) -> "ConnectionSubscription[UpdateT]":
         """Subscribe to the query results."""
         subscription = ConnectionSubscription(self, subject, since_epoch)
@@ -171,7 +171,7 @@ class Connection[
 class ConnectionSubscription[UpdateT: Any]:
     """An active subscriber to the query connection."""
 
-    def __init__(self, connection: Connection, subject: Subject, since_epoch: int):
+    def __init__(self, connection: Connection, subject: PolicySubject, since_epoch: int):
         self.connection = connection
         self.subject = subject
         self._since_epoch = since_epoch
@@ -632,7 +632,7 @@ class ConnectionIndex:
 
     async def subscribe[ConnectionT: Connection, UpdateT: Any](
         self,
-        subject: Subject,
+        subject: PolicySubject,
         connection_t: type[ConnectionT],
         update_t: type[UpdateT],
         connection_token: str,

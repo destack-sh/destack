@@ -3,7 +3,10 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Callable, Union, cast
 
-from bench.language.core.const import (
+from bench.utils.env import IS_DEV
+from bench.utils.func import assert_collections_equal, get_subclasses
+
+from .core.const import (
     _ENUM_CLASS_BY_TYPE,
     LOCAL_NODE_TYPES,
     NODE_TYPES,
@@ -16,8 +19,6 @@ from bench.language.core.const import (
     StructType,
     bittuple,
 )
-from bench.utils.env import IS_DEV
-from bench.utils.func import assert_collections_equal, get_subclasses
 
 if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, NodeSubtypeStub, Struct
@@ -66,7 +67,15 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import BuiltinObject, CustomObject, Node, Struct
+    from bench.language import (
+        BuiltinObject,
+        CustomObject,
+        IsClaimable,
+        IsJoinable,
+        IsSubject,
+        Node,
+        Struct,
+    )
     from bench.language.core import (
         InlineNode,
         IsInstantiable,
@@ -231,26 +240,19 @@ def _complete_bench_setup():
         hook()
 
     if IS_DEV:
-        # check that INLINE_NODE_TYPES is consistent with IsInlinable
-        inlinable_node_types = [
-            cast(Node, n).metatype
-            for n in get_subclasses(InlineNode)
-            if getattr(n, "metatype", None)
-        ]
-        assert_collections_equal(inlinable_node_types, const.INLINE_NODE_TYPES.tuple)
-
-        # check that TEMPLATABLE_NODE_TYPES is consistent with IsTemplatable
-        templatable_node_types = [
-            cast(Node, n).metatype
-            for n in get_subclasses(IsTemplatable)
-            if getattr(n, "metatype", None)
-        ]
-        assert_collections_equal(templatable_node_types, const.TEMPLATABLE_NODE_TYPES.tuple)
-
-        # check that INSTANTIABLE_NODE_TYPES is consistent with IsInstantiable
-        instantiable_node_types = [
-            cast(Node, n).metatype
-            for n in get_subclasses(IsInstantiable)
-            if getattr(n, "metatype", None)
-        ]
-        assert_collections_equal(instantiable_node_types, const.INSTANTIABLE_NODE_TYPES.tuple)
+        # check that node type collections are consistent with their respective base classes
+        for base_cls, node_types_tuple in [
+            (InlineNode, const.INLINE_NODE_TYPES.tuple),
+            (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
+            (IsInstantiable, const.INSTANTIABLE_NODE_TYPES.tuple),
+            (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
+            (IsJoinable, const.JOINABLE_NODE_TYPES.tuple),
+            (IsClaimable, const.CLAIMABLE_NODE_TYPES.tuple),
+            (IsSubject, const.SUBJECT_TYPES.tuple),
+        ]:
+            actual_node_types = [
+                cast(Node, n).metatype
+                for n in get_subclasses(base_cls)
+                if getattr(n, "metatype", None)
+            ]
+            assert_collections_equal(base_cls.__name__, actual_node_types, node_types_tuple)

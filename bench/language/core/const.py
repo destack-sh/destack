@@ -29,7 +29,28 @@ from bench.utils.env import IS_TEST
 from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
-    from bench.language import Node, RunSpan, RunSpanType, Session, Severity, Text, Transaction
+    from bench.language import (
+        Action,
+        Bench,
+        Channel,
+        Claim,
+        Computer,
+        Flow,
+        Kit,
+        Link,
+        Node,
+        Organization,
+        Resource,
+        RunSpan,
+        RunSpanType,
+        Session,
+        Severity,
+        Team,
+        Text,
+        Thread,
+        Transaction,
+        User,
+    )
     from bench.runtime.core import Runner
 
 
@@ -42,7 +63,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.17.6"
+VERSION = "2025.03.18.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -493,7 +514,6 @@ class NodeType(BuiltinEnum):
     HANDLE = 2, None, None, "fas fa-at"
     USER = 10, None, None, "fas fa-user"
     ORGANIZATION = 20, None, None, "fas fa-building"
-    TEAM = 30, None, None, "fas fa-users"
     CLIENT = 50, None, None, "fas fa-desktop"
     # CHALLENGE?
 
@@ -561,8 +581,10 @@ class NodeType(BuiltinEnum):
     NOTIFICATION = 5540, None, None, "fas fa-bell"
 
     # auth
-    MEMBERSHIP = 5600, None, None, "fas fa-users"
-    INVITE = 5610, None, None, "fas fa-user-plus"
+    TEAM = 5600, None, None, "fas fa-users"
+    MEMBERSHIP = 5610, None, None, "fas fa-users"
+    INVITE = 5620, None, None, "fas fa-user-plus"
+
     # CHALLENGE?
 
     # runtime
@@ -681,7 +703,6 @@ RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 INLINE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
-    NodeType.CHANNEL,
     NodeType.CHOICE,
     NodeType.CLASS,
     NodeType.DATABASE,
@@ -694,6 +715,8 @@ INLINE_NODE_TYPES = bittuple(
     NodeType.TASK,
     NodeType.PLAN,
     NodeType.THREAD,
+    NodeType.CHANNEL,
+    NodeType.TEAM,
 )
 INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.ACTION,
@@ -704,6 +727,8 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.TASK,
     NodeType.THREAD,
     NodeType.CLAIM,
+    NodeType.CHANNEL,
+    NodeType.TEAM,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, *INSTANTIABLE_NODE_TYPES, NodeType.CHANNEL
@@ -723,6 +748,33 @@ BENCH_NODE_TYPES = _get_node_types(
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
+
+
+Subject = Union["User", "Organization", "Flow", "Action", "Computer", "Link", "Claim"]
+SUBJECT_TYPES = bittuple(
+    NodeType.USER,
+    NodeType.ORGANIZATION,
+    NodeType.FLOW,
+    NodeType.ACTION,
+    NodeType.LINK,
+    NodeType.COMPUTER,
+    NodeType.CLAIM,
+)
+
+Claimable = Union["Resource", "Flow", "Action", "Kit"]
+CLAIMABLE_NODE_TYPES = bittuple(
+    *RESOURCE_NODE_TYPES.tuple, NodeType.FLOW, NodeType.ACTION, NodeType.KIT
+)
+
+Joinable = Union["Bench", "Organization", "Team", "Channel", "Thread"]
+JOINABLE_NODE_TYPES = bittuple(
+    NodeType.BENCH,
+    NodeType.ORGANIZATION,
+    NodeType.TEAM,
+    NodeType.CHANNEL,
+    NodeType.THREAD,
+)
+
 # NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
 LOADED_PACKAGE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES,
@@ -756,7 +808,7 @@ class StructType(BuiltinEnum):
     # access (10500-10999)
     POLICY = 10500
     POLICY_RULE = 10501
-    SUBJECT = 10502
+    POLICY_SUBJECT = 10502
     ACCESS_ZONE = 10503
     ACCESS_MATRIX = 10504
     ACCESS = 10505

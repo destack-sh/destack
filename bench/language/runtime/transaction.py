@@ -14,11 +14,9 @@ from opentelemetry import trace
 from bench import pb2
 from bench.language.connection import Connector, WritableConnector
 from bench.language.core import (
-    EDIT_SUBJECT_TYPES,
     BuiltinObject,
     CustomObject,
     EditOperationType,
-    EditSubject,
     EditType,
     GraphScope,
     Node,
@@ -29,6 +27,7 @@ from bench.language.core import (
     PrimitiveType,
     Struct,
     StructType,
+    Subject,
     p_internal,
     p_system,
     p_value_packed,
@@ -159,8 +158,8 @@ class Edit(Struct):
     category: "ChangeCategory | None" = p_system(
         62, require=False, description="Optional classification for the Edit."
     )
-    subject: EditSubject | None = p_system(
-        63, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the Edit."
+    subject: Optional[Subject] = p_system(
+        63, require=False, references="any", description="Who made the Edit."
     )
     origin: "ClientOrigin | None" = p_system(
         64, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the Edit came from."

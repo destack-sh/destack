@@ -28,7 +28,7 @@ from bench.language import (
     AccessError,
     BenchError,
     NodeNotFoundError,
-    Subject,
+    PolicySubject,
     ValidationError,
 )
 from bench.pb2 import RpcMetadata, ServiceKind
@@ -48,8 +48,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-UnaryRpcCallable = Callable[[Subject, ProtoMessage], ProtoMessage]
-StreamRpcCallable = Callable[[Subject, ProtoMessage], AsyncIterable[ProtoMessage]]
+UnaryRpcCallable = Callable[[PolicySubject, ProtoMessage], ProtoMessage]
+StreamRpcCallable = Callable[[PolicySubject, ProtoMessage], AsyncIterable[ProtoMessage]]
 RpcCallable = Union[UnaryRpcCallable, StreamRpcCallable]
 
 ServiceStubT = TypeVar("ServiceStubT")
@@ -168,8 +168,10 @@ class ServiceBase(abc.ABC):
         """Sends the response to the given stream."""
         await stream.send_message(response)
 
-    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
-        return Subject(is_authenticated=False)
+    async def get_request_subject(
+        self, request: ProtoMessage, metadata: RpcMetadata
+    ) -> PolicySubject:
+        return PolicySubject(is_authenticated=False)
 
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
