@@ -2,12 +2,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
-    INLINE_NODE_TYPES,
     NAME_CONSTRAINT,
     BuiltinEnum,
     ColorType,
     EnumType,
-    InlineNode,
     IsModal,
     IsTemplatable,
     NodeType,
@@ -29,9 +27,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Interruption,
-        Node,
-        Package,
-        Page,
         Plan,
         Run,
         Task,
@@ -92,12 +87,6 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional[Text] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
-    scope: Union["InlineNode", "Package", None] = p_regular(
-        35,
-        require=False,
-        array=False,
-        references=(*INLINE_NODE_TYPES, NodeType.PACKAGE),
-    )
     run_root: Optional["Run"] = p_regular(
         36,
         require=False,
@@ -127,10 +116,6 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     closed_at: Optional[datetime] = p_system(45, default=None)
 
     @property
-    def container(self) -> "Node | None":
-        return self.scope
-
-    @property
     def is_open(self) -> bool:
         return self.status.is_open
 
@@ -140,9 +125,8 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         text: Text | None = None,
         *,
         effect: TriggerEffect = TriggerEffect.START_RUN,
-        scope: Union["Page", "Package", None] = None,
     ) -> "Trigger":
-        return Trigger(type=TriggerType.START, name=name, text=text, effect=effect, scope=scope)
+        return Trigger(type=TriggerType.START, name=name, text=text, effect=effect)
 
     @staticmethod
     def on_message(
@@ -150,11 +134,8 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         text: Text | None = None,
         *,
         effect: TriggerEffect = TriggerEffect.START_RUN,
-        scope: Union["Page", "Package", None] = None,
     ) -> "Trigger":
-        trigger = Trigger(
-            type=TriggerType.MESSAGE, name=name, text=text, effect=effect, scope=scope
-        )
+        trigger = Trigger(type=TriggerType.MESSAGE, name=name, text=text, effect=effect)
         return trigger
 
 

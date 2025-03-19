@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.19.1"
+VERSION = "2025.03.19.3"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -484,8 +484,7 @@ class EnumType(BuiltinEnum):
     ORGANIZATION_STATUS = 22451
 
     # messaging (22500-22549)
-    CHANNEL_TYPE = 22500
-    THREAD_TYPE = 22501
+    CHANNEL_STATUS = 22500
     THREAD_STATUS = 22502
     MESSAGE_TYPE = 22503
     MESSAGE_STATUS = 22504
@@ -1545,42 +1544,48 @@ class ErrorKind(BuiltinEnum):
 @enum_(EnumType.RUN_STATUS)
 class RunStatus(BuiltinEnum):
     # pre
-    CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
-    SCHEDULED = 2, None, None, "fas fa-clock", ColorType.GRAY
-    QUEUED = 3, None, None, "fas fa-hourglass", ColorType.GRAY
+    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-clock", ColorType.GRAY
+    SCHEDULED = 2, "Scheduled", "Scheduled to run sometime", "fas fa-clock", ColorType.GRAY
+    QUEUED = 3, "Queued", "Queued to run soon", "fas fa-hourglass", ColorType.GRAY
     # active
-    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.GREEN
+    RUNNING = 10, "Running", "Executing right now", "fas fa-circle-notch", ColorType.GREEN
     # interrupted
-    PAUSED = 20, None, None, "fas fa-circle-pause", ColorType.PINK
-    YIELDED = 21, None, None, "fas fa-circle-pause", ColorType.PINK
-    WAITING = 22, None, None, "fas fa-circle-pause", ColorType.PINK
+    PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
+    YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK
+    WAITING = 22, "Waiting", "Waiting for a condition", "fas fa-circle-pause", ColorType.PINK
     # terminal
-    CANCELLED = 30, None, None, "fas fa-circle-xmark", ColorType.RED
-    ABORTED = 31, None, None, "fas fa-skull", ColorType.RED
-    FAILED = 32, None, None, "fas fa-circle-exclamation", ColorType.RED
-    COMPLETED = 33, None, None, "fas fa-circle-check", ColorType.GREEN
+    CANCELLED = 30, "Cancelled", "Cancelled manually", "fas fa-circle-xmark", ColorType.GRAY
+    ABORTED = 31, "Aborted", "Aborted due to an error", "fas fa-skull", ColorType.GRAY
+    FAILED = 32, "Failed", "Failed due to an error", "fas fa-circle-exclamation", ColorType.RED
+    COMPLETED = 33, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
+    SKIPPED = (
+        34,
+        "Skipped",
+        "Skipped due to a condition",
+        "fas fa-circle-exclamation",
+        ColorType.GRAY,
+    )
+
+    @property
+    def is_pre(self) -> bool:
+        return self < 10
 
     @property
     def is_active(self) -> bool:
-        return self in ACTIVE_RUN_STATUSES
+        return self >= 10 and self < 20
 
     @property
     def is_interrupted(self) -> bool:
-        return self in INTERRUPTED_RUN_STATUSES
+        return self >= 20 and self < 30
 
     @property
     def is_terminal(self) -> bool:
-        return self in TERMINAL_RUN_STATUSES
+        return self >= 30
 
 
-INTERRUPTED_RUN_STATUSES = bittuple(RunStatus.PAUSED, RunStatus.YIELDED)
-ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, *INTERRUPTED_RUN_STATUSES)
-TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
-    RunStatus.CANCELLED,
-    RunStatus.ABORTED,
-    RunStatus.FAILED,
-    RunStatus.COMPLETED,
-)
+INTERRUPTED_RUN_STATUSES = bittuple(*(s for s in RunStatus if s.is_interrupted))
+ACTIVE_RUN_STATUSES = bittuple(*(s for s in RunStatus if s.is_active))
+TERMINAL_RUN_STATUSES = bittuple(*(s for s in RunStatus if s.is_terminal))
 
 
 @enum_(EnumType.SESSION_STATUS)

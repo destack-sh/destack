@@ -37,12 +37,10 @@ if TYPE_CHECKING:
         Flow,
         Link,
         Message,
-        Page,
         Run,
         RunSpan,
         Task,
         Text,
-        Trigger,
         TypeBase,
     )
 
@@ -168,7 +166,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    page: Optional["Page"] = p_internal(32, require=False, array=False, references=NodeType.PAGE)
     flow: Optional["Flow"] = p_internal(33, require=False, array=False, references=NodeType.FLOW)
     action: Optional["Action"] = p_internal(
         34, require=False, array=False, references=NodeType.ACTION
@@ -228,14 +225,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         references=NodeType.TASK,
         description="The Task that was created for this Interruption.",
         same_bench=True,
-    )
-
-    # trigger
-    cancel_trigger: Optional["Trigger"] = p_regular(
-        60, require=False, array=False, references=NodeType.TRIGGER
-    )
-    complete_trigger: Optional["Trigger"] = p_regular(
-        61, require=False, array=False, references=NodeType.TRIGGER
     )
 
     # context
@@ -324,7 +313,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             type=kind,
             parent=run,
             session=run.session,
-            page=run.page,
             flow=run.flow,
             action=run.action,
             link=run.link,

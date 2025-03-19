@@ -27,7 +27,7 @@ from bench.pb2 import ClaimData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Action, Flow, Identity, Kit, Page, Role, Run
+    from bench.language import Action, Flow, Identity, Kit, Page, Role, Run, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -69,21 +69,24 @@ class Claim(
     PackageNode[ClaimData],
 ):
     """
-    A Claim on something (like a Resource or runnable tool Node for a 'tool').
+    A Claim on something (like a Resource, runnable tool Node for a 'tool', or some other Node).
     Depending on the claim, a Claim may be instantiated and granted/rejected at runtime.
     """
 
     # meta
-    parent: Union["Page", "Kit", "Flow", "Action", "Identity", "Role", "Run", None] = p_node_parent(
-        4,
-        NodeType.PAGE,
-        NodeType.KIT,
-        NodeType.FLOW,
-        NodeType.ACTION,
-        NodeType.IDENTITY,
-        NodeType.ROLE,
-        NodeType.RUN,
-        ckless=True,
+    parent: Union["Page", "Kit", "Flow", "Action", "Identity", "Role", "Thread", "Run", None] = (
+        p_node_parent(
+            4,
+            NodeType.PAGE,
+            NodeType.KIT,
+            NodeType.FLOW,
+            NodeType.ACTION,
+            NodeType.IDENTITY,
+            NodeType.ROLE,
+            NodeType.THREAD,
+            NodeType.RUN,
+            ckless=True,
+        )
     )
     type: ClaimType = p_system(30, require=True)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

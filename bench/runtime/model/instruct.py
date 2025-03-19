@@ -522,9 +522,6 @@ outputs: CustomObject
     context_parts: list[PromptPart] = []
     # source
     source_pages: set[Page] = set()
-    for run in seen_runs:
-        if (page := run.page) is not None:
-            source_pages.add(page)
     # containing pages
     source_pages.difference_update(source_pages)  # remove pages
     for page in source_pages:

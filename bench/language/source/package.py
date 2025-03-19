@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         Dependency,
         Flow,
         Icon,
+        Identity,
         Page,
         Scaler,
         Space,
@@ -56,7 +57,7 @@ class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageDat
 
     # NOTE :Architecture: maybe we should factor out main_channel/main_flow/.. from Package
     #  (into something more general that we could also use in Page or Flow or such)
-    main_channel: Optional["Channel"] = p_regular(
+    default_channel: Optional["Channel"] = p_regular(
         50,
         require=False,
         array=False,
@@ -65,13 +66,22 @@ class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageDat
         ckless=True,
         description="The default Channel to communicate with.",
     )
-    main_flow: Optional["Flow"] = p_regular(
+    default_flow: Optional["Flow"] = p_regular(
         51,
         require=False,
         array=False,
         ckless=True,
         references=NodeType.FLOW,
         description="The default Flow for dynamic behavior.",
+    )
+    default_identity: Optional["Identity"] = p_regular(
+        52,
+        require=False,
+        array=False,
+        references=NodeType.IDENTITY,
+        same_bench=True,
+        ckless=True,
+        description="The default Identity for Flows.",
     )
 
     stores: LocalNodeList["Store"] = p_node_children(NodeType.STORE)

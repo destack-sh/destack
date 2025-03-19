@@ -42,6 +42,7 @@ if TYPE_CHECKING:
         Error,
         Flow,
         Interruption,
+        Node,
         NodeReference,
         Page,
         Plan,
@@ -115,22 +116,15 @@ class Task(
     terminated_at: Optional[datetime] = p_internal(56, default=None)
     error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
 
-    # content
+    # routing
     text: Optional["Text"] = p_regular(
         60, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-    clazz: Optional["Class"] = p_internal(
-        61,
-        require=False,
-        array=False,
-        references=NodeType.CLASS,
-        description="The Task class.",
     )
     target: Union["Flow", "Action", None] = p_regular(
         62,
         require=False,
         references=(NodeType.FLOW, NodeType.ACTION),
-        description="The target Node to run.",
+        description="The target Node at which to run this Task.",
     )
     tool: Union["Flow", "Action", None] = p_regular(
         63,
@@ -138,17 +132,16 @@ class Task(
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The tool Node to use (at the target).",
     )
-    value_packed: Any = p_value_packed(65)
-    value: Any = p_value_runtime(
-        65, type=FieldType.INPUT, typ=lambda self: cast(Task, self).value_type
-    )
     interruption: Optional["Interruption"] = p_regular(
-        66,
+        67,
         require=False,
         array=False,
         references=NodeType.INTERRUPTION,
         description="The Interruption this is about.",
         same_bench=True,
+    )
+    is_manual: bool = p_regular(
+        69, default=False, description="Whether to implement this Task manually."
     )
     if TYPE_CHECKING:
         clazz_ptr: Optional[NodeReference] = None
@@ -160,10 +153,24 @@ class Task(
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
 
-    # flags
-    is_manual: bool = p_regular(
-        70, default=False, description="Whether to implement this Task manually."
+    # content
+    clazz: Optional["Class"] = p_internal(
+        70,
+        require=False,
+        array=False,
+        references=NodeType.CLASS,
+        description="The Task class.",
     )
+    value_packed: Any = p_value_packed(71)
+    value: Any = p_value_runtime(
+        71, type=FieldType.INPUT, typ=lambda self: cast(Task, self).value_type
+    )
+    nodes: list["Node"] = p_regular(
+        72, require=False, array=True, references="any", description="The Nodes this Task is about."
+    )
+    if TYPE_CHECKING:
+        nodes_ptr: Optional[NodeReference] = None
+        nodes_id: Optional[UUID] = None
 
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)

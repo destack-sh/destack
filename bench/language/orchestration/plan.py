@@ -28,7 +28,7 @@ from bench.language.core import (
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
-    from bench.language import Error, NodeReference, Page, Run, Task, Trigger
+    from bench.language import Error, NodeReference, Page, Run, Task, Thread, Trigger
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -87,8 +87,8 @@ class Plan(
     """A Plan for something expressed as a sequence of Tasks."""
 
     # meta
-    parent: Union["Page", "Plan", "Run", None] = p_node_parent(
-        4, NodeType.PAGE, NodeType.PLAN, NodeType.RUN
+    parent: Union["Page", "Thread", "Plan", "Run", None] = p_node_parent(
+        4, NodeType.PAGE, NodeType.THREAD, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
     on_terminate: "PlanTerminationMode" = p_internal(41)
