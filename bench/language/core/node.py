@@ -691,7 +691,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def is_attached(self) -> bool:
-        """Whether this Node is attached to a roots."""
+        """
+        Whether this Node is attached to a roots.
+        TODO :Performance: Node.is_attached is very inefficient
+        """
         if not self.__roots__.bits.any():
             return True  # always attached
         parent = self
@@ -725,7 +728,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         **kwargs,
     ) -> Self:
         # clone self
-        clone = super().clone(reset=reset, **kwargs)
+        copy_kwargs = self._clone_kwargs(reset=reset)
+        copy_kwargs.update(kwargs)
+        clone = self.__class__(**copy_kwargs, _is_new=True)
 
         # clone children and append to self (recursive)
         if map is True:

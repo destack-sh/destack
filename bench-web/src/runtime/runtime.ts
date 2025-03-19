@@ -33,7 +33,7 @@ import {
   RunSpanData,
   RunStatus,
   Timestamp,
-  type RunData
+  type RunData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -41,7 +41,7 @@ import {
   makeDefaultObject,
   propertyReference,
   toNodeRef,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { benchConnection, benchGraph, space, spaceConnection } from "@/system/space";
@@ -76,8 +76,8 @@ export class RunTree {
       computed(() => ({
         scope: graph.scope,
         roots: [this.runPtr.value!],
-        ancestorTypes: [NodeType.RUN],
-        descendantTypes: [NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION],
+        ancestorTypes: [NodeType.THREAD, NodeType.RUN],
+        descendantTypes: [NodeType.THREAD, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION],
         isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),

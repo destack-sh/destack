@@ -482,28 +482,26 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         """Creates a new Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        if node.is_attached:  # ignore detached create (is created on attach)
-            self._pending_nodes_by_id[node.id] = node
-            if (
-                isinstance(node, IsRuntime)
-                and (runtime := self._runtime) is not None
-                and any(
-                    isinstance(ancestor, IsRuntime) and ancestor.session_id == self.id
-                    for ancestor in node._walk_ancestors()
-                )
-            ):
-                # autoset runtime context on new runtime nodes
-                runtime._set_context(node)
-            self._tx.record_edit_event(EditType.CREATE, node)
+        self._pending_nodes_by_id[node.id] = node
+        if (
+            isinstance(node, IsRuntime)
+            and (runtime := self._runtime) is not None
+            and any(
+                isinstance(ancestor, IsRuntime) and ancestor.session_id == self.id
+                for ancestor in node._walk_ancestors()
+            )
+        ):
+            # autoset runtime context on new runtime nodes
+            runtime._set_context(node)
+        self._tx.record_edit_event(EditType.CREATE, node)
 
     def _upsert(self, node: Node):
         """Creates or updates a Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        if node.is_attached:  # ignore detached upsert (is upserted on attach)
-            now = self._oracle.utc()
-            self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(EditType.UPSERT, node, now=now)
+        now = self._oracle.utc()
+        self._pending_nodes_by_id[node.id] = node
+        self._tx.record_edit_event(EditType.UPSERT, node, now=now)
 
     def _update(
         self,
@@ -513,51 +511,49 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         """Updates an existing Node. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        if node.is_attached:  # ignore detached updates
-            self._pending_nodes_by_id[node.id] = node
-            self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
+        self._pending_nodes_by_id[node.id] = node
+        self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
     def _move(self, node: Node, old_parent: Node, new_parent: Node):
         """Moves a Node to a new parent. The operation *is not* applied directly."""
         assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
         assert not self._is_suspended, f"cannot edit {node!r} in {self!r}"
-        if node.is_attached:
-            from bench.language import pack_value
-            from bench.proto import pack_proto_json
+        from bench.language import pack_value
+        from bench.proto import pack_proto_json
 
-            parent_property = node.__parent_property__
-            assert parent_property is not None, f"{node!r} has no parent property"
-            parent_typ = parent_property._type_info
-            assert parent_typ is not None, f"{parent_property!r} has no type info"
+        parent_property = node.__parent_property__
+        assert parent_property is not None, f"{node!r} has no parent property"
+        parent_typ = parent_property._type_info
+        assert parent_typ is not None, f"{parent_property!r} has no type info"
 
-            self._pending_nodes_by_id[node.id] = node
-            old_value_packed = pack_value(old_parent.to_ref(), parent_typ)
-            new_value_packed = pack_value(new_parent.to_ref(), parent_typ)
+        self._pending_nodes_by_id[node.id] = node
+        old_value_packed = pack_value(old_parent.to_ref(), parent_typ)
+        new_value_packed = pack_value(new_parent.to_ref(), parent_typ)
+        operation = EditOperationData(
+            metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
+            type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
+            path=[parent_property.key],
+            new_value_packed=pack_proto_json(new_value_packed),
+            old_value_packed=pack_proto_json(old_value_packed),
+        )
+        self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
+        # also update any computed ancestor properties
+        for prop in node.__node_ancestor_properties__.values():
+            if prop.reference_source is not None:
+                prop = prop.reference_source
+            new_value = getattr(node, prop.name)
+            if new_value is not None:
+                assert isinstance(new_value, Node), f"bad {prop!r}: {new_value!r}"
+                new_value_packed = pack_value(new_value, prop.type_info)  # type: ignore
+            else:
+                new_value_packed = None
             operation = EditOperationData(
                 metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
                 type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
-                path=[parent_property.key],
+                path=[prop.key],
                 new_value_packed=pack_proto_json(new_value_packed),
-                old_value_packed=pack_proto_json(old_value_packed),
             )
-            self._tx.record_edit_event(EditType.MOVE, node, operation=operation)
-            # also update any computed ancestor properties
-            for prop in node.__node_ancestor_properties__.values():
-                if prop.reference_source is not None:
-                    prop = prop.reference_source
-                new_value = getattr(node, prop.name)
-                if new_value is not None:
-                    assert isinstance(new_value, Node), f"bad {prop!r}: {new_value!r}"
-                    new_value_packed = pack_value(new_value, prop.type_info)  # type: ignore
-                else:
-                    new_value_packed = None
-                operation = EditOperationData(
-                    metatype=lang_pb2.OBJECT_TYPE_EDIT_OPERATION,
-                    type=lang_pb2.EDIT_OPERATION_TYPE_SET,  # type: ignore
-                    path=[prop.key],
-                    new_value_packed=pack_proto_json(new_value_packed),
-                )
-                self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
+            self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
 
     def _delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""
