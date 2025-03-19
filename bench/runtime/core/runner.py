@@ -52,6 +52,7 @@ from bench.language import (
     RunStatus,
     RunType,
     Session,
+    Thread,
     TypeBase,
     active_session,
 )
@@ -619,7 +620,7 @@ def make_run_from_node(
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
-    parent: "Package | Run | None" = None,
+    parent: "Package | Thread | Run | None" = None,
     session: "Session | None" = None,
     graph: NodeGraph | None = None,
 ) -> "Run":
@@ -693,7 +694,7 @@ def create_run_from_node(
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
-    parent: "Package | Run | None" = None,
+    parent: "Package | Thread | Run | None" = None,
     session: "Session | None" = None,
     graph: NodeGraph | None = None,
 ) -> "Run":
