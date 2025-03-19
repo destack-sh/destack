@@ -72,9 +72,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 continue
             for trigger in self._active_triggers_by_id.values():
                 if trigger.type == TriggerType.MESSAGE:
-                    # nocheckin :Broken: better MessageTrigger filtering / is_involved check
-                    #  (consider reply_to, what about multiple Runs of same Flow,
-                    #   ideally should route automatically somehow (when none mentioned)?, ...)
+                    # nocheckin: check Channel/Thread.memberships
                     trigger_parent = trigger.parent
                     if isinstance(trigger_parent, Run):
                         trigger_parent = trigger_parent.action

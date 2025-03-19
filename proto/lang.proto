@@ -126,8 +126,7 @@ enum EnumType {
   ENUM_TYPE_PICKER_VARIANT = 22416;
   ENUM_TYPE_USER_STATUS = 22450;
   ENUM_TYPE_ORGANIZATION_STATUS = 22451;
-  ENUM_TYPE_CHANNEL_TYPE = 22500;
-  ENUM_TYPE_THREAD_TYPE = 22501;
+  ENUM_TYPE_CHANNEL_STATUS = 22500;
   ENUM_TYPE_THREAD_STATUS = 22502;
   ENUM_TYPE_MESSAGE_TYPE = 22503;
   ENUM_TYPE_MESSAGE_STATUS = 22504;
@@ -574,8 +573,7 @@ enum BenchType {
   BENCH_TYPE_PICKER_VARIANT = 22416;
   BENCH_TYPE_USER_STATUS = 22450;
   BENCH_TYPE_ORGANIZATION_STATUS = 22451;
-  BENCH_TYPE_CHANNEL_TYPE = 22500;
-  BENCH_TYPE_THREAD_TYPE = 22501;
+  BENCH_TYPE_CHANNEL_STATUS = 22500;
   BENCH_TYPE_THREAD_STATUS = 22502;
   BENCH_TYPE_MESSAGE_TYPE = 22503;
   BENCH_TYPE_MESSAGE_STATUS = 22504;
@@ -1301,6 +1299,7 @@ enum RunStatus {
   RUN_STATUS_ABORTED = 31;
   RUN_STATUS_FAILED = 32;
   RUN_STATUS_COMPLETED = 33;
+  RUN_STATUS_SKIPPED = 34;
 }
 
 enum RunType {
@@ -1900,15 +1899,10 @@ enum OrganizationStatus {
   ORGANIZATION_STATUS_ACTIVATED = 50;
 }
 
-enum ChannelType {
-  CHANNEL_TYPE_UNSPECIFIED = 0;
-  CHANNEL_TYPE_TEXT = 1;
-}
-
-enum ThreadType {
-  THREAD_TYPE_UNSPECIFIED = 0;
-  THREAD_TYPE_SOURCE = 10;
-  THREAD_TYPE_RUN = 20;
+enum ChannelStatus {
+  CHANNEL_STATUS_UNSPECIFIED = 0;
+  CHANNEL_STATUS_OPEN = 10;
+  CHANNEL_STATUS_CLOSED = 30;
 }
 
 enum ThreadStatus {
@@ -1921,11 +1915,8 @@ enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
   MESSAGE_TYPE_REGULAR = 1;
   MESSAGE_TYPE_REPLY = 2;
-  MESSAGE_TYPE_FORWARDED = 3;
-  MESSAGE_TYPE_THREAD = 100;
-  MESSAGE_TYPE_RUN = 110;
-  MESSAGE_TYPE_INTERRUPTION = 120;
-  MESSAGE_TYPE_POLL = 130;
+  MESSAGE_TYPE_RUN = 100;
+  MESSAGE_TYPE_INTERRUPTION = 110;
   MESSAGE_TYPE_EDIT = 200;
 }
 
@@ -2550,7 +2541,7 @@ message IdentityData {
   repeated NodeReferenceData tags_ptr = 37;
   optional ColorType color = 45;
   optional NodeReferenceData flow_ptr = 46;
-  optional NodeReferenceData run_ptr = 47;
+  optional NodeReferenceData implemented_by_ptr = 47;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value outputs_packed = 62;
   optional TextData text = 65;
@@ -2654,13 +2645,16 @@ message ChannelData {
   optional google.protobuf.Timestamp template_at = 16;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  ChannelType type = 30;
   optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData thread_ptr = 36;
   repeated NodeReferenceData tags_ptr = 37;
+  ChannelStatus status = 50;
+  optional google.protobuf.Timestamp closed_at = 55;
+  optional NodeReferenceData main_page_ptr = 60;
+  optional NodeReferenceData main_plan_ptr = 61;
 }
 
 message MessageData {
@@ -2682,8 +2676,6 @@ message MessageData {
   optional NodeReferenceData channel_ptr = 34;
   optional NodeReferenceData thread_ptr = 35;
   optional NodeReferenceData scope_ptr = 36;
-  optional NodeReferenceData run_root_ptr = 37;
-  optional NodeReferenceData run_ptr = 38;
   MessageStatus status = 40;
   optional google.protobuf.Timestamp failed_at = 42;
   optional google.protobuf.Timestamp sent_at = 43;
@@ -2691,14 +2683,12 @@ message MessageData {
   optional google.protobuf.Timestamp read_at = 45;
   optional NodeReferenceData reply_to_ptr = 50;
   optional NodeReferenceData forwarded_from_ptr = 51;
+  optional NodeReferenceData run_ptr = 52;
+  optional NodeReferenceData interruption_ptr = 53;
   optional TextData text = 61;
   optional google.protobuf.Value value_packed = 62;
   optional NodeReferenceData clazz_ptr = 63;
   repeated NodeReferenceData nodes_ptr = 64;
-  optional SelectionData selection = 65;
-  optional NodeReferenceData created_interruption_ptr = 70;
-  optional NodeReferenceData created_run_ptr = 71;
-  optional NodeReferenceData created_thread_ptr = 72;
 }
 
 message NotificationData {
@@ -2766,21 +2756,20 @@ message ThreadData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  ThreadType type = 30;
   optional TextLineData title = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData thread_ptr = 36;
   repeated NodeReferenceData tags_ptr = 37;
-  optional NodeReferenceData channel_ptr = 40;
-  optional NodeReferenceData scope_ptr = 41;
-  optional NodeReferenceData run_root_ptr = 42;
-  optional NodeReferenceData run_ptr = 43;
+  optional NodeReferenceData scope_ptr = 40;
+  optional NodeReferenceData channel_ptr = 42;
   optional NodeReferenceData created_from_ptr = 45;
   ThreadStatus status = 50;
   optional google.protobuf.Timestamp closed_at = 55;
-  optional TextData text = 61;
+  optional NodeReferenceData main_page_ptr = 60;
+  optional NodeReferenceData main_plan_ptr = 61;
+  optional TextData text = 65;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
@@ -3285,12 +3274,13 @@ message TaskData {
   optional google.protobuf.Timestamp terminated_at = 56;
   optional ErrorData error = 57;
   optional TextData text = 60;
-  optional NodeReferenceData clazz_ptr = 61;
   optional NodeReferenceData target_ptr = 62;
   optional NodeReferenceData tool_ptr = 63;
-  optional google.protobuf.Value value_packed = 65;
-  optional NodeReferenceData interruption_ptr = 66;
-  bool is_manual = 70;
+  optional NodeReferenceData interruption_ptr = 67;
+  bool is_manual = 69;
+  optional NodeReferenceData clazz_ptr = 70;
+  optional google.protobuf.Value value_packed = 71;
+  repeated NodeReferenceData nodes_ptr = 72;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
@@ -3313,7 +3303,6 @@ message InterruptionData {
   optional google.protobuf.Value subnode_packed = 29;
   InterruptionType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  optional NodeReferenceData page_ptr = 32;
   optional NodeReferenceData flow_ptr = 33;
   optional NodeReferenceData action_ptr = 34;
   optional NodeReferenceData link_ptr = 35;
@@ -3328,8 +3317,6 @@ message InterruptionData {
   optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
   optional NodeReferenceData task_ptr = 56;
-  optional NodeReferenceData cancel_trigger_ptr = 60;
-  optional NodeReferenceData complete_trigger_ptr = 61;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
@@ -3379,7 +3366,6 @@ message RunData {
   optional NodeReferenceData root_ptr = 33;
   repeated NodeReferenceData incoming_ptr = 34;
   RunOptionsData options = 35;
-  optional NodeReferenceData page_ptr = 36;
   optional NodeReferenceData channel_ptr = 37;
   optional NodeReferenceData thread_ptr = 38;
   RunStatus status = 40;
@@ -3779,8 +3765,9 @@ message PackageData {
   optional string name = 31;
   optional string slug = 34;
   optional IconData icon = 35;
-  optional NodeReferenceData main_channel_ptr = 50;
-  optional NodeReferenceData main_flow_ptr = 51;
+  optional NodeReferenceData default_channel_ptr = 50;
+  optional NodeReferenceData default_flow_ptr = 51;
+  optional NodeReferenceData default_identity_ptr = 52;
 }
 
 message PageData {
@@ -3825,7 +3812,6 @@ message TriggerData {
   optional string name = 32;
   optional TextData text = 33;
   TriggerEffect effect = 34;
-  optional NodeReferenceData scope_ptr = 35;
   optional NodeReferenceData run_root_ptr = 36;
   optional NodeReferenceData run_ptr = 37;
   optional NodeReferenceData interruption_ptr = 38;

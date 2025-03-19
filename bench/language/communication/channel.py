@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Union
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     BuiltinEnum,
@@ -12,6 +13,7 @@ from bench.language.core import (
     NodeType,
     RemoteNodeList,
     enum_,
+    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -20,19 +22,18 @@ from bench.language.core import (
 from bench.pb2 import ChannelData, MessageData
 
 if TYPE_CHECKING:
-    from bench.language import Membership, Message, Package, Page
+    from bench.language import Membership, Message, Package, Page, Plan
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.CHANNEL_TYPE)
-class ChannelType(BuiltinEnum):
-    TEXT = 1
-    # CLASS?
-    # VOICE?
+@enum_(EnumType.CHANNEL_STATUS)
+class ChannelStatus(BuiltinEnum):
+    OPEN = 10
+    CLOSED = 30
 
 
-@timed_node_(NodeType.CHANNEL, has_subtypes=True)
+@timed_node_(NodeType.CHANNEL)
 class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
@@ -40,7 +41,19 @@ class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelDa
 
     # meta
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
-    type: ChannelType = p_regular(30, require=True, default=ChannelType.TEXT)
+    # type: ChannelType? (text, voice, etc.)
+
+    # content
+    main_page: Optional["Page"] = p_regular(
+        60, require=False, array=False, references=NodeType.PAGE, same_bench=True
+    )
+    main_plan: Optional["Plan"] = p_regular(
+        61, require=False, array=False, references=NodeType.PLAN, same_bench=True
+    )
+
+    # status
+    status: ChannelStatus = p_internal(50, default=ChannelStatus.OPEN)
+    closed_at: Optional[datetime] = p_internal(55, default=None)
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
@@ -48,5 +61,5 @@ class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelDa
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
 
     @staticmethod
-    def new(name: str, *, type: ChannelType = ChannelType.TEXT) -> "Channel":
-        return Channel(name=name, type=type)
+    def new(name: str) -> "Channel":
+        return Channel(name=name)

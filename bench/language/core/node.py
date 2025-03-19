@@ -1683,7 +1683,7 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
         tags_ptr: tuple[NodeReference, ...] = ()
 
     @property
-    def page(self) -> "Page | None":
+    def containing_page(self) -> "Page | None":
         """Gets the containing ancestor Page (if any)"""
         from bench.language import Page
 

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.IDENTITY)
 class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityData]):
-    """An Identity to run a Flow."""
+    """An Identity to a Flow. May run for another Flow than its own."""
 
     # meta
     parent: Union["Page", "Thread", None] = p_node_parent(4, NodeType.PAGE, NodeType.THREAD)
@@ -39,9 +39,9 @@ class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityD
         46,
         require=False,
         references=NodeType.FLOW,
-        description="The Flow implementing this Identity.",
+        description="The primary Flow backing this Identity.",
     )
-    run: Optional["Run"] = p_regular(
+    implemented_by: Optional["Run"] = p_regular(
         47,
         require=False,
         references=NodeType.RUN,

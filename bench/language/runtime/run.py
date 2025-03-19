@@ -62,8 +62,6 @@ if TYPE_CHECKING:
         ModelFamily,
         ModelType,
         NodeReference,
-        Package,
-        Page,
         Plan,
         RunnableNode,
         RunSpan,
@@ -170,9 +168,7 @@ class Run(
     """
 
     # meta
-    parent: Union["Package", "Thread", "Run", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.THREAD, NodeType.RUN
-    )
+    parent: Union["Thread", "Run", None] = p_node_parent(4, NodeType.THREAD, NodeType.RUN)
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
@@ -181,14 +177,7 @@ class Run(
         34, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
     options: "RunOptions" = p_internal(35, require=True, array=False, struct=StructType.RUN_OPTIONS)
-    page: Optional["Page"] = p_internal(
-        36,
-        require=False,
-        array=False,
-        references=NodeType.PAGE,
-        same_bench=True,
-        description="The main Page of the Run.",
-    )
+
     channel: Optional["Channel"] = p_internal(
         37,
         require=False,
