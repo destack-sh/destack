@@ -117,7 +117,6 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
       class="max-h-[400px]"
       :prepared-connection="preparedConnection"
       is-inline
-      is-minimal
       :model-value="nodePtr"
       :size="{ height: MAX_INLINE_HEIGHT }"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"

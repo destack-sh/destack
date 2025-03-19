@@ -32,15 +32,15 @@ from bench.language.core import (
 from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Membership, Message, Package, Page, Run
+    from bench.language import Channel, Field, Membership, Message, Package, Page, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.THREAD_TYPE)
 class ThreadType(BuiltinEnum):
-    SOURCE = 1
-    RUN = 2
+    SOURCE = 10
+    RUN = 20
 
 
 @enum_(EnumType.THREAD_STATUS)
@@ -61,12 +61,12 @@ class Thread(
     InlineNode[ThreadData],
 ):
     """
-    A Thread for communicating with Messages on something.
+    A Thread for communicating with Messages.
     """
 
     # meta
-    parent: Union["Package", "Page", "Channel", "Thread", "Run", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.RUN
+    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
     )
     type: ThreadType = p_regular(30, require=True, default=ThreadType.SOURCE)
 
@@ -122,6 +122,7 @@ class Thread(
         NodeType.MESSAGE, list=RemoteNodeList
     )
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
+    fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
 
     @property
     def container(self) -> "Node | None":
