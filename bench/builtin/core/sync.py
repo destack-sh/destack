@@ -39,19 +39,30 @@ def get_stable_builtin_path(node: Node) -> str:
     return "/".join(reversed(path_parts))
 
 
-def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()):
+def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()) -> None:
     """
     Assign deterministic ids/cks to the Nodes in the graph (derived from their absolute path).
     """
     assigned_ptrs_by_node: dict[UUID, NodeReference] = {}
+
+    # deduplicate paths
+    path_by_node: dict[Node, str] = {}
+    node_by_path: dict[str, Node] = {}
+    for node in graph.nodes:
+        if node in ignore:
+            continue
+        path = get_stable_builtin_path(node)
+        path_by_node[node] = path
+        if path in node_by_path:
+            raise ValueError(f"duplicate path {path!r} for {node!r} and {node_by_path[path]!r}")
+        node_by_path[path] = node
 
     # set deterministic ids
     for node in graph.nodes:
         if node in ignore:
             continue
         old_node_id = node.id
-        path = get_stable_builtin_path(node)
-        node.id = uuid5(namespace=UUID_NAMESPACE, name=path)
+        node.id = uuid5(namespace=UUID_NAMESPACE, name=path_by_node[node])
         if isinstance(node, IsInstantiable):
             cast(IsInstantiable, node).ck = node.id
         assigned_ptrs_by_node[old_node_id] = node.to_ref()
@@ -94,7 +105,10 @@ def sync_node(
 ) -> None:
     """Patches the target node *in place* from the reference node (recursively)."""
 
-    if target is None:
+    if target is None or target.metatype != reference.metatype:
+        if target is not None:
+            # replace target completely
+            target.erase()
         # target doesn't have that node, create id
         target = reference.clone(
             recursive=recursive,
@@ -131,4 +145,4 @@ def sync_node(
             if target_child.id not in reference._graph and (
                 not isinstance(target_child, IsTemplatable) or target_child.template_ptr is not None
             ):
-                target_child.delete()
+                target_child.erase()
