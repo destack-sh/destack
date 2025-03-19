@@ -826,9 +826,18 @@ class Runtime:
             return runner, runner.tracked_run
 
         # load run
-        run = await Run.include_descendants(
-            NodeType.RUN, NodeType.RUN_SPAN, NodeType.PLAN, NodeType.TASK, NodeType.INTERRUPTION
-        ).get(run_ptr, live=True)
+        run = (
+            await Run.include_descendants(
+                NodeType.RUN,
+                NodeType.RUN_SPAN,
+                NodeType.PLAN,
+                NodeType.TASK,
+                NodeType.INTERRUPTION,
+                NodeType.THREAD,
+            )
+            .include_ancestors(NodeType.THREAD)
+            .get(run_ptr, live=True)
+        )
         run._graph.add_types(*RUNTIME_NODE_TYPES)
         assert run.root_ptr is None, f"{run!r} is not a root Run"
         assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
@@ -866,6 +875,7 @@ class Runtime:
 
     def _on_updated(self, runner: Runner, update: WatchGetUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
+        logger.debug("runtime._on_updated", runner=runner, update=update)  # nocheckin
         for node in update.updated.values():
             if isinstance(node, Run):
                 self._on_run_updated(runner, node)
@@ -939,19 +949,23 @@ class Runtime:
                     run.move(to=outer_run)
                     runner.close(resume=False)
                     await self.session.commit()  # wait for Run to actually exist
-                    logger.debug("runtime.run.lift", inner_run=run, outer_run=outer_run)
+                    logger.debug("runtime.lift_flow", inner_run=run, outer_run=outer_run)
                     runner, run = await self._load_runner(outer_run)
                 else:
                     assert_never(trigger_effect)
 
             # lift top-level Run into new Thread
             if run.thread_ptr is None:
+                self.session.commit_optimistic()
                 thread = Thread(parent=run.parent, type=ThreadType.RUN, run_root=run, run=run)
                 self._set_context(thread)
                 self.session._create(thread)
                 run.move(to=thread)
                 run.thread = thread
+                runner.close(resume=False)
                 await self.session.commit()
+                logger.debug("runtime.lift_thread", inner_run=run, thread=thread)
+                runner, run = await self._load_runner(run)
 
             # actually run
             try:

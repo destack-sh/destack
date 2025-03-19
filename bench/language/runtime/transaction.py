@@ -776,14 +776,14 @@ def edit_graph(
             node = graph.get(node_id)
             assert (
                 node is not None
-            ), f"missing node {node_id} for remove: {wiring.describe_edit(edit)}"
+            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for remove: {wiring.describe_edit(edit)}"
             graph.remove(node)
         else:
             # some update
             node = graph.get(node_id)
             assert (
                 node is not None
-            ), f"missing node {node_id} for update: {wiring.describe_edit(edit)}"
+            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for update: {wiring.describe_edit(edit)}"
 
             # apply edit operations
             for op in edit.operations:
