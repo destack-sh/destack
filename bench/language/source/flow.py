@@ -10,7 +10,6 @@ from bench.language.core import (
     IsComputable,
     IsModal,
     IsNamed,
-    IsSubject,
     IsTemplatable,
     LocalNodeList,
     NodeType,
@@ -27,7 +26,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Claim, Field, Link, Page, Role, RunOptions
+    from bench.language import Action, Claim, Field, Identity, Link, Page, Role, RunOptions
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,9 +37,7 @@ class FlowType(BuiltinEnum):
 
 
 @node_(NodeType.FLOW)
-class Flow(
-    IsComputable, IsSubject, IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNode[FlowData]
-):
+class Flow(IsComputable, IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNode[FlowData]):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
@@ -54,6 +51,9 @@ class Flow(
         41, default=None, require=False, array=False, struct=StructType.TEXT
     )
     roles: list["Role"] = p_regular(42, require=False, array=True, references=NodeType.ROLE)
+    identity: Optional["Identity"] = p_regular(
+        43, require=False, array=False, references=NodeType.IDENTITY
+    )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)

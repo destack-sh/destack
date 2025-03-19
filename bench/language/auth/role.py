@@ -4,6 +4,7 @@ from bench.language.core import (
     ColorType,
     InlineNode,
     IsModal,
+    IsNamed,
     IsTemplatable,
     NodeType,
     node_,
@@ -19,9 +20,9 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.ROLE)
-class Role(IsTemplatable, IsModal, InlineNode[RoleData]):
+class Role(IsTemplatable, IsModal, IsNamed, InlineNode[RoleData]):
     """A Role to assign to something."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
 
-    color: ColorType | None = p_regular(40)
+    color: ColorType | None = p_regular(45)

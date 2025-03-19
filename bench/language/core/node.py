@@ -113,6 +113,7 @@ if TYPE_CHECKING:
         Flow,
         GetConnection,
         Icon,
+        Identity,
         Link,
         NodeLink,
         NodeReference,
@@ -420,7 +421,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     # 10-29: node tracking
     created_at: datetime = p_system(10, default=None, require=True, autoset=True)
-    created_by: Optional[Subject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
+    created_by: Optional[Subject] = p_system(  # type: ignore (pyright is wrong, Subject is a type)
         11,
         default=None,
         require=False,
@@ -1376,6 +1377,9 @@ class IsRuntime(BuiltinObject):
         94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
     )
     user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
+    identity: Optional["Identity"] = p_internal(
+        96, require=False, array=False, references=NodeType.IDENTITY
+    )
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
@@ -1385,6 +1389,9 @@ class IsRuntime(BuiltinObject):
         computer_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
+        identity_ptr: Optional[NodeReference] = None
+        identity_id: Optional[UUID] = None
+        identity_ck: Optional[UUID] = None
 
     @property
     def runtime(self):

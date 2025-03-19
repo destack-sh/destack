@@ -167,10 +167,12 @@ export const INLINE_NODE_TYPES = [
   NodeType.FLOW,
   NodeType.KIT,
   NodeType.VIEW,
-  NodeType.ROLE,
   NodeType.TAG,
   NodeType.TASK,
   NodeType.PLAN,
+  NodeType.ROLE,
+  NodeType.IDENTITY,
+  NodeType.TEAM,
 ];
 INLINE_NODE_TYPES.sort();
 export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE, NodeType.STREAM];
@@ -181,6 +183,9 @@ export const LOADED_PACKAGE_NODE_TYPES = [
   NodeType.CLAIM,
   NodeType.PLAN,
   NodeType.TASK,
+  NodeType.ROLE,
+  NodeType.IDENTITY,
+  NodeType.TEAM,
 ];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];

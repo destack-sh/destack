@@ -156,7 +156,15 @@ class RunOptions(Struct):
 
 
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
-class Run(IsTimed, IsRuntime, IsModal, IsBased, IsTitled, PackageNode[RunData], HasRunContext):
+class Run(
+    IsTimed,
+    IsRuntime,
+    IsModal,
+    IsBased,
+    IsTitled,
+    HasRunContext,
+    PackageNode[RunData],
+):
     """
     Run something somewhere, somehow.
     """

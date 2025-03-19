@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 @node_(NodeType.TEAM, roots=(NodeType.ORGANIZATION,))
 class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[TeamData]):
     """
-    A Team of Users.
+    A Team of Users or Identities.
     """
 
     parent: Union["Organization", "Team", "Page", "Package", None] = p_node_parent(

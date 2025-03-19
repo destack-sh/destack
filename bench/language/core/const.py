@@ -36,8 +36,8 @@ if TYPE_CHECKING:
         Claim,
         Computer,
         Flow,
+        Identity,
         Kit,
-        Link,
         Node,
         Organization,
         Package,
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
         Transaction,
         User,
     )
-    from bench.runtime.core import Runner
+    from bench.runtime import Runner
 
 
 class _Unset:
@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.18.2"
+VERSION = "2025.03.19.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -349,7 +349,6 @@ class EnumType(BuiltinEnum):
     ACCESS_MODE = 20100
     ACCESS_KIND = 20101
     POLICY_EFFECT = 20102
-    MEMBERSHIP_TYPE = 20103
     INVITE_TYPE = 20104
 
     # access types (20150-20199)
@@ -608,7 +607,7 @@ class NodeType(BuiltinEnum):
     KIT = 5060, None, None, "fas fa-screwdriver-wrench"
     VIEW = 5080, None, None, "fas fa-window-frame"
     DATABASE = 5090, None, None, "fas fa-database"
-    ROLE = 5110, None, None, "fas fa-user-tag"
+
     # IDENTITY?
     # BADGE? POLICY? RULE?
 
@@ -627,7 +626,8 @@ class NodeType(BuiltinEnum):
     TEAM = 5600, None, None, "fas fa-users"
     MEMBERSHIP = 5610, None, None, "fas fa-users"
     INVITE = 5620, None, None, "fas fa-user-plus"
-
+    ROLE = 5630, None, None, "fas fa-user-tag"
+    IDENTITY = 5640, None, None, "fas fa-user-tag"
     # CHALLENGE?
 
     # runtime
@@ -760,6 +760,7 @@ INLINE_NODE_TYPES = bittuple(
     NodeType.THREAD,
     NodeType.CHANNEL,
     NodeType.TEAM,
+    NodeType.IDENTITY,
 )
 INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.ACTION,
@@ -772,9 +773,14 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.CLAIM,
     NodeType.CHANNEL,
     NodeType.TEAM,
+    NodeType.IDENTITY,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
-    *SOURCE_NODE_TYPES, *RESOURCE_NODE_TYPES, *INSTANTIABLE_NODE_TYPES, NodeType.CHANNEL
+    *SOURCE_NODE_TYPES,
+    *RESOURCE_NODE_TYPES,
+    *INSTANTIABLE_NODE_TYPES,
+    NodeType.CHANNEL,
+    NodeType.ROLE,
 )
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
@@ -804,15 +810,12 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.SPACE,
 )
 
-Subject = Union["User", "Organization", "Flow", "Action", "Computer", "Link", "Claim"]
+Subject = Union["User", "Organization", "Identity", "Computer"]
 SUBJECT_NODE_TYPES = bittuple(
     NodeType.USER,
     NodeType.ORGANIZATION,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.LINK,
+    NodeType.IDENTITY,
     NodeType.COMPUTER,
-    NodeType.CLAIM,
 )
 
 Claimable = Union["Resource", "Flow", "Action", "Kit"]
@@ -838,6 +841,9 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
+    NodeType.ROLE,
+    NodeType.IDENTITY,
+    NodeType.TEAM,
 )
 
 #

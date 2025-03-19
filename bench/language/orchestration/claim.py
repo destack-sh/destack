@@ -13,7 +13,6 @@ from bench.language.core import (
     IsNamed,
     IsOwnable,
     IsRuntime,
-    IsSubject,
     NodeReference,
     NodeType,
     PackageNode,
@@ -28,7 +27,7 @@ from bench.pb2 import ClaimData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Action, Flow, Kit, Page, Run
+    from bench.language import Action, Flow, Identity, Kit, Page, Role, Run
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -64,7 +63,6 @@ class ClaimStatus(BuiltinEnum):
 class Claim(
     IsRuntime,
     IsOwnable,
-    IsSubject,
     IsModal,
     IsInstantiable,
     IsNamed,
@@ -76,8 +74,16 @@ class Claim(
     """
 
     # meta
-    parent: Union["Page", "Kit", "Flow", "Action", "Run", None] = p_node_parent(
-        4, NodeType.PAGE, NodeType.KIT, NodeType.FLOW, NodeType.ACTION, NodeType.RUN, ckless=True
+    parent: Union["Page", "Kit", "Flow", "Action", "Identity", "Role", "Run", None] = p_node_parent(
+        4,
+        NodeType.PAGE,
+        NodeType.KIT,
+        NodeType.FLOW,
+        NodeType.ACTION,
+        NodeType.IDENTITY,
+        NodeType.ROLE,
+        NodeType.RUN,
+        ckless=True,
     )
     type: ClaimType = p_system(30, require=True)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.18.2"
+VERSION = "2025.03.19.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -898,6 +898,9 @@ FLOW_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1147,36 +1150,6 @@ DATABASE_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-ROLE_TABLE = Table(
-    "bench_role",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("package_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="20"),
-        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("order_key", PrimitiveType.STRING, is_nullable=True),
-        Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("definition_id", PrimitiveType.UUID, is_nullable=True),
-        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
-        Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("color", PrimitiveType.INT16, is_nullable=True),
-    ),
-    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
-)
-
 SPACE_TABLE = Table(
     "bench_space",
     (
@@ -1278,7 +1251,7 @@ THREAD_TABLE = Table(
         Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16, default="1"),
+        Column("type", PrimitiveType.INT16, default="10"),
         Column("title", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
@@ -1304,6 +1277,9 @@ THREAD_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1460,7 +1436,7 @@ MEMBERSHIP_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
@@ -1469,7 +1445,6 @@ MEMBERSHIP_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
         Column("member_id", PrimitiveType.UUID),
         Column("member_ck", PrimitiveType.UUID),
         Column("member_type", PrimitiveType.INT16),
@@ -1504,6 +1479,78 @@ INVITE_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
+ROLE_TABLE = Table(
+    "bench_role",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="20"),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("definition_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("color", PrimitiveType.INT16, is_nullable=True),
+    ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
+IDENTITY_TABLE = Table(
+    "bench_identity",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="20"),
+        Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("order_key", PrimitiveType.STRING, is_nullable=True),
+        Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("definition_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("color", PrimitiveType.INT16, is_nullable=True),
+        Column("flow_id", PrimitiveType.UUID, is_nullable=True),
+        Column("flow_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_base_id", PrimitiveType.UUID, is_nullable=True),
+        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
+    ),
+    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
+)
+
 SESSION_TABLE = Table(
     "bench_session",
     (
@@ -1527,6 +1574,9 @@ SESSION_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
@@ -1595,6 +1645,9 @@ RUN_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_trigger_id_trigger_key", IndexType.BTREE, ("trigger_id", "trigger_key")),
@@ -1653,6 +1706,9 @@ RUN_SPAN_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1709,6 +1765,9 @@ INTERRUPTION_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1741,6 +1800,9 @@ LOG_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1792,6 +1854,9 @@ PLAN_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1856,6 +1921,9 @@ TASK_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1902,6 +1970,9 @@ CLAIM_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

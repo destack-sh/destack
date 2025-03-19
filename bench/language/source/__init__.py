@@ -22,7 +22,6 @@ from .render import (
     render_statement,
     render_value,
 )
-from .role import Role
 from .schedule import Schedule, ScheduleFrequency
 from .space import Space, SpaceType
 from .tag import Tag
@@ -94,7 +93,6 @@ __all__ = [
     "Rectangle",
     "RenderOptions",
     "Renderer",
-    "Role",
     "Schedule",
     "ScheduleFrequency",
     "ScheduleTrigger",
