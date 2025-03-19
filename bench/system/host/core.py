@@ -162,25 +162,29 @@ def unpack_commit(
             if node_type == NodeType.LOG:
                 # access logs which are just created for each edit
                 continue
-            raise RuntimeError(f"missing node {node_id!r} in {supergraph!r} for {edit!r}")
+            raise RuntimeError(
+                f"missing node {node_id!r} in {supergraph!r} for {wiring.describe_edit(edit)}"
+            )
         # map
         _add_edit(edit, node)
 
-    # any cascaded edits are expected to be full trusted nodes (from archive/unarchive/...)
+    # any cascaded edits are expected to be full trusted nodes
     for edit in cascaded_edits:
         node_type = NodeType(edit.node_ptr.node_type)
         edited_types[node_type.ord] = True
         # unpack
         if edit.type in (EditType.DELETE, EditType.ERASE):
-            assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
+            assert edit.HasField("node_data"), f"missing node_data for {wiring.describe_edit(edit)}"
             node = wiring.unwrap_some_node(edit.node_data)
         elif edit.type == EditType.RESTORE:
-            assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
+            assert edit.HasField("node_data"), f"missing node_data for {wiring.describe_edit(edit)}"
             node = wiring.copy_struct(wiring.unwrap_some_node(edit.node_data))
             if edit.type == EditType.RESTORE:
                 node.ClearField("deleted_at")
         else:
-            raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
+            raise RuntimeError(
+                f"unexpected cascaded edit type {edit.type} in {wiring.describe_edit(edit)}"
+            )
         # cascaded nodes may also be regularly edited nodes, so we add/update them
         node = wiring.unpack_builtin_object(
             node, supergraph=supergraph, session=session, expect=Node

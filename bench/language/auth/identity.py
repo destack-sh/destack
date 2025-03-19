@@ -61,3 +61,8 @@ class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityD
 
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+
+    @staticmethod
+    def new(name: str, **kwargs) -> "Identity":
+        identity = Identity(name=name, **kwargs)
+        return identity

@@ -1426,6 +1426,18 @@ async def _pg_edit_cascade(
     cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.node_type)
     for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[NodeType(descendant_node_type)]
+        nodes_ids = [edit.node_ptr.id for edit in cascaded_edits]
+        descendant_query = Query(
+            QueryType.GET,
+            node_type=NodeType(descendant_node_type),
+            filter=C(ConditionalType.IN, property=Node.id, value=nodes_ids),
+            include_deleted=True,
+        )
+        nodes_by_id: dict[str, AnyNodeData] = {}
+        if any(edit.type == EditType.ERASE for edit in cascaded_edits):
+            # get erased nodes before applying since we won't get them afterwards
+            nodes = await pg_graph_select(cur=cur, ctx=ctx, query=descendant_query)
+            nodes_by_id.update({node.id: node for node in nodes})
         _ = await _pg_edit_batch(
             cur=cur,
             ctx=ctx,
@@ -1436,19 +1448,18 @@ async def _pg_edit_cascade(
             batch=cascaded_edits,
             updated_properties=(),
         )
-        nodes_ids = [edit.node_ptr.id for edit in cascaded_edits]
-        descendant_query = Query(
-            QueryType.GET,
-            node_type=NodeType(descendant_node_type),
-            filter=C(ConditionalType.IN, property=Node.id, value=nodes_ids),
-            include_deleted=True,
-        )
         nodes = await pg_graph_select(cur=cur, ctx=ctx, query=descendant_query)
-        nodes_by_id = {node.id: node for node in nodes}
+        nodes_by_id.update({node.id: node for node in nodes})
 
         # and assign new/old node to edit now that we have the full data :EditData
         for cascaded_edit in cascaded_edits:
-            node = nodes_by_id[cascaded_edit.node_ptr.id]
+            node = nodes_by_id.get(cascaded_edit.node_ptr.id)
+            if node is None:
+                if cascaded_edit.type == EditType.ERASE:
+                    continue  # ignore
+                raise RuntimeError(
+                    f"missing node {wiring.describe_node_ptr(cascaded_edit.node_ptr)} for {wiring.describe_edit(cascaded_edit)}"
+                )
             cascaded_edit.node_data.CopyFrom(wiring.wrap_some_node(node))
 
     return all_cascaded_edits

@@ -1,9 +1,9 @@
 from .action import ActionKit, ActionPage
-from .flow import AgentFlow, FlowPage
+from .flow import DefaultFlow, FlowPage
 
 __all__ = [
     "ActionKit",
     "ActionPage",
-    "AgentFlow",
+    "DefaultFlow",
     "FlowPage",
 ]

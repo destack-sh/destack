@@ -875,12 +875,16 @@ def edit_data_graph(
         ) and not is_prepass:
             # remove
             node = graph.get(node_id)
-            assert node is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
+            assert (
+                node is not None
+            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for {wiring.describe_edit(edit)}"
             graph.remove(node)
         else:
             # update
             node = graph.get(node_id)
-            assert node is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
+            assert (
+                node is not None
+            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for {wiring.describe_edit(edit)}"
             node = wiring.copy_struct(node)
 
             # prepass: make vignette with old data
