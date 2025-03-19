@@ -162,7 +162,9 @@ class Run(IsTimed, IsRuntime, IsModal, IsBased, IsTitled, PackageNode[RunData], 
     """
 
     # meta
-    parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
+    parent: Union["Package", "Thread", "Run", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.THREAD, NodeType.RUN
+    )
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True

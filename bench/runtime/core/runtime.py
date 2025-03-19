@@ -15,7 +15,6 @@ from bench.language import (
     RUN_STATUS_BY_INTERRUPTION_TYPE,
     RUNTIME_NODE_TYPES,
     Action,
-    Bench,
     BenchError,
     BreakpointSite,
     BuiltinObject,
@@ -898,7 +897,7 @@ class Runtime:
             self._locks_by_id[run.id] = run_lock
 
         async with self.session.active(), isolated_graph():
-            # get runner (exclusively)
+            # get runner
             async with run_lock:
                 if run.id in self._active_runners_by_id:
                     # already have this runner as active, bail
@@ -909,6 +908,7 @@ class Runtime:
                 else:
                     runner = self.restore_runner(run)
             inner_runner = runner
+            assert runner.is_root, f"{runner!r} is not a root runner"
 
             # lift run into existing / higher flow
             if (
@@ -944,13 +944,14 @@ class Runtime:
                 else:
                     assert_never(trigger_effect)
 
-            # create Thread for top-level Run
+            # lift top-level Run into new Thread
             if run.thread_ptr is None:
-                # nocheckin: lift Run into Thread (instead of Thread into Run)
-                thread = Thread(parent=run, type=ThreadType.RUN, run_root=run, run=run)
+                thread = Thread(parent=run.parent, type=ThreadType.RUN, run_root=run, run=run)
                 self._set_context(thread)
                 self.session._create(thread)
+                run.move(to=thread)
                 run.thread = thread
+                await self.session.commit()
 
             # actually run
             try:
@@ -1003,12 +1004,12 @@ class Runtime:
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
-        runs_by_parent: dict[Package | Run | None, list[Run]] = group_by(
+        runs_by_parent: dict[Package | Thread | Run | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent
         )
         for parent, child_runs in runs_by_parent.items():
             assert parent is not None, f"missing parent for {child_runs!r}"
-            if isinstance(parent, Bench):
+            if isinstance(parent, (Package, Thread)):
                 # resume root runs
                 for root_run in child_runs:
                     runner = self.restore_runner(root_run)
