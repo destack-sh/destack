@@ -14,7 +14,7 @@ import {
   ObjectType,
   PropertyReferenceData,
   RunProperty,
-  RunSpanData,
+  SpanData,
   RunStatus,
   RunType,
   type ActionData,
@@ -58,28 +58,28 @@ export function isRunnable(node: any | null | undefined): node is RunnableNode {
   return node != null && RUNNABLE_NODE_TYPES.includes(node.metatype);
 }
 
-export function isRunActive(run: RunData | RunSpanData): boolean {
+export function isRunActive(run: RunData | SpanData): boolean {
   return ACTIVE_RUN_STATUSES.includes(run.status);
 }
 
-export function isRunInterrupted(run: RunData | RunSpanData): boolean {
+export function isRunInterrupted(run: RunData | SpanData): boolean {
   return INTERRUPTED_RUN_STATUSES.includes(run.status);
 }
 
-export function isRunBad(run: RunData | RunSpanData): boolean {
+export function isRunBad(run: RunData | SpanData): boolean {
   return BAD_RUN_STATUSES.includes(run.status);
 }
 
-export function isRunPaused(run: RunData | RunSpanData): boolean {
+export function isRunPaused(run: RunData | SpanData): boolean {
   if (!isNode(run, NodeType.RUN)) return false;
   if (isRunTerminal(run)) return false;
   return run.pausedAt != null && (run.resumedAt == null || compareTimestamps(run.pausedAt, run.resumedAt) > 0);
 }
 
-export function isRunTerminal(run: RunData | RunSpanData): boolean {
+export function isRunTerminal(run: RunData | SpanData): boolean {
   if (isNode(run, NodeType.RUN)) {
     return TERMINAL_RUN_STATUSES.includes(run.status);
-  } else if (isNode(run, NodeType.RUN_SPAN)) {
+  } else if (isNode(run, NodeType.SPAN)) {
     return run.terminatedAt != null;
   } else {
     assertNever(run);
@@ -107,10 +107,10 @@ export function getRunType(runnable: RunnableNode): RunType {
 }
 
 /** Gets the startedAt timestamp of a Run */
-export function getRunStartedAtMs(run: RunData | RunSpanData): number {
+export function getRunStartedAtMs(run: RunData | SpanData): number {
   if (isNode(run, NodeType.RUN)) {
     return timestampToMs(run.startedAt ?? run.createdAt!);
-  } else if (isNode(run, NodeType.RUN_SPAN)) {
+  } else if (isNode(run, NodeType.SPAN)) {
     return timestampToMs(run.startedAt!);
   } else {
     assertNever(run);
@@ -118,7 +118,7 @@ export function getRunStartedAtMs(run: RunData | RunSpanData): number {
 }
 
 /** Gets the duration of a Run */
-export function getRunDurationMs(run: RunData | RunSpanData, nowMs: number): number {
+export function getRunDurationMs(run: RunData | SpanData, nowMs: number): number {
   if (isRunTerminal(run) && run.startedAt == null) {
     return 0; // never really started
   }

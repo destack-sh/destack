@@ -24,7 +24,7 @@ from bench.pb2 import (
     ServiceKind,
     SupervisorClient,
 )
-from bench.proto import Network
+from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeProcessMode, RuntimeServiceBase
 from bench.runtime.process import RuntimeProcess
 from bench.utils.oracle import Oracle
@@ -316,11 +316,16 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             logger.info(
                 "runtime_service.run",
                 process=process,
-                run=request.run_ptrs[0],
+                run_ptrs=[wiring.describe_node_ptr(run_ptr) for run_ptr in request.run_ptrs],
                 span="current",
             )
         except Exception as e:
-            logger.error("runtime_service.run.error", process=process, exc_info=e)
+            logger.error(
+                "runtime_service.run.error",
+                process=process,
+                run_ptrs=[wiring.describe_node_ptr(run_ptr) for run_ptr in request.run_ptrs],
+                exc_info=e,
+            )
             raise
 
         return RunResponse()

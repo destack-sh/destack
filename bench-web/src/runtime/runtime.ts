@@ -30,7 +30,7 @@ import {
   ObjectType,
   RunOptionsData,
   RunProperty,
-  RunSpanData,
+  SpanData,
   RunStatus,
   Timestamp,
   type RunData,
@@ -59,7 +59,7 @@ export class RunTree {
   runGraph: ReadNodeGraph;
   runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
   runRef: Ref<RunData | null>;
-  runsRef: Ref<(RunData | RunSpanData)[]>;
+  runsRef: Ref<(RunData | SpanData)[]>;
   runBasePtr: Ref<TypedNodeReferenceData<RunnableNodeType> | null>;
   runBaseRef: Ref<RunnableNode | null>;
   runConnection: Connection<"get", NodeType.RUN>;
@@ -77,7 +77,7 @@ export class RunTree {
         scope: graph.scope,
         roots: [this.runPtr.value!],
         ancestorTypes: [NodeType.THREAD, NodeType.RUN],
-        descendantTypes: [NodeType.THREAD, NodeType.RUN, NodeType.RUN_SPAN, NodeType.INTERRUPTION],
+        descendantTypes: [NodeType.THREAD, NodeType.RUN, NodeType.SPAN, NodeType.INTERRUPTION],
         isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),
@@ -85,7 +85,7 @@ export class RunTree {
     this.runGraph = runGraph;
     this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, {
-      metatypes: [NodeType.RUN, NodeType.RUN_SPAN],
+      metatypes: [NodeType.RUN, NodeType.SPAN],
       includeSelf: true,
     });
     this.runBasePtr = computedValue(
@@ -362,7 +362,6 @@ export function makeRun(
     type: getRunType(runnable),
     status: RunStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.MAIN,
-    pagePtr: toNodeRef(page),
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     linkPtr: isNode(runnable, NodeType.LINK) ? toNodeRef(runnable) : undefined,

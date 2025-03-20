@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.20.1"
+VERSION = "2025.03.20.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1643,8 +1643,8 @@ RUN_TABLE = Table(
     ),
 )
 
-RUN_SPAN_TABLE = Table(
-    "bench_run_span",
+SPAN_TABLE = Table(
+    "bench_span",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
@@ -1884,6 +1884,7 @@ TASK_TABLE = Table(
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("due_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),

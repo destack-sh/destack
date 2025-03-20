@@ -26,8 +26,8 @@ if TYPE_CHECKING:
         Page,
         Plan,
         Run,
-        RunSpan,
         Session,
+        Span,
         Task,
         Trigger,
     )
@@ -125,8 +125,8 @@ class HasRunContext(BuiltinObject):
         message_ptr: Optional[NodeReference] = None
         message_id: Optional[UUID] = None
 
-    def _copy_context_to(self, span: "RunSpan"):
-        """Copy context from this HasRunContext to a RunSpan."""
+    def _copy_context_to(self, span: "Span"):
+        """Copy context from this HasRunContext to a Span."""
         for prop in HasRunContext.__declared_properties__.values():
             if type(prop.reference_wired_ptr) is Property:
                 prop = prop.reference_wired_ptr

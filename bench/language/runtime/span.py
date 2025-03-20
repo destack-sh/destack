@@ -9,9 +9,9 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
-    RunSpanType,
     RunStatus,
     Severity,
+    SpanType,
     StructType,
     Text,
     p_internal,
@@ -20,7 +20,7 @@ from bench.language.core import (
     p_regular,
     timed_node_,
 )
-from bench.pb2 import RunSpanData
+from bench.pb2 import SpanData
 
 from .context import HasRunContext
 
@@ -31,22 +31,22 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node_(NodeType.RUN_SPAN)
-class RunSpan(
+@timed_node_(NodeType.SPAN)
+class Span(
     IsTimed,
     IsRuntime,
     IsModal,
     HasRunContext,
-    PackageNode[RunSpanData],
+    PackageNode[SpanData],
 ):
     """
-    A RunSpan is a sub-part of a Run that executes a smaller unit of work than a runnable Node.
-    RunSpans, unlike Runs, are not individually controllable.
+    A Span is a sub-part of a Run that executes a smaller unit of work than a runnable Node.
+    Spans, unlike Runs, are not individually controllable.
     """
 
     # meta
     parent: Union["Run", None] = p_node_parent(4, NodeType.RUN)
-    type: RunSpanType = p_regular(30)
+    type: SpanType = p_regular(30)
     root: "Run | None" = p_node_ancestor(
         31, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )

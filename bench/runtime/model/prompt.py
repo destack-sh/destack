@@ -13,8 +13,8 @@ from bench.language import (
     Plan,
     Renderer,
     Run,
-    RunSpan,
-    RunSpanType,
+    Span,
+    SpanType,
 )
 from bench.language.core import BuiltinEnum
 
@@ -157,11 +157,11 @@ class PromptRun(PromptCompound):
 class PromptRunAttempt(PromptCompound):
     """An attempt."""
 
-    attempt: RunSpan
+    attempt: Span
 
     @override
     async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
-        assert self.attempt.type == RunSpanType.ATTEMPT
+        assert self.attempt.type == SpanType.ATTEMPT
         parts: list[PromptPart] = []
         if (error := self.attempt.error) is not None:
             error_code = prompt.renderer.render_expression(error, format=True)

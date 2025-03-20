@@ -49,11 +49,11 @@ from bench.language import (
     Run,
     RunnableNode,
     RunOptions,
-    RunSpan,
-    RunSpanType,
     RunStatus,
     RunType,
     Session,
+    Span,
+    SpanType,
     Thread,
     Trigger,
     TypeBase,
@@ -74,13 +74,13 @@ tracer = trace.get_tracer(__name__)
 class Interrupted(Exception):  # noqa: N818
     """A Runner/Run is interrupted."""
 
-    def __init__(self, runner: "Runner", span: Run | RunSpan, interruption: Interruption):
+    def __init__(self, runner: "Runner", span: Run | Span, interruption: Interruption):
         self.runner = runner
         self.span = span
         self.interruption = interruption
 
 
-RunIn = Run | RunSpan | RunSpanType | Literal["track"]
+RunIn = Run | Span | SpanType | Literal["track"]
 
 
 @dataclass(slots=True)
@@ -141,7 +141,7 @@ RunnerEvent = (
 
 class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
-    A Runner to run a Run/RunSpan (every Run has one Runner, some RunSpans have one).
+    A Runner to run a Run/Span (every Run has one Runner, some Spans have one).
     Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interruption.
     After an Interruption is handled, we try to run the Runner again - it may progress or raise another Interruption.
     Interruption-capable Runners may be nested, and it's the responsibility of the Runners
@@ -226,10 +226,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         else:
             self.mode = NodeMode.MAIN
 
-        # track in Run/RunSpan
+        # track in Run/Span
         self.tracked_run: Run | None
-        self.tracked_span: RunSpan | None
-        self.tracked: RunSpan | Run
+        self.tracked_span: Span | None
+        self.tracked: Span | Run
         if isinstance(run, Run) or run == "track":
             # Runner = Run
             if run == "track":
@@ -262,10 +262,10 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 tracked_run.options is self.options
             ), f"{tracked_run!r} has other options than {self!r}"
         else:
-            # Runner = RunSpan
-            if type(run) is RunSpanType:
+            # Runner = Span
+            if type(run) is SpanType:
                 assert parent_run is not None, f"{self!r} has no parent Run"
-                tracked_span = RunSpan(
+                tracked_span = Span(
                     parent=parent_run,
                     type=run,
                     status=self.status,
@@ -275,7 +275,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                 parent_run._copy_context_to(tracked_span)
                 self.session._create(tracked_span)
             else:
-                tracked_span = cast(RunSpan, run)
+                tracked_span = cast(Span, run)
             self.tracked_run = None
             self.tracked_span = tracked_span
             self.tracked = self.tracked_span
@@ -355,17 +355,17 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return False
 
     @property
-    def attempts(self) -> Sequence[RunSpan]:
+    def attempts(self) -> Sequence[Span]:
         if self.tracked_run is None:
             return ()
-        return tuple(span for span in self.tracked_run.spans if span.type == RunSpanType.ATTEMPT)
+        return tuple(span for span in self.tracked_run.spans if span.type == SpanType.ATTEMPT)
 
     @property
-    def current_attempt(self) -> RunSpan | None:
+    def current_attempt(self) -> Span | None:
         if self.tracked_run is None:
             return None
         for span in reversed(self.tracked_run.spans):
-            if span.type == RunSpanType.ATTEMPT:
+            if span.type == SpanType.ATTEMPT:
                 return span
 
     @property

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
         Link,
         Message,
         Run,
-        RunSpan,
+        Span,
         Task,
         Text,
         TypeBase,
@@ -175,9 +175,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         link_ptr: Optional[NodeReference] = None
-    span: Optional["RunSpan"] = p_internal(
-        37, require=False, default=None, references=NodeType.RUN_SPAN
-    )
+    span: Optional["Span"] = p_internal(37, require=False, default=None, references=NodeType.SPAN)
     breakpoint_site: BreakpointSite | None = p_internal(38)
     if TYPE_CHECKING:
         root_id: Optional[UUID] = None
@@ -306,7 +304,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     def from_run(
         kind: InterruptionType,
         run: "Run",
-        span: Optional["RunSpan"] = None,
+        span: Optional["Span"] = None,
         breakpoint_site: BreakpointSite | None = None,
     ) -> "Interruption":
         return Interruption(

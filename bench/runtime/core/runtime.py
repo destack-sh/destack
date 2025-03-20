@@ -44,12 +44,12 @@ from bench.language import (
     ReferenceKind,
     Resource,
     Run,
-    RunSpan,
-    RunSpanType,
     RunStatus,
     RunType,
     Session,
     SessionStatus,
+    Span,
+    SpanType,
     Thread,
     TypeKind,
     ValidationError,
@@ -60,7 +60,7 @@ from bench.language import (
     get_custom_object_properties,
     isolated_graph,
     on_invalid_raise,
-    run_span,
+    span,
     synchronize_nodes,
 )
 from bench.language.core.const import COMMUNICATION_NODE_TYPES
@@ -363,7 +363,7 @@ class Runtime:
         return resource
 
     def _set_context(self, node: IsRuntime):
-        """Sets the current context on a RunSpan."""
+        """Sets the current context on a Span."""
         if node.session_id != self.session.id:
             node.session_ptr = self.session_ptr
         if node.client_id != self.session.client_id:
@@ -378,10 +378,10 @@ class Runtime:
     #
 
     @tracer.start_as_current_span("runtime.run.attempt")
-    async def _attempt_run(self, runner: Runner, span: RunSpan, attempt: int):
+    async def _attempt_run(self, runner: Runner, span: Span, attempt: int):
         """
-        Perform a single attempt of a Runner in a given RunSpan.
-        If the Runner is is just the RunSpan, this is the only attempt.
+        Perform a single attempt of a Runner in a given Span.
+        If the Runner is is just the Span, this is the only attempt.
         """
         trace_span = trace.get_current_span()
         trace_span.set_attribute("runner", repr(runner))
@@ -511,7 +511,7 @@ class Runtime:
     @tracer.start_as_current_span("runtime.prepare")
     async def _prepare_run(self, runner: Runner):
         """
-        Prepare the Run for execution (only for Runs, not RunSpans).
+        Prepare the Run for execution (only for Runs, not Spans).
         A Run is prepared before the first time it's attempted, so only once.
         """
         run = runner.tracked_run
@@ -542,11 +542,7 @@ class Runtime:
                 claim.parent = run
                 self.session._create(claim)
         if open_claims:
-            with run_span(
-                tracer, "runtime.acquire_resources", RunSpanType.ACQUIRE, runner=runner
-            ) as span:
-                if span is not None:
-                    span.nodes = cast(list["Node"], open_claims)
+            with span(tracer, "runtime.acquire_resources", SpanType.ACQUIRE, runner=runner):
                 await self.wait_for(
                     nodes=open_claims,
                     condition=lambda: all(
@@ -612,9 +608,9 @@ class Runtime:
                     current_attempt = last_attempt
                 else:
                     # create new attempt
-                    current_attempt = RunSpan(
+                    current_attempt = Span(
                         parent=run,
-                        type=RunSpanType.ATTEMPT,
+                        type=SpanType.ATTEMPT,
                         status=RunStatus.RUNNING,
                         _skip_validate_self=True,
                     )
@@ -661,8 +657,8 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.run.span")
     async def _run_span(self, runner: Runner):
-        """Runs a RunSpan Runner."""
-        # Runner = RunSpan, attempt only once (no breakpoints)
+        """Runs a Span Runner."""
+        # Runner = Span, attempt only once (no breakpoints)
         runner.status = RunStatus.RUNNING
         span = runner.tracked_span
         assert span is not None, f"missing tracked span for {runner!r}"
@@ -800,8 +796,8 @@ class Runtime:
     # Orchestration
     #
 
-    def get_runner(self, span: Run | RunSpan) -> Runner | None:
-        """Get a Runner for a Run or RunSpan."""
+    def get_runner(self, span: Run | Span) -> Runner | None:
+        """Get a Runner for a Run or Span."""
         return self._owned_runners_by_id.get(span.id)
 
     def restore_runner(self, run: Run) -> Runner:
@@ -830,7 +826,7 @@ class Runtime:
         run = (
             await Run.include_descendants(
                 NodeType.RUN,
-                NodeType.RUN_SPAN,
+                NodeType.SPAN,
                 NodeType.PLAN,
                 NodeType.TASK,
                 NodeType.INTERRUPTION,

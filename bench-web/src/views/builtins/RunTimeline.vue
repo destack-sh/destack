@@ -25,9 +25,9 @@ import {
   NodeTypeOptionInfo,
   Orientation,
   RunData,
-  RunSpanData,
-  RunSpanType,
-  RunSpanTypeOptionInfo,
+  SpanData,
+  SpanType,
+  SpanTypeOptionInfo,
   RunStatus,
   RunStatusOptionInfo,
   Severity,
@@ -95,7 +95,7 @@ type TimelineSpan = {
   startedAtMs: number;
   durationMs: number;
   baseNode: AnyNodeData | null | undefined;
-  span: RunData | RunSpanData;
+  span: RunData | SpanData;
   interruption: InterruptionData | null | undefined;
   offsetRelative: number;
   durationRelative: number;
@@ -122,7 +122,7 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
   const rootStartedAtMs = getRunStartedAtMs(root);
   const rootDurationMs = getRunDurationMs(root, nowMs);
 
-  function walkRun(run: RunData | RunSpanData, parent: TimelineSpan | null, depth: number) {
+  function walkRun(run: RunData | SpanData, parent: TimelineSpan | null, depth: number) {
     // timing
     const startedAtMs = getRunStartedAtMs(run);
     const durationMs = getRunDurationMs(run, nowMs);
@@ -130,7 +130,7 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
     // content
     const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
-    const color = !isNode(run, NodeType.RUN_SPAN)
+    const color = !isNode(run, NodeType.SPAN)
       ? getColorHex(RunStatusOptionInfo[run.status]!.color!, ColorShade.S500)!
       : getColorHex(ColorType.SUCCESS, ColorShade.S500)!;
     let icon: IconData;
@@ -138,9 +138,9 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
     if (isNode(run, NodeType.RUN)) {
       icon = (baseNode != null ? getNodeIcon(baseNode) : null) ?? makeIcon(NodeTypeOptionInfo[NodeType.RUN]!.icon!);
       name = (baseNode as any)?.name ?? "Run";
-    } else if (isNode(run, NodeType.RUN_SPAN)) {
-      icon = makeIcon(RunSpanTypeOptionInfo[run.type]!.icon!);
-      name = toCamelName(RunSpanType, run.type);
+    } else if (isNode(run, NodeType.SPAN)) {
+      icon = makeIcon(SpanTypeOptionInfo[run.type]!.icon!);
+      name = toCamelName(SpanType, run.type);
     } else {
       assertNever(run);
     }
@@ -191,7 +191,7 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
           const basePtr = getBaseFromNode(child);
           if (basePtr != null && !BASE_TYPES.includes(basePtr.nodeType)) continue;
           walkRun(child, span, depth + 1);
-        } else if (isNode(child, NodeType.RUN_SPAN)) {
+        } else if (isNode(child, NodeType.SPAN)) {
           walkRun(child, span, depth + 1);
         }
       }

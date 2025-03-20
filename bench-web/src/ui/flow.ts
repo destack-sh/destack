@@ -1240,7 +1240,7 @@ export class FlowContext {
         packagePtr: action.packagePtr,
         parentPtr: toNodeRef(action),
         name: "Start",
-        effect: TriggerEffect.REPLACE_RUN,
+        effect: TriggerEffect.RUN,
       });
       tx.create({
         metatype: NodeType.TRIGGER,
@@ -1249,7 +1249,7 @@ export class FlowContext {
         packagePtr: action.packagePtr,
         parentPtr: toNodeRef(action),
         name: "Message",
-        effect: TriggerEffect.REPLACE_RUN,
+        effect: TriggerEffect.RUN,
       });
     }
     canvas.inspect({ node: action, view: this.view.value });
