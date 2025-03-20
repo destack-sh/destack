@@ -103,8 +103,7 @@ class RuntimeSpec(ServiceSpec):
 
     name: str = ""
     computer: str = ""
-    max_threads: int = 1
-    max_concurrency_per_thread: int = 8
+    max_processs: int = 1
 
 
 @dataclass

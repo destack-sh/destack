@@ -174,8 +174,8 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 
 @app.command()
 @async_to_sync
-async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = False):
-    from bench.runtime import RuntimeService, RuntimeThread, RuntimeThreadMode
+async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = False):
+    from bench.runtime import RuntimeProcess, RuntimeProcessMode, RuntimeService
 
     logger.info("serve.runtime", host=host, port=port, env=ENV)
 
@@ -187,27 +187,21 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
     computer_id = get_from_env_maybe(
         "COMPUTER_ID", typ=UUID, description="Node id of current computer"
     )
-    max_threads = get_from_env(
-        "RUNTIME_THREADS", typ=int, default=1, description="Maximum number of runtime threads"
-    )
-    max_concurrency_per_thread = get_from_env(
-        "RUNTIME_CONCURRENCY",
-        typ=int,
-        default=10,
-        description="Maximum number of concurrent runs per runtime thread",
+    max_processs = get_from_env(
+        "RUNTIME_PROCESSS", typ=int, default=1, description="Maximum number of runtime processs"
     )
     mode = get_from_env(
-        "RUNTIME_THREAD_MODE",
-        typ=RuntimeThreadMode,
-        default=RuntimeThreadMode.PROCESS,
-        description="How to run runtime threads",
+        "RUNTIME_PROCESS_MODE",
+        typ=RuntimeProcessMode,
+        default=RuntimeProcessMode.PROCESS,
+        description="How to run runtime processs",
     )
     network = RealNetwork()
     supervisor_client = SupervisorClient(
         await network.get_channel(supervisor_url, source_id="runtime")
     )
 
-    if thread_id < 0:
+    if process_id < 0:
         runtime = RuntimeService(
             id="runtime",
             supervisor=supervisor_client,
@@ -218,14 +212,13 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             client_id=client_id,
             client_access_token=client_access_token,
             computer_id=computer_id,
-            max_threads=max_threads,
-            max_concurrency_per_thread=max_concurrency_per_thread,
+            max_processs=max_processs,
             mode=mode,
         )
         await _do_serve(handlers=[runtime], network=network, host=host, port=port, watch=watch)
     else:
-        thread = RuntimeThread(
-            id=f"runtime-thread-{thread_id}",
+        process = RuntimeProcess(
+            id=f"runtime-process-{process_id}",
             supervisor=supervisor_client,
             network=network,
             oracle=REAL_ORACLE,
@@ -236,4 +229,4 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             computer_id=computer_id,
             mode=mode,
         )
-        await _do_serve(handlers=[thread], network=network, host=host, port=port, watch=watch)
+        await _do_serve(handlers=[process], network=network, host=host, port=port, watch=watch)

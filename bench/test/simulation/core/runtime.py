@@ -4,7 +4,7 @@ from uuid import UUID
 from bench.language import ClientType
 from bench.pb2 import RuntimeClient
 from bench.runtime import RuntimeService
-from bench.runtime.base import RuntimeThreadMode
+from bench.runtime.base import RuntimeProcessMode
 from bench.utils.oracle import Oracle
 
 from .service import ServiceHandle
@@ -45,9 +45,8 @@ class RuntimeHandle(ServiceHandle[RuntimeSpec, RuntimeService, RuntimeClient]):
             client_id=UUID(computer.client_data.id),
             client_access_token=computer.access_token,
             computer_id=UUID(computer.computer_data.id),
-            max_threads=self.spec.max_threads,
-            max_concurrency_per_thread=self.spec.max_concurrency_per_thread,
-            mode=RuntimeThreadMode.LOCAL,
+            max_processs=self.spec.max_processs,
+            mode=RuntimeProcessMode.LOCAL,
             on_error=self.simulation.on_error,
         )
         await self._service.start()

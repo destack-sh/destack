@@ -44,14 +44,14 @@ BENCH_QUERY = Bench.include_descendants(
 ).select_all()
 
 
-class RuntimeThreadMode(enum.StrEnum):
+class RuntimeProcessMode(enum.StrEnum):
     LOCAL = "local"
     PROCESS = "process"
 
 
 class RuntimeServiceBase(ServiceBase, abc.ABC):
     """
-    Common base for RuntimeService/RuntimeThread.
+    Common base for RuntimeService/RuntimeProcess.
     """
 
     def __init__(
@@ -68,7 +68,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         client_id: UUID,
         client_access_token: str,
         computer_id: UUID | None,
-        mode: "RuntimeThreadMode",
+        mode: "RuntimeProcessMode",
         on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
@@ -180,7 +180,9 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             self._main_package = self._bench.main_package
             self._session.parent = self._bench
-            self._bench_bench = await BENCH_QUERY.get(BENCH_BENCH_PTR, live=True)
+            # NOTE: bench bench is not live because it only ever changes on Host restart
+            #  (in which case we auto-reconnect and get the new stuff anyway)
+            self._bench_bench = await BENCH_QUERY.get(BENCH_BENCH_PTR, live=False)
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._computer_id:
