@@ -35,9 +35,10 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PLAN_TYPE)
 class PlanType(BuiltinEnum):
-    SERIAL = 10, "Serial"
-    PARALLEL = 20, "Parallel"
-    # QUEUE = 30, "Queue"
+    CUSTOM = 10, "Custom", "Execute in a custom order", "fas fa-list"
+    SERIAL = 20, "Serial", "Execute Tasks one after another", "fas fa-list-ol"
+    PARALLEL = 30, "Parallel", "Execute Tasks in at the same time", "fas fa-list-ul"
+    QUEUE = 40, "Queue", "Execute Tasks in a queue", "fas fa-list-check"
 
 
 @enum_(EnumType.PLAN_STATUS)

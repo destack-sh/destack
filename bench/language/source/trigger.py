@@ -78,7 +78,7 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     A Trigger is an event-driven condition that, once met, affects the Bench somehow.
     """
 
-    parent: Union["Action", "Plan", "Task", "Run", None] = p_node_parent(
+    parent: Union["Action", "Plan", "Task", None] = p_node_parent(
         4, NodeType.ACTION, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
 

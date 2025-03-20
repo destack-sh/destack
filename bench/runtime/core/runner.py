@@ -29,6 +29,7 @@ from bench.language import (
     Error,
     Flow,
     GetConnection,
+    Identity,
     Interruption,
     InterruptionStatus,
     InterruptionType,
@@ -36,6 +37,7 @@ from bench.language import (
     Kit,
     Link,
     Log,
+    Message,
     Node,
     NodeGraph,
     NodeMode,
@@ -53,10 +55,10 @@ from bench.language import (
     RunType,
     Session,
     Thread,
+    Trigger,
     TypeBase,
     active_session,
 )
-from bench.language.core.const import ACTIVE_SESSION
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -227,26 +229,20 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.tracked_run: Run | None
         self.tracked_span: RunSpan | None
         self.tracked: RunSpan | Run
-        if type(run) is Run or run == "track":
+        if isinstance(run, Run) or run == "track":
             # Runner = Run
             if run == "track":
-                package, flow, kit, action, link, typ = _get_runnable_container(node)
-                tracked_run = Run(
-                    parent=parent_run or package,
-                    type=typ,
-                    # (default to parent Run's .flow if we're not in one)
-                    flow=flow or (parent_run.flow if parent_run else None),
-                    kit=kit,
-                    action=action,
-                    link=link,
+                parent_node = parent_run or node.package
+                assert parent_node is not None, f"no parent for {node!r}"
+                tracked_run, _ = create_run(
+                    node=node,
+                    parent=parent_node,
                     options=options,
                     status=self.status,
                     mode=self.mode,
                     inputs=self.inputs,
                     session=self.session,
-                    _skip_validate_self=True,
                 )
-                self.session._create(tracked_run)
             else:
                 tracked_run = cast(Run, run)
             self.id = tracked_run.id
@@ -584,74 +580,82 @@ RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
 }
 
 
-def _get_runnable_container(
+def create_run(
     node: "RunnableNode",
-) -> tuple[Package, Flow | None, Kit | None, Action | None, Link | None, RunType]:
-    """Gets the containing ancestor Package, Flow, Kit, Action, Link, and RunKind for a RunnableNode."""
-    package: Package | None = node.package
-    assert package is not None, f"no package for {node!r}"
+    *,
+    parent: "Package | Thread | Run",
+    inputs: Any | None = None,
+    options: RunOptions | None = None,
+    mode: NodeMode | None = None,
+    status: RunStatus | None = None,
+    thread: "Thread | None" = None,
+    message: "Message | None" = None,
+    trigger: "Trigger | None" = None,
+    identity: "Identity | None" = None,
+    session: "Session | None" = None,
+    graph: NodeGraph | None = None,
+) -> tuple["Run", "Thread"]:
+    """
+    Makes a Run from a runnable Node without adding it to the session.
+    If there is no Thread at the root, we create one (non-Root Runs must have a Thread).
+    """
+    from bench.language import coerce_custom_object_scalar
+
+    if session is None:
+        session = active_session()
+
+    # context
     flow: Flow | None = None
     kit: Kit | None = None
     action: Action | None = None
     link: Link | None = None
-
+    typ: RunType | None = None
     if isinstance(node, Flow):
-        flow = node
         typ = RunType.FLOW
+        flow = node
     elif isinstance(node, Action):
+        typ = RunType.ACTION
         action = node
         flow = node.flow
         kit = node.kit
-        typ = RunType.ACTION
     elif isinstance(node, Link):
+        typ = RunType.LINK
         link = node
         flow = node.flow
-        typ = RunType.LINK
     else:
         assert_never(node)
+    if flow is None and isinstance(parent, Run):
+        # inherit flow from parent if unset
+        flow = parent.flow
+    if identity is None and flow is not None:
+        identity = flow.identity
 
-    return package, flow, kit, action, link, typ
-
-
-def make_run_from_node(
-    node: "RunnableNode",
-    *,
-    isolate: bool = True,
-    inputs: Any | None = None,
-    options: RunOptions | None = None,
-    mode: NodeMode | None = None,
-    parent: "Package | Thread | Run | None" = None,
-    session: "Session | None" = None,
-    graph: NodeGraph | None = None,
-) -> "Run":
-    """Creates a Run from a runnable Node without adding it to the session."""
-    from bench.language import coerce_custom_object_scalar
-
-    # context
-    if session is None:
-        session = active_session()
-    _, flow, kit, action, link, typ = _get_runnable_container(node)
-
-    # graph
-    parent = parent or node.package
-    assert parent is not None, f"no parent for {node!r}"
-    if graph is None:
-        if isolate:  # new graph for isolated run
-            graph = NodeGraph(
-                scope=parent._graph.scope,
-                node_types=RUNTIME_NODE_TYPES,
-                supergraph=session._supergraph,
-            )
-        else:
-            graph = parent._graph
+    # create root thread
+    if isinstance(parent, Package):
+        graph = NodeGraph(
+            scope=parent._graph.scope,
+            node_types=RUNTIME_NODE_TYPES,
+            supergraph=session._supergraph,
+        )
+        thread = Thread(parent=parent, _graph=graph)
+        session._create(thread)
+        parent = thread
+    elif isinstance(parent, Thread):
+        thread = parent
+        graph = parent._graph
+    elif isinstance(parent, Run):
+        thread = parent.thread
+        graph = parent._graph
+    else:
+        assert_never(parent)
+    assert thread is not None, f"no thread for {node!r}"
 
     # build run
     mode = NodeMode.MAIN
     if isinstance(parent, Run):
         mode = parent.mode
     else:
-        session = session if session is not None else ACTIVE_SESSION.get()
-        if session is not None and session._runtime is not None:
+        if session._runtime is not None:
             mode = session._runtime.active_mode
     run = Run(
         parent=parent,
@@ -661,6 +665,11 @@ def make_run_from_node(
         action=action,
         link=link,
         mode=mode,
+        thread=thread,
+        message=message,
+        trigger=trigger,
+        identity=identity,
+        status=status or RunStatus.CREATED,
         _graph=graph,
         _skip_validate_self=True,
     )
@@ -683,38 +692,9 @@ def make_run_from_node(
         options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
     run.options = options
 
-    return run
-
-
-def create_run_from_node(
-    node: "RunnableNode",
-    *,
-    isolate: bool = True,
-    status: RunStatus | None = None,
-    inputs: Any | None = None,
-    options: RunOptions | None = None,
-    mode: NodeMode | None = None,
-    parent: "Package | Thread | Run | None" = None,
-    session: "Session | None" = None,
-    graph: NodeGraph | None = None,
-) -> "Run":
-    """Creates a Run from a runnable Node and adds it to the session."""
-    run = make_run_from_node(
-        node,
-        isolate=isolate,
-        inputs=inputs,
-        options=options,
-        mode=mode,
-        parent=parent,
-        session=session,
-        graph=graph,
-    )
-    if session is None:
-        session = active_session()
-    if status is not None:
-        run.status = status
     session._create(run)
-    return run
+
+    return run, thread
 
 
 def restore_runner(runtime: "Runtime", run: Run) -> "Runner":

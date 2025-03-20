@@ -18,7 +18,7 @@ from bench.language import (
     evaluate_conditional,
     text_line,
 )
-from bench.runtime.core import create_run_from_node
+from bench.runtime.core import create_run
 
 # NOTE :Test: generate expressions to test with hypothesis
 
@@ -52,10 +52,10 @@ def test_evaluate_conditional_property_node(session: Session, package: Package):
     Page1.append(Flow1)
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     Flow1.append(Code1)
-    Run1 = create_run_from_node(Code1, isolate=True)
+    run, _ = create_run(Code1, parent=package)
 
     cond = Run.get_property("action").is_equal(Code1)
-    assert evaluate_conditional(cond, Run1) is True
+    assert evaluate_conditional(cond, run) is True
 
 
 def test_evaluate_sort_property_stringy(session: Session):

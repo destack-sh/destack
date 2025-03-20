@@ -21,6 +21,7 @@ service Runtime {
 	option (kind) = INTERNAL; // :ServiceKind
   
 	// Process a new/existing Run in this runtime. If not blocking, returns immediately on queuing.
+	// nocheckin: Runtime submit multiple Runs at once
 	rpc Run(RunRequest) returns (RunResponse);
 }
    
