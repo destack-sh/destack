@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    INLINE_NODE_TYPES,
     BuiltinEnum,
     EnumType,
     InlineNode,
@@ -20,6 +21,8 @@ from bench.language.core import (
     RemoteNodeList,
     StructType,
     Text,
+    TextIn,
+    TextLineIn,
     enum_,
     p_internal,
     p_node_children,
@@ -27,12 +30,13 @@ from bench.language.core import (
     p_regular,
     p_system,
     timed_node_,
+    to_text,
+    to_text_line,
 )
-from bench.language.core.const import INLINE_NODE_TYPES
 from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Claim, Field, Membership, Message, Package, Page, Plan
+    from bench.language import Channel, Claim, Field, File, Membership, Message, Package, Page, Plan
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -69,7 +73,7 @@ class Thread(
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["InlineNode", "Package"] = p_regular(
+    scope: Union["InlineNode", "Package", None] = p_regular(
         41, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
     )
     if TYPE_CHECKING:
@@ -108,6 +112,7 @@ class Thread(
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
+    files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
 
     @property
     def container(self) -> "Node | None":
@@ -116,3 +121,23 @@ class Thread(
             return parent
         else:
             return self.channel
+
+    @staticmethod
+    def new(
+        title: TextLineIn | None = None,
+        text: TextIn | None = None,
+        *,
+        channel: "Channel | None" = None,
+        scope: Union["InlineNode", "Package", None] = None,
+        main_page: "Page | None" = None,
+        main_plan: "Plan | None" = None,
+    ) -> "Thread":
+        thread = Thread(
+            title=to_text_line(title) if title is not None else None,
+            text=to_text(text) if text is not None else None,
+            scope=scope,
+            channel=channel,
+            main_page=main_page,
+            main_plan=main_plan,
+        )
+        return thread

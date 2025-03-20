@@ -266,6 +266,8 @@ from .text import (
     text_line,
     text_line_to_markdown,
     text_to_markdown,
+    to_text,
+    to_text_line,
 )
 from .type import (
     STORAGE_KEY_PREFIX_LENGTH,
@@ -654,6 +656,8 @@ __all__ = [
     "to_color",
     "to_icon",
     "to_path",
+    "to_text",
+    "to_text_line",
     "to_type",
     "to_type_scalar",
     "unpack_builtin_object",

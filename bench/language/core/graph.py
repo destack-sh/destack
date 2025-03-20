@@ -408,6 +408,7 @@ class NodeSuperGraph:
     A set of graphs making up the currently available graph in some context (like a session).
     Nodes are resolved against the graphs in the order they were added.
     If the root_ptr is None, this is the 'null' graph.
+    NOTE :Performance: we should probably just index directly by id in supergraph? (also in bench-web)
     """
 
     __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr", "name")

@@ -11,6 +11,7 @@ import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
   AnyNodeData,
+  ChannelData,
   ExpressionData,
   ExpressionType,
   FileData,
@@ -23,6 +24,7 @@ import {
   Orientation,
   RectangleData,
   TextData,
+  ThreadData,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -434,7 +436,13 @@ async function addFiles(files: FileList | File[]) {
     // upload and insert each file individually
     if (bench.value == null) throw new Error("no bench");
     if (pkg.value == null) throw new Error("no package");
-    const upload = uploadFile(() => benchConnection.tx, file, { bench: bench.value, pkg: pkg.value });
+    const thread = threadPtr.value != null ? (supergraph.get(threadPtr.value) as ThreadData | null) : null;
+    const channel = channelPtr.value != null ? (supergraph.get(channelPtr.value) as ChannelData | null) : null;
+    const upload = uploadFile(() => benchConnection.tx, file, {
+      bench: bench.value,
+      pkg: pkg.value,
+      parent: thread ?? channel ?? pkg.value,
+    });
     await upload.completion.wait();
     state.update(
       {

@@ -266,7 +266,7 @@ function addFiles(files: FileList | File[], anchor: "before" | "after" | "inside
   Array.from(files).forEach(async (file) => {
     if (bench.value == null) throw new Error("no current bench");
     if (pkg.value == null) throw new Error("no current package");
-    const upload = uploadFile(() => connection.tx, file, { bench: bench.value, pkg: pkg.value });
+    const upload = uploadFile(() => connection.tx, file, { bench: bench.value, pkg: pkg.value, parent: page.value! });
     await upload.completion.wait();
     const block = createBlock(connection.tx, graph, {
       block: { type: BlockType.FILE, nodePtr: toNodeRef(upload.file.value!) },

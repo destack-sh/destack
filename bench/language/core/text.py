@@ -900,3 +900,7 @@ def text_line(text: TextLineIn, aliasing: "AliasingIn | None" = None) -> TextLin
         return markdown_line_to_line(text, aliasing=aliasing)
     else:
         return text
+
+
+to_text = text
+to_text_line = text_line
