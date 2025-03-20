@@ -15,7 +15,7 @@ from bench.language import (
     bittuple,
 )
 from bench.proto import EditData
-from bench.runtime import make_run_from_node
+from bench.runtime import create_run
 
 from .core import Commit, HostPlugin
 
@@ -71,36 +71,37 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
             if not isinstance(message, Message):
                 continue
             for trigger in self._active_triggers_by_id.values():
-                if trigger.type == TriggerType.MESSAGE:
-                    # nocheckin: check Channel/Thread.memberships
-                    trigger_parent = trigger.parent
-                    if isinstance(trigger_parent, Run):
-                        trigger_parent = trigger_parent.action
-                    assert isinstance(trigger_parent, Action), f"unexpected parent for {trigger!r}"
-                    flow = trigger_parent.flow
-                    assert flow is not None, f"trigger {trigger!r} has no flow"
-                    # if we're in the scope of the flow, always trigger, otherwise only if mentioned
-                    is_involved = (message.text is not None and flow in message.text) or (
-                        (thread := message.thread) is not None and thread.scope_id == flow.id
-                    )
-                    is_author = message.created_by_id == flow.id  # don't react to self
+                if trigger.type != TriggerType.MESSAGE:
+                    continue
 
-                    # fire trigger
-                    if is_involved and not is_author:
-                        target = trigger.parent
-                        if isinstance(target, Run):
-                            target = target.runnable
-                        if not isinstance(target, Action):
-                            raise RuntimeError(
-                                f"trigger {trigger!r} has unsupported target: {target!r}"
-                            )
-                        run = make_run_from_node(target, inputs={"message": message})
-                        run.trigger = trigger
-                        run.trigger_key = str(message.id)
-                        run.channel = message.channel
-                        run.thread = message.thread
-                        session._create(run)
-                        logger.info("message_trigger_plugin.trigger", message=message, run=run)
+                # nocheckin: check Channel/Thread.memberships
+                thread = message.thread
+                assert thread is not None, f"message {message!r} has no thread"
+                is_involved = ...
+                is_author = ...
+
+                # fire trigger
+                if is_involved and not is_author:
+                    target = trigger.parent
+                    if isinstance(target, Run):
+                        target = target.runnable
+                    if not isinstance(target, Action):
+                        raise RuntimeError(
+                            f"trigger {trigger!r} has unsupported target: {target!r}"
+                        )
+                    run, thread = create_run(
+                        target,
+                        parent=thread,
+                        trigger=trigger,
+                        message=message,
+                        thread=message.thread,
+                    )
+                    logger.info(
+                        "message_trigger_plugin.trigger",
+                        message=message,
+                        thread=thread,
+                        run=run,
+                    )
 
     @override
     async def on_commit_failed(self, session: Session, error: BaseException) -> None:

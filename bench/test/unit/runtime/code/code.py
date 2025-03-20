@@ -13,7 +13,7 @@ from bench.language import (
     TextLine,
     code,
 )
-from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run_from_node
+from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -182,7 +182,7 @@ async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeL
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run = create_run_from_node(Code1, isolate=True)
+    run, _ = create_run(Code1, parent=runtime.main_package)
     runner = await runtime.run_in_runtime(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
@@ -204,7 +204,7 @@ async def test_run_code_invalid_outputs(simulation: Simulation, runtime: Runtime
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run = create_run_from_node(Code1, isolate=True)
+    run, _ = create_run(Code1, parent=runtime.main_package)
     runner = await runtime.run_in_runtime(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE

@@ -48,7 +48,6 @@ if TYPE_CHECKING:
         Action,
         AudioOptions,
         Breakpoint,
-        Channel,
         Code,
         CustomObject,
         Error,
@@ -89,7 +88,7 @@ class RunOptions(Struct):
     Options for running something.
     """
 
-    # NOTE :Incomplete: some RunOptions don't do anything yet (e.g., max_concurrency, cache, ...)
+    # NOTE :Architecture :Incomplete: RunOptions feels like a grab-bag that should be refactored
 
     # general
     max_attempts: Optional[int] = p_regular(
@@ -178,29 +177,17 @@ class Run(
     )
     options: "RunOptions" = p_internal(35, require=True, array=False, struct=StructType.RUN_OPTIONS)
 
-    channel: Optional["Channel"] = p_internal(
-        37,
-        require=False,
-        array=False,
-        references=NodeType.CHANNEL,
-        same_bench=True,
-        description="The Channel for communicating with the Run (contains Run.thread if any).",
-    )
     thread: Optional["Thread"] = p_internal(
         38,
         require=False,
         array=False,
         references=NodeType.THREAD,
         same_bench=True,
-        description="The Thread for communicating with the Run. May be shared with other Runs.",
+        description="The Thread to communicate with the Run. May be shared with other Runs.",
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
-        page_ptr: Optional[NodeReference] = None
-        page_id: Optional[UUID] = None
-        channel_ptr: Optional[NodeReference] = None
-        channel_id: Optional[UUID] = None
         thread_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
 

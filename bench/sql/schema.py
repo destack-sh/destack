@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.19.3"
+VERSION = "2025.03.20.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1259,13 +1259,12 @@ THREAD_TABLE = Table(
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
+        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
         Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
-        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_from_id", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="10"),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("main_page_id", PrimitiveType.UUID, is_nullable=True),
@@ -1600,8 +1599,6 @@ RUN_TABLE = Table(
         Column("incoming_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("incoming_base_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("options", PrimitiveType.JSON),
-        Column("channel_id", PrimitiveType.UUID, is_nullable=True),
-        Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
@@ -1631,6 +1628,8 @@ RUN_TABLE = Table(
         Column("task_ck", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
+        Column("message_id", PrimitiveType.UUID, is_nullable=True),
+        Column("message_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
@@ -1692,6 +1691,8 @@ RUN_SPAN_TABLE = Table(
         Column("task_ck", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_key", PrimitiveType.STRING, is_nullable=True),
+        Column("message_id", PrimitiveType.UUID, is_nullable=True),
+        Column("message_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),

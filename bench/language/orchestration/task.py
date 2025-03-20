@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    GENERIC = 10, "Generic", "Describe a general purpose task", "far fa-square-check"
+    CUSTOM = 10, "Generic", "Describe a general purpose task", "far fa-square-check"
     SCHEDULED = 20, "Scheduled", "Schedule a task", "fas fa-calendar-days"
     RUN = 30, "Run", "Run a specific Node", "fas fa-play"
     INTERRUPTION = 40, "Interruption", "Handle an Interruption", "fas fa-hand"
@@ -94,7 +94,7 @@ class Task(
     parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
-    type: TaskType = p_regular(30, default=TaskType.GENERIC)
+    type: TaskType = p_regular(30, default=TaskType.CUSTOM)
     # priority?
     implemented_by: Optional["Run"] = p_internal(
         41,
@@ -205,7 +205,7 @@ class Task(
         else:
             value = None
         task = Task(
-            type=TaskType.GENERIC,
+            type=TaskType.CUSTOM,
             title=text_line(title) if title is not None else None,
             text=text,
             clazz=clazz,

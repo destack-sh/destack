@@ -16,7 +16,7 @@ from bench.language import (
     code,
     text,
 )
-from bench.runtime import create_run_from_node
+from bench.runtime import create_run
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -64,7 +64,7 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
     Page1.append(Flow1)
     await runtime.commit()
 
-    run = create_run_from_node(Flow1)
+    run, _ = create_run(Flow1, parent=runtime.main_package)
     await run.wait_until_terminated()
     assert run.status == RunStatus.COMPLETED
 
@@ -136,7 +136,7 @@ async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWo
         await runtime.session.commit()
 
     # run, pause, then resume
-    run = create_run_from_node(Flow1)
+    run, _ = create_run(Flow1, parent=runtime.main_package)
     await runtime.commit()
     asyncio.get_event_loop().call_later(0.5, lambda: asyncio.create_task(pause_run(run)))
     await run.wait_until_status(RunStatus.PAUSED, *TERMINAL_RUN_STATUSES)

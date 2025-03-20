@@ -76,7 +76,7 @@ from .runner import (
     RunnerCompletedEvent,
     RunnerFailedEvent,
     RunnerInterruptedEvent,
-    create_run_from_node,
+    create_run,
     restore_runner,
 )
 
@@ -942,8 +942,10 @@ class Runtime:
                     #   need to deterministically shard .. use thread id/ck?)
                     # lift into new flow
                     self.session.commit_optimistic()
-                    outer_run = create_run_from_node(
-                        flow, parent=run.parent, status=RunStatus.QUEUED, graph=run._graph
+                    parent_node = run.parent or run.package
+                    assert parent_node is not None, f"no parent for {run!r}"
+                    outer_run, _ = create_run(
+                        flow, parent=parent_node, status=RunStatus.QUEUED, graph=run._graph
                     )
                     run.move(to=outer_run)
                     runner.close(resume=False)

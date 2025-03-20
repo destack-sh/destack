@@ -104,6 +104,7 @@ enum EnumType {
   ENUM_TYPE_MODEL_FAMILY = 22252;
   ENUM_TYPE_MODEL_PROVIDER = 22253;
   ENUM_TYPE_CODE_TYPE = 22300;
+  ENUM_TYPE_CODE_LANGUAGE = 22301;
   ENUM_TYPE_ACTION_TYPE = 22350;
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_LINK_TYPE = 22353;
@@ -551,6 +552,7 @@ enum BenchType {
   BENCH_TYPE_MODEL_FAMILY = 22252;
   BENCH_TYPE_MODEL_PROVIDER = 22253;
   BENCH_TYPE_CODE_TYPE = 22300;
+  BENCH_TYPE_CODE_LANGUAGE = 22301;
   BENCH_TYPE_ACTION_TYPE = 22350;
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_LINK_TYPE = 22353;
@@ -1328,8 +1330,10 @@ enum RunSpanType {
 
 enum PlanType {
   PLAN_TYPE_UNSPECIFIED = 0;
-  PLAN_TYPE_SERIAL = 10;
-  PLAN_TYPE_PARALLEL = 20;
+  PLAN_TYPE_CUSTOM = 10;
+  PLAN_TYPE_SERIAL = 20;
+  PLAN_TYPE_PARALLEL = 30;
+  PLAN_TYPE_QUEUE = 40;
 }
 
 enum PlanStatus {
@@ -1357,7 +1361,7 @@ enum PlanFailureMode {
 
 enum TaskType {
   TASK_TYPE_UNSPECIFIED = 0;
-  TASK_TYPE_GENERIC = 10;
+  TASK_TYPE_CUSTOM = 10;
   TASK_TYPE_SCHEDULED = 20;
   TASK_TYPE_RUN = 30;
   TASK_TYPE_INTERRUPTION = 40;
@@ -1571,13 +1575,19 @@ enum ModelProvider {
   MODEL_PROVIDER_DEEPSEEK = 700;
 }
 
-// The implicit 'type' of some Code.
+// The (implicit) 'type' of Code.
 // We don't set this explicitly in Code because it depends on where the Code is used.
 enum CodeType {
   CODE_TYPE_UNSPECIFIED = 0;
   CODE_TYPE_SNIPPET = 1;
   CODE_TYPE_SCRIPT = 2;
   CODE_TYPE_FUNCTION = 3;
+}
+
+// The language of Code.
+enum CodeLanguage {
+  CODE_LANGUAGE_UNSPECIFIED = 0;
+  CODE_LANGUAGE_PYTHON = 10;
 }
 
 enum ActionType {
@@ -1978,7 +1988,7 @@ message NodeReferenceData {
 
 message CodeData {
   ObjectType metatype = 1;
-  optional string language = 32;
+  optional CodeLanguage language = 32;
   optional string content = 40;
 }
 
@@ -2762,9 +2772,8 @@ message ThreadData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData thread_ptr = 36;
   repeated NodeReferenceData tags_ptr = 37;
-  optional NodeReferenceData scope_ptr = 40;
-  optional NodeReferenceData channel_ptr = 42;
-  optional NodeReferenceData created_from_ptr = 45;
+  optional NodeReferenceData channel_ptr = 40;
+  optional NodeReferenceData scope_ptr = 41;
   ThreadStatus status = 50;
   optional google.protobuf.Timestamp closed_at = 55;
   optional NodeReferenceData main_page_ptr = 60;
@@ -3366,7 +3375,6 @@ message RunData {
   optional NodeReferenceData root_ptr = 33;
   repeated NodeReferenceData incoming_ptr = 34;
   RunOptionsData options = 35;
-  optional NodeReferenceData channel_ptr = 37;
   optional NodeReferenceData thread_ptr = 38;
   RunStatus status = 40;
   optional int32 attempt = 41;
@@ -3392,6 +3400,7 @@ message RunData {
   optional NodeReferenceData task_ptr = 85;
   optional NodeReferenceData trigger_ptr = 86;
   optional string trigger_key = 87;
+  optional NodeReferenceData message_ptr = 88;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
@@ -3457,6 +3466,7 @@ message RunSpanData {
   optional NodeReferenceData task_ptr = 85;
   optional NodeReferenceData trigger_ptr = 86;
   optional string trigger_key = 87;
+  optional NodeReferenceData message_ptr = 88;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;

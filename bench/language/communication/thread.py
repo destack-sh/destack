@@ -62,28 +62,21 @@ class Thread(
     parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
     )
-    scope: Union["InlineNode", "Package"] = p_regular(
-        40, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
-    )
     channel: Optional["Channel"] = p_system(
-        42,
+        40,
         require=False,
         array=False,
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    created_from: Optional["Message"] = p_regular(
-        45, require=False, array=False, baseless=True, references=NodeType.MESSAGE, same_bench=True
+    scope: Union["InlineNode", "Package"] = p_regular(
+        41, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
     )
     if TYPE_CHECKING:
-        scope_ptr: Optional[NodeReference] = None
-        scope_id: Optional[UUID] = None
-        page_ptr: Optional[NodeReference] = None
-        page_id: Optional[UUID] = None
         channel_ptr: Optional[NodeReference] = None
         channel_id: Optional[UUID] = None
-        created_from_ptr: Optional[NodeReference] = None
-        created_from_id: Optional[UUID] = None
+        scope_ptr: Optional[NodeReference] = None
+        scope_id: Optional[UUID] = None
 
     # status
     status: ThreadStatus = p_internal(50, default=ThreadStatus.OPEN)

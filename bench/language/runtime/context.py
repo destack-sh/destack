@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         Flow,
         Kit,
         Link,
+        Message,
         NodeReference,
         Page,
         Plan,
@@ -101,6 +102,13 @@ class HasRunContext(BuiltinObject):
         default=None,
         description="A unique key for this invocation of the Trigger.",
     )
+    message: Optional["Message"] = p_internal(
+        88,
+        require=False,
+        array=False,
+        references=NodeType.MESSAGE,
+        same_bench=True,
+    )
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
@@ -114,6 +122,8 @@ class HasRunContext(BuiltinObject):
         incoming_ptr: tuple["NodeReference", ...] = ()
         trigger_ptr: Optional[NodeReference] = None
         trigger_id: Optional[UUID] = None
+        message_ptr: Optional[NodeReference] = None
+        message_id: Optional[UUID] = None
 
     def _copy_context_to(self, span: "RunSpan"):
         """Copy context from this HasRunContext to a RunSpan."""
