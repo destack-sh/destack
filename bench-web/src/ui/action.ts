@@ -565,7 +565,7 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
 export const NON_DELETABLE_NODE_TYPES = [
   NodeType.MESSAGE,
   NodeType.RUN,
-  NodeType.RUN_SPAN,
+  NodeType.SPAN,
   NodeType.LOG,
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,

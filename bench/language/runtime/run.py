@@ -19,9 +19,9 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
-    RunSpanType,
     RunStatus,
     RunType,
+    SpanType,
     Struct,
     StructType,
     Text,
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
         NodeReference,
         Plan,
         RunnableNode,
-        RunSpan,
+        Span,
         TextOptions,
         Thread,
         TypeBase,
@@ -241,7 +241,7 @@ class Run(
     # ...HasContext[90-99]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
-    spans: LocalNodeList["RunSpan"] = p_node_children(NodeType.RUN_SPAN)
+    spans: LocalNodeList["Span"] = p_node_children(NodeType.SPAN)
     interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
     logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
@@ -352,13 +352,13 @@ class Run(
             return None
 
     @property
-    def attempts(self) -> Sequence["RunSpan"]:
-        return tuple(span for span in self.spans if span.type == RunSpanType.ATTEMPT)
+    def attempts(self) -> Sequence["Span"]:
+        return tuple(span for span in self.spans if span.type == SpanType.ATTEMPT)
 
     @property
-    def current_attempt(self) -> "RunSpan | None":
+    def current_attempt(self) -> "Span | None":
         for span in reversed(self.spans):
-            if span.type == RunSpanType.ATTEMPT:
+            if span.type == SpanType.ATTEMPT:
                 return span
         return None
 

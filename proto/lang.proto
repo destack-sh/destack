@@ -74,7 +74,7 @@ enum EnumType {
   ENUM_TYPE_SELECTION_TYPE = 21265;
   ENUM_TYPE_RUN_STATUS = 22000;
   ENUM_TYPE_RUN_TYPE = 22001;
-  ENUM_TYPE_RUN_SPAN_TYPE = 22002;
+  ENUM_TYPE_SPAN_TYPE = 22002;
   ENUM_TYPE_PLAN_TYPE = 22003;
   ENUM_TYPE_PLAN_STATUS = 22004;
   ENUM_TYPE_PLAN_TERMINATION_MODE = 22005;
@@ -178,7 +178,7 @@ enum NodeType {
   NODE_TYPE_IDENTITY = 5640;
   NODE_TYPE_SESSION = 6000;
   NODE_TYPE_RUN = 6010;
-  NODE_TYPE_RUN_SPAN = 6011;
+  NODE_TYPE_SPAN = 6011;
   NODE_TYPE_INTERRUPTION = 6020;
   NODE_TYPE_LOG = 6030;
   NODE_TYPE_PLAN = 6100;
@@ -289,7 +289,7 @@ enum ObjectType {
   OBJECT_TYPE_IDENTITY = 5640;
   OBJECT_TYPE_SESSION = 6000;
   OBJECT_TYPE_RUN = 6010;
-  OBJECT_TYPE_RUN_SPAN = 6011;
+  OBJECT_TYPE_SPAN = 6011;
   OBJECT_TYPE_INTERRUPTION = 6020;
   OBJECT_TYPE_LOG = 6030;
   OBJECT_TYPE_PLAN = 6100;
@@ -396,7 +396,7 @@ enum BenchType {
   BENCH_TYPE_IDENTITY = 5640;
   BENCH_TYPE_SESSION = 6000;
   BENCH_TYPE_RUN = 6010;
-  BENCH_TYPE_RUN_SPAN = 6011;
+  BENCH_TYPE_SPAN = 6011;
   BENCH_TYPE_INTERRUPTION = 6020;
   BENCH_TYPE_LOG = 6030;
   BENCH_TYPE_PLAN = 6100;
@@ -522,7 +522,7 @@ enum BenchType {
   BENCH_TYPE_SELECTION_TYPE = 21265;
   BENCH_TYPE_RUN_STATUS = 22000;
   BENCH_TYPE_RUN_TYPE = 22001;
-  BENCH_TYPE_RUN_SPAN_TYPE = 22002;
+  BENCH_TYPE_SPAN_TYPE = 22002;
   BENCH_TYPE_PLAN_TYPE = 22003;
   BENCH_TYPE_PLAN_STATUS = 22004;
   BENCH_TYPE_PLAN_TERMINATION_MODE = 22005;
@@ -1312,20 +1312,20 @@ enum RunType {
   RUN_TYPE_LINK = 12;
 }
 
-enum RunSpanType {
-  RUN_SPAN_TYPE_UNSPECIFIED = 0;
-  RUN_SPAN_TYPE_ATTEMPT = 1;
-  RUN_SPAN_TYPE_WAIT = 2;
-  RUN_SPAN_TYPE_ACQUIRE = 3;
-  RUN_SPAN_TYPE_CODE = 10;
-  RUN_SPAN_TYPE_FLOW_PLAN = 100;
-  RUN_SPAN_TYPE_MODEL_PREPARE = 300;
-  RUN_SPAN_TYPE_MODEL_GENERATE = 310;
-  RUN_SPAN_TYPE_MODEL_PARSE = 320;
-  RUN_SPAN_TYPE_FILE_UPLOAD = 500;
-  RUN_SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
-  RUN_SPAN_TYPE_FILE_DOWNLOAD = 502;
-  RUN_SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
+enum SpanType {
+  SPAN_TYPE_UNSPECIFIED = 0;
+  SPAN_TYPE_ATTEMPT = 1;
+  SPAN_TYPE_WAIT = 2;
+  SPAN_TYPE_ACQUIRE = 3;
+  SPAN_TYPE_CODE = 10;
+  SPAN_TYPE_FLOW_PLAN = 100;
+  SPAN_TYPE_MODEL_PREPARE = 300;
+  SPAN_TYPE_MODEL_GENERATE = 310;
+  SPAN_TYPE_MODEL_PARSE = 320;
+  SPAN_TYPE_FILE_UPLOAD = 500;
+  SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
+  SPAN_TYPE_FILE_DOWNLOAD = 502;
+  SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
 }
 
 enum PlanType {
@@ -1420,9 +1420,7 @@ enum TriggerType {
 
 enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
-  TRIGGER_EFFECT_START_RUN = 10;
-  TRIGGER_EFFECT_ENSURE_RUN = 11;
-  TRIGGER_EFFECT_REPLACE_RUN = 12;
+  TRIGGER_EFFECT_RUN = 10;
 }
 
 enum TriggerStatus {
@@ -3278,8 +3276,9 @@ message TaskData {
   optional google.protobuf.Duration duration = 51;
   optional google.protobuf.Timestamp due_at = 52;
   optional google.protobuf.Timestamp started_at = 53;
-  optional google.protobuf.Timestamp terminated_at = 56;
-  optional ErrorData error = 57;
+  optional google.protobuf.Timestamp stopped_at = 54;
+  optional google.protobuf.Timestamp terminated_at = 55;
+  optional ErrorData error = 56;
   optional TextData text = 60;
   optional NodeReferenceData target_ptr = 62;
   optional NodeReferenceData tool_ptr = 63;
@@ -3429,7 +3428,7 @@ message SessionData {
   optional NodeReferenceData identity_ptr = 96;
 }
 
-message RunSpanData {
+message SpanData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -3442,7 +3441,7 @@ message RunSpanData {
   optional google.protobuf.Timestamp deleted_at = 14;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  RunSpanType type = 30;
+  SpanType type = 30;
   optional NodeReferenceData root_ptr = 31;
   Severity severity = 33;
   RunStatus status = 40;
@@ -4056,7 +4055,7 @@ message SomeNodeData {
     IdentityData identity = 38;
     SessionData session = 39;
     RunData run = 40;
-    RunSpanData run_span = 41;
+    SpanData span = 41;
     InterruptionData interruption = 42;
     LogData log = 43;
     PlanData plan = 44;

@@ -16,9 +16,9 @@ from bench.language import (
     ModelType,
     RunnableNode,
     RunOptions,
-    RunSpan,
-    RunSpanType,
     RunType,
+    Span,
+    SpanType,
     TypeBase,
     TypeKind,
     code,
@@ -145,13 +145,13 @@ class StaticActionRunner(ActionRunner):
                 inputs=self.inputs,
                 outputs=self.outputs or self.output_type,
                 parent=cast(Runner[Any], self),
-                run=RunSpanType.FLOW_PLAN,
+                run=SpanType.FLOW_PLAN,
             )
             try:
                 await self.runtime.run_runner(model_runner)
             finally:
                 if model_runner.code is not None:
-                    # track code in both RunSpan and Run
+                    # track code in both Span and Run
                     self.tracked.code = model_runner.code
                     if self.tracked_run is not None and self.tracked_run is not self.tracked:
                         self.tracked_run.code = model_runner.code
@@ -209,12 +209,12 @@ class CodeActionRunner(ActionRunner):
         from bench.runtime.code import CodeFunctionRunner
 
         # try to resume interrupted span (in a new Runner)
-        resumed_span: RunSpan | None = None
+        resumed_span: Span | None = None
         resumed_runner: Runner | None = None
         for span in self.tracked_run.spans:
             if (
                 span.status.is_interrupted
-                and span.type == RunSpanType.CODE
+                and span.type == SpanType.CODE
                 and span.action_id == self.node.id
             ):
                 resumed_span = span
@@ -230,7 +230,7 @@ class CodeActionRunner(ActionRunner):
                 node=self.node,
                 options=ATTEMPT_ONCE,
                 context=self.context,
-                run=resumed_span or RunSpanType.CODE,
+                run=resumed_span or SpanType.CODE,
                 code=code,
                 aliasing=Aliasing(),
                 inputs=self.inputs,

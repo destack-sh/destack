@@ -81,7 +81,7 @@ class RunPlugin(HostPlugin[Run]):
     async def on_commit(self, session: Session, commit: Commit[Run]) -> None:
         for run in commit.added:
             # start new scheduled runs
-            if run.status <= RunStatus.SCHEDULED and run.parent_type == NodeType.PACKAGE:
+            if run.status <= RunStatus.SCHEDULED and run.parent_type != NodeType.RUN:
                 self._queue_run(run)
         for run in commit.updated:
             # resume active runs (at root)

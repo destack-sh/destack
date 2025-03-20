@@ -78,9 +78,6 @@ const threadPtr = computed(() => {
   } else if (isNode(scope.value, NodeType.CHANNEL) || isNode(scope.value, NodeType.THREAD)) {
     // don't show the same thread twice
     return undefined;
-  } else if (isNode(scope.value, NodeType.MESSAGE) && scope.value.createdThreadPtr != null) {
-    // current thread for message
-    return scope.value.createdThreadPtr;
   } else {
     return scope.value != null ? toNodeRef(scope.value) : undefined;
   }

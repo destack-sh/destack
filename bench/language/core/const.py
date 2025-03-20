@@ -43,11 +43,11 @@ if TYPE_CHECKING:
         Package,
         Plan,
         Resource,
-        RunSpan,
-        RunSpanType,
         Session,
         Severity,
         Space,
+        Span,
+        SpanType,
         Task,
         Team,
         Text,
@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.20.1"
+VERSION = "2025.03.20.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -416,7 +416,7 @@ class EnumType(BuiltinEnum):
     # runtime core (22000-22100)
     RUN_STATUS = 22000
     RUN_TYPE = 22001
-    RUN_SPAN_TYPE = 22002
+    SPAN_TYPE = 22002
     PLAN_TYPE = 22003
     PLAN_STATUS = 22004
     PLAN_TERMINATION_MODE = 22005
@@ -633,8 +633,7 @@ class NodeType(BuiltinEnum):
     # runtime
     SESSION = 6000, None, None, "fas fa-circle-play"
     RUN = 6010, None, None, "fas fa-play"
-    RUN_SPAN = 6011, None, None, "fas fa-play"
-    # RUN_GROUP, RUN_QUEUE, ...?
+    SPAN = 6011, None, None, "fas fa-ruler-horizontal"
     INTERRUPTION = 6020, None, None, "fas fa-hand"
     LOG = 6030, None, None, "fas fa-file-alt"
 
@@ -1512,8 +1511,8 @@ class RunType(BuiltinEnum):
     LINK = 12
 
 
-@enum_(EnumType.RUN_SPAN_TYPE)
-class RunSpanType(BuiltinEnum):
+@enum_(EnumType.SPAN_TYPE)
+class SpanType(BuiltinEnum):
     # general
     ATTEMPT = 1, None, None, "fas fa-play"
     WAIT = 2, None, None, "fas fa-hourglass-end"
@@ -1788,19 +1787,19 @@ def get_active_tx() -> Optional["Transaction"]:
 
 
 @_agnosticcontextmanager
-def run_span(
+def span(
     tracer: Tracer,
     key: str,
-    type: "RunSpanType",
+    type: "SpanType",
     *,
     level: "Severity | None" = None,
     nodes: list["Node"] | None = None,
     title: str | None = None,
     text: "Text | None" = None,
     runner: "Runner[Any] | None" = None,
-) -> Generator["RunSpan | None", None, None]:
-    """Decorate or annotate a RunSpan in the current Run (noop if not inside a Run)."""
-    from bench.language import RunSpan, Severity
+) -> Generator["Span | None", None, None]:
+    """Decorate or annotate a Span in the current Run (noop if not inside a Run)."""
+    from bench.language import Severity, Span
 
     if runner is None:
         session = ACTIVE_SESSION.get()
@@ -1817,7 +1816,7 @@ def run_span(
         with tracer.start_as_current_span(key):
             yield
     else:
-        span = RunSpan(
+        span = Span(
             type=type,
             severity=level or Severity.INFO,
             nodes=nodes or [],

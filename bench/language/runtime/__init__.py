@@ -25,7 +25,7 @@ from .model import (
 )
 from .run import Run, RunOptions
 from .session import Session
-from .span import RunSpan
+from .span import Span
 from .transaction import (
     Change,
     ChangeVignette,
@@ -66,9 +66,9 @@ __all__ = [
     "ModelType",
     "Run",
     "RunOptions",
-    "RunSpan",
     "Session",
     "Severity",
+    "Span",
     "TextOptions",
     "Transaction",
     "VideoOptions",
