@@ -53,7 +53,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
-from bench.language.core.const import BENCH_BENCH_ID
+from bench.language.core.const import BENCH_BENCH_ID, JOINABLE_NODE_TYPES
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -68,6 +68,7 @@ from bench.proto import (
     unpack_builtin_object_validate,
     unpack_node_graph,
 )
+from bench.proto.wiring import unwrap_some_node
 from bench.system.core import (
     ClientCache,
     get_s3_client_for_presigning,
@@ -75,7 +76,7 @@ from bench.system.core import (
     local_pg_engine_from_store,
     pg_engine_from_store,
 )
-from bench.system.graph import GraphServiceBase, PostgresEngine, extract_commit_area, validate_edit
+from bench.system.graph import GraphServiceBase, PostgresEngine
 from bench.system.resource import (
     BrowserbaseBrowserProvisioner,
     BrowserScalerProvisioner,
@@ -507,10 +508,19 @@ class HostService(GraphServiceBase, HostBase):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # prepare commit
-        scope = extract_commit_area(edits, base_graph=self._main_package._data_graph)
+        scope = self._extract_commit_area(edits)
         now = self.oracle.utc()
         for edit in edits:
-            validate_edit(edit, subject, now)
+            self._validate_edit(edit, subject, now)
+
+        # add any threads
+        # NOTE :Cleanup: manually loading more stuff for Thread feels wrong
+        for edit in edits:
+            if edit.node_ptr.node_type == NodeType.MESSAGE:
+                if edit.HasField("node_data"):
+                    message = unwrap_some_node(edit.node_data)
+                ...
+                pass
 
         # check context
         validate_context(subject, context, edits)
@@ -529,6 +539,10 @@ class HostService(GraphServiceBase, HostBase):
             and query._node_cls.__area__ != NodeArea.LOCAL
         ):
             query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
+
+        # always load members for joinables
+        if query._node_type in JOINABLE_NODE_TYPES:
+            query = query.include_descendants(NodeType.MEMBERSHIP)
 
         return query
 

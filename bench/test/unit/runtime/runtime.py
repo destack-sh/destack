@@ -17,6 +17,8 @@ from bench.language import (
     code,
     text,
 )
+from bench.language.auth.identity import Identity
+from bench.language.auth.membership import Membership
 from bench.runtime import create_run
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -72,21 +74,21 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
 
 @simulated_runtime(system=True, runtimes=True)
 async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Create a Run from a Message in a Flow. Should be lifted into a Flow Run."""
-    Channel1 = Channel.new("General")
+    """Create a Run by messaging an Identity in a Flow."""
     Flow1 = Flow.new("Flow1")
     Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
+    Agent1 = Identity.new("Agent", default_flow=Start1)
     Page1 = runtime.page()
-    Page1.extend(Channel1, Flow1)
+    Page1.extend(Flow1)
     await runtime.commit()
 
-    Thread1 = Thread.new("Test Thread", main_page=Page1)
-    # nocheckin: ...
-
-    Message1 = Message.new(text=text("Hello, [@Flow1]!", {"Flow1": Flow1}))
-    Channel1.messages.append(Message1)
+    Thread1 = Thread.new("Test Thread", memberships=[Membership.new(Agent1)])
+    runtime.main_package.append(Thread1)
+    await runtime.commit()  # create Thread in separate tx to test loading
+    Message1 = Message.new(text=text("Hello!"))
+    Thread1.messages.append(Message1)
     await runtime.commit()
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)

@@ -35,7 +35,6 @@ export const ACTION_BUILTIN_IDS = [
   // create
   "space.create.page",
   "space.create.thread",
-  "space.create.channel",
   // history
   "space.history.undo",
   "space.history.redo",

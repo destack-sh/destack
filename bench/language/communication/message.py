@@ -104,7 +104,7 @@ class Message(IsTimed, IsBased, IsTitled, IsModal, PackageNode[MessageData]):
     thread: Optional["Thread"] = p_node_ancestor(
         35,
         NodeType.THREAD,
-        require=False,
+        require=True,
         store=True,
         wire=True,
         is_bench_implicit=True,

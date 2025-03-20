@@ -111,6 +111,15 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(EngineUnavailableError,))
 
 
+class CommitArea(NamedTuple):
+    """The scope of relevant nodes for a transaction."""
+
+    edited_node_ids: set[str]
+    node_types: set[NodeType]
+    scopes_by_base_and_type: dict[tuple[UUID | None, NodeType], list[NodeReference]]
+    graph_scopes: tuple[GraphScopeData, ...]
+
+
 class GraphLock:
     """
     Locks for synchronizing graph operations.
@@ -216,7 +225,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
     def _adapt_read_query(self, subject: PolicySubject, query: "Query") -> "Query":
         """
-        Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
+        Adapt read options based on the access to pre-filter as feasible and load any other required Nodes.
         Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
         """
 
@@ -231,6 +240,16 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         # TODO :Performance :Security: also pre-filter read options for owner?
 
         return query
+
+    def _parse_commit(
+        self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]
+    ) -> "CommitArea":
+        """Prepares and validates the edits for a commit."""
+        area = self._extract_commit_area(edits)
+        now = self.oracle.utc()
+        for edit in edits:
+            self._validate_edit(edit, subject, now)
+        return area
 
     async def start(self):
         self.tasks.start_scheduled(
@@ -274,16 +293,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             _oracle=self.oracle,
             _skip_add_self=True,
         )
-
-    def _parse_commit(
-        self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]
-    ) -> "CommitArea":
-        """Prepares and validates the edits for a commit."""
-        area = extract_commit_area(edits, base_graph=None)
-        now = self.oracle.utc()
-        for edit in edits:
-            validate_edit(edit, subject, now)
-        return area
 
     @final
     async def _on_commit_prepare_hook(
@@ -800,148 +809,133 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "watch_aggregate not yet supported")
         yield  # unreachable (for type checking)
 
+    def _extract_commit_area(self, edits: Sequence[EditData]) -> CommitArea:
+        """
+        Gets the specific nodes (scopes) and related snodes that are edited. :NodeEditScope
+        """
+        from bench.proto import wiring
 
-class CommitArea(NamedTuple):
-    """The scope of relevant nodes for a transaction."""
+        edited_node_ids: set[str] = set()
+        node_types: set[NodeType] = set()
+        node_scopes_by_id: dict[str, NodeReferenceData] = {}
+        graph_scopes: dict[int, GraphScopeData] = {}
+        in_tx_created_nodes_ids: set[str] = set()
 
-    edited_node_ids: set[str]
-    node_types: set[NodeType]
-    scopes_by_base_and_type: dict[tuple[UUID | None, NodeType], list[NodeReference]]
-    graph_scopes: tuple[GraphScopeData, ...]
-
-
-def extract_commit_area(edits: Sequence[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
-    """
-    Gets the specific nodes (scopes) and related snodes that are edited. :NodeEditScope
-    """
-    from bench.proto import wiring
-
-    edited_node_ids: set[str] = set()
-    node_types: set[NodeType] = set()
-    node_scopes_by_id: dict[str, NodeReferenceData] = {}
-    graph_scopes: dict[int, GraphScopeData] = {}
-    in_tx_created_nodes_ids: set[str] = set()
-
-    for edit in edits:
-        node_type = NodeType(edit.node_ptr.node_type)
-        node_id = edit.node_ptr.id
-        assert node_id, f"missing id for {edit!r}"
-        edited_node_ids.add(node_id)
-        node_types.add(node_type)
-        if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
-            new_node = wiring.unwrap_some_node(edit.node_data)
-            # node scope is parent since we don't have this node yet
-            if new_node.parent_ptr is None:
-                raise ValidationError(new_node, "can't create orphan")
-            elif new_node.parent_ptr.id not in node_scopes_by_id:
-                node_scope = new_node.parent_ptr
-            else:
-                node_scope = node_scopes_by_id[new_node.parent_ptr.id]
-            in_tx_created_nodes_ids.add(node_id)
-        else:
-            # node scope is the edited node itself
-            if node_id in in_tx_created_nodes_ids:
-                continue  # skip just created nodes
-            node_scope = edit.node_ptr
-            if edit.type == EditType.MOVE:
-                # also add new parent to scope
-                for op in reversed(edit.operations):
-                    if op.path[0] == "4":
-                        parent_ptr = unpack_value_scalar_data(
-                            unpack_proto_json(op.new_value_packed),
-                            Node.get_property("parent_ptr").type_info,
-                        )
-                        parent_ptr = cast(NodeReferenceData, parent_ptr)
-                        break
+        for edit in edits:
+            node_type = NodeType(edit.node_ptr.node_type)
+            node_id = edit.node_ptr.id
+            assert node_id, f"missing id for {edit!r}"
+            edited_node_ids.add(node_id)
+            node_types.add(node_type)
+            if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
+                assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
+                new_node = wiring.unwrap_some_node(edit.node_data)
+                # node scope is parent since we don't have this node yet
+                if new_node.parent_ptr is None:
+                    raise ValidationError(new_node, "can't create orphan")
+                elif new_node.parent_ptr.id not in node_scopes_by_id:
+                    node_scope = new_node.parent_ptr
                 else:
-                    raise RuntimeError(f"missing set parent_ptr for move {edit!r}")
-                node_scopes_by_id[parent_ptr.id] = parent_ptr
-                node_types.add(NodeType(parent_ptr.node_type))
-        node_scopes_by_id[node_id] = node_scope
+                    node_scope = node_scopes_by_id[new_node.parent_ptr.id]
+                in_tx_created_nodes_ids.add(node_id)
+            else:
+                # node scope is the edited node itself
+                if node_id in in_tx_created_nodes_ids:
+                    continue  # skip just created nodes
+                node_scope = edit.node_ptr
+                if edit.type == EditType.MOVE:
+                    # also add new parent to scope
+                    for op in reversed(edit.operations):
+                        if op.path[0] == "4":
+                            parent_ptr = unpack_value_scalar_data(
+                                unpack_proto_json(op.new_value_packed),
+                                Node.get_property("parent_ptr").type_info,
+                            )
+                            parent_ptr = cast(NodeReferenceData, parent_ptr)
+                            break
+                    else:
+                        raise RuntimeError(f"missing set parent_ptr for move {edit!r}")
+                    node_scopes_by_id[parent_ptr.id] = parent_ptr
+                    node_types.add(NodeType(parent_ptr.node_type))
+            node_scopes_by_id[node_id] = node_scope
 
-        # graph scope
-        graph_scope = edit.scope
-        graph_scope_hash = hash((graph_scope.bench_id, tuple(graph_scope.package_ids)))
-        if graph_scope_hash not in graph_scopes:
-            graph_scopes[graph_scope_hash] = graph_scope
+            # graph scope
+            graph_scope = edit.scope
+            graph_scope_hash = hash((graph_scope.bench_id, tuple(graph_scope.package_ids)))
+            if graph_scope_hash not in graph_scopes:
+                graph_scopes[graph_scope_hash] = graph_scope
 
-    node_scopes: dict[UUID, NodeReference] = {
-        UUID(k): wiring.unpack_builtin_object(v, supergraph=None, expect=NodeReference)
-        for k, v in node_scopes_by_id.items()
-    }
-    node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_id, n.node_type))
-    return CommitArea(
-        edited_node_ids=edited_node_ids,
-        node_types=node_types,
-        scopes_by_base_and_type=node_scopes_by_type,
-        graph_scopes=tuple(graph_scopes.values()),
-    )
+        node_scopes: dict[UUID, NodeReference] = {
+            UUID(k): wiring.unpack_builtin_object(v, supergraph=None, expect=NodeReference)
+            for k, v in node_scopes_by_id.items()
+        }
+        node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_id, n.node_type))
+        return CommitArea(
+            edited_node_ids=edited_node_ids,
+            node_types=node_types,
+            scopes_by_base_and_type=node_scopes_by_type,
+            graph_scopes=tuple(graph_scopes.values()),
+        )
 
+    def _validate_edit(self, edit: EditData, subject: PolicySubject, now: datetime) -> None:
+        """Checks the given (non-system) edit for basic validity."""
+        assert subject.client, f"{subject!r} has no client"
+        node_type = NodeType(edit.node_ptr.node_type)
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
 
-def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
-    """Check if the given datetime is within the allowed time drift."""
-    return abs((now - dt).total_seconds()) <= MAX_TIME_DRIFT_SECONDS
+        # scope
+        if node_cls.__is_in_bench__ and not edit.scope.bench_id:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench_id in {edit!r}")
 
-
-def validate_edit(edit: EditData, subject: PolicySubject, now: datetime) -> None:
-    """Checks the given (non-system) edit for basic validity."""
-    assert subject.client, f"{subject!r} has no client"
-    node_type = NodeType(edit.node_ptr.node_type)
-    node_cls = NODE_CLASS_BY_TYPE[node_type]
-
-    # scope
-    if node_cls.__is_in_bench__ and not edit.scope.bench_id:
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench_id in {edit!r}")
-
-    # subject
-    if subject.client.parent_type == NodeType.USER:
-        user_id = str(subject.user.id) if subject.user else None
-        # subject must match user
-        if not edit.subject_ptr or edit.subject_ptr.id != user_id:
+        # subject
+        if subject.client.parent_type == NodeType.USER:
+            user_id = str(subject.user.id) if subject.user else None
+            # subject must match user
+            if not edit.subject_ptr or edit.subject_ptr.id != user_id:
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"subject mismatch in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r} != {user_id}",
+                )
+        else:
+            # subject one of our member types
+            if not edit.subject_ptr or edit.subject_ptr.node_type not in SUBJECT_NODE_TYPES:
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"bad subject in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r}",
+                )
+        # origin
+        if not edit.origin.id or UUID(edit.origin.id) != subject.client.id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
-                f"subject mismatch in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r} != {user_id}",
+                f"origin mismatch in {wiring.describe_edit(edit)!r}: {(edit.origin)!r} != {subject.client!r}",
             )
-    else:
-        # subject one of our member types
-        if not edit.subject_ptr or edit.subject_ptr.node_type not in SUBJECT_NODE_TYPES:
+
+        # time
+        if not edit.edited_at or (
+            (now - edit.edited_at.ToDatetime(tzinfo=pytz.utc)).total_seconds()
+            > MAX_TIME_DRIFT_SECONDS
+        ):
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
-                f"bad subject in {wiring.describe_edit(edit)!r}: {wiring.describe_node_ptr(edit.subject_ptr)!r}",
+                f"edit too old: {edit.edited_at} << {now}",
             )
-    # origin
-    if not edit.origin.id or UUID(edit.origin.id) != subject.client.id:
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"origin mismatch in {wiring.describe_edit(edit)!r}: {(edit.origin)!r} != {subject.client!r}",
-        )
 
-    # time
-    if not edit.edited_at or not _is_allowable_drift(
-        edit.edited_at.ToDatetime(tzinfo=pytz.utc), now
-    ):
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"edit too old: {edit.edited_at} << {now}",
+        # node data :EditData
+        should_set_node_data = edit.type in (
+            EditType.CREATE,
+            EditType.UPSERT,
+            EditType.DELETE,
+            EditType.RESTORE,
+            EditType.ERASE,
         )
-
-    # node data :EditData
-    should_set_node_data = edit.type in (
-        EditType.CREATE,
-        EditType.UPSERT,
-        EditType.DELETE,
-        EditType.RESTORE,
-        EditType.ERASE,
-    )
-    if should_set_node_data != edit.HasField("node_data"):
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"bad node_data in {wiring.describe_edit(edit)!r}: {edit.node_data}",
-        )
-    # properties
-    if edit.operations and edit.type not in (EditType.UPDATE, EditType.MOVE):
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT,
-            f"cannot add operations to {wiring.describe_edit(edit)!r}",
-        )
+        if should_set_node_data != edit.HasField("node_data"):
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT,
+                f"bad node_data in {wiring.describe_edit(edit)!r}: {edit.node_data}",
+            )
+        # properties
+        if edit.operations and edit.type not in (EditType.UPDATE, EditType.MOVE):
+            raise GRPCError(
+                GRPCStatus.INVALID_ARGUMENT,
+                f"cannot add operations to {wiring.describe_edit(edit)!r}",
+            )

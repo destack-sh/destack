@@ -12,7 +12,7 @@ from bench.language import (
 )
 
 # default Flow
-DefaultFlow = Flow.new("Flow", icon=icon("fas fa-robot"), text=text("The default agentive Flow."))
+BenchFlow = Flow.new("Flow", icon=icon("fas fa-robot"), text=text("The default agentive Flow."))
 Start1 = Action.new(
     ActionType.START,
     "Start",
@@ -21,19 +21,19 @@ Start1 = Action.new(
 )
 Tool1 = Action.new(ActionType.TOOL, "Tool", position=vector2(400, 0))
 Complete1 = Action.new(ActionType.END, "Complete", position=vector2(800, 0))
-DefaultFlow.actions.extend(Start1, Tool1, Complete1)
+BenchFlow.actions.extend(Start1, Tool1, Complete1)
 Start1.connect(LinkType.REQUIRE, Tool1)
 Tool1.connect(LinkType.DECIDE, Tool1)
 Tool1.connect(LinkType.DECIDE, Complete1)
 
 # default Agent
-AgentIdentity = Identity.new(
-    "Agent",
+BenchIdentity = Identity.new(
+    "Bench",
     icon=icon("fas fa-robot"),
-    text=text("The default Agent Identity."),
-    default_flow=DefaultFlow,
+    text=text("The default Identity of a Bench."),
+    default_flow=BenchFlow,
 )
-DefaultFlow.default_identity = AgentIdentity
+BenchFlow.default_identity = BenchIdentity
 
 FlowPage = Page.new("Flow")
-FlowPage.extend(DefaultFlow, AgentIdentity)
+FlowPage.extend(BenchFlow, BenchIdentity)

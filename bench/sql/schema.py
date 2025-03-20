@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.20.3"
+VERSION = "2025.03.20.5"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1305,8 +1305,8 @@ MESSAGE_TABLE = Table(
         Column("platform", PrimitiveType.INT16, default="1"),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
-        Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID),
+        Column("thread_ck", PrimitiveType.UUID),
         Column("scope_id", PrimitiveType.UUID, is_nullable=True),
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
