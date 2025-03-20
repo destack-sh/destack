@@ -1965,17 +1965,17 @@ export interface IdentityData {
      */
     tagsPtr: NodeReferenceData[];
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData default_flow_ptr = 40;
+     */
+    defaultFlowPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41;
+     */
+    implementedByPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.ColorType color = 45;
      */
     color?: ColorType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData flow_ptr = 46;
-     */
-    flowPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 47;
-     */
-    implementedByPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 61;
      */
@@ -6210,13 +6210,9 @@ export interface FlowData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roles_ptr = 42;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData default_identity_ptr = 50;
      */
-    rolesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 43;
-     */
-    identityPtr?: NodeReferenceData;
+    defaultIdentityPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbolx.bench.KitData
@@ -19895,9 +19891,9 @@ class IdentityData$Type extends MessageType$<IdentityData> {
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 40, name: "default_flow_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 45, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 46, name: "flow_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 47, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 62, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 65, name: "text", kind: "message", T: () => TextData }
@@ -19982,14 +19978,14 @@ class IdentityData$Type extends MessageType$<IdentityData> {
                 case /* repeated symbolx.bench.NodeReferenceData tags_ptr */ 37:
                     message.tagsPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.NodeReferenceData default_flow_ptr */ 40:
+                    message.defaultFlowPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.defaultFlowPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 41:
+                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
+                    break;
                 case /* optional symbolx.bench.ColorType color */ 45:
                     message.color = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData flow_ptr */ 46:
-                    message.flowPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.flowPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 47:
-                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
                     break;
                 case /* optional google.protobuf.Value inputs_packed */ 61:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -20075,15 +20071,15 @@ class IdentityData$Type extends MessageType$<IdentityData> {
         /* repeated symbolx.bench.NodeReferenceData tags_ptr = 37; */
         for (let i = 0; i < message.tagsPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.tagsPtr[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData default_flow_ptr = 40; */
+        if (message.defaultFlowPtr)
+            NodeReferenceData.internalBinaryWrite(message.defaultFlowPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41; */
+        if (message.implementedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ColorType color = 45; */
         if (message.color !== undefined)
             writer.tag(45, WireType.Varint).int32(message.color);
-        /* optional symbolx.bench.NodeReferenceData flow_ptr = 46; */
-        if (message.flowPtr)
-            NodeReferenceData.internalBinaryWrite(message.flowPtr, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 47; */
-        if (message.implementedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value inputs_packed = 61; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(61, WireType.LengthDelimited).fork(), options).join();
@@ -28669,8 +28665,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 37, name: "tags_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 40, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 41, name: "text", kind: "message", T: () => TextData },
-            { no: 42, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 43, name: "identity_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 50, name: "default_identity_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<FlowData>): FlowData {
@@ -28681,7 +28676,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         message.computedValues = [];
         message.type = 0;
         message.tagsPtr = [];
-        message.rolesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<FlowData>(this, message, value);
         return message;
@@ -28763,11 +28757,8 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbolx.bench.TextData text */ 41:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData roles_ptr */ 42:
-                    message.rolesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 43:
-                    message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
+                case /* optional symbolx.bench.NodeReferenceData default_identity_ptr */ 50:
+                    message.defaultIdentityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.defaultIdentityPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28853,12 +28844,9 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.TextData text = 41; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData roles_ptr = 42; */
-        for (let i = 0; i < message.rolesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.rolesPtr[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData identity_ptr = 43; */
-        if (message.identityPtr)
-            NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData default_identity_ptr = 50; */
+        if (message.defaultIdentityPtr)
+            NodeReferenceData.internalBinaryWrite(message.defaultIdentityPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -33571,8 +33559,7 @@ export enum FlowProperty {
   tagsPtr = 37,
   options = 40,
   text = 41,
-  rolesPtr = 42,
-  identityPtr = 43,
+  defaultIdentityPtr = 50,
 }
 
 export enum ActionProperty {
@@ -34012,9 +33999,9 @@ export enum IdentityProperty {
   definitionPtr = 35,
   threadPtr = 36,
   tagsPtr = 37,
+  defaultFlowPtr = 40,
+  implementedByPtr = 41,
   color = 45,
-  flowPtr = 46,
-  implementedByPtr = 47,
   inputsPacked = 61,
   outputsPacked = 62,
   text = 65,
@@ -35903,8 +35890,7 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.options]: { id: 40, name: 'options', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [FlowProperty.text]: { id: 41, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FlowProperty.rolesPtr]: { id: 42, name: 'roles_ptr', component: ObjectType.FLOW, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ROLE], referenceStruct: StructType.NODE_REFERENCE },
-  [FlowProperty.identityPtr]: { id: 43, name: 'identity_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.defaultIdentityPtr]: { id: 50, name: 'default_identity_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.IDENTITY], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36328,9 +36314,9 @@ export const IdentityDataInfo: Record<IdentityProperty, PropertyInfo> = {
   [IdentityProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [IdentityProperty.threadPtr]: { id: 36, name: 'thread_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [IdentityProperty.tagsPtr]: { id: 37, name: 'tags_ptr', component: ObjectType.IDENTITY, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TAG], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.defaultFlowPtr]: { id: 40, name: 'default_flow_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
+  [IdentityProperty.implementedByPtr]: { id: 41, name: 'implemented_by_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [IdentityProperty.color]: { id: 45, name: 'color', component: ObjectType.IDENTITY, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [IdentityProperty.flowPtr]: { id: 46, name: 'flow_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
-  [IdentityProperty.implementedByPtr]: { id: 47, name: 'implemented_by_ptr', component: ObjectType.IDENTITY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [IdentityProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [IdentityProperty.outputsPacked]: { id: 62, name: 'outputs_packed', component: ObjectType.IDENTITY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [IdentityProperty.text]: { id: 65, name: 'text', component: ObjectType.IDENTITY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },

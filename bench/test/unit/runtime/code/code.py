@@ -356,7 +356,7 @@ async def test_run_code_output_generic_node(simulation: Simulation, runtime: Run
         ActionType.CODE,
         "Function",
         code=code("""\
-return {"Output": [self]}
+return {"Output": [node]}
 """),
         fields=[Field.output("Output", Node, is_list=True)],
     )

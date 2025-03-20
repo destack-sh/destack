@@ -64,6 +64,7 @@ from bench.language import (
     run_span,
     synchronize_nodes,
 )
+from bench.language.core.const import COMMUNICATION_NODE_TYPES
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
@@ -111,6 +112,7 @@ class Runtime:
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
         self.session._graph.add_types(*RUNTIME_NODE_TYPES)
+        self.session._graph.add_types(*COMMUNICATION_NODE_TYPES)
         self.session_ptr = session.to_ref()
         self.session_id = session.id
         self.bench = session.bench
@@ -839,6 +841,7 @@ class Runtime:
             .get(run_ptr, live=True)
         )
         run._graph.add_types(*RUNTIME_NODE_TYPES)
+        run._graph.add_types(*COMMUNICATION_NODE_TYPES)
         assert run.root_ptr is None, f"{run!r} is not a root Run"
         assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
 
@@ -922,7 +925,6 @@ class Runtime:
             # lift run into existing / higher flow
             if (
                 run.type == RunType.ACTION
-                and run.parent_type == NodeType.PACKAGE
                 and (action := run.action) is not None
                 and (flow := action.flow) is not None
             ):
@@ -945,7 +947,11 @@ class Runtime:
                     parent_node = run.parent or run.package
                     assert parent_node is not None, f"no parent for {run!r}"
                     outer_run, _ = create_run(
-                        flow, parent=parent_node, status=RunStatus.QUEUED, graph=run._graph
+                        flow,
+                        parent=parent_node,
+                        mode=run.mode,
+                        status=RunStatus.QUEUED,
+                        graph=run._graph,
                     )
                     run.move(to=outer_run)
                     runner.close(resume=False)

@@ -168,11 +168,11 @@ class StartActionRunner(StaticActionRunner):
         pass  # nothing to do
 
 
-class CompleteActionRunner(ActionRunner):
+class EndActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
         if self.flow is not None:
-            self.flow._complete(outputs=self.outputs)
+            self.flow._complete(outputs=self.inputs)
 
 
 class ToolActionRunner(StaticActionRunner):
@@ -262,7 +262,7 @@ class DynamicActionRunner(ActionRunner):
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
     # flow
     ActionType.START: StartActionRunner,
-    ActionType.END: CompleteActionRunner,
+    ActionType.END: EndActionRunner,
     ActionType.TOOL: ToolActionRunner,
     ActionType.CODE: CodeActionRunner,
     ActionType.DO: DynamicActionRunner,

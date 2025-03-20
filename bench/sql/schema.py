@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.20.0"
+VERSION = "2025.03.20.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -897,11 +897,9 @@ FLOW_TABLE = Table(
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("default_identity_id", PrimitiveType.UUID, is_nullable=True),
+        Column("default_identity_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("default_identity_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1528,12 +1526,12 @@ IDENTITY_TABLE = Table(
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("color", PrimitiveType.INT16, is_nullable=True),
-        Column("flow_id", PrimitiveType.UUID, is_nullable=True),
-        Column("flow_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("default_flow_id", PrimitiveType.UUID, is_nullable=True),
+        Column("default_flow_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
+        Column("color", PrimitiveType.INT16, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),

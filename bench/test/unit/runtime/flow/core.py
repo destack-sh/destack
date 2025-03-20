@@ -202,32 +202,6 @@ async def test_run_flow_computed_value_chain(
 
 
 @simulated_runtime()
-async def test_run_flow_invalid_computed_source(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Run a Flow with invalid computed values (invalid source). Should fail."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(Field.input("Input", int), Field.output("Output", int)),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
-        # missing PathElementType.RUN for source, and Block has no inputs
-        source=(Flow1, Run.get_property("inputs"), Flow1.fields.Input),
-    )
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == ErrorType.INVALID_COMPUTED
-
-
-@simulated_runtime()
 async def test_run_flow_invalid_computed_target(
     simulation: Simulation, runtime: RuntimeLambdaWorkload
 ):

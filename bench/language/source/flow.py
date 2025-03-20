@@ -1,5 +1,6 @@
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Optional, Union
+from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
@@ -12,6 +13,7 @@ from bench.language.core import (
     IsNamed,
     IsTemplatable,
     LocalNodeList,
+    NodeReference,
     NodeType,
     StructType,
     Text,
@@ -26,14 +28,17 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Claim, Field, Identity, Link, Page, Role, RunOptions
+    from bench.language import Action, Claim, Field, Identity, Link, Page, RunOptions
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @enum_(EnumType.FLOW_TYPE)
 class FlowType(BuiltinEnum):
-    ACTION = 10, "Action", "Link Actions into a single Flow"
+    ACTION = 10, "Action", "Link Actions into a procedural Flow"
+    # PLAN? (lay out a sequence of Tasks declaratively)
+    # MESSAGE? (define communication links between agents)
+    # ESCALATION/AUTH?
 
 
 @node_(NodeType.FLOW)
@@ -50,10 +55,18 @@ class Flow(IsComputable, IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNod
     text: Optional["Text"] = p_regular(
         41, default=None, require=False, array=False, struct=StructType.TEXT
     )
-    roles: list["Role"] = p_regular(42, require=False, array=True, references=NodeType.ROLE)
-    identity: Optional["Identity"] = p_regular(
-        43, require=False, array=False, references=NodeType.IDENTITY
+
+    # auth
+    default_identity: Optional["Identity"] = p_regular(
+        50,
+        require=False,
+        array=False,
+        references=NodeType.IDENTITY,
+        description="The default Identity to use for this Flow.",
     )
+    if TYPE_CHECKING:
+        default_identity_ptr: Optional[NodeReference] = None
+        default_identity_id: Optional[UUID] = None
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)

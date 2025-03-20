@@ -110,10 +110,10 @@ class HasRunContext(BuiltinObject):
         same_bench=True,
     )
     if TYPE_CHECKING:
-        page_ptr: Optional[NodeReference] = None
-        page_id: Optional[UUID] = None
         flow_ptr: Optional[NodeReference] = None
         flow_id: Optional[UUID] = None
+        kit_ptr: Optional[NodeReference] = None
+        kit_id: Optional[UUID] = None
         action_ptr: Optional[NodeReference] = None
         action_id: Optional[UUID] = None
         action_ck: Optional[UUID] = None
