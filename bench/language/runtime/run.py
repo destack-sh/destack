@@ -94,16 +94,7 @@ class RunOptions(Struct):
     max_attempts: Optional[int] = p_regular(
         30, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
     )
-    max_concurrency: Optional[int] = p_regular(
-        31,
-        constraint=TypeConstraintIn(min_value=0),
-        description="Maximum concurrent Runs",
-    )
-    max_runs: Optional[int] = p_regular(
-        32,
-        constraint=TypeConstraintIn(min_value=0),
-        description="Maximum number of Runs of this runnable",
-    )
+    # max_concurrency, max_runs, ..
     timeout: Optional[timedelta] = p_regular(35)
 
     # retry

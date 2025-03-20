@@ -1,7 +1,7 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
-from typing import Any, Callable, Mapping, Sequence, assert_never, cast
+from typing import Any, Callable, Mapping, Sequence, cast
 from uuid import UUID
 
 import structlog
@@ -51,7 +51,6 @@ from bench.language import (
     Session,
     SessionStatus,
     Thread,
-    TriggerEffect,
     TypeKind,
     ValidationError,
     WatchGetUpdate,
@@ -82,7 +81,7 @@ from .runner import (
 )
 
 if TYPE_CHECKING:
-    from bench.runtime.thread import RuntimeThread
+    from bench.runtime.process import RuntimeProcess
 
 
 logger = structlog.get_logger(__name__)
@@ -101,7 +100,7 @@ class Runtime:
         session: Session,
         cache: Cache,
         oracle: Oracle,
-        thread: "RuntimeThread | None" = None,
+        process: "RuntimeProcess | None" = None,
         static_glbls: Mapping[str, Any] | None = None,
         dynamic_glbls: Mapping[str, Any] | None = None,
         on_error: Callable[[BaseException], None] | None = None,
@@ -121,7 +120,7 @@ class Runtime:
         self.static_glbls = static_glbls or STATIC_CODE_GLOBALS
         self.dynamic_glbls = dynamic_glbls or DYNAMIC_CODE_GLOBALS
         self.combined_glbls = {**self.static_glbls, **self.dynamic_glbls}
-        self.thread = thread
+        self.process = process
         self.playwright = PlaywrightClient()
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
@@ -929,37 +928,22 @@ class Runtime:
                 and (flow := action.flow) is not None
             ):
                 # lift into flow
-                trigger_effect = (
-                    trigger.effect
-                    if (trigger := run.trigger) is not None
-                    else TriggerEffect.START_RUN
+                # nocheckin: add to existing FlowRunner for that flow/identity
+                self.session.commit_optimistic()
+                parent_node = run.parent or run.package
+                assert parent_node is not None, f"no parent for {run!r}"
+                outer_run, _ = create_run(
+                    flow,
+                    parent=parent_node,
+                    mode=run.mode,
+                    status=RunStatus.QUEUED,
+                    graph=run._graph,
                 )
-                if trigger_effect in (
-                    TriggerEffect.START_RUN,
-                    TriggerEffect.ENSURE_RUN,
-                    TriggerEffect.REPLACE_RUN,
-                ):
-                    # nocheckin: handle ENSURE_RUN/REPLACE_RUN Triggers
-                    #  (how are we going to route that when there are multiple Runtimes?
-                    #   need to deterministically shard .. use thread id/ck?)
-                    # lift into new flow
-                    self.session.commit_optimistic()
-                    parent_node = run.parent or run.package
-                    assert parent_node is not None, f"no parent for {run!r}"
-                    outer_run, _ = create_run(
-                        flow,
-                        parent=parent_node,
-                        mode=run.mode,
-                        status=RunStatus.QUEUED,
-                        graph=run._graph,
-                    )
-                    run.move(to=outer_run)
-                    runner.close(resume=False)
-                    await self.session.commit()  # wait for Run to actually exist
-                    logger.debug("runtime.lift_flow", inner_run=run, outer_run=outer_run)
-                    runner, run = await self._load_runner(outer_run)
-                else:
-                    assert_never(trigger_effect)
+                run.move(to=outer_run)
+                runner.close(resume=False)
+                await self.session.commit()  # wait for Run to actually exist
+                logger.debug("runtime.lift_flow", inner_run=run, outer_run=outer_run)
+                runner, run = await self._load_runner(outer_run)
 
             # actually run
             try:

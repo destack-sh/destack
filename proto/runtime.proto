@@ -10,7 +10,10 @@ import "proto/lang.proto";
 //
 
 message RunRequest {
-	NodeReferenceData run_ptr = 1;
+	GraphScopeData scope = 1;
+	NodeReferenceData computer_ptr = 2;
+	NodeReferenceData thread_ptr = 3; // :RunRouting
+	repeated NodeReferenceData run_ptrs = 10;
 }
 message RunResponse {
 }
@@ -20,8 +23,7 @@ message RunResponse {
 service Runtime {
 	option (kind) = INTERNAL; // :ServiceKind
   
-	// Process a new/existing Run in this runtime. If not blocking, returns immediately on queuing.
-	// nocheckin: Runtime submit multiple Runs at once
+	// Process Runs in this runtime. Returns immediately after queuing.
 	rpc Run(RunRequest) returns (RunResponse);
 }
    

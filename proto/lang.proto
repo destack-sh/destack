@@ -2335,8 +2335,6 @@ message VideoOptionsData {
 message RunOptionsData {
   ObjectType metatype = 1;
   optional int32 max_attempts = 30;
-  optional int32 max_concurrency = 31;
-  optional int32 max_runs = 32;
   optional google.protobuf.Duration timeout = 35;
   optional google.protobuf.Duration retry_interval = 40;
   optional float backoff = 41;

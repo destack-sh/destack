@@ -58,18 +58,9 @@ class TriggerStatus(BuiltinEnum):
 @enum_(EnumType.TRIGGER_EFFECT)
 class TriggerEffect(BuiltinEnum):
     # run
-    START_RUN = 10, "Start Run", "Start a new Run", "fas fa-play"
-    ENSURE_RUN = 11, "Ensure Run", "Continue an existing or start a new Run", "fas fa-forward-step"
-    REPLACE_RUN = (
-        12,
-        "Replace Run",
-        "Replace/restart (part of) the current Run",
-        "fas fa-backward-step",
-    )
+    RUN = 10, "Start Run", "Start a new Run", "fas fa-play"
     # interruption
-    # CANCEL_INTERRUPTION, COMPLETE_INTERRUPTION, ...?
-    # task
-    # CREATE_TASK = 50, "Create Task", "Create a new Task", "fas fa-tasks"
+    # TASK = 50, "Instantiate Task", "Create a new Task from a template", "fas fa-tasks"
 
 
 @node_(NodeType.TRIGGER, has_subtypes=True)
@@ -124,7 +115,7 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         name: str | None = None,
         text: Text | None = None,
         *,
-        effect: TriggerEffect = TriggerEffect.START_RUN,
+        effect: TriggerEffect = TriggerEffect.RUN,
     ) -> "Trigger":
         return Trigger(type=TriggerType.START, name=name, text=text, effect=effect)
 
@@ -133,7 +124,7 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         name: str | None = None,
         text: Text | None = None,
         *,
-        effect: TriggerEffect = TriggerEffect.START_RUN,
+        effect: TriggerEffect = TriggerEffect.RUN,
     ) -> "Trigger":
         trigger = Trigger(type=TriggerType.MESSAGE, name=name, text=text, effect=effect)
         return trigger

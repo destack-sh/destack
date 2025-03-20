@@ -15,6 +15,7 @@ from bench.language import (
     Error,
     ErrorKind,
     ErrorType,
+    NodeMode,
     NodeType,
     ResourceStatus,
     Run,
@@ -24,7 +25,7 @@ from bench.language import (
     bittuple,
     isolated_graph,
 )
-from bench.language.core.const import NodeMode
+from bench.language.core.object import GraphScope
 from bench.proto import RunRequest, RuntimeClient
 from bench.system.host import Commit, HostPlugin
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
@@ -105,6 +106,7 @@ class RunPlugin(HostPlugin[Run]):
             and computer.mode < NodeMode.TEMPLATE
         ]
         # if last computer is still available, use that
+        # (should decide based on thread ideally :RunRouting)
         existing_computer = first((m for m in available_computers if m.id == run.computer_id), None)
         if existing_computer:
             candidate_computers = [existing_computer]
@@ -120,7 +122,14 @@ class RunPlugin(HostPlugin[Run]):
                 runtime = RuntimeClient(
                     await self.network.get_channel(computer.connection_uri, source_id=self.host.id)
                 )
-                request = RunRequest(run_ptr=run._to_ref_data())
+                assert run.thread_ptr, f"missing thread for run {run!r}"
+                # should be batched and routed per Thread :RunRouting
+                request = RunRequest(
+                    scope=GraphScope(bench_id=self.bench.id)._to_data(),
+                    computer_ptr=computer._to_ref_data(),
+                    thread_ptr=run.thread_ptr._to_data(),
+                    run_ptrs=[run._to_ref_data()],
+                )
                 _ = await runtime.run(request)
                 log.info("run_plugin.run", computer=computer, span="current")
                 return  # success

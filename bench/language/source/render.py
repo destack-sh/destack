@@ -928,7 +928,7 @@ class TriggerRenderer(NodeRenderer["Trigger"]):
         rendered_kwargs: dict[str, str],
     ) -> str:
         rendered_kwargs.pop("type", None)
-        if obj.effect == TriggerEffect.START_RUN:
+        if obj.effect == TriggerEffect.RUN:
             rendered_kwargs.pop("effect", None)
         args = (
             rendered_kwargs.pop("name", None),

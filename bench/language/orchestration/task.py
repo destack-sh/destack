@@ -113,8 +113,13 @@ class Task(
     duration: Optional[timedelta] = p_internal(51, default=None)
     due_at: Optional[datetime] = p_regular(52, default=None)
     started_at: Optional[datetime] = p_internal(53, default=None)
-    terminated_at: Optional[datetime] = p_internal(56, default=None)
-    error: Optional["Error"] = p_internal(57, require=False, array=False, struct=StructType.ERROR)
+    stopped_at: Optional[datetime] = p_internal(
+        54, default=None, description="When the Task was requested to stop."
+    )
+    terminated_at: Optional[datetime] = p_internal(
+        55, default=None, description="When the Task terminated."
+    )
+    error: Optional["Error"] = p_internal(56, require=False, array=False, struct=StructType.ERROR)
 
     # routing
     text: Optional["Text"] = p_regular(
@@ -177,6 +182,9 @@ class Task(
 
     def complete(self) -> None:
         self.status = TaskStatus.COMPLETED
+
+    def stop(self) -> None:
+        self.stopped_at = self.active_session._oracle.utc()
 
     def fail(self, error: "Error | None" = None) -> None:
         self.error = error

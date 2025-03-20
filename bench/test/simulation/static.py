@@ -80,6 +80,7 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
         benches=(BenchSpec(name="alice", owner="alice"),),
         hosts=(HostSpec(bench="alice"),),
         runtimes=(RuntimeSpec(name="alice-runtime", computer="alice-computer"),),
+        system=True,
     ),
     #
     # Simple

@@ -21,22 +21,22 @@ from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 
 if TYPE_CHECKING:
-    from bench.runtime.runtime import RuntimeThreadMode
+    from bench.runtime.runtime import RuntimeProcessMode
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class RuntimeThread(RuntimeServiceBase, RuntimeBase):
+class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
     """
-    A 'thread' for executing Runs in a Runtime in some Session. Runs may be paused, resumed and killed.
-    A RuntimeThread may reside in any logical thread or process (incl. main), depending on context.
-    TODO :Incomplete: 'hibernate'/release Runs away from this RuntimeThread/Computer after some time
+    A 'process' for executing Runs in a Runtime in some Session. Runs may be paused, resumed and killed.
+    A RuntimeProcess may reside in any logical process (incl. main), depending on context.
+    TODO :Incomplete: 'hibernate'/release Runs away from this RuntimeProcess after some time
      (to make space for other Runs if a Run is interrupted & inactive for a while) :HibernateRuns
     """
 
     kind = ServiceKind.INTERNAL
-    name = "runtime_thread"
+    name = "runtime_process"
 
     def __init__(
         self,
@@ -50,7 +50,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         client_id: UUID,
         client_access_token: str,
         computer_id: UUID | None,
-        mode: "RuntimeThreadMode",
+        mode: "RuntimeProcessMode",
         on_error: Callable[[BaseException], None] | None = None,
     ):
         super().__init__(
@@ -83,7 +83,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             "bench_id": self._bench_id,
             "client_id": self._client_id,
             "computer_id": self._computer_id,
-            "thread_id": self.id,
+            "process_id": self.id,
         }
 
     def _set_baggage(self):
@@ -91,8 +91,8 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             bench_id=self._bench_id,
             client_id=self._client_id,
             computer_id=self._computer_id,
-            thread_id=self.id,
-            thread_nonce=NONCE,
+            process_id=self.id,
+            process_nonce=NONCE,
         )
 
     @property
@@ -110,13 +110,13 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             session=self._session,
             cache=cache,
             oracle=self.oracle,
-            thread=self,
+            process=self,
             static_glbls=STATIC_CODE_GLOBALS,
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,
             on_error=self.on_error,
         )
         await self._runtime.start()
-        logger.info("runtime_thread.start", process=self, bench=self._bench)
+        logger.info("runtime_process.start", process=self, bench=self._bench)
 
     @override
     def stop(self) -> None:
@@ -134,9 +134,10 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
         # NOTE :Robustness: Runs may be out of sync with our state because they're pushed separately
         #  (this should be fixed when we switch to :PullRuns instead of pushing in RunPlugin)
-        run_ptr = wiring.unpack_builtin_object_validate(
-            request.run_ptr, supergraph=None, expect=NodeReference
-        )
+        run_ptrs = [
+            wiring.unpack_builtin_object_validate(run_ptr, supergraph=None, expect=NodeReference)
+            for run_ptr in request.run_ptrs
+        ]
         self._set_baggage()
-        self.tasks.run(self.runtime.run(run_ptr))
+        await asyncio.gather(*(self.runtime.run(run_ptr) for run_ptr in run_ptrs))
         return RunResponse()
