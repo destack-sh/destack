@@ -59,6 +59,7 @@ from bench.language import (
     TypeBase,
     active_session,
 )
+from bench.language.core.const import COMMUNICATION_NODE_TYPES
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -628,35 +629,39 @@ def create_run(
         # inherit flow from parent if unset
         flow = parent.flow
     if identity is None and flow is not None:
-        identity = flow.identity
+        identity = flow.default_identity
+        if identity is None:
+            from bench.builtin import AgentIdentity
+
+            identity = AgentIdentity
 
     # create root thread
     if isinstance(parent, Package):
         graph = NodeGraph(
             scope=parent._graph.scope,
-            node_types=RUNTIME_NODE_TYPES,
+            node_types=RUNTIME_NODE_TYPES | COMMUNICATION_NODE_TYPES,
             supergraph=session._supergraph,
         )
-        thread = Thread(parent=parent, _graph=graph)
+        if mode is None:
+            mode = session.active_mode
+        thread = Thread(parent=parent, mode=mode, _graph=graph)
         session._create(thread)
         parent = thread
     elif isinstance(parent, Thread):
         thread = parent
+        if mode is None:
+            mode = parent.mode
         graph = parent._graph
     elif isinstance(parent, Run):
         thread = parent.thread
+        if mode is None:
+            mode = parent.mode
         graph = parent._graph
     else:
         assert_never(parent)
     assert thread is not None, f"no thread for {node!r}"
 
     # build run
-    mode = NodeMode.MAIN
-    if isinstance(parent, Run):
-        mode = parent.mode
-    else:
-        if session._runtime is not None:
-            mode = session._runtime.active_mode
     run = Run(
         parent=parent,
         type=typ,

@@ -31,9 +31,9 @@ AgentIdentity = Identity.new(
     "Agent",
     icon=icon("fas fa-robot"),
     text=text("The default Agent Identity."),
-    flow=DefaultFlow,
+    default_flow=DefaultFlow,
 )
-DefaultFlow.identity = AgentIdentity
+DefaultFlow.default_identity = AgentIdentity
 
 FlowPage = Page.new("Flow")
 FlowPage.extend(DefaultFlow, AgentIdentity)

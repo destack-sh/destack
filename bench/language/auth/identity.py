@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from uuid import UUID
 
 from bench.language.core import (
     ColorType,
@@ -10,6 +11,7 @@ from bench.language.core import (
     IsNamed,
     IsSubject,
     LocalNodeList,
+    NodeReference,
     NodeType,
     StructType,
     node_,
@@ -29,24 +31,29 @@ if TYPE_CHECKING:
 
 @node_(NodeType.IDENTITY)
 class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityData]):
-    """An Identity to a Flow. May run for another Flow than its own."""
+    """The Identity of an 'Agent' (tied to a Flow). May run for another Flow than its own."""
 
     # meta
     parent: Union["Page", "Thread", None] = p_node_parent(4, NodeType.PAGE, NodeType.THREAD)
 
-    color: ColorType | None = p_regular(45)
-    flow: Optional["Flow"] = p_regular(
-        46,
+    default_flow: Optional["Flow"] = p_regular(
+        40,
         require=False,
         references=NodeType.FLOW,
-        description="The primary Flow backing this Identity.",
+        description="The default Flow backing this Identity.",
     )
     implemented_by: Optional["Run"] = p_regular(
-        47,
+        41,
         require=False,
         references=NodeType.RUN,
         description="The Run implementing this Identity.",
     )
+    color: ColorType | None = p_regular(45)
+    if TYPE_CHECKING:
+        default_flow_ptr: Optional[NodeReference] = None
+        default_flow_id: Optional[UUID] = None
+        implemented_by_ptr: Optional[NodeReference] = None
+        implemented_by_id: Optional[UUID] = None
 
     # content
     inputs_packed: Any = p_value_packed(61)

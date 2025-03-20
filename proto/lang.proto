@@ -2549,9 +2549,9 @@ message IdentityData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData thread_ptr = 36;
   repeated NodeReferenceData tags_ptr = 37;
+  optional NodeReferenceData default_flow_ptr = 40;
+  optional NodeReferenceData implemented_by_ptr = 41;
   optional ColorType color = 45;
-  optional NodeReferenceData flow_ptr = 46;
-  optional NodeReferenceData implemented_by_ptr = 47;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value outputs_packed = 62;
   optional TextData text = 65;
@@ -3675,8 +3675,7 @@ message FlowData {
   repeated NodeReferenceData tags_ptr = 37;
   optional RunOptionsData options = 40;
   optional TextData text = 41;
-  repeated NodeReferenceData roles_ptr = 42;
-  optional NodeReferenceData identity_ptr = 43;
+  optional NodeReferenceData default_identity_ptr = 50;
 }
 
 message KitData {

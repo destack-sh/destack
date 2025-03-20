@@ -61,12 +61,12 @@ for t in (datetime, timedelta, UUID, base64):
     STATIC_CODE_GLOBALS[t.__name__] = t
 DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     # dynamic globals are set per code run, these are just the types :CodeGlobals
-    "self": Node,
+    "self": Runner,
+    "node": Node,
     "session": Session,
     "runtime": Runtime,
     "bench": Bench,
     "run": Run,
-    "runner": Runner,
     "aliasing": Aliasing,
     "resources": CustomObject,
     "inputs": CustomObject,
