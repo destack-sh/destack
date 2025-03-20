@@ -116,6 +116,7 @@ async function onFileSelected(files: File[]) {
     upload.value = uploadFile(() => benchConnection.tx, content, {
       bench: bench.value,
       pkg: pkg.value,
+      parent: pkg.value, // not sure where else? containing page?
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
     });
     await upload.value.completion.wait();

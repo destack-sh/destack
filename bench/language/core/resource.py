@@ -28,12 +28,7 @@ from .node import (
 from .property import p_internal, p_node_parent, p_system
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Package,
-        Page,
-        Region,
-        Scaler,
-    )
+    from bench.language import Channel, Package, Page, Region, Scaler, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -73,7 +68,9 @@ class Resource[NodeDataT: AnyNodeData](
     Where applicable, the target state is stored in target_* properties.
     """
 
-    parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
+    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE, ckless=True
+    )
     # ... space for type/name/...
 
     # meta

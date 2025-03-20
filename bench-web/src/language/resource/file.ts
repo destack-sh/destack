@@ -4,6 +4,7 @@ import { type Transaction } from "@/language/runtime/transaction";
 import { getCachedHostClient } from "@/proto/services";
 import {
   BenchData,
+  ChannelData,
   DownloadFilesResponse_DownloadHandle,
   EXTENSIONS_BY_FILE_FORMAT,
   FILE_FORMAT_BY_EXTENSION,
@@ -19,8 +20,10 @@ import {
   NodeReferenceData,
   NodeType,
   PackageData,
+  PageData,
   ResourceStatus,
   Struct,
+  ThreadData,
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
@@ -45,6 +48,7 @@ export type FileUpload = {
   isActive: Ref<boolean>;
   bench: BenchData;
   package: PackageData;
+  parent: PackageData | PageData | ChannelData | ThreadData;
   nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
   content: File;
@@ -266,6 +270,7 @@ export function uploadFiles(
   options: {
     bench: BenchData;
     pkg: PackageData;
+    parent: PackageData | PageData | ChannelData | ThreadData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
   },
@@ -277,6 +282,7 @@ export function uploadFiles(
       isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
       bench: options.bench,
       package: options.pkg,
+      parent: options.parent,
       nodePtr: fileIdentity,
       file: shallowRef(null),
       content,
@@ -318,6 +324,7 @@ export function uploadFile(
   options: {
     bench: BenchData;
     pkg: PackageData;
+    parent: PackageData | PageData | ChannelData | ThreadData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
   },

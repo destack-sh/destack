@@ -12,6 +12,7 @@ from bench.language import (
     Run,
     RunStatus,
     Session,
+    Thread,
     Trigger,
     code,
     text,
@@ -77,8 +78,12 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
-    runtime.page().extend(Channel1, Flow1)
+    Page1 = runtime.page()
+    Page1.extend(Channel1, Flow1)
     await runtime.commit()
+
+    Thread1 = Thread.new("Test Thread", main_page=Page1)
+    # nocheckin: ...
 
     Message1 = Message.new(text=text("Hello, [@Flow1]!", {"Flow1": Flow1}))
     Channel1.messages.append(Message1)
