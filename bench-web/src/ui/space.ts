@@ -1687,19 +1687,6 @@ declareActions<"space">({
       canvas.goToNode(thread);
     },
   },
-  "space.create.channel": {
-    title: "Create Channel",
-    icon: "fas fa-hashtag",
-    text: "Create a new channel",
-    action: () => {
-      const channel = createChannel(benchConnection.tx, benchGraph, {
-        anchor: "inside",
-        target: pkg.value!,
-        channel: {},
-      });
-      canvas.goToNode(channel);
-    },
-  },
 });
 
 // view

@@ -1,19 +1,20 @@
 from typing import Sequence, override
-from uuid import UUID
 
 import structlog
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
-    Action,
+    Identity,
     Message,
     NodeType,
     Run,
     Session,
     Trigger,
-    TriggerType,
     bittuple,
 )
+from bench.language.source.action import ActionType
+from bench.language.source.trigger import TriggerEffect, TriggerType
 from bench.proto import EditData
 from bench.runtime import create_run
 
@@ -38,71 +39,47 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
     watch_types = bittuple(NodeType.TRIGGER, NodeType.MESSAGE)
 
     @override
-    async def start(self) -> None:
-        self._collect_triggers()
-
-    def _collect_triggers(self) -> None:
-        """Collects all active Triggers."""
-        self._active_triggers_by_id: dict[UUID, Trigger] = {}
-        for trigger in self.main_package._graph.nodes_of_type(Trigger):
-            if trigger.is_open:
-                self._active_triggers_by_id[trigger.id] = trigger
-
-    @override
     async def on_commit_prepare(
         self, session: Session, commit: Commit[Trigger | Message]
     ) -> Sequence[EditData] | None:
-        # update active triggers
-        for trigger in commit.added:
-            if isinstance(trigger, Trigger) and trigger.is_open:
-                self._active_triggers_by_id[trigger.id] = trigger
-        for trigger in commit.updated:
-            if isinstance(trigger, Trigger):
-                if trigger.is_open:
-                    self._active_triggers_by_id[trigger.id] = trigger
-                else:
-                    del self._active_triggers_by_id[trigger.id]
-        for trigger in commit.removed:
-            if isinstance(trigger, Trigger) and trigger.id in self._active_triggers_by_id:
-                del self._active_triggers_by_id[trigger.id]
-
         # collect fired triggers
         for message in commit.added:
             if not isinstance(message, Message):
                 continue
-            for trigger in self._active_triggers_by_id.values():
-                if trigger.type != TriggerType.MESSAGE:
-                    continue
-
-                # nocheckin: check Channel/Thread.memberships
-                thread = message.thread
-                assert thread is not None, f"message {message!r} has no thread"
-                is_involved = ...
-                is_author = ...
-
-                # fire trigger
-                if is_involved and not is_author:
-                    target = trigger.parent
-                    if isinstance(target, Run):
-                        target = target.runnable
-                    if not isinstance(target, Action):
-                        raise RuntimeError(
-                            f"trigger {trigger!r} has unsupported target: {target!r}"
-                        )
-                    run, thread = create_run(
-                        target,
+            runs: list[Run] = []
+            # fire trigger for each member
+            thread = message.thread
+            assert thread is not None, f"message {message!r} has no thread"
+            for membership in thread.memberships:
+                if membership.member_id == message.created_by_id:
+                    continue  # skip if we're the author
+                member = membership.member
+                if not isinstance(member, Identity):
+                    continue  # not an Identity
+                flow = member.default_flow
+                if flow is None:
+                    continue  # no Flow to trigger
+                for action in flow.actions:
+                    if action.type != ActionType.START:
+                        continue
+                    trigger = first(
+                        (
+                            trigger
+                            for trigger in action.triggers
+                            if trigger.type == TriggerType.MESSAGE
+                            and trigger.effect == TriggerEffect.RUN
+                            and trigger.is_open
+                        ),
+                        None,
+                    )
+                    if trigger is None:
+                        continue  # no matching trigger
+                    run, _ = create_run(
+                        action,
                         parent=thread,
                         trigger=trigger,
                         message=message,
-                        thread=message.thread,
-                    )
-                    logger.info(
-                        "message_trigger_plugin.trigger",
-                        message=message,
                         thread=thread,
-                        run=run,
                     )
-
-    @override
-    async def on_commit_failed(self, session: Session, error: BaseException) -> None:
-        self._collect_triggers()
+                    runs.append(run)
+            logger.info("message_trigger_plugin.trigger", message=message, runs=runs)

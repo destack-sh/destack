@@ -631,9 +631,9 @@ def create_run(
     if identity is None and flow is not None:
         identity = flow.default_identity
         if identity is None:
-            from bench.builtin import AgentIdentity
+            from bench.builtin import BenchIdentity
 
-            identity = AgentIdentity
+            identity = BenchIdentity
 
     # create root thread
     if isinstance(parent, Package):

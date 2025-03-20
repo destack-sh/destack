@@ -246,10 +246,10 @@ class CodeActionRunner(ActionRunner):
 class DynamicActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
-        from bench.builtin import DefaultFlow
+        from bench.builtin import BenchFlow
 
         flow_runner = self._get_resumable_subrunner(
-            node=DefaultFlow,
+            node=BenchFlow,
             inputs=self.inputs,
             output_type=self.output_type,
         )

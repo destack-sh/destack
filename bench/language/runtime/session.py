@@ -491,7 +491,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 for ancestor in node._walk_ancestors()
             )
         ):
-            # autoset runtime context on new runtime nodes
+            # 'inherit' runtime context on new runtime nodes
             runtime._set_context(node)
         self._tx.record_edit_event(EditType.CREATE, node)
 

@@ -131,6 +131,7 @@ class Thread(
         scope: Union["InlineNode", "Package", None] = None,
         main_page: "Page | None" = None,
         main_plan: "Plan | None" = None,
+        **kwargs,
     ) -> "Thread":
         thread = Thread(
             title=to_text_line(title) if title is not None else None,
@@ -139,5 +140,6 @@ class Thread(
             channel=channel,
             main_page=main_page,
             main_plan=main_plan,
+            **kwargs,
         )
         return thread

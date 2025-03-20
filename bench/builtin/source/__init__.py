@@ -1,10 +1,10 @@
 from .action import ActionKit, ActionPage
-from .flow import AgentIdentity, DefaultFlow, FlowPage
+from .flow import BenchFlow, BenchIdentity, FlowPage
 
 __all__ = [
     "ActionKit",
     "ActionPage",
-    "AgentIdentity",
-    "DefaultFlow",
+    "BenchFlow",
+    "BenchIdentity",
     "FlowPage",
 ]

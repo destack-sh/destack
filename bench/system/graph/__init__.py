@@ -6,13 +6,7 @@ from bench.system.graph.connection import (
     GetConnection,
     SearchConnection,
 )
-from bench.system.graph.graph import (
-    CommitArea,
-    GraphLock,
-    GraphServiceBase,
-    extract_commit_area,
-    validate_edit,
-)
+from bench.system.graph.graph import CommitArea, GraphLock, GraphServiceBase
 from bench.system.graph.postgres import (
     PostgresAggregateConnection,
     PostgresConnector,
@@ -36,6 +30,4 @@ __all__ = [
     "PostgresGetConnection",
     "PostgresSearchConnection",
     "SearchConnection",
-    "extract_commit_area",
-    "validate_edit",
 ]
