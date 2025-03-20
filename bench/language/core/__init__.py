@@ -118,6 +118,7 @@ from .const import (
     TypeKind,
     active_session,
     bittuple,
+    capture_span,
     enum_,
     get_active_session,
     get_active_tx,
@@ -127,7 +128,6 @@ from .const import (
     is_struct_type,
     new_struct_id,
     repr_enums,
-    span,
 )
 from .expression import (
     A,
@@ -567,6 +567,7 @@ __all__ = [
     "active_session",
     "apply_sort",
     "bittuple",
+    "capture_span",
     "check_value",
     "check_value_scalar",
     "clean_name",
@@ -643,7 +644,6 @@ __all__ = [
     "reverse_icon",
     "reverse_path_element",
     "reverse_type_scalar",
-    "span",
     "struct_",
     "subnode_",
     "text",

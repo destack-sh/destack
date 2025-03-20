@@ -830,12 +830,12 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             return await self._do_flush()
 
     @tracer.start_as_current_span("session.commit.schedule")
-    def commit_optimistic(self):
+    def commit_optimistic(self, *, runtime: bool = False):
         """Commit optimistically without waiting for the next background commit."""
         # schedule a new commit
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._preflush(runtime=False)
+        new_edits = self._preflush(runtime=runtime)
         event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
         if not self._tx.has_edits:
             return [], []  # nothing to do

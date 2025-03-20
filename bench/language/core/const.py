@@ -1787,7 +1787,7 @@ def get_active_tx() -> Optional["Transaction"]:
 
 
 @_agnosticcontextmanager
-def span(
+def capture_span(
     tracer: Tracer,
     key: str,
     type: "SpanType",

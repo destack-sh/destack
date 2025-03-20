@@ -35,6 +35,7 @@ from bench.language.core import (
     Struct,
     StructType,
     active_session,
+    capture_span,
     constraint,
     enum_,
     node_,
@@ -43,7 +44,6 @@ from bench.language.core import (
     p_regular,
     p_runtime,
     p_system,
-    span,
     struct_,
 )
 from bench.pb2 import (
@@ -815,7 +815,9 @@ async def upload_file_batch(
         session = active_session()
 
     # get upload URLs
-    with span(tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD, level=Severity.DEBUG):
+    with capture_span(
+        tracer, "file.prepare_upload", SpanType.FILE_PREPARE_UPLOAD, level=Severity.DEBUG
+    ):
         upload_req = UploadFilesRequest(
             scope=session._get_scope_for_node(files[0]),
             files=[f._to_data() for f in files],
@@ -854,7 +856,7 @@ async def upload_file_batch(
     logger.debug("file.upload_batch", files=files, span="current")
 
 
-@span(tracer, "file.download_batch", SpanType.FILE_DOWNLOAD)
+@capture_span(tracer, "file.download_batch", SpanType.FILE_DOWNLOAD)
 async def download_file_batch(
     file_refs: Sequence[NodeReference | File],
     *,
@@ -870,7 +872,7 @@ async def download_file_batch(
         session = active_session()
 
     # get download URLs
-    with span(tracer, "file.prepare_download", SpanType.FILE_PREPARE_DOWNLOAD):
+    with capture_span(tracer, "file.prepare_download", SpanType.FILE_PREPARE_DOWNLOAD):
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
             files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
@@ -993,7 +995,7 @@ async def extract_file_info(  # noqa: RUF029
     return file, content
 
 
-@span(tracer, "file.upload", SpanType.FILE_UPLOAD, level=Severity.DEBUG)
+@capture_span(tracer, "file.upload", SpanType.FILE_UPLOAD, level=Severity.DEBUG)
 async def upload_file(
     file_in: FileIn,
     name: str,
