@@ -284,7 +284,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         # runtime
         if self.context is None:
             self.context = self.tracked
-        self.connection: GetConnection | None = None
+        self.connection: GetConnection | None = None  # for root runner
         self.hooks: list[Callable[[RunnerEvent], None]] = []
         if self.id in self.runtime._owned_runners_by_id:
             raise RuntimeError(f"runner {self!r} already exists in {self.runtime!r}")

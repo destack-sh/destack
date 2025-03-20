@@ -54,13 +54,13 @@ from bench.language import (
     TypeKind,
     ValidationError,
     WatchGetUpdate,
+    capture_span,
     check_value,
     coerce_value,
     evaluate_path,
     get_custom_object_properties,
     isolated_graph,
     on_invalid_raise,
-    span,
     synchronize_nodes,
 )
 from bench.language.core.const import COMMUNICATION_NODE_TYPES
@@ -542,7 +542,11 @@ class Runtime:
                 claim.parent = run
                 self.session._create(claim)
         if open_claims:
-            with span(tracer, "runtime.acquire_resources", SpanType.ACQUIRE, runner=runner):
+            with capture_span(
+                tracer, "runtime.acquire_resources", SpanType.ACQUIRE, runner=runner
+            ) as span:
+                if span:
+                    span.nodes = cast(list["Node"], open_claims)
                 await self.wait_for(
                     nodes=open_claims,
                     condition=lambda: all(
@@ -746,11 +750,9 @@ class Runtime:
                     # didn't make an attempt
                     span.terminated_at = self.oracle.utc()
                     span.duration = span.terminated_at - span.started_at  # type: ignore
-                # close any remaining (directly) contained open Interruptions
-                runner.close(resume=not runner.is_root)
 
             # commit intermediate session edits
-            self.session.commit_optimistic()
+            self.session.commit_optimistic(runtime=runner.is_root)
 
             # notify
             self._active_runners_by_id.pop(runner.id, None)
@@ -768,6 +770,10 @@ class Runtime:
                 runner.fire_event(RunnerAbortedEvent(runner))
             elif runner.status == RunStatus.CANCELLED:
                 runner.fire_event(RunnerCancelledEvent(runner))
+
+            # close any remaining (directly) contained open Interruptions
+            if runner.status.is_terminal:
+                runner.close(resume=not runner.is_root)
 
     async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""

@@ -17,7 +17,7 @@ from bench.language import (
     Severity,
     SpanType,
     TypeBase,
-    span,
+    capture_span,
 )
 from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
 
@@ -105,7 +105,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         assert self.output_type is not None, f"{self!r} has no output type"
 
         # build prompt
-        with span(tracer, "model.prepare", SpanType.MODEL_PREPARE, level=Severity.DEBUG):
+        with capture_span(tracer, "model.prepare", SpanType.MODEL_PREPARE, level=Severity.DEBUG):
             prompt = make_chat_prompt(
                 action=self.node,
                 runner=cast(Runner[RunnableNode], self),

@@ -47,21 +47,21 @@ class GraphCapture:
         self.graphs.append(graph)
 
     def remove_connection(self, connection: "Connection"):
-        """Remove a Connection if it exists."""
+        """Remove a Connection (if it exists)."""
         if self.parent is not None:
             self.parent.remove_connection(connection)
         if connection in self.connections:
             self.connections.remove(connection)
 
     def remove_link(self, link: "NodeLink"):
-        """Remove a NodeLink if it exists."""
+        """Remove a NodeLink (if it exists)."""
         if self.parent is not None:
             self.parent.remove_link(link)
         if link in self.links:
             self.links.remove(link)
 
     def remove_graph(self, graph: "NodeGraph"):
-        """Remove a NodeGraph if it exists."""
+        """Remove a NodeGraph (if it exists)."""
         if self.parent is not None:
             self.parent.remove_graph(graph)
         if graph in self.graphs:
