@@ -241,9 +241,7 @@ provideActions<"user">({
     title: "Go Home",
     text: "Go back to your Bench.",
     isEnabled: () => {
-      if (!isActivated.value) return false;
-      if (benchPtr.value?.id == user.value!.mainBenchPtr?.id) return false;
-      return true;
+      return isActivated.value;
     },
     action: async () => {
       if (bench.value?.id == user.value!.mainBenchPtr?.id) {

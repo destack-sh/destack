@@ -75,7 +75,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         <NodeReference
           v-if="node"
           ref="nameRef"
-          class="w-full px-0.5"
+          class="mt-3 w-full px-0.5"
           :orientation="Orientation.VERTICAL"
           size="title"
           :node="node"

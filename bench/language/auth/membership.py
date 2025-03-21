@@ -4,7 +4,8 @@ from uuid import UUID
 from bench.language.core import (
     JOINABLE_NODE_TYPES,
     SUBJECT_NODE_TYPES,
-    BenchNode,
+    IsInstantiable,
+    IsModal,
     Joinable,
     NodeReference,
     NodeType,
@@ -13,6 +14,7 @@ from bench.language.core import (
     p_internal,
     p_node_parent,
 )
+from bench.language.core.node import PackageNode
 from bench.pb2 import MembershipData
 
 if TYPE_CHECKING:
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.MEMBERSHIP)
-class Membership(BenchNode[MembershipData]):
+class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
     """
     A Membership of a Subject to a Joinable.
     """

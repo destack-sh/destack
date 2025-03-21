@@ -20,15 +20,14 @@ import { computed, getCurrentInstance, shallowRef, toValue, triggerRef, watch, t
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
 // :OmnibarModes
-export type OmnibarMode = "everywhere" | "actions" | "bench";
-export const OMNIBAR_MODES: OmnibarMode[] = ["everywhere", "actions", "bench"];
+export type OmnibarMode = "bench" | "actions";
+export const OMNIBAR_MODES: OmnibarMode[] = ["bench", "actions"];
 
 export const ACTION_BUILTIN_IDS = [
   // omnibar
   // (:OmnibarModes)
-  "space.omnibar.everywhere",
-  "space.omnibar.actions",
   "space.omnibar.bench",
+  "space.omnibar.actions",
   // launch
   "space.launch.discord",
   "space.launch.fullscreen",

@@ -10,6 +10,7 @@ import { ModelValueOptions, ViewEmits, type ViewExpose } from "@/views/common";
 import Field from "@/views/nodes/Field.vue";
 import ClaimList from "@/views/objects/ClaimList.vue";
 import FieldList from "@/views/objects/FieldList.vue";
+import MembershipList from "@/views/objects/MembershipList.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { toRef } from "vue";
 
@@ -121,6 +122,14 @@ defineExpose<ViewExpose>({ self, id });
           </div>
           <div v-else-if="row.type == 'claims-list'" class="w-full rounded border border-gray-200 px-1 py-1">
             <ClaimList
+              :id="row.title ?? `type-${i}`"
+              :orientation="Orientation.VERTICAL"
+              :node-ptr="nodePtr"
+              is-minimal
+            />
+          </div>
+          <div v-else-if="row.type == 'membership-list'" class="w-full rounded border border-gray-200 px-1 py-1">
+            <MembershipList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
               :node-ptr="nodePtr"
