@@ -10,6 +10,7 @@ from bench.language import (
     Node,
     NodeGraph,
     NodeReference,
+    Package,
 )
 
 
@@ -19,7 +20,8 @@ def get_stable_builtin_path(node: Node) -> str:
     # assemble path (like in Path.render)
     path_parts: list[str] = []
     current = node
-    while current is not None:
+    # (stop at Package for id stability)
+    while current is not None and not isinstance(current, Package):
         path_key = current._ident
         if path_key is None:
             if isinstance(current, Block):

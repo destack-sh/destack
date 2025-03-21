@@ -24,7 +24,6 @@ export function createThread(
   // add members
   for (const member of options.members) {
     if (member == "bench") {
-      // ... nocheckin builtin
       const membership = createMembership(tx, graph, {
         membership: {
           parentPtr: toNodeRef(thread),
