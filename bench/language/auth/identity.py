@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.pb2 import IdentityData
 
 if TYPE_CHECKING:
-    from bench.language import Claim, Field, Flow, Page, Run, Text, Thread
+    from bench.language import Channel, Claim, Field, Flow, Page, Run, Text, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -34,7 +34,9 @@ class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityD
     """The Identity of an 'Agent' (tied to a Flow). May run for another Flow than its own."""
 
     # meta
-    parent: Union["Page", "Thread", None] = p_node_parent(4, NodeType.PAGE, NodeType.THREAD)
+    parent: Union["Page", "Channel", "Thread", None] = p_node_parent(
+        4, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
+    )
 
     default_flow: Optional["Flow"] = p_regular(
         40,

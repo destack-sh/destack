@@ -55,7 +55,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                     continue  # skip if we're the author
                 member = membership.member
                 if not isinstance(member, Identity):
-                    continue  # not an Identity
+                    continue  # not an Identity or deleted
                 flow = member.default_flow
                 if flow is None:
                     continue  # no Flow to trigger

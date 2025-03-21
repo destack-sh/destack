@@ -54,6 +54,7 @@ from bench.language import (
     patch_graph,
 )
 from bench.language.core.const import BENCH_BENCH_ID, JOINABLE_NODE_TYPES
+from bench.pb2 import MessageData
 from bench.proto import (
     DownloadFilesRequest,
     DownloadFilesResponse,
@@ -508,19 +509,19 @@ class HostService(GraphServiceBase, HostBase):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # prepare commit
-        scope = self._extract_commit_area(edits)
+        scope = self._extract_commit_scope(edits)
         now = self.oracle.utc()
         for edit in edits:
             self._validate_edit(edit, subject, now)
 
         # add any threads
         # NOTE :Cleanup: manually loading more stuff for Thread feels wrong
+        #  (also it only works when we're creating Nodes and thus have Edit.node_data)
         for edit in edits:
             if edit.node_ptr.node_type == NodeType.MESSAGE:
                 if edit.HasField("node_data"):
-                    message = unwrap_some_node(edit.node_data)
-                ...
-                pass
+                    message = cast(MessageData, unwrap_some_node(edit.node_data))
+                    scope.add_scope(message.thread_ptr)
 
         # check context
         validate_context(subject, context, edits)

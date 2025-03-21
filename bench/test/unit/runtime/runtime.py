@@ -79,14 +79,17 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
-    Agent1 = Identity.new("Agent", default_flow=Start1)
+    Agent1 = Identity.new("Agent", default_flow=Flow1)
     Page1 = runtime.page()
-    Page1.extend(Flow1)
+    Page1.extend(Flow1, Agent1)
     await runtime.commit()
 
+    # create Thread in separate tx to test loading
     Thread1 = Thread.new("Test Thread", memberships=[Membership.new(Agent1)])
     runtime.main_package.append(Thread1)
-    await runtime.commit()  # create Thread in separate tx to test loading
+    await runtime.commit()
+
+    # submit message
     Message1 = Message.new(text=text("Hello!"))
     Thread1.messages.append(Message1)
     await runtime.commit()

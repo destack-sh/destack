@@ -1,13 +1,14 @@
 import abc
 import asyncio
+import dataclasses
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from typing import (
     AsyncIterator,
     Callable,
     Literal,
     Mapping,
-    NamedTuple,
     Sequence,
     cast,
     final,
@@ -111,13 +112,24 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(EngineUnavailableError,))
 
 
-class CommitArea(NamedTuple):
+@dataclass(slots=True)
+class CommitScope:
     """The scope of relevant nodes for a transaction."""
 
-    edited_node_ids: set[str]
-    node_types: set[NodeType]
-    scopes_by_base_and_type: dict[tuple[UUID | None, NodeType], list[NodeReference]]
-    graph_scopes: tuple[GraphScopeData, ...]
+    edited_node_ids: set[str] = dataclasses.field(default_factory=set)
+    node_types: set[NodeType] = dataclasses.field(default_factory=set)
+    scopes_by_base_and_type: dict[tuple[UUID | None, NodeType], list[NodeReference]] = (
+        dataclasses.field(default_factory=dict)
+    )
+    graph_scopes: tuple[GraphScopeData, ...] = dataclasses.field(default_factory=tuple)
+
+    def add_scope(self, node_ptr: NodeReference | NodeReferenceData) -> None:
+        if not isinstance(node_ptr, NodeReference):
+            node_ptr = wiring.unpack_builtin_object(node_ptr, supergraph=None, expect=NodeReference)
+        key = (node_ptr.base_id, node_ptr.node_type)
+        if key not in self.scopes_by_base_and_type:
+            self.scopes_by_base_and_type[key] = []
+        self.scopes_by_base_and_type[key].append(node_ptr)
 
 
 class GraphLock:
@@ -159,8 +171,8 @@ class GraphLock:
                 await self._locks[node_type].release_read()
 
     @asynccontextmanager
-    async def write(self, ctx: "CommitArea | Literal['all']"):
-        if isinstance(ctx, CommitArea):  # noqa: SIM108
+    async def write(self, ctx: "CommitScope | Literal['all']"):
+        if isinstance(ctx, CommitScope):  # noqa: SIM108
             node_types = ctx.node_types
         else:
             node_types = NODE_TYPES
@@ -243,13 +255,13 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
 
     def _parse_commit(
         self, subject: PolicySubject, context: IsRuntime, edits: Sequence[EditData]
-    ) -> "CommitArea":
+    ) -> "CommitScope":
         """Prepares and validates the edits for a commit."""
-        area = self._extract_commit_area(edits)
+        scope = self._extract_commit_scope(edits)
         now = self.oracle.utc()
         for edit in edits:
             self._validate_edit(edit, subject, now)
-        return area
+        return scope
 
     async def start(self):
         self.tasks.start_scheduled(
@@ -370,7 +382,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     async def _do_commit(
         self,
         *,
-        area: "CommitArea",
+        area: "CommitScope",
         scope: GraphScopeData,
         subject: PolicySubject,
         context: IsRuntime,
@@ -809,9 +821,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "watch_aggregate not yet supported")
         yield  # unreachable (for type checking)
 
-    def _extract_commit_area(self, edits: Sequence[EditData]) -> CommitArea:
+    def _extract_commit_scope(self, edits: Sequence[EditData]) -> CommitScope:
         """
-        Gets the specific nodes (scopes) and related snodes that are edited. :NodeEditScope
+        Gets the specific nodes (scopes) and related snodes that are edited.
         """
         from bench.proto import wiring
 
@@ -870,7 +882,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             for k, v in node_scopes_by_id.items()
         }
         node_scopes_by_type = group_by(node_scopes.values(), lambda n: (n.base_id, n.node_type))
-        return CommitArea(
+        return CommitScope(
             edited_node_ids=edited_node_ids,
             node_types=node_types,
             scopes_by_base_and_type=node_scopes_by_type,
