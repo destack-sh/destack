@@ -844,7 +844,9 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.IDENTITY,
     NodeType.TEAM,
-    NodeType.MEMBERSHIP,
+    # NodeType.MEMBERSHIP, # NOTE :Broken: can't load Membership since it confuses Graph.commit
+    #  (because Thread, which aren't loaded, also have Memberships, it doesn't understand
+    #   currently that/when it needs to load Memberships from disk not memory)
 )
 
 #
