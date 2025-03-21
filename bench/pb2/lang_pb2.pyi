@@ -43,7 +43,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ACCESS_MODE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_KIND: _ClassVar[EnumType]
     ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
-    ENUM_TYPE_INVITE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_QUERY_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
@@ -491,7 +490,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ACCESS_MODE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_KIND: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
-    BENCH_TYPE_INVITE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_QUERY_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_EDIT_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
@@ -721,15 +719,6 @@ class PolicyEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     POLICY_EFFECT_UNSPECIFIED: _ClassVar[PolicyEffect]
     POLICY_EFFECT_ALLOW: _ClassVar[PolicyEffect]
     POLICY_EFFECT_DENY: _ClassVar[PolicyEffect]
-
-class InviteType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    INVITE_TYPE_UNSPECIFIED: _ClassVar[InviteType]
-    INVITE_TYPE_BENCH: _ClassVar[InviteType]
-    INVITE_TYPE_ORGANIZATION: _ClassVar[InviteType]
-    INVITE_TYPE_TEAM: _ClassVar[InviteType]
-    INVITE_TYPE_CHANNEL: _ClassVar[InviteType]
-    INVITE_TYPE_THREAD: _ClassVar[InviteType]
 
 class QueryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1977,7 +1966,6 @@ ENUM_TYPE_BENCH_STATUS: EnumType
 ENUM_TYPE_ACCESS_MODE: EnumType
 ENUM_TYPE_ACCESS_KIND: EnumType
 ENUM_TYPE_POLICY_EFFECT: EnumType
-ENUM_TYPE_INVITE_TYPE: EnumType
 ENUM_TYPE_QUERY_TYPE: EnumType
 ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_USE_TYPE: EnumType
@@ -2413,7 +2401,6 @@ BENCH_TYPE_BENCH_STATUS: BenchType
 BENCH_TYPE_ACCESS_MODE: BenchType
 BENCH_TYPE_ACCESS_KIND: BenchType
 BENCH_TYPE_POLICY_EFFECT: BenchType
-BENCH_TYPE_INVITE_TYPE: BenchType
 BENCH_TYPE_QUERY_TYPE: BenchType
 BENCH_TYPE_EDIT_TYPE: BenchType
 BENCH_TYPE_USE_TYPE: BenchType
@@ -2598,12 +2585,6 @@ ACCESS_KIND_USE: AccessKind
 POLICY_EFFECT_UNSPECIFIED: PolicyEffect
 POLICY_EFFECT_ALLOW: PolicyEffect
 POLICY_EFFECT_DENY: PolicyEffect
-INVITE_TYPE_UNSPECIFIED: InviteType
-INVITE_TYPE_BENCH: InviteType
-INVITE_TYPE_ORGANIZATION: InviteType
-INVITE_TYPE_TEAM: InviteType
-INVITE_TYPE_CHANNEL: InviteType
-INVITE_TYPE_THREAD: InviteType
 QUERY_TYPE_UNSPECIFIED: QueryType
 QUERY_TYPE_GET: QueryType
 QUERY_TYPE_SEARCH: QueryType
@@ -4590,7 +4571,7 @@ class IdentityData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., default_flow_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., implemented_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorType, str]] = ..., inputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., outputs_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
 class InviteData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "type", "to_ptr", "user_ptr", "user_email", "is_owner")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed", "member_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4601,11 +4582,7 @@ class InviteData(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     SUBNODE_PACKED_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    TO_PTR_FIELD_NUMBER: _ClassVar[int]
-    USER_PTR_FIELD_NUMBER: _ClassVar[int]
-    USER_EMAIL_FIELD_NUMBER: _ClassVar[int]
-    IS_OWNER_FIELD_NUMBER: _ClassVar[int]
+    MEMBER_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
@@ -4616,12 +4593,8 @@ class InviteData(_message.Message):
     updated_by_ptr: NodeReferenceData
     deleted_at: _timestamp_pb2.Timestamp
     subnode_packed: _struct_pb2.Value
-    type: InviteType
-    to_ptr: NodeReferenceData
-    user_ptr: NodeReferenceData
-    user_email: str
-    is_owner: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[InviteType, str]] = ..., to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_email: _Optional[str] = ..., is_owner: bool = ...) -> None: ...
+    member_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., member_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class MembershipData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "member_ptr")

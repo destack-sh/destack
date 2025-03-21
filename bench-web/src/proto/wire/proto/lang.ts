@@ -2026,25 +2026,9 @@ export interface InviteData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: symbolx.bench.InviteType type = 30;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData member_ptr = 40;
      */
-    type: InviteType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData to_ptr = 40;
-     */
-    toPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 41;
-     */
-    userPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string user_email = 42;
-     */
-    userEmail?: string;
-    /**
-     * @generated from protobuf field: bool is_owner = 43;
-     */
-    isOwner: boolean;
+    memberPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbolx.bench.MembershipData
@@ -7724,10 +7708,6 @@ export enum EnumType {
      */
     POLICY_EFFECT = 20102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_INVITE_TYPE = 20104;
-     */
-    INVITE_TYPE = 20104,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_QUERY_TYPE = 20150;
      */
     QUERY_TYPE = 20150,
@@ -9488,10 +9468,6 @@ export enum BenchType {
      */
     POLICY_EFFECT = 20102,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_INVITE_TYPE = 20104;
-     */
-    INVITE_TYPE = 20104,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_QUERY_TYPE = 20150;
      */
     QUERY_TYPE = 20150,
@@ -10318,35 +10294,6 @@ export enum PolicyEffect {
      * @generated from protobuf enum value: POLICY_EFFECT_DENY = 2;
      */
     DENY = 2
-}
-/**
- * @generated from protobuf enum symbolx.bench.InviteType
- */
-export enum InviteType {
-    /**
-     * @generated from protobuf enum value: INVITE_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: INVITE_TYPE_BENCH = 10;
-     */
-    BENCH = 10,
-    /**
-     * @generated from protobuf enum value: INVITE_TYPE_ORGANIZATION = 20;
-     */
-    ORGANIZATION = 20,
-    /**
-     * @generated from protobuf enum value: INVITE_TYPE_TEAM = 30;
-     */
-    TEAM = 30,
-    /**
-     * @generated from protobuf enum value: INVITE_TYPE_CHANNEL = 100;
-     */
-    CHANNEL = 100,
-    /**
-     * @generated from protobuf enum value: INVITE_TYPE_THREAD = 110;
-     */
-    THREAD = 110
 }
 /**
  * Ways to read nodes.
@@ -20107,19 +20054,13 @@ class InviteData$Type extends MessageType$<InviteData> {
             { no: 13, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 14, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.InviteType", InviteType, "INVITE_TYPE_"] },
-            { no: 40, name: "to_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "user_email", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "is_owner", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 40, name: "member_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<InviteData>): InviteData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
-        message.type = 0;
-        message.isOwner = false;
         if (value !== undefined)
             reflectionMergePartial<InviteData>(this, message, value);
         return message;
@@ -20159,20 +20100,8 @@ class InviteData$Type extends MessageType$<InviteData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* symbolx.bench.InviteType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeReferenceData to_ptr */ 40:
-                    message.toPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.toPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 41:
-                    message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
-                    break;
-                case /* optional string user_email */ 42:
-                    message.userEmail = reader.string();
-                    break;
-                case /* bool is_owner */ 43:
-                    message.isOwner = reader.bool();
+                case /* symbolx.bench.NodeReferenceData member_ptr */ 40:
+                    message.memberPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.memberPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -20216,21 +20145,9 @@ class InviteData$Type extends MessageType$<InviteData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.InviteType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeReferenceData to_ptr = 40; */
-        if (message.toPtr)
-            NodeReferenceData.internalBinaryWrite(message.toPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 41; */
-        if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional string user_email = 42; */
-        if (message.userEmail !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.userEmail);
-        /* bool is_owner = 43; */
-        if (message.isOwner !== false)
-            writer.tag(43, WireType.Varint).bool(message.isOwner);
+        /* symbolx.bench.NodeReferenceData member_ptr = 40; */
+        if (message.memberPtr)
+            NodeReferenceData.internalBinaryWrite(message.memberPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32075,7 +31992,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.NOTIFICATION]: [NodeType.PACKAGE],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.PAGE, NodeType.ORGANIZATION, NodeType.PACKAGE],
   [NodeType.MEMBERSHIP]: [NodeType.TEAM, NodeType.BENCH, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.CHANNEL],
-  [NodeType.INVITE]: [NodeType.TEAM, NodeType.BENCH, NodeType.ORGANIZATION],
+  [NodeType.INVITE]: [NodeType.TEAM, NodeType.BENCH, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.CHANNEL],
   [NodeType.ROLE]: [NodeType.PAGE],
   [NodeType.IDENTITY]: [NodeType.CHANNEL, NodeType.PAGE, NodeType.THREAD],
   [NodeType.SESSION]: [NodeType.BENCH],
@@ -32122,8 +32039,8 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.RECORD, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.CHANNEL]: [NodeType.THREAD, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE],
-  [NodeType.THREAD]: [NodeType.THREAD, NodeType.CLAIM, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.SCALER, NodeType.COMPUTER, NodeType.PLAN, NodeType.FILE, NodeType.STORE, NodeType.RUN, NodeType.BROWSER],
+  [NodeType.CHANNEL]: [NodeType.THREAD, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.INVITE],
+  [NodeType.THREAD]: [NodeType.THREAD, NodeType.CLAIM, NodeType.IDENTITY, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.SCALER, NodeType.INVITE, NodeType.COMPUTER, NodeType.PLAN, NodeType.FILE, NodeType.STORE, NodeType.RUN, NodeType.BROWSER],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.NOTIFICATION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
@@ -32181,7 +32098,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.NOTIFICATION]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.BENCH, NodeType.ORGANIZATION, NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.MEMBERSHIP]: [NodeType.TEAM, NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.CHANNEL, NodeType.PAGE],
-  [NodeType.INVITE]: [NodeType.TEAM, NodeType.BENCH, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.PAGE],
+  [NodeType.INVITE]: [NodeType.TEAM, NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.ORGANIZATION, NodeType.CHANNEL, NodeType.PAGE],
   [NodeType.ROLE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.IDENTITY]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL],
   [NodeType.SESSION]: [NodeType.BENCH],
@@ -32213,7 +32130,7 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.PACKAGE]: [NodeType.CLAIM, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.COMPUTER, NodeType.BROWSER, NodeType.RECORD, NodeType.SPACE, NodeType.RUN, NodeType.SPAN, NodeType.CHANNEL, NodeType.INTERRUPTION, NodeType.THREAD, NodeType.LOG, NodeType.MESSAGE, NodeType.DEPENDENCY, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.KIT, NodeType.SCALER, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.ROLE],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PAGE]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.BROWSER, NodeType.RECORD, NodeType.KIT, NodeType.SCALER, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN, NodeType.CHANNEL, NodeType.ROLE],
+  [NodeType.PAGE]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.LOG, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.OPTION, NodeType.TAG, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.BROWSER, NodeType.RECORD, NodeType.KIT, NodeType.SCALER, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN, NodeType.CHANNEL, NodeType.ROLE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CHOICE]: [NodeType.OPTION, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLASS]: [NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY],
@@ -32228,8 +32145,8 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.DATABASE]: [NodeType.RECORD, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SPACE]: [NodeType.VIEW, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.LOG, NodeType.SCALER, NodeType.PLAN, NodeType.FILE, NodeType.STORE, NodeType.TASK, NodeType.MEMBERSHIP, NodeType.COMPUTER, NodeType.RUN, NodeType.SPAN, NodeType.TRIGGER, NodeType.BROWSER],
-  [NodeType.THREAD]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.FILE, NodeType.COMPUTER, NodeType.TRIGGER, NodeType.BROWSER, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.MEMBERSHIP, NodeType.RUN, NodeType.SPAN],
+  [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.LOG, NodeType.SCALER, NodeType.PLAN, NodeType.FILE, NodeType.STORE, NodeType.TASK, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.COMPUTER, NodeType.RUN, NodeType.SPAN, NodeType.TRIGGER, NodeType.BROWSER],
+  [NodeType.THREAD]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.FILE, NodeType.COMPUTER, NodeType.TRIGGER, NodeType.BROWSER, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.NOTIFICATION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
@@ -32486,7 +32403,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
-  [EnumType.INVITE_TYPE]: InviteType,
   [EnumType.QUERY_TYPE]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
@@ -32856,7 +32772,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
-  [EnumType.INVITE_TYPE]: InviteType,
   [EnumType.QUERY_TYPE]: QueryType,
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
@@ -33989,11 +33904,7 @@ export enum InviteProperty {
   updatedByPtr = 13,
   deletedAt = 14,
   subnodePacked = 29,
-  type = 30,
-  toPtr = 40,
-  userPtr = 41,
-  userEmail = 42,
-  isOwner = 43,
+  memberPtr = 40,
 }
 
 export enum RoleProperty {
@@ -35495,8 +35406,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35533,8 +35444,8 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.1", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36302,7 +36213,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
 export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INVITE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [InviteProperty.id]: { id: 2, name: 'id', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.INVITE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.IDENTITY, NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
@@ -36310,11 +36221,7 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.INVITE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.IDENTITY, NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [InviteProperty.type]: { id: 30, name: 'type', component: ObjectType.INVITE, enumType: EnumType.INVITE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.toPtr]: { id: 40, name: 'to_ptr', component: ObjectType.INVITE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.userEmail]: { id: 42, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.isOwner]: { id: 43, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.memberPtr]: { id: 40, name: 'member_ptr', component: ObjectType.INVITE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RoleDataInfo: Record<RoleProperty, PropertyInfo> = {
   [RoleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ROLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

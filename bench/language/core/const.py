@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.21.1"
+VERSION = "2025.03.21.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -349,7 +349,6 @@ class EnumType(BuiltinEnum):
     ACCESS_MODE = 20100
     ACCESS_KIND = 20101
     POLICY_EFFECT = 20102
-    INVITE_TYPE = 20104
 
     # access types (20150-20199)
     QUERY_TYPE = 20150

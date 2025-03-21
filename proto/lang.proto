@@ -31,7 +31,6 @@ enum EnumType {
   ENUM_TYPE_ACCESS_MODE = 20100;
   ENUM_TYPE_ACCESS_KIND = 20101;
   ENUM_TYPE_POLICY_EFFECT = 20102;
-  ENUM_TYPE_INVITE_TYPE = 20104;
   ENUM_TYPE_QUERY_TYPE = 20150;
   ENUM_TYPE_EDIT_TYPE = 20151;
   ENUM_TYPE_USE_TYPE = 20152;
@@ -479,7 +478,6 @@ enum BenchType {
   BENCH_TYPE_ACCESS_MODE = 20100;
   BENCH_TYPE_ACCESS_KIND = 20101;
   BENCH_TYPE_POLICY_EFFECT = 20102;
-  BENCH_TYPE_INVITE_TYPE = 20104;
   BENCH_TYPE_QUERY_TYPE = 20150;
   BENCH_TYPE_EDIT_TYPE = 20151;
   BENCH_TYPE_USE_TYPE = 20152;
@@ -717,15 +715,6 @@ enum PolicyEffect {
   POLICY_EFFECT_UNSPECIFIED = 0;
   POLICY_EFFECT_ALLOW = 1;
   POLICY_EFFECT_DENY = 2;
-}
-
-enum InviteType {
-  INVITE_TYPE_UNSPECIFIED = 0;
-  INVITE_TYPE_BENCH = 10;
-  INVITE_TYPE_ORGANIZATION = 20;
-  INVITE_TYPE_TEAM = 30;
-  INVITE_TYPE_CHANNEL = 100;
-  INVITE_TYPE_THREAD = 110;
 }
 
 // Ways to read nodes.
@@ -2564,11 +2553,7 @@ message InviteData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
   optional google.protobuf.Value subnode_packed = 29;
-  InviteType type = 30;
-  NodeReferenceData to_ptr = 40;
-  optional NodeReferenceData user_ptr = 41;
-  optional string user_email = 42;
-  bool is_owner = 43;
+  NodeReferenceData member_ptr = 40;
 }
 
 message MembershipData {
