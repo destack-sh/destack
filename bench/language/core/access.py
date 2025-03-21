@@ -662,12 +662,14 @@ def generate_access_matrix(
     # start at root
     root_zones_by_identity = {}
     for root in roots:
-        assert root.id is not None, f"no id for {root!r}"
+        assert root.id is not None, f"no id for {wiring.describe_node(root)}"
         # figure out owner
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
         root_id = UUID(root.id)
-        assert not root_cls.__roots__, f"unexpected non-root root: {root!r} in {graph!r}"
+        assert (
+            not root_cls.__roots__
+        ), f"unexpected non-root root: {wiring.describe_node(root)} in {graph!r}"
 
         # base zones are checked before all others (for system policies)
         #  but are specific to each root (=owner)

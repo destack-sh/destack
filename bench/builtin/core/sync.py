@@ -1,3 +1,4 @@
+from itertools import chain
 from typing import Collection, cast
 from uuid import UUID, uuid5
 
@@ -109,7 +110,8 @@ def sync_node(
         if target is not None:
             # replace target completely
             target.erase()
-        # target doesn't have that node, create id
+
+        # target doesn't have that node, create it
         target = reference.clone(
             recursive=recursive,
             reset=False,
@@ -124,6 +126,13 @@ def sync_node(
             assert parent_id is not None, f"unexpected {reference!r} has no parent"
             target_parent = parent._graph.get(parent_id)
             assert target_parent is not None, f"missing parent {parent_id!r} for {reference!r}"
+
+        # NOTE: we set the synced Node's template_ptr to themself so we know we synced them
+        for target_child in chain((target,), target.iter_descendants(recursive=True)):
+            assert isinstance(
+                target_child, IsTemplatable
+            ), f"unexpected non-templatable node: {target_child!r}"
+            target_child.template_ptr = target_child.to_ref()
         target_parent.append(target)
     else:
         # target has that node, diff it

@@ -6,7 +6,9 @@ from bench.language import (
     ActionType,
     Channel,
     Flow,
+    Identity,
     LinkType,
+    Membership,
     Message,
     Package,
     Run,
@@ -17,8 +19,6 @@ from bench.language import (
     code,
     text,
 )
-from bench.language.auth.identity import Identity
-from bench.language.auth.membership import Membership
 from bench.runtime import create_run
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
