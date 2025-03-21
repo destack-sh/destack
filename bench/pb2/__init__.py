@@ -220,5 +220,7 @@ InlineNodeData = Union[
     PlanData,
     TaskData,
 ]
+SubjectNodeData = Union[UserData, OrganizationData, ComputerData, IdentityData]
+JoinableNodeData = Union[BenchData, OrganizationData, ChannelData, ThreadData, TeamData]
 TypeBaseNodeData = Union[ChoiceData, ClassData, FlowData, ActionData, DatabaseData]
 FieldBaseNodeData = Union[ClassData, FlowData, ActionData, DatabaseData]

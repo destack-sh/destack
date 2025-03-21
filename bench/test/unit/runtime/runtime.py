@@ -10,6 +10,7 @@ from bench.language import (
     LinkType,
     Membership,
     Message,
+    Node,
     Package,
     Run,
     RunStatus,
@@ -39,6 +40,17 @@ def test_make_builtin_package(session: Session) -> None:
 
     assert prev_graph is not builtin.BuiltinPackage._graph
     assert_graph_equals(prev_graph, builtin.BuiltinPackage._graph)
+
+    # print for reference :Builtins
+    node_by_path: dict[str, Node] = {}
+    for node in builtin.BuiltinPackage._graph.nodes:
+        path = builtin.get_stable_builtin_path(node)
+        node_by_path[path] = node
+
+    paths = sorted(node_by_path.keys())
+    for path in paths:
+        node = node_by_path[path]
+        print(f"{node.id} - {node.ck} - {path} - {node.metatype.name}")  # noqa: T201
 
 
 @simulated_runtime(system=True)

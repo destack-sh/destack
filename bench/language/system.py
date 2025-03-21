@@ -7,7 +7,7 @@ from bench.language.core import (
     NodeType,
 )
 
-# builtin benches (pointers) :BuiltinBenches
+# builtin benches (pointers) :Builtins
 BENCH_BENCH_PTR = NodeReference(
     node_type=NodeType.BENCH, id=BENCH_BENCH_ID, bench_id=BENCH_BENCH_ID
 )

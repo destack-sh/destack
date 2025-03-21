@@ -1,5 +1,5 @@
 import { setCanvas, setSpace, supergraph } from "@/globals";
-import { BENCH_BUILTIN_PACKAGE_PTR, BENCH_BUILTIN_SCOPE } from "@/language/core/bench";
+import { BENCH_BUILTIN_PACKAGE_PTR, BENCH_BUILTIN_SCOPE } from "@/language/core/builtin";
 import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/core/graph";
 import { getHostClient } from "@/proto/services";

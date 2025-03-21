@@ -20,6 +20,7 @@ from bench.language import (
     FIELD_BASE_NODE_TYPES,
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
+    JOINABLE_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
     NODE_TYPES,
@@ -27,6 +28,7 @@ from bench.language import (
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
     STRUCT_TYPES,
+    SUBJECT_NODE_TYPES,
     SUBNODE_CLASSES,
     TYPE_BASE_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
@@ -228,6 +230,8 @@ BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES 
 ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource)])}]
 SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source])}]
 InlineNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode)])}]
+SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES])}]
+JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
 TypeBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES])}]
 FieldBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES])}]
 """)
@@ -761,6 +765,8 @@ export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_C
 export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode))}
 export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
 export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
+export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
+export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 
 // Ancestry maps
 {ancestry_maps_str}

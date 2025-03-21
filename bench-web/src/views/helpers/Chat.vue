@@ -5,7 +5,6 @@ import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
-import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
@@ -370,19 +369,8 @@ function submit() {
     tx = tx.with({ change: { key: newChangeId(), title: "Submit" } });
   }
   const messageChannelPtr = channelPtr.value ?? undefined;
-  let messageThreadPtr = threadPtr.value ?? undefined;
-
-  // create thread if needed
-  if (messageThreadPtr == null) {
-    if (messageChannelPtr == null) throw new Error("no channel");
-    const thread = createThread(tx, benchGraph, {
-      thread: {
-        parentPtr: messageChannelPtr,
-        packagePtr: packagePtr.value!,
-      },
-    });
-    messageThreadPtr = toNodeRef(thread);
-  }
+  const messageThreadPtr = threadPtr.value ?? undefined;
+  if (messageThreadPtr == null) throw new Error("no thread");
 
   // create message
   createMessage(tx, benchGraph, {

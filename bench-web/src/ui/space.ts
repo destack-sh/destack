@@ -1655,8 +1655,11 @@ declareCommands<"space">({
     text: "Toggle fullscreen mode",
     command: () => {
       const isFullscreen = document.fullscreenElement != null;
-      if (isFullscreen) document.exitFullscreen();
-      else document.documentElement.requestFullscreen();
+      if (isFullscreen) {
+        document.exitFullscreen();
+      } else {
+        document.documentElement.requestFullscreen();
+      }
     },
   },
   // create
@@ -1681,6 +1684,7 @@ declareCommands<"space">({
           parentPtr: toNodeRef(pkg.value!),
           packagePtr: toNodeRef(pkg.value!),
         },
+        members: ["bench", "user"],
       });
       canvas.goToNode(thread);
     },
