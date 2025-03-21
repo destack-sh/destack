@@ -22,7 +22,7 @@ _graph_capture: contextvars.ContextVar["GraphCapture | None"] = contextvars.Cont
 class GraphCapture:
     __slots__ = ("connections", "graphs", "links", "parent")
 
-    def __init__(self, parent: "GraphCapture | None"):
+    def __init__(self, parent: "GraphCapture | None" = None):
         self.parent = parent
         self.connections: list[Connection] = []
         self.links: list[NodeLink] = []
@@ -77,6 +77,15 @@ class GraphCapture:
         for graph in self.graphs:
             if graph in graph.supergraph._graphs:
                 graph.supergraph.remove_graph(graph)
+
+    @contextlib.asynccontextmanager
+    async def capture(self):
+        """Capture the graph objects in this context."""
+        token = _graph_capture.set(self)
+        try:
+            yield self
+        finally:
+            _graph_capture.reset(token)
 
 
 @contextlib.asynccontextmanager

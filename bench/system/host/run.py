@@ -23,7 +23,6 @@ from bench.language import (
     Session,
     Text,
     bittuple,
-    isolated_graph,
 )
 from bench.language.core.object import GraphScope
 from bench.proto import RunRequest, RuntimeClient
@@ -89,7 +88,6 @@ class RunPlugin(HostPlugin[Run]):
                 self._queue_run(run.root or run)
 
     @tracer.start_as_current_span("run_plugin.process_run")
-    @isolated_graph()
     async def _process_run(self, op: RunHandle) -> None:
         """Push Runs to relevant Computers."""
         op.retry.on_attempt()

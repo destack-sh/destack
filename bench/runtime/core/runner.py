@@ -550,7 +550,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.status = self.tracked_run.status
 
     def close(self, resume: bool = True):
-        """Close this Runner/Run."""
+        """Close this Runner/Run. :CascadingRuntime"""
         closed_interruptions: list[Interruption] | None = None
         for interruption in self.tracked._graph.iter_descendants(
             self.tracked, NodeType.INTERRUPTION
