@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -10,7 +10,7 @@ import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, nextTick, ref, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedNodeConnection } & Partial<
     Pick<ViewData, "isMinimal" | "nodePtr" | "orientation">
   >
 >();

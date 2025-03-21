@@ -17,7 +17,7 @@ import {
   ViewType
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas, spaceGraph } from "@/system/space";
 import { ACTION_CONTEXT_COMMANDS, LINK_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -53,7 +53,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    preparedConnection?: PreparedGetConnection;
+    preparedConnection?: PreparedNodeConnection;
     isRoot?: boolean;
   } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isInline" | "isMinimal">>
 >();
@@ -488,7 +488,7 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
             :data-contextmenu-items="LINK_CONTEXT_COMMANDS.join(',')"
             class="absolute"
           />
-          <!-- Actions -->
+          <!-- Commands -->
           <Action
             v-for="action in actions"
             :id="action.id"

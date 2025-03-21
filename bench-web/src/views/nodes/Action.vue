@@ -15,7 +15,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
-import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { getActionSides, useFlowContextMaybe } from "@/ui/flow";
@@ -32,7 +32,7 @@ import { MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedNodeConnection } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "transform">
   >
 >();

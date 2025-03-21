@@ -14,7 +14,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { FIELD_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import {
@@ -36,7 +36,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    preparedConnection?: PreparedGetConnection;
+    preparedConnection?: PreparedNodeConnection;
     fieldType: FieldType;
   } & Partial<Pick<ViewData, "isMinimal" | "orientation" | "nodePtr">>
 >();

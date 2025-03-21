@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { InlineNodeData, NodeReferenceData, Orientation } from "@/proto/wire";
-import { PreparedGetConnection } from "@/system/connection";
+import { PreparedNodeConnection } from "@/system/connection";
 import { PopoverInfoIn } from "@/ui/popover";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { FocusAnchor, ViewEmits, ViewExpose } from "@/views/common";
@@ -9,7 +9,7 @@ import { ref, Ref } from "vue";
 
 const props = defineProps<{
   node: InlineNodeData;
-  connection: PreparedGetConnection;
+  connection: PreparedNodeConnection;
   width?: number;
   isCompact?: boolean;
   isInput?: boolean;

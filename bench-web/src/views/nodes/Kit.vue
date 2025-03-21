@@ -16,7 +16,7 @@ import {
   ViewType
 } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ACTION_SIZE } from "@/ui/flow";
@@ -33,7 +33,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    preparedConnection?: PreparedGetConnection;
+    preparedConnection?: PreparedNodeConnection;
     isRoot?: boolean;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInline" | "isMinimal">>
 >();
@@ -192,7 +192,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         marginRight: isRoot ? `${GUTTER_WIDTH}px` : undefined,
       }"
     >
-      <!-- Actions -->
+      <!-- Commands -->
       <div v-for="action in actions" :key="action.id" class="relative">
         <!-- Drop indicator -->
         <div

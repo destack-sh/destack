@@ -15,7 +15,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { pushPopover } from "@/ui/popover";
 import { getColorHex, getTaskColorHex } from "@/ui/style";
@@ -28,7 +28,7 @@ import NativeInput from "@/views/content/NativeInput.vue";
 import { computed, ref, Ref, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; preparedConnection?: PreparedNodeConnection } & Partial<
     Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInput" | "isMinimal" | "isInline">
   >
 >();

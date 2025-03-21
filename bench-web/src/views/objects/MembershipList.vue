@@ -12,7 +12,8 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { BENCH_SCOPE, PACKAGE_SCOPE } from "@/system/client";
+import { findExistingConnection, useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { useSelectionZone } from "@/ui/drag";
@@ -26,7 +27,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    preparedConnection?: PreparedGetConnection;
+    preparedConnection?: PreparedNodeConnection;
   } & Partial<Pick<ViewData, "isMinimal" | "orientation" | "nodePtr">>
 >();
 const emit = defineEmits<ViewEmits>();
@@ -54,7 +55,7 @@ const commands: Partial<CommandMapKit<"list">> = {
   // list
 };
 
-defineExpose<ViewExpose>({ self, id, commands});
+defineExpose<ViewExpose>({ self, id, commands });
 </script>
 <template>
   <div ref="containerRef" class="relative">

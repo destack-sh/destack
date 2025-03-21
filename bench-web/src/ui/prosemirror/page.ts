@@ -1,5 +1,5 @@
 import { BlockData, PageData } from "@/proto/wire";
-import { PreparedGetConnection } from "@/system/connection";
+import { PreparedNodeConnection } from "@/system/connection";
 import Block from "@/views/nodes/Block.vue";
 import { inject, provide, Ref } from "vue";
 
@@ -15,7 +15,7 @@ export type PageContext = {
   page: Ref<PageData | null | undefined>;
   blocks: Ref<BlockData[]>;
   blocksRefById: Ref<Record<string, InstanceType<typeof Block>>>;
-  preparedConnection: PreparedGetConnection;
+  preparedConnection: PreparedNodeConnection;
   gutterWidth: Ref<number | undefined>;
 };
 
