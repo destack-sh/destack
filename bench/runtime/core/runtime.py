@@ -932,20 +932,22 @@ class Runtime:
                 # lift into flow
                 # nocheckin: add to existing FlowRunner for that flow/identity
                 self.session.commit_optimistic()
-                parent_node = run.parent or run.package
+                parent_node = run.parent or run.thread
                 assert parent_node is not None, f"no parent for {run!r}"
                 outer_run, _ = create_run(
                     flow,
                     parent=parent_node,
                     mode=run.mode,
                     status=RunStatus.QUEUED,
-                    graph=run._graph,
+                    thread=run.thread,
+                    graph=parent_node._graph,
                 )
                 run.move(to=outer_run)
+                self.session.commit_optimistic(runtime=True)
                 runner.close(resume=False)
                 await self.session.commit()  # wait for Run to actually exist
-                logger.debug("runtime.lift_flow", inner_run=run, outer_run=outer_run)
                 runner, run = await self._load_runner(outer_run)
+                logger.debug("runtime.lift_flow", runner=runner, inner_run=run, outer_run=outer_run)
 
             # actually run
             try:

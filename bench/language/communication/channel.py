@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import ChannelData, MessageData
 
 if TYPE_CHECKING:
-    from bench.language import File, Membership, Message, Package, Page, Plan
+    from bench.language import File, Identity, Membership, Message, Package, Page, Plan
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -58,6 +58,7 @@ class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelDa
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
     )
+    identities: LocalNodeList["Identity"] = p_node_children(NodeType.IDENTITY)
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
     files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
 

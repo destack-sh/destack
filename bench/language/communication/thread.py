@@ -36,7 +36,18 @@ from bench.language.core import (
 from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Claim, Field, File, Membership, Message, Package, Page, Plan
+    from bench.language import (
+        Channel,
+        Claim,
+        Field,
+        File,
+        Identity,
+        Membership,
+        Message,
+        Package,
+        Page,
+        Plan,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -108,6 +119,7 @@ class Thread(
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
     )
+    identities: LocalNodeList["Identity"] = p_node_children(NodeType.IDENTITY)
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)

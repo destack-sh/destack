@@ -832,7 +832,7 @@ def evaluate_edit(
 
         # figure out the scope to evaluate what in
         if node_cls.__roots__:
-            # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
+            # regular non-root node: scope = parent if creating, else scope = node
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 assert edit.HasField("node_data"), f"no node data for {wiring.describe_edit(edit)}"
                 node_data = wiring.unwrap_some_node(edit.node_data)

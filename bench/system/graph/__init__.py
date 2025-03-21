@@ -6,7 +6,7 @@ from bench.system.graph.connection import (
     GetConnection,
     SearchConnection,
 )
-from bench.system.graph.graph import CommitArea, GraphLock, GraphServiceBase
+from bench.system.graph.graph import CommitScope, GraphLock, GraphServiceBase
 from bench.system.graph.postgres import (
     PostgresAggregateConnection,
     PostgresConnector,
@@ -17,7 +17,7 @@ from bench.system.graph.postgres import (
 
 __all__ = [
     "AggregateConnection",
-    "CommitArea",
+    "CommitScope",
     "Connection",
     "ConnectionIndex",
     "ConnectionSubscription",
