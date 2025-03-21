@@ -1664,7 +1664,7 @@ declareCommands<"space">({
     title: "Create Page",
     icon: "far fa-file",
     text: "Create a new page",
-    shortcuts: ["mod+shift+n"],
+    shortcuts: ["ctrl+n"],
     command: () => {
       const page = createPage(benchConnection.tx, benchGraph, { anchor: "inside", target: pkg.value!, page: {} });
       canvas.goToNode(page);
@@ -1674,7 +1674,7 @@ declareCommands<"space">({
     title: "Create Thread",
     icon: "fas fa-reel",
     text: "Create a new thread",
-    shortcuts: ["mod+t"],
+    shortcuts: ["ctrl+t"],
     command: () => {
       const thread = createThread(benchConnection.tx, benchGraph, {
         thread: {
