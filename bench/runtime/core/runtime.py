@@ -59,7 +59,6 @@ from bench.language import (
     coerce_value,
     evaluate_path,
     get_custom_object_properties,
-    isolated_graph,
     on_invalid_raise,
     synchronize_nodes,
 )
@@ -826,6 +825,7 @@ class Runtime:
         if run_ptr.id in self._owned_runners_by_id:
             runner = self._owned_runners_by_id[run_ptr.id]
             assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
+            logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
             return runner, runner.tracked_run
 
         # load run
@@ -851,6 +851,7 @@ class Runtime:
         runner.connection = run._connection
         self._owned_runners_by_id[run_ptr.id] = runner
         run._connection.on_update(lambda _, update: self._on_updated(runner, update))
+        logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
         return runner, run
 
     def _on_run_updated(self, runner: Runner, run: Run):
@@ -885,7 +886,7 @@ class Runtime:
             elif isinstance(node, Interruption):
                 self._on_interrupt_updated(runner, node)
 
-    # nocheckin: track cascading Plan/Task/Claim/Thread/... status
+    # nocheckin: track cascading Plan/Task/Claim/Thread/... status :CascadingRuntime
     # (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
 
     async def run(
@@ -909,7 +910,10 @@ class Runtime:
             run_lock = asyncio.Lock()
             self._locks_by_id[run.id] = run_lock
 
-        async with self.session.active(), isolated_graph():
+        # TODO :Robustness!: isolate graphs for Runtime.run (or is Runner.close enough?)
+        #  (isolating this graph is tricky in case of resuming Runs since we'll re-use owned Runners,
+        #   and also for other shared Connections like Threads and such)
+        async with self.session.active():
             # get runner
             async with run_lock:
                 if run.id in self._active_runners_by_id:
@@ -921,6 +925,7 @@ class Runtime:
                 else:
                     runner = self.restore_runner(run)
             inner_runner = runner
+            assert runner.tracked.is_attached, f"{runner!r}'s {runner.tracked!r} is not attached"
             assert runner.is_root, f"{runner!r} is not a root runner"
 
             # lift run into existing / higher flow

@@ -108,7 +108,7 @@ async def test_reply_to_message(simulation: Simulation, runtime: RuntimeLambdaWo
         ActionType.CODE,
         "Code1",
         code=code("""\
-message_in = runner.get_latest_run(Start1).inputs.message
+message_in = runner.get_latest_run(Start1).message
 reply = Message.new(title="Hi.", reply_to=message_in)
 message_in.parent.append(reply)
 """),

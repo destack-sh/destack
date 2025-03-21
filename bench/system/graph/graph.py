@@ -498,7 +498,11 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     break
                 except BaseException as e:
                     self.logger.error(
-                        f"{self.name}.commit.error", subject=subject, exc_info=e, span="current"
+                        f"{self.name}.commit.error",
+                        subject=subject,
+                        edits=[wiring.describe_edit(e) for e in request.edits],
+                        exc_info=e,
+                        span="current",
                     )
                     if not retry.on_error(e):
                         raise
