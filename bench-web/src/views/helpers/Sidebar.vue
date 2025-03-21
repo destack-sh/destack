@@ -10,9 +10,10 @@ import {
   ThreadStatus,
   TreeViewPreset,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
+import { AUTOLOAD_DESCENDANT_TYPES } from "@/system/autoload";
 import { bench, benchConnection, canvas, hasLocalBench, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { CommandBuiltinId, fireCommand, fireCommandById, getCommand } from "@/ui/command";
@@ -175,6 +176,7 @@ defineExpose<ViewExpose>({ self });
         </div>
         <List
           id="threads"
+          :descendant-types="AUTOLOAD_DESCENDANT_TYPES[NodeType.THREAD]"
           :subnode-packed="
             packSubnode(NodeType.VIEW, ViewType.LIST, {
               queryNodeType: NodeType.THREAD,

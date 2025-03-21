@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { InlineNodeData, NodeReferenceData, NodeType, SelectionData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedGetConnection } from "@/system/connection";
+import { PreparedNodeConnection } from "@/system/connection";
 import BlockHeader from "@/views/builtins/BlockHeader.vue";
 import PageHeader from "@/views/builtins/PageHeader.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
@@ -12,7 +12,7 @@ const props = defineProps<{
   self?: TypedNodeReferenceData<NodeType.VIEW>;
   node: InlineNodeData | undefined | null;
   nodePtr: NodeReferenceData;
-  preparedConnection: PreparedGetConnection;
+  preparedConnection: PreparedNodeConnection;
   isRoot?: boolean;
   isInline?: boolean;
   isMinimal?: boolean;

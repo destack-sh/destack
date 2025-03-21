@@ -108,7 +108,7 @@ defineExpose({ self, focus });
         :value-type="makeType({ benchType: BenchType.REGION, isList: false, isRequired: true })"
       />
     </div>
-    <!-- Actions -->
+    <!-- Commands -->
     <div v-if="!isActivated" class="mt-7">
       <Button
         id="submit"

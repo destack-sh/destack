@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import type { PreparedGetConnection } from "@/system/connection";
+import type { PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getViewForType } from "@/ui/view";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -13,7 +13,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     modelValue?: any;
-    preparedConnection?: PreparedGetConnection;
+    preparedConnection?: PreparedNodeConnection;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled">>
 >();

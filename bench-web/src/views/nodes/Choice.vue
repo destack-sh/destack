@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
@@ -11,7 +11,7 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    preparedConnection?: PreparedGetConnection;
+    preparedConnection?: PreparedNodeConnection;
     isRoot?: boolean;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "isInline" | "isMinimal">>
 >();

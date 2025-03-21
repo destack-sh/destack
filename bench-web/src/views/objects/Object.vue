@@ -70,7 +70,7 @@ defineExpose<ViewExpose>({ self, id });
           <span v-if="section.summary != null" class="text-gray-400">
             {{ section.summary }}
           </span>
-          <!-- Actions -->
+          <!-- Commands -->
           <button
             v-for="action in section.actions"
             :key="action.title"
@@ -105,7 +105,7 @@ defineExpose<ViewExpose>({ self, id });
             <span v-if="row.type != 'field'" class="">{{ row.title }}</span>
             <Field v-else :id="i + '.value'" :node-ptr="toNodeRef(row.field)" is-minimal />
             <span v-if="row.subtitle" class="ml-1.5 text-gray-400">{{ row.subtitle }}</span>
-            <!-- Actions -->
+            <!-- Commands -->
             <!-- ... -->
           </div>
 

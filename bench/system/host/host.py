@@ -542,7 +542,7 @@ class HostService(GraphServiceBase, HostBase):
             query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
 
         # always load members for joinables
-        if query._node_type in JOINABLE_NODE_TYPES:
+        if query._node_type in JOINABLE_NODE_TYPES:  # :AutoLoading
             query = query.include_descendants(NodeType.MEMBERSHIP)
 
         return query

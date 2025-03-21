@@ -600,7 +600,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           :data-node-type="message.metatype"
           data-contextmenu-items="chat.message*"
           data-suppress-node="self"
-          @dblclick="startReplying(message)"
+          @dblclick="isReplyingTo ? stopReplying() : startReplying(message)"
         >
           <!-- New date (line with date in middle) -->
           <div v-if="isNewDate" class="relative mb-2 flex items-center">

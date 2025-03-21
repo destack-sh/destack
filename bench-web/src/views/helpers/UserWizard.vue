@@ -186,7 +186,7 @@ defineExpose<ViewExpose>({ self, focus });
         />
       </div>
     </div>
-    <!-- Actions -->
+    <!-- Commands -->
     <div class="mt-7">
       <Button
         v-if="!user"

@@ -2,7 +2,7 @@
 import { canvas } from "@/globals";
 import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
 import { BlockType, InlineNodeData, NodeReferenceData } from "@/proto/wire";
-import { PreparedGetConnection } from "@/system/connection";
+import { PreparedNodeConnection } from "@/system/connection";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits, ViewExpose } from "@/views/common";
@@ -10,7 +10,7 @@ import { computed, ref, Ref } from "vue";
 
 const props = defineProps<{
   node: InlineNodeData;
-  connection: PreparedGetConnection;
+  connection: PreparedNodeConnection;
 }>();
 const { graph, connection } = props.connection;
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(props.node.metatype as unknown as BlockType));

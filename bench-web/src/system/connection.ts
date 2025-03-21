@@ -1,5 +1,5 @@
 import { setAutoloader, setSupergraph } from "@/globals";
-import { LOADED_PACKAGE_NODE_TYPES, SOURCE_NODE_TYPES } from "@/language/core/const";
+import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import {
   DEFAULT_NODE_FILTER,
@@ -51,7 +51,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { NodeAutoloader } from "@/system/autoload";
-import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
+import { BENCH_SCOPE, LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent, assertNever } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
@@ -608,7 +608,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         )
       ) {
         // NOTE :Broken: we can only assume that node type overlap is enough for source nodes, otherwise check full params
-        //  (since they're loaded in a very specific way together with Task.. see :ConnectionMatching :RichGraph)
+        //  (since they're loaded in a very specific way .. see :ConnectionMatching :RichGraph)
         return deepContentEquals(params, this.params);
       }
       const otherNodeTypes = [
@@ -990,14 +990,14 @@ type ConnectionMatchOptions<K extends GraphConnectionKind, T extends NodeType> =
 
 /** Finds an existing connection */
 export function findExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
-  kind: K,
+  kinds: K[],
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
   exclude?: ConnectionBase<K, T>,
 ): ConnectionBase<K, T> | null {
   const matchingConnections =
     _connections.value.filter(
-      (c) => c !== exclude && c.kind == kind && c.includes(params) && match?.predicate?.(c) !== false,
+      (c) => c !== exclude && kinds.includes(c.kind) && c.includes(params) && match?.predicate?.(c) !== false,
     ) ?? null;
   if (matchingConnections.length == 0) {
     return null;
@@ -1012,11 +1012,11 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
 
 /** Finds an existing connection and acquires it (RC+=1) */
 function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
-  kind: K,
+  kinds: K[],
   params: ConnectionParamsMapping<T>[K],
   match?: ConnectionMatchOptions<K, T>,
 ): ConnectionBase<K, T> | null {
-  const connection = findExistingConnection(kind, params, match);
+  const connection = findExistingConnection(kinds, params, match);
   if (connection != null) connection.incRefCount();
   return connection;
 }
@@ -1067,7 +1067,7 @@ export async function acquireConnection<K extends GraphConnectionKind, T extends
   match?: ConnectionMatchOptions<K, T>,
   exclude?: ConnectionBase<K, T>,
 ): Promise<ConnectionBase<K, T>> {
-  const connection = findExistingConnection(kind, params, match, exclude);
+  const connection = findExistingConnection([kind], params, match, exclude);
   if (connection != null) {
     connection.incRefCount();
     return connection;
@@ -1087,18 +1087,10 @@ export function dropConnection(connection: ConnectionBase<any, any>): void {
 }
 
 /** Container for providing the results of a Get connection to an inner component */
-export type PreparedGetConnection<T extends NodeType = NodeType> = {
-  connection: Connection<"get", T>;
+export type PreparedNodeConnection<T extends NodeType = NodeType> = {
+  connection: Connection<"get" | "search", T>;
   graph: ReadNodeGraph;
 };
-
-/** Container for providing the results of a Search connection to an inner component */
-export type PreparedSearchConnection<T extends NodeType = NodeType> = {
-  connection: Connection<"search", T>;
-  graph: ReadNodeGraph;
-};
-
-export type PreparedNodeConnection = PreparedGetConnection | PreparedSearchConnection;
 
 /** Gets or acquires a connection given the params, maintaining reference counts and such. */
 export function useConnection<K extends GraphConnectionKind, T extends NodeType>(
@@ -1126,7 +1118,7 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
         return; // disabled
       }
       const oldConnection = connection.value;
-      let newConnection = findExistingConnection(kind, paramsRef.value, match);
+      let newConnection = findExistingConnection([kind], paramsRef.value, match);
       if (oldConnection != null && oldConnection === newConnection) {
         return; // no change
       }
@@ -1203,16 +1195,16 @@ export function useExistingConnection<T extends NodeType = any>(
   options?: {
     isEnabled?: Ref<boolean>;
     isRequired?: boolean;
-    match?: ConnectionMatchOptions<"get", T>;
+    match?: ConnectionMatchOptions<"get" | "search", T>;
   },
 ): {
   graph: ReadNodeGraph;
   graphRaw: ReadNodeGraph;
-  connection: Connection<"get", T>;
+  connection: Connection<"get" | "search", T>;
 } {
   // NOTE :Performance: don't use separate overlay graphs for every useExistingConnection?
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
-  const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
+  const connection: ShallowRef<ConnectionBase<"get" | "search", T> | null> = shallowRef(null);
   const graph = useConnectionGraphComposite(connection);
   const graphRaw = useConnectionGraphRaw(connection);
 
@@ -1227,8 +1219,8 @@ export function useExistingConnection<T extends NodeType = any>(
         throw new Error(`missing id for connection: ${describeNode(nodeRef.value)}`);
       }
       newConnection = acquireExistingConnection(
-        "get",
-        { scope: PACKAGE_SCOPE.value, roots: [nodeRef.value as TypedNodeReferenceData<T>] },
+        ["get", "search"],
+        { scope: BENCH_SCOPE.value, roots: [nodeRef.value as TypedNodeReferenceData<T>] },
         options?.match,
       );
       if (newConnection == null && options?.isRequired) {
@@ -1242,7 +1234,7 @@ export function useExistingConnection<T extends NodeType = any>(
       }
     }
     if (newConnection !== oldConnection) {
-      connection.value = newConnection as ConnectionBase<"get", T> | null;
+      connection.value = newConnection as ConnectionBase<"get" | "search", T> | null;
     }
   };
   watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });

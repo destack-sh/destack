@@ -8,6 +8,11 @@ import { groupByList, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { Ref, shallowRef, triggerRef } from "vue";
 
+// automatically included descendants :AutoLoading
+export const AUTOLOAD_DESCENDANT_TYPES: Partial<Record<NodeType, NodeType[]>> = {
+  [NodeType.THREAD]: [NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.IDENTITY],
+}
+
 type AutoloadedBatch = {
   id: number;
   nodesById: Record<string, NodeReferenceData>;
@@ -177,6 +182,7 @@ export class NodeAutoloader {
       roots: nodeRefs as NodeReferenceData[],
       scope,
       baseTypePtr: blockPtr as NodeReferenceData | undefined,
+      descendantTypes: AUTOLOAD_DESCENDANT_TYPES[nodeType],
       isOptional: true,
     };
     try {
