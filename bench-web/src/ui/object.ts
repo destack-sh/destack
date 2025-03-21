@@ -911,16 +911,16 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
 export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
   make() {
     this.section(undefined, []);
-    this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
     this.section("Members", [{ type: "membership-list", title: undefined }], {});
+    this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
   }
 }
 
 export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
   make() {
     this.section(undefined, []);
-    this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
     this.section("Members", [{ type: "membership-list", title: undefined }], {});
+    this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
   }
 }
 

@@ -72,7 +72,7 @@ UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
-# builtin benches :BuiltinBenches
+# builtin benches :Builtins
 BENCH_BENCH_SLUG = "bench"
 BENCH_BENCH_ID = UUID("11111111-1111-1111-1111-000000000000")
 BENCH_BUILTIN_PACKAGE_SLUG = "builtin"

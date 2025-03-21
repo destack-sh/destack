@@ -47,7 +47,7 @@ async def create_system_benches(
         )
         session._create(system_user)
         await session.flush(optimistic=True)
-        # create builtin benches :BuiltinBenches
+        # create builtin benches :Builtins
         system_user.main_handle = system_user.handles.create(slug=SYSTEM_BENCH_SLUG)
         system_bench = await create_default_bench(
             main_handle=system_user.main_handle,
