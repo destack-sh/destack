@@ -2574,13 +2574,18 @@ message InviteData {
 message MembershipData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
   google.protobuf.Timestamp created_at = 10;
   optional NodeReferenceData created_by_ptr = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   NodeReferenceData member_ptr = 41;
 }

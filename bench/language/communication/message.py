@@ -206,19 +206,16 @@ class Message(IsTimed, IsBased, IsTitled, IsModal, PackageNode[MessageData]):
 
     @property
     def base(self):
-        return self.clazz
+        return self.thread
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        if data.HasField("clazz_ptr"):
-            return cast("MessageData", data).clazz_ptr
-        else:
-            return None
+        return cast("MessageData", data).thread_ptr
 
     @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["Class"]:
-        if "clazz" in data:
-            return data["clazz"]
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["Thread"]:
+        if "thread" in data:
+            return data["thread"]
         else:
             return None
 

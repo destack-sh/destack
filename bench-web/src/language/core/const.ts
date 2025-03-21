@@ -186,6 +186,7 @@ export const LOADED_PACKAGE_NODE_TYPES = [
   NodeType.ROLE,
   NodeType.IDENTITY,
   NodeType.TEAM,
+  NodeType.MEMBERSHIP,
 ];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
@@ -224,7 +225,7 @@ export const NAME_CONSTRAINT = ViewDataInfo[ViewProperty.name].constraint!;
 /** Default base type for based Nodes */
 export const BASE_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, NodeType>> = {
   [NodeType.RECORD]: NodeType.DATABASE,
-  [NodeType.MESSAGE]: NodeType.CLASS,
+  [NodeType.MESSAGE]: NodeType.THREAD,
   [NodeType.RUN]: NodeType.FLOW,
 };
 
@@ -235,7 +236,7 @@ export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData |
   if (isNode(node, NodeType.RECORD)) {
     return node.databasePtr ?? null;
   } else if (isNode(node, NodeType.MESSAGE)) {
-    return node.clazzPtr ?? null;
+    return node.threadPtr ?? null;
   } else if (isNode(node, NodeType.RUN)) {
     return node.linkPtr ?? node.actionPtr ?? node.flowPtr ?? null;
   } else {

@@ -1398,20 +1398,15 @@ export function deleteSelection(action: Action, ctx: ActionContext): boolean {
 
 // space
 declareActions<"space">({
-  "space.omnibar.everywhere": {
+  "space.omnibar.bench": {
     title: "Search everything",
     text: "Search everything",
     shortcuts: ["mod+k"],
   },
   "space.omnibar.actions": {
-    title: "Find an action to run",
-    text: "Find an action to run",
+    title: "Search for an action",
+    text: "Search for an action",
     shortcuts: ["mod+shift+a"],
-  },
-  "space.omnibar.bench": {
-    title: "Search across this Bench",
-    text: "Search across this Bench",
-    shortcuts: ["mod+shift+f"],
   },
   // edit
   "space.edit.rename": {
@@ -1668,6 +1663,7 @@ declareActions<"space">({
     title: "Create Page",
     icon: "far fa-file",
     text: "Create a new page",
+    shortcuts: ["mod+shift+n"],
     action: () => {
       const page = createPage(benchConnection.tx, benchGraph, { anchor: "inside", target: pkg.value!, page: {} });
       canvas.goToNode(page);
@@ -1677,6 +1673,7 @@ declareActions<"space">({
     title: "Create Thread",
     icon: "fas fa-reel",
     text: "Create a new thread",
+    shortcuts: ["mod+t"],
     action: () => {
       const thread = createThread(benchConnection.tx, benchGraph, {
         thread: {

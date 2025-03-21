@@ -1,16 +1,15 @@
 <script lang="ts" setup>
 import { makeType, makeTypeConstraint } from "@/language/core/type";
-import { createClaim } from "@/language/source/claim";
+import { createMembership } from "@/language/source/membership";
 import {
   ActionData,
-  ClaimType,
   NodeMode,
   NodeReferenceData,
   NodeType,
   Orientation,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -44,7 +43,7 @@ const containerRef = ref<HTMLElement | null>(null);
 const basePtr = computed(() => props.nodePtr);
 const { graph, connection } = props.preparedConnection ?? useExistingConnection(basePtr);
 const base = graph.getRef(basePtr);
-const claims = graph.getChildrenRef(basePtr, NodeType.CLAIM);
+const memberships = graph.getChildrenRef(basePtr, NodeType.MEMBERSHIP);
 
 // selecting
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
@@ -60,15 +59,15 @@ defineExpose<ViewExpose>({ self, id, actions });
 <template>
   <div ref="containerRef" class="relative">
     <ul class="flex flex-col rounded">
-      <!-- Claims -->
+      <!-- Memberships -->
       <li
-        v-for="claim in claims"
-        :key="claim.id"
+        v-for="membership in memberships"
+        :key="membership.id"
         class="flex h-[30px] flex-row items-center px-1.5 transition-colors duration-150 hover:bg-gray-100"
-        :data-node-id="claim.id"
-        :data-node-type="claim.metatype"
+        :data-node-id="membership.id"
+        :data-node-type="membership.metatype"
       >
-        <NodeReference :node-ptr="claim.targetPtr" is-light size="sm" />
+        <NodeReference :node-ptr="membership.memberPtr" is-light size="sm" />
       </li>
       <!-- Create -->
       <button
@@ -86,21 +85,18 @@ defineExpose<ViewExpose>({ self, id, actions });
               props: {
                 valueType: makeType({
                   kind: TypeKind.NODE,
-                  constraint: makeTypeConstraint({
-                    nodeTypes: [NodeType.BROWSER, NodeType.COMPUTER, NodeType.KIT, NodeType.FLOW],
-                  }),
+                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.IDENTITY, NodeType.USER, NodeType.TEAM] }),
                 }),
               },
               onApply: (value?: NodeReferenceData) => {
                 if (value == null) return;
-                if (claims.find((c) => c.targetPtr?.id == value.id)) return;
-                createClaim(connection.tx, graph, {
-                  claim: {
+                if (memberships.find((m) => m.memberPtr?.id == value.id)) return;
+                createMembership(connection.tx, graph, {
+                  membership: {
                     mode: NodeMode.TEMPLATE,
-                    type: ClaimType.SHARED,
                     packagePtr: (base as ActionData)?.packagePtr,
                     parentPtr: basePtr,
-                    targetPtr: value,
+                    memberPtr: value,
                   },
                 });
               },
@@ -109,7 +105,7 @@ defineExpose<ViewExpose>({ self, id, actions });
         "
       >
         <i class="fas fa-plus mr-1.5" />
-        <span>Claim</span>
+        <span>Membership</span>
       </button>
     </ul>
   </div>

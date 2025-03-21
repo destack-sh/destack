@@ -20,6 +20,7 @@ import { ActionBuiltinId, fireAction, fireActionById, getAction } from "@/ui/act
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
+import { Shortcut } from "@/ui/tooltip";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import List from "@/views/collections/List.vue";
@@ -33,65 +34,6 @@ import { computed, Ref, ref, toRef } from "vue";
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 42;
-
-const BENCH_MENU_ITEMS = computed(() => {
-  const items: MenuItem[] = [
-    // bench
-    // NOTE :Incomplete: select bench/branch/package etc.
-    // main
-    {
-      id: "omnibar",
-      type: "generic",
-      category: "main",
-      icon: "fas fa-magnifying-glass",
-      title: "Search",
-      action: { items: menuActionsLike(["space.omnibar*", "space.search*"], { context: undefined }) },
-    },
-    {
-      id: "view",
-      type: "generic",
-      category: "main",
-      icon: "fas fa-window",
-      title: "View",
-      action: {
-        items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.space.*"], { context: undefined }),
-      },
-    },
-    {
-      id: "edit",
-      type: "generic",
-      category: "main",
-      icon: "fas fa-hammer",
-      title: "Edit",
-      action: {
-        items: menuActionsLike(["space.history*", "space.edit*", "space.move*"], { context: undefined }),
-      },
-    },
-    {
-      id: "session",
-      type: "generic",
-      category: "main",
-      icon: "fas fa-play",
-      title: "Run",
-      action: { items: menuActionsLike(["runtime.run*"], { context: undefined }) },
-    },
-    // extra
-    menuItemFromAction("space.launch.discord"),
-  ];
-
-  if (IS_DEVELOPER_MODE.value) {
-    items.push({
-      id: "developer",
-      type: "generic",
-      category: "developer",
-      icon: "fas fa-binary",
-      title: "Developer",
-      action: { items: menuActionsLike(["developer*"], { context: undefined }) },
-    });
-  }
-
-  return items;
-});
 
 const USER_MENU_ITEMS = computed(() => {
   const items = [menuItemFromAction("user.navigate.goToHome", { category: "primary" })];
@@ -131,15 +73,17 @@ defineExpose<ViewExpose>({ self });
       :style="{
         minHeight: `${BAR_HEADER_HEIGHT}px`,
       }"
-      role="button"
     >
       <!-- Bench button -->
-      <button
-        v-menu="(): PopoverInfoIn => ({ kind: 'menu', items: BENCH_MENU_ITEMS, placement: 'bottom-left' })"
-        class="my-1.5 flex flex-row items-center truncate rounded px-2 transition-colors duration-75 hover:bg-gray-100"
+      <div
+        class="my-1.5 flex cursor-pointer flex-row items-center truncate rounded px-2 transition-colors duration-75 hover:bg-gray-100"
+        :data-node-id="bench?.id"
+        :data-node-type="bench?.metatype"
         :style="{
           height: `${BAR_HEADER_HEIGHT - 12}px`,
         }"
+        :disabled="bench == null"
+        @click="bench != null && canvas.inspect({ node: bench! })"
       >
         <IconInline
           v-tooltip="{ title: 'Change icon', small: true }"
@@ -154,24 +98,37 @@ defineExpose<ViewExpose>({ self });
             })
           "
           v-bind="bench != null ? getNodeIcon(bench) : makeIcon(NodeTypeOptionInfo[NodeType.BENCH]!.icon!)"
+          role="button"
           class="mr-1 w-5 text-center"
         />
         <span v-if="bench" class="truncate font-medium">{{ bench.slug }}</span>
         <span v-else class="italic"> Bench </span>
-      </button>
+      </div>
       <!-- Quick/Global actions -->
       <button
         v-for="action in (
-          ['space.omnibar.everywhere', 'space.create.page', 'space.create.thread'] as ActionBuiltinId[]
+          [
+            'space.omnibar.bench',
+            'space.omnibar.actions',
+            'space.create.page',
+            'space.create.thread',
+          ] as ActionBuiltinId[]
         ).map(getAction)"
         :key="action.id"
-        class="group/button flex flex-row items-center truncate rounded border border-transparent px-2 py-[5px] transition-colors duration-150 hover:bg-gray-100"
+        class="group/button flex flex-row items-center truncate rounded border border-transparent px-2 py-[4px] transition-colors duration-150 hover:bg-gray-100"
         :style="{}"
         @click="fireAction(action)"
       >
         <IconInline class="mr-1 w-5 text-center" v-bind="action.icon" />
         <span class="">
           {{ action.title }}
+        </span>
+        <span class="ml-auto">
+          <Shortcut
+            v-if="action.shortcuts?.length ?? 0 > 0"
+            class="text-gray-400 transition-colors duration-150 group-hover/button:text-gray-900"
+            :shortcut="action.shortcuts![0]"
+          />
         </span>
       </button>
     </div>

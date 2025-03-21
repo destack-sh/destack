@@ -93,6 +93,9 @@ export type FieldsListRow = RowBase & {
 export type ClaimsListRow = RowBase & {
   type: "claims-list";
 };
+export type MembershipListRow = RowBase & {
+  type: "membership-list";
+};
 export type ViewRow = RowBase & {
   type: "view";
   isFullWidth: boolean;
@@ -132,6 +135,7 @@ export type TextRow = RowBase & {
 export type Row =
   | FieldsListRow
   | ClaimsListRow
+  | MembershipListRow
   | ViewRow
   | PropertyRow
   | FieldRow
@@ -907,12 +911,16 @@ export class RecordLayout extends NodeLayout<NodeType.RECORD> {
 export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
   make() {
     this.section(undefined, []);
+    this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
+    this.section("Members", [{ type: "membership-list", title: undefined }], {});
   }
 }
 
 export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
   make() {
     this.section(undefined, []);
+    this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
+    this.section("Members", [{ type: "membership-list", title: undefined }], {});
   }
 }
 

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.20.5"
+VERSION = "2025.03.21.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1422,9 +1422,11 @@ MEMBERSHIP_TABLE = Table(
     "bench_membership",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
+        Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
@@ -1432,6 +1434,10 @@ MEMBERSHIP_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("member_id", PrimitiveType.UUID),
         Column("member_ck", PrimitiveType.UUID),

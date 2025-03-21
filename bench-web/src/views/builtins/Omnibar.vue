@@ -29,7 +29,7 @@ const DEFAULT_ACTION_ICON = makeIcon({ faName: "fas fas fa-arrow-right" });
 const props = defineProps<{ box: { left: number; top: number; width: number; height: number } }>();
 
 const isActive = ref(false);
-const mode = ref<OmnibarMode>("everywhere");
+const mode = ref<OmnibarMode>("bench");
 const query = ref<"">("");
 
 const containerRef = ref<HTMLElement | null>(null);
@@ -41,12 +41,12 @@ const indices = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
 
   // actions
-  if (["everywhere", "actions"].includes(mode.value)) {
+  if (["bench", "actions"].includes(mode.value)) {
     indices["Actions"] = ACTION_INDEX;
   }
 
   // package
-  if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "bench"].includes(mode.value)) {
+  if (packagePtr.value != null && hasLocalPkg.value && ["bench"].includes(mode.value)) {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: benchGraph,
@@ -119,10 +119,10 @@ watch(results, () => {
 
 function clear() {
   query.value = "";
-  mode.value = "everywhere";
+  mode.value = "bench";
 }
 
-function open(inMode: OmnibarMode = "everywhere") {
+function open(inMode: OmnibarMode = "bench") {
   isActive.value = true;
   clear();
   mode.value = inMode;
@@ -159,20 +159,18 @@ watch(
 //
 
 const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
-  everywhere: ["mod+k"],
+  bench: ["mod+k"],
   actions: ["mod+shift+a"],
-  bench: ["mod+shift+f"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
-  everywhere: "Search everything",
+  bench: "Search across Bench",
   actions: "Find an action to run",
-  bench: "Search across this Bench",
 };
 
 for (const inMode of OMNIBAR_MODES) {
   addAction("static", {
     id: ("space.omnibar." + inMode) as ActionBuiltinId,
-    title: inMode == "everywhere" ? "Search" : `Search ${toCasing(inMode, Casing.CAMEL)}`,
+    title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
     shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
     icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
@@ -228,7 +226,7 @@ defineExpose({ isActive, open });
             <!-- Icon -->
             <i class="fas fa-magnifying-glass w-5 text-center text-base text-gray-500" />
             <!-- Mode -->
-            <span v-if="mode != 'everywhere'" class="select-none font-semibold">
+            <span v-if="mode != 'bench'" class="select-none font-semibold">
               {{ toCasing(mode, Casing.CAMEL) }}
             </span>
             <!-- Query -->
@@ -241,7 +239,7 @@ defineExpose({ isActive, open });
               @keydown.enter.stop.prevent="go"
               @keydown.down.stop.prevent="select(1)"
               @keydown.up.stop.prevent="select(-1)"
-              @keydown.delete="query.length > 0 || (mode = 'everywhere')"
+              @keydown.delete="query.length > 0 || (mode = 'bench')"
             />
             <!-- Close -->
             <button class="ml-auto" @click="() => close()">

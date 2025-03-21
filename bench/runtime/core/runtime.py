@@ -41,7 +41,6 @@ from bench.language import (
     PathElementType,
     PathError,
     PathOptions,
-    ReferenceKind,
     Resource,
     Run,
     RunStatus,
@@ -58,7 +57,6 @@ from bench.language import (
     check_value,
     coerce_value,
     evaluate_path,
-    get_custom_object_properties,
     on_invalid_raise,
     synchronize_nodes,
 )
@@ -455,7 +453,7 @@ class Runtime:
         """
         Load remote Nodes that are (probably) required for the given Runner.
         nocheckin: prefetch Thread.messages for Run?
-        TODO :Architecture: unclear which remote Nodes to load for Runs and how
+        TODO :Architecture :Incomplete: unclear which remote Nodes to load for Runs and how
          (should we only load top level references? Text mentions? expand Messages into Threads?
            entire Run trees? this seems related to the context/projection stuff in model instruct)
         NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
@@ -468,17 +466,6 @@ class Runtime:
         for obj in (runner.inputs, runner.outputs):
             if obj is None:
                 continue
-            # properties
-            for prop in get_custom_object_properties(obj._type, obj._value):
-                if prop.reference_kind != ReferenceKind.NODE_REGULAR:
-                    continue
-                prop_value = cast(Any, obj._do_get(prop, _raw=True))
-                if prop_value is not None:
-                    if not prop.is_list:
-                        nodes_ptr_by_id[prop_value.id] = prop_value
-                    else:
-                        for node_ptr in prop_value:
-                            nodes_ptr_by_id[node_ptr.id] = node_ptr
             # fields
             for field in obj.fields:
                 if field.kind != TypeKind.NODE and field.kind != TypeKind.BASED_NODE:
@@ -910,9 +897,9 @@ class Runtime:
             run_lock = asyncio.Lock()
             self._locks_by_id[run.id] = run_lock
 
-        # TODO :Robustness!: isolate graphs for Runtime.run (or is Runner.close enough?)
+        # nocheckin :Robustness!: isolate graphs for Runtime.run (or is Runner.close enough?)
         #  (isolating this graph is tricky in case of resuming Runs since we'll re-use owned Runners,
-        #   and also for other shared Connections like Threads and such)
+        #   and also for other shared Connections like Threads and such.. maybe tie GraphCapture to Runners?)
         async with self.session.active():
             # get runner
             async with run_lock:
