@@ -2,7 +2,7 @@
 import { NodeType, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, spaceGraph } from "@/system/space";
-import type { ActionMapKit } from "@/ui/action";
+import type { CommandMapKit } from "@/ui/command";
 import type { SplitLayout } from "@/ui/layout";
 import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
 import Empty from "@/views/builtins/Empty.vue";
@@ -50,11 +50,11 @@ const containerRef: Ref<HTMLElement | null> = ref(null);
 // TODO :Cleanup: use view state instead of canvas.tx in useSplitView
 const { sizedViews, draggingIdx } = useSplitView(splits, toRef(props, "size"), containerRef, splitLayout, canvas.tx);
 
-// actions
-const actions: Partial<ActionMapKit<"view">> = {
+// commands
+const commands: Partial<CommandMapKit<"view">> = {
   // navigate
   "view.navigate.closeFrame": {
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const split = ctx.nodes?.[0];
       if (!isNode(split, NodeType.VIEW)) return false;
       canvas.removeView(spaceGraph, split);
@@ -62,7 +62,7 @@ const actions: Partial<ActionMapKit<"view">> = {
   },
   "view.navigate.focusPreviousFrame": {
     isEnabled: isWindow,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const allFrames = canvas.frames;
       const split = ctx.nodes?.[0];
       if (!isNode(split, NodeType.VIEW)) return false;
@@ -73,7 +73,7 @@ const actions: Partial<ActionMapKit<"view">> = {
   },
   "view.navigate.focusNextFrame": {
     isEnabled: isWindow,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const allFrames = canvas.frames;
       const split = ctx.nodes?.[0];
       if (!isNode(split, NodeType.VIEW)) return false;
@@ -83,14 +83,14 @@ const actions: Partial<ActionMapKit<"view">> = {
     },
   },
   "view.navigate.closeSplit": {
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const split = ctx.nodes?.[0];
       if (!isNode(split, NodeType.VIEW)) return false;
       canvas.removeView(spaceGraph, split);
     },
   },
   "view.navigate.focusNextSplit": {
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const split = ctx.nodes?.[0];
       if (!isNode(split, NodeType.VIEW)) return false;
       const splitIdx = splits.value.findIndex((v) => v.id == split.id);
@@ -99,7 +99,7 @@ const actions: Partial<ActionMapKit<"view">> = {
     },
   },
   "view.navigate.focusPreviousSplit": {
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const split = ctx.nodes?.[0];
       if (!isNode(split, NodeType.VIEW)) return false;
       const splitIdx = splits.value.findIndex((v) => v.id == split.id);
@@ -110,7 +110,7 @@ const actions: Partial<ActionMapKit<"view">> = {
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExpose>({ self, actions });
+defineExpose<ViewExpose>({ self, commands});
 </script>
 <template>
   <div

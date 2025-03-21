@@ -6,12 +6,12 @@ import { ref, type Ref } from "vue";
 export type ToastAnchor = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 /**
- * A mini-Action, displayed inline in a Toast.
+ * A mini-Command, displayed inline in a Toast.
  */
-export type ToastAction = {
+export type ToastCommand = {
   icon?: IconData;
   title: string;
-  action: () => void;
+  command: () => void;
 };
 
 export type ToastSummaryInfo<T> = {
@@ -36,7 +36,7 @@ export type Toast = {
   durationMs: number;
   remainingDurationMs: number;
   createdAt: DateTime;
-  actions: ToastAction[];
+  commands: ToastCommand[];
   override?: string;
   summarize?: ToastSummaryInfo<any>;
 };
@@ -66,7 +66,7 @@ export const DEFAULT_TOAST_DURATION_BY_LEVEL: Record<ToastLevel, ToastDuration> 
 };
 
 export type ToastIn<T> = Pick<Toast, "title" | "text" | "level"> &
-  Partial<Pick<Toast, "actions" | "durationMs">> & {
+  Partial<Pick<Toast, "commands" | "durationMs">> & {
     icon?: string | IconData;
     debounce?: boolean;
     override?: string;
@@ -108,9 +108,9 @@ export class Toaster {
     const createdAt = DateTime.now();
     const durationMs = toast.durationMs ?? DEFAULT_TOAST_DURATION_BY_LEVEL[toast.level];
     const remainingDurationMs = durationMs;
-    const actions = toast.actions ?? [];
+    const commands = toast.commands ?? [];
     const icon = typeof toast.icon == "string" ? makeIcon({ faName: toast.icon }) : toast.icon;
-    this.toasts.value.push({ ...toast, icon, durationMs, actions, id, createdAt, remainingDurationMs });
+    this.toasts.value.push({ ...toast, icon, durationMs, commands, id, createdAt, remainingDurationMs });
   }
 
   debug(toast: Omit<ToastIn<any>, "level">) {

@@ -1,6 +1,6 @@
 import { ComputedValueData, FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionMapKit } from "@/ui/action";
+import type { CommandMapKit } from "@/ui/command";
 import { Casing, toCasing } from "@/utils/string";
 import { type ComponentInstance, type Ref } from "vue";
 
@@ -50,8 +50,8 @@ export type ViewExpose = (
       id: Ref<string>;
     }
 ) & {
-  /** The virtual actions implemented by this view */
-  actions?: Partial<ActionMapKit<any>>;
+  /** The Commands implemented by this view */
+  commands?: Partial<CommandMapKit<any>>;
   /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
   focus?: (
     anchor?: FocusAnchor | NodeReferenceData,

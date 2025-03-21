@@ -3,7 +3,7 @@ import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import type { ActionMapKit } from "@/ui/action";
+import type { CommandMapKit } from "@/ui/command";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -30,16 +30,16 @@ const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
 const isSelected = computed(() => state.isSelected(nodePtr.value));
 
 // actions
-const actions: Partial<ActionMapKit<"space">> = {
+const commands: Partial<CommandMapKit<"space">> = {
   // space
   "space.edit.rename": {
-    action: () => {
+    command: () => {
       nextTick(() => nameRef.value?.focusIdentifier());
     },
   },
 };
 
-defineExpose<ViewExpose>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, commands});
 </script>
 <template>
   <div

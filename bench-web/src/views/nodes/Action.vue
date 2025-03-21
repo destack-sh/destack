@@ -17,7 +17,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { PreparedGetConnection, useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { type ActionMapKit } from "@/ui/action";
+import { type CommandMapKit } from "@/ui/command";
 import { getActionSides, useFlowContextMaybe } from "@/ui/flow";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
@@ -66,16 +66,16 @@ const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ id: act
 //
 
 // actions
-const actions: Partial<ActionMapKit<"space">> & ActionMapKit<"action"> = {
+const commands: Partial<CommandMapKit<"space">> & CommandMapKit<"action"> = {
   // space
   "space.edit.rename": {
-    action: () => {
+    command: () => {
       nextTick(() => focusInElement(nameRef.value as MaybeElement));
     },
   },
 };
 
-defineExpose<ViewExpose>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, commands});
 </script>
 <template>
   <div

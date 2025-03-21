@@ -4,7 +4,7 @@ import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchGraph, canvas, spaceGraph } from "@/system/space";
-import { ActionMapKit } from "@/ui/action";
+import { CommandMapKit } from "@/ui/command";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { getViewBinding, getViewComponent } from "@/views/registry";
@@ -71,12 +71,12 @@ const history: HistoryState = {
 provide(HISTORY_STATE_KEY, history);
 
 // actions
-const actions: Partial<ActionMapKit<"view">> = {
+const commands: Partial<CommandMapKit<"view">> = {
   "view.history.goBackward": () => history.go(-1),
   "view.history.goForward": () => history.go(1),
 };
 
-defineExpose<ViewExpose>({ self, actions });
+defineExpose<ViewExpose>({ self, commands});
 </script>
 <template>
   <div class="h-full w-full">

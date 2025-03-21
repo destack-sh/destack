@@ -5,7 +5,6 @@ import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
-import { createChannel } from "@/language/source/channel";
 import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
@@ -33,7 +32,7 @@ import { BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
-import { ActionMapKit, fireAction, getAction, getNodesForAction, MESSAGE_CONTEXT_ACTIONS } from "@/ui/action";
+import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";
 import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -294,7 +293,7 @@ const draftNodes = supergraph.getManyRef(draftNodesPtr);
 const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
 //
-// Interaction
+// Intercommand
 //
 
 const inputContainerRef = ref<HTMLInputElement | null>(null);
@@ -488,21 +487,21 @@ useEventListener(inputContainerRef, "paste", (event) => {
   addFiles(files);
 });
 
-// actions
-const actions: Partial<ActionMapKit<"chat">> = {
+// commands
+const commands: Partial<CommandMapKit<"chat">> = {
   "chat.message.reply": {
-    action: (action, ctx) => {
-      const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
+    command: (command, ctx) => {
+      const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);
       startReplying(messages[0]);
     },
   },
   "chat.message.edit": {
-    isEnabled: (action, ctx) => {
-      const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
+    isEnabled: (command, ctx) => {
+      const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);
       return messages.length > 0 && messages.every((m) => m.createdByPtr?.id == currentAuthor.value?.id);
     },
-    action: (action, ctx) => {
-      const { nodes: messages } = getNodesForAction(action, ctx, [NodeType.MESSAGE]);
+    command: (command, ctx) => {
+      const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);
       startEdit(messages[0]);
     },
   },
@@ -512,7 +511,7 @@ function focus() {
   inputRef.value?.focus?.();
 }
 
-defineExpose<ViewExpose>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 </script>
 <template>
   <div ref="containerRef" class="relative">
@@ -688,20 +687,20 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
                 <!-- Edited? -->
                 <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
               </div>
-              <!-- Actions -->
+              <!-- Commands -->
               <div
                 v-if="!isEditing"
                 class="absolute right-0 top-0 z-10 flex flex-row rounded border border-gray-200 bg-white opacity-0 group-hover/message:opacity-100"
               >
                 <button
-                  v-for="action in MESSAGE_CONTEXT_ACTIONS.map(getAction)"
-                  :key="action.id"
-                  v-tooltip="{ small: true, title: action.title, group: 'message' }"
+                  v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
+                  :key="command.id"
+                  v-tooltip="{ small: true, title: command.title, group: 'message' }"
                   class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-150 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
-                  :disabled="action.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
-                  @click.stop.prevent="fireAction(action, { nodes: [message] })"
+                  :disabled="command.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
+                  @click.stop.prevent="fireCommand(command, { nodes: [message] })"
                 >
-                  <IconInline v-bind="action.icon" />
+                  <IconInline v-bind="command.icon" />
                 </button>
               </div>
               <!-- Content -->

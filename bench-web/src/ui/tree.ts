@@ -1,7 +1,7 @@
-import { declareActions } from "@/ui/action";
+import { declareCommands } from "@/ui/command";
 
 // tree
-declareActions<"tree">({
+declareCommands<"tree">({
   // create
   "tree.create.above": {
     icon: "fas fa-arrow-up",

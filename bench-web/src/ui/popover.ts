@@ -4,18 +4,18 @@ import { isNode, isNodeRef } from "@/proto/wiring";
 import { supergraph } from "@/globals";
 import { canvas } from "@/system/space";
 import {
-  ACTION_BUILTIN_IDS_INDEX,
-  fireAction,
-  getAction,
-  getActionsLike,
-  getImplementingAction,
-  getNodeActions,
-  SCALAR_CONTEXT_ACTIONS,
-  type Action,
-  type ActionBuiltinId,
-  type ActionContext,
-  type ActionFilter,
-} from "@/ui/action";
+  COMMAND_BUILTIN_IDS_INDEX,
+  fireCommand,
+  getCommand,
+  getCommandsLike,
+  getImplementingCommand,
+  getNodeCommands,
+  SCALAR_CONTEXT_COMMANDS,
+  type Command,
+  type CommandBuiltinId,
+  type CommandContext,
+  type CommandFilter,
+} from "@/ui/command";
 import { collectViewComponentsUp, findViewComponentUp, getVueComponentType, isViewComponentIn } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { type FloatingOptions } from "@/utils/floating";
@@ -46,7 +46,7 @@ export type MenuItem = {
   isDisabled?: boolean;
   isLoading?: boolean;
   isChecked?: boolean;
-  action: ((menu: MenuInfo) => void) | MenuInfo;
+  command: ((menu: MenuInfo) => void) | MenuInfo;
 };
 
 /** Gets the view context for a given menu (item) */
@@ -58,62 +58,62 @@ function getMenuContextViews(context?: PopoverContext): ViewComponent[] {
   }
 }
 
-/** Maps an action to a typical menu item in context  */
-export function menuItemFromAction(
-  actionOrId: Action | ActionBuiltinId,
+/** Maps an command to a typical menu item in context  */
+export function menuItemFromCommand(
+  commandOrId: Command | CommandBuiltinId,
   override?: Partial<MenuItem> & { context?: PopoverContext; contextViews?: ViewComponent[] },
 ): MenuItem {
-  const action = typeof actionOrId === "string" ? getAction(actionOrId) : actionOrId;
+  const command = typeof commandOrId === "string" ? getCommand(commandOrId) : commandOrId;
 
-  // figure out whether the action is available in this context
+  // figure out whether the command is available in this context
   const contextViews = override?.contextViews ?? getMenuContextViews(override?.context);
-  const implementation = getImplementingAction(action, contextViews, override?.context ?? {});
+  const implementation = getImplementingCommand(command, contextViews, override?.context ?? {});
   let isChecked = undefined;
-  if (action.type == "toggle") {
+  if (command.type == "toggle") {
     if (typeof implementation?.isChecked == "object") {
       isChecked = implementation.isChecked.value;
     } else if (typeof implementation?.isChecked == "function") {
-      isChecked = implementation.isChecked(action, override?.context);
+      isChecked = implementation.isChecked(command, override?.context);
     }
   }
 
-  // map to action
+  // map to command
   return {
-    id: action.id,
-    type: MENU_ITEM_TYPES.includes(action.type as any) ? (action.type as MenuItemType) : "generic",
-    icon: action.icon?.faName,
-    title: toValue(action.title),
-    shortcuts: action.shortcuts,
+    id: command.id,
+    type: MENU_ITEM_TYPES.includes(command.type as any) ? (command.type as MenuItemType) : "generic",
+    icon: command.icon?.faName,
+    title: toValue(command.title),
+    shortcuts: command.shortcuts,
     isDisabled: implementation == null,
     isChecked,
     // default to subcategory since we usually group menus by category(ish)
-    category: `${action.category}.${action.subcategory}`,
-    action: (menu: MenuInfo) => {
+    category: `${command.category}.${command.subcategory}`,
+    command: (menu: MenuInfo) => {
       const contextViews = getMenuContextViews(menu.context);
-      const actionContext = { ...menu.context, ...(override?.context ?? {}) };
-      fireAction(action, actionContext, contextViews);
+      const commandContext = { ...menu.context, ...(override?.context ?? {}) };
+      fireCommand(command, commandContext, contextViews);
     },
     ...override,
   };
 }
 
-/** Convenience wrapper around action filter & menu item mapping */
-export function menuActionsLike(
-  filter: ActionFilter | string[],
+/** Convenience wrapper around command filter & menu item mapping */
+export function menuCommandsLike(
+  filter: CommandFilter | string[],
   override: Partial<MenuItem> & { context: PopoverContext | undefined },
 ): MenuItem[] {
   const contextViews = getMenuContextViews(override?.context);
-  const actions = getActionsLike(filter).map((action) =>
-    menuItemFromAction(action, { contextViews, ...(override ?? {}) }),
+  const commands = getCommandsLike(filter).map((command) =>
+    menuItemFromCommand(command, { contextViews, ...(override ?? {}) }),
   );
-  return actions;
+  return commands;
 }
 
 //
 // Popover stack
 //
 
-export type PopoverContext = ActionContext & {
+export type PopoverContext = CommandContext & {
   element?: MaybeElement;
 };
 
@@ -495,7 +495,7 @@ export function pushDefaultMenu(
   e: MouseEvent,
 ) {
   const hasSelection = canvas.selection != null && canvas.selection.nodesPtr.length > 1;
-  const excludedActions = hasSelection ? SCALAR_CONTEXT_ACTIONS : [];
+  const excludedCommands = hasSelection ? SCALAR_CONTEXT_COMMANDS : [];
 
   if (isNodeRef(node)) {
     node = supergraph.get(node);
@@ -503,28 +503,28 @@ export function pushDefaultMenu(
 
   let currentNode: AnyNodeData | null = node ?? null;
   const nodes: AnyNodeData[] = node != null ? [node] : [];
-  const actionsById: Record<string, Action> = {};
-  const nodeByActionId: Record<string, AnyNodeData> = {};
-  const elementByActionId: Record<string, HTMLElement> = {};
+  const commandsById: Record<string, Command> = {};
+  const nodeByCommandId: Record<string, AnyNodeData> = {};
+  const elementByCommandId: Record<string, HTMLElement> = {};
 
-  function addAction(element: HTMLElement, action: Action) {
-    if (action.id != null && actionsById[action.id] == null) {
-      if (excludedActions.includes(action.id)) return;
-      actionsById[action.id] = action;
+  function addCommand(element: HTMLElement, command: Command) {
+    if (command.id != null && commandsById[command.id] == null) {
+      if (excludedCommands.includes(command.id)) return;
+      commandsById[command.id] = command;
       if (currentNode != null) {
-        nodeByActionId[action.id] = currentNode;
+        nodeByCommandId[command.id] = currentNode;
       }
-      elementByActionId[action.id] = element;
+      elementByCommandId[command.id] = element;
     }
   }
 
-  // add default action
+  // add default command
   if (node != null) {
-    const nodeActions = getNodeActions(node);
-    nodeActions.forEach((action) => addAction(e.target as HTMLElement, action));
+    const nodeCommands = getNodeCommands(node);
+    nodeCommands.forEach((command) => addCommand(e.target as HTMLElement, command));
   }
 
-  // gather stack of nodes and actions
+  // gather stack of nodes and commands
   let element = e.target as HTMLElement;
   while (element != null) {
     // skip explicitly ignored elements
@@ -577,16 +577,16 @@ export function pushDefaultMenu(
       }
     }
 
-    // gather actions
+    // gather commands
     const contextMenuItems = element.dataset["contextmenuItems"]?.split(",");
     if (contextMenuItems != null) {
-      const contextMenuActions = getActionsLike(contextMenuItems);
-      contextMenuActions.forEach((action) => addAction(element, action));
+      const contextMenuCommands = getCommandsLike(contextMenuItems);
+      contextMenuCommands.forEach((command) => addCommand(element, command));
     }
     if (nextNode != null && !isNodeContainer) {
-      const nodeActions = getNodeActions(nextNode);
-      nodeActions.forEach((action) => addAction(element, action));
-      // break; // NOTE :UX: maybe we should ignore other nodes to reduce possible confusion about which node the action relates to?
+      const nodeCommands = getNodeCommands(nextNode);
+      nodeCommands.forEach((command) => addCommand(element, command));
+      // break; // NOTE :UX: maybe we should ignore other nodes to reduce possible confusion about which node the command relates to?
     }
 
     // and up we go
@@ -594,24 +594,24 @@ export function pushDefaultMenu(
   }
 
   // build menu
-  // NOTE :UX: associate actions with the most appropriate elements?
+  // NOTE :UX: associate commands with the most appropriate elements?
   //  (if we click on a Type view inside a Block selection, we want the list.create.above from the Block selection, not from the Type view)
-  if (Object.keys(actionsById).length == 0 || nodes.length == 0) {
-    return; // no actions found
+  if (Object.keys(commandsById).length == 0 || nodes.length == 0) {
+    return; // no commands found
   }
   if (!canvas.isSelected(nodes[0])) {
     // auto-select first node if not selected
     canvas.select([nodes[0]]);
   }
-  const actions = Object.values(actionsById);
-  actions.sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id]);
+  const commands = Object.values(commandsById);
+  commands.sort((a, b) => COMMAND_BUILTIN_IDS_INDEX[a.id] - COMMAND_BUILTIN_IDS_INDEX[b.id]);
   const context: PopoverContext = {
     event: e,
     element: e.target as HTMLElement,
     nodes: canvas.selection != null ? supergraph.getManyMaybe(canvas.selection.nodesPtr) : [nodes[0]],
   };
   const contextViews = getMenuContextViews(context);
-  const menuItems = actions.map((action) => menuItemFromAction(action, { context, contextViews: contextViews }));
+  const menuItems = commands.map((command) => menuItemFromCommand(command, { context, contextViews: contextViews }));
   pushPopover({
     kind: "menu",
     context,

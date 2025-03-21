@@ -5,7 +5,7 @@ import { newChangeId } from "@/language/runtime/transaction";
 import { NodeType, NodeTypeOptionInfo, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, spaceGraph } from "@/system/space";
-import { type Action, type ActionContext, type ActionMapKit } from "@/ui/action";
+import { type Command, type CommandContext, type CommandMapKit } from "@/ui/command";
 import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { getNodeIcon, getNodeTitle, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -119,10 +119,10 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
   },
 });
 
-// actions
+// commands
 const hasMultipleTabs = computed(() => tabs.value.length > 1);
-const splitAction = (anchor: SplitAnchor) => ({
-  action: (action: Action, ctx: ActionContext) => {
+const splitCommand = (anchor: SplitAnchor) => ({
+  command: (command: Command, ctx: CommandContext) => {
     const tab = ctx.nodes?.[0];
     if (!isNode(tab, NodeType.VIEW)) return false;
     const selfData = spaceGraph.get(props.self) as ViewData;
@@ -130,10 +130,10 @@ const splitAction = (anchor: SplitAnchor) => ({
     return true;
   },
 });
-const actions: Partial<ActionMapKit<"view">> = {
+const commands: Partial<CommandMapKit<"view">> = {
   "view.navigate.duplicateTab": {
     isEnabled: computed(() => focusedTabIdx.value != null),
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const tab = ctx.nodes?.[0];
       if (!isNode(tab, NodeType.VIEW)) return false;
       const clonedTab = cloneNode(canvas.tx(), spaceGraph, tab);
@@ -142,7 +142,7 @@ const actions: Partial<ActionMapKit<"view">> = {
   },
   "view.navigate.closeTab": {
     isEnabled: computed(() => focusedTabIdx.value != null),
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const tab = ctx.nodes?.[0];
       if (!isNode(tab, NodeType.VIEW)) return false;
       remove(tab);
@@ -150,7 +150,7 @@ const actions: Partial<ActionMapKit<"view">> = {
   },
   "view.navigate.closeOtherTabs": {
     isEnabled: hasMultipleTabs,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const tab = ctx.nodes?.[0];
       if (!isNode(tab, NodeType.VIEW)) return false;
       for (const t of tabs.value) {
@@ -160,7 +160,7 @@ const actions: Partial<ActionMapKit<"view">> = {
   },
   "view.navigate.focusPreviousTab": {
     isEnabled: hasMultipleTabs,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const tab = ctx.nodes?.[0];
       if (!isNode(tab, NodeType.VIEW)) return false;
       const newIdx = (tabs.value.indexOf(tab) - 1 + tabs.value.length) % tabs.value.length;
@@ -169,21 +169,21 @@ const actions: Partial<ActionMapKit<"view">> = {
   },
   "view.navigate.focusNextTab": {
     isEnabled: hasMultipleTabs,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const tab = ctx.nodes?.[0];
       if (!isNode(tab, NodeType.VIEW)) return false;
       const newIdx = (tabs.value.indexOf(tab) + 1) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },
   },
-  "view.layout.splitLeft": splitAction("left"),
-  "view.layout.splitRight": splitAction("right"),
-  "view.layout.splitUp": splitAction("top"),
-  "view.layout.splitDown": splitAction("bottom"),
+  "view.layout.splitLeft": splitCommand("left"),
+  "view.layout.splitRight": splitCommand("right"),
+  "view.layout.splitUp": splitCommand("top"),
+  "view.layout.splitDown": splitCommand("bottom"),
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExpose>({ self, actions });
+defineExpose<ViewExpose>({ self, commands});
 </script>
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">

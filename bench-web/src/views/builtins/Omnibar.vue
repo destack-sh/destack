@@ -3,14 +3,14 @@ import { INLINE_NODE_TYPES } from "@/language/core/const";
 import { NodeType, ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
 import { canvas, hasLocalPkg, benchGraph } from "@/system/space";
-import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/ui/action";
+import { OMNIBAR_MODES, addCommand, fireCommand, type CommandBuiltinId, type OmnibarMode } from "@/ui/command";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import {
-  ACTION_INDEX,
+  COMMAND_INDEX,
   graphIndex,
   useIndexSearch,
-  type ActionItem,
+  type CommandItem,
   type NodeItem,
   type SearchIndex,
 } from "@/ui/search";
@@ -24,7 +24,7 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 const PANEL_WIDTH = 600;
 const PANEL_MAX_HEIGHT = 420;
 const PANEL_HEADER_HEIGHT = 44;
-const DEFAULT_ACTION_ICON = makeIcon({ faName: "fas fas fa-arrow-right" });
+const DEFAULT_COMMAND_ICON = makeIcon({ faName: "fas fas fa-arrow-right" });
 
 const props = defineProps<{ box: { left: number; top: number; width: number; height: number } }>();
 
@@ -40,9 +40,9 @@ const isQueryEmpty = computed(() => query.value.length === 0);
 const indices = computed(() => {
   const indices: Record<string, SearchIndex<any>> = {};
 
-  // actions
-  if (["bench", "actions"].includes(mode.value)) {
-    indices["Actions"] = ACTION_INDEX;
+  // commands
+  if (["bench", "commands"].includes(mode.value)) {
+    indices["Commands"] = COMMAND_INDEX;
   }
 
   // package
@@ -50,7 +50,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: benchGraph,
-      metatypes: [...INLINE_NODE_TYPES, NodeType.ACTION],
+      metatypes: [...INLINE_NODE_TYPES],
       roots: [benchGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically
@@ -64,7 +64,7 @@ const indices = computed(() => {
 
   return indices;
 });
-const { candidates, results, resultsTotal, updateCandidates } = useIndexSearch<NodeItem | ActionItem>({
+const { candidates, results, resultsTotal, updateCandidates } = useIndexSearch<NodeItem | CommandItem>({
   query,
   isEnabled: isActive,
   indices,
@@ -78,18 +78,18 @@ function go() {
   fire(activeResultLocalId.value);
 }
 
-/** Fires the action associated with the given result  */
+/** Fires the command associated with the given result  */
 async function fire(id: string) {
   const result = candidates.value.find((r) => r.itemId === id);
   // fire
   if (result != null) {
-    if (result.metatype == "action") fireAction(result);
+    if (result.metatype == "command") fireCommand(result);
     else if (result.metatype == "node") canvas.goToNode(result.node);
     else throw new Error(`unexpected result: ${result}`);
   }
   // refocus or close
   if (id.includes(".omnibar.")) nextTick(focus);
-  else close({ delayFocus: true }); // action may have just created a new view
+  else close({ delayFocus: true }); // command may have just created a new view
 }
 
 /** Select absolute/relative result */
@@ -155,26 +155,26 @@ watch(
 );
 
 //
-// Actions (assumes Omnibar is a singleton, also see :OmnibarModes)
+// Commands (assumes Omnibar is a singleton, also see :OmnibarModes)
 //
 
 const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   bench: ["mod+k"],
-  actions: ["mod+shift+a"],
+  commands: ["mod+shift+a"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   bench: "Search across Bench",
-  actions: "Find an action to run",
+  commands: "Find a command to run",
 };
 
 for (const inMode of OMNIBAR_MODES) {
-  addAction("static", {
-    id: ("space.omnibar." + inMode) as ActionBuiltinId,
+  addCommand("static", {
+    id: ("space.omnibar." + inMode) as CommandBuiltinId,
     title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
     shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
-    icon: inMode == "actions" ? "fas fa-command" : "fas fa-magnifying-glass",
+    icon: inMode == "commands" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
-    action: () => open(inMode),
+    command: () => open(inMode),
     isEnabled: computed(() => props.box.width >= PANEL_WIDTH),
   });
 }
@@ -281,7 +281,7 @@ defineExpose({ isActive, open });
                 >
                   <!-- Content -->
                   <IconInline
-                    v-bind="item.icon ?? DEFAULT_ACTION_ICON"
+                    v-bind="item.icon ?? DEFAULT_COMMAND_ICON"
                     class="w-5"
                     :class="item.itemId == activeResultLocalId ? '' : 'text-gray-700'"
                   />
@@ -299,7 +299,7 @@ defineExpose({ isActive, open });
                   <!-- Secondary (shortcut, last edited, etc.) -->
                   <span class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-2">
                     <Shortcut
-                      v-if="item.metatype == 'action' && (item.shortcuts?.length ?? 0) > 0"
+                      v-if="item.metatype == 'command' && (item.shortcuts?.length ?? 0) > 0"
                       class="text-gray-700"
                       :shortcut="item.shortcuts![0]"
                     />

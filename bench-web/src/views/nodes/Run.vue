@@ -14,7 +14,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { CLEAR_RUN_ACTION, getInputType, getOutputType, runtime } from "@/runtime/runtime";
+import { CLEAR_RUN_COMMAND, getInputType, getOutputType, runtime } from "@/runtime/runtime";
 import { benchGraph, canvas } from "@/system/space";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
@@ -125,7 +125,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
           <button
             v-tooltip="{ title: 'Clear this Run', small: true, group: 'run.header' }"
             class="rounded px-0.5 text-gray-400 transition-colors duration-150 hover:text-gray-700 group-hover/banner:opacity-100"
-            @click="() => CLEAR_RUN_ACTION.action()"
+            @click="() => CLEAR_RUN_COMMAND.command()"
           >
             <span class="fas fa-xmark" />
           </button>

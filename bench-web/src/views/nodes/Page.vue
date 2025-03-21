@@ -21,11 +21,11 @@ import {
 import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { bench, canvas, pkg } from "@/system/space";
-import { type ActionMapKit } from "@/ui/action";
+import { type CommandMapKit } from "@/ui/command";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { IS_DRAGGING_OR_SELECTING, ScrollbarWidth } from "@/ui/layout";
-import { useNodeListActions } from "@/ui/list";
+import { useNodeListCommands } from "@/ui/list";
 import { pushDefaultMenu } from "@/ui/popover";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { PageContext, providePageContext } from "@/ui/prosemirror/page";
@@ -291,12 +291,12 @@ useEventListener(contentRef, "paste", (event) => {
 });
 
 // actions
-const actions: Partial<ActionMapKit<"list" | "space">> = {
+const commands: Partial<CommandMapKit<"list" | "space">> = {
   // edit
   "space.edit.rename": () => {
     pageHeaderRef.value?.focusIdentifier("left");
   },
-  ...useNodeListActions({
+  ...useNodeListCommands({
     nodeType: NodeType.BLOCK,
     self: state.baseViewRef,
     graph: graph,
@@ -361,7 +361,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
   }
 }
 
-defineExpose<ViewExpose>({ self, actions, focus });
+defineExpose<ViewExpose>({ self, commands, focus });
 </script>
 <template>
   <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">

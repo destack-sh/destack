@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { TextLineData, TextLineType, ViewData } from "@/proto/wire";
-import { ActionMapKit } from "@/ui/action";
+import { CommandMapKit } from "@/ui/command";
 import { useTextEditor } from "@/ui/prosemirror/editor";
 import { usePlaceholderPlugin, useTooltipPlugin } from "@/ui/prosemirror/view";
 import { useTextLineModelValueInterface } from "@/ui/prosemirror/wiring";
@@ -53,11 +53,11 @@ const { focus, actions: textActions } = useTextEditor({
 });
 // NOTE :Performance: having each Title be its own full Text editor is a bit heavy
 
-const actions: Partial<ActionMapKit<"space">> = {
+const commands: Partial<CommandMapKit<"space">> = {
   ...textActions,
 };
 
-defineExpose({ actions, focus });
+defineExpose({ commands, focus });
 </script>
 <template>
   <div

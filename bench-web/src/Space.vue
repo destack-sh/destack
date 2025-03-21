@@ -5,7 +5,7 @@ import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
-import { IS_IN_ALT_MODE } from "@/ui/action";
+import { IS_IN_ALT_MODE } from "@/ui/command";
 import { keytrap } from "@/ui/keymap";
 import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";

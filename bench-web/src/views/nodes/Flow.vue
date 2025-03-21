@@ -19,7 +19,7 @@ import {
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas, spaceGraph } from "@/system/space";
-import { ACTION_CONTEXT_ACTIONS, LINK_CONTEXT_ACTIONS, type ActionMapKit } from "@/ui/action";
+import { ACTION_CONTEXT_COMMANDS, LINK_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import {
   ACTION_SIZE,
@@ -164,7 +164,7 @@ function pushPopover(popover: PopoverInfoIn, e?: MouseEvent | KeyboardEvent) {
     ...popover,
   });
 }
-const implementedActions: Partial<ActionMapKit<"flow" | "space" | "runtime">> = {
+const implementedActions: Partial<CommandMapKit<"flow" | "space" | "runtime">> = {
   // edit
   "space.edit.rename": () => {
     nameRef.value?.focusIdentifier();
@@ -280,7 +280,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
-defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
+defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
 </script>
 <template>
   <div
@@ -485,7 +485,7 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
             :key="link.id"
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeRef(link)"
-            :data-contextmenu-items="LINK_CONTEXT_ACTIONS.join(',')"
+            :data-contextmenu-items="LINK_CONTEXT_COMMANDS.join(',')"
             class="absolute"
           />
           <!-- Actions -->
@@ -504,7 +504,7 @@ defineExpose<ViewExpose>({ self, id, actions: implementedActions, focus });
             }"
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeRef(action)"
-            :data-contextmenu-items="ACTION_CONTEXT_ACTIONS.join(',')"
+            :data-contextmenu-items="ACTION_CONTEXT_COMMANDS.join(',')"
             data-suppress-drag="select"
             @mousedown="(e: MouseEvent) => flowCtx.startDraggingIfAllowed(e, { kind: 'action', action: action! })"
           />

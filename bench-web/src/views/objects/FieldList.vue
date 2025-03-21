@@ -16,7 +16,7 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { FIELD_CONTEXT_ACTIONS, type ActionMapKit } from "@/ui/action";
+import { FIELD_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import {
   isDragging,
   startDraggingIfAllowed,
@@ -24,7 +24,7 @@ import {
   useMultiDropZone,
   useSelectionZone,
 } from "@/ui/drag";
-import { useNodeListActions } from "@/ui/list";
+import { useNodeListCommands } from "@/ui/list";
 import { pushPopover } from "@/ui/popover";
 import { typeIndex } from "@/ui/search";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -83,9 +83,9 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
-const actions: Partial<ActionMapKit<"list">> = {
+const commands: Partial<CommandMapKit<"list">> = {
   // list
-  ...useNodeListActions({
+  ...useNodeListCommands({
     nodeType: NodeType.FIELD,
     self: state.baseViewRef,
     graph,
@@ -100,7 +100,7 @@ const actions: Partial<ActionMapKit<"list">> = {
   }),
 };
 
-defineExpose<ViewExpose>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, commands});
 </script>
 <template>
   <div
@@ -150,7 +150,7 @@ defineExpose<ViewExpose>({ self, id, actions });
             orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]',
             isDragging(field) ? 'opacity-50' : '',
           ]"
-          :data-contextmenu-items="FIELD_CONTEXT_ACTIONS.join(',')"
+          :data-contextmenu-items="FIELD_CONTEXT_COMMANDS.join(',')"
           :prepared-connection="preparedConnection"
           :node-ptr="toNodeRef(field)"
           :is-minimal="isMinimal ?? false"

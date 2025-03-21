@@ -2,13 +2,13 @@ import { NodeTypeMapping } from "@/proto/wire";
 import { ViewData } from "@/proto/wire";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeType } from "@/proto/wire";
-import { ActionMapKit, declareActions } from "@/ui/action";
-import { useNodeListActions } from "@/ui/list";
+import { CommandMapKit, declareCommands } from "@/ui/command";
+import { useNodeListCommands } from "@/ui/list";
 import { Ref } from "vue";
 import { Transaction } from "@/language/runtime/transaction";
 
 // table
-declareActions<"table">({
+declareCommands<"table">({
   // create
   "table.create.record": {
     icon: "fas fa-plus",
@@ -44,8 +44,8 @@ declareActions<"table">({
   },
 });
 
-/** Actions for a table */
-export function useNodeTableActions<T extends NodeType>(options: {
+/** Commands for a table */
+export function useNodeTableCommands<T extends NodeType>(options: {
   nodeType: T;
   self: Ref<ViewData | null>;
   graph: ReadNodeGraph;
@@ -54,8 +54,8 @@ export function useNodeTableActions<T extends NodeType>(options: {
   create?: (anchor: "before" | "after", node: NodeTypeMapping[T] | null) => NodeTypeMapping[T];
   enabled?: Ref<boolean>;
   ignoreOrder?: boolean;
-}): Partial<ActionMapKit<"space.move" | "space.navigate" | "space.select" | "list.create">> {
-  return useNodeListActions({
+}): Partial<CommandMapKit<"space.move" | "space.navigate" | "space.select" | "list.create">> {
+  return useNodeListCommands({
     ...options,
     graph: options.graph,
     list: options.list,
