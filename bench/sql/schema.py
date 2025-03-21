@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.21.1"
+VERSION = "2025.03.21.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1442,7 +1442,7 @@ MEMBERSHIP_TABLE = Table(
         Column("member_id", PrimitiveType.UUID),
         Column("member_ck", PrimitiveType.UUID),
         Column("member_type", PrimitiveType.INT16),
-        Column("member_bench_id", PrimitiveType.UUID),
+        Column("member_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1462,13 +1462,9 @@ INVITE_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("type", PrimitiveType.INT16),
-        Column("to_id", PrimitiveType.UUID),
-        Column("to_type", PrimitiveType.INT16),
-        Column("to_bench_id", PrimitiveType.UUID),
-        Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("user_email", PrimitiveType.STRING, is_nullable=True),
-        Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
+        Column("member_id", PrimitiveType.UUID),
+        Column("member_type", PrimitiveType.INT16),
+        Column("member_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

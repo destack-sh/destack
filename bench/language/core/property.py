@@ -620,7 +620,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
                     is_stored=True,
                     is_internal=is_internal,
                     is_list=is_list,
-                    is_required=is_required,
+                    is_required=is_required and all(t in BENCH_NODE_TYPES for t in reference_nodes),
                     primitive_type=PrimitiveType.UUID,
                 )
 
