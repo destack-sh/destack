@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { ActionBuiltinId } from "@/ui/action";
+import { CommandBuiltinId } from "@/ui/command";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { computed, inject } from "vue";
 
@@ -22,7 +22,7 @@ defineExpose({
         group: 'history',
         placement: 'bottom',
         title: 'Go back',
-        actions: ['view.history.goBackward'] as ActionBuiltinId[],
+        commands: ['view.history.goBackward'] as CommandBuiltinId[],
       }"
       class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoBackward.value"
@@ -35,7 +35,7 @@ defineExpose({
         group: 'history',
         placement: 'bottom',
         title: 'Go forward',
-        actions: ['view.history.goForward'] as ActionBuiltinId[],
+        commands: ['view.history.goForward'] as CommandBuiltinId[],
       }"
       class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoForward.value"

@@ -20,7 +20,7 @@ import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import type { ActionMapKit } from "@/ui/action";
+import type { CommandMapKit } from "@/ui/command";
 import {
   isDragging,
   startDraggingIfAllowed,
@@ -229,7 +229,7 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-const actions: Partial<ActionMapKit<"space">> = {
+const commands: Partial<CommandMapKit<"space">> = {
   // navigate
   "space.navigate.open": (action, ctx) => {
     if (ctx.nodes?.[0] == null) return false;
@@ -239,7 +239,7 @@ const actions: Partial<ActionMapKit<"space">> = {
   "space.select.all": () => canvas.select(expandedItems.value.map((item) => item.node)),
 };
 
-defineExpose<ViewExpose>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, commands, focus });
 </script>
 <template>
   <div

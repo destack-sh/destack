@@ -1,5 +1,5 @@
 import type { IconData, TextData } from "@/proto/wire";
-import { getAction, type Action, type ActionBuiltinId } from "@/ui/action";
+import { getCommand, type Command, type CommandBuiltinId } from "@/ui/command";
 import { normalizeKeymapKey, parseKeymapSignature } from "@/ui/keymap";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { isOnMac } from "@/utils/browser";
@@ -79,7 +79,7 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   text: string | TextData | (() => string | TextData);
   small?: boolean;
   shortcuts?: string[];
-  actions?: ActionBuiltinId[];
+  commands?: CommandBuiltinId[];
   showDelay?: number;
   hideDelay?: number;
   placement?: FloatingPlacement;
@@ -87,13 +87,13 @@ export type TooltipInfo = Omit<FloatingOptions, "placement"> & {
   group?: string;
 };
 
-export function tooltipFromAction(action: Action, override?: Partial<TooltipInfo>): TooltipInfo {
+export function tooltipFromCommand(command: Command, override?: Partial<TooltipInfo>): TooltipInfo {
   return {
-    icon: action.icon?.faName,
-    title: toValue(action.title),
-    text: action.text,
-    shortcuts: action.shortcuts,
-    actions: [action.id],
+    icon: command.icon?.faName,
+    title: toValue(command.title),
+    text: command.text,
+    shortcuts: command.shortcuts,
+    commands: [command.id],
     placement: "top",
     ...override,
   };
@@ -138,9 +138,9 @@ function createTooltip(
     container,
     createdAt: DateTime.now(),
   };
-  for (const actionId of info.actions ?? []) {
-    const action = getAction(actionId);
-    for (const shortcut of action.shortcuts ?? []) {
+  for (const commandId of info.commands ?? []) {
+    const command = getCommand(commandId);
+    for (const shortcut of command.shortcuts ?? []) {
       if (!instance.shortcuts.includes(shortcut)) {
         instance.shortcuts.push(shortcut);
       }
@@ -255,7 +255,7 @@ type HoverElement = {
   hoverOnMouseLeave?: (e: MouseEvent) => void;
 } & HTMLElement;
 
-/** Convenience hover directive to perform arbitrary actions */
+/** Convenience hover directive to perform arbitrary commands */
 export const HOVER_DIRECTIVE: Directive<MaybeElement, HoverInfo> = {
   mounted(el, binding) {
     const triggerEl = el as HoverElement;

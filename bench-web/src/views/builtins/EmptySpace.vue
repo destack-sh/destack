@@ -2,7 +2,7 @@
 import { UserStatus } from "@/proto/wire";
 import { assignSpaceInPackage, bench, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
-import { fireActionById } from "@/ui/action";
+import { fireCommandById } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import { createDesktopDefaultSpace } from "@/ui/space";
 import { DISCORD_URL } from "@/utils/globals";
@@ -54,7 +54,7 @@ import Button from "@/views/controls/Button.vue";
         name="LogIn"
         :icon="makeIcon('fas fa-arrow-right-to-bracket')"
         title="Log In"
-        @click="fireActionById('user.security.login')"
+        @click="fireCommandById('user.security.login')"
       />
     </div>
     <div v-else-if="user && user.status == UserStatus.WAITLISTED" class="flex flex-col gap-y-2 self-center">
@@ -79,7 +79,7 @@ import Button from "@/views/controls/Button.vue";
         name="GoHome"
         :icon="makeIcon('fas fa-home')"
         title="Go Home"
-        @click="fireActionById('user.navigate.goToHome')"
+        @click="fireCommandById('user.navigate.goToHome')"
       />
       <Button
         v-else
@@ -87,7 +87,7 @@ import Button from "@/views/controls/Button.vue";
         name="Activate"
         :icon="makeIcon('fas fa-plus')"
         title="Create Bench"
-        @click="fireActionById('user.navigate.activate')"
+        @click="fireCommandById('user.navigate.activate')"
       />
     </div>
     <div v-else class="flex flex-col gap-y-2 self-center">
@@ -98,7 +98,7 @@ import Button from "@/views/controls/Button.vue";
         name="LogIn"
         :icon="makeIcon('fas fa-arrow-right-to-bracket')"
         title="Log In"
-        @click="fireActionById('user.security.login')"
+        @click="fireCommandById('user.security.login')"
       />
     </div>
   </div>

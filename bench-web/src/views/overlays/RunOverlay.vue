@@ -2,7 +2,7 @@
 import { canvas } from "@/globals";
 import { getRunDurationString, isRunActive } from "@/language/runtime/run";
 import { RunStatusOptionInfo } from "@/proto/wire";
-import { CLEAR_RUN_ACTION, getRunActions, runtime } from "@/runtime/runtime";
+import { CLEAR_RUN_COMMAND, getRunCommands, runtime } from "@/runtime/runtime";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -12,11 +12,11 @@ const runTree = runtime.focusedRunTree;
 const run = runTree.runRef;
 const base = runTree.runBaseRef;
 
-const actions = computed(() => {
+const commands = computed(() => {
   if (run.value == null) return [];
-  const actions = getRunActions(run.value);
-  actions.push(CLEAR_RUN_ACTION);
-  return actions;
+  const commands = getRunCommands(run.value);
+  commands.push(CLEAR_RUN_COMMAND);
+  return commands;
 });
 </script>
 <template>
@@ -53,14 +53,14 @@ const actions = computed(() => {
         </div>
         <!-- Meta -->
         <div class="absolute right-5 flex flex-row items-center gap-x-1">
-          <!-- Actions -->
+          <!-- Commands -->
           <button
-            v-for="action in actions"
-            :key="action.title"
+            v-for="command in commands"
+            :key="command.title"
             class="rounded-md px-1.5 py-0.5 text-gray-700 transition-colors duration-150 hover:bg-gray-200"
-            @click="action.action"
+            @click="command.command"
           >
-            <IconInline v-bind="action.icon" class="text-base" />
+            <IconInline v-bind="command.icon" class="text-base" />
           </button>
         </div>
       </div>

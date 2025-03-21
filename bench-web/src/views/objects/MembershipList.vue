@@ -14,7 +14,7 @@ import {
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { type ActionMapKit } from "@/ui/action";
+import { type CommandMapKit } from "@/ui/command";
 import { useSelectionZone } from "@/ui/drag";
 import { pushPopover } from "@/ui/popover";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -50,11 +50,11 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
 // actions
-const actions: Partial<ActionMapKit<"list">> = {
+const commands: Partial<CommandMapKit<"list">> = {
   // list
 };
 
-defineExpose<ViewExpose>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, commands});
 </script>
 <template>
   <div ref="containerRef" class="relative">

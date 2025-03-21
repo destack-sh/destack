@@ -24,7 +24,7 @@ import {
 import local, { benchPtr, persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
 import { bench, canvas, goToBench } from "@/system/space";
-import { provideActions } from "@/ui/action";
+import { provideCommands } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import type { ViewIn } from "@/ui/space";
 import { toaster } from "@/ui/toast";
@@ -187,13 +187,13 @@ function userWizardView(view: { title: string; stage: UserWizardViewStage }): Vi
   };
 }
 
-provideActions<"user">({
+provideCommands<"user">({
   "user.security.signup": {
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     text: "Create a new account.",
     isEnabled: isUnauthenticated,
-    action: () => {
+    command: () => {
       canvas.addView(userWizardView({ title: "Sign up", stage: UserWizardViewStage.SIGN_UP }), {
         ifPresent: "upsertAndFocus",
       });
@@ -204,7 +204,7 @@ provideActions<"user">({
     title: "Log In",
     text: "Log in to an existing account.",
     isEnabled: isUnauthenticated,
-    action: () => {
+    command: () => {
       canvas.addView(userWizardView({ title: "Log in", stage: UserWizardViewStage.LOG_IN }), {
         ifPresent: "upsertAndFocus",
       });
@@ -215,21 +215,21 @@ provideActions<"user">({
     title: "Log Out",
     text: "Log out of the current client.",
     isEnabled: isAuthenticated,
-    action: () => logOut(),
+    command: () => logOut(),
   },
   "user.security.logoutAll": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out Everywhere",
     text: "Log out all clients (including current).",
     isEnabled: isAuthenticated,
-    action: () => logOut({ all: true }),
+    command: () => logOut({ all: true }),
   },
   "user.navigate.activate": {
     icon: "fas fa-rocket-launch",
     isEnabled: computed(() => isAuthenticated.value && !isActivated.value && !isWaitlisted.value),
     title: "Activate Bench",
     text: "Activate your account by creating your Bench.",
-    action: () => {
+    command: () => {
       canvas.addView(
         { type: ViewType.BENCH_WIZARD, icon: makeIcon("fas fa-rocket-launch"), title: "Activate Bench" },
         { ifPresent: "upsertAndFocus" },
@@ -243,7 +243,7 @@ provideActions<"user">({
     isEnabled: () => {
       return isActivated.value;
     },
-    action: async () => {
+    command: async () => {
       if (bench.value?.id == user.value!.mainBenchPtr?.id) {
         toaster.success({
           icon: "fas fa-home",

@@ -19,7 +19,6 @@ import {
   type TypeIdentity,
 } from "@/language/core/type";
 import {
-  ActionType,
   BenchType,
   BlockType,
   ColorType,
@@ -39,6 +38,7 @@ import {
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
+  ActionType,
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
@@ -49,7 +49,7 @@ import {
   SearchConnectionParams,
 } from "@/system/connection";
 import { benchGraph } from "@/system/space";
-import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, isActionEnabled, type Action } from "@/ui/action";
+import { COMMAND_BUILTIN_IDS_INDEX, IMPLEMENTED_COMMANDS, isCommandEnabled, type Command } from "@/ui/command";
 import {
   AVAILABLE_EMOJI_ICONS,
   AVAILABLE_FA_ICONS,
@@ -78,8 +78,8 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   pathToIndex?: string; // alternative path to index for searching (length must match path for highlighting!)
   ancestors: NodeItem[]; // in order of traversal up, excl. self
 };
-export type ActionItem = Omit<Action, "title"> & {
-  metatype: "action";
+export type CommandItem = Omit<Command, "title"> & {
+  metatype: "command";
   itemId: string; // per index
   title: string;
   icon?: IconData;
@@ -102,7 +102,7 @@ export type TypeItem = TypeIdentity & {
   pathToIndex?: string;
 };
 export type IconItem = { id: string; title: string; itemId: string; metatype: "icon"; icon: IconData; alias?: string };
-export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
+export type SearchItem = (NodeItem | CommandItem | EnumOptionItem | TypeItem | IconItem) & {
   itemId: string; // per index
   title: string;
   text?: string;
@@ -771,30 +771,30 @@ export function supergraphIndex(idx: {
 export const SUPERGRAPH_INDEX = supergraphIndex({ id: "supergraph", supergraph: supergraph, metatypes: [] });
 
 //
-// Action index
+// Command index
 //
 
 /**
- * Search the currently available actions.
+ * Search the currently available commands.
  */
-export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex<ActionItem> {
-  function getItemFromValue(value: Action): ActionItem {
-    return { ...value, title: toValue(value.title), metatype: "action", itemId: `${idx.id}-${value.id}` };
+export function commandIndex(idx: { id: string } = { id: "command" }): SearchIndex<CommandItem> {
+  function getItemFromValue(value: Command): CommandItem {
+    return { ...value, title: toValue(value.title), metatype: "command", itemId: `${idx.id}-${value.id}` };
   }
-  const index: SearchIndex<ActionItem> = {
+  const index: SearchIndex<CommandItem> = {
     id: idx.id,
     getItemFromValue: getItemFromValue,
-    getValueFromItem: (candidate: ActionItem) => candidate.id,
+    getValueFromItem: (candidate: CommandItem) => candidate.id,
     candidates: () => {
-      return IMPLEMENTED_ACTIONS.value
-        .filter((a) => isActionEnabled(a, undefined))
-        .sort((a, b) => ACTION_BUILTIN_IDS_INDEX[a.id] - ACTION_BUILTIN_IDS_INDEX[b.id])
+      return IMPLEMENTED_COMMANDS.value
+        .filter((a) => isCommandEnabled(a, undefined))
+        .sort((a, b) => COMMAND_BUILTIN_IDS_INDEX[a.id] - COMMAND_BUILTIN_IDS_INDEX[b.id])
         .map(getItemFromValue);
     },
   };
   return markRaw(index);
 }
-export const ACTION_INDEX = actionIndex();
+export const COMMAND_INDEX = commandIndex();
 
 //
 // Enum index

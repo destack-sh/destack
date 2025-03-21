@@ -3,14 +3,14 @@ import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/core/code";
 import { CodeData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import type { ActionMapKit } from "@/ui/action";
+import type { CommandMapKit } from "@/ui/command";
 import { useDropZone } from "@/ui/drag";
 import { copy, cyrb53a } from "@/utils/functools";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { autocompletion } from "@codemirror/autocomplete";
-import * as commands from "@codemirror/commands";
+import * as cmCommands from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
 import { defaultHighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
@@ -43,7 +43,7 @@ function makeEditorState(code?: CodeData, options?: { restoreSelection?: boolean
     autocompletion({}),
     python(),
     indentUnit.of("    "), // 4 spaces
-    keymap.of([...commands.defaultKeymap, commands.indentWithTab]),
+    keymap.of([...cmCommands.defaultKeymap, cmCommands.indentWithTab]),
   ];
   const dynamicExtensions = computed(() => {
     const extensions = [];
@@ -136,53 +136,53 @@ const { isInDropZone } = useDropZone({
 });
 
 // actions
-const actions: Partial<ActionMapKit<"space" | "code">> = {
+const commands: Partial<CommandMapKit<"space" | "code">> = {
   "space.edit.copy": {
     isEnabled: () => false,
-    action: () => {
+    command: () => {
       throw new Error("not implemented");
     },
   },
   "space.edit.cut": {
     isEnabled: () => false,
-    action: () => {
+    command: () => {
       throw new Error("not implemented");
     },
   },
   "space.edit.paste": {
     isEnabled: () => false,
-    action: () => {
+    command: () => {
       throw new Error("not implemented");
     },
   },
   "space.move.up": {
-    action: () => {
+    command: () => {
       if (view == null) return;
-      commands.moveLineUp({ state: view.state, dispatch: view.dispatch });
+      cmCommands.moveLineUp({ state: view.state, dispatch: view.dispatch });
     },
   },
   "space.move.down": {
-    action: () => {
+    command: () => {
       if (view == null) return;
-      commands.moveLineDown({ state: view.state, dispatch: view.dispatch });
+      cmCommands.moveLineDown({ state: view.state, dispatch: view.dispatch });
     },
   },
   "code.edit.format": {
     isEnabled: () => false,
-    action: () => {
+    command: () => {
       throw new Error("not implemented");
     },
   },
   "code.edit.comment": {
-    action: () => {
+    command: () => {
       if (view == null) return;
-      commands.toggleLineComment({ state: view.state, dispatch: view.dispatch });
+      cmCommands.toggleLineComment({ state: view.state, dispatch: view.dispatch });
     },
   },
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExpose>({ self, id, actions });
+defineExpose<ViewExpose>({ self, id, commands });
 </script>
 <template>
   <div

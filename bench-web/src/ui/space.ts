@@ -50,7 +50,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { benchConnection, benchGraph, inspectionPtr, pkg, space } from "@/system/space";
-import { Action, ActionContext, declareActions, getNodesForAction } from "@/ui/action";
+import { CommandContext, Command, declareCommands, getNodesForCommand } from "@/ui/command";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
 import { getNodeIcon, getNodeTitle, toIconMaybe } from "@/ui/icon";
@@ -78,6 +78,7 @@ import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
+import { Action } from "@codemirror/lint";
 import { useActiveElement, useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -1369,8 +1370,8 @@ export function createDesktopEmptySpace(tx: Transaction, space: SpaceData): { pr
 //
 
 /** Duplicates the selected nodes */
-export function duplicateSelection(action: Action, ctx: ActionContext): boolean {
-  const { connection, graph, nodes } = getNodesForAction(action, ctx);
+export function duplicateSelection(command: Command, ctx: CommandContext): boolean {
+  const { connection, graph, nodes } = getNodesForCommand(command, ctx);
   if (connection == null || graph == null || nodes.length == 0) {
     return true; // no action, but suppress anyway to avoid triggering browser shortcuts
   }
@@ -1384,8 +1385,8 @@ export function duplicateSelection(action: Action, ctx: ActionContext): boolean 
 }
 
 /** Deletes the selected nodes */
-export function deleteSelection(action: Action, ctx: ActionContext): boolean {
-  const { connection, graph, nodes } = getNodesForAction(action, ctx);
+export function deleteSelection(command: Command, ctx: CommandContext): boolean {
+  const { connection, graph, nodes } = getNodesForCommand(command, ctx);
   if (connection == null || graph == null || nodes.length == 0) {
     return false; // bubble up
   }
@@ -1397,15 +1398,15 @@ export function deleteSelection(action: Action, ctx: ActionContext): boolean {
 }
 
 // space
-declareActions<"space">({
+declareCommands<"space">({
   "space.omnibar.bench": {
     title: "Search everything",
     text: "Search everything",
     shortcuts: ["mod+k"],
   },
-  "space.omnibar.actions": {
-    title: "Search for an action",
-    text: "Search for an action",
+  "space.omnibar.commands": {
+    title: "Search commands",
+    text: "Search for a command",
     shortcuts: ["mod+shift+a"],
   },
   // edit
@@ -1443,14 +1444,14 @@ declareActions<"space">({
     title: "Duplicate",
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
-    action: (action, ctx) => duplicateSelection(action, ctx),
+    command: (command, ctx) => duplicateSelection(command, ctx),
   },
   "space.edit.delete": {
     icon: "fas fa-trash",
     title: "Delete",
     text: "Delete this item",
     shortcuts: ["del", "backspace"],
-    action: (action, ctx) => deleteSelection(action, ctx),
+    command: (command, ctx) => deleteSelection(command, ctx),
   },
   // navigate
   "space.navigate.open": {
@@ -1458,8 +1459,8 @@ declareActions<"space">({
     title: "Open",
     text: "Open this node in a new view",
     shortcuts: ["mod+enter"],
-    action: (action, ctx) => {
-      const { connection, graph, nodes } = getNodesForAction(action, ctx);
+    command: (command, ctx) => {
+      const { connection, graph, nodes } = getNodesForCommand(command, ctx);
       if (connection == null || graph == null || nodes.length == 0) {
         return false; // bubble up
       }
@@ -1581,7 +1582,7 @@ declareActions<"space">({
     title: "Clear Selection",
     text: "Clear selection",
     shortcuts: ["esc"],
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       if (canvas.selection != null) {
         canvas.deselect();
       }
@@ -1643,7 +1644,7 @@ declareActions<"space">({
     text: "Join the community on Discord",
     icon: "fab fa-discord",
     url: DISCORD_URL,
-    action: () => {
+    command: () => {
       // open in new tab
     },
   },
@@ -1652,7 +1653,7 @@ declareActions<"space">({
     icon: "fas fa-maximize",
     title: "Toggle Fullscreen",
     text: "Toggle fullscreen mode",
-    action: () => {
+    command: () => {
       const isFullscreen = document.fullscreenElement != null;
       if (isFullscreen) document.exitFullscreen();
       else document.documentElement.requestFullscreen();
@@ -1664,7 +1665,7 @@ declareActions<"space">({
     icon: "far fa-file",
     text: "Create a new page",
     shortcuts: ["mod+shift+n"],
-    action: () => {
+    command: () => {
       const page = createPage(benchConnection.tx, benchGraph, { anchor: "inside", target: pkg.value!, page: {} });
       canvas.goToNode(page);
     },
@@ -1674,7 +1675,7 @@ declareActions<"space">({
     icon: "fas fa-reel",
     text: "Create a new thread",
     shortcuts: ["mod+t"],
-    action: () => {
+    command: () => {
       const thread = createThread(benchConnection.tx, benchGraph, {
         thread: {
           parentPtr: toNodeRef(pkg.value!),
@@ -1687,7 +1688,7 @@ declareActions<"space">({
 });
 
 // view
-declareActions<"view">({
+declareCommands<"view">({
   // history
   "view.history.goBackward": {
     icon: "fas fa-chevron-left",
@@ -1796,7 +1797,7 @@ declareActions<"view">({
     title: "Restore Default Space",
     text: "Reset the space to the default layout",
     icon: "fas fa-galaxy",
-    action: () => {
+    command: () => {
       if (pkg.value == null || space.value == null) return;
       const tx = canvas.tx();
       clearSpace(tx, canvas.graph, space.value);

@@ -20,7 +20,7 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
-import { provideActions } from "@/ui/action";
+import { provideCommands } from "@/ui/command";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { watch } from "vue";
@@ -229,14 +229,14 @@ export function invertEdit(edit: EditData, editedAt: Timestamp, invertedEdit: Ed
 }
 
 // history
-export const HISTORY_ACTIONS = provideActions<"space.history">({
+export const HISTORY_COMMANDS = provideCommands<"space.history">({
   "space.history.undo": {
     icon: "fas fa-arrow-turn-left",
     title: "Undo",
-    text: "Undo the last action or edit",
+    text: "Undo the last command or edit",
     shortcuts: ["mod+z"],
     isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canUndo,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const stack = getEditStack(canvas.graph, canvas.focusedView);
       stack.undo();
     },
@@ -244,10 +244,10 @@ export const HISTORY_ACTIONS = provideActions<"space.history">({
   "space.history.redo": {
     icon: "fas fa-arrow-turn-right",
     title: "Redo",
-    text: "Redo the last undone action or edit",
+    text: "Redo the last undone command or edit",
     shortcuts: ["mod+shift+z", "mod+y"],
     isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canRedo,
-    action: (action, ctx) => {
+    command: (command, ctx) => {
       const stack = getEditStack(canvas.graph, canvas.focusedView);
       stack.redo();
     },

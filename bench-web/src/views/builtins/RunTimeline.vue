@@ -34,7 +34,7 @@ import {
   ViewData,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { getInputType, getOutputType, getRunActions, runtime, RunTree } from "@/runtime/runtime";
+import { getInputType, getOutputType, getRunCommands, runtime, RunTree } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
 import { getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { getColorHex, getRunColorHex } from "@/ui/style";
@@ -255,7 +255,7 @@ watchEffect(() => {
               class="ml-1 w-5 text-center"
             />
           </button>
-          <!-- Status / Actions -->
+          <!-- Status / Commands -->
           <div class="ml-auto flex flex-row items-center gap-x-1.5">
             <button
               v-if="
@@ -274,13 +274,13 @@ watchEffect(() => {
               <span class="fas fa-code" />
             </button>
             <button
-              v-for="action in getRunActions(thing.span)"
-              :key="action.title"
-              v-tooltip="{ title: action.title, small: true, group: 'run.header' }"
+              v-for="command in getRunCommands(thing.span)"
+              :key="command.title"
+              v-tooltip="{ title: command.title, small: true, group: 'run.header' }"
               class="rounded px-0.5 text-gray-400 transition-colors duration-150 hover:text-gray-700"
-              @click="action.action()"
+              @click="command.command()"
             >
-              <IconInline v-bind="action.icon" />
+              <IconInline v-bind="command.icon" />
             </button>
             <span class="text-gray-400">
               {{ getRunDurationString(thing.span, { minUnit: "s" }) }}
@@ -316,7 +316,7 @@ watchEffect(() => {
               is-minimal
               :model-value="thing.span.outputsPacked"
             />
-            <!-- Model logic for dynamic actions -->
+            <!-- Model logic for dynamic commands -->
             <div
               v-if="
                 IS_DEVELOPER_MODE &&

@@ -45,7 +45,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { ActionMapKit, fireActionById } from "@/ui/action";
+import { CommandMapKit, fireCommandById } from "@/ui/command";
 import {
   DragContent,
   MultiAnchor,
@@ -57,7 +57,7 @@ import {
 import { getNodeIcon, getTypeIcon, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { PopoverInfoIn, pushDefaultMenu, pushPopover } from "@/ui/popover";
-import { useNodeTableActions } from "@/ui/table";
+import { useNodeTableCommands } from "@/ui/table";
 import { TooltipInfo } from "@/ui/tooltip";
 import {
   collapseSelection,
@@ -81,10 +81,10 @@ import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const ACTION_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const COMMAND_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
-const ROW_ACTIONS_WIDTH = 50;
+const ROW_COMMANDS_WIDTH = 50;
 const GUTTER_WIDTH = 60;
 
 const props = defineProps<
@@ -203,7 +203,7 @@ const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
 const containerSize = useElementSize(containerRef as Ref<MaybeElement>);
 const rowWidth = computed(() => {
   if (props.isMinimal) {
-    return containerSize.width.value; // row actions are floating to the left
+    return containerSize.width.value; // row commands are floating to the left
   } else {
     return containerSize.width.value - GUTTER_WIDTH * 2;
   }
@@ -212,12 +212,12 @@ const bodySize = computed(() => {
   if (props.isMinimal) {
     return {
       width: containerSize.width.value + (props.containerGutterWidth ?? 0) * 2,
-      height: containerSize.height.value - ACTION_HEADER_HEIGHT,
+      height: containerSize.height.value - COMMAND_HEADER_HEIGHT,
     };
   } else {
     return {
       width: rowWidth.value,
-      height: containerSize.height.value - ACTION_HEADER_HEIGHT,
+      height: containerSize.height.value - COMMAND_HEADER_HEIGHT,
     };
   }
 });
@@ -540,15 +540,15 @@ function navigateFromHeader(direction: NavigationDirection) {
 }
 
 //
-// Actions
+// Commands
 //
 
-const actions: Partial<ActionMapKit<"space" | "table" | "list">> = {
+const commands: Partial<CommandMapKit<"space" | "table" | "list">> = {
   // edit
   "space.edit.rename": () => {
     headerRef.value?.focusIdentifier("left");
   },
-  ...useNodeTableActions({
+  ...useNodeTableCommands({
     nodeType: NodeType.RECORD,
     self: state.baseViewRef,
     graph: graph,
@@ -557,14 +557,14 @@ const actions: Partial<ActionMapKit<"space" | "table" | "list">> = {
     txFactory: () => connection.tx,
   }),
   // table
-  "table.column.sortAscending": (action, ctx) => {
+  "table.column.sortAscending": (command, ctx) => {
     const node = ctx.nodes?.[0];
     if (!isNode(node, NodeType.FIELD)) return false;
     const column = columns.value.find((column) => column.kind == "field" && column.field == node);
     if (column == null) return false;
     addSort(column, ExpressionType.ASCENDING);
   },
-  "table.column.sortDescending": (action, ctx) => {
+  "table.column.sortDescending": (command, ctx) => {
     const node = ctx.nodes?.[0];
     if (!isNode(node, NodeType.FIELD)) return false;
     const column = columns.value.find((column) => column.kind == "field" && column.field == node);
@@ -577,7 +577,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   headerRef.value?.focus?.(anchor ?? "left");
 }
 
-defineExpose<ViewExpose>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 </script>
 <template>
   <div
@@ -640,7 +640,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             v-tooltip="{ title: 'Duplicate', small: true }"
             class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
             :disabled="numSelectedRows == 0"
-            @click.stop="fireActionById('space.edit.duplicate', { nodes: selectedRecords })"
+            @click.stop="fireCommandById('space.edit.duplicate', { nodes: selectedRecords })"
           >
             <i class="fas fa-clone" />
           </button>
@@ -648,7 +648,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             v-tooltip="{ title: 'Delete', small: true }"
             class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
             :disabled="numSelectedRows == 0"
-            @click.stop="fireActionById('space.edit.delete', { nodes: selectedRecords })"
+            @click.stop="fireCommandById('space.edit.delete', { nodes: selectedRecords })"
           >
             <i class="fas fa-trash" />
           </button>
@@ -734,13 +734,13 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         ref="bodyRef"
         :style="{
           paddingLeft: !isMinimal
-            ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`
-            : `${(containerGutterWidth ?? 0) - ROW_ACTIONS_WIDTH}px`,
+            ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0) - ROW_COMMANDS_WIDTH}px`
+            : `${(containerGutterWidth ?? 0) - ROW_COMMANDS_WIDTH}px`,
           paddingRight: !isMinimal
             ? `${GUTTER_WIDTH + (containerGutterWidth ?? 0)}px`
             : `${containerGutterWidth ?? 0}px`,
           minHeight: !isMinimal
-            ? `${bodySize.height - headerSize.height.value - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) - ACTION_HEADER_HEIGHT - 30}px`
+            ? `${bodySize.height - headerSize.height.value - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) - COMMAND_HEADER_HEIGHT - 30}px`
             : undefined,
         }"
       >
@@ -753,12 +753,12 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             height: `${ROW_HEIGHT_MIN}px`,
           }"
         >
-          <!-- Composite actions -->
+          <!-- Composite commands -->
           <div
             class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-end px-1.5 transition-colors duration-150"
             :class="[selectedRecords.length > 0 ? 'bg-white' : 'bg-transparent']"
             :style="{
-              width: `${ROW_ACTIONS_WIDTH}px`,
+              width: `${ROW_COMMANDS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
             data-suppress-drag="both"
@@ -858,7 +858,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
             class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
             :style="{
               height: `${ROW_HEIGHT_MIN}px`,
-              width: isMinimal ? undefined : `calc(100% - ${ROW_ACTIONS_WIDTH}px)`,
+              width: isMinimal ? undefined : `calc(100% - ${ROW_COMMANDS_WIDTH}px)`,
             }"
             @click="
               createField(connection.tx, graph, {
@@ -881,12 +881,12 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
           :data-node-ck="record.id"
           :data-node-type="record.metatype"
         >
-          <!-- Row actions -->
+          <!-- Row commands -->
           <div
             class="sticky left-0 z-10 flex flex-shrink-0 flex-row items-center justify-end gap-x-1 px-1.5 transition-colors duration-150"
             :class="[selectedRecords.length > 0 ? 'bg-white' : 'bg-transparent']"
             :style="{
-              width: `${ROW_ACTIONS_WIDTH}px`,
+              width: `${ROW_COMMANDS_WIDTH}px`,
               height: `${ROW_HEIGHT_MIN}px`,
             }"
             data-suppress-drag="both"
@@ -1003,7 +1003,7 @@ defineExpose<ViewExpose>({ self, id, actions, focus });
         <!-- Footer -->
         <div
           class="flex flex-row items-center justify-center text-center"
-          :style="{ paddingLeft: `${ROW_ACTIONS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
+          :style="{ paddingLeft: `${ROW_COMMANDS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
         >
           <button class="h-full w-full px-3 text-left text-gray-400 hover:bg-gray-100" @click="createRecord()">
             <i class="fas fa-plus mr-1.5" />

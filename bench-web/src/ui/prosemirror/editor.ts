@@ -1,7 +1,7 @@
 import { canvas, supergraph } from "@/globals";
 import { newChangeId } from "@/language/runtime/transaction";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
-import { type ActionKit, type ActionMapKit } from "@/ui/action";
+import { type CommandKit, type CommandMapKit } from "@/ui/command";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
@@ -860,11 +860,11 @@ export function useTextEditor(options: {
   });
 
   // formatting
-  function markFormatAction(mark: TextMarkType): ActionKit {
+  function markFormatAction(mark: TextMarkType): CommandKit {
     return {
       isEnabled: () => toValue(isInput),
       isChecked: () => view != null && hasTextMark(view.state, view.state.selection, mark) !== false,
-      action: () => {
+      command: () => {
         if (view == null) throw new Error("view not mounted");
         setTextMark(view.state, view.state.selection, mark, "toggle", view.dispatch);
       },
@@ -872,7 +872,7 @@ export function useTextEditor(options: {
   }
 
   // actions
-  const actions: ActionMapKit<"text"> & Partial<ActionMapKit<"space">> = {
+  const actions: CommandMapKit<"text"> & Partial<CommandMapKit<"space">> = {
     // text
     "text.format.bold": markFormatAction("bold"),
     "text.format.italic": markFormatAction("italic"),
@@ -881,14 +881,14 @@ export function useTextEditor(options: {
     "text.format.code": markFormatAction("code"),
     // space
     "space.edit.delete": {
-      action: (action, ctx) => {
-        if (deleteSelection(action, ctx)) {
+      command: (command, ctx) => {
+        if (deleteSelection(command, ctx)) {
           return true;
         }
       },
     },
     "space.select.all": {
-      action: () => {
+      command: () => {
         return commands.selectAll(view!.state, view!.dispatch);
       },
     },

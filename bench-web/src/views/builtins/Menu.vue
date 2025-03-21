@@ -29,7 +29,7 @@ const hoverItemTimeout: Ref<any | null> = ref(null);
 
 const itemTitleMarked: Ref<(string | null)[]> = shallowRef([]);
 
-function isNestedItem(item: MenuItem["action"]): item is MenuInfo {
+function isNestedItem(item: MenuItem["command"]): item is MenuInfo {
   return typeof item == "object";
 }
 
@@ -48,7 +48,7 @@ function onMouseEnter(itemIdx: number) {
   /**  */
   const openOrCloseFocused = () => {
     if (itemIdx == activeItemIdx.value) {
-      if (isNestedItem(items.value[itemIdx].action)) {
+      if (isNestedItem(items.value[itemIdx].command)) {
         openNestedMenu(itemIdx);
       } else {
         activeNestedItemIdx.value = null;
@@ -56,7 +56,7 @@ function onMouseEnter(itemIdx: number) {
     }
   };
   // wait to show/hide nested menu if we're transitioning between having it open vs closed
-  if ((activeNestedItemIdx.value != null) !== isNestedItem(items.value[itemIdx].action)) {
+  if ((activeNestedItemIdx.value != null) !== isNestedItem(items.value[itemIdx].command)) {
     hoverItemTimeout.value = setTimeout(openOrCloseFocused, SHOW_NESTED_DELAY);
   } else {
     openOrCloseFocused();
@@ -101,19 +101,19 @@ function clear() {
   activeItemIdx.value = null;
 }
 
-/** Triggers the action for the given item */
+/** Triggers the command for the given item */
 function fire(itemIdx: number) {
   const item = items.value[itemIdx];
   log.trace("menu.fire", item.id);
   activeItemIdx.value = itemIdx;
-  if (typeof item.action == "object") {
+  if (typeof item.command == "object") {
     if (activeNestedItemIdx.value == itemIdx) {
       activeNestedItemIdx.value = null;
     } else {
       openNestedMenu(itemIdx);
     }
   } else {
-    item.action(props);
+    item.command(props);
     emit("close", true);
   }
 }
@@ -133,11 +133,11 @@ function onNavigateHorizontal(direction: "left" | "right") {
 
   if (props.parent == null) {
     // in root menu
-    if (item != null && !isNestedItem(item.action)) return;
+    if (item != null && !isNestedItem(item.command)) return;
     openNestedMenu(activeItemIdx.value!);
   } else {
     // in nested menu
-    if (item != null && isNestedItem(item.action)) {
+    if (item != null && isNestedItem(item.command)) {
       openNestedMenu(activeItemIdx.value!);
     } else if (props.placement?.startsWith("left") && direction == "right") {
       emit("close");
@@ -243,7 +243,7 @@ defineExpose({ focus, clear, query });
           :class="item.isChecked ? 'fas fa-check' : ''"
         />
         <i
-          v-else-if="isNestedItem(item.action)"
+          v-else-if="isNestedItem(item.command)"
           :class="['fas fa-chevron-right ml-auto pl-4 pr-1', item.isDisabled ? 'text-gray-400' : 'text-gray-700']"
         />
         <Shortcut
@@ -280,7 +280,7 @@ defineExpose({ focus, clear, query });
         class="absolute"
         :parent="props"
         :placement="nestedPlacement ?? undefined"
-        v-bind="items[activeNestedItemIdx]!.action as MenuInfo"
+        v-bind="items[activeNestedItemIdx]!.command as MenuInfo"
         @close="
           (bubble) => {
             queryRef?.focus();

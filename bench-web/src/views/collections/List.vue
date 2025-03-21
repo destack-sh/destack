@@ -7,7 +7,7 @@ import { EMPTY_SCOPE, propertyReference, TypedNodeReferenceData } from "@/proto/
 import { BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { CONTEXT_ACTIONS_BY_TYPE, getAction, isActionEnabled } from "@/ui/action";
+import { CONTEXT_COMMANDS_BY_TYPE, getCommand, isCommandEnabled } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
@@ -28,8 +28,8 @@ const state = canvas.registerView(self, id);
 // filter
 const nodeType = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "subnodePacked"), "queryNodeType");
 const filter = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "subnodePacked"), "filter");
-const nodeActions = computed(() =>
-  nodeType.value != null ? CONTEXT_ACTIONS_BY_TYPE[nodeType.value]?.map(getAction) : [],
+const nodeCommands = computed(() =>
+  nodeType.value != null ? CONTEXT_COMMANDS_BY_TYPE[nodeType.value]?.map(getCommand) : [],
 );
 
 // search
@@ -103,14 +103,14 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
         <!-- Actions -->
         <div class="ml-auto flex flex-row gap-x-1">
           <button
-            v-for="action of nodeActions?.filter((a) => isActionEnabled(a, { nodes: [node] }))"
-            :key="action.id"
-            v-tooltip="{ small: true, text: action.title, group: 'list.item' }"
+            v-for="command of nodeCommands?.filter((c) => isCommandEnabled(c, { nodes: [node] }))"
+            :key="command.id"
+            v-tooltip="{ small: true, text: command.title, group: 'list.item' }"
             aria-hidden
             class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
-            @click.stop="(e) => action.action?.(action, { event: e, nodes: [node] })"
+            @click.stop="(e) => command.command?.(command, { event: e, nodes: [node] })"
           >
-            <IconInline v-bind="action.icon" />
+            <IconInline v-bind="command.icon" />
           </button>
         </div>
       </li>

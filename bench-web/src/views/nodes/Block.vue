@@ -3,7 +3,7 @@ import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/core/const";
 import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import type { ActionMapKit } from "@/ui/action";
+import type { CommandMapKit } from "@/ui/command";
 import { usePageContext } from "@/ui/prosemirror/page";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -71,14 +71,14 @@ const isSelected = computed(() => state.isSelected(blockPtr.value));
 // Interaction
 //
 
-const actions: Partial<ActionMapKit<"space">> & ActionMapKit<"block"> = {};
+const commands: Partial<CommandMapKit<"space">> & CommandMapKit<"block"> = {};
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   nodeRef.value?.focus?.(anchor);
 }
 
-defineExpose<ViewExpose>({ self, id, actions, focus });
+defineExpose<ViewExpose>({ self, id, commands, focus });
 </script>
 <template>
   <div

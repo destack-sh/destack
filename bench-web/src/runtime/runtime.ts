@@ -45,7 +45,7 @@ import {
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { benchConnection, benchGraph, space, spaceConnection } from "@/system/space";
-import { declareActions } from "@/ui/action";
+import { declareCommands } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
@@ -335,15 +335,15 @@ export function makeRun(
 ): RunData {
   let packagePtr: NodeReferenceData | undefined = undefined;
   let flow: FlowData | undefined = undefined;
-  let action: ActionData | undefined = undefined;
+  let command: ActionData | undefined = undefined;
   let link: LinkData | undefined = undefined;
   if (isNode(runnable, NodeType.FLOW)) {
     flow = runnable;
     packagePtr = options?.packagePtr ?? runnable.packagePtr;
   } else if (isNode(runnable, NodeType.ACTION)) {
-    action = runnable;
-    flow = graph.getAncestors(action, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
-    packagePtr = options?.packagePtr ?? action.packagePtr;
+    command = runnable;
+    flow = graph.getAncestors(command, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
+    packagePtr = options?.packagePtr ?? command.packagePtr;
   } else if (isNode(runnable, NodeType.LINK)) {
     link = runnable;
     flow = graph.getAncestors(link, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
@@ -371,69 +371,69 @@ export function makeRun(
   return run;
 }
 
-type RuntimeAction = { title: string; isPrimary?: boolean; icon: IconData; action: () => void };
+type RuntimeCommand = { title: string; isPrimary?: boolean; icon: IconData; command: () => void };
 
-/** Gets the available actions for a Run */
-export function getRunActions(run: RunData): RuntimeAction[] {
-  const actions: RuntimeAction[] = [];
+/** Gets the available commands for a Run */
+export function getRunCommands(run: RunData): RuntimeCommand[] {
+  const commands: RuntimeCommand[] = [];
   if (isRunActive(run)) {
     if (isRunPaused(run)) {
-      actions.push({
+      commands.push({
         title: "Resume",
         icon: makeIcon("fas fa-play"),
-        action: () => {
+        command: () => {
           runtime.resume(run);
         },
       });
     } else {
-      actions.push({
+      commands.push({
         title: "Pause",
         icon: makeIcon("fas fa-pause"),
-        action: () => {
+        command: () => {
           runtime.pause(run);
         },
       });
     }
-    actions.push({
+    commands.push({
       title: "Stop",
       icon: makeIcon("fas fa-stop"),
-      action: () => {
+      command: () => {
         runtime.stop(run);
       },
     });
   }
-  return actions;
+  return commands;
 }
 
-export const CLEAR_RUN_ACTION: RuntimeAction = {
+export const CLEAR_RUN_COMMAND: RuntimeCommand = {
   title: "Hide",
   icon: makeIcon("fas fa-xmark"),
-  action: () => {
+  command: () => {
     if (space.value == null) throw new Error("no current space");
     spaceConnection.tx.update(space.value, { runPtr: undefined });
   },
 };
 
-export function getInterruptActions(interrupt: InterruptionData): RuntimeAction[] {
-  const actions: RuntimeAction[] = [];
+export function getInterruptCommands(interrupt: InterruptionData): RuntimeCommand[] {
+  const commands: RuntimeCommand[] = [];
   if (interrupt.status == InterruptionStatus.OPEN) {
-    actions.push({
+    commands.push({
       title: "Complete",
       icon: makeIcon("fas fa-check"),
       isPrimary: true,
-      action: () => {
+      command: () => {
         runtime.complete(interrupt);
       },
     });
-    actions.push({
+    commands.push({
       title: "Cancel",
       icon: makeIcon("fas fa-xmark"),
-      action: () => {
+      command: () => {
         runtime.cancel(interrupt);
       },
     });
   }
-  return actions;
+  return commands;
 }
 
 export function getInputType(node: RunnableNode) {
@@ -457,7 +457,7 @@ export function getOutputType(node: RunnableNode) {
 }
 
 // runtime
-declareActions<"runtime">({
+declareCommands<"runtime">({
   // run
   "runtime.run.start": {
     icon: "fas fa-play",
@@ -469,9 +469,9 @@ declareActions<"runtime">({
     icon: "fas fa-pause",
     title: "Pause",
     text: "Pause this Run",
-    isEnabled: (action, context) =>
+    isEnabled: (command, context) =>
       context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunActive(n as RunData)),
-    action: (action, context) => {
+    command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Pause" } });
       context?.nodes?.filter((n) => isRunActive(n as RunData)).forEach((n) => runtime.pause(n as RunData, { tx }));
     },
@@ -480,9 +480,9 @@ declareActions<"runtime">({
     icon: "fas fa-play",
     title: "Resume",
     text: "Resume this Run",
-    isEnabled: (action, context) =>
+    isEnabled: (command, context) =>
       context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunPaused(n as RunData)),
-    action: (action, context) => {
+    command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
       context?.nodes?.filter((n) => isRunPaused(n as RunData)).forEach((n) => runtime.resume(n as RunData, { tx }));
     },
@@ -491,9 +491,9 @@ declareActions<"runtime">({
     icon: "fas fa-stop",
     title: "Kill",
     text: "Kill this Run",
-    isEnabled: (action, context) =>
+    isEnabled: (command, context) =>
       context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunActive(n as RunData)),
-    action: (action, context) => {
+    command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Kill" } });
       context?.nodes?.filter((n) => isRunActive(n as RunData)).forEach((n) => runtime.stop(n as RunData, { tx }));
     },
@@ -503,10 +503,10 @@ declareActions<"runtime">({
     icon: "fas fa-check",
     title: "Resume",
     text: "Resume this Interruption",
-    isEnabled: (action, context) =>
+    isEnabled: (command, context) =>
       context?.nodes?.every((n) => isNode(n, NodeType.INTERRUPTION)) &&
       context?.nodes?.some((n) => n.status == InterruptionStatus.OPEN),
-    action: (action, context) => {
+    command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
       context?.nodes
         ?.filter((n) => (n as InterruptionData).status == InterruptionStatus.OPEN)
@@ -517,7 +517,7 @@ declareActions<"runtime">({
     icon: "fas fa-xmark",
     title: "Cancel",
     text: "Cancel this Interruption",
-    action: (action, context) => {
+    command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Cancel" } });
       context?.nodes
         ?.filter((n) => (n as InterruptionData).status == InterruptionStatus.OPEN)

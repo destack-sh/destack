@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import { makeExpression } from "@/language/core/expression";
-import { packSubnode, useSubnodeProperty } from "@/language/core/node";
+import { packSubnode } from "@/language/core/node";
 import {
   ExpressionType,
-  IconData,
   NodeType,
   NodeTypeOptionInfo,
   Orientation,
@@ -11,18 +10,17 @@ import {
   ThreadStatus,
   TreeViewPreset,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, benchConnection, canvas, hasLocalBench, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
-import { ActionBuiltinId, fireAction, fireActionById, getAction } from "@/ui/action";
+import { CommandBuiltinId, fireCommand, fireCommandById, getCommand } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
-import { menuActionsLike, MenuItem, menuItemFromAction, PopoverInfoIn } from "@/ui/popover";
+import { menuItemFromCommand, PopoverInfoIn } from "@/ui/popover";
 import { Shortcut } from "@/ui/tooltip";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import List from "@/views/collections/List.vue";
 import Tree from "@/views/collections/Tree.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -36,11 +34,11 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const FOOTER_HEIGHT = 42;
 
 const USER_MENU_ITEMS = computed(() => {
-  const items = [menuItemFromAction("user.navigate.goToHome", { category: "primary" })];
+  const items = [menuItemFromCommand("user.navigate.goToHome", { category: "primary" })];
   if (isAuthenticated.value && !hasLocalBench.value) {
-    items.push(menuItemFromAction("user.navigate.activate", { category: "primary" }));
+    items.push(menuItemFromCommand("user.navigate.activate", { category: "primary" }));
   }
-  items.push(...[menuItemFromAction("user.security.logout", { category: "secondary" })]);
+  items.push(...[menuItemFromCommand("user.security.logout", { category: "secondary" })]);
   return items;
 });
 
@@ -104,30 +102,30 @@ defineExpose<ViewExpose>({ self });
         <span v-if="bench" class="truncate font-medium">{{ bench.slug }}</span>
         <span v-else class="italic"> Bench </span>
       </div>
-      <!-- Quick/Global actions -->
+      <!-- Quick/Global commands -->
       <button
-        v-for="action in (
+        v-for="command in (
           [
             'space.omnibar.bench',
-            'space.omnibar.actions',
+            'space.omnibar.commands',
             'space.create.page',
             'space.create.thread',
-          ] as ActionBuiltinId[]
-        ).map(getAction)"
-        :key="action.id"
+          ] as CommandBuiltinId[]
+        ).map(getCommand)"
+        :key="command.id"
         class="group/button flex flex-row items-center truncate rounded border border-transparent px-2 py-[4px] transition-colors duration-150 hover:bg-gray-100"
         :style="{}"
-        @click="fireAction(action)"
+        @click="fireCommand(command)"
       >
-        <IconInline class="mr-1 w-5 text-center" v-bind="action.icon" />
+        <IconInline class="mr-1 w-5 text-center" v-bind="command.icon" />
         <span class="">
-          {{ action.title }}
+          {{ command.title }}
         </span>
         <span class="ml-auto">
           <Shortcut
-            v-if="action.shortcuts?.length ?? 0 > 0"
+            v-if="command.shortcuts?.length ?? 0 > 0"
             class="text-gray-400 transition-colors duration-150 group-hover/button:text-gray-900"
-            :shortcut="action.shortcuts![0]"
+            :shortcut="command.shortcuts![0]"
           />
         </span>
       </button>
@@ -213,7 +211,7 @@ defineExpose<ViewExpose>({ self });
           })
         "
         class="mx-2 flex flex-row items-center rounded py-1 pl-2.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
-        @click="user == null && fireActionById('user.security.login')"
+        @click="user == null && fireCommandById('user.security.login')"
       >
         <AvatarInline
           v-tooltip="{ title: 'Change icon', small: true }"

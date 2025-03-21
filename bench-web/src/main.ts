@@ -13,10 +13,10 @@ import { registerViewComponents } from "@/views/registry";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-import { watchActions } from "@/ui/action";
-import { HISTORY_ACTIONS } from "@/system/edit";
-import { DEBUG_ACTIONS } from "@/system/debug";
-import { RESOURCE_ACTIONS } from "@/language/resource/resource";
+import { watchCommands } from "@/ui/command";
+import { HISTORY_COMMANDS } from "@/system/edit";
+import { DEBUG_COMMANDS } from "@/system/debug";
+import { RESOURCE_COMMANDS } from "@/language/resource/resource";
 
 async function init() {
   const app = createApp(Space);
@@ -64,10 +64,10 @@ async function init() {
   keytrap.track(document);
   startTransactionBuffers();
   setInterval(sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);
-  watchActions();
-  // (register actions that may not be imported directly)
+  watchCommands();
+  // (register commands that may not be imported directly)
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  [HISTORY_ACTIONS, DEBUG_ACTIONS, RESOURCE_ACTIONS];
+  [HISTORY_COMMANDS, DEBUG_COMMANDS, RESOURCE_COMMANDS];
 
   app.mount("#app");
 }
