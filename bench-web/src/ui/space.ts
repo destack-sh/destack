@@ -50,7 +50,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { benchConnection, benchGraph, inspectionPtr, pkg, space } from "@/system/space";
-import { CommandContext, Command, declareCommands, getNodesForCommand } from "@/ui/command";
+import { CommandContext, Command, declareCommands, getNodesForCommand, NON_DELETABLE_NODE_TYPES } from "@/ui/command";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
 import { getNodeIcon, getNodeTitle, toIconMaybe } from "@/ui/icon";
@@ -1375,7 +1375,11 @@ export function duplicateSelection(command: Command, ctx: CommandContext): boole
   if (connection == null || graph == null || nodes.length == 0) {
     return true; // no action, but suppress anyway to avoid triggering browser shortcuts
   }
-  const clonedNodes = cloneNodes(connection.tx, graph, nodes);
+  const clonedNodes = cloneNodes(
+    connection.tx,
+    graph,
+    nodes.filter((node) => !NON_DELETABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType)),
+  );
   canvas.select(clonedNodes);
   if (clonedNodes.length > 0 && !(ctx.event != null && findViewComponentUp(ctx.event.target, HELPER_VIEW_TYPES))) {
     canvas.goToNode(clonedNodes[0]);
@@ -1391,7 +1395,7 @@ export function deleteSelection(command: Command, ctx: CommandContext): boolean 
     return false; // bubble up
   }
   const tx = connection.tx.with({ change: { key: newChangeId(), title: "Delete" } });
-  for (const node of nodes) {
+  for (const node of nodes.filter((node) => !NON_DELETABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType))) {
     tx.delete(node);
   }
   return true;

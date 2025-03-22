@@ -132,7 +132,7 @@ defineExpose<ViewExpose>({ self, id });
             <MembershipList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
-              :node-ptr="nodePtr"
+              :node-ptr="row.delegatePtr ?? nodePtr"
               is-minimal
             />
           </div>

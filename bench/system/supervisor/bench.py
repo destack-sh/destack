@@ -4,6 +4,7 @@ from uuid import UUID
 from bench.language import (
     Bench,
     Handle,
+    Membership,
     Organization,
     Package,
     PackageType,
@@ -56,6 +57,7 @@ async def create_default_bench(
         slug=options.main_package_slug,
         _is_new=True,
     )
+    main_package.memberships.append(Membership.new(owned_by))
     session._create(main_package)
     await session.flush(optimistic=True)
     bench.main_package = main_package

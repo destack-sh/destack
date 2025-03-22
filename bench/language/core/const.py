@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.22.0"
+VERSION = "2025.03.22.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -784,7 +784,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
-PACKAGE_NODE_TYPES = _get_node_types(5000, 5500, NodeType.SKIP, NodeType.EMPTY)
+PACKAGE_NODE_TYPES = _get_node_types(5000, 900, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
     2000,
     10000,
@@ -823,10 +823,9 @@ CLAIMABLE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES.tuple, NodeType.FLOW, NodeType.ACTION, NodeType.KIT
 )
 
-Joinable = Union["Bench", "Organization", "Team", "Channel", "Thread"]
+Joinable = Union["Package", "Team", "Channel", "Thread"]
 JOINABLE_NODE_TYPES = bittuple(
-    NodeType.BENCH,
-    NodeType.ORGANIZATION,
+    NodeType.PACKAGE,
     NodeType.TEAM,
     NodeType.CHANNEL,
     NodeType.THREAD,
@@ -844,7 +843,7 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.IDENTITY,
     NodeType.TEAM,
-    # NodeType.MEMBERSHIP, # NOTE :Broken: can't load Membership since it confuses Graph.commit
+    NodeType.MEMBERSHIP,  # nocheckin :Broken: can't load Membership since it confuses Graph.commit
     #  (because Thread, which aren't loaded, also have Memberships, it doesn't understand
     #   currently that/when it needs to load Memberships from disk not memory)
 )

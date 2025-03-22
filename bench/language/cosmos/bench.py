@@ -8,7 +8,6 @@ from bench.language.core import (
     BenchNode,
     BuiltinEnum,
     EnumType,
-    IsJoinable,
     IsOwnable,
     LocalNodeList,
     NodeType,
@@ -49,7 +48,7 @@ class BenchStatus(BuiltinEnum):
 
 
 @node_(NodeType.BENCH, roots=())
-class Bench(IsOwnable, IsJoinable, BenchNode[BenchData]):
+class Bench(IsOwnable, BenchNode[BenchData]):
     """
     A Bench is an AI-native operating system for higher order software.
     """

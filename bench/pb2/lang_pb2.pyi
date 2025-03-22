@@ -4278,44 +4278,6 @@ class ChangeData(_message.Message):
     edits: _containers.RepeatedCompositeFieldContainer[EditData]
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., key: _Optional[str] = ..., code: _Optional[_Union[CodeData, _Mapping]] = ..., edits: _Optional[_Iterable[_Union[EditData, _Mapping]]] = ...) -> None: ...
 
-class ScheduleData(_message.Message):
-    __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    FREQUENCY_FIELD_NUMBER: _ClassVar[int]
-    INTERVAL_FIELD_NUMBER: _ClassVar[int]
-    START_FIELD_NUMBER: _ClassVar[int]
-    END_FIELD_NUMBER: _ClassVar[int]
-    COUNT_FIELD_NUMBER: _ClassVar[int]
-    WEEK_START_FIELD_NUMBER: _ClassVar[int]
-    BY_SET_POS_FIELD_NUMBER: _ClassVar[int]
-    BY_MONTH_FIELD_NUMBER: _ClassVar[int]
-    BY_MONTH_DAY_FIELD_NUMBER: _ClassVar[int]
-    BY_YEAR_DAY_FIELD_NUMBER: _ClassVar[int]
-    BY_EASTER_FIELD_NUMBER: _ClassVar[int]
-    BY_WEEK_NO_FIELD_NUMBER: _ClassVar[int]
-    BY_WEEK_DAY_FIELD_NUMBER: _ClassVar[int]
-    BY_HOUR_FIELD_NUMBER: _ClassVar[int]
-    BY_MINUTE_FIELD_NUMBER: _ClassVar[int]
-    BY_SECOND_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    frequency: ScheduleFrequency
-    interval: int
-    start: _timestamp_pb2.Timestamp
-    end: _timestamp_pb2.Timestamp
-    count: int
-    week_start: Day
-    by_set_pos: _containers.RepeatedScalarFieldContainer[int]
-    by_month: _containers.RepeatedScalarFieldContainer[Month]
-    by_month_day: _containers.RepeatedScalarFieldContainer[int]
-    by_year_day: _containers.RepeatedScalarFieldContainer[int]
-    by_easter: _containers.RepeatedScalarFieldContainer[int]
-    by_week_no: _containers.RepeatedScalarFieldContainer[int]
-    by_week_day: _containers.RepeatedScalarFieldContainer[Day]
-    by_hour: _containers.RepeatedScalarFieldContainer[int]
-    by_minute: _containers.RepeatedScalarFieldContainer[int]
-    by_second: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., frequency: _Optional[_Union[ScheduleFrequency, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[Day, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[Month, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[Day, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
-
 class FontData(_message.Message):
     __slots__ = ("metatype", "type", "weight", "size")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4441,6 +4403,44 @@ class RectangleConstraintData(_message.Message):
     min_height: int
     max_height: int
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., min_width: _Optional[int] = ..., max_width: _Optional[int] = ..., min_height: _Optional[int] = ..., max_height: _Optional[int] = ...) -> None: ...
+
+class ScheduleData(_message.Message):
+    __slots__ = ("metatype", "frequency", "interval", "start", "end", "count", "week_start", "by_set_pos", "by_month", "by_month_day", "by_year_day", "by_easter", "by_week_no", "by_week_day", "by_hour", "by_minute", "by_second")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    FREQUENCY_FIELD_NUMBER: _ClassVar[int]
+    INTERVAL_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    WEEK_START_FIELD_NUMBER: _ClassVar[int]
+    BY_SET_POS_FIELD_NUMBER: _ClassVar[int]
+    BY_MONTH_FIELD_NUMBER: _ClassVar[int]
+    BY_MONTH_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_YEAR_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_EASTER_FIELD_NUMBER: _ClassVar[int]
+    BY_WEEK_NO_FIELD_NUMBER: _ClassVar[int]
+    BY_WEEK_DAY_FIELD_NUMBER: _ClassVar[int]
+    BY_HOUR_FIELD_NUMBER: _ClassVar[int]
+    BY_MINUTE_FIELD_NUMBER: _ClassVar[int]
+    BY_SECOND_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    frequency: ScheduleFrequency
+    interval: int
+    start: _timestamp_pb2.Timestamp
+    end: _timestamp_pb2.Timestamp
+    count: int
+    week_start: Day
+    by_set_pos: _containers.RepeatedScalarFieldContainer[int]
+    by_month: _containers.RepeatedScalarFieldContainer[Month]
+    by_month_day: _containers.RepeatedScalarFieldContainer[int]
+    by_year_day: _containers.RepeatedScalarFieldContainer[int]
+    by_easter: _containers.RepeatedScalarFieldContainer[int]
+    by_week_no: _containers.RepeatedScalarFieldContainer[int]
+    by_week_day: _containers.RepeatedScalarFieldContainer[Day]
+    by_hour: _containers.RepeatedScalarFieldContainer[int]
+    by_minute: _containers.RepeatedScalarFieldContainer[int]
+    by_second: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., frequency: _Optional[_Union[ScheduleFrequency, str]] = ..., interval: _Optional[int] = ..., start: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., end: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., count: _Optional[int] = ..., week_start: _Optional[_Union[Day, str]] = ..., by_set_pos: _Optional[_Iterable[int]] = ..., by_month: _Optional[_Iterable[_Union[Month, str]]] = ..., by_month_day: _Optional[_Iterable[int]] = ..., by_year_day: _Optional[_Iterable[int]] = ..., by_easter: _Optional[_Iterable[int]] = ..., by_week_no: _Optional[_Iterable[int]] = ..., by_week_day: _Optional[_Iterable[_Union[Day, str]]] = ..., by_hour: _Optional[_Iterable[int]] = ..., by_minute: _Optional[_Iterable[int]] = ..., by_second: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class BaseNodeData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "subnode_packed")
@@ -7017,16 +7017,6 @@ class TriggerData(_message.Message):
     processed_key: str
     closed_at: _timestamp_pb2.Timestamp
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[TriggerType, str]] = ..., name: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., effect: _Optional[_Union[TriggerEffect, str]] = ..., run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., interruption_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[TriggerStatus, str]] = ..., processed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., processed_count: _Optional[int] = ..., processed_key: _Optional[str] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
-
-class ScheduleTriggerData(_message.Message):
-    __slots__ = ("schedule",)
-    SCHEDULE_FIELD_NUMBER: _ClassVar[int]
-    schedule: ScheduleData
-    def __init__(self, schedule: _Optional[_Union[ScheduleData, _Mapping]] = ...) -> None: ...
-
-class MessageTriggerData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
 
 class ViewData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "title", "order_key", "icon", "definition_ptr", "thread_ptr", "tags_ptr", "subviews_packed", "value_type", "node_ptr", "position", "size", "margin", "padding", "orientation", "alignment", "transform", "constraint", "selection", "focus", "is_hidden", "is_disabled", "is_input", "is_inline", "is_minimal", "is_loading")

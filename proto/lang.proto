@@ -2382,26 +2382,6 @@ message ChangeData {
   repeated EditData edits = 34;
 }
 
-message ScheduleData {
-  ObjectType metatype = 1;
-  ScheduleFrequency frequency = 30;
-  int32 interval = 31;
-  optional google.protobuf.Timestamp start = 32;
-  optional google.protobuf.Timestamp end = 33;
-  optional int32 count = 34;
-  optional Day week_start = 35;
-  repeated int32 by_set_pos = 36;
-  repeated Month by_month = 37;
-  repeated int32 by_month_day = 38;
-  repeated int32 by_year_day = 39;
-  repeated int32 by_easter = 40;
-  repeated int32 by_week_no = 41;
-  repeated Day by_week_day = 42;
-  repeated int32 by_hour = 43;
-  repeated int32 by_minute = 44;
-  repeated int32 by_second = 45;
-}
-
 message FontData {
   ObjectType metatype = 1;
   optional FontType type = 31;
@@ -2472,6 +2452,26 @@ message RectangleConstraintData {
   optional int32 max_width = 51;
   optional int32 min_height = 52;
   optional int32 max_height = 53;
+}
+
+message ScheduleData {
+  ObjectType metatype = 1;
+  ScheduleFrequency frequency = 30;
+  int32 interval = 31;
+  optional google.protobuf.Timestamp start = 32;
+  optional google.protobuf.Timestamp end = 33;
+  optional int32 count = 34;
+  optional Day week_start = 35;
+  repeated int32 by_set_pos = 36;
+  repeated Month by_month = 37;
+  repeated int32 by_month_day = 38;
+  repeated int32 by_year_day = 39;
+  repeated int32 by_easter = 40;
+  repeated int32 by_week_no = 41;
+  repeated Day by_week_day = 42;
+  repeated int32 by_hour = 43;
+  repeated int32 by_minute = 44;
+  repeated int32 by_second = 45;
 }
 
 message BaseNodeData {
@@ -3807,15 +3807,6 @@ message TriggerData {
   int32 processed_count = 42;
   optional string processed_key = 43;
   optional google.protobuf.Timestamp closed_at = 45;
-}
-
-// A Trigger is an event-driven condition that, once met, affects the Bench somehow.
-message ScheduleTriggerData {
-  optional ScheduleData schedule = 100;
-}
-
-// A Trigger is an event-driven condition that, once met, affects the Bench somehow.
-message MessageTriggerData {
 }
 
 message ViewData {
