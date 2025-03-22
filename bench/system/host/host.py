@@ -66,7 +66,6 @@ from bench.proto import (
     UploadFilesRequest,
     UploadFilesResponse,
     unpack_builtin_object_validate,
-    unpack_node_graph,
 )
 from bench.proto.wiring import unwrap_some_node
 from bench.system.core import (
@@ -672,12 +671,12 @@ class HostService(GraphServiceBase, HostBase):
 
     @override
     async def on_commit_failed(self, session: Session, exc: BaseException):
-        # restore in memory unpacked graphs from data graphs
-        #  (we apply edits optimistically above in on_commit_prepare)
-        new_bench_graph = unpack_node_graph(
-            self._bench._data_graph, self._supergraph, session=self._session
-        )
-        patch_graph(old_graph=self._bench._graph, new_graph=new_bench_graph)
+        # reload graphs (discard optimistic edits)
+        assert self._session is not None, f"session not ready in {self!r}"
+        assert self._bench is not None, f"bench not loaded in {self!r}"
+        async with self._session.active():
+            bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
+            patch_graph(old_graph=self._bench._graph, new_graph=bench._graph)
 
         # run plugins
         for plugin in self._plugins:

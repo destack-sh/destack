@@ -60,6 +60,7 @@ class Computer(IsSubject, Resource[ComputerData]):
     ram: float = p_system(
         71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
     )
+    # is_headless?
 
     applications: LocalNodeList["Application"] = p_node_children(NodeType.APPLICATION)
 

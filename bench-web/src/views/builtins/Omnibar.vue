@@ -160,7 +160,7 @@ watch(
 
 const SHORTCUTS_BY_MODE: Partial<Record<OmnibarMode, string[]>> = {
   bench: ["mod+k"],
-  commands: ["mod+shift+k"],
+  commands: ["ctrl+k"],
 };
 const TEXT_BY_MODE: Record<OmnibarMode, string> = {
   bench: "Search across Bench",
