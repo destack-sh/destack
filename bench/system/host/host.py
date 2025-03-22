@@ -79,11 +79,8 @@ from bench.system.core import (
 )
 from bench.system.graph import GraphServiceBase, PostgresEngine
 from bench.system.resource import (
-    BrowserbaseBrowserProvisioner,
-    BrowserScalerProvisioner,
     ComputerScalerProvisioner,
     KubernetesComputerProvisioner,
-    LocalhostBrowserProvisioner,
     LocalhostComputerProvisioner,
     LocalhostStoreProvisioner,
     NeonStoreProvisioner,
@@ -316,19 +313,15 @@ class HostService(GraphServiceBase, HostBase):
         provisioners: list[type[Provisioner]]
         if ENV == Env.TEST or ENV == Env.DEV:
             provisioners = [
-                BrowserScalerProvisioner,
                 ComputerScalerProvisioner,
                 LocalhostStoreProvisioner,
                 LocalhostComputerProvisioner,
-                LocalhostBrowserProvisioner,
             ]
         elif ENV == Env.STAGE or ENV == Env.PROD:
             provisioners = [
-                BrowserScalerProvisioner,
                 ComputerScalerProvisioner,
                 NeonStoreProvisioner,
                 KubernetesComputerProvisioner,
-                BrowserbaseBrowserProvisioner,
             ]
         else:
             raise RuntimeError(f"unexpected environment: {ENV!r}")

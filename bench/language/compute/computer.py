@@ -7,19 +7,21 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsSubject,
+    LocalNodeList,
     NodeType,
     Resource,
     enum_,
     node_,
     p_internal,
     p_kernel,
+    p_node_children,
     p_regular,
     p_system,
 )
 from bench.pb2 import ComputerData
 
 if TYPE_CHECKING:
-    from bench.language import Client
+    from bench.language import Application, Client
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -58,6 +60,8 @@ class Computer(IsSubject, Resource[ComputerData]):
     ram: float = p_system(
         71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
     )
+
+    applications: LocalNodeList["Application"] = p_node_children(NodeType.APPLICATION)
 
     @staticmethod
     def new(type: ComputerType, name: str, **kwargs) -> "Computer":

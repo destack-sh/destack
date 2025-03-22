@@ -9,6 +9,7 @@ from git import TYPE_CHECKING
 from opentelemetry import baggage, context, trace
 
 from bench.language import (
+    COMMUNICATION_NODE_TYPES,
     DEFAULT_CHECK_OPTIONS,
     DEFAULT_RESOURCE_TIMEOUT,
     DEFAULT_WAIT_TIMEOUT,
@@ -60,7 +61,6 @@ from bench.language import (
     on_invalid_raise,
     synchronize_nodes,
 )
-from bench.language.core.const import COMMUNICATION_NODE_TYPES
 from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
@@ -102,8 +102,7 @@ class Runtime:
         dynamic_glbls: Mapping[str, Any] | None = None,
         on_error: Callable[[BaseException], None] | None = None,
     ):
-        from bench.runtime.code.context import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
-        from bench.runtime.computer.playwright import PlaywrightClient
+        from bench.runtime.code import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
@@ -118,7 +117,6 @@ class Runtime:
         self.dynamic_glbls = dynamic_glbls or DYNAMIC_CODE_GLOBALS
         self.combined_glbls = {**self.static_glbls, **self.dynamic_glbls}
         self.process = process
-        self.playwright = PlaywrightClient()
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
@@ -922,7 +920,7 @@ class Runtime:
                 and (flow := action.flow) is not None
             ):
                 # lift into flow
-                # nocheckin: add to existing FlowRunner for that flow/identity
+                # nocheckin: add to existing FlowRunner for that flow/identity/..?
                 self.session.commit_optimistic()
                 parent_node = run.parent or run.thread
                 assert parent_node is not None, f"no parent for {run!r}"

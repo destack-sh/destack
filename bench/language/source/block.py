@@ -43,7 +43,7 @@ _type = type
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
     COMPUTER = 2100, "Computer", "Computer", "fas fa-computer"
-    BROWSER = 2110, "Browser", "Browser", "fas fa-browser"
+    APPLICATION = 2110, "Application", "Application", "fas fa-browser"
     FILE = 2200, "File", "Any File", "fas fa-file"
     PAGE = 5020, "Page", "Page to write", "fas fa-page"
     CHOICE = 5030, "Choice", "Choice of options", "fas fa-check-circle"
