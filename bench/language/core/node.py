@@ -731,6 +731,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # clone self
         copy_kwargs = self._clone_kwargs(reset=reset)
         copy_kwargs.update(kwargs)
+        if detach and not reset:  # put the node in a new graph to isolate (because same ids)
+            copy_kwargs["_graph"] = NodeGraph(
+                scope=self._graph.scope,
+                node_types=self._graph.node_types,
+                supergraph=self._graph.supergraph,
+            )
         clone = self.__class__(**copy_kwargs, _is_new=True)
 
         # clone children and append to self (recursive)
@@ -740,7 +746,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             for child_type in CHILD_NODE_TYPES[self.metatype]:
                 for child in self._graph.iter_descendants(self, child_type):
                     child_clone = child.clone(reset=reset, recursive=True, detach=True, map=map)
-                    attach_node(child_clone, clone, clone._graph)  # re-attach
+                    attach_node(child_clone, clone, clone._graph, create=False)  # re-attach
                     if type(map) is dict:
                         map[child.id] = child_clone
 

@@ -44,7 +44,9 @@ FieldOrProperty = Union["Field", "Property"]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
 
 
-def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bool = False) -> N:
+def attach_node[N: "Node"](
+    node: N, parent: "Node", graph: "NodeGraph", move: bool = False, create: bool = True
+) -> N:
     """(Re)attaches a Node to a new parent."""
 
     old_parent = node.parent
@@ -103,8 +105,9 @@ def attach_node[N: "Node"](node: N, parent: "Node", graph: "NodeGraph", move: bo
             parent._session._move(node, old_parent=old_parent, new_parent=parent)
         elif parent.is_attached:
             # 'create' node in session if it's attached
-            for n in moved:
-                parent._session._create(n)
+            if create:
+                for n in moved:
+                    parent._session._create(n)
             parent._session._track_many(*moved)
 
     # move and definition together

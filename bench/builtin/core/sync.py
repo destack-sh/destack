@@ -119,7 +119,6 @@ def sync_node(
             reset=False,
             detach=True,
             map=False,
-            _graph=parent._graph,
         )
         if reference.parent_ptr is None:
             target_parent = parent

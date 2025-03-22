@@ -50,7 +50,7 @@ def test_make_builtin_package(session: Session) -> None:
     paths = sorted(node_by_path.keys())
     for path in paths:
         node = node_by_path[path]
-        print(f"{node.id} - {node.ck} - {path} - {node.metatype.name}")  # noqa: T201
+        print(f"{node.id} - {path} - {node.metatype.name}")  # noqa: T201
 
 
 @simulated_runtime(system=True)
@@ -68,6 +68,9 @@ async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWor
     if (main_store := loaded_bench_bench.main_store) is not None:
         BuiltinPackageLoadedGraph.remove(main_store)
     BuiltinPackageLoadedGraph.remove(loaded_bench_bench, recursive=False)
+    for node in BuiltinPackageLoaded._graph.nodes:
+        if isinstance(node, Membership):
+            BuiltinPackageLoadedGraph.remove(node, recursive=False)
     assert_graph_equals(BuiltinPackageRaw._graph, BuiltinPackageLoadedGraph)
 
 
