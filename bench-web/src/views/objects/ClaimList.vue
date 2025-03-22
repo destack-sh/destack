@@ -86,9 +86,7 @@ defineExpose<ViewExpose>({ self, id, commands });
               props: {
                 valueType: makeType({
                   kind: TypeKind.NODE,
-                  constraint: makeTypeConstraint({
-                    nodeTypes: [NodeType.BROWSER, NodeType.COMPUTER, NodeType.KIT, NodeType.FLOW],
-                  }),
+                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER, NodeType.FLOW] }),
                 }),
               },
               onApply: (value?: NodeReferenceData) => {

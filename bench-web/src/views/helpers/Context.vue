@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isInlineNode, isSourceNode } from "@/language/core/const";
+import { isInlineNode, isSourceNode, toCamelName } from "@/language/core/const";
 import { isRunnable } from "@/language/runtime/run";
 import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewData } from "@/proto/wire";
 import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
@@ -7,6 +7,7 @@ import { runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
+import { getNodeIcon, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -139,9 +140,13 @@ defineExpose<ViewExpose>({ self });
         <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="sm" />
       </template>
 
-      <!-- Tabs -->
+      <!-- Meta -->
       <div class="ml-auto flex flex-row items-center">
         <!-- ... -->
+        <div v-if="target != null" class="flex flex-row items-center text-gray-400">
+          <IconInline v-bind="getNodeIcon({ metatype: target.metatype })" class="w-5 text-center" />
+          <span class="ml-1">{{ toCamelName(NodeType, target.metatype) }}</span>
+        </div>
       </div>
     </div>
 

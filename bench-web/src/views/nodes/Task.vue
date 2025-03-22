@@ -128,7 +128,7 @@ defineExpose<ViewExpose>({ self, id, focus });
               props: {
                 valueType: makeType({
                   kind: TypeKind.NODE,
-                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.USER, NodeType.FLOW, NodeType.ROLE] }),
+                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.USER, NodeType.IDENTITY] }),
                 }),
                 modelValue: task?.ownedByPtr,
               },

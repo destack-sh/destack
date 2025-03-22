@@ -1,5 +1,5 @@
 import { canvas, space, supergraph } from "@/globals";
-import { COSMOS_NODE_TYPES, RESOURCE_NODE_TYPES, RUNTIME_NODE_TYPES } from "@/language/core/const";
+import { COSMOS_NODE_TYPES, RESOURCE_NODE_TYPES, ROOT_NODE_TYPES, RUNTIME_NODE_TYPES } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeType, NodeTypeMapping, NodeTypeOptionInfo, type AnyNodeData, type IconData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
@@ -558,6 +558,8 @@ export function getNodesForCommand<T extends NodeType>(
 //
 
 export const NON_DUPLICATABLE_NODE_TYPES = [
+  ...ROOT_NODE_TYPES,
+  NodeType.PACKAGE,
   NodeType.LINK,
   NodeType.MESSAGE,
   ...RUNTIME_NODE_TYPES,
@@ -565,6 +567,8 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
   ...COSMOS_NODE_TYPES,
 ];
 export const NON_DELETABLE_NODE_TYPES = [
+  ...ROOT_NODE_TYPES,
+  NodeType.PACKAGE,
   NodeType.MESSAGE,
   NodeType.RUN,
   NodeType.SPAN,

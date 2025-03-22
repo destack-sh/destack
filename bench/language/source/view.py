@@ -396,7 +396,7 @@ class RectangleConstraint(Struct):
 # Views
 # NOTE :Architecture: it would be cool to have 'content slots' within Views and custom Views
 #  (so you can render custom web stuff and inside of that still have our own Views,
-#   for a more seamless integration of our components and yours like in the ProseMirror schema)
+#   for a more seamless integration of our components (like in the ProseMirror schema))
 #
 
 

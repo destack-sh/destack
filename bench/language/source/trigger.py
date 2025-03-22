@@ -17,11 +17,8 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
     p_system,
-    subnode_,
 )
 from bench.pb2 import TriggerData
-
-from .schedule import Schedule
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -63,7 +60,7 @@ class TriggerEffect(BuiltinEnum):
     # TASK = 50, "Instantiate Task", "Create a new Task from a template", "fas fa-tasks"
 
 
-@node_(NodeType.TRIGGER, has_subtypes=True)
+@node_(NodeType.TRIGGER)
 class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     """
     A Trigger is an event-driven condition that, once met, affects the Bench somehow.
@@ -99,6 +96,9 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
         references=NodeType.INTERRUPTION,
     )
 
+    # content
+    # schedule, ...
+
     # status
     status: TriggerStatus = p_regular(40, default=TriggerStatus.OPEN)
     processed_at: Optional[datetime] = p_system(41, default=None)
@@ -128,15 +128,3 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     ) -> "Trigger":
         trigger = Trigger(type=TriggerType.MESSAGE, name=name, text=text, effect=effect)
         return trigger
-
-
-@subnode_(TriggerType.SCHEDULE)
-class ScheduleTrigger(Trigger):
-    schedule: Optional["Schedule"] = p_regular(
-        100, require=False, array=False, struct=StructType.SCHEDULE
-    )
-
-
-@subnode_(TriggerType.MESSAGE)
-class MessageTrigger(Trigger):
-    pass

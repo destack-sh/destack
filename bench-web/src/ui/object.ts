@@ -1,13 +1,12 @@
-import { canvas, supergraph } from "@/globals";
+import { supergraph } from "@/globals";
 import { getBaseFromNode, getPropertyTitle, isNodeType, isSourceNodeType, toCamelName } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { generateNodeName, packSubnode, unpackSubnode } from "@/language/core/node";
+import { unpackSubnode } from "@/language/core/node";
 import {
   getPropertyType,
   getStorageKey,
   getTypeName,
   makeType,
-  makeTypeConstraint,
   TypeIdentity,
   typeIsNumeric,
 } from "@/language/core/type";
@@ -18,9 +17,8 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/runtime/transaction";
-import { createField, getFieldTypeUpdate } from "@/language/source/field";
+import { getFieldTypeUpdate } from "@/language/source/field";
 import {
-  ActionData,
   ActionProperty,
   ActionType,
   AnyNodeData,
@@ -37,7 +35,6 @@ import {
   NodeType,
   NodeTypeMapping,
   ObjectType,
-  PickerVariant,
   PrimitiveType,
   PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
@@ -45,20 +42,15 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
   RecordProperty,
-  SelectionType,
-  StructType,
   TaskProperty,
-  TypeBaseNodeData,
   TypeConstraintProperty,
   TypeData,
   TypeKind,
   ViewType,
 } from "@/proto/wire";
-import { isNode, makeStruct, toNodeRef } from "@/proto/wiring";
+import { isNode, makeStruct } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { getNodeTitle, makeIcon } from "@/ui/icon";
-import { pushPopover } from "@/ui/popover";
-import { typeIndex } from "@/ui/search";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
@@ -95,6 +87,7 @@ export type ClaimsListRow = RowBase & {
 };
 export type MembershipListRow = RowBase & {
   type: "membership-list";
+  delegatePtr?: NodeReferenceData;
 };
 export type ViewRow = RowBase & {
   type: "view";
@@ -803,9 +796,6 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
   }
 }
 
-/**
- * NOTE: ActionLayout is a bit complex because we need to support the default view, regular partials *and* input/output partials.
- */
 export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
   make() {
     const node = this.node!;
@@ -934,6 +924,12 @@ export class TaskLayout extends NodeLayout<NodeType.TASK> {
   }
 }
 
+export class BenchLayout extends NodeLayout<NodeType.BENCH> {
+  make() {
+    this.section("Members", [{ type: "membership-list", title: undefined, delegatePtr: this.node.mainPackagePtr }], {});
+  }
+}
+
 /** CustomObject layout with only Fields */
 export class CustomLayout extends BaseObjectLayout {
   valuePacked: Record<string, any>;
@@ -1011,6 +1007,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.CHANNEL]: ChannelLayout,
   [NodeType.THREAD]: ThreadLayout,
   [NodeType.TASK]: TaskLayout,
+  [NodeType.BENCH]: BenchLayout,
 };
 
 /** Use the object layout for a node, partial or custom object */
@@ -1020,8 +1017,6 @@ export function useObjectLayout(options: {
   valueType: Ref<TypeData | undefined>;
   valuePacked: Ref<any>;
   updateValuePacked: (update: any, options: any) => void;
-  /** Optionally extend or modify partial node layouts after they're built */
-  extendPartialLayout?: (layout: BaseObjectLayout, info: ObjectInfo) => BaseObjectLayout;
 }) {
   const { valueType, valuePacked, updateValuePacked } = options;
 

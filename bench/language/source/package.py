@@ -18,7 +18,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.node import IsNamed
+from bench.language.core.node import IsJoinable, IsNamed
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         Flow,
         Icon,
         Identity,
+        Membership,
         Page,
         Scaler,
         Space,
@@ -46,7 +47,7 @@ class PackageType(BuiltinEnum):
 
 
 @node_(NodeType.PACKAGE, index=(IndexIn(columns=("bench_id", "slug"), is_unique=True),))
-class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageData]):
+class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageData]):
     """A Package is a semi-isolated area of a Bench."""
 
     # meta
@@ -90,6 +91,7 @@ class Package(IsOwnable, IsTemplatable, IsModal, IsNamed, PackageNode[PackageDat
     channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)
     spaces: LocalNodeList["Space"] = p_node_children(NodeType.SPACE)
     dependencies: LocalNodeList["Dependency"] = p_node_children(NodeType.DEPENDENCY)
+    memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
 
     @property
     def package(self):

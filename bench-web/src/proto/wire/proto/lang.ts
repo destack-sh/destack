@@ -1440,79 +1440,6 @@ export interface ChangeData {
     edits: EditData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.ScheduleData
- */
-export interface ScheduleData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.ScheduleFrequency frequency = 30;
-     */
-    frequency: ScheduleFrequency;
-    /**
-     * @generated from protobuf field: int32 interval = 31;
-     */
-    interval: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp start = 32;
-     */
-    start?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp end = 33;
-     */
-    end?: Timestamp;
-    /**
-     * @generated from protobuf field: optional int32 count = 34;
-     */
-    count?: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Day week_start = 35;
-     */
-    weekStart?: Day;
-    /**
-     * @generated from protobuf field: repeated int32 by_set_pos = 36;
-     */
-    bySetPos: number[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.Month by_month = 37;
-     */
-    byMonth: Month[];
-    /**
-     * @generated from protobuf field: repeated int32 by_month_day = 38;
-     */
-    byMonthDay: number[];
-    /**
-     * @generated from protobuf field: repeated int32 by_year_day = 39;
-     */
-    byYearDay: number[];
-    /**
-     * @generated from protobuf field: repeated int32 by_easter = 40;
-     */
-    byEaster: number[];
-    /**
-     * @generated from protobuf field: repeated int32 by_week_no = 41;
-     */
-    byWeekNo: number[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.Day by_week_day = 42;
-     */
-    byWeekDay: Day[];
-    /**
-     * @generated from protobuf field: repeated int32 by_hour = 43;
-     */
-    byHour: number[];
-    /**
-     * @generated from protobuf field: repeated int32 by_minute = 44;
-     */
-    byMinute: number[];
-    /**
-     * @generated from protobuf field: repeated int32 by_second = 45;
-     */
-    bySecond: number[];
-}
-/**
  * @generated from protobuf message symbolx.bench.FontData
  */
 export interface FontData {
@@ -1736,6 +1663,79 @@ export interface RectangleConstraintData {
      * @generated from protobuf field: optional int32 max_height = 53;
      */
     maxHeight?: number;
+}
+/**
+ * @generated from protobuf message symbolx.bench.ScheduleData
+ */
+export interface ScheduleData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.ScheduleFrequency frequency = 30;
+     */
+    frequency: ScheduleFrequency;
+    /**
+     * @generated from protobuf field: int32 interval = 31;
+     */
+    interval: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp start = 32;
+     */
+    start?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp end = 33;
+     */
+    end?: Timestamp;
+    /**
+     * @generated from protobuf field: optional int32 count = 34;
+     */
+    count?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.Day week_start = 35;
+     */
+    weekStart?: Day;
+    /**
+     * @generated from protobuf field: repeated int32 by_set_pos = 36;
+     */
+    bySetPos: number[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.Month by_month = 37;
+     */
+    byMonth: Month[];
+    /**
+     * @generated from protobuf field: repeated int32 by_month_day = 38;
+     */
+    byMonthDay: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_year_day = 39;
+     */
+    byYearDay: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_easter = 40;
+     */
+    byEaster: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_week_no = 41;
+     */
+    byWeekNo: number[];
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.Day by_week_day = 42;
+     */
+    byWeekDay: Day[];
+    /**
+     * @generated from protobuf field: repeated int32 by_hour = 43;
+     */
+    byHour: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_minute = 44;
+     */
+    byMinute: number[];
+    /**
+     * @generated from protobuf field: repeated int32 by_second = 45;
+     */
+    bySecond: number[];
 }
 /**
  * @generated from protobuf message symbolx.bench.BaseNodeData
@@ -6747,24 +6747,6 @@ export interface TriggerData {
      * @generated from protobuf field: optional google.protobuf.Timestamp closed_at = 45;
      */
     closedAt?: Timestamp;
-}
-/**
- * A Trigger is an event-driven condition that, once met, affects the Bench somehow.
- *
- * @generated from protobuf message symbolx.bench.ScheduleTriggerData
- */
-export interface ScheduleTriggerData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ScheduleData schedule = 100;
-     */
-    schedule?: ScheduleData;
-}
-/**
- * A Trigger is an event-driven condition that, once met, affects the Bench somehow.
- *
- * @generated from protobuf message symbolx.bench.MessageTriggerData
- */
-export interface MessageTriggerData {
 }
 /**
  * @generated from protobuf message symbolx.bench.ViewData
@@ -18510,257 +18492,6 @@ class ChangeData$Type extends MessageType$<ChangeData> {
  */
 export const ChangeData = new ChangeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ScheduleData$Type extends MessageType$<ScheduleData> {
-    constructor() {
-        super("symbolx.bench.ScheduleData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "frequency", kind: "enum", T: () => ["symbolx.bench.ScheduleFrequency", ScheduleFrequency, "SCHEDULE_FREQUENCY_"] },
-            { no: 31, name: "interval", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "start", kind: "message", T: () => Timestamp },
-            { no: 33, name: "end", kind: "message", T: () => Timestamp },
-            { no: 34, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "week_start", kind: "enum", opt: true, T: () => ["symbolx.bench.Day", Day, "DAY_"] },
-            { no: 36, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 37, name: "by_month", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.Month", Month, "MONTH_"] },
-            { no: 38, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 39, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 40, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.Day", Day, "DAY_"] },
-            { no: 43, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 44, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 45, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ScheduleData>): ScheduleData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.frequency = 0;
-        message.interval = 0;
-        message.bySetPos = [];
-        message.byMonth = [];
-        message.byMonthDay = [];
-        message.byYearDay = [];
-        message.byEaster = [];
-        message.byWeekNo = [];
-        message.byWeekDay = [];
-        message.byHour = [];
-        message.byMinute = [];
-        message.bySecond = [];
-        if (value !== undefined)
-            reflectionMergePartial<ScheduleData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScheduleData): ScheduleData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.ScheduleFrequency frequency */ 30:
-                    message.frequency = reader.int32();
-                    break;
-                case /* int32 interval */ 31:
-                    message.interval = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp start */ 32:
-                    message.start = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.start);
-                    break;
-                case /* optional google.protobuf.Timestamp end */ 33:
-                    message.end = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.end);
-                    break;
-                case /* optional int32 count */ 34:
-                    message.count = reader.int32();
-                    break;
-                case /* optional symbolx.bench.Day week_start */ 35:
-                    message.weekStart = reader.int32();
-                    break;
-                case /* repeated int32 by_set_pos */ 36:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.bySetPos.push(reader.int32());
-                    else
-                        message.bySetPos.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.Month by_month */ 37:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMonth.push(reader.int32());
-                    else
-                        message.byMonth.push(reader.int32());
-                    break;
-                case /* repeated int32 by_month_day */ 38:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMonthDay.push(reader.int32());
-                    else
-                        message.byMonthDay.push(reader.int32());
-                    break;
-                case /* repeated int32 by_year_day */ 39:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byYearDay.push(reader.int32());
-                    else
-                        message.byYearDay.push(reader.int32());
-                    break;
-                case /* repeated int32 by_easter */ 40:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byEaster.push(reader.int32());
-                    else
-                        message.byEaster.push(reader.int32());
-                    break;
-                case /* repeated int32 by_week_no */ 41:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byWeekNo.push(reader.int32());
-                    else
-                        message.byWeekNo.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.Day by_week_day */ 42:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byWeekDay.push(reader.int32());
-                    else
-                        message.byWeekDay.push(reader.int32());
-                    break;
-                case /* repeated int32 by_hour */ 43:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byHour.push(reader.int32());
-                    else
-                        message.byHour.push(reader.int32());
-                    break;
-                case /* repeated int32 by_minute */ 44:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.byMinute.push(reader.int32());
-                    else
-                        message.byMinute.push(reader.int32());
-                    break;
-                case /* repeated int32 by_second */ 45:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.bySecond.push(reader.int32());
-                    else
-                        message.bySecond.push(reader.int32());
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ScheduleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.ScheduleFrequency frequency = 30; */
-        if (message.frequency !== 0)
-            writer.tag(30, WireType.Varint).int32(message.frequency);
-        /* int32 interval = 31; */
-        if (message.interval !== 0)
-            writer.tag(31, WireType.Varint).int32(message.interval);
-        /* optional google.protobuf.Timestamp start = 32; */
-        if (message.start)
-            Timestamp.internalBinaryWrite(message.start, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp end = 33; */
-        if (message.end)
-            Timestamp.internalBinaryWrite(message.end, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 count = 34; */
-        if (message.count !== undefined)
-            writer.tag(34, WireType.Varint).int32(message.count);
-        /* optional symbolx.bench.Day week_start = 35; */
-        if (message.weekStart !== undefined)
-            writer.tag(35, WireType.Varint).int32(message.weekStart);
-        /* repeated int32 by_set_pos = 36; */
-        if (message.bySetPos.length) {
-            writer.tag(36, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.bySetPos.length; i++)
-                writer.int32(message.bySetPos[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.Month by_month = 37; */
-        if (message.byMonth.length) {
-            writer.tag(37, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byMonth.length; i++)
-                writer.int32(message.byMonth[i]);
-            writer.join();
-        }
-        /* repeated int32 by_month_day = 38; */
-        if (message.byMonthDay.length) {
-            writer.tag(38, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byMonthDay.length; i++)
-                writer.int32(message.byMonthDay[i]);
-            writer.join();
-        }
-        /* repeated int32 by_year_day = 39; */
-        if (message.byYearDay.length) {
-            writer.tag(39, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byYearDay.length; i++)
-                writer.int32(message.byYearDay[i]);
-            writer.join();
-        }
-        /* repeated int32 by_easter = 40; */
-        if (message.byEaster.length) {
-            writer.tag(40, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byEaster.length; i++)
-                writer.int32(message.byEaster[i]);
-            writer.join();
-        }
-        /* repeated int32 by_week_no = 41; */
-        if (message.byWeekNo.length) {
-            writer.tag(41, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byWeekNo.length; i++)
-                writer.int32(message.byWeekNo[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.Day by_week_day = 42; */
-        if (message.byWeekDay.length) {
-            writer.tag(42, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byWeekDay.length; i++)
-                writer.int32(message.byWeekDay[i]);
-            writer.join();
-        }
-        /* repeated int32 by_hour = 43; */
-        if (message.byHour.length) {
-            writer.tag(43, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byHour.length; i++)
-                writer.int32(message.byHour[i]);
-            writer.join();
-        }
-        /* repeated int32 by_minute = 44; */
-        if (message.byMinute.length) {
-            writer.tag(44, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.byMinute.length; i++)
-                writer.int32(message.byMinute[i]);
-            writer.join();
-        }
-        /* repeated int32 by_second = 45; */
-        if (message.bySecond.length) {
-            writer.tag(45, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.bySecond.length; i++)
-                writer.int32(message.bySecond[i]);
-            writer.join();
-        }
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ScheduleData
- */
-export const ScheduleData = new ScheduleData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class FontData$Type extends MessageType$<FontData> {
     constructor() {
         super("symbolx.bench.FontData", [
@@ -19445,6 +19176,257 @@ class RectangleConstraintData$Type extends MessageType$<RectangleConstraintData>
  * @generated MessageType for protobuf message symbolx.bench.RectangleConstraintData
  */
 export const RectangleConstraintData = new RectangleConstraintData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ScheduleData$Type extends MessageType$<ScheduleData> {
+    constructor() {
+        super("symbolx.bench.ScheduleData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "frequency", kind: "enum", T: () => ["symbolx.bench.ScheduleFrequency", ScheduleFrequency, "SCHEDULE_FREQUENCY_"] },
+            { no: 31, name: "interval", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "start", kind: "message", T: () => Timestamp },
+            { no: 33, name: "end", kind: "message", T: () => Timestamp },
+            { no: 34, name: "count", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 35, name: "week_start", kind: "enum", opt: true, T: () => ["symbolx.bench.Day", Day, "DAY_"] },
+            { no: 36, name: "by_set_pos", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 37, name: "by_month", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.Month", Month, "MONTH_"] },
+            { no: 38, name: "by_month_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 39, name: "by_year_day", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 40, name: "by_easter", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "by_week_no", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 42, name: "by_week_day", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.Day", Day, "DAY_"] },
+            { no: 43, name: "by_hour", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 44, name: "by_minute", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 45, name: "by_second", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ScheduleData>): ScheduleData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.frequency = 0;
+        message.interval = 0;
+        message.bySetPos = [];
+        message.byMonth = [];
+        message.byMonthDay = [];
+        message.byYearDay = [];
+        message.byEaster = [];
+        message.byWeekNo = [];
+        message.byWeekDay = [];
+        message.byHour = [];
+        message.byMinute = [];
+        message.bySecond = [];
+        if (value !== undefined)
+            reflectionMergePartial<ScheduleData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScheduleData): ScheduleData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.ScheduleFrequency frequency */ 30:
+                    message.frequency = reader.int32();
+                    break;
+                case /* int32 interval */ 31:
+                    message.interval = reader.int32();
+                    break;
+                case /* optional google.protobuf.Timestamp start */ 32:
+                    message.start = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.start);
+                    break;
+                case /* optional google.protobuf.Timestamp end */ 33:
+                    message.end = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                    break;
+                case /* optional int32 count */ 34:
+                    message.count = reader.int32();
+                    break;
+                case /* optional symbolx.bench.Day week_start */ 35:
+                    message.weekStart = reader.int32();
+                    break;
+                case /* repeated int32 by_set_pos */ 36:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.bySetPos.push(reader.int32());
+                    else
+                        message.bySetPos.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.Month by_month */ 37:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byMonth.push(reader.int32());
+                    else
+                        message.byMonth.push(reader.int32());
+                    break;
+                case /* repeated int32 by_month_day */ 38:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byMonthDay.push(reader.int32());
+                    else
+                        message.byMonthDay.push(reader.int32());
+                    break;
+                case /* repeated int32 by_year_day */ 39:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byYearDay.push(reader.int32());
+                    else
+                        message.byYearDay.push(reader.int32());
+                    break;
+                case /* repeated int32 by_easter */ 40:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byEaster.push(reader.int32());
+                    else
+                        message.byEaster.push(reader.int32());
+                    break;
+                case /* repeated int32 by_week_no */ 41:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byWeekNo.push(reader.int32());
+                    else
+                        message.byWeekNo.push(reader.int32());
+                    break;
+                case /* repeated symbolx.bench.Day by_week_day */ 42:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byWeekDay.push(reader.int32());
+                    else
+                        message.byWeekDay.push(reader.int32());
+                    break;
+                case /* repeated int32 by_hour */ 43:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byHour.push(reader.int32());
+                    else
+                        message.byHour.push(reader.int32());
+                    break;
+                case /* repeated int32 by_minute */ 44:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.byMinute.push(reader.int32());
+                    else
+                        message.byMinute.push(reader.int32());
+                    break;
+                case /* repeated int32 by_second */ 45:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.bySecond.push(reader.int32());
+                    else
+                        message.bySecond.push(reader.int32());
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ScheduleData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.ScheduleFrequency frequency = 30; */
+        if (message.frequency !== 0)
+            writer.tag(30, WireType.Varint).int32(message.frequency);
+        /* int32 interval = 31; */
+        if (message.interval !== 0)
+            writer.tag(31, WireType.Varint).int32(message.interval);
+        /* optional google.protobuf.Timestamp start = 32; */
+        if (message.start)
+            Timestamp.internalBinaryWrite(message.start, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp end = 33; */
+        if (message.end)
+            Timestamp.internalBinaryWrite(message.end, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 count = 34; */
+        if (message.count !== undefined)
+            writer.tag(34, WireType.Varint).int32(message.count);
+        /* optional symbolx.bench.Day week_start = 35; */
+        if (message.weekStart !== undefined)
+            writer.tag(35, WireType.Varint).int32(message.weekStart);
+        /* repeated int32 by_set_pos = 36; */
+        if (message.bySetPos.length) {
+            writer.tag(36, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.bySetPos.length; i++)
+                writer.int32(message.bySetPos[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.Month by_month = 37; */
+        if (message.byMonth.length) {
+            writer.tag(37, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byMonth.length; i++)
+                writer.int32(message.byMonth[i]);
+            writer.join();
+        }
+        /* repeated int32 by_month_day = 38; */
+        if (message.byMonthDay.length) {
+            writer.tag(38, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byMonthDay.length; i++)
+                writer.int32(message.byMonthDay[i]);
+            writer.join();
+        }
+        /* repeated int32 by_year_day = 39; */
+        if (message.byYearDay.length) {
+            writer.tag(39, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byYearDay.length; i++)
+                writer.int32(message.byYearDay[i]);
+            writer.join();
+        }
+        /* repeated int32 by_easter = 40; */
+        if (message.byEaster.length) {
+            writer.tag(40, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byEaster.length; i++)
+                writer.int32(message.byEaster[i]);
+            writer.join();
+        }
+        /* repeated int32 by_week_no = 41; */
+        if (message.byWeekNo.length) {
+            writer.tag(41, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byWeekNo.length; i++)
+                writer.int32(message.byWeekNo[i]);
+            writer.join();
+        }
+        /* repeated symbolx.bench.Day by_week_day = 42; */
+        if (message.byWeekDay.length) {
+            writer.tag(42, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byWeekDay.length; i++)
+                writer.int32(message.byWeekDay[i]);
+            writer.join();
+        }
+        /* repeated int32 by_hour = 43; */
+        if (message.byHour.length) {
+            writer.tag(43, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byHour.length; i++)
+                writer.int32(message.byHour[i]);
+            writer.join();
+        }
+        /* repeated int32 by_minute = 44; */
+        if (message.byMinute.length) {
+            writer.tag(44, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.byMinute.length; i++)
+                writer.int32(message.byMinute[i]);
+            writer.join();
+        }
+        /* repeated int32 by_second = 45; */
+        if (message.bySecond.length) {
+            writer.tag(45, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.bySecond.length; i++)
+                writer.int32(message.bySecond[i]);
+            writer.join();
+        }
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ScheduleData
+ */
+export const ScheduleData = new ScheduleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BaseNodeData$Type extends MessageType$<BaseNodeData> {
     constructor() {
@@ -29923,77 +29905,6 @@ class TriggerData$Type extends MessageType$<TriggerData> {
  */
 export const TriggerData = new TriggerData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ScheduleTriggerData$Type extends MessageType$<ScheduleTriggerData> {
-    constructor() {
-        super("symbolx.bench.ScheduleTriggerData", [
-            { no: 100, name: "schedule", kind: "message", T: () => ScheduleData }
-        ]);
-    }
-    create(value?: PartialMessage<ScheduleTriggerData>): ScheduleTriggerData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<ScheduleTriggerData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ScheduleTriggerData): ScheduleTriggerData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.ScheduleData schedule */ 100:
-                    message.schedule = ScheduleData.internalBinaryRead(reader, reader.uint32(), options, message.schedule);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ScheduleTriggerData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.ScheduleData schedule = 100; */
-        if (message.schedule)
-            ScheduleData.internalBinaryWrite(message.schedule, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ScheduleTriggerData
- */
-export const ScheduleTriggerData = new ScheduleTriggerData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class MessageTriggerData$Type extends MessageType$<MessageTriggerData> {
-    constructor() {
-        super("symbolx.bench.MessageTriggerData", []);
-    }
-    create(value?: PartialMessage<MessageTriggerData>): MessageTriggerData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<MessageTriggerData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MessageTriggerData): MessageTriggerData {
-        return target ?? this.create();
-    }
-    internalBinaryWrite(message: MessageTriggerData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.MessageTriggerData
- */
-export const MessageTriggerData = new MessageTriggerData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class ViewData$Type extends MessageType$<ViewData> {
     constructor() {
         super("symbolx.bench.ViewData", [
@@ -31853,7 +31764,7 @@ export type InlineNodeData = ScalerData | StoreData | ComputerData | Application
 export type TypeBaseNodeData = ChoiceData | ClassData | FlowData | ActionData | DatabaseData
 export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData
 export type SubjectNodeData = UserData | OrganizationData | ComputerData | IdentityData
-export type JoinableNodeData = BenchData | OrganizationData | ChannelData | ThreadData | TeamData
+export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -31892,8 +31803,8 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.MESSAGE]: [NodeType.CHANNEL, NodeType.THREAD],
   [NodeType.NOTIFICATION]: [NodeType.PACKAGE],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.PAGE, NodeType.ORGANIZATION, NodeType.PACKAGE],
-  [NodeType.MEMBERSHIP]: [NodeType.TEAM, NodeType.BENCH, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.CHANNEL],
-  [NodeType.INVITE]: [NodeType.TEAM, NodeType.BENCH, NodeType.THREAD, NodeType.ORGANIZATION, NodeType.CHANNEL],
+  [NodeType.MEMBERSHIP]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM],
+  [NodeType.INVITE]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM],
   [NodeType.ROLE]: [NodeType.PAGE],
   [NodeType.IDENTITY]: [NodeType.CHANNEL, NodeType.PAGE, NodeType.THREAD],
   [NodeType.SESSION]: [NodeType.BENCH],
@@ -31911,10 +31822,10 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.STREAM, NodeType.HANDLE, NodeType.PACKAGE, NodeType.MEMBERSHIP, NodeType.SECRET, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.SESSION, NodeType.CLIENT, NodeType.INVITE],
+  [NodeType.BENCH]: [NodeType.STREAM, NodeType.HANDLE, NodeType.PACKAGE, NodeType.SECRET, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.SESSION, NodeType.CLIENT],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.USER]: [NodeType.CLIENT, NodeType.HANDLE, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.ORGANIZATION]: [NodeType.TEAM, NodeType.HANDLE, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
+  [NodeType.ORGANIZATION]: [NodeType.TEAM, NodeType.HANDLE, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SCALER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STORE]: [NodeType.SKIP, NodeType.EMPTY],
@@ -31923,7 +31834,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FILE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STREAM]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SECRET]: [NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.PACKAGE]: [NodeType.TEAM, NodeType.NOTIFICATION, NodeType.KIT, NodeType.THREAD, NodeType.PAGE, NodeType.SKIP, NodeType.EMPTY, NodeType.SCALER, NodeType.SPACE, NodeType.DEPENDENCY, NodeType.TAG, NodeType.COMPUTER, NodeType.FILE, NodeType.STORE, NodeType.CHANNEL, NodeType.APPLICATION],
+  [NodeType.PACKAGE]: [NodeType.TEAM, NodeType.NOTIFICATION, NodeType.KIT, NodeType.THREAD, NodeType.PAGE, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.SCALER, NodeType.SPACE, NodeType.DEPENDENCY, NodeType.TAG, NodeType.INVITE, NodeType.COMPUTER, NodeType.FILE, NodeType.STORE, NodeType.CHANNEL, NodeType.APPLICATION],
   [NodeType.DEPENDENCY]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.PAGE]: [NodeType.THREAD, NodeType.CLAIM, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.CHOICE, NodeType.CLASS, NodeType.TAG, NodeType.COMPUTER, NodeType.FLOW, NodeType.APPLICATION, NodeType.KIT, NodeType.SCALER, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.CHANNEL, NodeType.ROLE],
   [NodeType.BLOCK]: [NodeType.BLOCK, NodeType.SKIP, NodeType.EMPTY],
@@ -32017,10 +31928,10 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.THREAD, NodeType.CLAIM, NodeType.PACKAGE, NodeType.IDENTITY, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.DEPENDENCY, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.STREAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.SECRET, NodeType.OPTION, NodeType.TAG, NodeType.CLIENT, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.RECORD, NodeType.KIT, NodeType.SCALER, NodeType.SPACE, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.SESSION, NodeType.INVITE, NodeType.RUN, NodeType.SPAN, NodeType.CHANNEL, NodeType.ROLE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.PACKAGE, NodeType.IDENTITY, NodeType.LOG, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.DEPENDENCY, NodeType.FILE, NodeType.PAGE, NodeType.BLOCK, NodeType.STREAM, NodeType.NOTIFICATION, NodeType.CHOICE, NodeType.CLASS, NodeType.FIELD, NodeType.SECRET, NodeType.OPTION, NodeType.TAG, NodeType.CLIENT, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.RECORD, NodeType.KIT, NodeType.SCALER, NodeType.SPACE, NodeType.PLAN, NodeType.VIEW, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.DATABASE, NodeType.MEMBERSHIP, NodeType.SESSION, NodeType.INVITE, NodeType.RUN, NodeType.SPAN, NodeType.CHANNEL, NodeType.ROLE],
   [NodeType.HANDLE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.USER]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.ORGANIZATION]: [NodeType.TEAM, NodeType.HANDLE, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
+  [NodeType.ORGANIZATION]: [NodeType.TEAM, NodeType.HANDLE, NodeType.INVITE, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CLIENT]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.SCALER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.STORE]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32519,12 +32430,6 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.EMPTY]: EmptyData,
 }
 
-export type TriggerSubtype = ScheduleTriggerData | MessageTriggerData;
-export interface TriggerSubtypeMapping extends Record<TriggerType, TriggerSubtype> {
-  [TriggerType.SCHEDULE]: ScheduleTriggerData,
-  [TriggerType.MESSAGE]: MessageTriggerData,
-}
-
 export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.RUN]: RunViewData,
@@ -32541,7 +32446,6 @@ export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
 }
 
 export interface NodeSubtypeMapping extends Record<NodeType, object> {
-  [NodeType.TRIGGER]: TriggerSubtypeMapping,
   [NodeType.VIEW]: ViewSubtypeMapping,
 }
 
@@ -34196,14 +34100,6 @@ export enum EmptyProperty {
   subnodePacked = 29,
 }
 
-export enum ScheduleTriggerProperty {
-  schedule = 100,
-}
-
-export enum MessageTriggerProperty {
-
-}
-
 export enum RunViewProperty {
   resourcesPacked = 100,
   inputsPacked = 101,
@@ -35033,11 +34929,6 @@ export const ACTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ActionType, any>> =
 export const LINK_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<LinkType, any>> = {
 }
 
-export const TRIGGER_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<TriggerType, any>> = {
-  [TriggerType.SCHEDULE]: ScheduleTriggerProperty,
-  [TriggerType.MESSAGE]: MessageTriggerProperty,
-}
-
 export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.RUN]: RunViewProperty,
   [ViewType.OBJECT]: ObjectViewProperty,
@@ -35069,7 +34960,6 @@ export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>
   [NodeType.FIELD]: FIELD_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.ACTION]: ACTION_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.LINK]: LINK_PROPERTY_ENUM_BY_SUBTYPE,
-  [NodeType.TRIGGER]: TRIGGER_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.VIEW]: VIEW_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.MESSAGE]: MESSAGE_PROPERTY_ENUM_BY_SUBTYPE,
   [NodeType.INTERRUPTION]: INTERRUPTION_PROPERTY_ENUM_BY_SUBTYPE,
@@ -35298,8 +35188,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35336,8 +35226,8 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.21.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.22.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36079,7 +35969,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [MembershipProperty.id]: { id: 2, name: 'id', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.ck]: { id: 3, name: 'ck', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MembershipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36096,7 +35986,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
 export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INVITE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [InviteProperty.id]: { id: 2, name: 'id', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.ORGANIZATION, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.TEAM, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.createdByPtr]: { id: 11, name: 'created_by_ptr', component: ObjectType.INVITE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.IDENTITY, NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
@@ -36489,12 +36379,6 @@ export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.updatedByPtr]: { id: 13, name: 'updated_by_ptr', component: ObjectType.EMPTY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.IDENTITY, NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
   [EmptyProperty.deletedAt]: { id: 14, name: 'deleted_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-}
-export const ScheduleTriggerDataInfo: Record<ScheduleTriggerProperty, PropertyInfo> = {
-  [ScheduleTriggerProperty.schedule]: { id: 100, name: 'schedule', component: ObjectType.TRIGGER, componentSubtype: 30, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
-}
-export const MessageTriggerDataInfo: Record<MessageTriggerProperty, PropertyInfo> = {
-
 }
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
   [RunViewProperty.resourcesPacked]: { id: 100, name: 'resources_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -37136,10 +37020,6 @@ export const ActionSubtypePropertyInfo: Partial<Record<ActionType, Record<any, P
 }
 export const LinkSubtypePropertyInfo: Partial<Record<LinkType, Record<any, PropertyInfo>>> = {
 }
-export const TriggerSubtypePropertyInfo: Partial<Record<TriggerType, Record<any, PropertyInfo>>> = {
-  [TriggerType.SCHEDULE]: ScheduleTriggerDataInfo,
-  [TriggerType.MESSAGE]: MessageTriggerDataInfo,
-}
 export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
   [ViewType.RUN]: RunViewDataInfo,
   [ViewType.OBJECT]: ObjectViewDataInfo,
@@ -37168,7 +37048,6 @@ export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Rec
   [NodeType.FIELD]: FieldSubtypePropertyInfo,
   [NodeType.ACTION]: ActionSubtypePropertyInfo,
   [NodeType.LINK]: LinkSubtypePropertyInfo,
-  [NodeType.TRIGGER]: TriggerSubtypePropertyInfo,
   [NodeType.VIEW]: ViewSubtypePropertyInfo,
   [NodeType.MESSAGE]: MessageSubtypePropertyInfo,
   [NodeType.INTERRUPTION]: InterruptionSubtypePropertyInfo,
@@ -37186,7 +37065,6 @@ export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {
   [NodeType.FIELD]: 30,
   [NodeType.ACTION]: 30,
   [NodeType.LINK]: 30,
-  [NodeType.TRIGGER]: 30,
   [NodeType.VIEW]: 30,
   [NodeType.MESSAGE]: 30,
   [NodeType.INTERRUPTION]: 30,

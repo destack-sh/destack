@@ -5,7 +5,6 @@ from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
-    IsJoinable,
     IsSubject,
     LocalNodeList,
     Node,
@@ -34,7 +33,7 @@ class OrganizationStatus(BuiltinEnum):
 
 
 @node_(NodeType.ORGANIZATION, roots=())
-class Organization(IsJoinable, IsSubject, Node[OrganizationData]):
+class Organization(IsSubject, Node[OrganizationData]):
     """
     An Organization with Users and Teams.
     """
