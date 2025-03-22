@@ -510,6 +510,7 @@ class Transaction:
                 NodeType(edit.node_ptr.node_type),
                 include_deleted=False,
                 is_readonly=False,
+                include_memory=False,
             )
             edits_by_engine_id[engine.id].append(edit)
 

@@ -417,15 +417,43 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     )
                     adapted_query = self._adapt_read_query(subject, query)
                     channel = await session._get_connector_for(
-                        scope, adapted_query.all_node_types, include_deleted=False, is_readonly=True
+                        scope,
+                        adapted_query.all_node_types,
+                        include_deleted=include_deleted,
+                        include_memory=True,
+                        is_readonly=True,
                     )
                     connection = await channel.get(
                         adapted_query, GetOptions(live=False, mode="packed")
                     )
-                    # merge result into data_graph (there may be duplicates)
                     for node_data in connection.result_data.graph.nodes:
                         if node_data.id not in data_graph:
                             data_graph.add(node_data)
+
+                    # load from outside memory if channel is memory and we're missing something
+                    # NOTE :Cleanup: always loading again without memory is ugly and unnecessary (ugh.. :RichGraph)
+                    #  (but we don't really know way up here whether connection was actually memory..)
+                    missing_node_ptrs = [
+                        n for n in node_references if data_graph.get(str(n.id)) is None
+                    ]
+                    if len(missing_node_ptrs) > 0:
+                        adapted_query = adapted_query.clone()
+                        adapted_query._roots = missing_node_ptrs
+                        adapted_query._include_memory = False
+                        raw_channel = await session._get_connector_for(
+                            scope,
+                            adapted_query.all_node_types,
+                            include_deleted=include_deleted,
+                            include_memory=False,
+                            is_readonly=True,
+                        )
+                        raw_connection = await raw_channel.get(
+                            adapted_query, GetOptions(live=False, mode="packed")
+                        )
+                        for node_data in raw_connection.result_data.graph.nodes:
+                            if node_data.id not in data_graph:
+                                data_graph.add(node_data)
+
                 self.logger.trace(f"{self.name}.commit.read", graph=data_graph)
 
             # check access
@@ -458,7 +486,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             # NOTE :Robustness: edited nodes are 'disconnected' copies (from unpack) :StaleNodes
             #  So we should really untrack them (to disable further edits) or keep them in sync,
             #   but I'm not sure how that should work yet, and we need to edit them async sometimes
-            #   (e.g. in the scheduler we try scheduling new Runs and then update them accordingly).
+            #   (e.g. in RunPlugin we try scheduling new Runs and then update them accordingly).
 
         return edits, cascaded_edits
 

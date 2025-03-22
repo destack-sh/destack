@@ -26,6 +26,7 @@ from bench.language.connection import (
     SplitConnector,
     scope_includes,
 )
+from bench.language.connection.memory import MemoryEngine
 from bench.language.core import (
     ACTIVE_SESSION,
     EMPTY_SCOPE_DATA,
@@ -274,6 +275,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
+        include_memory: bool,
         include_deleted: bool,
     ) -> Engine:
         """Gets the appropriate Engine to read/write Nodes."""
@@ -284,6 +286,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             if (
                 (is_readonly or not engine.is_readonly)
                 and (not include_deleted or engine.include_deleted)
+                and (include_memory or not isinstance(engine, MemoryEngine))
                 and scope_includes(engine.scope, scope)
                 and all(t in engine.node_types for t in node_types)
             )
@@ -325,6 +328,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         *,
         is_readonly: bool = False,
         include_deleted: bool = False,
+        include_memory: bool = True,
         expect: type[ConnectorT] = Connector,
     ) -> ConnectorT:
         """Gets or creates a store Connector to read/write Nodes."""
@@ -340,6 +344,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 node_types=node_types,
                 is_readonly=is_readonly,
                 include_deleted=include_deleted,
+                include_memory=include_memory,
             )
             connector = await self._get_connector(engine)
         if not isinstance(connector, expect):

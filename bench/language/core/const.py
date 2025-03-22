@@ -843,10 +843,14 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.IDENTITY,
     NodeType.TEAM,
-    NodeType.MEMBERSHIP,  # nocheckin :Broken: can't load Membership since it confuses Graph.commit
-    #  (because Thread, which aren't loaded, also have Memberships, it doesn't understand
-    #   currently that/when it needs to load Memberships from disk not memory)
+    NodeType.MEMBERSHIP,
 )
+
+
+# automatically included descendants :AutoLoading
+AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
+    NodeType.THREAD: (NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.IDENTITY),
+}
 
 #
 # Struct metatypes
