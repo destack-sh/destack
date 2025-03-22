@@ -223,6 +223,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         "_filter",
         "_first",
         "_include_deleted",
+        "_include_memory",
         "_node_cls",
         "_node_type",
         "_roots",
@@ -247,6 +248,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         # options
         select: Optional["SelectOptions"] = None,
         include_deleted: bool = False,
+        include_memory: bool = True,  # NOTE :Cleanup: doesn't include_memory overlap with include_deleted?
         first: int | None = None,
     ):
         from .node import Node
@@ -266,6 +268,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         # options
         self._select = select
         self._include_deleted = include_deleted
+        self._include_memory = include_memory
         self._first = first
 
     def __str__(self):
@@ -329,6 +332,10 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
     @property
     def include_deleted(self) -> bool:
         return self._include_deleted
+
+    @property
+    def include_memory(self) -> bool:
+        return self._include_memory
 
     #
     # Builder

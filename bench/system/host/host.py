@@ -53,7 +53,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
-from bench.language.core.const import BENCH_BENCH_ID, JOINABLE_NODE_TYPES
+from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_BENCH_ID
 from bench.pb2 import MessageData
 from bench.proto import (
     DownloadFilesRequest,
@@ -508,7 +508,7 @@ class HostService(GraphServiceBase, HostBase):
             self._validate_edit(edit, subject, now)
 
         # add any threads
-        # NOTE :Cleanup: manually loading more stuff for Thread feels wrong
+        # NOTE :Cleanup: manually loading more stuff for Thread feels wrong :AutoLoading
         #  (also it only works when we're creating Nodes and thus have Edit.node_data)
         for edit in edits:
             if edit.node_ptr.node_type == NodeType.MESSAGE:
@@ -535,8 +535,8 @@ class HostService(GraphServiceBase, HostBase):
             query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
 
         # always load members for joinables
-        if query._node_type in JOINABLE_NODE_TYPES:  # :AutoLoading
-            query = query.include_descendants(NodeType.MEMBERSHIP)
+        if descendant_types := AUTOLOAD_DESCENDANT_TYPES.get(query._node_type):
+            query = query.include_descendants(*descendant_types)
 
         return query
 

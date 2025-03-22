@@ -11,6 +11,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
+from bench.language.connection.memory import MemoryEngine
 from bench.language.core import (
     BenchError,
     C,
@@ -46,6 +47,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+# NOTE :Architecture: Engines/Connectors/Connections are an annoying mess :RichGraph
+
 
 class SplitConnector(Connector[NullEngine]):
     """A read-only connector splits queries across connectors."""
@@ -79,6 +82,7 @@ class SplitConnection(Connection):
         *,
         is_readonly: bool,
         include_deleted: bool,
+        include_memory: bool,
     ) -> tuple[Engine, set[NodeType]]:
         """Get the engine with best coverage of required node types from candidates."""
         candidate_engines = [
@@ -87,6 +91,7 @@ class SplitConnection(Connection):
             if (
                 (is_readonly or not engine.is_readonly)
                 and (not include_deleted or engine.include_deleted)
+                and (include_memory or not isinstance(engine, MemoryEngine))
                 and scope_includes(engine.scope, scope)
                 and any(t in engine.node_types for t in required_types)
             )
@@ -122,6 +127,7 @@ class SplitConnection(Connection):
             remaining_types,
             is_readonly=True,
             include_deleted=query.include_deleted,
+            include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
 
@@ -187,6 +193,7 @@ class SplitConnection(Connection):
             next_ancestor_types,
             is_readonly=True,
             include_deleted=query.include_deleted,
+            include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
 
@@ -268,6 +275,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitConnector, T], SplitC
             set(query.all_node_types),
             is_readonly=True,
             include_deleted=query.include_deleted,
+            include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
         connection = await connector.search(
@@ -303,6 +311,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitConnector, T], SplitConnect
             set(query.all_node_types),
             is_readonly=True,
             include_deleted=query.include_deleted,
+            include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
         connection = await connector.get(
