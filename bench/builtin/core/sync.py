@@ -109,8 +109,8 @@ def sync_node(
     """Patches the target node *in place* from the reference node (recursively)."""
 
     if target is None or target.metatype != reference.metatype:
+        # replace target completely if it's not the same type
         if target is not None:
-            # replace target completely
             target.erase()
 
         # target doesn't have that node, create it

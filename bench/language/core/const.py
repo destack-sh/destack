@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.21.2"
+VERSION = "2025.03.22.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -365,7 +365,7 @@ class EnumType(BuiltinEnum):
     SCALER_TYPE = 21010
     SCALER_STRATEGY = 21011
     COMPUTER_TYPE = 21020
-    BROWSER_TYPE = 21030
+    APPLICATION_TYPE = 21030
     STORE_TYPE = 21040
     CLIENT_TYPE = 21041
 
@@ -567,7 +567,7 @@ class NodeType(BuiltinEnum):
     STORE = 2010, None, None, "fas fa-database"
     # CACHE?
     COMPUTER = 2100, None, None, "fas fa-computer-classic"
-    BROWSER = 2110, None, None, "fas fa-globe"
+    APPLICATION = 2110, None, None, "fas fa-globe"
     # MODEL, ...
 
     # data

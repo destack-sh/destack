@@ -9,8 +9,8 @@ from bench.language import (
     Action,
     ActionType,
     Aliasing,
-    Browser,
-    BrowserType,
+    Application,
+    ApplicationType,
     BuiltinObject,
     Choice,
     Claim,
@@ -171,7 +171,7 @@ def test_render_node_mode(session: Session, package: Package):
     Page1 = Page.new(text_line("Page1"))
     Page2 = Page.new(text_line("Page2"), mode=NodeMode.ARCHIVE)
     Page3 = Page.new(text_line("Page3"), mode=NodeMode.TEST)
-    Browser1 = Browser.new(BrowserType.CHROME, "Browser1", mode=NodeMode.TEMPLATE)
+    Browser1 = Application.new(ApplicationType.CHROME_BROWSER, "Browser1", mode=NodeMode.TEMPLATE)
     Flow1 = Flow.new("Flow1", claims=[Claim.exclusive("Claim1", Browser1, mode=NodeMode.TEMPLATE)])
     return {
         "Page1": Page1,

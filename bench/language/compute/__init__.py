@@ -1,4 +1,4 @@
-from .browser import DEFAULT_BROWSER_HEIGHT, DEFAULT_BROWSER_WIDTH, Browser, BrowserType
+from .application import Application, ApplicationType
 from .computer import Computer, ComputerType
 from .file import (
     FILE_FORMAT_BY_EXTENSION,
@@ -25,15 +25,13 @@ from .store import Store
 from .stream import Stream
 
 __all__ = [
-    "DEFAULT_BROWSER_HEIGHT",
-    "DEFAULT_BROWSER_WIDTH",
     "FILE_FORMAT_BY_EXTENSION",
     "FILE_FORMAT_BY_MIME_TYPE",
     "MIME_TYPES_BY_FILE_FORMAT",
     "MIME_TYPE_BY_FORMAT",
     "MIME_TYPE_CONSTRAINT",
-    "Browser",
-    "BrowserType",
+    "Application",
+    "ApplicationType",
     "Computer",
     "ComputerType",
     "File",

@@ -39,7 +39,7 @@ enum EnumType {
   ENUM_TYPE_SCALER_TYPE = 21010;
   ENUM_TYPE_SCALER_STRATEGY = 21011;
   ENUM_TYPE_COMPUTER_TYPE = 21020;
-  ENUM_TYPE_BROWSER_TYPE = 21030;
+  ENUM_TYPE_APPLICATION_TYPE = 21030;
   ENUM_TYPE_STORE_TYPE = 21040;
   ENUM_TYPE_CLIENT_TYPE = 21041;
   ENUM_TYPE_FILE_RETENTION_MODE = 21050;
@@ -145,7 +145,7 @@ enum NodeType {
   NODE_TYPE_SCALER = 2000;
   NODE_TYPE_STORE = 2010;
   NODE_TYPE_COMPUTER = 2100;
-  NODE_TYPE_BROWSER = 2110;
+  NODE_TYPE_APPLICATION = 2110;
   NODE_TYPE_FILE = 2200;
   NODE_TYPE_STREAM = 2210;
   NODE_TYPE_SECRET = 2220;
@@ -256,7 +256,7 @@ enum ObjectType {
   OBJECT_TYPE_SCALER = 2000;
   OBJECT_TYPE_STORE = 2010;
   OBJECT_TYPE_COMPUTER = 2100;
-  OBJECT_TYPE_BROWSER = 2110;
+  OBJECT_TYPE_APPLICATION = 2110;
   OBJECT_TYPE_FILE = 2200;
   OBJECT_TYPE_STREAM = 2210;
   OBJECT_TYPE_SECRET = 2220;
@@ -363,7 +363,7 @@ enum BenchType {
   BENCH_TYPE_SCALER = 2000;
   BENCH_TYPE_STORE = 2010;
   BENCH_TYPE_COMPUTER = 2100;
-  BENCH_TYPE_BROWSER = 2110;
+  BENCH_TYPE_APPLICATION = 2110;
   BENCH_TYPE_FILE = 2200;
   BENCH_TYPE_STREAM = 2210;
   BENCH_TYPE_SECRET = 2220;
@@ -486,7 +486,7 @@ enum BenchType {
   BENCH_TYPE_SCALER_TYPE = 21010;
   BENCH_TYPE_SCALER_STRATEGY = 21011;
   BENCH_TYPE_COMPUTER_TYPE = 21020;
-  BENCH_TYPE_BROWSER_TYPE = 21030;
+  BENCH_TYPE_APPLICATION_TYPE = 21030;
   BENCH_TYPE_STORE_TYPE = 21040;
   BENCH_TYPE_CLIENT_TYPE = 21041;
   BENCH_TYPE_FILE_RETENTION_MODE = 21050;
@@ -784,7 +784,6 @@ enum ResourceStatus {
 enum ScalerType {
   SCALER_TYPE_UNSPECIFIED = 0;
   SCALER_TYPE_COMPUTER = 2100;
-  SCALER_TYPE_BROWSER = 2150;
 }
 
 enum ScalerStrategy {
@@ -802,9 +801,10 @@ enum ComputerType {
   COMPUTER_TYPE_CUSTOM = 9000;
 }
 
-enum BrowserType {
-  BROWSER_TYPE_UNSPECIFIED = 0;
-  BROWSER_TYPE_CHROME = 1;
+enum ApplicationType {
+  APPLICATION_TYPE_UNSPECIFIED = 0;
+  APPLICATION_TYPE_SHELL = 100;
+  APPLICATION_TYPE_CHROME_BROWSER = 1000;
 }
 
 enum StoreType {
@@ -1012,7 +1012,7 @@ enum TypeFormat {
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
   BLOCK_TYPE_COMPUTER = 2100;
-  BLOCK_TYPE_BROWSER = 2110;
+  BLOCK_TYPE_APPLICATION = 2110;
   BLOCK_TYPE_FILE = 2200;
   BLOCK_TYPE_PAGE = 5020;
   BLOCK_TYPE_CHOICE = 5030;
@@ -2772,7 +2772,7 @@ message ThreadData {
   optional NodeReferenceData identity_ptr = 96;
 }
 
-message BrowserData {
+message ApplicationData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -2788,7 +2788,7 @@ message BrowserData {
   optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  BrowserType type = 30;
+  ApplicationType type = 30;
   optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
@@ -2804,17 +2804,8 @@ message BrowserData {
   optional google.protobuf.Timestamp suspended_at = 54;
   optional google.protobuf.Timestamp decommissioned_at = 55;
   optional google.protobuf.Timestamp active_at = 56;
-  optional string version = 60;
-  optional string target_version = 61;
   optional string external_name = 62;
   optional string external_id = 63;
-  optional string connection_uri = 64;
-  optional string debugger_uri = 65;
-  optional string view_uri = 66;
-  optional NodeReferenceData client_ptr = 67;
-  optional Vector2Data size = 70;
-  bool is_headless = 75;
-  bool is_insecure = 76;
 }
 
 message ComputerData {
@@ -4013,7 +4004,7 @@ message SomeNodeData {
     ScalerData scaler = 6;
     StoreData store = 7;
     ComputerData computer = 8;
-    BrowserData browser = 9;
+    ApplicationData application = 9;
     FileData file = 10;
     StreamData stream = 11;
     SecretData secret = 12;

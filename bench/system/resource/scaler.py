@@ -8,7 +8,6 @@ from opentelemetry import trace
 from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
-    Browser,
     Computer,
     NodeMode,
     NodeType,
@@ -189,9 +188,3 @@ class ComputerScalerProvisioner(ScalerProvisioner[Computer]):
     watch_types = bittuple(NodeType.SCALER, NodeType.COMPUTER)
     provision_subtype = ScalerType.COMPUTER
     scale_type = NodeType.COMPUTER
-
-
-class BrowserScalerProvisioner(ScalerProvisioner[Browser]):
-    watch_types = bittuple(NodeType.SCALER, NodeType.BROWSER)
-    provision_subtype = ScalerType.BROWSER
-    scale_type = NodeType.BROWSER

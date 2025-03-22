@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.21.2"
+VERSION = "2025.03.22.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -374,8 +374,8 @@ COMPUTER_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-BROWSER_TABLE = Table(
-    "bench_browser",
+APPLICATION_TABLE = Table(
+    "bench_application",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
@@ -414,17 +414,8 @@ BROWSER_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("version", PrimitiveType.STRING, is_nullable=True),
-        Column("target_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
-        Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("debugger_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("view_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("size", PrimitiveType.JSON, is_nullable=True),
-        Column("is_headless", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_insecure", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

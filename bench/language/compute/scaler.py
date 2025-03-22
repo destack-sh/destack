@@ -18,7 +18,6 @@ from bench.pb2.lang_pb2 import ScalerData
 class ScalerType(BuiltinEnum):
     # NOTE: should match respective NodeType
     COMPUTER = 2100
-    BROWSER = 2150
 
 
 @enum_(EnumType.SCALER_STRATEGY)
