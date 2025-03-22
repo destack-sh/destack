@@ -1,0 +1,45 @@
+# NOTE: based from https://github.com/openai/openai-cua-sample-app/blob/main/Dockerfile
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+# install Xfce, x11vnc, Xvfb, xdotool, etc., but remove any screen lockers or power managers
+RUN apt-get update && apt-get install -y \
+    xfce4 \
+    xfce4-goodies \
+    x11vnc \
+    xvfb \
+    xdotool \
+    imagemagick \
+    x11-apps \
+    sudo \
+    software-properties-common \
+    imagemagick \
+ && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# add the mozillateam PPA and install Firefox ESR
+RUN add-apt-repository ppa:mozillateam/ppa \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends firefox-esr \
+ && update-alternatives --set x-www-browser /usr/bin/firefox-esr \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# create non-root user
+RUN useradd -ms /bin/bash bench \
+    && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+USER bench
+WORKDIR /home/bench
+
+# set x11vnc password ("bench")
+RUN x11vnc -storepasswd bench /home/bench/.vncpass
+
+# expose port 5900 and run Xvfb, x11vnc, Xfce (no login manager)
+EXPOSE 5900
+CMD ["/bin/sh", "-c", "\
+    Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 & \
+    x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 >/dev/null 2>&1 & \
+    export DISPLAY=:99 && \
+    startxfce4 >/dev/null 2>&1 & \
+    sleep 2 && echo 'Container running!' && \
+    tail -f /dev/null \
+"]
