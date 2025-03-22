@@ -1,7 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from itertools import chain
-from typing import Any, Callable, Literal, Mapping, Sequence, cast, override
+from typing import Any, Callable, Mapping, Sequence, cast, override
 from uuid import UUID
 
 import structlog
@@ -78,6 +77,7 @@ from bench.system.core import (
     pg_engine_from_store,
 )
 from bench.system.graph import GraphServiceBase, PostgresEngine
+from bench.system.graph.connection import is_edit_in_scope
 from bench.system.resource import (
     ComputerScalerProvisioner,
     KubernetesComputerProvisioner,
@@ -545,46 +545,41 @@ class HostService(GraphServiceBase, HostBase):
         *,
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
-        scope: Literal["unpacked", "data", "both"],
     ) -> None:
-        """Applies the given edits to our unpacked or data (or both) graphs."""
+        """
+        Applies the given edits to our unpacked or data (or both) graphs.
+        NOTE :Architecture :Cleanup: Host loaded graphs feels very similar to system Connections
+        """
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
+        bench_graph = self._bench._graph
+        bench_data_graph = self._bench._data_graph
 
-        bench_edits: list[EditData] = []
-        for i, edit in enumerate(chain(edits, cascaded_edits)):
-            is_cascaded = i >= len(edits)
-            if is_cascaded and edit.type in (EditType.DELETE, EditType.ERASE):
-                continue  # remove cascades are implicit
-            node_type = NodeType(edit.node_ptr.node_type)
-            if node_type not in self._bench._graph.node_types:
-                continue  # not loaded
-            if node_type in self._bench._graph.node_types:
-                bench_edits.append(edit)
-        for root_node, subedits in ((self._bench, bench_edits),):
+        def _apply_edit(edit: EditData):
             # filter the in memory edits to only those with an origin (we = system has origin = null)
-            external_edits = tuple(e for e in subedits if e.origin.id)
-            if scope == "both" or scope == "unpacked":
+            if edit.origin.id:
                 edit_graph(
-                    graph=root_node._graph,
+                    graph=bench_graph,
                     supergraph=self._supergraph,
-                    edits=external_edits,
+                    edits=(edit,),
                     include_deleted=False,
                     validate=False,
                 )
-            if scope == "both" or scope == "data":
-                edit_data_graph(root_node._data_graph, subedits, include_deleted=False)
+            edit_data_graph(
+                graph=bench_data_graph,
+                edits=(edit,),
+                include_deleted=False,
+            )
 
-    def _reset_loaded_graphs(self):
-        """
-        Resets the in-memory graphs to match the data graphs. Patches in-place.
-        """
-        assert self._bench is not None, f"bench not loaded in {self!r}"
-
-        new_bench_graph = unpack_node_graph(
-            self._bench._data_graph, self._supergraph, session=self._session
-        )
-        patch_graph(old_graph=self._bench._graph, new_graph=new_bench_graph)
+        bench_id = str(self._bench.id)
+        for edit in edits:
+            if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
+                _apply_edit(edit)
+        for edit in cascaded_edits:
+            if edit.type in (EditType.DELETE, EditType.ERASE):
+                continue  # remove cascades are implicit
+            if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
+                _apply_edit(edit)
 
     @override
     @tracer.start_as_current_span("host.on_commit_prepare")
@@ -600,8 +595,9 @@ class HostService(GraphServiceBase, HostBase):
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
-        # optimistically apply commit (to in-memory unpacked only) :ConcurrentHost
-        self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="unpacked")
+        # optimistically apply commit :ConcurrentHost
+        self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits)
+
         # replace copied source nodes in the temporary 'graph' with our loaded originals
         #  (this ensure that we have all the descendants for source nodes loaded)
         for copied_node in graph.nodes:
@@ -635,9 +631,6 @@ class HostService(GraphServiceBase, HostBase):
         await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
 
         assert self._session is not None, f"session not ready in {self!r}"
-
-        # apply edits to loaded data graphs (see on_commit_prepare above for optimistic counterpart)
-        self._update_loaded_graphs(edits=edits, cascaded_edits=cascaded_edits, scope="data")
 
         # run plugins on commit (in main session)
         async with self._session.active():
@@ -681,7 +674,10 @@ class HostService(GraphServiceBase, HostBase):
     async def on_commit_failed(self, session: Session, exc: BaseException):
         # restore in memory unpacked graphs from data graphs
         #  (we apply edits optimistically above in on_commit_prepare)
-        self._reset_loaded_graphs()
+        new_bench_graph = unpack_node_graph(
+            self._bench._data_graph, self._supergraph, session=self._session
+        )
+        patch_graph(old_graph=self._bench._graph, new_graph=new_bench_graph)
 
         # run plugins
         for plugin in self._plugins:

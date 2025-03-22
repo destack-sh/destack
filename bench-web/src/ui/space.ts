@@ -1411,7 +1411,7 @@ declareCommands<"space">({
   "space.omnibar.commands": {
     title: "Search commands",
     text: "Search for a command",
-    shortcuts: ["mod+shift+a"],
+    shortcuts: ["mod+shift+k"],
   },
   // edit
   "space.edit.rename": {

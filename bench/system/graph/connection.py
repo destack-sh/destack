@@ -200,15 +200,11 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection.unsubscribe(self)
 
 
-# TODO :Security!: apply policies to connection subscriptions :RichGraph
-#  (need some per-connection-type subscription info?)
-
-
-def _get_edited_node(updated_graph: NodeDataGraph, edit: EditData) -> AnyNodeData | None:
+def _get_edited_node(edit: EditData, graph: NodeDataGraph) -> AnyNodeData | None:
     """Get the full edited node data."""
     node_id = edit.node_ptr.id
     assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
-    updated_node = updated_graph.get(node_id)
+    updated_node = graph.get(node_id)
     if updated_node is None:
         if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE):
             assert edit.HasField("node_data"), f"missing new node data for {edit!r}"
@@ -216,6 +212,38 @@ def _get_edited_node(updated_graph: NodeDataGraph, edit: EditData) -> AnyNodeDat
         else:
             return None
     return updated_node
+
+
+def is_edit_in_scope(edit: EditData, graph: NodeDataGraph, root_id: str) -> bool:
+    """
+    Check if the edit is in the scope of the graph (deeply).
+    """
+    # filter type
+    node_type = NodeType(edit.node_ptr.node_type)
+    if node_type not in graph.node_types:
+        return False  # irrelevant type
+
+    # filter scope
+    if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE):
+        node = _get_edited_node(edit, graph)
+        assert node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
+        # add: parent must be in a root, in our graph or be optional
+        parent_id = node.parent_ptr.id
+        if parent_id not in graph:
+            return False
+        # already have a parent, check if parent is a root or just a common ancestor
+        parent = graph.get(parent_id)
+        while parent is not None:
+            if parent.id == root_id:
+                # yup, parent is a real root
+                return True
+            parent = graph.get(parent.parent_ptr.id) if parent.parent_ptr.id else None
+        else:
+            # just a shared ancestor, not in scope
+            return False
+    else:
+        # update/remove: node must already be in our result graph
+        return edit.node_ptr.id in graph
 
 
 class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
@@ -257,7 +285,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 not self.query.include_deleted and edit_type == EditType.RESTORE
             ):
-                node = _get_edited_node(updated_graph, edit)
+                node = _get_edited_node(edit, updated_graph)
                 assert node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
                 # add: parent must be in a root, in our graph or be optional
                 parent_id = node.parent_ptr.id if node.parent_ptr else None
@@ -299,7 +327,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                 # update/remove: node must already be in our result graph
                 is_in_scope = edit.node_ptr.id in result_graph
             if is_in_scope:
-                node = _get_edited_node(updated_graph, edit)
+                node = _get_edited_node(edit, updated_graph)
                 if node is None:
                     node = result_graph[edit.node_ptr.id]
                 # apply (just use updated node instead of actually applying edit, we're read only)
@@ -421,7 +449,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
             node_id = edit.node_ptr.id
             assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
             is_extant = node_id in self._result_roots_ids
-            node = _get_edited_node(graph, edit)
+            node = _get_edited_node(edit, graph)
             if node is None:
                 if not is_extant:
                     continue  # ignore irrelevant remove
