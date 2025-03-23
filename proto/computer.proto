@@ -26,7 +26,7 @@ service Computer {
   rpc Scroll(ScrollRequest) returns (Empty);
 
   // Execute a shell command and return output
-  // NOTE: Computer.Shell should probably be streaming?
+  // NOTE :UX: Computer.Shell should probably be streaming?
   rpc Shell(ShellCommandRequest) returns (ShellCommandResponse);
 }
 

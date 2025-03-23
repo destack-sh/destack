@@ -45,12 +45,34 @@ RUN apt-get update && apt-get install -y \
  && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# add the mozillateam PPA and install Firefox ESR
-RUN add-apt-repository ppa:mozillateam/ppa \
- && apt-get update \
- && apt-get install -y --no-install-recommends firefox-esr \
- && update-alternatives --set x-www-browser /usr/bin/firefox-esr \
+# install Chromium browser with extensions and fonts
+RUN apt-get update && apt-get install -y \
+    chromium-browser \
+    chromium-chromedriver \
+    fonts-freefont-ttf \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    fonts-noto \
+    libgbm-dev \
+    libxss1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxtst6 \
+    unzip \
+    --no-install-recommends \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# install uBlock Origin extension correctly
+RUN mkdir -p /usr/lib/chromium/extensions/ublock \
+ && curl -sSL https://github.com/gorhill/uBlock/releases/download/1.63.2/uBlock0_1.63.2.chromium.zip -o ublock.zip \
+ && unzip ublock.zip -d /usr/lib/chromium/extensions/ublock \
+ && rm ublock.zip
+
+# add 'chromium' command
+RUN echo '#!/bin/sh\nexec chromium-browser --no-sandbox --disable-dev-shm-usage --load-extension=/usr/lib/chromium/extensions/ublock "$@"' \
+    > /usr/local/bin/chromium && chmod +x /usr/local/bin/chromium
 
 # install Python 3.13
 RUN add-apt-repository ppa:deadsnakes/ppa \
@@ -71,21 +93,23 @@ ENV PYTHONUNBUFFERED=1
 COPY bench/requirements/computer.txt bench/requirements.txt
 RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
 
+# explicitly create and set permissions on /tmp/.X11-unix
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
 # create non-root user
 RUN useradd -ms /bin/bash bench \
     && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
 USER bench
 WORKDIR /home/bench
+
 
 # copy application files
 COPY --chown=bench:bench bench.py .
 COPY --chown=bench:bench pyproject.toml .
 COPY --chown=bench:bench version .
 COPY --chown=bench:bench bench/__init__.py bench/__init__.py
-# nocheckin narrow down bench/language import for computer somehow 
+# nocheckin :Security: narrow down bench/language import for computer somehow 
 # (unfortunately we need to import proto service stuff, maybe we can factor that out?)
-# COPY --chown=bench:bench bench/language/core/const.py bench/language/core/const.py
 COPY --chown=bench:bench bench/language bench/language
 COPY --chown=bench:bench bench/computer bench/computer
 COPY --chown=bench:bench bench/utils bench/utils
@@ -97,12 +121,13 @@ COPY --chown=bench:bench bench/pb2 bench/pb2
 RUN x11vnc -storepasswd bench /home/bench/.vncpass
 
 # run Xvfb, x11vnc, Xfce (no login manager)
+# TODO :Performance: remove sleeps in computer startup
 CMD ["/bin/sh", "-c", "\
-Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 & \
-x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 >/dev/null 2>&1 & \
 export DISPLAY=:99 && \
-startxfce4 >/dev/null 2>&1 & \
-python3 bench.py serve computer 0.0.0.0 5432"]
+Xvfb :99 -screen 0 1280x800x24 & sleep 2 && \
+x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 & sleep 2 && \
+DISPLAY=:99 xfce4-session & sleep 2 && \
+exec python3 bench.py serve computer 0.0.0.0 5432"]
 
 ARG GIT_COMMIT
 ARG VERSION
