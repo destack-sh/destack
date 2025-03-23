@@ -4,8 +4,6 @@ from pathlib import Path
 import structlog
 import typer
 
-from bench.language.core import VERSION
-
 app = typer.Typer(short_help="version management")
 logger = structlog.get_logger(__name__)
 
@@ -16,6 +14,8 @@ def show():
     """
     Show the current version.
     """
+    from bench.language.core import VERSION
+
     print(VERSION)  # noqa: T201
 
 
@@ -25,6 +25,8 @@ def bump(revision: int | None = typer.Option(None)):
     Bump the CalVer to the current date. Increment revision if the date is the same.
     Format: YYYY.MM.DD.R
     """
+    from bench.language.core import VERSION
+
     current_version = VERSION
     current_version_date = datetime.strptime(current_version[:10], "%Y.%m.%d").date()  # noqa: DTZ007
     current_version_revision = int(current_version[11:])

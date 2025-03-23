@@ -11,13 +11,8 @@ import structlog
 import typer
 import uvloop
 from opentelemetry import trace
-from prompt_toolkit import PromptSession
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.styles import Style
-from pygments.lexers import PythonLexer
+
+from bench.language.core.const import NodeArea, Region
 
 if TYPE_CHECKING:
     from bench.language import NodeArea, Region
@@ -64,10 +59,9 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
 
 def parse_region(region: "str | Region") -> "Region":
     """Parse a Region from a string."""
-    from bench.language import Region
-
     if isinstance(region, Region):
         return region
+
     region = region.upper()
     try:
         if region in Region.__members__:
@@ -84,8 +78,6 @@ def parse_region(region: "str | Region") -> "Region":
 
 def parse_area(area: "str | NodeArea") -> "NodeArea":
     """Parse a NodeArea from a string."""
-    from bench.language import NodeArea
-
     if isinstance(area, NodeArea):
         return area
 
@@ -138,22 +130,29 @@ async def eval_async(source: str, env: dict[str, Any]) -> Any:
             return None
 
 
-fancy_style = Style.from_dict(
-    {
-        "pygments.keyword": "bold ansigreen",
-        "pygments.comment": "italic ansiwhite",
-        "pygments.string": "ansimagenta",
-        "pygments.number": "ansiblue",
-        "prompt": "bold ansiyellow",
-    }
-)
-
-
 async def repl(banner: str, vars: dict[str, Any]):
     """Interactive async Python shell with syntax highlighting, auto-suggestions, etc."""
     print(banner)  # noqa: T201
 
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+    from prompt_toolkit.history import InMemoryHistory
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.lexers import PygmentsLexer
+    from prompt_toolkit.styles import Style
+    from pygments.lexers import PythonLexer
+
     kb = KeyBindings()
+
+    fancy_style = Style.from_dict(
+        {
+            "pygments.keyword": "bold ansigreen",
+            "pygments.comment": "italic ansiwhite",
+            "pygments.string": "ansimagenta",
+            "pygments.number": "ansiblue",
+            "prompt": "bold ansiyellow",
+        }
+    )
 
     @kb.add("c-c")
     @kb.add("c-d")

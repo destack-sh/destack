@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 
-from bench.cli.utils import async_to_sync
+from .utils import async_to_sync
 
 app = typer.Typer(short_help="test utilities")
 

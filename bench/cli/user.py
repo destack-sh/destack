@@ -1,9 +1,10 @@
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync
 from bench.language import NodeArea, User, UserStatus
 from bench.utils.oracle import REAL_ORACLE
+
+from .utils import async_to_sync
 
 app = typer.Typer(short_help="some language-level utilities")
 

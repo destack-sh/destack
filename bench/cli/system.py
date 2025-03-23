@@ -1,38 +1,21 @@
 import base64
 import json
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import structlog
 import typer
 from more_itertools import first
 from rich import print
 
-from bench.cli.utils import async_to_sync, parse_region
-from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BENCH_SLUG,
-    BENCH_BUILTIN_PACKAGE_ID,
-    BENCH_BUILTIN_PACKAGE_SLUG,
-    CLOUD,
-    REGION,
-    SYSTEM_BENCH_ID,
-    SYSTEM_BENCH_SLUG,
-    SYSTEM_PACKAGE_ID,
-    SYSTEM_PACKAGE_SLUG,
-    Bench,
-    Client,
-    ClientType,
-    Computer,
-    NodeArea,
-    NodeType,
-    Region,
-    ResourceStatus,
-    User,
-    UserStatus,
-)
+from bench.language.core.const import Region
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
+
+from .utils import async_to_sync, parse_region
+
+if TYPE_CHECKING:
+    pass
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -41,7 +24,21 @@ logger = structlog.get_logger(__name__)
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync
-async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)] = REGION):
+async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]):
+    from bench.language import (
+        BENCH_BENCH_ID,
+        BENCH_BENCH_SLUG,
+        BENCH_BUILTIN_PACKAGE_ID,
+        BENCH_BUILTIN_PACKAGE_SLUG,
+        SYSTEM_BENCH_ID,
+        SYSTEM_BENCH_SLUG,
+        SYSTEM_PACKAGE_ID,
+        SYSTEM_PACKAGE_SLUG,
+        NodeArea,
+        Region,
+        User,
+        UserStatus,
+    )
     from bench.system import (
         CreateBenchOptions,
         create_default_bench,
@@ -112,9 +109,18 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
 @async_to_sync
 async def make_local_computer(
     bench_slug: str,
-    title: str = "Localhost",
-    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    title: str,
+    region: Annotated[Region, typer.Option(parser=parse_region)],
 ):
+    from bench.language import (
+        Bench,
+        Client,
+        ClientType,
+        Computer,
+        NodeArea,
+        NodeType,
+        ResourceStatus,
+    )
     from bench.system import (
         ACCESS_TOKEN_LENGTH,
         global_session,
@@ -184,6 +190,7 @@ async def create_image_pull_secret(*, ghcr_username: str, ghcr_token: str):
     from kubernetes_asyncio import client as k8
     from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
 
+    from bench.language import CLOUD, REGION
     from bench.system.resource.kubernetes import KUBERNETES_NAMESPACE, get_kubernetes_client
 
     kubernetes_api = await get_kubernetes_client()

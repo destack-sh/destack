@@ -1,14 +1,18 @@
 import signal
 import subprocess
-from typing import Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync, parse_area, parse_region
-from bench.language import REGION, Bench, NodeArea, Package, Region, Store
+from bench.language.core.const import NodeArea, Region
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
+
+from .utils import async_to_sync, parse_area, parse_region
+
+if TYPE_CHECKING:
+    from bench.language import NodeArea, Region
 
 app = typer.Typer(short_help="postgres management")
 logger = structlog.get_logger(__name__)
@@ -18,11 +22,12 @@ logger = structlog.get_logger(__name__)
 @app.command()
 @async_to_sync
 async def shell(
-    area: NodeArea = typer.Option(help="the area to connect to", parser=parse_area),  # noqa: B008
-    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    area: Annotated[NodeArea, typer.Option(parser=parse_area)],
+    region: Annotated[Region, typer.Option(parser=parse_region)],
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
+    from bench.language import Bench, NodeArea, Package, Store
     from bench.system import (
         global_session,
         global_store_from_env,
