@@ -26,6 +26,7 @@ MANIFEST
 .env
 .venv
 .venv-runtime
+.venv-computer
 env/
 venv/
 ENV/

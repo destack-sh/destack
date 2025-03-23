@@ -4,15 +4,24 @@ FROM python:3.13-slim AS bench-base
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
 
-# own the libs
-RUN apt-get update
-RUN apt-get install -y libpq-dev libzbar-dev postgresql-client
-RUN apt-get install -y ffmpeg
-RUN apt-get install -y gcc gfortran g++
-RUN apt-get install -y pkg-config cmake libopenblas-dev liblapack-dev
-RUN apt-get install -y libxml2-dev libxslt-dev
-RUN apt-get install -y git
-RUN apt-get install -y curl
+# install libs
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    libzbar-dev \
+    postgresql-client \
+    ffmpeg \
+    gcc \
+    gfortran \
+    g++ \
+    pkg-config \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libxml2-dev \
+    libxslt-dev \
+    git \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # uv
 ADD https://astral.sh/uv/install.sh /uv-installer.sh
@@ -48,9 +57,6 @@ EXPOSE 80
 # --- Runtime ---
 FROM bench-base AS bench-runtime
 
-# install pandoc
-RUN apt-get install -y pandoc
-
 COPY bench/requirements/runtime.txt requirements.txt
 RUN uv pip install --system --no-cache -r requirements.txt
 
@@ -67,8 +73,8 @@ COPY version .
 
 ARG GIT_COMMIT
 ARG VERSION
-ENV GIT_COMMIT $GIT_COMMIT
-ENV VERSION $VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION
 
 EXPOSE 5432
 EXPOSE 80
