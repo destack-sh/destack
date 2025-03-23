@@ -8,15 +8,14 @@ from uuid import UUID
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync
-from bench.language import ClientType
 from bench.pb2.system_grpc import SupervisorClient
-from bench.proto import GrpcServer, Network, ServiceBase
-from bench.proto.network import RealNetwork
+from bench.proto import GrpcServer, Network, RealNetwork, ServiceBase
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
+
+from .utils import async_to_sync
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
@@ -175,6 +174,7 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 @app.command()
 @async_to_sync
 async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = False):
+    from bench.language import ClientType
     from bench.runtime import RuntimeProcess, RuntimeProcessMode, RuntimeService
 
     logger.info("serve.runtime", host=host, port=port, env=ENV)

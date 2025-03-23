@@ -30,7 +30,6 @@ RUN apt-get update && apt-get install -y \
     libxslt-dev \
     git \
     curl \
-    python3-dev \
  && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -41,27 +40,42 @@ RUN add-apt-repository ppa:mozillateam/ppa \
  && update-alternatives --set x-www-browser /usr/bin/firefox-esr \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# uv
+# install Python 3.13
+RUN add-apt-repository ppa:deadsnakes/ppa \
+ && apt-get update \
+ && apt-get install -y python3.13 python3.13-dev \
+ && rm -f /usr/bin/python3 \
+ && ln -s /usr/bin/python3.13 /usr/bin/python3 \
+ && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# install uv globally
 ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && rm /uv-installer.sh
-ENV PATH="/root/.local/bin/:$PATH"
+RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-installer.sh
+ENV PATH="/usr/local/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# python harness
+# python harness (install packages as root)
 COPY bench/requirements/computer.txt bench/requirements.txt
-RUN uv pip install --system --no-cache -r bench/requirements.txt
-COPY bench.py .
-COPY pyproject.toml .
-COPY version .
-COPY bench/cli bench/cli
-COPY bench/proto bench/proto
-COPY bench/pb2 bench/pb2
+RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
 
 # create non-root user
 RUN useradd -ms /bin/bash bench \
     && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
 USER bench
 WORKDIR /home/bench
+
+# copy application files
+COPY --chown=bench:bench bench.py .
+COPY --chown=bench:bench pyproject.toml .
+COPY --chown=bench:bench version .
+COPY --chown=bench:bench bench/__init__.py bench/__init__.py
+COPY --chown=bench:bench bench/language/core/const.py bench/language/core/const.py
+COPY --chown=bench:bench bench/utils bench/utils
+COPY --chown=bench:bench bench/cli bench/cli
+COPY --chown=bench:bench bench/proto bench/proto
+COPY --chown=bench:bench bench/pb2 bench/pb2
 
 # set x11vnc password ("bench")
 RUN x11vnc -storepasswd bench /home/bench/.vncpass
@@ -72,7 +86,7 @@ Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 & \
 x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 >/dev/null 2>&1 & \
 export DISPLAY=:99 && \
 startxfce4 >/dev/null 2>&1 & \
-"]
+python3 bench.py serve computer 0.0.0.0 5432"]
 
 ARG GIT_COMMIT
 ARG VERSION

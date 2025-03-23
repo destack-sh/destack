@@ -1,7 +1,7 @@
 import sys
 import time
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 import structlog
 import typer
@@ -9,53 +9,56 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.cli.utils import async_to_sync, parse_area, parse_region
-from bench.language import REGION, VERSION, Bench, NodeArea, NodeType, Package, Region, Store
-from bench.sql import (
-    BENCH_RECORD_TABLE_PREFIX,
-    BENCH_TABLE_PREFIX,
-    BUILTIN_GLOBAL_SCHEMA,
-    BUILTIN_LOCAL_SCHEMA,
-    BUILTIN_REGIONAL_SCHEMA,
-    Migration,
-    Schema,
-    SqlUndefinedObjectError,
-    add_migration_to_fs,
-    generate_sql_migration_code,
-    generate_sql_migration_ops,
-    introspect_sql_schema,
-    pg_connection,
-    read_migrations_from_fs,
-    read_migrations_from_pg,
-)
-from bench.sql import sql_migrate as _migrate
+from bench.language.core.const import NodeArea, Region
 from bench.utils.oracle import REAL_ORACLE
-from bench.utils.utils import format_python
+
+from .utils import async_to_sync, parse_area, parse_region
+
+if TYPE_CHECKING:
+    from bench.language import NodeArea, Region
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
 console = Console()
 
-BENCH_QUERY = Bench.include_descendants(Package, Store).select_all()
-
 
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Annotated[NodeArea | None, typer.Option(parser=parse_area)] = None,
-    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    area: Annotated[NodeArea, typer.Option(parser=parse_area)],
+    region: Annotated[Region, typer.Option(parser=parse_region)],
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
+    from bench.language import VERSION, Bench, NodeArea, Package, Store
+    from bench.sql import (
+        BENCH_RECORD_TABLE_PREFIX,
+        BENCH_TABLE_PREFIX,
+        BUILTIN_GLOBAL_SCHEMA,
+        BUILTIN_LOCAL_SCHEMA,
+        BUILTIN_REGIONAL_SCHEMA,
+        Migration,
+        Schema,
+        SqlUndefinedObjectError,
+        add_migration_to_fs,
+        generate_sql_migration_code,
+        generate_sql_migration_ops,
+        introspect_sql_schema,
+        pg_connection,
+        read_migrations_from_fs,
+        read_migrations_from_pg,
+    )
     from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,
         regional_store_from_env,
     )
+
+    BENCH_QUERY = Bench.include_descendants(Package, Store).select_all()
 
     start = time.time()
     global_store = global_store_from_env()
@@ -174,26 +177,31 @@ async def make(
 @app.command(help="apply SQL migrations")
 @async_to_sync
 async def apply(
-    area: NodeArea = typer.Option(  # noqa: B008
+    area: "NodeArea" = typer.Option(  # noqa: B008
         parser=parse_area, help="the area to migrate"
     ),
     target: Optional[str] = typer.Option(
         default=None, help="the migration to migrate to [default=latest]"
     ),
-    region: Optional[Region] = typer.Option(  # noqa: B008
-        default=REGION, help="the region to migrate [default=current]", parser=parse_region
+    region: Optional["Region"] = typer.Option(  # noqa: B008
+        default=None, help="the region to migrate [default=current]", parser=parse_region
     ),
     bench: Optional[str] = typer.Option(
         default=None, help="the local bench to migrate, global otherwise"
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
+    from bench.language import REGION, Bench, NodeArea, Package, Store
+    from bench.sql import pg_connection
+    from bench.sql import sql_migrate as _migrate
     from bench.system import (
         global_session,
         global_store_from_env,
         pg_engine_from_store,
         regional_store_from_env,
     )
+
+    BENCH_QUERY = Bench.include_descendants(Package, Store).select_all()
 
     start = time.time()
     global_store = global_store_from_env()
@@ -235,78 +243,3 @@ async def apply(
                 await conn.rollback()
 
     logger.info("migrate", duration=time.time() - start)
-
-
-@app.command()
-@async_to_sync
-async def introspect(
-    area: Annotated[NodeArea, typer.Option(parser=parse_area)] = NodeArea.GLOBAL,
-    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
-    bench: Optional[str] = None,
-):  # type: ignore
-    """Introspect the current schema of the Postgres instance."""
-    from bench.system import (
-        global_session,
-        global_store_from_env,
-        pg_engine_from_store,
-        regional_store_from_env,
-    )
-
-    start = time.perf_counter()
-    global_store = global_store_from_env()
-    global_pg_engine = pg_engine_from_store("pg-global", global_store, NodeArea.GLOBAL)
-    regional_store = regional_store_from_env(region or REGION)
-    regional_pg_engine = pg_engine_from_store(
-        f"pg-regional-{regional_store.region.name.lower()}", regional_store, NodeArea.REGIONAL
-    )
-
-    if area == NodeArea.LOCAL and bench is not None:
-        async with global_session(
-            global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
-        ):
-            bench_node = await Bench.include_descendants(NodeType.STORE).get(slug=bench)
-            assert bench_node.main_store, f"{bench!r} has no main environment"
-        async with pg_connection(bench_node.main_store) as conn:
-            schema = await introspect_sql_schema(
-                conn.cursor,
-                include_columns=True,
-                include_indexes=True,
-                include_constraints=True,
-                include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                exclude_table_prefixes=(BENCH_RECORD_TABLE_PREFIX,),
-            )
-    elif area == NodeArea.REGIONAL:
-        async with pg_connection(regional_store) as conn:
-            schema = await introspect_sql_schema(
-                conn.cursor,
-                include_columns=True,
-                include_indexes=True,
-                include_constraints=True,
-                include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                exclude_table_prefixes=(),
-            )
-    else:  # GLOBAL
-        async with pg_connection(global_store) as conn:
-            schema = await introspect_sql_schema(
-                conn.cursor,
-                include_columns=True,
-                include_indexes=True,
-                include_constraints=True,
-                include_table_prefixes=(BENCH_TABLE_PREFIX,),
-                exclude_table_prefixes=(),
-            )
-            await conn.rollback()
-
-    # generate schema
-    chunks: list[str] = []
-    for table in schema.tables:
-        const_name = f"{table.name}_TABLE".upper()
-        if const_name.startswith("BENCH_"):
-            const_name = const_name[6:]
-        table_def = f"{const_name} = {table.source_repr()}"
-        chunks.append(table_def)
-    source = "\n\n".join(chunks)
-    source = format_python(source)
-    print(source)
-
-    logger.info("sql.introspect", duration=time.perf_counter() - start)

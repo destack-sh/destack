@@ -4,38 +4,15 @@ from typing import Any
 import structlog
 import typer
 
-from bench.cli.utils import async_to_sync, repl
-from bench.language import (
-    BENCH_NODE_TYPES,
-    EMPTY_SCOPE_DATA,
-    PUBLIC_NODE_TYPES,
-    RESOURCE_NODE_TYPES,
-    SOURCE_NODE_TYPES,
-    Aliasing,
-    Bench,
-    Client,
-    Context,
-    GraphScope,
-    NodeArea,
-    NodeType,
-    Package,
-    RemoteEngine,
-    RenderOptions,
-    Session,
-    User,
-    get_node,
-    get_node_or_error,
-    get_path,
-    render,
-)
-from bench.pb2.lang_pb2 import GraphScopeData
-from bench.pb2.system_grpc import HostClient, SupervisorClient
+from bench.pb2 import GraphScopeData, HostClient, SupervisorClient
 from bench.proto import get_rpc_metadata
 from bench.proto.network import RealNetwork
 from bench.runtime.code import STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 from bench.utils.utils import get_from_env
+
+from .utils import async_to_sync, repl
 
 app = typer.Typer(short_help="postgres management")
 logger = structlog.get_logger(__name__)
@@ -52,6 +29,29 @@ async def shell(
 ) -> None:  # type: ignore
     """Open a runtime-like shell to a Bench."""
     from bench import pb2
+    from bench.language import (
+        BENCH_NODE_TYPES,
+        EMPTY_SCOPE_DATA,
+        PUBLIC_NODE_TYPES,
+        RESOURCE_NODE_TYPES,
+        SOURCE_NODE_TYPES,
+        Aliasing,
+        Bench,
+        Client,
+        Context,
+        GraphScope,
+        NodeArea,
+        NodeType,
+        Package,
+        RemoteEngine,
+        RenderOptions,
+        Session,
+        User,
+        get_node,
+        get_node_or_error,
+        get_path,
+        render,
+    )
     from bench.system import global_session, global_store_from_env, pg_engine_from_store
 
     supervisor_url = get_from_env("SUPERVISOR_URL")

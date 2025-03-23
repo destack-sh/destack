@@ -18,10 +18,10 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from bench.utils.env import ENV, IS_DEBUG, IS_DEV
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env, get_from_env_maybe
 
 VERSION = Path("version").read_text().strip()
-OTLP_ENDPOINT = get_from_env("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
+OTLP_ENDPOINT = get_from_env_maybe("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
 
 _setup_tracing = False
 _processor: BatchSpanProcessor | None = None
