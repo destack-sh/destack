@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
-from typing import Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID
-
-from git import TYPE_CHECKING
 
 from bench.language.core import (
     BuiltinEnum,
