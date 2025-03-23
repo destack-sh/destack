@@ -12,8 +12,6 @@ import typer
 import uvloop
 from opentelemetry import trace
 
-from bench.language.core.const import NodeArea, Region
-
 if TYPE_CHECKING:
     from bench.language import NodeArea, Region
 
@@ -59,6 +57,8 @@ def run_shell_sync(cmd: str, check=True, **kwargs):
 
 def parse_region(region: "str | Region") -> "Region":
     """Parse a Region from a string."""
+    from bench.language.core.const import Region
+
     if isinstance(region, Region):
         return region
 
@@ -78,6 +78,8 @@ def parse_region(region: "str | Region") -> "Region":
 
 def parse_area(area: "str | NodeArea") -> "NodeArea":
     """Parse a NodeArea from a string."""
+    from bench.language.core.const import NodeArea
+
     if isinstance(area, NodeArea):
         return area
 
