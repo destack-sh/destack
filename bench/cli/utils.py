@@ -70,7 +70,7 @@ def parse_region(region: "str | Region") -> "Region":
         else:
             # try by value
             return Region(int(region))
-    except ValueError as e:
+    except (TypeError, ValueError) as e:
         raise typer.BadParameter(
             f"invalid region: '{region.lower()}' (expected: {'|'.join(r.name.lower() for r in Region)})"
         ) from e
@@ -89,7 +89,7 @@ def parse_area(area: "str | NodeArea") -> "NodeArea":
         else:
             # try by value
             return NodeArea(int(area))
-    except ValueError as e:
+    except (TypeError, ValueError) as e:
         raise typer.BadParameter(
             f"invalid area: '{area}' (expected: {'|'.join(a.name.lower() for a in NodeArea)})"
         ) from e
@@ -154,8 +154,8 @@ async def repl(banner: str, vars: dict[str, Any]):
         }
     )
 
-    @kb.add("c-c")
-    @kb.add("c-d")
+    @kb.add("c-c")  # type: ignore
+    @kb.add("c-d")  # type: ignore
     def _(event):
         event.app.exit()
 

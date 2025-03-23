@@ -1,3 +1,15 @@
+# NOTE: to run computer-ubuntu locally:
+# docker run -d \
+#   -p 5900:5900 \
+#   --name bench-computer-ubuntu \
+#   -e ENVIRONMENT=dev \
+#   -e TRACING=0 \
+#   -e CLOUD=private \
+#   -e REGION=eu-zurich \
+#   -e COMPUTER_ID=90b80b94-9949-58c4-9db7-2419309a201b \
+#   symbolx/bench-computer-ubuntu
+# connect to VNC: vnc://localhost:5900/
+
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -71,7 +83,11 @@ COPY --chown=bench:bench bench.py .
 COPY --chown=bench:bench pyproject.toml .
 COPY --chown=bench:bench version .
 COPY --chown=bench:bench bench/__init__.py bench/__init__.py
-COPY --chown=bench:bench bench/language/core/const.py bench/language/core/const.py
+# nocheckin narrow down bench/language import for computer somehow 
+# (unfortunately we need to import proto service stuff, maybe we can factor that out?)
+# COPY --chown=bench:bench bench/language/core/const.py bench/language/core/const.py
+COPY --chown=bench:bench bench/language bench/language
+COPY --chown=bench:bench bench/computer bench/computer
 COPY --chown=bench:bench bench/utils bench/utils
 COPY --chown=bench:bench bench/cli bench/cli
 COPY --chown=bench:bench bench/proto bench/proto

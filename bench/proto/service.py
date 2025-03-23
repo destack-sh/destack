@@ -24,7 +24,7 @@ from grpclib import Status as GRPCStatus
 from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
-from bench.language import (
+from bench.language.core import (
     AccessError,
     BenchError,
     NodeNotFoundError,
@@ -43,7 +43,7 @@ from bench.utils.telemetry import (
 )
 
 if TYPE_CHECKING:
-    from bench.proto import Network
+    from .network import Network
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

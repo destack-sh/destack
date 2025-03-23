@@ -7,7 +7,6 @@ import typer
 from bench.pb2 import GraphScopeData, HostClient, SupervisorClient
 from bench.proto import get_rpc_metadata
 from bench.proto.network import RealNetwork
-from bench.runtime.code import STATIC_CODE_GLOBALS
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 from bench.utils.utils import get_from_env
@@ -52,6 +51,7 @@ async def shell(
         get_path,
         render,
     )
+    from bench.runtime.code import STATIC_CODE_GLOBALS
     from bench.system import global_session, global_store_from_env, pg_engine_from_store
 
     supervisor_url = get_from_env("SUPERVISOR_URL")

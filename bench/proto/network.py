@@ -1,5 +1,5 @@
 import abc
-from typing import AsyncIterator, Optional, cast, override
+from typing import TYPE_CHECKING, AsyncIterator, Optional, cast, override
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -9,12 +9,14 @@ import grpclib.client
 from grpclib.client import Channel
 
 from bench import pb2
-from bench.language.core.const import ClientType
-from bench.pb2 import ComputerEnvironment
-from bench.pb2.common_pb2 import RpcMetadata
+from bench.pb2 import ComputerEnvironment, RpcMetadata
 from bench.proto.wiring import pack_rpc_headers
 from bench.utils.telemetry import collect_propagation_context
 from bench.utils.utils import get_from_env
+
+if TYPE_CHECKING:
+    from bench.language import ClientType
+
 
 IS_IN_DOCKER = get_from_env(
     "IS_IN_DOCKER", typ=bool, default=False, description="Whether we're running in Docker"
@@ -56,7 +58,7 @@ def minikubeify_url(domain: str) -> str:
 
 def get_rpc_metadata(
     *,
-    client_type: ClientType,
+    client_type: "ClientType",
     client_id: str | UUID,
     client_access_token: str | UUID,
     client_nonce: str | UUID | None = None,
@@ -73,7 +75,7 @@ def get_rpc_metadata(
 
 def get_rpc_headers(
     *,
-    client_type: ClientType,
+    client_type: "ClientType",
     client_id: str | UUID,
     client_access_token: str | UUID,
     client_nonce: str | UUID | None = None,
