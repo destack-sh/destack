@@ -5,10 +5,6 @@ package symbolx.bench;
 import "proto/common.proto";
 import "proto/lang.proto";
 
-//
-// Runtime
-//
-
 message RunRequest {
 	GraphScopeData scope = 1;
 	NodeReferenceData computer_ptr = 2;
@@ -23,7 +19,7 @@ message RunResponse {
 service Runtime {
 	option (kind) = INTERNAL; // :ServiceKind
   
-	// Process Runs in this runtime. Returns immediately after queuing.
+	// Process Runs. Returns immediately after queuing.
 	rpc Run(RunRequest) returns (RunResponse);
 }
    

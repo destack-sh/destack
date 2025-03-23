@@ -58,6 +58,7 @@ EXTRA_PROTO_PY_FILES = (
     "proto/health.proto",
     "proto/system.proto",
     "proto/runtime.proto",
+    "proto/computer.proto",
     "proto/google/type/date.proto",
     "proto/google/type/datetime.proto",
     "proto/google/type/timeofday.proto",
@@ -218,6 +219,8 @@ from .system_grpc import *
 from .health_grpc import *
 from .lang_pb2 import *
 from .system_pb2 import *
+from .computer_pb2 import *
+from .computer_grpc import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *

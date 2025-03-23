@@ -230,3 +230,23 @@ async def runtime(host: str, port: int, *, process_id: int = -1, watch: bool = F
             mode=mode,
         )
         await _do_serve(handlers=[process], network=network, host=host, port=port, watch=watch)
+
+
+@app.command()
+@async_to_sync
+async def computer(host: str, port: int, *, process_id: int = -1, watch: bool = False):
+    from bench.computer import ComputerService
+
+    logger.info("serve.computer", host=host, port=port, env=ENV)
+
+    computer_id = get_from_env("COMPUTER_ID", typ=UUID, description="Node id of current computer")
+    display = get_from_env("DISPLAY", typ=int, default=0, description="Display to use for computer")
+    network = RealNetwork()
+    computer = ComputerService(
+        id="computer",
+        network=network,
+        oracle=REAL_ORACLE,
+        computer_id=computer_id,
+        display=display,
+    )
+    await _do_serve(handlers=[computer], network=network, host=host, port=port, watch=watch)

@@ -1,8 +1,10 @@
-# NOTE: based from https://github.com/openai/openai-cua-sample-app/blob/main/Dockerfile
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
-# install Xfce, x11vnc, Xvfb, xdotool, etc., but remove any screen lockers or power managers
+LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
+LABEL org.opencontainers.image.description="Bench"
+
+# install libs
 RUN apt-get update && apt-get install -y \
     xfce4 \
     xfce4-goodies \
@@ -13,7 +15,22 @@ RUN apt-get update && apt-get install -y \
     x11-apps \
     sudo \
     software-properties-common \
-    imagemagick \
+    libpq-dev \
+    libzbar-dev \
+    postgresql-client \
+    ffmpeg \
+    gcc \
+    gfortran \
+    g++ \
+    pkg-config \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libxml2-dev \
+    libxslt-dev \
+    git \
+    curl \
+    python3-dev \
  && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -24,6 +41,22 @@ RUN add-apt-repository ppa:mozillateam/ppa \
  && update-alternatives --set x-www-browser /usr/bin/firefox-esr \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# uv
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/root/.local/bin/:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+# python harness
+COPY bench/requirements/computer.txt bench/requirements.txt
+RUN uv pip install --system --no-cache -r bench/requirements.txt
+COPY bench.py .
+COPY pyproject.toml .
+COPY version .
+COPY bench/cli bench/cli
+COPY bench/proto bench/proto
+COPY bench/pb2 bench/pb2
+
 # create non-root user
 RUN useradd -ms /bin/bash bench \
     && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
@@ -33,13 +66,18 @@ WORKDIR /home/bench
 # set x11vnc password ("bench")
 RUN x11vnc -storepasswd bench /home/bench/.vncpass
 
-# expose port 5900 and run Xvfb, x11vnc, Xfce (no login manager)
-EXPOSE 5900
+# run Xvfb, x11vnc, Xfce (no login manager)
 CMD ["/bin/sh", "-c", "\
-    Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 & \
-    x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 >/dev/null 2>&1 & \
-    export DISPLAY=:99 && \
-    startxfce4 >/dev/null 2>&1 & \
-    sleep 2 && echo 'Container running!' && \
-    tail -f /dev/null \
+Xvfb :99 -screen 0 1280x800x24 >/dev/null 2>&1 & \
+x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 >/dev/null 2>&1 & \
+export DISPLAY=:99 && \
+startxfce4 >/dev/null 2>&1 & \
 "]
+
+ARG GIT_COMMIT
+ARG VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION 
+
+EXPOSE 5900
+EXPOSE 5432

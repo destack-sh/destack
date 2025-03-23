@@ -87,7 +87,24 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": true,
       "python": "${workspaceFolder}/venv-runtime/bin/python"
-    }, 
+    },
+    {
+      "name": "bench.computer",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["serve", "computer", "--watch", "0.0.0.0", "60063"],
+      "env": {
+        "ENVIRONMENT": "dev",
+        "PYTHONUNBUFFERED": "1",
+        "SERVICE_NAME": "computer",
+        "SUPERVISOR_URL": "http://localhost:60061",
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "python": "${workspaceFolder}/venv-computer/bin/python"
+    },
   ],
   "compounds": [
     {

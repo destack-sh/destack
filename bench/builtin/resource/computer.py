@@ -1,14 +1,7 @@
 import abc
 from typing import TYPE_CHECKING, Annotated
 
-from bench.language import (
-    Computer,
-    ComputerType,
-    File,
-    NodeMode,
-    NodeType,
-    Page,
-)
+from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page
 
 if TYPE_CHECKING:
     pass
@@ -20,7 +13,7 @@ from bench.builtin.core import class_to_kit
 
 
 class IComputer(abc.ABC):
-    """The basic interface to any sort of a Computer."""
+    """The basic interface to any sort of a Computer :ComputerKit."""
 
     @abc.abstractmethod
     async def Screenshot(self) -> Annotated[dict[str, File], {"image": File}]:

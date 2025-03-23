@@ -15,6 +15,8 @@ from .system_grpc import *
 from .health_grpc import *
 from .lang_pb2 import *
 from .system_pb2 import *
+from .computer_pb2 import *
+from .computer_grpc import *
 from .google.type.date_pb2 import *
 from .google.type.timeofday_pb2 import *
 from .google.type.datetime_pb2 import *
