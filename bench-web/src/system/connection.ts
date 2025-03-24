@@ -43,22 +43,21 @@ import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
   EMPTY_SCOPE,
   deepContentEquals,
-  describeNode,
   makeDefaultObject,
   makeScope,
   propertyReference,
   unwrapSomeNode,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { NodeAutoloader } from "@/system/autoload";
-import { BENCH_SCOPE, LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
+import { LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
 import { AsyncEvent, assertNever } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
+import { useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
 import {
   computed,
@@ -609,7 +608,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       ) {
         // NOTE :Broken: we can only assume that node type overlap is enough for source nodes, otherwise check full params
         //  (since they're loaded in a very specific way .. see :ConnectionMatching :RichGraph)
-        return deepContentEquals(params, this.params);
+        return deepContentEquals(thisGet.roots, otherGet.roots);
       }
       const otherNodeTypes = [
         ...otherGet.roots.map((r) => r.nodeType),
@@ -1181,10 +1180,6 @@ function useConnectionGraphRaw<T extends NodeType>(
  */
 export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null | undefined>,
-  options?: {
-    isEnabled?: Ref<boolean>;
-    isRequired?: boolean;
-  },
 ): {
   graph: ReadNodeGraph;
   graphRaw: ReadNodeGraph;
@@ -1192,60 +1187,9 @@ export function useExistingConnection<T extends NodeType = any>(
 } {
   // NOTE :Performance: don't use separate overlay graphs for every useExistingConnection?
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
-  const connection: ShallowRef<ConnectionBase<"get" | "search", T> | null> = shallowRef(null);
+  const { connection } = supergraph.getLinkRef(nodeRef);
   const graph = useConnectionGraphComposite(connection);
   const graphRaw = useConnectionGraphRaw(connection);
-
-  // route to the appropriate connection
-  const refreshConnection = () => {
-    const oldConnection = connection.value;
-    let newConnection = null;
-    if (oldConnection != null) {
-      releaseConnection(oldConnection);
-    }
-
-    if (nodeRef.value != null && options?.isEnabled?.value !== false) {
-      if (nodeRef.value?.id == null) {
-        throw new Error(`missing id for connection: ${describeNode(nodeRef.value)}`);
-      }
-      newConnection = findExistingConnection(["get", "search"], {
-        scope: BENCH_SCOPE.value,
-        roots: [nodeRef.value as TypedNodeReferenceData<T>],
-      });
-      if (newConnection != null) {
-        newConnection.incRefCount();
-      }
-      if (newConnection == null && options?.isRequired) {
-        if (connection.value != null) {
-          return; // ignore, we already have a connection
-        } else {
-          throw new Error(
-            `missing connection for ${describeNode(nodeRef.value)} (available: ${_connections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
-          );
-        }
-      }
-    }
-    if (newConnection !== oldConnection) {
-      connection.value = newConnection as ConnectionBase<"get" | "search", T> | null;
-    }
-  };
-  watch(() => [nodeRef.value, options?.isEnabled?.value], refreshConnection, { immediate: true });
-
-  let stopGlobalWatch = null as (() => void) | null;
-  watch(
-    connection,
-    () => {
-      stopGlobalWatch?.();
-      if (!connection.value) stopGlobalWatch = watch(_connections, refreshConnection);
-    },
-    { immediate: true, flush: "sync" },
-  );
-
-  // release on unmount
-  tryOnBeforeUnmount(() => {
-    if (connection.value) releaseConnection(connection.value);
-  });
-
   return { graph, graphRaw, connection: new ProxyConnection(connection) };
 }
 
