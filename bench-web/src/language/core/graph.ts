@@ -35,7 +35,7 @@ import {
 } from "vue";
 
 /** A NodeReference but with proper typing */
-export type NodeKey<T extends NodeType> = Pick<NodeReferenceData, "id" | "ck" | "baseId"> & { nodeType?: T };
+export type NodeKey<T extends NodeType> = Partial<Pick<NodeReferenceData, "id" | "ck" | "baseId">> & { nodeType?: T };
 export type TypedNodeKey<T extends NodeType> = NodeKey<T> & { nodeType: T };
 
 // NOTE :Performance!: should differentiate node update types for :NodeFiltering

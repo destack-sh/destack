@@ -945,7 +945,7 @@ setSupergraph(supergraph);
 export const autoloader = new NodeAutoloader(supergraph);
 setAutoloader(autoloader);
 supergraph.subscribeEvent((e, key, callback) =>
-  autoloader.onEvent(e, { metatype: ObjectType.NODE_REFERENCE, ...key }, callback),
+  autoloader.onEvent(e, { ...(key as NodeReferenceData), metatype: ObjectType.NODE_REFERENCE }, callback),
 );
 
 /** Adds a new connection to the connection set */
@@ -1008,17 +1008,6 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
     matchingConnections.sort((a, b) => b.createdAt.diff(a.createdAt).milliseconds);
   }
   return matchingConnections[0];
-}
-
-/** Finds an existing connection and acquires it (RC+=1) */
-function acquireExistingConnection<K extends GraphConnectionKind, T extends NodeType>(
-  kinds: K[],
-  params: ConnectionParamsMapping<T>[K],
-  match?: ConnectionMatchOptions<K, T>,
-): ConnectionBase<K, T> | null {
-  const connection = findExistingConnection(kinds, params, match);
-  if (connection != null) connection.incRefCount();
-  return connection;
 }
 
 export async function clearConnections(): Promise<void> {
@@ -1195,7 +1184,6 @@ export function useExistingConnection<T extends NodeType = any>(
   options?: {
     isEnabled?: Ref<boolean>;
     isRequired?: boolean;
-    match?: ConnectionMatchOptions<"get" | "search", T>;
   },
 ): {
   graph: ReadNodeGraph;
@@ -1212,17 +1200,21 @@ export function useExistingConnection<T extends NodeType = any>(
   const refreshConnection = () => {
     const oldConnection = connection.value;
     let newConnection = null;
-    if (oldConnection != null) releaseConnection(oldConnection);
+    if (oldConnection != null) {
+      releaseConnection(oldConnection);
+    }
 
     if (nodeRef.value != null && options?.isEnabled?.value !== false) {
       if (nodeRef.value?.id == null) {
         throw new Error(`missing id for connection: ${describeNode(nodeRef.value)}`);
       }
-      newConnection = acquireExistingConnection(
-        ["get", "search"],
-        { scope: BENCH_SCOPE.value, roots: [nodeRef.value as TypedNodeReferenceData<T>] },
-        options?.match,
-      );
+      newConnection = findExistingConnection(["get", "search"], {
+        scope: BENCH_SCOPE.value,
+        roots: [nodeRef.value as TypedNodeReferenceData<T>],
+      });
+      if (newConnection != null) {
+        newConnection.incRefCount();
+      }
       if (newConnection == null && options?.isRequired) {
         if (connection.value != null) {
           return; // ignore, we already have a connection
@@ -1237,7 +1229,7 @@ export function useExistingConnection<T extends NodeType = any>(
       connection.value = newConnection as ConnectionBase<"get" | "search", T> | null;
     }
   };
-  watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });
+  watch(() => [nodeRef.value, options?.isEnabled?.value], refreshConnection, { immediate: true });
 
   let stopGlobalWatch = null as (() => void) | null;
   watch(
