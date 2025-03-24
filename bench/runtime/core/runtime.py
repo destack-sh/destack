@@ -463,7 +463,6 @@ class Runtime:
     async def _prefetch_context(self, runner: Runner):
         """
         Load remote Nodes that are (probably) required for the given Runner.
-        nocheckin: prefetch Thread.messages for Run?
         TODO :Architecture :Incomplete: unclear which remote Nodes to load for Runs and how
          (should we only load top level references? Text mentions? expand Messages into Threads?
            entire Run trees? this seems related to the context/projection stuff in model instruct)
@@ -536,7 +535,7 @@ class Runtime:
             if resource is None:
                 # create new claim
                 claim = claim.instance(recursive=False, detach=True)
-                claim.parent = run
+                claim.parent = runner.thread.thread
                 self.session._create(claim)
         if open_claims:
             with capture_span(
@@ -806,15 +805,28 @@ class Runtime:
     @tracer.start_as_current_span("runtime.load_thread")
     async def _load_thread(self, thread_ptr: NodeReference) -> RuntimeThreadHandle:
         """Load a Thread."""
-        if thread_ptr.id in self._owned_threads_by_id:
-            thread = self._owned_threads_by_id[thread_ptr.id]
-            logger.debug("runtime.load_thread.skip", thread=thread, span="current")
-            return thread
-        handle = RuntimeThreadHandle(thread_ptr)
-        self._owned_threads_by_id[thread_ptr.id] = handle
-        await handle.open()
-        logger.debug("runtime.load_thread", thread=handle.thread, span="current")
-        return handle
+        trace.get_current_span().set_attribute("thread_id", str(thread_ptr.id))
+
+        # synchronize
+        if thread_ptr.id in self._locks_by_thread_id:
+            thread_lock = self._locks_by_thread_id[thread_ptr.id]
+        else:
+            thread_lock = asyncio.Lock()
+            self._locks_by_thread_id[thread_ptr.id] = thread_lock
+
+        async with thread_lock:
+            # bail if we already have this thread
+            if thread_ptr.id in self._owned_threads_by_id:
+                thread = self._owned_threads_by_id[thread_ptr.id]
+                logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+                return thread
+
+            # load thread
+            handle = RuntimeThreadHandle(thread_ptr)
+            self._owned_threads_by_id[thread_ptr.id] = handle
+            await handle.open()
+            logger.debug("runtime.load_thread", thread=handle, span="current")
+            return handle
 
     def get_runner(self, span: Run | Span) -> Runner | None:
         """Get a Runner for a Run or Span."""
@@ -833,27 +845,35 @@ class Runtime:
         """Load the Run to be owned in this Runtime."""
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
-        # already loaded
-        if run_ptr.id in self._owned_runners_by_id:
-            runner = self._owned_runners_by_id[run_ptr.id]
-            assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
-            logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
-            return runner, runner.tracked_run
+        # synchronize
+        if run_ptr.id in self._locks_by_run_id:
+            run_lock = self._locks_by_run_id[run_ptr.id]
+        else:
+            run_lock = asyncio.Lock()
+            self._locks_by_run_id[run_ptr.id] = run_lock
 
-        # load run
-        run = await RUN_QUERY.get(run_ptr, live=True)
-        run._graph.add_types(*RUNTIME_NODE_TYPES)
-        run._graph.add_types(*COMMUNICATION_NODE_TYPES)
-        assert run.root_ptr is None, f"{run!r} is not a root Run"
-        assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
+        async with run_lock:
+            # already loaded
+            if run_ptr.id in self._owned_runners_by_id:
+                runner = self._owned_runners_by_id[run_ptr.id]
+                assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
+                logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
+                return runner, runner.tracked_run
 
-        # runner
-        runner = restore_runner(runtime=self, run=run)
-        runner.connection = run._connection
-        self._owned_runners_by_id[run_ptr.id] = runner
-        run._connection.on_update(lambda _, update: self._on_updated(runner, update))
-        logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
-        return runner, run
+            # load run
+            run = await RUN_QUERY.get(run_ptr, live=True)
+            run._graph.add_types(*RUNTIME_NODE_TYPES)
+            run._graph.add_types(*COMMUNICATION_NODE_TYPES)
+            assert run.root_ptr is None, f"{run!r} is not a root Run"
+            assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
+
+            # runner
+            runner = restore_runner(runtime=self, run=run)
+            runner.connection = run._connection
+            self._owned_runners_by_id[run_ptr.id] = runner
+            run._connection.on_update(lambda _, update: self._on_updated(runner, update))
+            logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
+            return runner, run
 
     def _on_run_updated(self, runner: Runner, run: Run):
         """React to updates on a Run from outside this Runtime."""
@@ -900,34 +920,26 @@ class Runtime:
         Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
         Automatically lifts/joins the Run with a higher or existing Run if needed.
         """
-        assert run.id is not None, f"missing id for {run!r}"
+        if isinstance(run, Run):
+            run = run.to_ref()
+
+        # can't run if stopped
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
 
-        # synchronize
-        if run.id in self._locks_by_run_id:
-            run_lock = self._locks_by_run_id[run.id]
-        else:
-            run_lock = asyncio.Lock()
-            self._locks_by_run_id[run.id] = run_lock
+        # bail if we already have this runner as active
+        if run.id in self._active_runners_by_id:
+            return self._active_runners_by_id[run.id]
 
         # nocheckin :Robustness!: isolate graphs for Runtime.run (or is Runner.close enough?)
         #  (isolating this graph is tricky in case of resuming Runs since we'll re-use owned Runners,
         #   and also for other shared Connections like Threads and such.. maybe tie GraphCapture to Runners?)
         async with self.session.active():
             # get runner
-            async with run_lock:
-                if run.id in self._active_runners_by_id:
-                    # already have this runner as active, bail
-                    return self._active_runners_by_id[run.id]
-                elif isinstance(run, NodeReference):
-                    # may already be owned but not currently active
-                    runner, run = await self._load_runner(run)
-                else:
-                    runner = self.restore_runner(run)
-            inner_runner = runner
+            runner, run = await self._load_runner(run)
             assert runner.tracked.is_attached, f"{runner!r}'s {runner.tracked!r} is not attached"
             assert runner.is_root, f"{runner!r} is not a root runner"
+            inner_runner = runner
 
             # get thread
             thread_ptr = run.thread_ptr

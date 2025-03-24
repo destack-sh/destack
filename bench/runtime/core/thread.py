@@ -38,21 +38,36 @@ class RuntimeThreadHandle:
             content_parts.append(f"thread={self.thread_ptr!r}")
         if self._messages_connection is not None:
             content_parts.append(f"messages={len(self.messages)}")
-        return f"{self.__class__.__name__}({', '.join(content_parts)})"
+            if (last_message := self.last_message) is not None:
+                content_parts.append(f"last_message={last_message!r}")
+        return f"{', '.join(content_parts)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
 
     @property
     def thread(self) -> Thread:
+        """The Thread."""
         assert self._thread_connection is not None, f"{self!r} is not ready"
         thread = self._thread_connection.result.roots[0]
         return thread
 
     @property
     def messages(self) -> list[Message]:
+        """The Messages."""
         assert self._messages_connection is not None, f"{self!r} is not ready"
         return self._messages_connection.result.roots
+
+    @property
+    def last_message(self) -> Message | None:
+        """The last Message (if any)."""
+        if (
+            self._messages_connection is not None
+            and len(self._messages_connection.result.roots) > 0
+        ):
+            return self._messages_connection.result.roots[-1]
+        else:
+            return None
 
     async def open(self):
         # NOTE :Performance: limit RuntimeThreadHandle.messages (to like 100? 200?)
