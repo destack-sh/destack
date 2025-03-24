@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { renderTextLine } from "@/language/core/text";
-import { NodeType, Orientation, ViewType } from "@/proto/wire";
+import { IconData, NodeType, Orientation, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/command";
+import { getNodeIcon, IconInline } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
@@ -19,7 +20,7 @@ import RunOverlay from "@/views/overlays/RunOverlay.vue";
 import ToastOverlay from "@/views/overlays/ToastOverlay.vue";
 import TooltipOverlay from "@/views/overlays/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 
 const spaceRef = ref<HTMLElement | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
@@ -34,22 +35,28 @@ onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
 const inspectedNode = supergraph.getRef(inspectionPtr);
+const inspectedNodeTitle = computed(() => {
+  const node = inspectedNode.value;
+  if (isNode(node, NodeType.CHANNEL)) {
+    return `#${node.name}`;
+  } else if (isNode(node, NodeType.VIEW)) {
+    return node.title ?? node.name;
+  } else if ((node as any)?.title != null) {
+    return renderTextLine((node as any).title);
+  } else {
+    return (node as any)?.slug ?? (node as any)?.name;
+  }
+});
+const inspectedNodeIcon = computed(() => {
+  const node = inspectedNode.value;
+  return node != null ? getNodeIcon(node) : undefined;
+});
 const browserTitle = useTitle();
 watch(
   [bench, inspectedNode],
   () => {
     const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
-    const node = inspectedNode.value;
-    let nodeTitle: string | undefined;
-    if (isNode(node, NodeType.CHANNEL)) {
-      nodeTitle = `#${node.name}`;
-    } else if (isNode(node, NodeType.VIEW)) {
-      nodeTitle = node.title ?? node.name;
-    } else if ((node as any)?.title != null) {
-      nodeTitle = renderTextLine((node as any).title);
-    } else {
-      nodeTitle = (node as any)?.slug ?? (node as any)?.name;
-    }
+    const nodeTitle = inspectedNodeTitle.value;
     browserTitle.value = nodeTitle ? `${nodeTitle} | @${benchPostfix}` : `@${benchPostfix}`;
   },
   { immediate: true },
@@ -108,6 +115,11 @@ watch(
     <Omnibar ref="omnibarRef" :box="mainBox" />
     <TooltipOverlay />
     <PopoverOverlay />
+
+    <!-- Icon -->
+    <div ref="iconDomRef" class="pointer-events-none absolute opacity-0">
+      <IconInline v-if="inspectedNodeIcon" v-bind="inspectedNodeIcon" />
+    </div>
   </div>
 </template>
 <style>
