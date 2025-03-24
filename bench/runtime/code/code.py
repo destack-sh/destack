@@ -15,6 +15,7 @@ from bench.language import (
     CodeType,
     CustomObject,
     Field,
+    Identity,
     IsRuntime,
     Node,
     RenderOptions,
@@ -29,8 +30,7 @@ from bench.language import (
     render,
     upload_file,
 )
-from bench.runtime.core import CodeInvalidError, RunIn, Runner, Runtime
-from bench.runtime.core.runner import Interrupted
+from bench.runtime.core import CodeInvalidError, Interrupted, RunIn, Runner, Runtime
 
 from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
@@ -59,6 +59,7 @@ class CodeRunner(Runner, ABC):
         context: IsRuntime,
         run: RunIn,
         parent: Runner | None = None,
+        identity: Identity | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
@@ -68,6 +69,7 @@ class CodeRunner(Runner, ABC):
             options=options,
             context=context,
             parent=parent,
+            identity=identity,
             inputs=inputs,
             outputs=outputs,
             run=run,

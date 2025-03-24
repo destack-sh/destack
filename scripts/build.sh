@@ -15,8 +15,8 @@ VERSION=$(cat version)
 # build computer images
 COMPUTER_IMAGES=("bench-computer-ubuntu")
 for IMAGE in ${COMPUTER_IMAGES[@]}; do
-  # Build the Docker image and tag it
   docker build . \
+    --platform linux/arm64 \
     -f bench-infra/docker/Dockerfile.computer-ubuntu \
     -t symbolx/$IMAGE:latest \
     -t symbolx/$IMAGE:$GIT_COMMIT \
@@ -41,8 +41,8 @@ VITE_COMMIT="VITE_COMMIT" VITE_ENV="VITE_ENV" VITE_SUPERVISOR_URL="VITE_SUPERVIS
 # image names
 IMAGES=("bench-system" "bench-runtime")
 for IMAGE in ${IMAGES[@]}; do
-  # Build the Docker image and tag it
   docker build . \
+    --platform linux/arm64 \
     --target $IMAGE \
     -f bench-infra/docker/Dockerfile.bench \
     -t symbolx/$IMAGE:latest \

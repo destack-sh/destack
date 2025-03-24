@@ -186,6 +186,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         parent: "Runner[Any] | None" = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
+        identity: "Identity | None" = None,
     ) -> None:
         self.runtime = runtime
         self.node = node
@@ -242,6 +243,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
                     status=self.status,
                     mode=self.mode,
                     inputs=self.inputs,
+                    identity=identity,
                     session=self.session,
                 )
             else:
@@ -734,6 +736,7 @@ def make_runner(
     inputs: Any | None = None,
     outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
+    identity: "Identity | None" = None,
     parent: "Runner[Any] | None" = None,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
@@ -764,6 +767,7 @@ def make_runner(
         "run": run,
         "node": node,
         "parent": parent,
+        "identity": identity,
     }
 
     # map to runner

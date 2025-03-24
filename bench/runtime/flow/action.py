@@ -11,6 +11,7 @@ from bench.language import (
     BreakpointScope,
     BreakpointSite,
     CustomObject,
+    Identity,
     IsRuntime,
     ModelDeveloper,
     ModelType,
@@ -55,6 +56,7 @@ class ActionRunner(Runner[Action], ABC):
         run: RunIn,
         options: RunOptions,
         context: IsRuntime,
+        identity: Identity | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
@@ -66,6 +68,7 @@ class ActionRunner(Runner[Action], ABC):
             options=options,
             context=context,
             parent=parent,
+            identity=identity,
             inputs=inputs,
             outputs=outputs,
             run=run,
@@ -84,7 +87,7 @@ class ActionRunner(Runner[Action], ABC):
 
     def _get_resumable_subrunner(
         self,
-        node: RunnableNode,
+        node: Identity | RunnableNode,
         inputs: CustomObject | None,
         output_type: TypeBase | None = None,
     ):
@@ -94,18 +97,32 @@ class ActionRunner(Runner[Action], ABC):
         NOTE: we assume there will only be one Runner for a given RunAttempt and Node.
         """
         assert self.tracked_run is not None, f"{self!r} must be tracked"
+
+        if isinstance(node, Identity):
+            runnable = node.default_flow
+            assert runnable is not None, f"{node!r} must have a default Flow"
+            identity = node
+        else:
+            runnable = node
+            identity = None
+
         for run in self.tracked_run.runs:
             # try to resume interrupted Run
-            if run.status.is_interrupted and run.runnable == node:
+            if (
+                run.status.is_interrupted
+                and run.runnable == runnable
+                and (identity is None or run.identity_id == identity.id)
+            ):
                 return self.runtime.restore_runner(run)
         else:
             # make new Runner
             runner = make_runner(
                 runtime=self.runtime,
-                node=node,
+                node=runnable,
                 run="track",
                 context=self.context,
                 inputs=inputs,
+                identity=identity,
                 outputs=output_type,
             )
             return runner
