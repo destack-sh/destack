@@ -320,14 +320,14 @@ class Connection[
         raise EngineIncapableError(self, query, reason="live subscription not supported")
 
     @final
-    def close(self, release: bool = False):
+    def close(self, detach: bool = False):
         """Close the connection. Optionally release any acquired graphs."""
         if self._is_closed:
             return  # already closed
         self._is_closed = True
         if self._connect_task is not None:
             self._connect_task.cancel()
-        if release:
+        if detach:
             self.detach()
         self.log.trace(f"connect.{self.type_name}.close")
 

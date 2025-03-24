@@ -72,8 +72,7 @@ class GraphCapture:
         for link in self.links:
             link.close()
         for connection in self.connections:
-            connection.close()
-            connection.detach()
+            connection.close(detach=True)
         for graph in self.graphs:
             if graph in graph.supergraph._graphs:
                 graph.supergraph.remove_graph(graph)

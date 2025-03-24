@@ -111,7 +111,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             ) or runner.is_stopped:
                 continue  # ignore boundary Actions
             runner.stop()
-            runner.close(resume=not self.is_root)
+            runner.close()
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Actions."""
@@ -367,6 +367,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     @override
     async def run(self) -> None:
+        """Run this Flow unti completion or stop (if it can't progress)."""
         assert self.tracked_run is not None, f"{self!r} must be tracked"
         self._stop_result = None  # clear
 
@@ -412,8 +413,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         else:
             assert_never(self._stop_result)
 
-    @override
     def run_inner(self, inner_runs: Sequence[Run]) -> None:
+        """Add some Runs to be processed in this Flow."""
         interrupted_runners_by_id: dict[UUID, Runner] = {
             runner.id: runner for runner in self._interrupted_runners
         }
@@ -421,3 +422,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             runner = interrupted_runners_by_id.get(run.id)
             if runner is not None:
                 self._resume(runner)
+            else:
+                runnable = run.action or run.link
+                assert runnable is not None, f"{run!r} has no runnable"
+                self._start(runnable, inputs=run.inputs, incoming=())

@@ -28,7 +28,7 @@ from bench.language import (
     CustomObject,
     Error,
     Flow,
-    GetConnection,
+    GraphCapture,
     Identity,
     Interruption,
     InterruptionStatus,
@@ -60,7 +60,7 @@ from bench.language import (
     active_session,
 )
 from bench.language.core.const import COMMUNICATION_NODE_TYPES
-from bench.runtime.core.thread import RuntimeThreadHandle
+from bench.runtime.core.thread import RuntimeThread
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -150,6 +150,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
 
     __slots__ = (
+        "capture",
         "connection",
         "context",
         "error",
@@ -287,11 +288,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         # runtime
         if self.context is None:
             self.context = self.tracked
-        self.connection: GetConnection | None = None  # for root runner
+        self.capture: GraphCapture | None = None  # for root runner
         self.hooks: list[Callable[[RunnerEvent], None]] = []
-        if self.id in self.runtime._owned_runners_by_id:
+        if self.id in self.runtime._runners_by_id:
             raise RuntimeError(f"runner {self!r} already exists in {self.runtime!r}")
-        self.runtime._owned_runners_by_id[self.id] = self
+        self.runtime._runners_by_id[self.id] = self
 
     def __str__(self):
         str_parts: list[str] = [
@@ -323,7 +324,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return self.runtime.session
 
     @property
-    def thread(self) -> RuntimeThreadHandle:
+    def thread(self) -> RuntimeThread:
         run = self.tracked_run or self.closest_tracked_run
         assert run is not None, f"{self!r} has no tracked Run"
         assert run.thread_ptr is not None, f"{run!r} has no Thread"
@@ -416,6 +417,21 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """Find the latest Run of a Node in this Runner tree."""
         matching_runs = self.get_runs(runnable)
         return matching_runs[0] if matching_runs else None
+
+    def get_runners(self, runnable: RunnableNode) -> list["Runner"]:
+        """Find all Runners of a Node in this Runner tree."""
+        matching_runs = self.get_runs(runnable)
+        runners: list[Runner] = []
+        for run in matching_runs:
+            runner = self.runtime._runners_by_id.get(run.id)
+            if runner is not None:
+                runners.append(runner)
+        return runners
+
+    def get_latest_runner(self, runnable: RunnableNode) -> "Runner | None":
+        """Find the latest Runner of a Node in this Runner tree."""
+        matching_runners = self.get_runners(runnable)
+        return matching_runners[0] if matching_runners else None
 
     #
     # Hooks
@@ -544,10 +560,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """
         ...
 
-    def run_inner(self, inner_runs: Sequence[Run]):  # noqa: B027
-        """Start or resume inner Runs."""
-        pass
-
     def stop(self):
         """Stop this Runner/Run."""
         if self.status.is_terminal:
@@ -561,29 +573,11 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
 
-    def close(self, resume: bool = True):
-        """Close this Runner/Run. :CascadingRuntime"""
-        closed_interruptions: list[Interruption] | None = None
-        for interruption in self.tracked._graph.iter_descendants(
-            self.tracked, NodeType.INTERRUPTION
-        ):
-            interruption = cast(Interruption, interruption)
-            if interruption.status.is_open:
-                interruption.cancel(_trigger_runtime=False)
-                if closed_interruptions is None:
-                    closed_interruptions = []
-                closed_interruptions.append(interruption)
-
-        # trigger resume for Interruptions (if we can still run, i.e. not at root)
-        if resume and self.tracked_run is not None and closed_interruptions:
-            runs_to_resume = self.runtime.get_interrupted_runs(
-                self.tracked_run._graph, *closed_interruptions
-            )
-            self.runtime.resume_run(*runs_to_resume)
-
-        if self.connection is not None and self.connection.is_open:
-            self.connection.close(release=True)
-        self.runtime._owned_runners_by_id.pop(self.id, None)
+    def close(self):
+        """Close this Runner/Run."""
+        if self.capture is not None:
+            self.capture.close_and_detach()
+        self.runtime._runners_by_id.pop(self.id, None)
 
 
 RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {

@@ -61,6 +61,7 @@ from bench.language import (
     on_invalid_raise,
     synchronize_nodes,
 )
+from bench.language.connection.capture import GraphCapture
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
 
@@ -77,7 +78,7 @@ from .runner import (
     create_run,
     restore_runner,
 )
-from .thread import RuntimeThreadHandle
+from .thread import RuntimeThread
 
 if TYPE_CHECKING:
     from bench.runtime.process import RuntimeProcess
@@ -134,15 +135,16 @@ class Runtime:
 
         self._locks_by_run_id: dict[UUID, asyncio.Lock] = {}
         self._locks_by_thread_id: dict[UUID, asyncio.Lock] = {}
-        self._owned_threads_by_id: dict[UUID, RuntimeThreadHandle] = {}
-        self._owned_runners_by_id: dict[UUID, Runner] = {}
+        self._threads_by_id: dict[UUID, RuntimeThread] = {}
+        self._runners_by_id: dict[UUID, Runner] = {}
+        self._runners_by_thread_id: dict[UUID, list[Runner]] = {}
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
         self._active_root_runners: list[Runner] = []
         self._is_stop_requested: bool = False
 
     def __str__(self):
-        return f"{len(self._active_runners_by_id)} active, {len(self._owned_runners_by_id)} loaded, {self.session!r}"
+        return f"{len(self._active_runners_by_id)} active, {len(self._runners_by_id)} loaded, {self.session!r}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -767,10 +769,6 @@ class Runtime:
             elif runner.status == RunStatus.CANCELLED:
                 runner.fire_event(RunnerCancelledEvent(runner))
 
-            # close any remaining (directly) contained open Interruptions
-            if runner.status.is_terminal:
-                runner.close(resume=not runner.is_root)
-
     async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""
         try:
@@ -798,12 +796,12 @@ class Runtime:
     # Orchestration
     #
 
-    def get_thread(self, thread_id: UUID) -> RuntimeThreadHandle | None:
+    def get_thread(self, thread_id: UUID) -> RuntimeThread | None:
         """Get a Thread."""
-        return self._owned_threads_by_id.get(thread_id)
+        return self._threads_by_id.get(thread_id)
 
     @tracer.start_as_current_span("runtime.load_thread")
-    async def _load_thread(self, thread_ptr: NodeReference) -> RuntimeThreadHandle:
+    async def _load_thread(self, thread_ptr: NodeReference) -> RuntimeThread:
         """Load a Thread."""
         trace.get_current_span().set_attribute("thread_id", str(thread_ptr.id))
 
@@ -816,25 +814,25 @@ class Runtime:
 
         async with thread_lock:
             # bail if we already have this thread
-            if thread_ptr.id in self._owned_threads_by_id:
-                thread = self._owned_threads_by_id[thread_ptr.id]
+            if thread_ptr.id in self._threads_by_id:
+                thread = self._threads_by_id[thread_ptr.id]
                 logger.debug("runtime.load_thread.skip", thread=thread, span="current")
                 return thread
 
             # load thread
-            handle = RuntimeThreadHandle(thread_ptr)
-            self._owned_threads_by_id[thread_ptr.id] = handle
+            handle = RuntimeThread(thread_ptr)
+            self._threads_by_id[thread_ptr.id] = handle
             await handle.open()
             logger.debug("runtime.load_thread", thread=handle, span="current")
             return handle
 
     def get_runner(self, span: Run | Span) -> Runner | None:
         """Get a Runner for a Run or Span."""
-        return self._owned_runners_by_id.get(span.id)
+        return self._runners_by_id.get(span.id)
 
     def restore_runner(self, run: Run) -> Runner:
         """Restore a Runner from a Run."""
-        if (runner := self._owned_runners_by_id.get(run.id)) is not None:
+        if (runner := self._runners_by_id.get(run.id)) is not None:
             return runner
         else:
             runner = restore_runner(runtime=self, run=run)
@@ -842,7 +840,7 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.load_runner")
     async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
-        """Load the Run to be owned in this Runtime."""
+        """Load the top-level Run."""
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
         # synchronize
@@ -854,23 +852,31 @@ class Runtime:
 
         async with run_lock:
             # already loaded
-            if run_ptr.id in self._owned_runners_by_id:
-                runner = self._owned_runners_by_id[run_ptr.id]
+            if run_ptr.id in self._runners_by_id:
+                runner = self._runners_by_id[run_ptr.id]
                 assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
                 logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
                 return runner, runner.tracked_run
 
             # load run
-            run = await RUN_QUERY.get(run_ptr, live=True)
-            run._graph.add_types(*RUNTIME_NODE_TYPES)
-            run._graph.add_types(*COMMUNICATION_NODE_TYPES)
-            assert run.root_ptr is None, f"{run!r} is not a root Run"
-            assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
+            capture = GraphCapture()
+            async with capture.capture():
+                run = await RUN_QUERY.get(run_ptr, live=True)
+                run._graph.add_types(*RUNTIME_NODE_TYPES)
+                run._graph.add_types(*COMMUNICATION_NODE_TYPES)
+                assert run.root_ptr is None, f"{run!r} is not a root Run"
+                assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
 
-            # runner
+            # make runner
             runner = restore_runner(runtime=self, run=run)
             runner.connection = run._connection
-            self._owned_runners_by_id[run_ptr.id] = runner
+            runner.capture = capture
+            self._runners_by_id[run_ptr.id] = runner
+            thread_id = run.thread_id
+            assert thread_id is not None, f"{run!r} has no Thread"
+            if thread_id not in self._runners_by_thread_id:
+                self._runners_by_thread_id[thread_id] = []
+            self._runners_by_thread_id[thread_id].append(runner)
             run._connection.on_update(lambda _, update: self._on_updated(runner, update))
             logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
             return runner, run
@@ -907,9 +913,6 @@ class Runtime:
             elif isinstance(node, Interruption):
                 self._on_interrupt_updated(runner, node)
 
-    # nocheckin: track cascading Plan/Task/Claim/Thread/Resource/... status :CascadingRuntime
-    # (this feels related to closing Interruptions and other cascading runtime stuff like Messages/Threads?)
-
     async def run(
         self,
         run: Run | NodeReference,
@@ -920,6 +923,8 @@ class Runtime:
         Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
         Automatically lifts/joins the Run with a higher or existing Run if needed.
         """
+        from bench.runtime.flow import FlowRunner
+
         if isinstance(run, Run):
             run = run.to_ref()
 
@@ -931,9 +936,6 @@ class Runtime:
         if run.id in self._active_runners_by_id:
             return self._active_runners_by_id[run.id]
 
-        # nocheckin :Robustness!: isolate graphs for Runtime.run (or is Runner.close enough?)
-        #  (isolating this graph is tricky in case of resuming Runs since we'll re-use owned Runners,
-        #   and also for other shared Connections like Threads and such.. maybe tie GraphCapture to Runners?)
         async with self.session.active():
             # get runner
             runner, run = await self._load_runner(run)
@@ -952,29 +954,64 @@ class Runtime:
                 and (action := run.action) is not None
                 and (flow := action.flow) is not None
             ):
-                # lift into flow
-                # nocheckin: add to existing FlowRunner for that flow/identity/..?
+                # find existing Flow to lift into
+                identity_id = run.identity_id
                 self.session.commit_optimistic()
-                parent_node = run.parent or run.thread
-                assert parent_node is not None, f"no parent for {run!r}"
-                outer_run, _ = create_run(
-                    flow,
-                    parent=parent_node,
-                    mode=run.mode,
-                    status=RunStatus.QUEUED,
-                    thread=run.thread,
-                    graph=parent_node._graph,
-                )
-                run.move(to=outer_run)
-                self.session.commit_optimistic(runtime=True)
-                runner.close(resume=False)
-                await self.session.commit()  # wait for Run to actually exist
-                runner, run = await self._load_runner(outer_run.to_ref())
-                logger.debug("runtime.lift_flow", runner=runner, inner_run=run, outer_run=outer_run)
+                for existing_runner in self._runners_by_id.values():
+                    if (
+                        (existing_run := existing_runner.tracked_run) is not None
+                        and existing_run.type == RunType.FLOW
+                        and existing_run.flow_id == flow.id
+                        and existing_run.identity_id == identity_id
+                    ):
+                        target_runner = existing_runner
+                        assert isinstance(
+                            target_runner, FlowRunner
+                        ), f"{target_runner!r} is not a FlowRunner"
+                        break
+                else:
+                    target_runner = None
+
+                if target_runner is not None:
+                    # lift into existing run
+                    outer_run = target_runner.tracked_run
+                    assert outer_run is not None, f"{target_runner!r} has no tracked run"
+                    run.move(to=outer_run)
+                    self.session.commit_optimistic(runtime=True)
+                    runner.close()  # we're moving the runner to an existing runner
+
+                    # bail if target runner is already active
+                    if target_runner.id in self._active_runners_by_id:
+                        target_runner.run_inner((run,))
+                        runner = self._active_runners_by_id[runner.id]
+                        return runner
+                    runner = target_runner
+                else:
+                    # create new outer run
+                    parent_node = run.parent or run.thread
+                    assert parent_node is not None, f"no parent for {run!r}"
+                    outer_run, _ = create_run(
+                        flow,
+                        parent=parent_node,
+                        mode=run.mode,
+                        status=RunStatus.QUEUED,
+                        thread=run.thread,
+                        graph=parent_node._graph,
+                    )
+                    run.move(to=outer_run)
+                    self.session.commit_optimistic(runtime=True)
+                    runner.close()  # we're loading a new runner to cover the outer run
+                    await self.session.commit()  # wait for Run to actually exist
+                    runner, run = await self._load_runner(outer_run.to_ref())
+                    logger.debug(
+                        "runtime.lift_flow", runner=runner, inner_run=run, outer_run=outer_run
+                    )
 
             # actually run
             try:
-                await self.run_runner(runner)
+                assert runner.capture is not None, f"{runner!r} has no graph capture"
+                async with runner.capture.capture():
+                    await self.run_runner(runner)
                 logger.info("runtime.run", thread=thread, run=run, runner=runner, span="current")
             except (Interrupted, asyncio.CancelledError):
                 pass  # already handled, not a top-level error
@@ -996,14 +1033,23 @@ class Runtime:
                     self.on_error(e)
                 if not return_error:
                     raise
+            finally:
+                # close runner once we're done
+                if runner.is_root and runner.status.is_terminal:
+                    runner.close()
+                    if runner.id in self._runners_by_thread_id:
+                        self._runners_by_thread_id[runner.id].remove(runner)
+                        # also close thread if it's no longer needed
+                        if not self._runners_by_thread_id[runner.id]:
+                            thread = runner.thread
+                            assert thread is not None, f"{runner!r} has no thread"
+                            await thread.close()
+                            del self._runners_by_thread_id[thread.id]
 
         # get inner runner from actual runner (may have been lifted)
         if inner_runner is not runner:
-            for r in runner.root.walk():
-                if r.node.id == inner_runner.node.id:
-                    inner_runner = r
-                    break
-            else:
+            inner_runner = runner.get_latest_runner(inner_runner.node)
+            if inner_runner is None:
                 raise RuntimeError(f"missing lifted inner {inner_runner!r} in {runner!r}")
 
         return inner_runner
@@ -1023,8 +1069,11 @@ class Runtime:
 
     def resume_run(self, *runs: Run):
         """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
+        from bench.runtime.flow import FlowRunner
+
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
+
         runs_by_parent: dict[Package | Thread | Run | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent
         )
@@ -1039,7 +1088,7 @@ class Runtime:
             elif isinstance(parent, Run):
                 # resume child runs within their parent
                 parent_runner = self._active_runners_by_id.get(parent.id)
-                if parent_runner is not None and parent_runner:
+                if isinstance(parent_runner, FlowRunner):
                     parent_runner.run_inner(child_runs)
                     logger.debug(
                         "runtime.resume_run",
@@ -1055,11 +1104,10 @@ class Runtime:
 
     def stop_run(self, run: Run):
         """Kill a Run that is currently active in this Runtime (and any inside it)."""
-        root_runner = self._owned_runners_by_id.get(run.id)
+        root_runner = self._runners_by_id.get(run.id)
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
         for runner in reversed(list(root_runner.walk())):
             if not runner.status.is_terminal:
                 logger.debug("runtime.stop_run", runner=runner)
                 runner.stop()
-                runner.close(resume=not runner.is_root)
