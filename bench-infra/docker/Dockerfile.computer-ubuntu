@@ -18,6 +18,7 @@ LABEL org.opencontainers.image.description="Bench"
 
 # install libs
 RUN apt-get update && apt-get install -y \
+    netcat \
     xfce4 \
     xfce4-goodies \
     x11vnc \
@@ -42,6 +43,11 @@ RUN apt-get update && apt-get install -y \
     libxslt-dev \
     git \
     curl \
+    libreoffice \
+    thunar \
+    evince \
+    mousepad \
+    xfce4-terminal \
  && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -74,6 +80,11 @@ RUN mkdir -p /usr/lib/chromium/extensions/ublock \
 RUN echo '#!/bin/sh\nexec chromium-browser --no-sandbox --disable-dev-shm-usage --load-extension=/usr/lib/chromium/extensions/ublock "$@"' \
     > /usr/local/bin/chromium && chmod +x /usr/local/bin/chromium
 
+# create XFCE autostart entry for Chromium
+RUN mkdir -p /etc/xdg/autostart && \
+    echo '[Desktop Entry]\nType=Application\nExec=chromium\nHidden=false\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\nName=Chromium' \
+    > /etc/xdg/autostart/chromium.desktop
+
 # install Python 3.13
 RUN add-apt-repository ppa:deadsnakes/ppa \
  && apt-get update \
@@ -102,7 +113,6 @@ RUN useradd -ms /bin/bash bench \
 USER bench
 WORKDIR /home/bench
 
-
 # copy application files
 COPY --chown=bench:bench bench.py .
 COPY --chown=bench:bench pyproject.toml .
@@ -121,12 +131,13 @@ COPY --chown=bench:bench bench/pb2 bench/pb2
 RUN x11vnc -storepasswd bench /home/bench/.vncpass
 
 # run Xvfb, x11vnc, Xfce (no login manager)
-# TODO :Performance: remove sleeps in computer startup
 CMD ["/bin/sh", "-c", "\
 export DISPLAY=:99 && \
-Xvfb :99 -screen 0 1280x800x24 & sleep 2 && \
-x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 & sleep 2 && \
-DISPLAY=:99 xfce4-session & sleep 2 && \
+Xvfb :99 -screen 0 1280x800x24 & \
+until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done && \
+x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 & \
+until nc -z localhost 5900; do sleep 0.1; done && \
+DISPLAY=:99 xfce4-session & \
 exec python3 bench.py serve computer 0.0.0.0 5432"]
 
 ARG GIT_COMMIT
