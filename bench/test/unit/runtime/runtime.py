@@ -94,6 +94,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
+    Start1.connect(LinkType.REQUIRE, End1, is_manual=True)
     Agent1 = Identity.new("Agent", default_flow=Flow1)
     Page1 = runtime.page()
     Page1.extend(Flow1, Agent1)
