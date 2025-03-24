@@ -1,9 +1,11 @@
 from bench.language import (
     RESOURCE_NODE_TYPES,
     GetConnection,
+    GraphCapture,
     Message,
     NodeReference,
     NodeType,
+    Plan,
     SearchConnection,
     Thread,
 )
@@ -18,15 +20,24 @@ THREAD_QUERY = Thread.include_descendants(
 )
 
 
-class RuntimeThreadHandle:
+class RuntimeThread:
     """
     A handle to a Thread at runtime.
     Automatically loads the Thread and its Messages.
     """
 
+    __slots__ = (
+        "_messages_connection",
+        "_thread_connection",
+        "capture",
+        "id",
+        "thread_ptr",
+    )
+
     def __init__(self, thread_ptr: NodeReference):
         self.id = thread_ptr.id
         self.thread_ptr = thread_ptr
+        self.capture: GraphCapture = GraphCapture()
         self._thread_connection: GetConnection | SearchConnection | None = None
         self._messages_connection: SearchConnection | None = None
 
@@ -53,6 +64,11 @@ class RuntimeThreadHandle:
         return thread
 
     @property
+    def main_plan(self) -> Plan | None:
+        """The Plan (if any)."""
+        return self.thread.main_plan
+
+    @property
     def messages(self) -> list[Message]:
         """The Messages."""
         assert self._messages_connection is not None, f"{self!r} is not ready"
@@ -70,16 +86,16 @@ class RuntimeThreadHandle:
             return None
 
     async def open(self):
-        # NOTE :Performance: limit RuntimeThreadHandle.messages (to like 100? 200?)
-        _, self._thread_connection = await THREAD_QUERY.get_connection(self.thread_ptr, live=True)
-        _, self._messages_connection = (
-            await Message.where(Message.get_property("thread").eq(self.thread_ptr))
-            .order_by(Message.get_property("created_at").asc())
-            .search_connection(live=True)
-        )
+        # NOTE :Performance: limit Runtime Thread.messages (to like 100? 200?)
+        async with self.capture.capture():
+            _, self._thread_connection = await THREAD_QUERY.get_connection(
+                self.thread_ptr, live=True
+            )
+            _, self._messages_connection = (
+                await Message.where(Message.get_property("thread").eq(self.thread_ptr))
+                .order_by(Message.get_property("created_at").asc())
+                .search_connection(live=True)
+            )
 
-    async def close(self, release: bool = False):
-        if self._thread_connection is not None:
-            self._thread_connection.close(release=release)
-        if self._messages_connection is not None:
-            self._messages_connection.close(release=release)
+    async def close(self):
+        self.capture.close_and_detach()

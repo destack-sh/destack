@@ -118,7 +118,7 @@ COPY --chown=bench:bench bench.py .
 COPY --chown=bench:bench pyproject.toml .
 COPY --chown=bench:bench version .
 COPY --chown=bench:bench bench/__init__.py bench/__init__.py
-# nocheckin :Security: narrow down bench/language import for computer somehow 
+# TODO :Security!: narrow down bench/language import for computer somehow 
 # (unfortunately we need to import proto service stuff, maybe we can factor that out?)
 COPY --chown=bench:bench bench/language bench/language
 COPY --chown=bench:bench bench/computer bench/computer

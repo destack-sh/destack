@@ -80,6 +80,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                         trigger=trigger,
                         message=message,
                         thread=thread,
+                        identity=member,
                     )
                     runs.append(run)
             logger.info("message_trigger_plugin.trigger", message=message, runs=runs)
