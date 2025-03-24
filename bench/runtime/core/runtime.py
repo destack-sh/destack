@@ -77,7 +77,7 @@ from .runner import (
     create_run,
     restore_runner,
 )
-from .thread import ThreadHandle
+from .thread import RuntimeThreadHandle
 
 if TYPE_CHECKING:
     from bench.runtime.process import RuntimeProcess
@@ -85,6 +85,15 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+RUN_QUERY = Run.include_descendants(
+    NodeType.RUN,
+    NodeType.SPAN,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.INTERRUPTION,
+)
 
 
 class Runtime:
@@ -125,7 +134,7 @@ class Runtime:
 
         self._locks_by_run_id: dict[UUID, asyncio.Lock] = {}
         self._locks_by_thread_id: dict[UUID, asyncio.Lock] = {}
-        self._owned_threads_by_id: dict[UUID, ThreadHandle] = {}
+        self._owned_threads_by_id: dict[UUID, RuntimeThreadHandle] = {}
         self._owned_runners_by_id: dict[UUID, Runner] = {}
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
@@ -171,8 +180,8 @@ class Runtime:
         await self.session.commit()
 
     def stop(self):
-        """Stop the Runtime."""
-        # TODO :Robustness: handle Runtime stop better? pause existing Runs?
+        """Stop the Runtime (drain active Runs)."""
+        # TODO :Robustness: handle Runtime stop better? drain properly ... pause existing Runs?
         #  (maybe auto-interrupt all active Runners so we can transfer them? :HibernateRuns)
         self._is_stop_requested = True
 
@@ -790,6 +799,23 @@ class Runtime:
     # Orchestration
     #
 
+    def get_thread(self, thread_id: UUID) -> RuntimeThreadHandle | None:
+        """Get a Thread."""
+        return self._owned_threads_by_id.get(thread_id)
+
+    @tracer.start_as_current_span("runtime.load_thread")
+    async def _load_thread(self, thread_ptr: NodeReference) -> RuntimeThreadHandle:
+        """Load a Thread."""
+        if thread_ptr.id in self._owned_threads_by_id:
+            thread = self._owned_threads_by_id[thread_ptr.id]
+            logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+            return thread
+        handle = RuntimeThreadHandle(thread_ptr)
+        self._owned_threads_by_id[thread_ptr.id] = handle
+        await handle.open()
+        logger.debug("runtime.load_thread", thread=handle.thread, span="current")
+        return handle
+
     def get_runner(self, span: Run | Span) -> Runner | None:
         """Get a Runner for a Run or Span."""
         return self._owned_runners_by_id.get(span.id)
@@ -805,7 +831,6 @@ class Runtime:
     @tracer.start_as_current_span("runtime.load_runner")
     async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
         """Load the Run to be owned in this Runtime."""
-        assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
         # already loaded
@@ -816,17 +841,7 @@ class Runtime:
             return runner, runner.tracked_run
 
         # load run
-        run = (
-            await Run.include_descendants(
-                NodeType.RUN,
-                NodeType.SPAN,
-                NodeType.PLAN,
-                NodeType.TASK,
-                NodeType.INTERRUPTION,
-            )
-            .include_ancestors(NodeType.THREAD)
-            .get(run_ptr, live=True)
-        )
+        run = await RUN_QUERY.get(run_ptr, live=True)
         run._graph.add_types(*RUNTIME_NODE_TYPES)
         run._graph.add_types(*COMMUNICATION_NODE_TYPES)
         assert run.root_ptr is None, f"{run!r} is not a root Run"
@@ -839,10 +854,6 @@ class Runtime:
         run._connection.on_update(lambda _, update: self._on_updated(runner, update))
         logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
         return runner, run
-
-    def _on_thread_updated(self, runner: Runner, thread: Thread):
-        """React to updates on a Thread from outside this Runtime."""
-        pass
 
     def _on_run_updated(self, runner: Runner, run: Run):
         """React to updates on a Run from outside this Runtime."""
@@ -871,9 +882,7 @@ class Runtime:
     def _on_updated(self, runner: Runner, update: WatchGetUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
         for node in update.updated.values():
-            if isinstance(node, Thread):
-                self._on_thread_updated(runner, node)
-            elif isinstance(node, Run):
+            if isinstance(node, Run):
                 self._on_run_updated(runner, node)
             elif isinstance(node, Interruption):
                 self._on_interrupt_updated(runner, node)
@@ -920,6 +929,11 @@ class Runtime:
             assert runner.tracked.is_attached, f"{runner!r}'s {runner.tracked!r} is not attached"
             assert runner.is_root, f"{runner!r} is not a root runner"
 
+            # get thread
+            thread_ptr = run.thread_ptr
+            assert thread_ptr is not None, f"{run!r} has no Thread"
+            thread = await self._load_thread(thread_ptr)
+
             # lift run into existing / higher flow
             if (
                 run.type == RunType.ACTION
@@ -949,21 +963,23 @@ class Runtime:
             # actually run
             try:
                 await self.run_runner(runner)
-                logger.info("runtime.run", run=run, runner=runner, span="current")
+                logger.info("runtime.run", thread=thread, run=run, runner=runner, span="current")
             except (Interrupted, asyncio.CancelledError):
                 pass  # already handled, not a top-level error
             except (BenchError, ValueError, TypeError) as e:
                 # re-raised inner user error
                 self._try_mark_failed(run, ErrorKind.RUNTIME, e)
                 self.session.commit_optimistic()
-                logger.info("runtime.run.error", run=run, exc_info=e, span="current")
+                logger.info("runtime.run.error", thread=thread, run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
             except BaseException as e:
                 # some unexpected internal error
                 self._try_mark_failed(run, ErrorKind.INTERNAL, e)
                 self.session.commit_optimistic()
-                logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
+                logger.error(
+                    "runtime.run.internal_error", thread=thread, run=run, exc_info=e, span="current"
+                )
                 if self.on_error is not None:
                     self.on_error(e)
                 if not return_error:

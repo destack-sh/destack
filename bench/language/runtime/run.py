@@ -167,10 +167,9 @@ class Run(
         34, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
     options: "RunOptions" = p_internal(35, require=True, array=False, struct=StructType.RUN_OPTIONS)
-
-    thread: Optional["Thread"] = p_internal(
+    thread: "Thread" = p_internal(
         38,
-        require=False,
+        require=True,
         array=False,
         references=NodeType.THREAD,
         same_bench=True,
