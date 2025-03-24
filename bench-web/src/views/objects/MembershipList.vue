@@ -41,9 +41,6 @@ const state = canvas.registerView(self, id);
 const containerRef = ref<HTMLElement | null>(null);
 
 const basePtr = computed(() => props.nodePtr);
-// nocheckin: fix useExistingConnection usages like in MembershipList because of findConnection issues
-//  (the connection matching is broken, so sometimes we can't find the connection containing the thread
-//   because it falls back to deepEquals connection.params.. patch, fix or maybe just use supergraph?)
 const { graph, connection } = props.preparedConnection ?? useExistingConnection(basePtr);
 const base = graph.getRef(basePtr);
 const memberships = graph.getChildrenRef(basePtr, NodeType.MEMBERSHIP);
