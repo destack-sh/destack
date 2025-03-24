@@ -254,7 +254,8 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   } else if (kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
     return { kind, benchType: decodeB64VLQ(value) as BenchType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.CUSTOM_OBJECT) {
-    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck: padCkFromTkB64(value) };
+    const ck = padCkFromTkB64(value);
+    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck, id: ck };
     return { kind, baseTypePtr, isRequired: false, isList, isSecret };
   } else if (kind == TypeKind.PARTIAL_OBJECT) {
     return {

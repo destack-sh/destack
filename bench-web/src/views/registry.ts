@@ -41,8 +41,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.SIDEBAR]: () => import("@/views/helpers/Sidebar.vue"),
   [ViewType.CONTEXT]: () => import("@/views/helpers/Context.vue"),
   [ViewType.CHAT]: () => import("@/views/helpers/Chat.vue"),
-  [ViewType.CATALOG]: () => import("@/views/helpers/Catalog.vue"),
-  [ViewType.ACTIVITY]: () => import("@/views/helpers/Activity.vue"),
 
   //
   // Organization

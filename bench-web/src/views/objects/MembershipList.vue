@@ -12,8 +12,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { BENCH_SCOPE, PACKAGE_SCOPE } from "@/system/client";
-import { findExistingConnection, useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
+import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { useSelectionZone } from "@/ui/drag";

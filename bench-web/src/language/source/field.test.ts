@@ -24,6 +24,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind; identityK
       metatype: ObjectType.NODE_REFERENCE,
       nodeType: NodeType.BLOCK,
       ck: "12345678-ffff-0000-0000-000000000000",
+      id: "12345678-ffff-0000-0000-000000000000",
     },
     isSecret: false,
     isList: false,
