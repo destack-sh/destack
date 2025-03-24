@@ -1644,8 +1644,14 @@ class IsTitled(BuiltinObject):
 
 RunnableNode = Union["Flow", "Action", "Link"]
 RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
-FieldBaseNode = Union["Flow", "Action", "Class", "Database"]
-FIELD_BASE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.CLASS, NodeType.DATABASE)
+FieldBaseNode = Union["Identity", "Flow", "Action", "Class", "Database"]
+FIELD_BASE_NODE_TYPES = (
+    NodeType.IDENTITY,
+    NodeType.FLOW,
+    NodeType.ACTION,
+    NodeType.CLASS,
+    NodeType.DATABASE,
+)
 TypeBaseNode = Union[FieldBaseNode, "Choice"]
 TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 

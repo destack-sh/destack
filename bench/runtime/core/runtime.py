@@ -61,10 +61,11 @@ from bench.language import (
     on_invalid_raise,
     synchronize_nodes,
 )
-from bench.runtime.core import Cache, InvalidComputedError, NonRetryableError, RetryableError
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
 
+from .cache import Cache
+from .error import InvalidComputedError, NonRetryableError, RetryableError
 from .runner import (
     Interrupted,
     Runner,
@@ -76,6 +77,7 @@ from .runner import (
     create_run,
     restore_runner,
 )
+from .thread import ThreadHandle
 
 if TYPE_CHECKING:
     from bench.runtime.process import RuntimeProcess
@@ -121,7 +123,9 @@ class Runtime:
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
 
-        self._locks_by_id: dict[UUID, asyncio.Lock] = {}
+        self._locks_by_run_id: dict[UUID, asyncio.Lock] = {}
+        self._locks_by_thread_id: dict[UUID, asyncio.Lock] = {}
+        self._owned_threads_by_id: dict[UUID, ThreadHandle] = {}
         self._owned_runners_by_id: dict[UUID, Runner] = {}
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
@@ -799,10 +803,8 @@ class Runtime:
             return runner
 
     @tracer.start_as_current_span("runtime.load_runner")
-    async def _load_runner(self, run_ptr: Run | NodeReference) -> tuple[Runner, Run]:
+    async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
         """Load the Run to be owned in this Runtime."""
-        if not isinstance(run_ptr, NodeReference):
-            run_ptr = run_ptr.to_ref()
         assert run_ptr.id is not None, f"missing id for {run_ptr!r}"
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
@@ -821,7 +823,6 @@ class Runtime:
                 NodeType.PLAN,
                 NodeType.TASK,
                 NodeType.INTERRUPTION,
-                NodeType.THREAD,
             )
             .include_ancestors(NodeType.THREAD)
             .get(run_ptr, live=True)
@@ -838,6 +839,10 @@ class Runtime:
         run._connection.on_update(lambda _, update: self._on_updated(runner, update))
         logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
         return runner, run
+
+    def _on_thread_updated(self, runner: Runner, thread: Thread):
+        """React to updates on a Thread from outside this Runtime."""
+        pass
 
     def _on_run_updated(self, runner: Runner, run: Run):
         """React to updates on a Run from outside this Runtime."""
@@ -866,7 +871,9 @@ class Runtime:
     def _on_updated(self, runner: Runner, update: WatchGetUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
         for node in update.updated.values():
-            if isinstance(node, Run):
+            if isinstance(node, Thread):
+                self._on_thread_updated(runner, node)
+            elif isinstance(node, Run):
                 self._on_run_updated(runner, node)
             elif isinstance(node, Interruption):
                 self._on_interrupt_updated(runner, node)
@@ -889,11 +896,11 @@ class Runtime:
             raise RuntimeError(f"{self!r} was stopped")
 
         # synchronize
-        if run.id in self._locks_by_id:
-            run_lock = self._locks_by_id[run.id]
+        if run.id in self._locks_by_run_id:
+            run_lock = self._locks_by_run_id[run.id]
         else:
             run_lock = asyncio.Lock()
-            self._locks_by_id[run.id] = run_lock
+            self._locks_by_run_id[run.id] = run_lock
 
         # nocheckin :Robustness!: isolate graphs for Runtime.run (or is Runner.close enough?)
         #  (isolating this graph is tricky in case of resuming Runs since we'll re-use owned Runners,
@@ -936,7 +943,7 @@ class Runtime:
                 self.session.commit_optimistic(runtime=True)
                 runner.close(resume=False)
                 await self.session.commit()  # wait for Run to actually exist
-                runner, run = await self._load_runner(outer_run)
+                runner, run = await self._load_runner(outer_run.to_ref())
                 logger.debug("runtime.lift_flow", runner=runner, inner_run=run, outer_run=outer_run)
 
             # actually run

@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         Field,
         Flow,
         Icon,
+        Identity,
         Kit,
         Link,
         LinkType,
@@ -113,11 +114,11 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
         struct=StructType.CODE,
         description="The implementation code for this action.",
     )
-    tool: Union["Flow", "Action", None] = p_regular(
+    tool: Union["Identity", "Flow", "Action", None] = p_regular(
         53,
         require=False,
         array=False,
-        references=(NodeType.FLOW, NodeType.ACTION),
+        references=(NodeType.IDENTITY, NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
     )
     inputs_packed: Any = p_value_packed(55)
@@ -219,6 +220,8 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:
                 base = self.tool
+                if isinstance(base, Identity):
+                    base = base.default_flow
             else:
                 base = self
             return Type(
