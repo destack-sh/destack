@@ -139,5 +139,7 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
             for run_ptr in request.run_ptrs
         ]
         self._set_baggage()
-        await asyncio.gather(*(self.runtime.run(run_ptr) for run_ptr in run_ptrs))
+        await asyncio.gather(
+            *(self.runtime.run(run_ptr, _return_error=True) for run_ptr in run_ptrs)
+        )
         return RunResponse()

@@ -424,8 +424,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         runners: list[Runner] = []
         for run in matching_runs:
             runner = self.runtime._runners_by_id.get(run.id)
-            if runner is not None:
-                runners.append(runner)
+            assert runner is not None, f"missing runner for {run!r}"
+            runners.append(runner)
         return runners
 
     def get_latest_runner(self, runnable: RunnableNode) -> "Runner | None":
@@ -573,11 +573,14 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
 
-    def close(self):
+    def close(self, recursive: bool = True):
         """Close this Runner/Run."""
         if self.capture is not None:
             self.capture.close_and_detach()
         self.runtime._runners_by_id.pop(self.id, None)
+        if recursive:
+            for runner in self.runners:
+                runner.close(recursive=True)
 
 
 RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {

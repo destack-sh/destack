@@ -917,7 +917,7 @@ class Runtime:
         self,
         run: Run | NodeReference,
         *,
-        return_error: bool = False,
+        _return_error: bool = True,
     ) -> Runner | None:
         """
         Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
@@ -1020,7 +1020,7 @@ class Runtime:
                 self._try_mark_failed(run, ErrorKind.RUNTIME, e)
                 self.session.commit_optimistic()
                 logger.info("runtime.run.error", thread=thread, run=run, exc_info=e, span="current")
-                if not return_error:
+                if not _return_error:
                     raise
             except BaseException as e:
                 # some unexpected internal error
@@ -1031,26 +1031,26 @@ class Runtime:
                 )
                 if self.on_error is not None:
                     self.on_error(e)
-                if not return_error:
+                if not _return_error:
                     raise
-            finally:
-                # close runner once we're done
-                if runner.is_root and runner.status.is_terminal:
-                    runner.close()
-                    if runner.id in self._runners_by_thread_id:
-                        self._runners_by_thread_id[runner.id].remove(runner)
-                        # also close thread if it's no longer needed
-                        if not self._runners_by_thread_id[runner.id]:
-                            thread = runner.thread
-                            assert thread is not None, f"{runner!r} has no thread"
-                            await thread.close()
-                            del self._runners_by_thread_id[thread.id]
 
         # get inner runner from actual runner (may have been lifted)
         if inner_runner is not runner:
             inner_runner = runner.get_latest_runner(inner_runner.node)
             if inner_runner is None:
                 raise RuntimeError(f"missing lifted inner {inner_runner!r} in {runner!r}")
+
+        # close runner once we're done
+        if runner.is_root and runner.status.is_terminal:
+            runner.close()
+            if runner.id in self._runners_by_thread_id:
+                self._runners_by_thread_id[runner.id].remove(runner)
+                # also close thread if it's no longer needed
+                if not self._runners_by_thread_id[runner.id]:
+                    thread = runner.thread
+                    assert thread is not None, f"{runner!r} has no thread"
+                    await thread.close()
+                    del self._runners_by_thread_id[thread.id]
 
         return inner_runner
 
