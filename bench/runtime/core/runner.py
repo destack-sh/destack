@@ -60,6 +60,7 @@ from bench.language import (
     active_session,
 )
 from bench.language.core.const import COMMUNICATION_NODE_TYPES
+from bench.runtime.core.thread import RuntimeThreadHandle
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -320,6 +321,15 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     @property
     def session(self):
         return self.runtime.session
+
+    @property
+    def thread(self) -> RuntimeThreadHandle:
+        run = self.tracked_run or self.closest_tracked_run
+        assert run is not None, f"{self!r} has no tracked Run"
+        assert run.thread_ptr is not None, f"{run!r} has no Thread"
+        thread = self.runtime.get_thread(run.thread_ptr.id)
+        assert thread is not None, f"{run!r} has no Thread"
+        return thread
 
     @property
     def is_active(self) -> bool:

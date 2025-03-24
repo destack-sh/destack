@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.22.2"
+VERSION = "2025.03.24.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1590,8 +1590,8 @@ RUN_TABLE = Table(
         Column("incoming_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("incoming_base_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("options", PrimitiveType.JSON),
-        Column("thread_id", PrimitiveType.UUID, is_nullable=True),
-        Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("thread_id", PrimitiveType.UUID),
+        Column("thread_ck", PrimitiveType.UUID),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("attempt", PrimitiveType.INT32, is_nullable=True),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),

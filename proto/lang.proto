@@ -1967,7 +1967,7 @@ message PropertyReferenceData {
 message NodeReferenceData {
   ObjectType metatype = 1;
   NodeType node_type = 30;
-  optional string id = 31;
+  string id = 31;
   optional string ck = 32;
   optional string bench_id = 33;
   optional string base_id = 34;
@@ -3353,7 +3353,7 @@ message RunData {
   optional NodeReferenceData root_ptr = 33;
   repeated NodeReferenceData incoming_ptr = 34;
   RunOptionsData options = 35;
-  optional NodeReferenceData thread_ptr = 38;
+  NodeReferenceData thread_ptr = 38;
   RunStatus status = 40;
   optional int32 attempt = 41;
   optional google.protobuf.Duration duration = 42;

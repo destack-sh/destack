@@ -1758,7 +1758,7 @@ class NodeReference(Struct[NodeReferenceData]):
     """
 
     node_type: NodeType = p_internal(30, require=True)
-    id: Optional[UUID] = p_internal(31, default=None)
+    id: UUID = p_internal(31)
     ck: Optional[UUID] = p_internal(32, default=None)
     bench_id: Optional[UUID] = p_internal(33, default=None)
     base_id: Optional[UUID] = p_internal(34, default=None)

@@ -9,7 +9,7 @@ from more_itertools import first
 from rich import print
 from rich.console import Console
 
-from bench.language.core.const import NodeArea, Region
+from bench.language.core.const import REGION, NodeArea, Region
 from bench.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_area, parse_region
@@ -25,8 +25,8 @@ console = Console()
 @app.command(help="generate SQL migrations")
 @async_to_sync
 async def make(
-    area: Annotated[NodeArea, typer.Option(parser=parse_area)],
-    region: Annotated[Region, typer.Option(parser=parse_region)],
+    area: Annotated[NodeArea | None, typer.Option(parser=parse_area)] = None,
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: str = typer.Option(default="bench", help="the bench to use as local reference"),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
@@ -184,7 +184,7 @@ async def apply(
         default=None, help="the migration to migrate to [default=latest]"
     ),
     region: Optional["Region"] = typer.Option(  # noqa: B008
-        default=None, help="the region to migrate [default=current]", parser=parse_region
+        default=REGION, help="the region to migrate [default=current]", parser=parse_region
     ),
     bench: Optional[str] = typer.Option(
         default=None, help="the local bench to migrate, global otherwise"

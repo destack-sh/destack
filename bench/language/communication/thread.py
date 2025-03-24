@@ -115,6 +115,12 @@ class Thread(
         description="The main Plan to consider in this Thread (may be on the Page).",
     )
     text: Optional["Text"] = p_regular(65, require=False, default=None, struct=StructType.TEXT)
+    if TYPE_CHECKING:
+        main_page_ptr: Optional[NodeReference] = None
+        main_page_id: Optional[UUID] = None
+        main_plan_ptr: Optional[NodeReference] = None
+        main_plan_id: Optional[UUID] = None
+        main_plan_ck: Optional[UUID] = None
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
