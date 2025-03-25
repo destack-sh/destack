@@ -42,16 +42,26 @@ class ClaimType(BuiltinEnum):
 @enum_(EnumType.CLAIM_STATUS)
 class ClaimStatus(BuiltinEnum):
     # pre
-    PENDING = 10, "Pending", "Pending", "fas fa-clock", ColorType.GRAY
+    REQUESTED = 1, "Pending", "Pending", "fas fa-clock", ColorType.GRAY
     # active
-    OPEN = 20, "Active", "Active concurrent access", "fas fa-lock", ColorType.GREEN
-    #
+    OPEN = 10, "Active", "Active concurrent access", "fas fa-lock", ColorType.GREEN
+    # inactive
+    PAUSED = 20, "Paused", "Paused", "fas fa-pause", ColorType.YELLOW
+    # terminal
     CANCELLED = 30, "Cancelled", None, "fas fa-circle-xmark", ColorType.RED
     REJECTED = 31, "Rejected", None, "fas fa-circle-exclamation", ColorType.RED
     RELEASED = 32, "Released", None, "fas fa-circle-check", ColorType.GRAY
 
     @property
+    def is_pending(self) -> bool:
+        return self < 10
+
+    @property
     def is_active(self) -> bool:
+        return self >= 10 and self < 20
+
+    @property
+    def is_inactive(self) -> bool:
         return self >= 20 and self < 30
 
     @property
@@ -89,11 +99,12 @@ class Claim(
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # status
-    status: ClaimStatus = p_regular(50, default=ClaimStatus.PENDING)
+    status: ClaimStatus = p_regular(50, default=ClaimStatus.REQUESTED)
     duration: Optional[timedelta] = p_internal(51, default=None)
     opened_at: Optional[datetime] = p_internal(52, default=None)
-    granted_at: Optional[datetime] = p_internal(53, default=None)
-    closed_at: Optional[datetime] = p_internal(54, default=None)
+    paused_at: Optional[datetime] = p_internal(53, default=None)
+    resumed_at: Optional[datetime] = p_internal(54, default=None)
+    terminated_at: Optional[datetime] = p_internal(55, default=None)
 
     # content
     target: Optional[Claimable] = p_regular(

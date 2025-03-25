@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.25.1"
+VERSION = "2025.03.25.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1940,11 +1940,12 @@ CLAIM_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("status", PrimitiveType.INT16, default="10"),
+        Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("granted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("resumed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("target_id", PrimitiveType.UUID, is_nullable=True),
         Column("target_ck", PrimitiveType.UUID, is_nullable=True),
         Column("target_type", PrimitiveType.INT16, is_nullable=True),

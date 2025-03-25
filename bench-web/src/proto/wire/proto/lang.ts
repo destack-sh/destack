@@ -4387,13 +4387,17 @@ export interface ClaimData {
      */
     openedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp granted_at = 53;
+     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 53;
      */
-    grantedAt?: Timestamp;
+    pausedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp closed_at = 54;
+     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 54;
      */
-    closedAt?: Timestamp;
+    resumedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 55;
+     */
+    terminatedAt?: Timestamp;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData target_ptr = 60;
      */
@@ -12701,13 +12705,17 @@ export enum ClaimStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CLAIM_STATUS_PENDING = 10;
+     * @generated from protobuf enum value: CLAIM_STATUS_REQUESTED = 1;
      */
-    PENDING = 10,
+    REQUESTED = 1,
     /**
-     * @generated from protobuf enum value: CLAIM_STATUS_ACTIVE = 20;
+     * @generated from protobuf enum value: CLAIM_STATUS_OPEN = 10;
      */
-    ACTIVE = 20,
+    OPEN = 10,
+    /**
+     * @generated from protobuf enum value: CLAIM_STATUS_PAUSED = 20;
+     */
+    PAUSED = 20,
     /**
      * @generated from protobuf enum value: CLAIM_STATUS_CANCELLED = 30;
      */
@@ -24829,8 +24837,9 @@ class ClaimData$Type extends MessageType$<ClaimData> {
             { no: 50, name: "status", kind: "enum", T: () => ["symbolx.bench.ClaimStatus", ClaimStatus, "CLAIM_STATUS_"] },
             { no: 51, name: "duration", kind: "message", T: () => Duration },
             { no: 52, name: "opened_at", kind: "message", T: () => Timestamp },
-            { no: 53, name: "granted_at", kind: "message", T: () => Timestamp },
-            { no: 54, name: "closed_at", kind: "message", T: () => Timestamp },
+            { no: 53, name: "paused_at", kind: "message", T: () => Timestamp },
+            { no: 54, name: "resumed_at", kind: "message", T: () => Timestamp },
+            { no: 55, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 60, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 65, name: "target_template_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 90, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24924,11 +24933,14 @@ class ClaimData$Type extends MessageType$<ClaimData> {
                 case /* optional google.protobuf.Timestamp opened_at */ 52:
                     message.openedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.openedAt);
                     break;
-                case /* optional google.protobuf.Timestamp granted_at */ 53:
-                    message.grantedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.grantedAt);
+                case /* optional google.protobuf.Timestamp paused_at */ 53:
+                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
                     break;
-                case /* optional google.protobuf.Timestamp closed_at */ 54:
-                    message.closedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.closedAt);
+                case /* optional google.protobuf.Timestamp resumed_at */ 54:
+                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 55:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData target_ptr */ 60:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
@@ -25029,12 +25041,15 @@ class ClaimData$Type extends MessageType$<ClaimData> {
         /* optional google.protobuf.Timestamp opened_at = 52; */
         if (message.openedAt)
             Timestamp.internalBinaryWrite(message.openedAt, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp granted_at = 53; */
-        if (message.grantedAt)
-            Timestamp.internalBinaryWrite(message.grantedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp closed_at = 54; */
-        if (message.closedAt)
-            Timestamp.internalBinaryWrite(message.closedAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp paused_at = 53; */
+        if (message.pausedAt)
+            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp resumed_at = 54; */
+        if (message.resumedAt)
+            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 55; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData target_ptr = 60; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -34065,8 +34080,9 @@ export enum ClaimProperty {
   status = 50,
   duration = 51,
   openedAt = 52,
-  grantedAt = 53,
-  closedAt = 54,
+  pausedAt = 53,
+  resumedAt = 54,
+  terminatedAt = 55,
   targetPtr = 60,
   targetTemplatePtr = 65,
   sessionPtr = 90,
@@ -36348,11 +36364,12 @@ export const ClaimDataInfo: Record<ClaimProperty, PropertyInfo> = {
   [ClaimProperty.type]: { id: 30, name: 'type', component: ObjectType.CLAIM, enumType: EnumType.CLAIM_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.name]: { id: 31, name: 'name', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ClaimProperty.status]: { id: 50, name: 'status', component: ObjectType.CLAIM, enumType: EnumType.CLAIM_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.status]: { id: 50, name: 'status', component: ObjectType.CLAIM, enumType: EnumType.CLAIM_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.duration]: { id: 51, name: 'duration', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.openedAt]: { id: 52, name: 'opened_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ClaimProperty.grantedAt]: { id: 53, name: 'granted_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ClaimProperty.closedAt]: { id: 54, name: 'closed_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.pausedAt]: { id: 53, name: 'paused_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.resumedAt]: { id: 54, name: 'resumed_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.terminatedAt]: { id: 55, name: 'terminated_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.targetPtr]: { id: 60, name: 'target_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.APPLICATION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.FLOW, NodeType.ACTION, NodeType.KIT], referenceStruct: StructType.NODE_REFERENCE },
   [ClaimProperty.targetTemplatePtr]: { id: 65, name: 'target_template_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.APPLICATION, NodeType.FILE, NodeType.STREAM, NodeType.SECRET, NodeType.FLOW, NodeType.ACTION, NodeType.KIT], referenceStruct: StructType.NODE_REFERENCE },
   [ClaimProperty.sessionPtr]: { id: 90, name: 'session_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -37461,8 +37478,9 @@ export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
 }
 
 export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {
-  [ClaimStatus.PENDING]: { id: 10, name: 'PENDING', text: 'Pending', title: 'Pending', color: ColorType.GRAY, icon: 'fas fa-clock' },
-  [ClaimStatus.ACTIVE]: { id: 20, name: 'ACTIVE', text: 'Active concurrent access', title: 'Active', color: ColorType.GREEN, icon: 'fas fa-lock' },
+  [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', color: ColorType.GRAY, icon: 'fas fa-clock' },
+  [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', color: ColorType.GREEN, icon: 'fas fa-lock' },
+  [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', color: ColorType.YELLOW, icon: 'fas fa-pause' },
   [ClaimStatus.CANCELLED]: { id: 30, name: 'CANCELLED', title: 'Cancelled', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
   [ClaimStatus.REJECTED]: { id: 31, name: 'REJECTED', title: 'Rejected', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
   [ClaimStatus.RELEASED]: { id: 32, name: 'RELEASED', title: 'Released', color: ColorType.GRAY, icon: 'fas fa-circle-check' },

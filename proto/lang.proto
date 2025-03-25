@@ -1438,8 +1438,9 @@ enum ClaimType {
 
 enum ClaimStatus {
   CLAIM_STATUS_UNSPECIFIED = 0;
-  CLAIM_STATUS_PENDING = 10;
-  CLAIM_STATUS_ACTIVE = 20;
+  CLAIM_STATUS_REQUESTED = 1;
+  CLAIM_STATUS_OPEN = 10;
+  CLAIM_STATUS_PAUSED = 20;
   CLAIM_STATUS_CANCELLED = 30;
   CLAIM_STATUS_REJECTED = 31;
   CLAIM_STATUS_RELEASED = 32;
@@ -3179,8 +3180,9 @@ message ClaimData {
   ClaimStatus status = 50;
   optional google.protobuf.Duration duration = 51;
   optional google.protobuf.Timestamp opened_at = 52;
-  optional google.protobuf.Timestamp granted_at = 53;
-  optional google.protobuf.Timestamp closed_at = 54;
+  optional google.protobuf.Timestamp paused_at = 53;
+  optional google.protobuf.Timestamp resumed_at = 54;
+  optional google.protobuf.Timestamp terminated_at = 55;
   optional NodeReferenceData target_ptr = 60;
   optional NodeReferenceData target_template_ptr = 65;
   optional NodeReferenceData session_ptr = 90;
