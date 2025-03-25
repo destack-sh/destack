@@ -585,47 +585,6 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     abort: AbortSignal,
     onError: (error: Error) => void,
   ): Promise<ConnectionResultMapping<T>[K] & ConnectionInternalResult>;
-
-  /** Whether this connection is a superset of the given connection */
-  includes(params: ConnectionParamsMapping<T>[K]): boolean {
-    // NOTE :Broken: connection 'overlap' detection is broken :ConnectionMatching :RichGraph
-    //  (but shouldn't be an issue for now as we we fetch the entire package source / other search connections separately)
-    if (this.kind == "get") {
-      const thisGet = this.params as GetConnectionParams<T>;
-      const otherGet = params as GetConnectionParams<T>;
-      if (getScopeFromParams(otherGet).benchId != getScopeFromParams(thisGet).benchId) {
-        // different bench
-        return false;
-      }
-      const thisNodeTypes = [
-        ...thisGet.roots.map((r) => r.nodeType),
-        ...(thisGet.ancestorTypes ?? []),
-        ...(thisGet.descendantTypes ?? []),
-      ];
-      if (
-        thisNodeTypes.some(
-          (t) => t != NodeType.BENCH && t != NodeType.PACKAGE && !LOADED_PACKAGE_NODE_TYPES.includes(t),
-        )
-      ) {
-        // NOTE :Broken: we can only assume that node type overlap is enough for source nodes, otherwise check full params
-        //  (since they're loaded in a very specific way .. see :ConnectionMatching :RichGraph)
-        return deepContentEquals(thisGet.roots, otherGet.roots);
-      }
-      const otherNodeTypes = [
-        ...otherGet.roots.map((r) => r.nodeType),
-        ...(otherGet.ancestorTypes ?? []),
-        ...(otherGet.descendantTypes ?? []),
-      ];
-      // check whether all the node types overlap
-      return otherNodeTypes.every((t) => thisNodeTypes.includes(t));
-    } else if (this.kind == "search") {
-      return deepContentEquals(params, this.params);
-    } else if (this.kind == "aggregate") {
-      return deepContentEquals(params, this.params);
-    } else {
-      throw new Error(`unsupported connection kind: ${this.kind}`);
-    }
-  }
 }
 
 export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get", T> {
@@ -997,13 +956,17 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
 ): ConnectionBase<K, T> | null {
   const matchingConnections =
     _connections.value.filter(
-      (c) => c !== exclude && kinds.includes(c.kind) && c.includes(params) && match?.predicate?.(c) !== false,
+      (c) =>
+        c !== exclude &&
+        kinds.includes(c.kind) &&
+        deepContentEquals(c.params, params) &&
+        match?.predicate?.(c) !== false,
     ) ?? null;
   if (matchingConnections.length == 0) {
     return null;
   }
   if (matchingConnections.length > 1) {
-    // NOTE: find the best connection match somehow :ConnectionMatching :RichGraph?
+    // NOTE: find the best connection match somehow :RichGraph?
     // pick newest connection
     matchingConnections.sort((a, b) => b.createdAt.diff(a.createdAt).milliseconds);
   }

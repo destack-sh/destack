@@ -1464,7 +1464,7 @@ class IsTemplatable(BuiltinObject):
         """
         assert isinstance(self, Node), f"{self!r} must be a Node"
         assert isinstance(self, IsModal), f"{self!r} must be modal"
-        session = self.active_session
+        session = active_session()
 
         # instance self
         instance_kwargs = self._clone_kwargs(reset=True)

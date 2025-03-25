@@ -18,6 +18,7 @@ import { PopoverInfoIn } from "@/ui/popover";
 import { NODE_REF_CONTEXT_KEY } from "@/ui/space";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
+import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
 import Title from "@/views/builtins/Title.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
@@ -227,6 +228,9 @@ defineExpose({
     :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
   >
     <!-- Node not found -->
-    <span class="text-gray-400">[deleted]</span>
+    <span v-if="IS_DEVELOPER_MODE" class="text-gray-400"
+      >[{{ toCamelName(NodeType, nodePtr?.nodeType) }}:{{ nodePtr?.id }}]</span
+    >
+    <span v-else class="text-gray-400">[not found]</span>
   </div>
 </template>

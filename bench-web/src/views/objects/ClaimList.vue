@@ -76,7 +76,7 @@ defineExpose<ViewExpose>({ self, id, commands });
           canvas.goToNode((claim.targetPtr ?? claim.targetTemplatePtr)!)
         "
       >
-        <!-- nocheckin: show actual Claim status somehow -->
+        <!-- TODO :Incomplete: show/control? actual Claim status somehow -->
         <NodeReference :node-ptr="claim.targetPtr ?? claim.targetTemplatePtr" is-light size="sm" />
       </li>
       <!-- Create -->

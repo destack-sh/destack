@@ -139,10 +139,15 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         await super().start()
         self.tasks.start_queue(self._commit_queue, self.on_commit_deferred, skip_errors=True)
 
+    def filter_commit(self, commit: Commit) -> bool:
+        """Filter a commit before adding it to the queue."""
+        return True
+
     @override
     @final
     async def on_commit(self, session: Session, commit: Commit) -> None:
-        self._commit_queue.put_nowait(commit)
+        if self.filter_commit(commit):
+            self._commit_queue.put_nowait(commit)
 
     @final
     async def wait_idle(self, timeout: float) -> None:

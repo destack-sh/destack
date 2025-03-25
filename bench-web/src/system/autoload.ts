@@ -200,7 +200,7 @@ export class NodeAutoloader {
       };
       this.loadedBatches.push(batch);
       const nodes = nodeRefs.map((ptr) => this.supergraph.get(ptr));
-      log.trace("autoload.load.complete", { batchId, nodeRefs, nodes });
+      log.trace("autoload.load.complete", { batchId, nodeRefs, nodes, connection });
       this.onLoaded(...nodeRefs);
     } catch (e) {
       log.trace("autoload.load.fail", { e, batchId, nodeRefs });
