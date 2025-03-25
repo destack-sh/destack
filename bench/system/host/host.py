@@ -52,7 +52,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
-from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_BENCH_ID
+from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_BENCH_ID, QueryType
 from bench.pb2 import MessageData
 from bench.proto import (
     DownloadFilesRequest,
@@ -534,7 +534,9 @@ class HostService(GraphServiceBase, HostBase):
             query = query.where(query._node_cls.get_property("bench").eq(self._bench.to_ref()))
 
         # always load members for joinables
-        if descendant_types := AUTOLOAD_DESCENDANT_TYPES.get(query._node_type):
+        if query._type == QueryType.GET and (
+            descendant_types := AUTOLOAD_DESCENDANT_TYPES.get(query._node_type)
+        ):
             query = query.include_descendants(*descendant_types)
 
         return query

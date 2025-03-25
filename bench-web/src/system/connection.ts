@@ -6,6 +6,7 @@ import {
   LayerNodeGraph,
   NodeGraph,
   NodeSuperGraph,
+  NodeSuperGraphGetOptions,
   ProxyNodeGraph,
   type ReadNodeGraph,
   type WriteNodeGraph,
@@ -47,7 +48,7 @@ import {
   makeScope,
   propertyReference,
   unwrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { NodeAutoloader } from "@/system/autoload";
 import { LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
@@ -1175,6 +1176,7 @@ function useConnectionGraphRaw<T extends NodeType>(
  * NOTE: for performance the graph/connection proxies are 'lazy' (just regular refs, so they get batch-processed per tick).
  *  That means changing 'node' will change connection/graph only on the next tick.
  * NOTE :Architecture: the graphs and the current bench/pkg/space pointers are not atomically updated,
+ * NOTE :Performance: don't use separate overlay graphs for every useExistingConnection?
  *  so sometimes it can happen that we need a new connection but the new graph isn't loaded yet.
  *  For those cases it's useful to just default to not required and keeping previous connections.
  */
@@ -1185,9 +1187,9 @@ export function useExistingConnection<T extends NodeType = any>(
   graphRaw: ReadNodeGraph;
   connection: Connection<"get" | "search", T>;
 } {
-  // NOTE :Performance: don't use separate overlay graphs for every useExistingConnection?
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
-  const { connection } = supergraph.getLinkRef(nodeRef);
+  // we restrict to get connections here because search connections don't have descendants :BadSearchConnection
+  const { connection } = supergraph.getLinkRef(nodeRef, { filter: (connection) => connection.kind == "get" });
   const graph = useConnectionGraphComposite(connection);
   const graphRaw = useConnectionGraphRaw(connection);
   return { graph, graphRaw, connection: new ProxyConnection(connection) };

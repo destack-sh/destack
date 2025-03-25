@@ -429,7 +429,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
         assert self._result_data is not None, f"no result for {self!r}"
         assert self._result_roots_ids is not None, f"no result for {self!r}"
 
-        # NOTE :Incomplete: support ancestors/descendants/joins in (live) search connection :RichGraph
+        # TODO :Incomplete: ancestors/descendants/... in live search :BadSearchConnection :RichGraph
         #  This seems tricky because we'll have to re-query somehow when a new root is added
         #   (we don't have its ancestors/descendants ready anywhere),
         #  and because we need to somehow split roots from descendants/ancestors if they
@@ -684,6 +684,10 @@ class ConnectionIndex:
         epoch: int,
     ):
         """Updates all active connections with a new commit."""
+        edited_node_types = bittuple(enum_cls=NodeType)
+        for edit in chain(edits, cascaded_edits):
+            node_type = NodeType(edit.node_ptr.node_type)
+            edited_node_types.bits[node_type.ord] = True
         for connection in self._connections_by_hash.values():
-            if (connection.node_types.bits & graph.node_types.bits).any():
+            if (connection.node_types.bits & edited_node_types.bits).any():
                 connection.on_commit(graph, edits, cascaded_edits, epoch)

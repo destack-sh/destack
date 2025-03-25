@@ -21,8 +21,6 @@ const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
-    ancestorTypes?: NodeType[];
-    descendantTypes?: NodeType[];
   } & Partial<Pick<ViewData, "subnodePacked">>
 >();
 const emit = defineEmits<ViewEmits>();
@@ -49,8 +47,6 @@ const { connection, graph, page, roots, isConnecting, isStale } = useSearchConne
     scope: nodeType.value != null && isBenchNodeType(nodeType.value) ? BENCH_SCOPE.value : EMPTY_SCOPE,
     sort: [DEFAULT_SORT],
     filter: filter.value,
-    ancestorTypes: props.ancestorTypes,
-    descendantTypes: props.descendantTypes,
     isEnabled: nodeType.value != null,
     first: 20,
   })),

@@ -1,5 +1,7 @@
 <script lang="ts" setup>
+import { supergraph } from "@/globals";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
+import { isRunnable } from "@/language/runtime/run";
 import { createClaim } from "@/language/source/claim";
 import {
   ActionData,
@@ -92,9 +94,11 @@ defineExpose<ViewExpose>({ self, id, commands });
               onApply: (value?: NodeReferenceData) => {
                 if (value == null) return;
                 if (claims.find((c) => c.targetPtr?.id == value.id)) return;
+                const node = supergraph.getOrError(value);
+                const mode = isRunnable(node) ? NodeMode.TEMPLATE : NodeMode.MAIN;
                 createClaim(connection.tx, graph, {
                   claim: {
-                    mode: NodeMode.TEMPLATE,
+                    mode,
                     type: ClaimType.SHARED,
                     packagePtr: (base as ActionData)?.packagePtr,
                     parentPtr: basePtr,

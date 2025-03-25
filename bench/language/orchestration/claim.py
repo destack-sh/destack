@@ -27,7 +27,7 @@ from bench.pb2 import ClaimData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Action, Flow, Identity, Kit, Page, Role, Run, Thread
+    from bench.language import Action, Flow, Identity, Kit, Run, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -74,19 +74,16 @@ class Claim(
     """
 
     # meta
-    parent: Union["Page", "Kit", "Flow", "Action", "Identity", "Role", "Thread", "Run", None] = (
-        p_node_parent(
-            4,
-            NodeType.PAGE,
-            NodeType.KIT,
-            NodeType.FLOW,
-            NodeType.ACTION,
-            NodeType.IDENTITY,
-            NodeType.ROLE,
-            NodeType.THREAD,
-            NodeType.RUN,
-            ckless=True,
-        )
+    parent: Union["Kit", "Flow", "Action", "Identity", "Thread", "Run", None] = p_node_parent(
+        4,
+        NodeType.KIT,
+        NodeType.FLOW,
+        NodeType.ACTION,
+        NodeType.IDENTITY,
+        NodeType.ROLE,
+        NodeType.THREAD,
+        NodeType.RUN,
+        ckless=True,
     )
     type: ClaimType = p_system(30, require=True)
     order_key: str = p_internal(33, default=INTEGER_ZERO)

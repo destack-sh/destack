@@ -430,7 +430,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         if node_data.id not in data_graph:
                             data_graph.add(node_data)
 
-                    # load from outside memory if channel is memory and we're missing something
+                    # load from outside memory if we're missing something
                     # NOTE :Cleanup: always loading again without memory is ugly and unnecessary (ugh.. :RichGraph)
                     #  (but we don't really know way up here whether connection was actually memory..)
                     missing_node_ptrs = [
@@ -443,7 +443,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         raw_channel = await session._get_connector_for(
                             scope,
                             adapted_query.all_node_types,
-                            include_deleted=include_deleted,
+                            include_deleted=True,
                             include_memory=False,
                             is_readonly=True,
                         )
@@ -728,6 +728,10 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     select=select,
                 )
                 adapted_query = self._adapt_read_query(subject, query)
+
+            # bail for joins :BadSearchConnection
+            if query._descendant_types:
+                raise GRPCError(GRPCStatus.UNIMPLEMENTED, f"bad join in search: {query!r}")
 
             # read the nodes
             with self.tracer.start_as_current_span(f"{self.name}.search.read") as span:
