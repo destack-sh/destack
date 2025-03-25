@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import structlog
 import typer
 
-from bench.language.core.const import NodeArea, Region
+from bench.language.core.const import REGION, NodeArea, Region
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
 
@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 @async_to_sync
 async def shell(
     area: Annotated[NodeArea, typer.Option(parser=parse_area)],
-    region: Annotated[Region, typer.Option(parser=parse_region)],
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
     bench: Optional[str] = None,
 ):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""

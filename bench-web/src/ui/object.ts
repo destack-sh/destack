@@ -43,6 +43,7 @@ import {
   PropertyInfo,
   RecordProperty,
   TaskProperty,
+  ThreadProperty,
   TypeConstraintProperty,
   TypeData,
   TypeKind,
@@ -908,7 +909,9 @@ export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
 
 export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
   make() {
-    this.section(undefined, []);
+    this.section(undefined, [
+      // this.rowProperty(ThreadProperty.mainPagePtr)
+    ]);
     this.section("Members", [{ type: "membership-list", title: undefined }], {});
     this.section("Tools & Resources", [{ type: "claims-list", title: undefined }], {});
   }

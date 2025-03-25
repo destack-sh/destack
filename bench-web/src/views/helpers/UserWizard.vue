@@ -15,6 +15,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
+import { fireCommandById } from "@/ui/command";
 import { makeIcon } from "@/ui/icon";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
@@ -49,6 +50,7 @@ watchEffect(() => {
 });
 const isActive = ref(false);
 const lastError: Ref<string | null> = ref(null);
+const isCreating = ref(false);
 
 function clear() {
   name.value = "";
@@ -82,12 +84,22 @@ async function submit() {
   lastError.value = null;
   try {
     if (stage.value == UserWizardViewStage.SIGN_UP) {
-      await signUp({ name: name.value, slug: slug.value, email: email.value }, password.value);
+      isCreating.value = true;
+      try {
+        const { user } = await signUp(
+          { name: name.value, slug: slug.value, email: email.value, region: region.value },
+          password.value,
+        );
+        await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
+        await fireCommandById("space.create.page");
+      } finally {
+        isCreating.value = false;
+      }
     } else if (stage.value == UserWizardViewStage.LOG_IN) {
       const { user } = await logIn({ slug: slug.value }, password.value);
       // if we're outside a Bench and have a Bench, go home
       if (user.mainBenchPtr != null && benchPtr.value == null) {
-        await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
+        // await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
       }
     } else {
       throw new Error(`unexpected registration stage: ${stage.value}`);
@@ -113,18 +125,21 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 defineExpose<ViewExpose>({ self, focus });
 </script>
 <template>
-  <div class="mx-auto mt-[16%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
+  <div v-if="isCreating" class="flex h-full w-full flex-col items-center justify-center gap-y-2">
+    <!-- Already working, just waiting for Bench -->
+    <i class="fas fa-spinner-third animate-spin text-gray-400" />
+  </div>
+  <div v-else class="mx-auto mt-[16%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">{{ title }}</h2>
       <p class="mt-2 text-gray-500">
-        <span v-if="user">You're logged in and good to go.</span>
-        <span v-else-if="stage == UserWizardViewStage.LOG_IN">Log into an existing Bench account.</span>
-        <span v-else-if="stage == UserWizardViewStage.SIGN_UP">Create a new Bench account.</span>
+        <span v-if="stage == UserWizardViewStage.LOG_IN">Log into an existing Bench account.</span>
+        <span v-else>Create a new Bench account.</span>
       </p>
     </div>
     <!-- Data -->
-    <div v-if="!user" class="mt-5 flex w-full flex-col gap-y-2">
+    <div class="mt-5 flex w-full flex-col gap-y-2">
       <div v-if="stage == UserWizardViewStage.SIGN_UP" class="flex flex-col gap-y-0.5">
         <span class="font-medium">Name</span>
         <NativeInput

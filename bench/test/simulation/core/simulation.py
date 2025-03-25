@@ -10,20 +10,25 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from bench.language import REGION, NodeArea, Store
-from bench.language.core.const import (
+from bench.language import (
     BENCH_BENCH_ID,
     BENCH_BENCH_SLUG,
+    REGION,
     SYSTEM_BENCH_ID,
     SYSTEM_BENCH_SLUG,
+    NodeArea,
+    Store,
 )
 from bench.proto import SupervisorClient
 from bench.sql.client import get_pg_pool_by_external_name, pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.graph import BUILTIN_GLOBAL_SCHEMA, BUILTIN_REGIONAL_SCHEMA
-from bench.system import StoreMap, pg_engine_from_store
-from bench.system.core.session import global_store_from_env
-from bench.system.supervisor.bootstrap import create_system_benches
+from bench.system import (
+    StoreMap,
+    create_system_benches,
+    global_store_from_env,
+    pg_engine_from_store,
+)
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager
 

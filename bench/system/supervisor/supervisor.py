@@ -62,16 +62,12 @@ from bench.system.core import (
 from bench.system.graph import GraphServiceBase
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
-from bench.utils.utils import get_from_env
 
 from .bench import CreateBenchOptions, create_default_bench
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-USE_WAITLIST = get_from_env(
-    "USE_WAITLIST", default=False, description="Whether to add new users to the waitlist"
-)
 SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 
 
@@ -204,16 +200,28 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
+        # get regional Store
+        region = Region(request.region)
+        regional_store = self._store_map.get(region=region)
+        regional_pg_engine = pg_engine_from_store(
+            name=f"pg-regional-{regional_store.region.name.lower()}",
+            store=regional_store,
+            area=NodeArea.REGIONAL,
+        )
+
         async with self.new_request_session(
-            supergraph=subject._supergraph, readonly=False
+            supergraph=subject._supergraph,
+            readonly=False,
+            engines=(self._global_pg_engine, regional_pg_engine),
         ) as session:
+            # create User
             user = User(
                 id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
                 name=request.name or request.slug,
                 email=request.email,
-                status=UserStatus.WAITLISTED if USE_WAITLIST else UserStatus.REGISTERED,
-                region=Region.ZURICH,
+                status=UserStatus.REGISTERED,
+                region=region,
                 last_logged_in_at=self.oracle.utc(),
                 _is_new=True,  # force create
             )
@@ -223,12 +231,27 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             user.password_hash = hash_password(request.password, user.password_salt)
             session._create(user)
             await session.flush(optimistic=True)
+
+            # create Client
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._create(client)
             await session.flush(optimistic=True)
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
+
+            # immediately create User's main Bench
+            if request.activate:
+                bench = await create_default_bench(
+                    main_handle=user.main_handle,
+                    owned_by=user,
+                    region=user.region,
+                    session=session,
+                    options=self._create_bench_options,
+                )
+                user.main_bench = bench
+                user.status = UserStatus.ACTIVATED
+                await session.commit()
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(

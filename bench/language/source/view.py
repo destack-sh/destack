@@ -71,7 +71,6 @@ class ViewType(BuiltinEnum):
 
     # helpers (20000-30000)
     USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"
-    BENCH_WIZARD = 20002, "Bench wizard", None, "fas fa-circle-dot"
     EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
     CREATE = 20201, None, None, "fas fa-plus"
     CHAT = 20202, None, None, "fas fa-message"
