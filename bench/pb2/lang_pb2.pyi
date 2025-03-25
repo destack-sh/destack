@@ -1634,7 +1634,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_SELECTION: _ClassVar[ViewType]
     VIEW_TYPE_CLAIM_LIST: _ClassVar[ViewType]
     VIEW_TYPE_USER_WIZARD: _ClassVar[ViewType]
-    VIEW_TYPE_BENCH_WIZARD: _ClassVar[ViewType]
     VIEW_TYPE_EMPTY: _ClassVar[ViewType]
     VIEW_TYPE_CREATE: _ClassVar[ViewType]
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
@@ -3260,7 +3259,6 @@ VIEW_TYPE_COMPUTED_VALUE: ViewType
 VIEW_TYPE_SELECTION: ViewType
 VIEW_TYPE_CLAIM_LIST: ViewType
 VIEW_TYPE_USER_WIZARD: ViewType
-VIEW_TYPE_BENCH_WIZARD: ViewType
 VIEW_TYPE_EMPTY: ViewType
 VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType

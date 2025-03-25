@@ -16,10 +16,10 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { Struct } from "../google/protobuf/struct";
 import { FileData } from "./lang";
 import { BenchData } from "./lang";
-import { Region } from "./lang";
 import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
+import { Region } from "./lang";
 import { ClientType } from "./lang";
 import { ContextData } from "./lang";
 import { AggregationResultData } from "./lang";
@@ -574,9 +574,17 @@ export interface SignupUserRequest {
      */
     password: string;
     /**
-     * @generated from protobuf field: symbolx.bench.ClientDataIn client = 6;
+     * @generated from protobuf field: symbolx.bench.Region region = 6;
+     */
+    region: Region;
+    /**
+     * @generated from protobuf field: symbolx.bench.ClientDataIn client = 9;
      */
     client?: ClientDataIn;
+    /**
+     * @generated from protobuf field: optional bool activate = 10;
+     */
+    activate?: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SignupUserResponse
@@ -2142,7 +2150,9 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
             { no: 3, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "email", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
             { no: 5, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/, options: { "symbolx.bench.sensitive": true } },
-            { no: 6, name: "client", kind: "message", T: () => ClientDataIn }
+            { no: 6, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 9, name: "client", kind: "message", T: () => ClientDataIn },
+            { no: 10, name: "activate", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SignupUserRequest>): SignupUserRequest {
@@ -2150,6 +2160,7 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         message.slug = "";
         message.email = "";
         message.password = "";
+        message.region = 0;
         if (value !== undefined)
             reflectionMergePartial<SignupUserRequest>(this, message, value);
         return message;
@@ -2174,8 +2185,14 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
                 case /* string password */ 5:
                     message.password = reader.string();
                     break;
-                case /* symbolx.bench.ClientDataIn client */ 6:
+                case /* symbolx.bench.Region region */ 6:
+                    message.region = reader.int32();
+                    break;
+                case /* symbolx.bench.ClientDataIn client */ 9:
                     message.client = ClientDataIn.internalBinaryRead(reader, reader.uint32(), options, message.client);
+                    break;
+                case /* optional bool activate */ 10:
+                    message.activate = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2204,9 +2221,15 @@ class SignupUserRequest$Type extends MessageType<SignupUserRequest> {
         /* string password = 5; */
         if (message.password !== "")
             writer.tag(5, WireType.LengthDelimited).string(message.password);
-        /* symbolx.bench.ClientDataIn client = 6; */
+        /* symbolx.bench.Region region = 6; */
+        if (message.region !== 0)
+            writer.tag(6, WireType.Varint).int32(message.region);
+        /* symbolx.bench.ClientDataIn client = 9; */
         if (message.client)
-            ClientDataIn.internalBinaryWrite(message.client, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+            ClientDataIn.internalBinaryWrite(message.client, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool activate = 10; */
+        if (message.activate !== undefined)
+            writer.tag(10, WireType.Varint).bool(message.activate);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

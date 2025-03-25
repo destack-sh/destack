@@ -59,8 +59,6 @@ export const clients = userGraph.getChildrenRef(
   computed(() => (user.value != null ? toNodeRef(user.value) : null)),
   NodeType.CLIENT,
 );
-export const isWaitlisted = computed(() => user.value?.status == UserStatus.WAITLISTED);
-export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 
 function makeCurrentClient(): ClientData {
   return makeNode(
@@ -102,17 +100,29 @@ function onLogout() {
  * Sign up a new user and simultaneously log in as the current client.
  */
 export async function signUp(
-  userIn: { name?: string; slug: string; email: string },
+  userIn: { name?: string; slug: string; email: string; region: Region },
   password: string,
   options?: OperationOptions,
 ) {
   if (isAuthenticated.value) throw new Error("already logged in");
   const {
     response: { user, client, accessToken },
-  } = await supervisor.signupUser({ ...userIn, password, client: makeCurrentClient() }, options);
+  } = await supervisor.signupUser(
+    {
+      name: userIn.name,
+      slug: userIn.slug,
+      email: userIn.email,
+      region: userIn.region,
+      password,
+      client: makeCurrentClient(),
+      activate: true,
+    },
+    options,
+  );
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.success({ icon: "fas fa-right-from-bracket", title: "Signed up", text: `Welcome, ${user.slug}.` });
+  return { user, client };
 }
 
 /**
@@ -224,24 +234,12 @@ provideCommands<"user">({
     isEnabled: isAuthenticated,
     command: () => logOut({ all: true }),
   },
-  "user.navigate.activate": {
-    icon: "fas fa-rocket-launch",
-    isEnabled: computed(() => isAuthenticated.value && !isActivated.value && !isWaitlisted.value),
-    title: "Activate Bench",
-    text: "Activate your account by creating your Bench.",
-    command: () => {
-      canvas.addView(
-        { type: ViewType.BENCH_WIZARD, icon: makeIcon("fas fa-rocket-launch"), title: "Activate Bench" },
-        { ifPresent: "upsertAndFocus" },
-      );
-    },
-  },
   "user.navigate.goToHome": {
     icon: "fas fa-home",
     title: "Go Home",
     text: "Go back to your Bench.",
     isEnabled: () => {
-      return isActivated.value;
+      return isAuthenticated.value;
     },
     command: async () => {
       if (bench.value?.id == user.value!.mainBenchPtr?.id) {

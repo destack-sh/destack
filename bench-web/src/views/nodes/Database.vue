@@ -654,6 +654,11 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           </button>
         </div>
 
+        <!-- Status -->
+        <div v-if="recordConnection.isConnecting.value" class="">
+          <!-- Loading -->
+          <i class="fas fa-spinner-third animate-spin text-gray-400" />
+        </div>
         <!-- Add field -->
         <button
           class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
@@ -695,24 +700,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <i class="fas fa-plus mr-1.5 text-center" />
           <span class="">Record</span>
         </button>
-
-        <!-- Pagination -->
-        <!-- TODO :Incomplete: Database pagination -->
-        <div
-          class="transition-opacity duration-150"
-          :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
-        >
-          <span v-if="page?.total != null" class="text-gray-400">{{ page.size }} / {{ page?.total }}</span>
-        </div>
-        <!-- Status -->
-        <div class="ml-1">
-          <!-- Loading -->
-          <i v-if="recordConnection.isConnecting.value" class="fas fa-spinner-third animate-spin text-gray-400" />
-          <i
-            v-else
-            class="fas fa-circle-small text-success-600 opacity-0 transition-colors duration-150 group-hover/block:opacity-100 group-hover/header:opacity-100"
-          />
-        </div>
       </template>
     </InlineHeader>
 
