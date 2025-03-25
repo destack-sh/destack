@@ -15,7 +15,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
-import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { getActionSides, useFlowContextMaybe } from "@/ui/flow";
@@ -42,7 +42,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const actionPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.ACTION>);
-const { connection, graph } = props.preparedConnection ?? useExistingConnection(actionPtr);
+const { connection, graph } = props.preparedConnection ?? useAutoConnection(actionPtr);
 const flowCtx = useFlowContextMaybe();
 const actionState = flowCtx?.actionsStates.value[actionPtr.value.id!]; // must exist
 const action = actionState?.action ?? graph.getRef(actionPtr.value);

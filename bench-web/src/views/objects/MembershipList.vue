@@ -12,7 +12,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
+import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { useSelectionZone } from "@/ui/drag";
@@ -41,7 +41,7 @@ const state = canvas.registerView(self, id);
 const containerRef = ref<HTMLElement | null>(null);
 
 const basePtr = computed(() => props.nodePtr);
-const { graph, connection } = props.preparedConnection ?? useExistingConnection(basePtr);
+const { graph, connection } = props.preparedConnection ?? useAutoConnection(basePtr);
 const base = graph.getRef(basePtr);
 const memberships = graph.getChildrenRef(basePtr, NodeType.MEMBERSHIP);
 

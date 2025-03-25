@@ -16,7 +16,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
-import { useExistingConnection, useGetConnection } from "@/system/connection";
+import { useAutoConnection, useGetConnection } from "@/system/connection";
 import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
@@ -62,7 +62,7 @@ export const builtinBench = builtinGraph.getRef(BENCH_BUILTIN_PACKAGE_PTR);
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER });
 export const space = spaceGraph.getRef(local.spacePtr);
 setSpace(space);
-export const { connection: spaceConnection } = useExistingConnection(local.spacePtr);
+export const { connection: spaceConnection } = useAutoConnection(local.spacePtr);
 export const canvas = new SpaceCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );

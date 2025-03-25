@@ -14,7 +14,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
+import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { FIELD_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import {
@@ -53,7 +53,7 @@ const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
 const basePtr = computed(() => props.nodePtr);
-const { graph, connection } = props.preparedConnection ?? useExistingConnection(basePtr);
+const { graph, connection } = props.preparedConnection ?? useAutoConnection(basePtr);
 const base = graph.getRef(basePtr, { ignoreAncestors: props.self == null }) as Ref<TypeBaseNodeData | null>;
 const allFields = graph.getChildrenRef(base, NodeType.FIELD);
 const fields = computed(() => allFields.value.filter((f) => f.type == props.fieldType));

@@ -16,7 +16,7 @@ import {
   ViewType
 } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ACTION_SIZE } from "@/ui/flow";
@@ -44,7 +44,7 @@ const state = canvas.registerView(self, id);
 
 // state
 const nodePtr = toRef(props, "nodePtr");
-const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
+const preparedConnection = props.preparedConnection ?? useAutoConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const implementation = graph.getRef(nodePtr) as Ref<KitData | null>;
 const actions = graph.getChildrenRef(nodePtr, NodeType.ACTION);

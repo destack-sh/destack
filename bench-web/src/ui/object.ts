@@ -50,7 +50,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
+import { useAutoConnection } from "@/system/connection";
 import { getNodeTitle, makeIcon } from "@/ui/icon";
 import { FULL_WIDTH_VIEW_TYPES, getViewForType } from "@/ui/view";
 import { assertNever } from "@/utils/functools";
@@ -1033,7 +1033,7 @@ export function useObjectLayout(options: {
   // node
   const nodePtr = computedValue(() => options.nodePtr.value);
   const { node, connection } = supergraph.getLinkRef(nodePtr);
-  const { graph } = useExistingConnection(nodePtr);
+  const { graph } = useAutoConnection(nodePtr);
   const fields = graph.getChildrenRef(node, NodeType.FIELD);
 
   // tx
@@ -1089,7 +1089,7 @@ export function useObjectLayout(options: {
       return null;
     }
   });
-  const { graph: delegateGraph, connection: delegateConnection } = useExistingConnection(delegatePtr);
+  const { graph: delegateGraph, connection: delegateConnection } = useAutoConnection(delegatePtr);
   const delegate = delegateGraph.getRef(delegatePtr);
   const delegateFields = delegateGraph.getChildrenRef(delegate, NodeType.FIELD);
 

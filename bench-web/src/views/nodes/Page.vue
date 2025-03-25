@@ -19,7 +19,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire/";
 import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
+import { useAutoConnection } from "@/system/connection";
 import { bench, canvas, pkg } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
@@ -64,7 +64,7 @@ const state = canvas.registerView(self, id);
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Page");
 
-const preparedConnection = useExistingConnection(nodePtr);
+const preparedConnection = useAutoConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const page = graph.getRef(nodePtr) as Ref<PageData | undefined>;
 const blocks = graph.getChildrenRef(nodePtr, NodeType.BLOCK);
