@@ -1,7 +1,8 @@
 <script lang="ts" setup>
-import { isResourceNode, toCamelName } from "@/language/core/const";
+import { isNodeActive, isResourceNode, toCamelName } from "@/language/core/const";
 import {
   AnyNodeData,
+  ClaimStatusOptionInfo,
   ColorShade,
   NodeMode,
   NodeModeOptionInfo,
@@ -36,10 +37,17 @@ const textClass = computed(() => [
   <div>
     <!-- Resource metadata -->
     <span
-      v-if="isResourceNode(node) && node.mode < NodeMode.TEMPLATE"
+      v-if="isResourceNode(node) && isNodeActive(node)"
       class="fas fa-circle-small w-5 text-center"
       :class="iconClass"
       :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
+    />
+    <!-- Claim metadata -->
+    <span
+      v-if="isNode(node, NodeType.CLAIM) && isNodeActive(node)"
+      class="fas fa-circle-small w-5 text-center"
+      :class="iconClass"
+      :style="{ color: getColorHex(ClaimStatusOptionInfo[node.status]!.color!) }"
     />
     <!-- File metadata -->
     <span v-if="isNode(node, NodeType.FILE)" class="ml-0.5 flex-shrink-0 text-xs text-gray-400">

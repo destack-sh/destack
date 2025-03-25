@@ -19,7 +19,7 @@ from bench.sql import (
     map_database_to_table,
 )
 from bench.system.graph import PostgresConnector
-from bench.system.host.core import Commit, HostPlugin
+from bench.system.host import Commit, HostPlugin
 
 if TYPE_CHECKING:
     from bench.system.host import HostService

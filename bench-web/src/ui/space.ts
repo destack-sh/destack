@@ -928,26 +928,25 @@ export class SpaceCanvas {
   goToNode(
     node: AnyNodeData | NodeReferenceData | null,
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
-  ) {
+  ): void {
     let nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     const graph = options?.graph ?? this.graph;
     log.debug("canvas.goToNode", node);
-    if (graph.has(nodePtr)) {
-      // reload from graph
-      node = graph.get(nodePtr);
-    }
+    // reload from graph
+    node = supergraph.getOrError(nodePtr);
     if (node == null) {
       // not found
       throw new Error(`node not found in ${describeScope(graph.scope)}: ${describeNode(nodePtr)}`);
     }
 
     // focus views directly
-    else if (nodePtr.nodeType == NodeType.VIEW && this.isInSpace(node)) {
+    if (nodePtr.nodeType == NodeType.VIEW && this.isInSpace(node)) {
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
+      return;
     }
 
     // open flow
-    else if (
+    if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
       isNode(node, NodeType.FLOW) ||
       (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.FLOW) ||
@@ -971,13 +970,11 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
+      return;
     }
 
     // open implementation
-    else if (
-      isNode(node, NodeType.KIT) ||
-      (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.KIT)
-    ) {
+    if (isNode(node, NodeType.KIT) || (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.KIT)) {
       if (isNode(node, NodeType.ACTION)) {
         node = supergraph.getOrError(node.parentPtr!);
         nodePtr = toNodeRef(node);
@@ -987,10 +984,11 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
+      return;
     }
 
     // open database
-    else if (
+    if (
       (isNode(node, NodeType.BLOCK) && node.type == BlockType.DATABASE) ||
       isNode(node, NodeType.DATABASE) ||
       isNode(node, NodeType.RECORD)
@@ -1019,10 +1017,11 @@ export class SpaceCanvas {
         );
       }
       this.inspect({ node: nodePtr, view });
+      return;
     }
 
     // open chat
-    else if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
+    if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
       let inspectPtr: NodeReferenceData | undefined;
       let threadPtr: NodeReferenceData | undefined;
       let channelPtr: NodeReferenceData;
@@ -1046,10 +1045,11 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: inspectPtr, view });
+      return;
     }
 
     // open page
-    else if (
+    if (
       isNode(node, NodeType.PAGE) ||
       isNode(node, NodeType.BLOCK) ||
       (isInlineNode(node) && node.definitionPtr != null)
@@ -1057,32 +1057,33 @@ export class SpaceCanvas {
       const containingPage = graph
         .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })
         .find((p) => true);
-      if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
-      const view = this.addView(
-        { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
-        { ifPresent: "upsertAndFocus", ...options },
-      );
-      this.inspect({ node: nodePtr, view });
+      if (containingPage) {
+        const view = this.addView(
+          { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
+          { ifPresent: "upsertAndFocus", ...options },
+        );
+        this.inspect({ node: nodePtr, view });
+        return;
+      }
     }
 
     // focus on runnable source + run
     // (set as Space.run_ptr and open containing Run view in Help)
-    else if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
+    if (isNode(node, NodeType.RUN) || isNode(node, NodeType.INTERRUPTION)) {
       const basePtr = getBaseFromNode(node);
       const base = basePtr != null ? graph.get(basePtr) : null;
-      if (base == null) {
-        toaster.error({
-          title: `Can't Open ${getNodeTitle(node as AnyNodeData) ?? toCamelName(ObjectType, node.metatype)}`,
-          text: `The base node is missing`,
-        });
+      if (base != null) {
+        this.goToNode(base, options);
+        const runPtr = isNode(node, NodeType.RUN) ? (node.rootPtr ?? toNodeRef(node)) : node.rootPtr;
+        this.tx().update(this.space.value!, { runPtr }, { debounce: "tick" });
+        const helpView = this.findView({ type: ViewType.CONTEXT });
+        if (helpView != null) {
+          this.tx().update(
+            helpView,
+            makeEditFromSubnode(helpView, { metatype: NodeType.VIEW, type: ViewType.CONTEXT }),
+          );
+        }
         return;
-      }
-      this.goToNode(base, options);
-      const runPtr = isNode(node, NodeType.RUN) ? (node.rootPtr ?? toNodeRef(node)) : node.rootPtr;
-      this.tx().update(this.space.value!, { runPtr }, { debounce: "tick" });
-      const helpView = this.findView({ type: ViewType.CONTEXT });
-      if (helpView != null) {
-        this.tx().update(helpView, makeEditFromSubnode(helpView, { metatype: NodeType.VIEW, type: ViewType.CONTEXT }));
       }
     }
 

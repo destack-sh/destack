@@ -137,7 +137,7 @@ async def create_image_pull_secret(*, ghcr_username: str, ghcr_token: str):
     from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
 
     from bench.language import CLOUD, REGION
-    from bench.system.resource.kubernetes import KUBERNETES_NAMESPACE, get_kubernetes_client
+    from bench.system.plugin.kubernetes import KUBERNETES_NAMESPACE, get_kubernetes_client
 
     kubernetes_api = await get_kubernetes_client()
     kubernetes_core_api = KubernetesCoreV1Api(kubernetes_api)

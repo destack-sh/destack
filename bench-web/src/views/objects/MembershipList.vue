@@ -66,6 +66,7 @@ defineExpose<ViewExpose>({ self, id, commands });
         class="flex h-[30px] flex-row items-center px-1.5 transition-colors duration-150 hover:bg-gray-100"
         :data-node-id="membership.id"
         :data-node-type="membership.metatype"
+        @dblclick.stop="membership.memberPtr != null && canvas.goToNode(membership.memberPtr)"
       >
         <NodeReference :node-ptr="membership.memberPtr" is-light size="sm" />
       </li>
@@ -104,7 +105,7 @@ defineExpose<ViewExpose>({ self, id, commands });
         "
       >
         <i class="fas fa-plus mr-1.5" />
-        <span>Membership</span>
+        <span>Member</span>
       </button>
     </ul>
   </div>

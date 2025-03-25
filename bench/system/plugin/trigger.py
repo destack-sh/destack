@@ -17,8 +17,7 @@ from bench.language.source.action import ActionType
 from bench.language.source.trigger import TriggerEffect, TriggerType
 from bench.proto import EditData
 from bench.runtime import create_run
-
-from .core import Commit, HostPlugin
+from bench.system.host import Commit, HostPlugin
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

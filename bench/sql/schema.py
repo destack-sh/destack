@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.25.0"
+VERSION = "2025.03.25.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1949,6 +1949,10 @@ CLAIM_TABLE = Table(
         Column("target_ck", PrimitiveType.UUID, is_nullable=True),
         Column("target_type", PrimitiveType.INT16, is_nullable=True),
         Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("target_template_type", PrimitiveType.INT16, is_nullable=True),
+        Column("target_template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),

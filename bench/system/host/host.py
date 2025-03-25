@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Mapping, Sequence, cast, override
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence, cast, override
 from uuid import UUID
 
 import structlog
@@ -75,25 +75,16 @@ from bench.system.core import (
     local_pg_engine_from_store,
     pg_engine_from_store,
 )
-from bench.system.graph import GraphServiceBase, PostgresEngine
-from bench.system.graph.connection import is_edit_in_scope
-from bench.system.resource import (
-    ComputerScalerProvisioner,
-    KubernetesComputerProvisioner,
-    LocalhostComputerProvisioner,
-    LocalhostStoreProvisioner,
-    NeonStoreProvisioner,
-    Provisioner,
-    StoreProvisioner,
-)
+from bench.system.graph import GraphServiceBase, PostgresEngine, is_edit_in_scope
 from bench.utils.env import ENV, Env
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
-from .core import HostPlugin, unpack_commit
-from .database import DatabasePlugin
-from .run import RunPlugin
-from .trigger import MessageTriggerPlugin, ScheduleTriggerPlugin
+from .commit import unpack_commit
+from .plugin import HostPlugin
+
+if TYPE_CHECKING:
+    from bench.system.plugin import Provisioner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -307,8 +298,17 @@ class HostService(GraphServiceBase, HostBase):
             return None
         return cast(TypeBaseNode, node)
 
-    def get_provisioners(self: "HostService", bench: Bench) -> list[Provisioner]:
+    def get_provisioners(self: "HostService", bench: Bench) -> list["Provisioner"]:
         """Gets all available provisioners for the Bench in *this* environment"""
+        from bench.system.plugin import (
+            ComputerScalerProvisioner,
+            KubernetesComputerProvisioner,
+            LocalhostComputerProvisioner,
+            LocalhostStoreProvisioner,
+            NeonStoreProvisioner,
+            Provisioner,
+        )
+
         provisioners: list[type[Provisioner]]
         if ENV == Env.TEST or ENV == Env.DEV:
             provisioners = [
@@ -329,6 +329,8 @@ class HostService(GraphServiceBase, HostBase):
 
     async def _activate(self, session: Session, bench: Bench) -> None:
         """Initializes the given Bench for the first time."""
+        from bench.system.plugin import StoreProvisioner
+
         assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
         assert bench.main_store is not None, f"{bench!r} has no main store"
 
@@ -354,6 +356,14 @@ class HostService(GraphServiceBase, HostBase):
         logger.info("host.activate", host=self, bench=bench)
 
     async def start(self) -> None:
+        from bench.system.plugin import (
+            ClaimPlugin,
+            DatabasePlugin,
+            MessageTriggerPlugin,
+            RunPlugin,
+            ScheduleTriggerPlugin,
+        )
+
         trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
         await super().start()
 
@@ -446,6 +456,7 @@ class HostService(GraphServiceBase, HostBase):
             ScheduleTriggerPlugin(self, self._bench),
             MessageTriggerPlugin(self, self._bench),
             RunPlugin(self, self._bench),
+            ClaimPlugin(self, self._bench),
         )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))
         await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))

@@ -548,7 +548,7 @@ class Runtime:
                 await self.wait_for(
                     nodes=open_claims,
                     condition=lambda: all(
-                        claim.status == ClaimStatus.ACTIVE for claim in open_claims
+                        claim.status == ClaimStatus.OPEN for claim in open_claims
                     ),
                     timeout=DEFAULT_RESOURCE_TIMEOUT,
                 )
