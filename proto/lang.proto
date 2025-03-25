@@ -2934,6 +2934,7 @@ message ScalerData {
   int32 min_count = 62;
   int32 max_count = 63;
   int32 min_ready_count = 64;
+  optional string name_template = 65;
   bool is_active = 75;
 }
 

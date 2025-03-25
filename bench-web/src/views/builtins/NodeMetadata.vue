@@ -34,28 +34,24 @@ const textClass = computed(() => [
 </script>
 <template>
   <div>
-    <span v-if="isResourceNode(node) && node.mode < NodeMode.TEMPLATE">
-      <!-- Resource metadata -->
-      <span
-        class="fas fa-circle-small w-5 text-center"
-        :class="iconClass"
-        :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
-      />
-      <!-- File metadata -->
-      <span v-if="isNode(node, NodeType.FILE)">
-        <span class="ml-0.5 flex-shrink-0 text-xs text-gray-400">
-          {{ humanizeBytes(Number(node.size)) }}
-        </span>
-      </span>
+    <!-- Resource metadata -->
+    <span
+      v-if="isResourceNode(node) && node.mode < NodeMode.TEMPLATE"
+      class="fas fa-circle-small w-5 text-center"
+      :class="iconClass"
+      :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
+    />
+    <!-- File metadata -->
+    <span v-if="isNode(node, NodeType.FILE)" class="ml-0.5 flex-shrink-0 text-xs text-gray-400">
+      {{ humanizeBytes(Number(node.size)) }}
     </span>
-    <span v-if="isNode(node, NodeType.RUN)">
-      <!-- Run metadata -->
-      <span
-        class="fas fa-circle-small w-5 text-center"
-        :class="iconClass"
-        :style="{ color: getColorHex(RunStatusOptionInfo[node.status]!.color!) }"
-      />
-    </span>
+    <!-- Run metadata -->
+    <span
+      v-if="isNode(node, NodeType.RUN)"
+      class="fas fa-circle-small w-5 text-center"
+      :class="iconClass"
+      :style="{ color: getColorHex(RunStatusOptionInfo[node.status]!.color!) }"
+    />
     <!-- Node mode, ... -->
     <span
       v-if="'mode' in node && node.mode != NodeMode.MAIN"

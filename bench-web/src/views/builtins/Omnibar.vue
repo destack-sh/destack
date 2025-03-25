@@ -1,6 +1,7 @@
 <script lang="tsx" setup>
 import { INLINE_NODE_TYPES } from "@/language/core/const";
-import { NodeType, ObjectType, Orientation } from "@/proto/wire";
+import { NodeMode, NodeType, ObjectType, Orientation } from "@/proto/wire";
+import { isNode } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { canvas, hasLocalPkg, benchGraph } from "@/system/space";
 import { OMNIBAR_MODES, addCommand, fireCommand, type CommandBuiltinId, type OmnibarMode } from "@/ui/command";
@@ -9,6 +10,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import {
   COMMAND_INDEX,
   graphIndex,
+  isHiddenBuiltinNodeItem,
   useIndexSearch,
   type CommandItem,
   type NodeItem,
@@ -56,8 +58,13 @@ const indices = computed(() => {
       // only search deeply if in bench search specifically
       maxDepth: isQueryEmpty.value && mode.value != "bench" ? 1 : undefined,
       filter: (node, ancestors) => {
-        // exclude views that are in the active Space
-        return node.metatype != ObjectType.VIEW || !ancestors.some((a) => a.node.metatype == ObjectType.SPACE);
+        if (isHiddenBuiltinNodeItem(node)) {
+          return false; // :HiddenBuiltinStuff
+        } else if (node.metatype == ObjectType.VIEW && ancestors.some((a) => a.node.metatype == ObjectType.SPACE)) {
+          return false;
+        } else {
+          return true;
+        }
       },
     });
   }

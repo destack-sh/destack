@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.24.0"
+VERSION = "2025.03.25.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -268,6 +268,7 @@ SCALER_TABLE = Table(
         Column("min_count", PrimitiveType.INT32, default="0"),
         Column("max_count", PrimitiveType.INT32, default="16"),
         Column("min_ready_count", PrimitiveType.INT32, default="0"),
+        Column("name_template", PrimitiveType.STRING, is_nullable=True),
         Column("is_active", PrimitiveType.BOOLEAN, default="true"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),

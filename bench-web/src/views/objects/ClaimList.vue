@@ -70,6 +70,7 @@ defineExpose<ViewExpose>({ self, id, commands });
         :data-node-id="claim.id"
         :data-node-type="claim.metatype"
       >
+        <!-- nocheckin: show Claim somehow -->
         <NodeReference :node-ptr="claim.targetPtr" is-light size="sm" />
       </li>
       <!-- Create -->
@@ -86,6 +87,7 @@ defineExpose<ViewExpose>({ self, id, commands });
               placement: 'bottom-left',
               offset: 'referenceWidth',
               props: {
+                // NOTE: we hide builtin runtime computers by default :HiddenBuiltinStuff
                 valueType: makeType({
                   kind: TypeKind.NODE,
                   constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER] }),
