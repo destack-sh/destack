@@ -43,7 +43,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { SearchConnectionParams, useExistingConnection, useSearchConnection } from "@/system/connection";
+import { SearchConnectionParams, useAutoConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { CommandMapKit, fireCommandById } from "@/ui/command";
 import {
@@ -106,7 +106,7 @@ const isSelected = computed(() => state.isSelected(databasePtr.value));
 // NOTE :UX :Architecture: Database view should be factored out into general Table/Feed/List/etc. query/collection views (?)
 
 const databasePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.DATABASE>);
-const preparedConnection = useExistingConnection(databasePtr);
+const preparedConnection = useAutoConnection(databasePtr);
 const { graph: graph, graphRaw: graphRaw, connection: connection } = preparedConnection;
 const database = graph.getRef(databasePtr, { ignoreAncestors: true });
 const databaseRaw = graphRaw.getRef(databasePtr);

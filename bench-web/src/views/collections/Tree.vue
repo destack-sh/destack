@@ -18,7 +18,7 @@ import {
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
-import { useExistingConnection } from "@/system/connection";
+import { useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
 import {
@@ -88,7 +88,7 @@ const focusPtr = computedValue(() => {
   }
 });
 
-const { graph, connection } = useExistingConnection(rootPtr);
+const { graph, connection } = useAutoConnection(rootPtr);
 
 //
 // Visible subtree

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
+import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -23,7 +23,7 @@ const fieldRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NodeReference> | null>(null);
 
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.FIELD>);
-const { graph: graph, connection: connection } = props.preparedConnection ?? useExistingConnection(nodePtr);
+const { graph: graph, connection: connection } = props.preparedConnection ?? useAutoConnection(nodePtr);
 const field = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));

@@ -17,7 +17,7 @@ import {
   ViewType
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedNodeConnection } from "@/system/connection";
+import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas, spaceGraph } from "@/system/space";
 import { ACTION_CONTEXT_COMMANDS, LINK_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -75,7 +75,7 @@ const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
 
 // flow
 const nodePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.FLOW>);
-const preparedConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
+const preparedConnection = props.preparedConnection ?? useAutoConnection(nodePtr);
 const { graph, connection } = preparedConnection;
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,

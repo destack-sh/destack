@@ -1387,7 +1387,7 @@ export type NodeSuperGraphCallback = (
   callback: any,
 ) => void;
 export type NodeSuperGraphGetOptions = {
-  filter?: (connection: ConnectionBase<any, any>) => boolean;
+  excludeSecondary?: boolean; 
 };
 
 /**
@@ -1441,8 +1441,8 @@ export class NodeSuperGraph {
         nodeTypes.every((nodeType) => connection.nodeTypes.has(nodeType)),
       );
     }
-    if (options?.filter) {
-      connections = connections.filter(options.filter);
+    if (options?.excludeSecondary) {
+      connections = connections.filter((connection) => connection.kind != "search");
     }
     return connections;
   }

@@ -15,7 +15,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { pushPopover } from "@/ui/popover";
 import { getColorHex, getTaskColorHex } from "@/ui/style";
@@ -39,7 +39,7 @@ const state = canvas.registerView(self, id);
 
 // state
 const taskPtr = toRef(props, "nodePtr");
-const { graph, connection } = props.preparedConnection ?? useExistingConnection(taskPtr);
+const { graph, connection } = props.preparedConnection ?? useAutoConnection(taskPtr);
 const task = graph.getRef(taskPtr, { ignoreAncestors: true }) as Ref<TaskData | null>;
 const isManual = computed(() => task.value != null && task.value.isManual);
 const isActive = computed(() => task.value != null && isTaskActive(task.value));

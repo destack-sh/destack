@@ -5,6 +5,7 @@ from bench.language import (
     Bench,
     Handle,
     Membership,
+    NodeMode,
     Organization,
     Package,
     PackageType,
@@ -71,6 +72,7 @@ async def create_default_bench(
     if options.create_computer_scaler:
         _ = main_package.scalers.create(
             type=ScalerType.COMPUTER,
+            mode=NodeMode.BUILTIN,
             strategy=ScalerStrategy.AUTO,
             name="Computer Scaler",
             min_count=1,

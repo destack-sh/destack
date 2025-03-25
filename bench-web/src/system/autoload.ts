@@ -23,8 +23,8 @@ type AutoloadedBatch = {
 export class NodeAutoloader {
   /** All subscriptions (in the supergraph; we don't use the callbacks, we just count them as references) */
   private nodeSubsById: Record<string, Array<any>> = {};
-  /** All currently 'missing' nodes (reference without a node, again, in the supergraph) */
-  private missingNodeById: Record<string, NodeReferenceData> = {};
+  /** All currently 'missing' nodes (reference without a node, again, in the supergraph) with reference count */
+  private missingNodeById: Record<string, { node: NodeReferenceData; count: number }> = {};
   /** Nodes we're waiting/trying to load */
   private pendingNodesById: Ref<Record<string, NodeReferenceData>> = shallowRef({});
   /** Nodes we'll load next */
@@ -76,10 +76,12 @@ export class NodeAutoloader {
     const newPending: NodeReferenceData[] = [];
     for (const key of keys) {
       if (this.missingNodeById[key.id!] == null) {
-        this.missingNodeById[key.id!] = key;
+        this.missingNodeById[key.id!] = { node: key, count: 1 };
         if (isUnloadedNodeType(key.nodeType) && !this.failedNodesById[key.id!] && !this.loadedNodesById[key.id!]) {
           newPending.push(key);
         }
+      } else {
+        this.missingNodeById[key.id!].count++;
       }
     }
     this.addPending(...newPending);
@@ -100,11 +102,15 @@ export class NodeAutoloader {
   /** Remove 'missing' nodes from the list of pending nodes to load */
   removeMissing(...keys: NodeReferenceData[]) {
     for (const key of keys) {
-      if (this.missingNodeById[key.id!] != null) {
-        delete this.missingNodeById[key.id!];
-        const index = this.nextNodesToLoad.findIndex((p) => p.id == key.id);
-        if (index >= 0) {
-          this.nextNodesToLoad.splice(index, 1);
+      const missing = this.missingNodeById[key.id!];
+      if (missing != null) {
+        missing.count--;
+        if (missing.count <= 0) {
+          delete this.missingNodeById[key.id!];
+          const index = this.nextNodesToLoad.findIndex((p) => p.id == key.id);
+          if (index >= 0) {
+            this.nextNodesToLoad.splice(index, 1);
+          }
         }
       }
       delete this.pendingNodesById.value[key.id!];

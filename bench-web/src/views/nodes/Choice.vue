@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { PreparedNodeConnection, useExistingConnection } from "@/system/connection";
+import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
@@ -21,7 +21,7 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 const choicePtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.CHOICE>);
-const preparedConnection = props.preparedConnection ?? useExistingConnection(choicePtr);
+const preparedConnection = props.preparedConnection ?? useAutoConnection(choicePtr);
 const { graph, connection } = preparedConnection;
 const choice = graph.getRef(choicePtr);
 
