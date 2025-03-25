@@ -1429,8 +1429,9 @@ class ClaimType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ClaimStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CLAIM_STATUS_UNSPECIFIED: _ClassVar[ClaimStatus]
-    CLAIM_STATUS_PENDING: _ClassVar[ClaimStatus]
-    CLAIM_STATUS_ACTIVE: _ClassVar[ClaimStatus]
+    CLAIM_STATUS_REQUESTED: _ClassVar[ClaimStatus]
+    CLAIM_STATUS_OPEN: _ClassVar[ClaimStatus]
+    CLAIM_STATUS_PAUSED: _ClassVar[ClaimStatus]
     CLAIM_STATUS_CANCELLED: _ClassVar[ClaimStatus]
     CLAIM_STATUS_REJECTED: _ClassVar[ClaimStatus]
     CLAIM_STATUS_RELEASED: _ClassVar[ClaimStatus]
@@ -3117,8 +3118,9 @@ CLAIM_TYPE_SHARED: ClaimType
 CLAIM_TYPE_RESERVED: ClaimType
 CLAIM_TYPE_EXCLUSIVE: ClaimType
 CLAIM_STATUS_UNSPECIFIED: ClaimStatus
-CLAIM_STATUS_PENDING: ClaimStatus
-CLAIM_STATUS_ACTIVE: ClaimStatus
+CLAIM_STATUS_REQUESTED: ClaimStatus
+CLAIM_STATUS_OPEN: ClaimStatus
+CLAIM_STATUS_PAUSED: ClaimStatus
 CLAIM_STATUS_CANCELLED: ClaimStatus
 CLAIM_STATUS_REJECTED: ClaimStatus
 CLAIM_STATUS_RELEASED: ClaimStatus
@@ -5757,7 +5759,7 @@ class UserData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., status: _Optional[_Union[UserStatus, str]] = ..., main_bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., main_handle_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., email: _Optional[str] = ..., password_salt: _Optional[bytes] = ..., password_hash: _Optional[bytes] = ..., last_logged_in_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., is_staff: bool = ...) -> None: ...
 
 class ClaimData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "status", "duration", "opened_at", "granted_at", "closed_at", "target_ptr", "target_template_ptr", "session_ptr", "client_ptr", "computer_ptr", "user_ptr", "identity_ptr")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "name", "order_key", "status", "duration", "opened_at", "paused_at", "resumed_at", "terminated_at", "target_ptr", "target_template_ptr", "session_ptr", "client_ptr", "computer_ptr", "user_ptr", "identity_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -5780,8 +5782,9 @@ class ClaimData(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     DURATION_FIELD_NUMBER: _ClassVar[int]
     OPENED_AT_FIELD_NUMBER: _ClassVar[int]
-    GRANTED_AT_FIELD_NUMBER: _ClassVar[int]
-    CLOSED_AT_FIELD_NUMBER: _ClassVar[int]
+    PAUSED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESUMED_AT_FIELD_NUMBER: _ClassVar[int]
+    TERMINATED_AT_FIELD_NUMBER: _ClassVar[int]
     TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
     TARGET_TEMPLATE_PTR_FIELD_NUMBER: _ClassVar[int]
     SESSION_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -5811,8 +5814,9 @@ class ClaimData(_message.Message):
     status: ClaimStatus
     duration: _duration_pb2.Duration
     opened_at: _timestamp_pb2.Timestamp
-    granted_at: _timestamp_pb2.Timestamp
-    closed_at: _timestamp_pb2.Timestamp
+    paused_at: _timestamp_pb2.Timestamp
+    resumed_at: _timestamp_pb2.Timestamp
+    terminated_at: _timestamp_pb2.Timestamp
     target_ptr: NodeReferenceData
     target_template_ptr: NodeReferenceData
     session_ptr: NodeReferenceData
@@ -5820,7 +5824,7 @@ class ClaimData(_message.Message):
     computer_ptr: NodeReferenceData
     user_ptr: NodeReferenceData
     identity_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ClaimType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., status: _Optional[_Union[ClaimStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., opened_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., granted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., closed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., computer_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[ClaimType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., status: _Optional[_Union[ClaimStatus, str]] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., opened_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., paused_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., resumed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., terminated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., session_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., computer_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., user_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class PlanData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "mode", "subnode_packed", "type", "title", "order_key", "icon", "definition_ptr", "thread_ptr", "tags_ptr", "on_terminate", "on_failure", "implemented_by_ptr", "status", "duration", "started_at", "terminated_at", "error", "session_ptr", "client_ptr", "computer_ptr", "user_ptr", "identity_ptr")
