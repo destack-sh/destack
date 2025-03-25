@@ -14,7 +14,7 @@ from bench.language import (
     Resource,
     ResourceStatus,
 )
-from bench.system.host.core import Commit, DeferredHostPlugin
+from bench.system.host.plugin import Commit, DeferredHostPlugin
 
 if TYPE_CHECKING:
     from bench.system.host import HostService

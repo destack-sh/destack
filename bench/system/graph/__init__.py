@@ -5,6 +5,7 @@ from bench.system.graph.connection import (
     ConnectionSubscription,
     GetConnection,
     SearchConnection,
+    is_edit_in_scope,
 )
 from bench.system.graph.graph import CommitScope, GraphLock, GraphServiceBase
 from bench.system.graph.postgres import (
@@ -30,4 +31,5 @@ __all__ = [
     "PostgresGetConnection",
     "PostgresSearchConnection",
     "SearchConnection",
+    "is_edit_in_scope",
 ]

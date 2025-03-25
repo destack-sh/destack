@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
+import { isNodeActive } from "@/language/core/const";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { isRunnable } from "@/language/runtime/run";
 import { createClaim } from "@/language/source/claim";
 import {
   ActionData,
+  ClaimableNodeData,
   ClaimType,
   NodeMode,
   NodeReferenceData,
@@ -69,9 +71,13 @@ defineExpose<ViewExpose>({ self, id, commands });
         class="flex h-[30px] flex-row items-center px-1.5 transition-colors duration-150 hover:bg-gray-100"
         :data-node-id="claim.id"
         :data-node-type="claim.metatype"
+        @dblclick.stop="
+          (claim.targetPtr != null || claim.targetTemplatePtr != null) &&
+          canvas.goToNode((claim.targetPtr ?? claim.targetTemplatePtr)!)
+        "
       >
-        <!-- nocheckin: show Claim somehow -->
-        <NodeReference :node-ptr="claim.targetPtr" is-light size="sm" />
+        <!-- nocheckin: show actual Claim status somehow -->
+        <NodeReference :node-ptr="claim.targetPtr ?? claim.targetTemplatePtr" is-light size="sm" />
       </li>
       <!-- Create -->
       <button
@@ -87,7 +93,6 @@ defineExpose<ViewExpose>({ self, id, commands });
               placement: 'bottom-left',
               offset: 'referenceWidth',
               props: {
-                // NOTE: we hide builtin runtime computers by default :HiddenBuiltinStuff
                 valueType: makeType({
                   kind: TypeKind.NODE,
                   constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER] }),
@@ -95,15 +100,15 @@ defineExpose<ViewExpose>({ self, id, commands });
               },
               onApply: (value?: NodeReferenceData) => {
                 if (value == null) return;
-                const node = supergraph.getOrError(value);
-                const mode = isRunnable(node) ? NodeMode.TEMPLATE : NodeMode.MAIN;
+                const node = supergraph.getOrError(value) as ClaimableNodeData;
                 createClaim(connection.tx, graph, {
                   claim: {
-                    mode,
+                    mode: isRunnable(node) ? NodeMode.TEMPLATE : NodeMode.MAIN,
                     type: ClaimType.SHARED,
                     packagePtr: (base as ActionData)?.packagePtr,
                     parentPtr: basePtr,
-                    targetPtr: value,
+                    targetPtr: isNodeActive(node) ? value : undefined,
+                    targetTemplatePtr: isNodeActive(node) ? undefined : value,
                   },
                 });
               },

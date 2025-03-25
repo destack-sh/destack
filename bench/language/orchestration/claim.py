@@ -43,19 +43,19 @@ class ClaimType(BuiltinEnum):
 class ClaimStatus(BuiltinEnum):
     # pre
     PENDING = 10, "Pending", "Pending", "fas fa-clock", ColorType.GRAY
-    # open
-    ACTIVE = 20, "Active", "Active concurrent access", "fas fa-lock", ColorType.GREEN
-    # closed
+    # active
+    OPEN = 20, "Active", "Active concurrent access", "fas fa-lock", ColorType.GREEN
+    #
     CANCELLED = 30, "Cancelled", None, "fas fa-circle-xmark", ColorType.RED
     REJECTED = 31, "Rejected", None, "fas fa-circle-exclamation", ColorType.RED
     RELEASED = 32, "Released", None, "fas fa-circle-check", ColorType.GRAY
 
     @property
-    def is_open(self) -> bool:
+    def is_active(self) -> bool:
         return self >= 20 and self < 30
 
     @property
-    def is_closed(self) -> bool:
+    def is_terminal(self) -> bool:
         return self >= 30
 
 
@@ -103,10 +103,19 @@ class Claim(
         references=CLAIMABLE_NODE_TYPES.tuple,
         description="The target Node this claim is about.",
     )
+    target_template: Optional[Claimable] = p_regular(
+        65,
+        require=False,
+        array=False,
+        references=CLAIMABLE_NODE_TYPES.tuple,
+        description="The template for a target Node.",
+    )
     # target_selection/filter/....?
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
+        target_template_ptr: Optional[NodeReference] = None
+        target_template_id: Optional[UUID] = None
 
     @staticmethod
     def exclusive(name: str, target: Claimable, **kwargs) -> "Claim":

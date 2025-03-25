@@ -3182,6 +3182,7 @@ message ClaimData {
   optional google.protobuf.Timestamp granted_at = 53;
   optional google.protobuf.Timestamp closed_at = 54;
   optional NodeReferenceData target_ptr = 60;
+  optional NodeReferenceData target_template_ptr = 65;
   optional NodeReferenceData session_ptr = 90;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;

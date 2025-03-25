@@ -64,7 +64,7 @@ class RunPlugin(HostPlugin[Run]):
 
     @override
     async def start(self) -> None:
-        # TODO :Robustness: kill/re-queue abandoned Runs
+        # TODO :Robustness: kill/re-queue abandoned Runs :SystemRecovery
         #  (like Runs 'stuck' on dead or since restarted Computers)
         self.tasks.start_queue(self._run_queue, self._process_run, skip_errors=True)
 
