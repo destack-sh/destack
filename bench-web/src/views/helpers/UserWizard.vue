@@ -99,7 +99,7 @@ async function submit() {
       const { user } = await logIn({ slug: slug.value }, password.value);
       // if we're outside a Bench and have a Bench, go home
       if (user.mainBenchPtr != null && benchPtr.value == null) {
-        // await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
+        await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
       }
     } else {
       throw new Error(`unexpected registration stage: ${stage.value}`);

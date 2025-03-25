@@ -93,7 +93,6 @@ defineExpose<ViewExpose>({ self, id, commands });
                 if (memberships.find((m) => m.memberPtr?.id == value.id)) return;
                 createMembership(connection.tx, graph, {
                   membership: {
-                    mode: NodeMode.TEMPLATE,
                     packagePtr: (base as ActionData)?.packagePtr,
                     parentPtr: basePtr,
                     memberPtr: value,
