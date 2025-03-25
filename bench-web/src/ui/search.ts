@@ -3,6 +3,7 @@ import {
   isBenchNodeType,
   isEnumType,
   isNodeType,
+  isResourceNode,
   isResourceNodeType,
   isStructType,
   isUnloadedNodeType,
@@ -714,7 +715,7 @@ function walkGraph(options: {
 
 /** Whether the Node is a hidden builtin node (NOTE :HiddenBuiltinStuff) */
 export function isHiddenBuiltinNodeItem(node: AnyNodeData): boolean {
-  if (isNode(node, NodeType.COMPUTER) && node.mode == NodeMode.BUILTIN) {
+  if (isResourceNode(node) && node.mode == NodeMode.BUILTIN) {
     return true;
   } else {
     return false;

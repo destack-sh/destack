@@ -364,13 +364,14 @@ class HostService(GraphServiceBase, HostBase):
             ScheduleTriggerPlugin,
         )
 
+        # start base service
         trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
         await super().start()
 
         # load bench
         #  (in different session because we don't have the local engines yet)
         async with self.global_session() as session:
-            # load full bench
+            # load our bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
             assert self._bench.main_store is not None, f"{self._bench!r} has no main store"
             assert self._bench.main_package is not None, f"{self._bench!r} has no main package"
@@ -481,6 +482,13 @@ class HostService(GraphServiceBase, HostBase):
                     builtin_package=BuiltinPackage,
                     edits=len(edits),
                 )
+        else:
+            # add builtin bench directly otherwise
+            from bench.builtin import BuiltinPackage
+
+            BuiltinPackageGraph = BuiltinPackage._graph.copy()
+            BuiltinPackageGraph.supergraph = self._supergraph
+            self._supergraph.add_graph(BuiltinPackageGraph)
 
         logger.info(
             "host.start",
