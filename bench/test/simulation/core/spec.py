@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Literal
 
 import structlog
 
-from bench.language import ClientType
+from bench.language import REGION, ClientType, Region
 from bench.test.conftest import TestProfile
 
 from .sample import SampledFloat
@@ -40,6 +40,7 @@ class UserSpec:
     """A User"""
 
     name: str
+    region: Region = REGION
 
 
 @dataclass

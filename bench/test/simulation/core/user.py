@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, cast, final
 
 from more_itertools import first
 
@@ -71,6 +71,8 @@ class UserHandle:
             email=f"{self.name}@test.com",
             password=self.name,
             client=client_in,
+            region=cast(pb2.Region, self.spec.region),
+            activate=False,
         )
         signup_rep = await supervisor_client.signup_user(signup_req)
         self._user_data = signup_rep.user
