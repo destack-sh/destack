@@ -21,7 +21,6 @@ from bench.language import (
 )
 from bench.system.host import Commit
 from bench.utils.func import group_by
-from bench.utils.naming import generate_random_name
 
 from .provisioner import Provisioner
 
@@ -35,7 +34,10 @@ tracer = trace.get_tracer(__name__)
 
 
 class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC):
-    """A Provisioner that scales a dynamic Resource for all the Scalers of its type."""
+    """
+    A Provisioner that scales a dynamic Resource for all the Scalers of its type.
+    NOTE :Incomplete: ScalerProvisioner should probably be closer to the kubernetes cluster?
+    """
 
     provision_type = NodeType.SCALER
     provision_subtype: ScalerType
@@ -120,9 +122,10 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
                 resource_kwargs: dict[str, Any] = {
                     "parent": self.main_package,
                     "scaler": scaler,
-                    "name": generate_random_name(),
                 }
                 resource = cast(WT, self._resource_cls(**resource_kwargs))
+                resource.name = scaler.name_template
+                resource.mode = scaler.mode
                 session._create(resource)
                 added.append(resource)
         if added or removed:

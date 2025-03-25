@@ -39,6 +39,7 @@ import {
   type IconData,
   type NodeReferenceData,
   ActionType,
+  NodeMode,
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
 import { BENCH_SCOPE } from "@/system/client";
@@ -490,7 +491,12 @@ export function useValueSearch(options: {
           remoteConnection = connection as RemoteSearchConnection<any>;
           const graph = connection.result.value?.graphComposite!;
           const nodeType = valueType.value.benchType as unknown as NodeType;
-          remoteGraphIndex.value = graphIndex({ id: "graph", graph, metatypes: [nodeType] });
+          remoteGraphIndex.value = graphIndex({
+            id: "graph",
+            graph,
+            metatypes: [nodeType],
+            filter: (node) => !isHiddenBuiltinNodeItem(node),
+          });
           lastRemoteQuery = queryDebounced.value;
           lastRemoteValueType = valueType.value;
           lastRemoteTotal = connection.result.value?.rootsPtr.value.length ?? 0;
@@ -536,6 +542,7 @@ export function useValueSearch(options: {
           id: "supergraph",
           supergraph,
           metatypes: valueType.value?.constraint?.nodeTypes,
+          filter: (node) => !isHiddenBuiltinNodeItem(node),
         });
       } else {
         // local graph
@@ -558,7 +565,10 @@ export function useValueSearch(options: {
         } else {
           metatypes = [NodeType.BLOCK, NodeType.ACTION, NodeType.FIELD, NodeType.VIEW];
         }
-        const filter = subtypes != null ? (node: AnyNodeData) => subtypes.includes((node as any).type) : undefined;
+        const filter =
+          subtypes != null
+            ? (node: AnyNodeData) => subtypes.includes((node as any).type) && !isHiddenBuiltinNodeItem(node)
+            : (node: AnyNodeData) => !isHiddenBuiltinNodeItem(node);
         return graphIndex({ id: "graph", graph, roots, metatypes, filter });
       }
     } else if (options.valueType.value?.benchType == BenchType.TYPE) {
@@ -700,6 +710,15 @@ function walkGraph(options: {
   }
 
   return items;
+}
+
+/** Whether the Node is a hidden builtin node (NOTE :HiddenBuiltinStuff) */
+export function isHiddenBuiltinNodeItem(node: AnyNodeData): boolean {
+  if (isNode(node, NodeType.COMPUTER) && node.mode == NodeMode.BUILTIN) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 /**

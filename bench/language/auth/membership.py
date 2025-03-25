@@ -39,6 +39,6 @@ class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
         member_id: UUID | None = None
 
     @staticmethod
-    def new(member: Subject, parent: Joinable | None = None) -> "Membership":
-        membership = Membership(parent=parent, member=member)
+    def new(member: Subject, parent: Joinable | None = None, **kwargs) -> "Membership":
+        membership = Membership(parent=parent, member=member, **kwargs)
         return membership

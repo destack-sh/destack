@@ -58,13 +58,17 @@ async def create_default_bench(
         slug=options.main_package_slug,
         _is_new=True,
     )
-    main_package.memberships.append(Membership.new(owned_by))
+    main_package.memberships.append(Membership.new(owned_by, mode=NodeMode.BUILTIN))
     session._create(main_package)
     await session.flush(optimistic=True)
     bench.main_package = main_package
 
     # main Store
-    store = main_package.stores.create(region=bench.region, name=options.local_store_name)
+    store = main_package.stores.create(
+        mode=NodeMode.BUILTIN,
+        region=bench.region,
+        name=options.local_store_name,
+    )
     await session.flush(optimistic=True)
     bench.main_store = store
     await session.flush(optimistic=True)
@@ -74,7 +78,8 @@ async def create_default_bench(
             type=ScalerType.COMPUTER,
             mode=NodeMode.BUILTIN,
             strategy=ScalerStrategy.AUTO,
-            name="Computer Scaler",
+            name="Runtime Scaler",
+            name_template="Runtime Computer",
             min_count=1,
             target_count=1,
             max_count=4,
