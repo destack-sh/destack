@@ -933,7 +933,7 @@ export class SpaceCanvas {
     const graph = options?.graph ?? this.graph;
     log.debug("canvas.goToNode", node);
     // reload from graph
-    node = supergraph.getOrError(nodePtr);
+    node = supergraph.get(nodePtr) ?? node;
     if (node == null) {
       // not found
       throw new Error(`node not found in ${describeScope(graph.scope)}: ${describeNode(nodePtr)}`);

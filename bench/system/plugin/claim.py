@@ -36,7 +36,8 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
         async with self.host.session(commit=True) as session:
             for claim in pending_claims:
                 # figure out where to add the resource
-                # NOTE :Robustness: moving committed Node's sessions feels funky?
+                # TODO :Robustness: moving and reassigning Nodes feels funky?
+                #  (and assigning ._supergraph directly feels extra funky?)
                 parent = claim.parent
                 assert parent is not None, f"claim {claim!r} has no parent"
                 parent._untrack_rec()
@@ -47,7 +48,7 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                 assert resource_template is not None, f"claim {claim!r} has no target template"
                 resource = resource_template.instance(detach=True)
                 resource.move(to=parent)
-                resource._supergraph = parent._supergraph  # nocheckin
+                resource._supergraph = parent._supergraph
 
                 # open the claim
                 claim.target = resource

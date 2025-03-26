@@ -126,6 +126,7 @@ export type GetConnectionParams<T extends NodeType> = {
   descendantTypes?: NodeType[];
   select?: Partial<SelectOptionsData>;
   includeDeleted?: boolean;
+  noMemory?: boolean;
 };
 export type GetConnectionResult<T extends NodeType> = {
   graphRaw: ReadNodeGraph; // graph without overlay (if different)
@@ -615,6 +616,8 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         descendantTypes: params.descendantTypes ?? [],
         select: select,
         isOptional: params.isOptional,
+        includeDeleted: params.includeDeleted,
+        noMemory: params.noMemory,
       },
       { abort, ...this.operationMeta },
     );

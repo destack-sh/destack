@@ -79,6 +79,12 @@ export interface GetNodesRequest {
      */
     includeDeleted?: boolean;
     /**
+     * Whether to include memory.
+     *
+     * @generated from protobuf field: optional bool no_memory = 22;
+     */
+    noMemory?: boolean;
+    /**
      * Whether to sideline the cache.
      *
      * @generated from protobuf field: optional bool no_cache = 30;
@@ -941,6 +947,7 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
             { no: 11, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 20, name: "select", kind: "message", T: () => SelectOptionsData },
             { no: 21, name: "include_deleted", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 22, name: "no_memory", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 31, name: "is_optional", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
@@ -987,6 +994,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
                     break;
                 case /* optional bool include_deleted */ 21:
                     message.includeDeleted = reader.bool();
+                    break;
+                case /* optional bool no_memory */ 22:
+                    message.noMemory = reader.bool();
                     break;
                 case /* optional bool no_cache */ 30:
                     message.noCache = reader.bool();
@@ -1035,6 +1045,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         /* optional bool include_deleted = 21; */
         if (message.includeDeleted !== undefined)
             writer.tag(21, WireType.Varint).bool(message.includeDeleted);
+        /* optional bool no_memory = 22; */
+        if (message.noMemory !== undefined)
+            writer.tag(22, WireType.Varint).bool(message.noMemory);
         /* optional bool no_cache = 30; */
         if (message.noCache !== undefined)
             writer.tag(30, WireType.Varint).bool(message.noCache);
