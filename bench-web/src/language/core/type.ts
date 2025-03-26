@@ -221,7 +221,9 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
   } else if (type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
     value = encodeB64VLQ(type.benchType!);
   } else if (type.kind == TypeKind.CUSTOM_OBJECT) {
-    value = encodeB64VLQ(type.baseTypePtr!.ck ?? type.baseTypePtr!.id!);
+    const uuid = type.baseTypePtr!.ck ?? type.baseTypePtr!.id!;
+    const uuidInt = BigInt("0x" + uuid.replace(/-/g, ""));
+    value = encodeB64VLQ(uuidInt);
   } else if (type.kind == TypeKind.PARTIAL_OBJECT) {
     value = type.benchType != null ? encodeB64VLQ(type.benchType) : "";
   } else {
