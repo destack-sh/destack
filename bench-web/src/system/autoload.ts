@@ -11,7 +11,7 @@ import { Ref, shallowRef, triggerRef } from "vue";
 // automatically included descendants :AutoLoading
 export const AUTOLOAD_DESCENDANT_TYPES: Partial<Record<NodeType, NodeType[]>> = {
   [NodeType.THREAD]: [NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.IDENTITY],
-}
+};
 
 type AutoloadedBatch = {
   id: number;
@@ -189,6 +189,9 @@ export class NodeAutoloader {
       scope,
       baseTypePtr: blockPtr as NodeReferenceData | undefined,
       descendantTypes: AUTOLOAD_DESCENDANT_TYPES[nodeType],
+      // NOTE :Architecture: bypass memory cache for autoloaded nodes
+      //  (since if we're autoloading, they're not in the loaded Bench/Packages)
+      noMemory: true,
       isOptional: true,
     };
     try {

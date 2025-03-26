@@ -24,6 +24,8 @@ message GetNodesRequest {
   optional SelectOptionsData select = 20;
   // Whether to include deleted nodes.
   optional bool include_deleted = 21;
+  // Whether to include memory.
+  optional bool no_memory = 22;
   // Whether to sideline the cache.
   optional bool no_cache = 30; 
   // Whether the roots are considered optional (if not found, return empty result instead of error).

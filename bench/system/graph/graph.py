@@ -600,6 +600,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
                     include_deleted=request.include_deleted,
+                    include_memory=not request.no_memory,
                     select=select,
                 )
                 adapted_query = self._adapt_read_query(subject, query)
