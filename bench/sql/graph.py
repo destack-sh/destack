@@ -29,18 +29,18 @@ from pydantic import JsonValue
 
 from bench import pb2
 from bench.language import (
-    CASCADING_EDIT_TYPES,
     DESCENDANT_NODE_TYPES_IN_STORE,
-    HAS_CHILD_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
     NODE_TYPES,
     PARENT_NODE_TYPES,
     PROPERTY_META_KEY_BY_TYPE,
+    RUNTIME_NODE_TYPES,
     UNSET,
     Bench,
     C,
     ConditionalType,
+    Database,
     EditOperationType,
     EditType,
     EngineIncapableError,
@@ -65,6 +65,7 @@ from bench.language import (
     ReferenceKind,
     SelectOptions,
     SortType,
+    TypeBaseNode,
     TypeKind,
     bittuple,
     get_default_query_filter,
@@ -81,8 +82,7 @@ from bench.language import (
     unpack_value,
     unpack_value_data,
 )
-from bench.language.core.node import TypeBaseNode
-from bench.language.source.database import Database
+from bench.language.registry import HAS_CHILD_NODE_TYPES
 from bench.pb2 import (
     AnyNodeData,
     Date,
@@ -148,6 +148,12 @@ GLOBAL_CONTEXT = SqlContext()
 BENCH_TABLE_PREFIX = "bench_"
 BENCH_RECORD_TABLE_PREFIX = "bench_record_"
 BENCH_RECORD_VALUE_PREFIX = "value_"
+
+CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
+    EditType.DELETE, EditType.RESTORE, EditType.ERASE
+)
+CASCADING_PARENT_NODE_TYPES = HAS_CHILD_NODE_TYPES
+CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES
 
 
 @dataclass(slots=True)
@@ -1272,7 +1278,6 @@ async def pg_graph_edit(
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
     edits: list[EditData] | tuple[EditData, ...],
-    cascade: bittuple[EditType] = CASCADING_EDIT_TYPES,
 ) -> list[EditData]:
     """Apply graph edits, cascading as needed. Returns the cascaded edits."""
     if not edits:
@@ -1330,7 +1335,7 @@ async def pg_graph_edit(
         # cascade edits down
         # NOTE :Performance: sometimes we don't need to cascade down removes in PG
         #  (for instance in Host we the edited graph may be loaded, so we could do this in memory)
-        if edit_type in cascade and node_type in HAS_CHILD_NODE_TYPES:
+        if edit_type in CASCADING_EDIT_TYPES and node_type in CASCADING_PARENT_NODE_TYPES:
             cascaded_edits = await _pg_edit_cascade(
                 cur=cur, ctx=ctx, edit_type=edit_type, node_type=node_type, batch=batch
             )
@@ -1398,7 +1403,7 @@ async def _pg_edit_cascade(
         ctx=ctx,
         roots=root_nodes,
         # only descend to node types in the same store
-        descendant_types=DESCENDANT_NODE_TYPES_IN_STORE[node_type],
+        descendant_types=DESCENDANT_NODE_TYPES_IN_STORE[node_type] & CASCADING_CHILD_NODE_TYPES,
         extra_filter=extra_filter,
     )
 

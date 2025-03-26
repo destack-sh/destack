@@ -252,10 +252,10 @@ export class TransactionBuilder implements Transaction {
   getScope(node: AnyNodeData): GraphScopeData {
     const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const benchId = (node as any).benchPtr?.id ?? this.scope.benchId;
-    const packageIds = (node as any).packagePtr?.id ?? this.scope.packageIds;
-    if ("packagePtr" in allProperties && packageIds == null)
+    const packageId = (node as any).packagePtr?.id;
+    if ("packagePtr" in allProperties && packageId == null)
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
-    return makeScope({ benchId, packageIds });
+    return makeScope({ benchId, packageIds: packageId != null ? [packageId] : this.scope.packageIds });
   }
 
   checkInScope(node: AnyNodeData) {

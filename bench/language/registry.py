@@ -47,7 +47,7 @@ STRUCT_CLASSES: list[type["Struct"]] = []
 # direct parent/child
 PARENT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
 CHILD_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
-HAS_CHILD_NODE_TYPES: set[NodeType] = set()
+HAS_CHILD_NODE_TYPES: bittuple[NodeType] = bittuple(enum_cls=NodeType)
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
@@ -179,7 +179,7 @@ def _complete_bench_setup():
         PARENT_NODE_TYPES[node_type] = bittuple(*parent_types[node_type], enum_cls=NodeType)
         CHILD_NODE_TYPES[node_type] = bittuple(*child_types[node_type], enum_cls=NodeType)
         if child_types[node_type]:
-            HAS_CHILD_NODE_TYPES.add(node_type)
+            HAS_CHILD_NODE_TYPES.bits[node_type.ord] = True
 
     #
     # Finalize
