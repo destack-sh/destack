@@ -323,6 +323,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             # options
             self._select._stable_hash() if self._select is not None else None,
             self._include_deleted,
+            self._include_memory,
             self._first,
         )
 
@@ -366,6 +367,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             # options
             select=self._select.clone() if self._select is not None else None,
             include_deleted=self._include_deleted,
+            include_memory=self._include_memory,
             first=self._first,
         )
 
