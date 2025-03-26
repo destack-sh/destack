@@ -7,13 +7,14 @@ import {
   AnyNodeData,
   NodeReferenceData,
   NodeType,
+  NodeTypeOptionInfo,
   Orientation,
   PROPERTY_ENUM_BY_TYPE,
   TextLineData,
   TextLineType,
 } from "@/proto/wire";
 import { ConnectionBase } from "@/system/connection";
-import { getNodeIcon, IconInline } from "@/ui/icon";
+import { getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { PopoverInfoIn } from "@/ui/popover";
 import { NODE_REF_CONTEXT_KEY } from "@/ui/space";
 import { TooltipInfo } from "@/ui/tooltip";
@@ -228,9 +229,15 @@ defineExpose({
     :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
   >
     <!-- Node not found -->
-    <span v-if="IS_DEVELOPER_MODE" class="text-gray-400"
-      >[{{ toCamelName(NodeType, nodePtr?.nodeType) }}:{{ nodePtr?.id }}]</span
-    >
-    <span v-else class="text-gray-400">[not found]</span>
+    <template v-if="IS_DEVELOPER_MODE">
+      <span class="text-gray-400">{{ toCamelName(NodeType, nodePtr?.nodeType) }} [{{ nodePtr?.id }}]</span>
+    </template>
+    <template v-else>
+      <IconInline
+        class="w-5 text-center text-gray-400"
+        v-bind="makeIcon(NodeTypeOptionInfo[nodePtr?.nodeType!]?.icon ?? 'fas fa-exclamation-triangle')"
+      />
+      <span class="ml-0.5 text-gray-400">[not found]</span>
+    </template>
   </div>
 </template>
