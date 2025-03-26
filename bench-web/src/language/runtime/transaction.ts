@@ -113,7 +113,7 @@ export type Transaction = TransactionMeta & {
   /** Gets the sub tx for a specific connection */
   with(meta: TransactionMeta): Transaction;
   /** Stops debouncing the given edit (force start a new edit on that node) */
-  clearDebounce(nodeId: string): void;
+  stopDebounce(nodeId: string): void;
   /** Make a Node (but not create it) for this Transaction */
   make<T extends NodeType>(nodeIn: NodeIn<T>): NodeTypeMapping[T];
 
@@ -150,7 +150,7 @@ export class TransactionState {
     this.benchPtr = scope.benchId != null ? nodeReference(NodeType.BENCH, scope.benchId) : null;
   }
 
-  clearDebounce(nodeId: string) {
+  stopDebounce(nodeId: string) {
     if (!this._debouncedUpdatesByNodeId[nodeId]) return;
     delete this._debouncedUpdatesByNodeId[nodeId];
   }
@@ -194,8 +194,8 @@ export class TransactionBuilder implements Transaction {
     return this.state.edits;
   }
 
-  clearDebounce(nodeId: string) {
-    this.state.clearDebounce(nodeId);
+  stopDebounce(nodeId: string) {
+    this.state.stopDebounce(nodeId);
   }
 
   with(meta: TransactionMeta): Transaction {
