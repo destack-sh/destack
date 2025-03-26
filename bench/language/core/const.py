@@ -782,7 +782,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     NodeType.ROLE,
 )
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
-RUNTIME_NODE_TYPES = _get_node_types(6000, 6500)
+RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
 PACKAGE_NODE_TYPES = _get_node_types(5000, 900, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
@@ -1288,9 +1288,6 @@ ACCESS_CLASS_BY_KIND: dict[AccessKind, type[AccessType]] = {
 ACCESS_KIND_BY_ACCESS: dict[AccessType, AccessKind] = {
     access: kind for kind, access_types in ACCESS_TYPES_BY_KIND.items() for access in access_types
 }
-CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
-    EditType.DELETE, EditType.RESTORE, EditType.ERASE
-)
 
 
 @enum_(EnumType.ACCESS_MODE)
