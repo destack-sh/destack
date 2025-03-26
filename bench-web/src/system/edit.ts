@@ -19,7 +19,7 @@ import {
   Timestamp,
   ViewData,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
+import { EMPTY_SCOPE, describeEdit, unwrapSomeNode } from "@/proto/wiring";
 import { provideCommands } from "@/ui/command";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -54,7 +54,7 @@ class EditStack {
 
   /**
    * Apply the inverse of the last edit to the stack. Noop if impossible.
-   * If there are multiple successive edits belonging to the same change, all of them are undone.
+   * If there are multiple successive edits belonging to the same change, all of them are un-done.
    */
   undo() {
     if (this._undoIndex <= 0) return;
@@ -85,14 +85,14 @@ class EditStack {
       const connectionId = this._connectionIdByEdit[originalEdit.id!];
       if (connectionId == null) throw new Error(`missing connection for ${describeEdit(originalEdit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
-      buffer.tx.clearDebounce(originalEdit.id!); // 'freeze' the original edit
+      buffer.tx.stopDebounce(originalEdit.nodePtr?.id!); // 'freeze' the original edit
     }
     log.trace("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
   }
 
   /**
    * Reapply the next undone edit (technically, the inverse of the inverse). Noop if impossible.
-   * If there are multiple successive edits belonging to the same change, all of them are redone.
+   * If there are multiple successive edits belonging to the same change, all of them are re-done.
    */
   redo() {
     if (this._undoIndex >= this._editStack.length) return;
@@ -124,7 +124,7 @@ class EditStack {
       const connectionId = this._connectionIdByEdit[edit.id!];
       if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
-      buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
+      buffer.tx.stopDebounce(edit.nodePtr?.id!); // 'freeze' the original edit
     }
     log.trace("edit.redo", { edits, redoEdits, undoIndex: this._undoIndex });
   }
@@ -132,22 +132,43 @@ class EditStack {
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
     const bufferedSub = buffer.subscribeBuffer((event) => {
       let hasNewEdits = false;
+      const justCreatedNodeIds: string[] = [];
       for (const edit of event.bufferedEdits) {
-        if (this._filter(edit) && !this._editsById[edit.id] && !this._derivedEditsById[edit.id]) {
-          this._editStack.push(edit);
-          this._editsById[edit.id] = edit;
-          this._editedAtByEditId[edit.id] = edit.editedAt!;
-          if (event.connectionIdByEditId[edit.id] == null) {
-            throw new Error(`missing connection id for ${describeEdit(edit)}`);
-          }
-          this._connectionIdByEdit[edit.id] = event.connectionIdByEditId[edit.id];
-          hasNewEdits = true;
+        // skip if already processed
+        if (this._editsById[edit.id] || this._derivedEditsById[edit.id]) {
+          continue;
         }
+
+        // skip if irrelevant
+        if (!this._filter(edit)) {
+          continue;
+        }
+
+        // skip if descendant of another node created in same change
+        if (edit.type == EditType.CREATE) {
+          justCreatedNodeIds.push(edit.nodePtr?.id!);
+          if (edit.nodeData == null) throw new Error(`missing node data for ${describeEdit(edit)}`);
+          const nodeData = unwrapSomeNode(edit.nodeData);
+          if (justCreatedNodeIds.includes(nodeData.parentPtr?.id!)) {
+            continue;
+          }
+        }
+
+        // add to stack
+        this._editStack.push(edit);
+        this._editsById[edit.id] = edit;
+        this._editedAtByEditId[edit.id] = edit.editedAt!;
+        if (event.connectionIdByEditId[edit.id] == null) {
+          throw new Error(`missing connection id for ${describeEdit(edit)}`);
+        }
+        this._connectionIdByEdit[edit.id] = event.connectionIdByEditId[edit.id];
+        hasNewEdits = true;
       }
+
       if (hasNewEdits) {
         // reset undo/redo stack
         this._undoIndex = this._editStack.length;
-        // TODO :Performance: prune edit stack (after do)?
+        // NOTE :Performance: prune edit stack eventually (after do)?
       }
     });
     return bufferedSub;
@@ -201,7 +222,7 @@ export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
 };
 
 /** Inverts an edit as an undo/redo of the given edit (in place). */
-export function invertEdit(edit: EditData, editedAt: Timestamp, invertedEdit: EditData, mode: "undo" | "redo"): void {
+function invertEdit(originalEdit: EditData, editedAt: Timestamp, invertedEdit: EditData, mode: "undo" | "redo"): void {
   const undoType = UNDO_EDIT_BY_TYPE[invertedEdit.type!];
   if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, invertedEdit.type!)}}`);
 
@@ -217,14 +238,14 @@ export function invertEdit(edit: EditData, editedAt: Timestamp, invertedEdit: Ed
   }
 
   // edit content
-  invertedEdit.nodeData = edit.nodeData;
+  invertedEdit.nodeData = originalEdit.nodeData;
   if (invertedEdit.type == EditType.RESTORE) {
     invertedEdit.oldEditedAt = editedAt;
   }
 
   // edit operations
   if (mode == "undo") {
-    invertedEdit.operations = edit.operations.map((op) => invertEditOperation(op)).reverse();
+    invertedEdit.operations = originalEdit.operations.map((op) => invertEditOperation(op)).reverse();
   }
 }
 

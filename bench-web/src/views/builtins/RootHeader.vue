@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { NodeGraph, ReadNodeGraph } from "@/language/core/graph";
+import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeReferenceData, NodeType, SelectionData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 
@@ -27,6 +28,7 @@ const props = defineProps<{
       :focus="props.focus?.nodesPtr[0]"
       :graph="graph"
     />
+    <NodeReference v-else-if="nodePtr" :node-ptr="nodePtr" size="sm" />
     <!-- Meta & Controls -->
     <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
       <slot name="meta" />

@@ -537,22 +537,33 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 32 + 'px' : undefined }"
       >
-        <!-- Top placeholder -->
-        <div
-          v-for="i in LOADING_SKELETON_COUNT"
-          v-if="!isAtStart && isEnabled"
-          ref="topPlaceholderRef"
-          :key="i"
-          class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
+        <!-- Top placeholder / general loading state -->
+        <Transition
+          appear
+          enter-active-class="transition-opacity duration-200"
+          leave-active-class="transition-opacity duration-75"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
         >
-          <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
-            <div class="h-8 w-8 rounded-full bg-gray-100"></div>
+          <div v-if="(!isAtStart && isEnabled) || node == null">
+            <div
+              v-for="i in LOADING_SKELETON_COUNT"
+              ref="topPlaceholderRef"
+              :key="i"
+              class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
+            >
+              <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
+                <div class="h-8 w-8 rounded-full bg-gray-100"></div>
+              </div>
+              <div class="flex flex-1 flex-col">
+                <div class="mb-1.5 h-2 w-20 rounded bg-gray-100" />
+                <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
+              </div>
+            </div>
           </div>
-          <div class="flex flex-1 flex-col">
-            <div class="mb-1.5 h-2 w-20 rounded bg-gray-100" />
-            <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
-          </div>
-        </div>
+        </Transition>
 
         <!-- Empty Chat -->
         <div v-if="!isEnabled && messageViews.length == 0" class="mx-5">
