@@ -73,12 +73,12 @@ class EditStack {
     const undoEdits: EditData[] = [];
     const editedAt = Timestamp.now();
     for (const originalEdit of originalEdits) {
-      this._undoIndex--;
-      this._editedAtByEditId[originalEdit.id] = editedAt;
-
+      
       // invert edit
       const undoEdit: EditData = { ...originalEdit, id: newEditId(), editedAt, changeKey: change.key };
       invertEdit(originalEdit, this._editedAtByEditId[originalEdit.id]!, undoEdit, "undo");
+      this._undoIndex--;
+      this._editedAtByEditId[originalEdit.id] = editedAt;
       undoEdits.push(undoEdit);
       this._derivedEditsById[undoEdit.id] = undoEdit;
 
