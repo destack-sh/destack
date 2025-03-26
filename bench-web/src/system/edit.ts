@@ -73,11 +73,13 @@ class EditStack {
     const undoEdits: EditData[] = [];
     const editedAt = Timestamp.now();
     for (const originalEdit of originalEdits) {
+      this._undoIndex--;
+      this._editedAtByEditId[originalEdit.id] = editedAt;
+
+      // invert edit
       const undoEdit: EditData = { ...originalEdit, id: newEditId(), editedAt, changeKey: change.key };
       invertEdit(originalEdit, this._editedAtByEditId[originalEdit.id]!, undoEdit, "undo");
       undoEdits.push(undoEdit);
-      this._undoIndex--;
-      this._editedAtByEditId[originalEdit.id] = editedAt;
       this._derivedEditsById[undoEdit.id] = undoEdit;
 
       // apply in same connection as original edits
@@ -85,7 +87,7 @@ class EditStack {
       const connectionId = this._connectionIdByEdit[originalEdit.id!];
       if (connectionId == null) throw new Error(`missing connection for ${describeEdit(originalEdit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
-      buffer.tx.stopDebounce(originalEdit.nodePtr?.id!); // 'freeze' the original edit
+      buffer.tx.stopDebounce(originalEdit.nodePtr?.id!); // 'freeze' any pending edits
     }
     log.trace("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
   }
@@ -124,7 +126,7 @@ class EditStack {
       const connectionId = this._connectionIdByEdit[edit.id!];
       if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
-      buffer.tx.stopDebounce(edit.nodePtr?.id!); // 'freeze' the original edit
+      buffer.tx.stopDebounce(edit.nodePtr?.id!); // 'freeze' any pending edits
     }
     log.trace("edit.redo", { edits, redoEdits, undoIndex: this._undoIndex });
   }
@@ -132,7 +134,6 @@ class EditStack {
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
     const bufferedSub = buffer.subscribeBuffer((event) => {
       let hasNewEdits = false;
-      const justCreatedNodeIds: string[] = [];
       for (const edit of event.bufferedEdits) {
         // skip if already processed
         if (this._editsById[edit.id] || this._derivedEditsById[edit.id]) {
@@ -142,16 +143,6 @@ class EditStack {
         // skip if irrelevant
         if (!this._filter(edit)) {
           continue;
-        }
-
-        // skip if descendant of another node created in same change
-        if (edit.type == EditType.CREATE) {
-          justCreatedNodeIds.push(edit.nodePtr?.id!);
-          if (edit.nodeData == null) throw new Error(`missing node data for ${describeEdit(edit)}`);
-          const nodeData = unwrapSomeNode(edit.nodeData);
-          if (justCreatedNodeIds.includes(nodeData.parentPtr?.id!)) {
-            continue;
-          }
         }
 
         // add to stack

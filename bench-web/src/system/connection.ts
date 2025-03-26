@@ -246,7 +246,10 @@ function makeConnectionOverlayGraph(
       edits = event.bufferedEdits.filter((e) => base.has(e.nodePtr!));
     }
     if (edits.length > 0) {
-      editGraph(overlay, edits, { base: base, ignoreMissing: event.meta.connectionId != connection.meta.id });
+      // NOTE :Robustness: we used to have ignoreMissing: event.meta.connectionId != connection.meta.id :RichGraph
+      //  (but that doesn't totally work since we now have node types that are sometimes in the loaded graph, sometimes not
+      //   e.g., we have Bench.memberships loaded but not Thread.memberships since Threads are unloaded, so those would be missing)
+      editGraph(overlay, edits, { base: base, ignoreMissing: true });
     }
   });
 
