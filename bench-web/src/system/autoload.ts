@@ -190,7 +190,7 @@ export class NodeAutoloader {
       baseTypePtr: blockPtr as NodeReferenceData | undefined,
       descendantTypes: AUTOLOAD_DESCENDANT_TYPES[nodeType],
       // NOTE :Architecture: bypass memory cache for autoloaded nodes
-      //  (since if we're autoloading, they're not in the loaded Bench/Packages)
+      //  (since if we're autoloading, they key shouldn't be from the loaded Bench/Packages)
       noMemory: true,
       isOptional: true,
     };
