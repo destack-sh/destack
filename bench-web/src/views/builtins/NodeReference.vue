@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { canvas, supergraph } from "@/globals";
+import { autoloader, canvas, supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
 import { Transaction } from "@/language/runtime/transaction";
@@ -228,16 +228,25 @@ defineExpose({
     v-else
     :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
   >
-    <!-- Node not found -->
-    <template v-if="IS_DEVELOPER_MODE">
+    <!-- Node loading -->
+    <template v-if="nodePtr != null && autoloader.isPending(nodePtr)">
+      <IconInline
+        class="w-5 text-center text-gray-400"
+        v-bind="makeIcon(NodeTypeOptionInfo[nodePtr?.nodeType!]?.icon ?? 'fas fa-exclamation-triangle')"
+      />
+      <div class="ml-1 h-2 w-20 rounded bg-gray-100" />
+    </template>
+    <!-- Node not found (show id in dev mode) -->
+    <template v-else-if="IS_DEVELOPER_MODE">
       <span class="text-gray-400">{{ toCamelName(NodeType, nodePtr?.nodeType) }} [{{ nodePtr?.id }}]</span>
     </template>
+    <!-- Node not found (show not found) -->
     <template v-else>
       <IconInline
         class="w-5 text-center text-gray-400"
         v-bind="makeIcon(NodeTypeOptionInfo[nodePtr?.nodeType!]?.icon ?? 'fas fa-exclamation-triangle')"
       />
-      <span class="ml-0.5 text-gray-400">[not found]</span>
+      <span class="ml-1 text-gray-400">[not found]</span>
     </template>
   </div>
 </template>
