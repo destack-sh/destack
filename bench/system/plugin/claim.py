@@ -43,14 +43,14 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                 parent._untrack_rec()
                 parent._track_rec(session)
 
-                # add the resource
+                # add target resource if needed
                 resource_template = claim.target_template
-                assert resource_template is not None, f"claim {claim!r} has no target template"
-                resource = resource_template.instance(detach=True)
-                resource.move(to=parent)
-                resource._supergraph = parent._supergraph
+                if resource_template is not None:
+                    resource = resource_template.instance(detach=True)
+                    resource.move(to=parent)
+                    resource._supergraph = parent._supergraph
+                    claim.target = resource
 
                 # open the claim
-                claim.target = resource
                 claim.status = ClaimStatus.OPEN
                 claim.opened_at = self.oracle.utc()
