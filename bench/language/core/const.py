@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.25.2"
+VERSION = "2025.03.26.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -568,12 +568,12 @@ class NodeType(BuiltinEnum):
     # CACHE?
     COMPUTER = 2100, None, None, "fas fa-computer-classic"
     APPLICATION = 2110, None, None, "fas fa-globe"
-    # MODEL, ...
 
     # data
     FILE = 2200, None, None, "fas fa-file"
     STREAM = 2210, None, None, "fas fa-stream"
     SECRET = 2220, None, None, "fas fa-key"
+    # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
 
     # finance
     # BALANCE, BUDGET, TRANSFER, GRANT, INVOICE, ...
@@ -584,8 +584,7 @@ class NodeType(BuiltinEnum):
     # world?
     # PHONE, ADDRESS, ...
 
-    # data/integrations/code?
-    # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
+    # model?
     # ...
 
     # source

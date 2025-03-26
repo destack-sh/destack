@@ -20,7 +20,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
-import { useSelectionZone } from "@/ui/drag";
+import { startDraggingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { pushPopover } from "@/ui/popover";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -71,9 +71,14 @@ defineExpose<ViewExpose>({ self, id, commands });
         class="flex h-[30px] flex-row items-center px-1.5 transition-colors duration-150 hover:bg-gray-100"
         :data-node-id="claim.id"
         :data-node-type="claim.metatype"
+        data-suppress-drag="select"
+        :draggable="true"
         @dblclick.stop="
           (claim.targetPtr != null || claim.targetTemplatePtr != null) &&
           canvas.goToNode((claim.targetPtr ?? claim.targetTemplatePtr)!)
+        "
+        @dragstart.stop="
+          (e: DragEvent) => startDraggingIfAllowed(e, claim.targetPtr ?? claim.targetTemplatePtr ?? claim)
         "
       >
         <!-- TODO :Incomplete: show/control? actual Claim status somehow -->

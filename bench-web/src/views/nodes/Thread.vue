@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { Alignment, ChannelData, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
 import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas, benchGraph } from "@/system/space";
+import { benchGraph, canvas } from "@/system/space";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import RootHeader from "@/views/builtins/RootHeader.vue";
@@ -32,7 +32,7 @@ const channelPtr = computed(() => {
   if (isNode(node.value, NodeType.THREAD)) return node.value.channelPtr;
   else return null;
 });
-const channel = supergraph.getRef(channelPtr);
+const channel = supergraph.getRef(channelPtr) as Ref<ChannelData | null>;
 const scopePtr = computed(() => {
   if (node.value == null) return null;
   if (isNode(node.value, NodeType.THREAD)) return node.value.scopePtr;
