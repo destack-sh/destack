@@ -277,28 +277,6 @@ export function getBaseFromNodeReference(nodeRef: NodeReferenceData): NodeRefere
   }
 }
 
-export const TK_LENGTH_BYTES = 8;
-export const TK_LENGTH_HEX = TK_LENGTH_BYTES * 2;
-export const TK_LENGHT_IN_CK = TK_LENGTH_HEX + 2; // 2 for the dashes
-export const TK_LENGTH_B64 = 12; // 8 * 1.5
-
-export function getTkFromCk(ck: string) {
-  return ck.slice(0, TK_LENGTH_HEX);
-}
-
-export function getTkFromPtr(ptr: NodeReferenceData) {
-  if (ptr.ck) return ptr.ck.slice(0, TK_LENGTH_HEX);
-  else if (ptr.id) return ptr.id.slice(0, TK_LENGTH_HEX);
-  else throw new Error(`invalid ptr: ${ptr}`);
-}
-
-export function getTkFromPtrMaybe(ptr: NodeReferenceData | undefined | null) {
-  if (ptr == null) return null;
-  if (ptr.ck) return ptr.ck.slice(0, TK_LENGTH_HEX);
-  else if (ptr.id) return ptr.id.slice(0, TK_LENGTH_HEX);
-  else throw new Error(`invalid ptr: ${ptr}`);
-}
-
 function hexToBase64(hex: string) {
   const bytes = [];
   for (let i = 0; i < hex.length; i += 2) {
@@ -308,31 +286,10 @@ function hexToBase64(hex: string) {
   return btoa(str);
 }
 
-/** Gets the 8-byte template key in base64 from a node reference pointer */
-export function getTkB64FromPtr(ptr: NodeReferenceData) {
-  const ck = ptr.ck ?? ptr.id;
-  if (!ck) throw new Error(`Invalid pointer: ${describeNode(ptr)}`);
-  const hex = ck.replace(/-/g, "");
-  return hexToBase64(hex.slice(0, TK_LENGTH_BYTES * 2));
-}
-
 /** Gets the 8-byte template key in base64 from a node ck */
 export function getTkB64FromCk(ck: string) {
   const hex = ck.replace(/-/g, "");
-  return hexToBase64(hex.slice(0, TK_LENGTH_BYTES * 2));
-}
-
-/** Gets the padded ck from its b64-encoded template key part */
-export function padCkFromTkB64(tkB64: string) {
-  const str = atob(tkB64);
-  const bytes = new Uint8Array(str.length);
-  for (let i = 0; i < str.length; i++) {
-    bytes[i] = str.charCodeAt(i);
-  }
-  const padded = new Uint8Array(16);
-  bytes.forEach((byte, index) => (padded[index] = byte));
-  const hex = Array.from(padded, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  return hexToBase64(hex);
 }
 
 export function toCamelName<T extends object>(cls: T, key: any) {

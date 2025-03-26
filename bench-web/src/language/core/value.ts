@@ -1,5 +1,6 @@
-import { FLOAT_EPSILON, TK_LENGTH_B64, isNodeType } from "@/language/core/const";
+import { FLOAT_EPSILON, isNodeType } from "@/language/core/const";
 import {
+  CK_LENGTH_B64,
   decodeTypeIdentity,
   describeTypeIdentity,
   encodeTypeIdentity,
@@ -9,7 +10,6 @@ import {
 } from "@/language/core/type";
 import {
   DateTime,
-  EmptyData,
   FieldType,
   NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
@@ -296,7 +296,7 @@ export function packCustomObject(
     } else if (fieldValue == null) {
       continue;
     }
-    const typeIdentity = decodeTypeIdentity(storageKey.slice(TK_LENGTH_B64 + 1));
+    const typeIdentity = decodeTypeIdentity(storageKey.slice(CK_LENGTH_B64 + 1));
     if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
         valuePacked[storageKey] = packValue(fieldValue, typeIdentity, {
@@ -343,7 +343,7 @@ export function unpackCustomObject(
     } else if (fieldValuePacked == null) {
       continue;
     }
-    const typeIdentity = decodeTypeIdentity(storageKey.slice(TK_LENGTH_B64 + 1));
+    const typeIdentity = decodeTypeIdentity(storageKey.slice(CK_LENGTH_B64 + 1));
     if (typeIdentity.kind == TypeKind.CUSTOM_OBJECT || typeIdentity.kind == TypeKind.PARTIAL_OBJECT) {
       if (options.recurseCustomObject) {
         const fieldValue = unpackValue(fieldValuePacked as JsonValue, typeIdentity, {
@@ -417,7 +417,7 @@ export function unpackPartialNode(
         const fieldType = getFieldType(keyParts[0]);
         const propName = PROPERTY_NAME_BY_FIELD_TYPE[fieldType!];
         if (propName != null) {
-          const fieldIdentity = decodeTypeIdentity(keyParts[0].slice(TK_LENGTH_B64 + 1));
+          const fieldIdentity = decodeTypeIdentity(keyParts[0].slice(CK_LENGTH_B64 + 1));
           const fieldValue = unpackValue(valuePacked[key], fieldIdentity);
           if ((node as any)[propName] == null) {
             (node as any)[propName] = {};

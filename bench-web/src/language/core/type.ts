@@ -1,12 +1,5 @@
 import { supergraph } from "@/globals";
-import {
-  getTkB64FromCk,
-  getTkB64FromPtr,
-  isNodeType,
-  NAME_CONSTRAINT,
-  padCkFromTkB64,
-  toCamelName,
-} from "@/language/core/const";
+import { getTkB64FromCk, isNodeType, NAME_CONSTRAINT, toCamelName } from "@/language/core/const";
 import { getEnumTitle } from "@/language/core/enum";
 import { blockToTypeMaybe } from "@/language/source/block";
 import { choiceToType } from "@/language/source/choice";
@@ -49,6 +42,37 @@ export type TypeIdentity = Pick<
   | "constraint"
 > &
   Partial<Pick<TypeData, "baseFieldTypes" | "propertyFieldTypes">> & { id?: any; ck?: string };
+
+export const CK_LENGTH_B64 = 24; //  1.5 * CK_LENGTH_BYTES (must be integer)
+
+const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
+  [TypeKind.PRIMITIVE]: "p",
+  [TypeKind.STRUCT]: "s",
+  [TypeKind.NODE]: "n",
+  [TypeKind.ENUM]: "e",
+  [TypeKind.BASED_NODE]: "n", // shared with node
+  [TypeKind.CUSTOM_OBJECT]: "o",
+  [TypeKind.PARTIAL_OBJECT]: "r",
+};
+const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
+  p: TypeKind.PRIMITIVE,
+  s: TypeKind.STRUCT,
+  n: TypeKind.NODE,
+  e: TypeKind.ENUM,
+  o: TypeKind.CUSTOM_OBJECT,
+  r: TypeKind.PARTIAL_OBJECT,
+};
+
+export const LETTER_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
+  [FieldType.MEMBER]: "M",
+  [FieldType.INPUT]: "I",
+  [FieldType.OUTPUT]: "O",
+};
+export const FIELD_TYPE_BY_LETTER: Record<string, FieldType> = {
+  M: FieldType.MEMBER,
+  I: FieldType.INPUT,
+  O: FieldType.OUTPUT,
+};
 
 export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
   if (type.kind == null) return "<empty>";
@@ -183,24 +207,6 @@ export function propertyType(metatype: ObjectType, id: number, override?: Partia
   }
 }
 
-const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
-  [TypeKind.PRIMITIVE]: "p",
-  [TypeKind.STRUCT]: "s",
-  [TypeKind.NODE]: "n",
-  [TypeKind.ENUM]: "e",
-  [TypeKind.BASED_NODE]: "n", // shared with node
-  [TypeKind.CUSTOM_OBJECT]: "o",
-  [TypeKind.PARTIAL_OBJECT]: "r",
-};
-const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
-  p: TypeKind.PRIMITIVE,
-  s: TypeKind.STRUCT,
-  n: TypeKind.NODE,
-  e: TypeKind.ENUM,
-  o: TypeKind.CUSTOM_OBJECT,
-  r: TypeKind.PARTIAL_OBJECT,
-};
-
 /**
  * Encodes the type identity into a key for storage & implicit typing.
  * Format is <kind>[id] (with id encoded as base64).
@@ -215,7 +221,7 @@ export function encodeTypeIdentity(type: TypeIdentity): string {
   } else if (type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
     value = encodeB64VLQ(type.benchType!);
   } else if (type.kind == TypeKind.CUSTOM_OBJECT) {
-    value = getTkB64FromPtr(type.baseTypePtr!);
+    value = encodeB64VLQ(type.baseTypePtr!.ck ?? type.baseTypePtr!.id!);
   } else if (type.kind == TypeKind.PARTIAL_OBJECT) {
     value = type.benchType != null ? encodeB64VLQ(type.benchType) : "";
   } else {
@@ -254,8 +260,7 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   } else if (kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
     return { kind, benchType: decodeB64VLQ(value) as BenchType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.CUSTOM_OBJECT) {
-    const ck = padCkFromTkB64(value);
-    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck, id: ck };
+    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, nodeType: NodeType.BLOCK, ck: value, id: value };
     return { kind, baseTypePtr, isRequired: false, isList, isSecret };
   } else if (kind == TypeKind.PARTIAL_OBJECT) {
     return {
@@ -269,17 +274,6 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
     throw new Error(`unsupported type kind ${kind}`);
   }
 }
-
-export const LETTER_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
-  [FieldType.MEMBER]: "M",
-  [FieldType.INPUT]: "I",
-  [FieldType.OUTPUT]: "O",
-};
-export const FIELD_TYPE_BY_LETTER: Record<string, FieldType> = {
-  M: FieldType.MEMBER,
-  I: FieldType.INPUT,
-  O: FieldType.OUTPUT,
-};
 
 /** Gets the eternal storage key for values of this type identity. :FieldStorageKey */
 export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): string {
