@@ -36,7 +36,6 @@ import {
   isNode,
   isNodeRef,
   makeDefaultObject,
-  newNodeCk,
   newNodeId,
   nodeReference,
   toNodeRef,
@@ -130,14 +129,14 @@ export function makeNode<T extends NodeType>(
   // assign id/ck/scope
   if (!options?.omit?.includes("id")) {
     if ("packagePtr" in properties) {
-      if ("ck" in properties && (node as any).ck == null) {
-        (node as any).ck = newNodeCk();
-      }
       if (node.id == null) {
         if (TIMED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
           node.id = uuidt();
         } else {
           node.id = newNodeId();
+        }
+        if ("ck" in properties && (node as any).ck == null) {
+          (node as any).ck = node.id;
         }
       }
       if (nodeIn.metatype == NodeType.PACKAGE) {
@@ -349,7 +348,7 @@ export function cloneStruct<T extends AnyStructData>(struct: T): T {
 function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   const clone = cloneStruct(node);
   clone.id = newNodeId();
-  if ("ck" in node) (clone as any).ck = newNodeCk();
+  if ("ck" in node) (clone as any).ck = clone.id;
   clone.parentPtr = node.parentPtr;
   if ("packagePtr" in node) (clone as any).packagePtr = node.packagePtr;
   if ("benchPtr" in node) (clone as any).benchPtr = node.benchPtr;

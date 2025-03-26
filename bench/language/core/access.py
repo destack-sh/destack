@@ -364,9 +364,9 @@ class PolicySubject(Struct):
         if self.is_staff:
             content_parts.append("is_staff")
         if self.client:
-            content_parts.append(f"client={self.client}")
+            content_parts.append(f"client={self.client!r}")
         elif self.user:
-            content_parts.append(f"user={self.user}")
+            content_parts.append(f"user={self.user!r}")
         return ", ".join(content_parts)
 
     @property

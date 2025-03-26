@@ -381,7 +381,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     # NOTE :Test: make id factories deterministic (incl. UUIDT? somehow)
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
-    __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
     __node_child_properties__: ClassVar[dict[str, Property]] = frozendict()
     __node_child_properties_by_type__: ClassVar[dict[NodeType, list[Property]]] = frozendict()
@@ -489,8 +488,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # init node
         if isinstance(self, IsInstantiable):
             if self.ck is None:
-                self.ck = cls.__ck_factory__()  # type: ignore
                 self.id = cls.__id_factory__()
+                self.ck = self.id  # type: ignore
                 self._is_new = True
             elif self.id is None:
                 self.id = cls.__id_factory__()

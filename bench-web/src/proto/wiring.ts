@@ -141,10 +141,6 @@ export function makeDefaultProto<T extends object>(messageType: MessageType<T>):
   return messageType.create();
 }
 
-export function newNodeCk(): string {
-  return v4();
-}
-
 export function newNodeId(): string {
   return v4();
 }

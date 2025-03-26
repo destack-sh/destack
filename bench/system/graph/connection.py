@@ -285,16 +285,28 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 not self.query.include_deleted and edit_type == EditType.RESTORE
             ):
+                # add: node or its ancestors must be in a root, in our graph or be optional
                 node = _get_edited_node(edit, updated_graph)
                 assert node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
-                # add: parent must be in a root, in our graph or be optional
                 parent_id = node.parent_ptr.id if node.parent_ptr else None
                 if parent_id is None:
                     if node.metatype in ROOT_NODE_TYPES:
                         continue  # unrelated root node
                     else:
                         raise RuntimeError(f"missing parent ptr for {node!r} in {edit!r}")
-                if parent_id in result_graph:
+                if node.id in self._root_ids:
+                    # optional root, add the node and its ancestors
+                    is_in_scope = True
+                    ancestor = updated_graph.get(parent_id)
+                    while ancestor is not None:
+                        if ancestor.id not in result_graph:
+                            result_graph.add(ancestor)
+                            added_nodes.insert(0, ancestor)  # :ConnectionUpdateOrdering
+                        if ancestor.parent_ptr and ancestor.parent_ptr.id:
+                            ancestor = updated_graph.get(ancestor.parent_ptr.id)
+                        else:
+                            ancestor = None
+                elif parent_id in result_graph:
                     # already have a parent, check if parent is a root or just a common ancestor
                     parent = result_graph.get(parent_id)
                     while parent is not None:
@@ -309,18 +321,6 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                     else:
                         # just a shared ancestor, not in scope
                         is_in_scope = False
-                elif node.id in self._root_ids:
-                    # optional root, add the node and its ancestors
-                    is_in_scope = True
-                    ancestor = updated_graph.get(parent_id)
-                    while ancestor is not None:
-                        if ancestor.id not in result_graph:
-                            result_graph.add(ancestor)
-                            added_nodes.insert(0, ancestor)  # :ConnectionUpdateOrdering
-                        if ancestor.parent_ptr and ancestor.parent_ptr.id:
-                            ancestor = updated_graph.get(ancestor.parent_ptr.id)
-                        else:
-                            ancestor = None
                 else:
                     is_in_scope = False  # not in scope
             else:
