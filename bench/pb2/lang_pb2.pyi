@@ -1609,7 +1609,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     VIEW_TYPE_UNSPECIFIED: _ClassVar[ViewType]
     VIEW_TYPE_COMPUTER: _ClassVar[ViewType]
-    VIEW_TYPE_BROWSER: _ClassVar[ViewType]
     VIEW_TYPE_PAGE: _ClassVar[ViewType]
     VIEW_TYPE_BLOCK: _ClassVar[ViewType]
     VIEW_TYPE_CHOICE: _ClassVar[ViewType]
@@ -3235,7 +3234,6 @@ SPACE_TYPE_DESKTOP: SpaceType
 SPACE_TYPE_MOBILE: SpaceType
 VIEW_TYPE_UNSPECIFIED: ViewType
 VIEW_TYPE_COMPUTER: ViewType
-VIEW_TYPE_BROWSER: ViewType
 VIEW_TYPE_PAGE: ViewType
 VIEW_TYPE_BLOCK: ViewType
 VIEW_TYPE_CHOICE: ViewType

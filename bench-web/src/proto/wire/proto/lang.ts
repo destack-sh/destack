@@ -13283,10 +13283,6 @@ export enum ViewType {
      */
     COMPUTER = 2100,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BROWSER = 2150;
-     */
-    BROWSER = 2150,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_PAGE = 5020;
      */
     PAGE = 5020,

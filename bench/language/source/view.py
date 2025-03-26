@@ -41,7 +41,6 @@ class ViewType(BuiltinEnum):
 
     # nodes (0-10000)
     COMPUTER = 2100
-    BROWSER = 2150
     PAGE = 5020
     BLOCK = 5021
     CHOICE = 5030

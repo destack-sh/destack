@@ -38,6 +38,7 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
+import Title from "@/views/builtins/Title.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -84,6 +85,12 @@ const channelPtr = computed(() => {
 const threadPtr = computed(() => {
   if (isNode(node.value, NodeType.THREAD)) {
     return nodePtr.value;
+  }
+  return null;
+});
+const thread = computed(() => {
+  if (isNode(node.value, NodeType.THREAD)) {
+    return node.value;
   }
   return null;
 });
@@ -458,7 +465,7 @@ const dropZone = useSingleDropZone({
   container: containerRef,
   orientation: Orientation.VERTICAL,
   name: "chat",
-  kinds: ["file"],
+  kinds: ["file", "node", "selection"],
   onDrop: (dragged, anchor, event) => {
     if (dragged.kind == "file") {
       if (dragged.files == null) return;
@@ -506,15 +513,26 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     <!-- Root header -->
     <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="benchGraph" />
 
-    <!-- Drop zone (overlay) -->
+    <!-- Drop overlay -->
     <div
       v-if="dropZone.activeDropZone.value"
-      class="pointer-events-none absolute z-40 flex h-full w-full items-center justify-center bg-gray-400/40"
+      class="pointer-events-none absolute inset-0 z-100 flex h-full w-full items-center justify-center bg-gray-700/20"
     >
-      <div class="flex flex-col items-center justify-center gap-y-1">
-        <i class="fas fa-upload text-3xl text-gray-700/80" />
-        <div class="flex flex-row items-center justify-center gap-x-1 text-base font-medium text-gray-700/80">
-          <span>Upload Files</span>
+      <!-- Drop  -->
+      <div
+        class="flex flex-col items-center justify-center gap-y-1 rounded-md border border-gray-400 bg-white px-6 py-3"
+      >
+        <!-- Icons -->
+        <div class="flex flex-row">
+          <i
+            v-for="icon in ['fas fa-file-word -rotate-12', 'fas fa-file-image', 'fas fa-file-vector rotate-12']"
+            :key="icon"
+            :class="[icon, 'rounded bg-white text-3xl text-gray-700']"
+          />
+        </div>
+        <!-- Text -->
+        <div class="flex flex-col items-center justify-center gap-x-1 text-gray-900">
+          <h3 class="text-base font-semibold">Add Anything</h3>
         </div>
       </div>
     </div>
@@ -752,7 +770,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               </div>
               <!-- Extras -->
               <!-- NOTE :UX: this should be a proper :FileGallery -->
-              <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap gap-x-2 gap-y-2">
+              <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">
                 <File
                   v-for="filePtr in filesPtr"
                   :id="'file-' + filePtr.id"
@@ -839,6 +857,31 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               size-is-dynamic
               :size="{ height: size?.height != null ? size.height / 2 : undefined }"
             >
+              <!-- Extras -->
+              <div v-if="draftFiles.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2 gap-y-1">
+                <!-- should also be a proper :FileGallery -->
+                <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
+                  <File
+                    :id="'file-' + file.id"
+                    is-inline
+                    class="pointer-events-none"
+                    :model-value="toNodeRef(file)"
+                    :size="{
+                      height:
+                        size?.height != null && INLINE_FILE_TYPES.includes(file.type)
+                          ? Math.min(100, size.height / 3)
+                          : undefined,
+                    }"
+                  />
+                  <!-- Remove -->
+                  <button
+                    class="absolute right-1 top-2 rounded-full border border-gray-200 bg-gray-100/80 px-1.5 py-0.5 text-gray-700 transition-colors duration-150 group-hover/file:bg-white/100 group-hover/file:text-gray-900"
+                    @click.stop="removeFiles([file])"
+                  >
+                    <i class="fas fa-xmark" />
+                  </button>
+                </div>
+              </div>
               <!-- Text -->
               <Text
                 id="input"
@@ -866,30 +909,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                   }
                 "
               />
-              <!-- Extras -->
-              <div v-if="draftFiles.length > 0" class="mt-1 flex flex-row flex-wrap gap-x-2 gap-y-1">
-                <!-- should also be a proper :FileGallery -->
-                <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
-                  <File
-                    :id="'file-' + file.id"
-                    is-inline
-                    :model-value="toNodeRef(file)"
-                    :size="{
-                      height:
-                        size?.height != null && INLINE_FILE_TYPES.includes(file.type)
-                          ? Math.min(200, size.height / 3)
-                          : undefined,
-                    }"
-                  />
-                  <!-- Remove -->
-                  <button
-                    class="absolute right-1 top-2 rounded-full bg-gray-100/80 px-1.5 py-0.5 text-gray-700 transition-colors duration-150 group-hover/file:bg-white/100 group-hover/file:text-gray-900"
-                    @click.stop="removeFiles([file])"
-                  >
-                    <i class="fas fa-xmark" />
-                  </button>
-                </div>
-              </div>
             </Scroll>
           </div>
         </div>
