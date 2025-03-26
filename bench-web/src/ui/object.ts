@@ -754,7 +754,7 @@ export class DatabaseLayout extends NodeLayout<NodeType.DATABASE> {
 
     // schema
     if (!this.isPartial) {
-      this.section("Members", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {});
+      this.section("Fields", [{ type: "fields-list", fieldType: FieldType.MEMBER }], {});
     }
   }
 }
