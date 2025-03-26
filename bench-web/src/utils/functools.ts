@@ -70,10 +70,20 @@ export function roundToDigits(value: number, digits: number): number {
 
 const BASE_64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-export function encodeB64VLQ(value: number): string {
-  if (value == 0) return "A";
-  else if (value < 0) throw new Error(`cannot encode negative value: ${value}`);
-  else {
+export function encodeB64VLQ(value: number | bigint): string {
+  if (value == 0) {
+    return "A";
+  } else if (value < 0) {
+    throw new Error(`cannot encode negative value: ${value}`);
+  } else if (typeof value === 'bigint') {
+    let result = "";
+    while (value > 0n) {
+      const index = Number(value & 63n);
+      result += BASE_64[index];
+      value = value >> 6n;
+    }
+    return result;
+  } else {
     let result = "";
     while (value) {
       result += BASE_64[value & 63];
