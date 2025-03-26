@@ -756,6 +756,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         self, *, data_graph: NodeDataGraph | None = None
     ) -> tuple[list[EditData], list[EditData]]:
         """Attempt to commit pending edits."""
+        from bench.proto.wiring import unwrap_some_node
 
         # TODO :Architecture :Cleanup: revamp Session handling across internal, system and remote
         #  It feels quite clumsy and mixes concerns (why are we talking about DatabasePlugin here?);
@@ -796,6 +797,14 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 pending_graphs.append(graph)
                 if data_graph is None:
                     data_graph = self._make_pending_data_graph()
+
+                # update data graph from cascaded edits
+                for edit in cascaded_edits:
+                    if edit.HasField("node_data"):
+                        node_data = unwrap_some_node(edit.node_data)
+                        if node_data.id in data_graph:
+                            data_graph.update(node_data)
+
                 await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
                 self._pending_nodes_by_id = {}
 

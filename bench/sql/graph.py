@@ -1461,10 +1461,11 @@ async def _pg_edit_cascade(
             node = nodes_by_id.get(cascaded_edit.node_ptr.id)
             if node is None:
                 if cascaded_edit.type == EditType.ERASE:
-                    continue  # ignore
-                raise RuntimeError(
-                    f"missing node {wiring.describe_node_ptr(cascaded_edit.node_ptr)} for {wiring.describe_edit(cascaded_edit)}"
-                )
+                    continue  # ignore, no longer exists
+                else:
+                    raise RuntimeError(
+                        f"missing node {wiring.describe_node_ptr(cascaded_edit.node_ptr)} for {wiring.describe_edit(cascaded_edit)}"
+                    )
             cascaded_edit.node_data.CopyFrom(wiring.wrap_some_node(node))
 
     return all_cascaded_edits
