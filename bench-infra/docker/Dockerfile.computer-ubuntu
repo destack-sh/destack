@@ -137,26 +137,36 @@ RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-pan
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-panel" version="1.0">
   <property name="panels" type="array">
+    <!-- We have 1 panel -->
     <value type="int" value="1"/>
     <property name="panel-1" type="empty">
-      <property name="position" type="string" value="p=8;x=0;y=0"/> <!-- bottom -->
+      <!-- position at bottom -->
+      <property name="position" type="string" value="p=8;x=0;y=0"/>
+      <!-- 100% width -->
       <property name="length" type="uint" value="100"/>
+      <!-- horizontal layout -->
+      <property name="mode" type="string" value="horizontal"/>
+      <!-- plugin IDs to load -->
       <property name="plugins" type="array">
         <value type="int" value="1"/>
         <value type="int" value="2"/>
         <value type="int" value="3"/>
-        <property name="plugin-1" type="empty">
-          <property name="type" type="string" value="applicationsmenu"/>
-        </property>
-        <property name="plugin-2" type="empty">
-          <property name="type" type="string" value="tasklist"/>
-          <property name="expand" type="bool" value="true"/>
-        </property>
-        <property name="plugin-3" type="empty">
-          <property name="type" type="string" value="clock"/>
-        </property>
       </property>
     </property>
+  </property>
+  <property name="plugins" type="empty">
+    <!-- Must define plugin-ids here, matching the ints above -->
+    <property name="plugin-ids" type="array">
+      <value type="int" value="1"/>
+      <value type="int" value="2"/>
+      <value type="int" value="3"/>
+    </property>
+    <!-- Applications menu plugin -->
+    <property name="plugin-1" type="string" value="applicationsmenu"/>
+    <!-- Tasklist (open windows) plugin; sometimes named "windowbuttons" -->
+    <property name="plugin-2" type="string" value="tasklist"/>
+    <!-- Clock plugin -->
+    <property name="plugin-3" type="string" value="clock"/>
   </property>
 </channel>
 EOF
