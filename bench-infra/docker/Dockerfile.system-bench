@@ -1,0 +1,116 @@
+# define the common base image
+FROM python:3.13-slim AS bench-base
+
+LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
+LABEL org.opencontainers.image.description="Bench"
+
+# install libs
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    libzbar-dev \
+    postgresql-client \
+    ffmpeg \
+    gcc \
+    gfortran \
+    g++ \
+    pkg-config \
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
+    libxml2-dev \
+    libxslt-dev \
+    git \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# create bench user
+RUN useradd -ms /bin/bash bench \
+    && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# uv
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-installer.sh
+ENV PATH="/usr/local/bin:$PATH"
+
+ENV PYTHONUNBUFFERED=1
+
+# --- System (Supervisor/Host) ---
+FROM bench-base AS bench-system
+
+COPY bench/requirements/system.txt /home/bench/requirements.txt
+WORKDIR /home/bench
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# copy relevant files
+COPY --chown=bench:bench bench/ /home/bench/bench/
+COPY --chown=bench:bench bench.py /home/bench/
+COPY --chown=bench:bench pyproject.toml /home/bench/
+COPY --chown=bench:bench version /home/bench/
+# prune unnecessary files
+RUN rm -rf /home/bench/bench/test
+# prune tests
+RUN find /home/bench/bench/ -type f -name 'test_*.py' -delete
+
+# startup script
+RUN cat <<'EOF' > /home/bench/start.sh
+#!/bin/sh
+python3 bench.py serve supervisor 0.0.0.0 5432
+EOF
+RUN chmod +x /home/bench/start.sh && \
+    chown bench:bench /home/bench/start.sh
+
+# switch to non-root user
+RUN chown -R bench:bench /home/bench
+USER bench
+WORKDIR /home/bench
+
+CMD ["/home/bench/start.sh"]
+
+ARG GIT_COMMIT
+ARG VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION
+
+EXPOSE 5432
+EXPOSE 80
+
+# --- Runtime ---
+FROM bench-base AS bench-computer-runtime
+
+COPY bench/requirements/runtime.txt /home/bench/requirements.txt
+WORKDIR /home/bench
+RUN uv pip install --system --no-cache -r requirements.txt
+
+# copy relevant files
+COPY --chown=bench:bench bench/ /home/bench/bench/ 
+# prune unnecessary files
+RUN rm -rf /home/bench/bench/system /home/bench/bench/test /home/bench/bench/builtin
+# prune tests
+RUN find /home/bench/bench/ -type f -name 'test_*.py' -delete
+
+COPY --chown=bench:bench bench.py /home/bench/
+COPY --chown=bench:bench pyproject.toml /home/bench/
+COPY --chown=bench:bench version /home/bench/
+
+# startup script
+RUN cat <<'EOF' > /home/bench/start.sh
+#!/bin/sh
+python3 bench.py serve runtime 0.0.0.0 5432
+EOF
+RUN chmod +x /home/bench/start.sh && \
+    chown bench:bench /home/bench/start.sh
+
+# switch to non-root user
+RUN chown -R bench:bench /home/bench
+USER bench
+WORKDIR /home/bench
+
+CMD ["/home/bench/start.sh"]
+
+ARG GIT_COMMIT
+ARG VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION
+
+EXPOSE 5432
+EXPOSE 80

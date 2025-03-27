@@ -135,7 +135,7 @@ RUN mkdir -p /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml
 # panel config (disable workspace switcher)
 RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-panel" version="1.0">
+<channel name="xfce4-panel" version="2.0">
   <property name="panels" type="array">
     <!-- We have 1 panel -->
     <value type="int" value="1"/>

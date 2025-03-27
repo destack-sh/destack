@@ -83,7 +83,7 @@ function onCredentialsRequired() {
   if (!password) {
     throw new Error("no password for VNC");
   }
-  rfb.value?.sendCredentials({ password: password });
+  rfb.value?.sendCredentials({ username: "", target: "", password: password });
 }
 
 /* Disconnect from VNC */
@@ -204,7 +204,6 @@ function sendPaste(text: string) {
 /* Focus the VNC display */
 function focus() {
   rfb.value?.focus();
-  console.log("focus");
 }
 
 /* Blur the VNC display */
