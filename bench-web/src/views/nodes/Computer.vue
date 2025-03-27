@@ -28,7 +28,11 @@ const vncRef: Ref<InstanceType<typeof Vnc> | null> = ref(null);
 
 const containerSize = useElementSize(containerRef);
 
-defineExpose<ViewExpose>({ self, id });
+function focus() {
+  vncRef.value?.focus();
+}
+
+defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <div class="flex h-full w-full flex-col bg-white text-gray-900">
@@ -38,7 +42,6 @@ defineExpose<ViewExpose>({ self, id });
       <Vnc
         ref="vncRef"
         url="ws://localhost:6080"
-        :rfb-options="{ credentials: { password: 'bench' } }"
         auto-connect
         scale-viewport
       />

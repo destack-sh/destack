@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { log } from "@/utils/log";
 import RFB, { type NoVncEvents, type NoVncOptions } from "@novnc/novnc/lib/rfb";
-import { onBeforeUnmount, onMounted, ref, watch, withDefaults, type StyleValue } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch, type StyleValue } from "vue";
 
 const DEFAULT_RETRY_DURATION = 3000;
 
@@ -19,9 +19,6 @@ const props = defineProps<{
   scaleViewport?: boolean;
   resizeSession?: boolean;
   showDotCursor?: boolean;
-  background?: string;
-  qualityLevel?: number;
-  compressionLevel?: number;
 }>();
 
 const emit = defineEmits<{
@@ -65,6 +62,7 @@ onBeforeUnmount(() => {
 function onConnect() {
   emit("connect", rfb.value as RFB | null);
   log.debug("vnc.connect");
+  focus();
   isLoading.value = false;
 }
 
@@ -134,15 +132,18 @@ function connect() {
     // create new RFB instance
     rfb.value = new RFB(screenRef.value, props.url, props.rfbOptions);
     rfb.value.viewOnly = props.viewOnly ?? false;
-    rfb.value.focusOnClick = props.focusOnClick ?? true;
+    rfb.value.focusOnClick = true;
     rfb.value.clipViewport = props.clipViewport ?? false;
     rfb.value.dragViewport = props.dragViewport ?? false;
     rfb.value.resizeSession = props.resizeSession ?? false;
     rfb.value.scaleViewport = props.scaleViewport ?? false;
     rfb.value.showDotCursor = props.showDotCursor ?? true;
-    rfb.value.background = props.background ?? "";
-    rfb.value.qualityLevel = props.qualityLevel ?? 7;
-    rfb.value.compressionLevel = props.compressionLevel ?? 2;
+    rfb.value.background = "";
+    rfb.value.qualityLevel = 7;
+    rfb.value.compressionLevel = 2;
+
+    // auto-focus on click (doesn't happen by default for some reason even though focusOnClick is true)
+    ((rfb.value as any)._canvas as HTMLCanvasElement).addEventListener("mousedown", focus);
 
     // hook up events
     eventListeners.value.connect = onConnect;
@@ -196,13 +197,14 @@ function sendReset() {
 }
 
 /* Send text to clipboard */
-function clipboardPaste(text: string) {
+function sendPaste(text: string) {
   rfb.value?.clipboardPasteFrom(text);
 }
 
 /* Focus the VNC display */
 function focus() {
   rfb.value?.focus();
+  console.log("focus");
 }
 
 /* Blur the VNC display */
@@ -213,25 +215,25 @@ function blur() {
 defineExpose({
   connect,
   disconnect,
-  isConnected,
-  isLoading,
   sendCredentials,
   sendKey,
   sendCtrlAltDel,
   sendShutdown,
   sendReboot,
   sendReset,
-  clipboardPaste,
+  sendPaste,
   rfb: rfb,
-  eventListeners: eventListeners,
+  eventListeners,
+  isConnected,
+  isLoading,
   focus,
   blur,
 });
 </script>
 <template>
-  <div class="relative h-full w-full p-3">
+  <div class="relative h-full w-full p-3" @click="focus">
     <!-- Screen -->
-    <div v-show="!isLoading" ref="screenRef" :style="props.style" class="h-full w-full" tabindex="0" />
+    <div v-show="!isLoading" ref="screenRef" :style="props.style" class="h-full w-full" @click="focus" />
     <!-- Overlay -->
     <div class="absolute left-0 top-0">
       <!-- ... -->
