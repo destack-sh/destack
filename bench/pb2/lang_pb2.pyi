@@ -1407,7 +1407,6 @@ class TriggerStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRIGGER_STATUS_UNSPECIFIED: _ClassVar[TriggerStatus]
     TRIGGER_STATUS_INACTIVE: _ClassVar[TriggerStatus]
     TRIGGER_STATUS_OPEN: _ClassVar[TriggerStatus]
-    TRIGGER_STATUS_CLOSED: _ClassVar[TriggerStatus]
 
 class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -3104,7 +3103,6 @@ TRIGGER_EFFECT_RUN: TriggerEffect
 TRIGGER_STATUS_UNSPECIFIED: TriggerStatus
 TRIGGER_STATUS_INACTIVE: TriggerStatus
 TRIGGER_STATUS_OPEN: TriggerStatus
-TRIGGER_STATUS_CLOSED: TriggerStatus
 SCHEDULE_FREQUENCY_UNSPECIFIED: ScheduleFrequency
 SCHEDULE_FREQUENCY_YEAR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MONTH: ScheduleFrequency

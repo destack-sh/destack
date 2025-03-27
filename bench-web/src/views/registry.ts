@@ -16,6 +16,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
 
   // system
   // nodes
+  [ViewType.COMPUTER]: () => import("@/views/nodes/Computer.vue"),
   [ViewType.PAGE]: () => import("@/views/nodes/Page.vue"),
   [ViewType.BLOCK]: () => import("@/views/nodes/Block.vue"),
   [ViewType.FIELD]: () => import("@/views/nodes/Field.vue"),

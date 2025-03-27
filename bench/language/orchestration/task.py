@@ -67,7 +67,7 @@ class TaskStatus(BuiltinEnum):
     CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
     ASSIGNED = 2, None, None, "far fa-rhombus", ColorType.GRAY
     # active
-    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.GREEN
+    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.BLUE
     # waiting
     WAITING = 22, None, None, "fas fa-circle-pause", ColorType.PINK
     REVIEWING = 23, None, None, "fas fa-circle-pause", ColorType.PINK

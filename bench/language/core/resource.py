@@ -38,10 +38,10 @@ class ResourceStatus(BuiltinEnum):
     """Generalized status of a Resource in its lifecycle."""
 
     # definition
-    DECLARED = 1, None, None, "fas fa-circle-dot", ColorType.GRAY
+    DECLARED = 1, None, None, "fas fa-circle-dot", ColorType.BLUE
     # extant
-    UP = 10, None, None, "fas fa-circle-check", ColorType.GRAY
-    SLEEPING = 11, None, None, "fas fa-zzz", ColorType.GRAY
+    UP = 10, None, None, "fas fa-circle-check", ColorType.GREEN
+    SLEEPING = 11, None, None, "fas fa-zzz", ColorType.BLUE
     DOWN = 15, None, None, "fas fa-circle-xmark", ColorType.RED
     DEGRADED = 16, None, None, "fas fa-circle-exclamation", ColorType.YELLOW
     # terminal

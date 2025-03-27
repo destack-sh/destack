@@ -44,8 +44,8 @@ class TriggerType(BuiltinEnum):
 @enum_(EnumType.TRIGGER_STATUS)
 class TriggerStatus(BuiltinEnum):
     INACTIVE = 1, "Inactive", "Not actively triggering", "fas fa-bolt-slash", ColorType.GRAY
-    OPEN = 10, "Open", "Actively triggering", "fas fa-bolt", ColorType.GREEN
-    CLOSED = 20, "Closed", "No longer triggering", "fas fa-toggle-large-off", ColorType.RED
+    OPEN = 10, "Open", "Actively triggering", "fas fa-bolt", ColorType.BLUE
+    # CLOSED = 20, "Closed", "No longer triggering", "fas fa-toggle-large-off", ColorType.GRAY
 
     @property
     def is_open(self) -> bool:

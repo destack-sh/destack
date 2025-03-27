@@ -46,7 +46,7 @@ class PlanStatus(BuiltinEnum):
     # pre
     CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
     # active
-    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.GREEN
+    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.BLUE
     # terminal
     CANCELLED = 30, None, None, "fas fa-circle-xmark", ColorType.RED
     ABORTED = 31, None, None, "fas fa-skull", ColorType.RED
