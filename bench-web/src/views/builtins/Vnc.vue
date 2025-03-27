@@ -3,41 +3,35 @@ import { log } from "@/utils/log";
 import RFB, { type NoVncEvents, type NoVncOptions } from "@novnc/novnc/lib/rfb";
 import { onBeforeUnmount, onMounted, ref, watch, withDefaults, type StyleValue } from "vue";
 
-const props = withDefaults(
-  defineProps<{
-    url: string;
-    style?: StyleValue;
-    rfbOptions?: NoVncOptions;
-    autoConnect?: boolean;
-    retryDuration?: number;
-    debug?: boolean;
-    viewOnly?: boolean;
-    focusOnClick?: boolean;
-    clipViewport?: boolean;
-    dragViewport?: boolean;
-    scaleViewport?: boolean;
-    resizeSession?: boolean;
-    showDotCursor?: boolean;
-    background?: string;
-    qualityLevel?: number;
-    compressionLevel?: number;
-  }>(),
-  {
-    autoConnect: true,
-    retryDuration: 3000,
-    debug: false,
-  },
-);
+const DEFAULT_RETRY_DURATION = 3000;
+
+const props = defineProps<{
+  url: string;
+  style?: StyleValue;
+  rfbOptions?: NoVncOptions;
+  autoConnect?: boolean;
+  retryDuration?: number;
+  debug?: boolean;
+  viewOnly?: boolean;
+  focusOnClick?: boolean;
+  clipViewport?: boolean;
+  dragViewport?: boolean;
+  scaleViewport?: boolean;
+  resizeSession?: boolean;
+  showDotCursor?: boolean;
+  background?: string;
+  qualityLevel?: number;
+  compressionLevel?: number;
+}>();
 
 const emit = defineEmits<{
-  connect: [rfb?: RFB];
-  disconnect: [rfb?: RFB];
-  credentialsRequired: [rfb?: RFB];
-  securityFailure: [e?: { detail: { status: number; reason: string } }];
-  clipboard: [e?: { detail: { text: string } }];
+  connect: [rfb: RFB | null];
+  disconnect: [rfb: RFB | null];
+  credentialsRequired: [rfb: RFB | null];
+  securityFailure: [e: { detail: { status: number; reason: string } }];
+  clipboard: [e: { detail: { text: string } }];
   bell: [];
-  desktopName: [e?: { detail: { name: string } }];
-  capabilities: [e?: { detail: { capabilities: RFB["capabilities"] } }];
+  capabilities: [e: { detail: { capabilities: RFB["capabilities"] } }];
 }>();
 
 const rfb = ref<RFB | null>(null);
@@ -69,35 +63,29 @@ onBeforeUnmount(() => {
 
 /* Handle connection event */
 function onConnect() {
-  emit("connect", rfb.value ?? undefined);
+  emit("connect", rfb.value as RFB | null);
   log.debug("vnc.connect");
   isLoading.value = false;
 }
 
 /* Handle disconnection event */
 function onDisconnect() {
-  emit("disconnect", rfb.value ?? undefined);
+  emit("disconnect", rfb.value as RFB | null);
   if (isConnected.value) {
     log.debug("vnc.disconnect");
-    timeouts.value.push(setTimeout(connect, props.retryDuration));
+    timeouts.value.push(setTimeout(connect, props.retryDuration ?? DEFAULT_RETRY_DURATION));
   }
   isLoading.value = true;
 }
 
 /* Handle credentials required event */
 function onCredentialsRequired() {
-  emit("credentialsRequired", rfb.value ?? undefined);
+  emit("credentialsRequired", rfb.value as RFB | null);
   const password = props.rfbOptions?.credentials?.password;
   if (!password) {
     throw new Error("no password for VNC");
   }
   rfb.value?.sendCredentials({ password: password });
-}
-
-/* Handle desktop name event */
-function onDesktopName(e: { detail: { name: string } }) {
-  emit("desktopName", e);
-  log.debug(`vnc.desktopName`, e.detail.name);
 }
 
 /* Disconnect from VNC */
@@ -113,7 +101,9 @@ function disconnect() {
         eventListeners.value[event] = undefined;
       }
     });
-    rfb.value.disconnect();
+    if ((rfb.value as any)._rfbConnectionState != "disconnected") {
+      rfb.value.disconnect();
+    }
     rfb.value = null;
     isConnected.value = false;
     // ensure disconnect event is fired (event listeners are removed above)
@@ -144,14 +134,14 @@ function connect() {
     // create new RFB instance
     rfb.value = new RFB(screenRef.value, props.url, props.rfbOptions);
     rfb.value.viewOnly = props.viewOnly ?? false;
-    rfb.value.focusOnClick = props.focusOnClick ?? false;
+    rfb.value.focusOnClick = props.focusOnClick ?? true;
     rfb.value.clipViewport = props.clipViewport ?? false;
     rfb.value.dragViewport = props.dragViewport ?? false;
     rfb.value.resizeSession = props.resizeSession ?? false;
     rfb.value.scaleViewport = props.scaleViewport ?? false;
-    rfb.value.showDotCursor = props.showDotCursor ?? false;
+    rfb.value.showDotCursor = props.showDotCursor ?? true;
     rfb.value.background = props.background ?? "";
-    rfb.value.qualityLevel = props.qualityLevel ?? 6;
+    rfb.value.qualityLevel = props.qualityLevel ?? 7;
     rfb.value.compressionLevel = props.compressionLevel ?? 2;
 
     // hook up events
@@ -161,7 +151,6 @@ function connect() {
     eventListeners.value.securityfailure = (e) => emit("securityFailure", e);
     eventListeners.value.clipboard = (e) => emit("clipboard", e);
     eventListeners.value.bell = () => emit("bell");
-    eventListeners.value.desktopname = onDesktopName;
     eventListeners.value.capabilities = (e) => emit("capabilities", e);
     (Object.keys(eventListeners.value) as (keyof NoVncEvents)[]).forEach((event) => {
       if (eventListeners.value[event]) {
@@ -177,7 +166,7 @@ function connect() {
 }
 
 /* Send credentials to VNC server */
-function sendCredentials(credentials: NoVncOptions["credentials"]) {
+function sendCredentials(credentials: Required<NoVncOptions>["credentials"]) {
   rfb.value?.sendCredentials(credentials);
 }
 
@@ -224,7 +213,8 @@ function blur() {
 defineExpose({
   connect,
   disconnect,
-  connected: isConnected,
+  isConnected,
+  isLoading,
   sendCredentials,
   sendKey,
   sendCtrlAltDel,
@@ -239,18 +229,24 @@ defineExpose({
 });
 </script>
 <template>
-  <div>
+  <div class="relative h-full w-full p-3">
     <!-- Screen -->
-    <div v-show="!isLoading" ref="screenRef" :style="props.style" class="h-full w-full bg-white"></div>
+    <div v-show="!isLoading" ref="screenRef" :style="props.style" class="h-full w-full" tabindex="0" />
     <!-- Overlay -->
-    <!-- ... -->
+    <div class="absolute left-0 top-0">
+      <!-- ... -->
+    </div>
     <!-- Loading -->
-    <template v-if="isLoading">
-      <slot name="loading">
-        <div class="flex h-full w-full items-center justify-center bg-white text-lg font-bold text-[#333333]">
-          nocheckin: Loading...
-        </div>
-      </slot>
-    </template>
+    <Transition
+      enter-from-class="opacity-0"
+      enter-active-class="transition-opacity duration-200"
+      enter-to-class="opacity-100"
+      appear
+      mode="out-in"
+    >
+      <div v-if="isLoading" class="flex h-full w-full items-center justify-center text-lg font-bold">
+        <i class="fas fa-spinner-third animate-spin text-gray-400" />
+      </div>
+    </Transition>
   </div>
 </template>

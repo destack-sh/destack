@@ -3135,6 +3135,14 @@ export interface ComputerData {
      * @generated from protobuf field: float ram = 71;
      */
     ram: number;
+    /**
+     * @generated from protobuf field: int32 width = 75;
+     */
+    width: number;
+    /**
+     * @generated from protobuf field: int32 height = 76;
+     */
+    height: number;
 }
 /**
  * @generated from protobuf message symbolx.bench.FileData
@@ -22125,7 +22133,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 64, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 65, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
-            { no: 71, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+            { no: 71, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 75, name: "width", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 76, name: "height", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<ComputerData>): ComputerData {
@@ -22141,6 +22151,8 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         message.targetVersion = "";
         message.cpu = 0;
         message.ram = 0;
+        message.width = 0;
+        message.height = 0;
         if (value !== undefined)
             reflectionMergePartial<ComputerData>(this, message, value);
         return message;
@@ -22266,6 +22278,12 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                     break;
                 case /* float ram */ 71:
                     message.ram = reader.float();
+                    break;
+                case /* int32 width */ 75:
+                    message.width = reader.int32();
+                    break;
+                case /* int32 height */ 76:
+                    message.height = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22396,6 +22414,12 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* float ram = 71; */
         if (message.ram !== 0)
             writer.tag(71, WireType.Bit32).float(message.ram);
+        /* int32 width = 75; */
+        if (message.width !== 0)
+            writer.tag(75, WireType.Varint).int32(message.width);
+        /* int32 height = 76; */
+        if (message.height !== 0)
+            writer.tag(76, WireType.Varint).int32(message.height);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32941,6 +32965,8 @@ export enum ComputerProperty {
   clientPtr = 65,
   cpu = 70,
   ram = 71,
+  width = 75,
+  height = 76,
 }
 
 export enum ApplicationProperty {
@@ -35266,6 +35292,8 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.clientPtr]: { id: 65, name: 'client_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.cpu]: { id: 70, name: 'cpu', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.ram]: { id: 71, name: 'ram', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.width]: { id: 75, name: 'width', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1280, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.height]: { id: 76, name: 'height', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 960, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
   [ApplicationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.APPLICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
