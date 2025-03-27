@@ -1551,7 +1551,7 @@ class RunStatus(BuiltinEnum):
     SCHEDULED = 2, "Scheduled", "Scheduled to run sometime", "fas fa-clock", ColorType.GRAY
     QUEUED = 3, "Queued", "Queued to run soon", "fas fa-hourglass", ColorType.GRAY
     # active
-    RUNNING = 10, "Running", "Executing right now", "fas fa-circle-notch", ColorType.GREEN
+    RUNNING = 10, "Running", "Executing right now", "fas fa-circle-notch", ColorType.BLUE
     # interrupted
     PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
     YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK

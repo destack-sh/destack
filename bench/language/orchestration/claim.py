@@ -42,11 +42,11 @@ class ClaimType(BuiltinEnum):
 @enum_(EnumType.CLAIM_STATUS)
 class ClaimStatus(BuiltinEnum):
     # pre
-    REQUESTED = 1, "Pending", "Pending", "fas fa-clock", ColorType.GRAY
+    REQUESTED = 1, "Pending", "Pending", "fas fa-clock", ColorType.BLUE
     # active
     OPEN = 10, "Active", "Active concurrent access", "fas fa-lock", ColorType.GREEN
     # inactive
-    PAUSED = 20, "Paused", "Paused", "fas fa-pause", ColorType.YELLOW
+    PAUSED = 20, "Paused", "Paused", "fas fa-pause", ColorType.PINK
     # terminal
     CANCELLED = 30, "Cancelled", None, "fas fa-circle-xmark", ColorType.RED
     REJECTED = 31, "Rejected", None, "fas fa-circle-exclamation", ColorType.RED

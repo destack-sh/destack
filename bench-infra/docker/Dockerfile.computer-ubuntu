@@ -1,15 +1,3 @@
-# NOTE: to run computer-ubuntu locally:
-# docker run -d \
-#   -p 5900:5900 \
-#   --name bench-computer-ubuntu \
-#   -e ENVIRONMENT=dev \
-#   -e TRACING=0 \
-#   -e CLOUD=private \
-#   -e REGION=eu-zurich \
-#   -e COMPUTER_ID=90b80b94-9949-58c4-9db7-2419309a201b \
-#   symbolx/bench-computer-ubuntu
-# connect to VNC: vnc://localhost:5900/
-
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -48,6 +36,8 @@ RUN apt-get update && apt-get install -y \
     evince \
     mousepad \
     xfce4-terminal \
+    websockify \
+    novnc \
  && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -130,20 +120,24 @@ COPY --chown=bench:bench bench/pb2 bench/pb2
 # set x11vnc password ("bench")
 RUN x11vnc -storepasswd bench /home/bench/.vncpass
 
-# run Xvfb, x11vnc, Xfce (no login manager)
+# run Xvfb, x11vnc, websockify, Xfce (no login manager)
 CMD ["/bin/sh", "-c", "\
 export DISPLAY=:99 && \
 Xvfb :99 -screen 0 1280x800x24 & \
-until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done && \
-x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 0.0.0.0 -rfbport 5900 & \
-until nc -z localhost 5900; do sleep 0.1; done && \
+until xdpyinfo -display :99 >/dev/null 2>&1; do \
+  sleep 0.1; \
+done && \
+x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 127.0.0.1 -rfbport 5900 & \
+until nc -z localhost 5900; do \
+  sleep 0.1; \
+done && \
 DISPLAY=:99 xfce4-session & \
+websockify --web=/usr/share/novnc 6080 localhost:5900 & \
 exec python3 bench.py serve computer 0.0.0.0 5432"]
 
 ARG GIT_COMMIT
 ARG VERSION
 ENV GIT_COMMIT=$GIT_COMMIT
-ENV VERSION=$VERSION 
+ENV VERSION=$VERSION
 
-EXPOSE 5900
-EXPOSE 5432
+EXPOSE 5900 5432 6080

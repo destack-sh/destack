@@ -1087,6 +1087,16 @@ export class SpaceCanvas {
       }
     }
 
+    // open computer
+    if (isNode(node, NodeType.COMPUTER)) {
+      const view = this.addView(
+        { type: ViewType.COMPUTER, nodePtr: toNodeRef(node) },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+      this.inspect({ node: nodePtr, view });
+      return;
+    }
+
     // can't go there
     else {
       toaster.error({

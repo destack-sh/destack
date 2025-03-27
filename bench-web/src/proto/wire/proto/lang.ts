@@ -12636,11 +12636,7 @@ export enum TriggerStatus {
     /**
      * @generated from protobuf enum value: TRIGGER_STATUS_OPEN = 10;
      */
-    OPEN = 10,
-    /**
-     * @generated from protobuf enum value: TRIGGER_STATUS_CLOSED = 20;
-     */
-    CLOSED = 20
+    OPEN = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.ScheduleFrequency
@@ -35224,8 +35220,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.25.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.25.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35262,8 +35258,8 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.25.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.25.2", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37225,9 +37221,9 @@ export const RegionAreaOptionInfo: Partial<Record<RegionArea, EnumOptionInfo>> =
 }
 
 export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOptionInfo>> = {
-  [ResourceStatus.DECLARED]: { id: 1, name: 'DECLARED', color: ColorType.GRAY, icon: 'fas fa-circle-dot' },
-  [ResourceStatus.UP]: { id: 10, name: 'UP', color: ColorType.GRAY, icon: 'fas fa-circle-check' },
-  [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', color: ColorType.GRAY, icon: 'fas fa-zzz' },
+  [ResourceStatus.DECLARED]: { id: 1, name: 'DECLARED', color: ColorType.BLUE, icon: 'fas fa-circle-dot' },
+  [ResourceStatus.UP]: { id: 10, name: 'UP', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
+  [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', color: ColorType.BLUE, icon: 'fas fa-zzz' },
   [ResourceStatus.DOWN]: { id: 15, name: 'DOWN', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
   [ResourceStatus.DEGRADED]: { id: 16, name: 'DEGRADED', color: ColorType.YELLOW, icon: 'fas fa-circle-exclamation' },
   [ResourceStatus.DECOMMISSIONED]: { id: 30, name: 'DECOMMISSIONED', color: ColorType.GRAY, icon: 'fas fa-circle-slash' },
@@ -37370,7 +37366,7 @@ export const RunStatusOptionInfo: Partial<Record<RunStatus, EnumOptionInfo>> = {
   [RunStatus.CREATED]: { id: 1, name: 'CREATED', text: 'Created but not yet assigned', title: 'Created', color: ColorType.GRAY, icon: 'fas fa-clock' },
   [RunStatus.SCHEDULED]: { id: 2, name: 'SCHEDULED', text: 'Scheduled to run sometime', title: 'Scheduled', color: ColorType.GRAY, icon: 'fas fa-clock' },
   [RunStatus.QUEUED]: { id: 3, name: 'QUEUED', text: 'Queued to run soon', title: 'Queued', color: ColorType.GRAY, icon: 'fas fa-hourglass' },
-  [RunStatus.RUNNING]: { id: 10, name: 'RUNNING', text: 'Executing right now', title: 'Running', color: ColorType.GREEN, icon: 'fas fa-circle-notch' },
+  [RunStatus.RUNNING]: { id: 10, name: 'RUNNING', text: 'Executing right now', title: 'Running', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
   [RunStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused manually', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [RunStatus.YIELDED]: { id: 21, name: 'YIELDED', text: 'Yielded to someone', title: 'Yielded', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [RunStatus.WAITING]: { id: 22, name: 'WAITING', text: 'Waiting for a condition', title: 'Waiting', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
@@ -37405,7 +37401,7 @@ export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
 
 export const PlanStatusOptionInfo: Partial<Record<PlanStatus, EnumOptionInfo>> = {
   [PlanStatus.CREATED]: { id: 1, name: 'CREATED', color: ColorType.GRAY, icon: 'fas fa-clock' },
-  [PlanStatus.RUNNING]: { id: 10, name: 'RUNNING', color: ColorType.GREEN, icon: 'fas fa-circle-notch' },
+  [PlanStatus.RUNNING]: { id: 10, name: 'RUNNING', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
   [PlanStatus.CANCELLED]: { id: 30, name: 'CANCELLED', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
   [PlanStatus.ABORTED]: { id: 31, name: 'ABORTED', color: ColorType.RED, icon: 'fas fa-skull' },
   [PlanStatus.FAILED]: { id: 32, name: 'FAILED', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
@@ -37433,7 +37429,7 @@ export const TaskTypeOptionInfo: Partial<Record<TaskType, EnumOptionInfo>> = {
 export const TaskStatusOptionInfo: Partial<Record<TaskStatus, EnumOptionInfo>> = {
   [TaskStatus.CREATED]: { id: 1, name: 'CREATED', color: ColorType.GRAY, icon: 'fas fa-clock' },
   [TaskStatus.ASSIGNED]: { id: 2, name: 'ASSIGNED', color: ColorType.GRAY, icon: 'far fa-rhombus' },
-  [TaskStatus.RUNNING]: { id: 10, name: 'RUNNING', color: ColorType.GREEN, icon: 'fas fa-circle-notch' },
+  [TaskStatus.RUNNING]: { id: 10, name: 'RUNNING', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
   [TaskStatus.WAITING]: { id: 22, name: 'WAITING', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [TaskStatus.REVIEWING]: { id: 23, name: 'REVIEWING', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [TaskStatus.CANCELLED]: { id: 30, name: 'CANCELLED', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
@@ -37463,8 +37459,7 @@ export const TriggerEffectOptionInfo: Partial<Record<TriggerEffect, EnumOptionIn
 
 export const TriggerStatusOptionInfo: Partial<Record<TriggerStatus, EnumOptionInfo>> = {
   [TriggerStatus.INACTIVE]: { id: 1, name: 'INACTIVE', text: 'Not actively triggering', title: 'Inactive', color: ColorType.GRAY, icon: 'fas fa-bolt-slash' },
-  [TriggerStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Actively triggering', title: 'Open', color: ColorType.GREEN, icon: 'fas fa-bolt' },
-  [TriggerStatus.CLOSED]: { id: 20, name: 'CLOSED', text: 'No longer triggering', title: 'Closed', color: ColorType.RED, icon: 'fas fa-toggle-large-off' },
+  [TriggerStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Actively triggering', title: 'Open', color: ColorType.BLUE, icon: 'fas fa-bolt' },
 }
 
 export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
@@ -37474,9 +37469,9 @@ export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
 }
 
 export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {
-  [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', color: ColorType.GRAY, icon: 'fas fa-clock' },
+  [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', color: ColorType.BLUE, icon: 'fas fa-clock' },
   [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', color: ColorType.GREEN, icon: 'fas fa-lock' },
-  [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', color: ColorType.YELLOW, icon: 'fas fa-pause' },
+  [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-pause' },
   [ClaimStatus.CANCELLED]: { id: 30, name: 'CANCELLED', title: 'Cancelled', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
   [ClaimStatus.REJECTED]: { id: 31, name: 'REJECTED', title: 'Rejected', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
   [ClaimStatus.RELEASED]: { id: 32, name: 'RELEASED', title: 'Released', color: ColorType.GRAY, icon: 'fas fa-circle-check' },
