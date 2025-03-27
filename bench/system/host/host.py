@@ -300,23 +300,27 @@ class HostService(GraphServiceBase, HostBase):
 
     def get_provisioners(self: "HostService", bench: Bench) -> list["Provisioner"]:
         """Gets all available provisioners for the Bench in *this* environment"""
-        from bench.system.plugin import (
-            ComputerScalerProvisioner,
-            KubernetesComputerProvisioner,
-            LocalhostComputerProvisioner,
-            LocalhostStoreProvisioner,
-            NeonStoreProvisioner,
-            Provisioner,
-        )
 
         provisioners: list[type[Provisioner]]
         if ENV == Env.TEST or ENV == Env.DEV:
+            from bench.system.plugin import (
+                ComputerScalerProvisioner,
+                DockerComputerProvisioner,
+                LocalhostStoreProvisioner,
+            )
+
             provisioners = [
                 ComputerScalerProvisioner,
+                DockerComputerProvisioner,
                 LocalhostStoreProvisioner,
-                LocalhostComputerProvisioner,
             ]
         elif ENV == Env.STAGE or ENV == Env.PROD:
+            from bench.system.plugin import (
+                ComputerScalerProvisioner,
+                KubernetesComputerProvisioner,
+                NeonStoreProvisioner,
+            )
+
             provisioners = [
                 ComputerScalerProvisioner,
                 NeonStoreProvisioner,

@@ -35,16 +35,20 @@ done
 
 # build bench-web with :BenchWebEnv placeholders (to be substituted in deploy)
 # (we need to 'set' them explicitly or they will be removed by vite during the build)
-VITE_COMMIT="VITE_COMMIT" VITE_ENV="VITE_ENV" VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" VITE_IP_API_KEY="VITE_IP_API_KEY" bun run --cwd bench-web build
+VITE_COMMIT="VITE_COMMIT" \
+VITE_ENV="VITE_ENV" \
+VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
+VITE_IP_API_KEY="VITE_IP_API_KEY" \
+bun run --cwd bench-web build
 
 # build bench images
 # image names
-IMAGES=("bench-system" "bench-runtime")
+IMAGES=("bench-system" "bench-computer-runtime")
 for IMAGE in ${IMAGES[@]}; do
   docker build . \
     --platform linux/arm64 \
     --target $IMAGE \
-    -f bench-infra/docker/Dockerfile.bench \
+    -f bench-infra/docker/Dockerfile.system-bench \
     -t symbolx/$IMAGE:latest \
     -t symbolx/$IMAGE:$GIT_COMMIT \
     -t symbolx/$IMAGE:$VERSION \

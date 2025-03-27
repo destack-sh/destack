@@ -7,10 +7,11 @@ import typer
 from more_itertools import first
 from rich import print
 
-from bench.language.core.const import Region
+from bench.language.core.const import REGION, Region
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
+from bench.utils.utils import get_from_env
 
 from .utils import async_to_sync, parse_region
 
@@ -50,19 +51,21 @@ async def bootstrap(region: Annotated[Region, typer.Option(parser=parse_region)]
 
 
 @app.command(
-    name="make-local-computer", help="gets or creates a local Computer (and Client) for a Bench"
+    name="make-local-runtime-computer",
+    help="gets or creates a local runtime Computer (and Client) for a Bench",
 )
 @async_to_sync
-async def make_local_computer(
+async def make_local_runtime_computer(
     bench_slug: str,
-    title: str,
-    region: Annotated[Region, typer.Option(parser=parse_region)],
+    title: str = "Local Runtime Computer",
+    region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
 ):
     from bench.language import (
         Bench,
         Client,
         ClientType,
         Computer,
+        ComputerType,
         NodeArea,
         NodeType,
         ResourceStatus,
@@ -84,21 +87,19 @@ async def make_local_computer(
     async with global_session(
         global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
     ) as session:
-        bench = (
-            await Bench.include_descendants(NodeType.COMPUTER, NodeType.CLIENT)
-            .select_all()
-            .get(slug=bench_slug)
-        )
+        bench = await Bench.include_descendants(NodeType.CLIENT).select_all().get(slug=bench_slug)
         computers = await Computer.where(
             Computer.get_property("bench").eq(bench)
+            & Computer.get_property("type").eq(ComputerType.RUNTIME)
             & Computer.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
         ).to_list()
         computer = first(computers, None)
         if computer is None:
-            raise ValueError(f"{bench!r} has no computers")
+            raise ValueError(f"{bench!r} has no runtime computers")
         clients = (
             await Client.where(
-                Client.get_property("parent").eq(computer)
+                Client.get_property("parent").eq(bench)
+                & Client.get_property("computer").eq(computer)
                 & Client.get_property("type").eq(ClientType.COMPUTER)
             )
             .select_all()
@@ -115,6 +116,11 @@ async def make_local_computer(
                 seen_at=REAL_ORACLE.utc(),
             )
             session._create(client)
+        computer.client = client
+        computer.status = ResourceStatus.UP
+        computer.connection_uri = get_from_env(
+            "LOCAL_COMPUTER_URL", description="URL to local runtime computer"
+        )
 
         client_env = {
             "BENCH_ID": str(bench.id),
@@ -123,6 +129,9 @@ async def make_local_computer(
             "CLIENT_ID": str(client.id),
             "CLIENT_ACCESS_TOKEN": client.access_token,
         }
+        print("----------------------")
+        print(f"Computer: {computer!r}")
+        print(f"Client: {client!r}")
         print("--- .env.dev.local ---")
         for k, v in client_env.items():
             print(f"{k}={v}")

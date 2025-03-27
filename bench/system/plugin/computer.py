@@ -11,12 +11,13 @@ from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
 from bench.language import CLOUD, Bench, Computer, NodeType, ResourceStatus
+from bench.language.compute.computer import ComputerType
 from bench.language.core import bittuple
 from bench.proto import dockerify_url, minikubeify_url
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.telemetry import OTLP_ENDPOINT
-from bench.utils.utils import get_from_env, get_from_env_maybe
+from bench.utils.utils import get_from_env
 
 from .kubernetes import (
     KUBERNETES_COMPUTER_APP_LABEL,
@@ -35,17 +36,24 @@ tracer = trace.get_tracer(__name__)
 COMPUTER_RUNTIME_IMAGE = get_from_env(
     "COMPUTER_RUNTIME_IMAGE", description="Runtime container image for computer"
 )
+COMPUTER_UBUNTU_IMAGE = get_from_env(
+    "COMPUTER_UBUNTU_IMAGE", description="Ubuntu container image for computer"
+)
 COMPUTER_OVERCOMMITMENT = get_from_env(
     "COMPUTER_OVERCOMMITMENT",
     default=2.0,
     typ=float,
     description="By how much to over-commit resources",
 )
-COMPUTER_PORT = get_from_env(
-    "COMPUTER_PORT",
-    default=60062,
+COMPUTER_GRPC_PORT = get_from_env(
+    "COMPUTER_GRPC_PORT",
     typ=int,
-    description="Port to expose for the computer",
+    description="Port to expose for the computer's GRPC service",
+)
+COMPUTER_VNC_PORT = get_from_env(
+    "COMPUTER_VNC_PORT",
+    typ=int,
+    description="Port to expose for the computer's VNC service (ws)",
 )
 
 
@@ -107,35 +115,14 @@ def _get_bench_dir() -> str:
     return bench_dir
 
 
-# TODO :Test!: test computer provisioners
-
-
-class LocalhostComputerProvisioner(Provisioner[Computer, Computer]):
-    """Provision Computers by short-circuiting to localhost."""
-
-    watch_types = bittuple(NodeType.COMPUTER)
-    provision_type = NodeType.COMPUTER
-
-    def __init__(self, host: "HostService", bench: Bench):
-        super().__init__(host, bench)
-        self._local_computer_url = get_from_env_maybe(
-            "LOCAL_COMPUTER_URL", description="URL for local computer runtime"
-        )
-
-    @override
-    async def _do_start(self) -> None:
-        pass
-
-    @override
-    async def _do_provision(self, resource: Computer):
-        async with self.host.session(commit=True):
-            resource.connection_uri = self._local_computer_url
-            resource.status = ResourceStatus.UP
-
-    @override
-    async def _do_decommission(self, resource: Computer):
-        async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+def _get_computer_image(computer: Computer) -> str:
+    """Gets the Docker image for the given Computer."""
+    if computer.type == ComputerType.RUNTIME:
+        return f"{COMPUTER_RUNTIME_IMAGE}:{computer.version}"
+    elif computer.type == ComputerType.UBUNTU:
+        return f"{COMPUTER_UBUNTU_IMAGE}:{computer.version}"
+    else:
+        raise NotImplementedError(f"cannot provision {computer!r}")
 
 
 class DockerComputerProvisioner(Provisioner[Computer, Computer]):
@@ -169,18 +156,20 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
     @override
     async def _do_provision(self, resource: Computer):
         bench_dir = _get_bench_dir()
+
+        # find random port
         assigned_port = random.randint(60100, 65000)
+
+        # assemble container name
         env_vars = _get_computer_env_vars(resource, is_trusted=True, is_in_docker=True)
         computer_id_prefix = str(resource.id).split("-")[0]
-        external_name = (
-            f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-computer-{computer_id_prefix}"
-        )
+        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-computer-{computer_id_prefix}"
+        image = _get_computer_image(resource)
         container = self._docker_client.containers.run(
-            f"{COMPUTER_RUNTIME_IMAGE}:{resource.version}",
+            image,
             environment=env_vars,
             detach=True,
             name=external_name,
-            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", str(assigned_port)],
             volumes=[f"{bench_dir}:/bench:ro"],  # mount our local code directly
             ports={f"{assigned_port}/tcp": ("0.0.0.0", assigned_port)},
         )
@@ -225,9 +214,8 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
         """Gets the external name of the given Computer."""
         computer_id_prefix = str(computer.id).split("-")[0]
         # NOTE: kubernetes resource names must be valid DNS labels (<= 63 chars)
-        external_name = (
-            f"bench-{ENV.value}-{CLOUD.slug}-{computer.region.slug}-computer-{computer_id_prefix}"
-        )
+        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{computer.region.slug}-{computer.type.name.lower()}-computer-{computer_id_prefix}"
+        assert len(external_name) <= 63, f"external name too long: {external_name!r}"
         return external_name
 
     async def _get_computer_by_external_name(self, external_name: str) -> Computer | None:
@@ -265,8 +253,8 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
 
     def _make_pod_from_computer(self, computer: Computer):
         """Creates a Kubernetes Pod for the Computer."""
-        # context
 
+        # context
         labels = {
             "app": KUBERNETES_COMPUTER_APP_LABEL,
             "bench_id": str(self.bench.id),
@@ -276,9 +264,11 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
             "cloud": CLOUD.slug,
             "region": computer.region.slug,
         }
-        # TODO :Security!: kubernetes-deployed computers should not be trusted
+        # TODO :Security!: kubernetes-deployed runtime computers should not be trusted
         env_vars = _get_computer_env_vars(
-            computer, is_trusted=True, is_in_minikube=IS_DEV or IS_TEST
+            computer,
+            is_trusted=computer.type == ComputerType.RUNTIME,
+            is_in_minikube=IS_DEV or IS_TEST,
         )
 
         # pod
@@ -287,25 +277,38 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
             limits=self._get_pod_resources_limits(computer),
         )
         health_probe = k8.V1Probe(
-            grpc=k8.V1GRPCAction(port=COMPUTER_PORT, service="runtime"),
+            grpc=k8.V1GRPCAction(port=5432, service="runtime"),
             initial_delay_seconds=10,
             period_seconds=10,
             failure_threshold=3,
         )
+        image = _get_computer_image(computer)
+        env = [
+            *(k8.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
+            k8.V1EnvVar(
+                name="KUBERNETES_NODE_ID",
+                value_from=k8.V1EnvVarSource(
+                    field_ref=k8.V1ObjectFieldSelector(field_path="spec.nodeName")
+                ),
+            ),
+        ]
+
+        # container
+        if computer.type == ComputerType.RUNTIME:
+            ports = [k8.V1ContainerPort(container_port=5432, host_port=COMPUTER_GRPC_PORT)]
+        elif computer.type == ComputerType.UBUNTU:
+            ports = [
+                k8.V1ContainerPort(container_port=5432, host_port=COMPUTER_GRPC_PORT),
+                k8.V1ContainerPort(container_port=6080, host_port=COMPUTER_VNC_PORT),
+            ]
+        else:
+            raise NotImplementedError(f"cannot provision {computer!r}")
+
         main_container = k8.V1Container(
             name="main",
-            image=f"{COMPUTER_RUNTIME_IMAGE}:{computer.version}",
-            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", str(COMPUTER_PORT)],
-            env=[
-                *(k8.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
-                k8.V1EnvVar(
-                    name="KUBERNETES_NODE_ID",
-                    value_from=k8.V1EnvVarSource(
-                        field_ref=k8.V1ObjectFieldSelector(field_path="spec.nodeName")
-                    ),
-                ),
-            ],
-            ports=[k8.V1ContainerPort(container_port=COMPUTER_PORT)],
+            image=image,
+            env=env,
+            ports=ports,
             resources=resources,
             readiness_probe=health_probe,
             liveness_probe=health_probe,
@@ -347,7 +350,7 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
 
         # connection uri (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:  # type: ignore
-            connection_uri = f"http://{pod.status.pod_ip}:{COMPUTER_PORT}"  # type: ignore
+            connection_uri = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"  # type: ignore
             if computer.connection_uri != connection_uri:
                 computer.connection_uri = connection_uri
 
