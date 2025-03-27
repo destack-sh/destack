@@ -30,9 +30,7 @@ tracer = trace.get_tracer(__name__)
 class ComputerService(ServiceBase, ComputerBase):
     kind = ServiceKind.INTERNAL
 
-    def __init__(
-        self, id: str, network: Network, oracle: Oracle, computer_id: UUID, display: int = 0
-    ):
+    def __init__(self, id: str, network: Network, oracle: Oracle, computer_id: UUID, display: str):
         super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
         self.computer_id = computer_id
         self.display = display

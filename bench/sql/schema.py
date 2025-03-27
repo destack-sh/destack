@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.26.0"
+VERSION = "2025.03.27.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -371,6 +371,8 @@ COMPUTER_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("cpu", PrimitiveType.FLOAT32),
         Column("ram", PrimitiveType.FLOAT32),
+        Column("width", PrimitiveType.INT32),
+        Column("height", PrimitiveType.INT32),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

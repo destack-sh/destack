@@ -4,6 +4,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
 
+#
+# Environment
+# 
+
 # install libs
 RUN apt-get update && apt-get install -y \
     netcat \
@@ -38,8 +42,32 @@ RUN apt-get update && apt-get install -y \
     xfce4-terminal \
     websockify \
     novnc \
+    policykit-1 \
  && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# install Python 3.13
+RUN add-apt-repository ppa:deadsnakes/ppa \
+ && apt-get update \
+ && apt-get install -y python3.13 python3.13-dev \
+ && rm -f /usr/bin/python3 \
+ && ln -s /usr/bin/python3.13 /usr/bin/python3 \
+ && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 \
+ && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# install uv globally
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-installer.sh
+ENV PATH="/usr/local/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+# python harness (install packages as root)
+COPY bench/requirements/computer.txt bench/requirements.txt
+RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
+
+#
+# Applications
+# 
 
 # install Chromium browser with extensions and fonts
 RUN apt-get update && apt-get install -y \
@@ -75,69 +103,136 @@ RUN mkdir -p /etc/xdg/autostart && \
     echo '[Desktop Entry]\nType=Application\nExec=chromium\nHidden=false\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\nName=Chromium' \
     > /etc/xdg/autostart/chromium.desktop
 
-# install Python 3.13
-RUN add-apt-repository ppa:deadsnakes/ppa \
- && apt-get update \
- && apt-get install -y python3.13 python3.13-dev \
- && rm -f /usr/bin/python3 \
- && ln -s /usr/bin/python3.13 /usr/bin/python3 \
- && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# install uv globally
-ADD https://astral.sh/uv/install.sh /uv-installer.sh
-RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-installer.sh
-ENV PATH="/usr/local/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
-
-# python harness (install packages as root)
-COPY bench/requirements/computer.txt bench/requirements.txt
-RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
-
-# explicitly create and set permissions on /tmp/.X11-unix
-RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+#
+# User
+#
 
 # create non-root user
 RUN useradd -ms /bin/bash bench \
-    && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+&& echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# copy application files
+COPY --chown=bench:bench bench.py /home/bench/
+COPY --chown=bench:bench pyproject.toml /home/bench/
+COPY --chown=bench:bench version /home/bench/
+COPY --chown=bench:bench bench/__init__.py /home/bench/bench/__init__.py
+# TODO :Security!: narrow down bench/language import for computer somehow 
+# (unfortunately we need to import proto service stuff, maybe we can factor that out?)
+COPY --chown=bench:bench bench/language /home/bench/bench/language
+COPY --chown=bench:bench bench/computer /home/bench/bench/computer
+COPY --chown=bench:bench bench/utils /home/bench/bench/utils
+COPY --chown=bench:bench bench/cli /home/bench/bench/cli
+COPY --chown=bench:bench bench/proto /home/bench/bench/proto
+COPY --chown=bench:bench bench/pb2 /home/bench/bench/pb2
+
+#
+# XFCE
+#
+
+# explicitly set up XFCE user configuration for bench user
+RUN mkdir -p /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml
+
+# panel config (disable workspace switcher)
+RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=8;x=0;y=0"/> <!-- bottom -->
+      <property name="length" type="uint" value="100"/>
+      <property name="plugins" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="2"/>
+        <value type="int" value="3"/>
+        <property name="plugin-1" type="empty">
+          <property name="type" type="string" value="applicationsmenu"/>
+        </property>
+        <property name="plugin-2" type="empty">
+          <property name="type" type="string" value="tasklist"/>
+          <property name="expand" type="bool" value="true"/>
+        </property>
+        <property name="plugin-3" type="empty">
+          <property name="type" type="string" value="clock"/>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>
+EOF
+
+# session config (disable logout/reboot/shutdown)
+RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-session" version="2.0">
+    <property name="general" type="empty">
+    <property name="PromptOnLogout" type="bool" value="false"/>
+    <property name="LogoutPrompt" type="bool" value="false"/>
+    </property>
+    <property name="shutdown" type="empty">
+    <property name="ShowSuspend" type="bool" value="false"/>
+    <property name="ShowHibernate" type="bool" value="false"/>
+    <property name="ShowLogout" type="bool" value="false"/>
+    <property name="ShowReboot" type="bool" value="false"/>
+    <property name="ShowShutdown" type="bool" value="false"/>
+    </property>
+</channel>
+EOF
+RUN chown -R bench /home/bench/.config
+
+# create and set permissions on /tmp/.X11-unix
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
+# disable menu customization
+RUN chmod -w /home/bench/.config/xfce4 -R
+
+# disable shutdown/reboot/suspend/hibernate
+RUN cat <<'EOF' > /etc/polkit-1/localauthority/50-local.d/disable-shutdown.pkla
+[Disable Shutdown, Reboot, Suspend]
+Identity=unix-user:*
+Action=org.freedesktop.login1.power-off;org.freedesktop.login1.reboot;org.freedesktop.login1.suspend;org.freedesktop.login1.hibernate
+ResultAny=no
+ResultInactive=no
+ResultActive=no
+EOF
+
+# disable screensaver
+RUN apt-get remove -y xscreensaver light-locker xfce4-screensaver && apt-get clean
+
+#
+# Startup
+# 
+
+# startup script
+RUN cat <<'EOF' > /home/bench/start.sh
+#!/bin/sh
+export DISPLAY=:99
+Xvfb :99 -screen 0 "$DISPLAY_SIZE" &
+until xdpyinfo -display :99 >/dev/null 2>&1; do
+  sleep 0.1
+done
+x11vnc -nopw -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
+until nc -z localhost 5900; do
+  sleep 0.1
+done
+DISPLAY=:99 xfce4-session &
+websockify --web=/usr/share/novnc 6080 localhost:5900 &
+DISPLAY=:99 exec python3 bench.py serve computer 0.0.0.0 5432
+EOF
+RUN chmod +x /home/bench/start.sh && \
+chown bench:bench /home/bench/start.sh
+
+# switch to non-root user
+RUN chown -R bench:bench /home/bench
 USER bench
 WORKDIR /home/bench
 
-# copy application files
-COPY --chown=bench:bench bench.py .
-COPY --chown=bench:bench pyproject.toml .
-COPY --chown=bench:bench version .
-COPY --chown=bench:bench bench/__init__.py bench/__init__.py
-# TODO :Security!: narrow down bench/language import for computer somehow 
-# (unfortunately we need to import proto service stuff, maybe we can factor that out?)
-COPY --chown=bench:bench bench/language bench/language
-COPY --chown=bench:bench bench/computer bench/computer
-COPY --chown=bench:bench bench/utils bench/utils
-COPY --chown=bench:bench bench/cli bench/cli
-COPY --chown=bench:bench bench/proto bench/proto
-COPY --chown=bench:bench bench/pb2 bench/pb2
-
-# set x11vnc password ("bench")
-RUN x11vnc -storepasswd bench /home/bench/.vncpass
-
-# run Xvfb, x11vnc, websockify, Xfce (no login manager)
-CMD ["/bin/sh", "-c", "\
-export DISPLAY=:99 && \
-Xvfb :99 -screen 0 1280x800x24 & \
-until xdpyinfo -display :99 >/dev/null 2>&1; do \
-  sleep 0.1; \
-done && \
-x11vnc -display :99 -forever -rfbauth /home/bench/.vncpass -listen 127.0.0.1 -rfbport 5900 & \
-until nc -z localhost 5900; do \
-  sleep 0.1; \
-done && \
-DISPLAY=:99 xfce4-session & \
-websockify --web=/usr/share/novnc 6080 localhost:5900 & \
-exec python3 bench.py serve computer 0.0.0.0 5432"]
+CMD ["/home/bench/start.sh"]
 
 ARG GIT_COMMIT
 ARG VERSION
 ENV GIT_COMMIT=$GIT_COMMIT
 ENV VERSION=$VERSION
+ENV DISPLAY_SIZE="1280x960x24"
 
 EXPOSE 5900 5432 6080
