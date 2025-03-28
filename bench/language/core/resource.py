@@ -42,10 +42,10 @@ class ResourceStatus(BuiltinEnum):
     # extant
     UP = 10, None, None, "fas fa-circle-check", ColorType.GREEN
     SLEEPING = 11, None, None, "fas fa-zzz", ColorType.BLUE
-    DOWN = 15, None, None, "fas fa-circle-xmark", ColorType.RED
-    DEGRADED = 16, None, None, "fas fa-circle-exclamation", ColorType.YELLOW
+    DOWN = 15, None, None, "fas fa-skull", ColorType.RED
+    DEGRADED = 16, None, None, "fas fa-triangle-exclamation", ColorType.YELLOW
     # terminal
-    DECOMMISSIONED = 30, None, None, "fas fa-circle-slash", ColorType.GRAY
+    DECOMMISSIONED = 30, None, None, "fas fa-circle-o", ColorType.GRAY
 
     @property
     def is_extant(self) -> bool:
