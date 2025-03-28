@@ -67,7 +67,7 @@ class Computer(IsSubject, Resource[ComputerData]):
         71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
     )
     width: int = p_system(75, default=1280, default_sql=None)
-    height: int = p_system(76, default=800, default_sql=None)
+    height: int = p_system(76, default=960, default_sql=None)
     # is_headless?
 
     applications: LocalNodeList["Application"] = p_node_children(NodeType.APPLICATION)
