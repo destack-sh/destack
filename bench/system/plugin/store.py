@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, NodeArea, NodeType, ResourceStatus, Store
-from bench.language.core import bittuple
+from bench.language import VERSION, Bench, NodeArea, NodeType, ResourceStatus, Store, bittuple
 from bench.sql import pg_connection, sql_migrate, sqlstr
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 
@@ -38,12 +37,12 @@ class StoreProvisioner(Provisioner[Store, Store]):
             )
             await conn.commit()
         async with self.host.session(commit=True):
-            resource.version = resource.target_version
+            resource.version = VERSION
 
     @override
     async def _do_update(self, resource: Store):
         # auto-migrate if version changed
-        if resource.version != resource.target_version:
+        if resource.version != VERSION:
             await self._do_migrate(resource)
 
 

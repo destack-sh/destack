@@ -7,7 +7,6 @@ from opentelemetry import trace
 
 from bench.language import (
     NODE_CLASS_BY_TYPE,
-    VERSION,
     Bench,
     NodeMode,
     NodeType,
@@ -64,10 +63,6 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
 
         # auto migrate resources to current version
         for resource in resources:
-            # NOTE :Robustness: unsure when to migrate which resources
-            if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
-                async with self.host.session(commit=True):
-                    setattr(resource, "version", VERSION)
             # provision/update/decommission
             if resource.target_status.is_extant:
                 if resource.status.is_extant:
@@ -150,7 +145,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                     f"{self.slug}.update", attributes={"resource": str(resource)}
                 ):
                     await self._do_update(resource)
-                    logger.debug(
+                    logger.trace(
                         f"{self.slug}.update", provisioner=self, resource=resource, span="current"
                     )
         except Exception as e:
