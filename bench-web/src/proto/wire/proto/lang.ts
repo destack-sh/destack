@@ -35292,7 +35292,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.cpu]: { id: 70, name: 'cpu', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.ram]: { id: 71, name: 'ram', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.width]: { id: 75, name: 'width', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1280, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.height]: { id: 76, name: 'height', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 800, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.height]: { id: 76, name: 'height', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 960, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
   [ApplicationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.APPLICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37253,7 +37253,7 @@ export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOption
   [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', color: ColorType.BLUE, icon: 'fas fa-zzz' },
   [ResourceStatus.DOWN]: { id: 15, name: 'DOWN', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
   [ResourceStatus.DEGRADED]: { id: 16, name: 'DEGRADED', color: ColorType.YELLOW, icon: 'fas fa-circle-exclamation' },
-  [ResourceStatus.DECOMMISSIONED]: { id: 30, name: 'DECOMMISSIONED', color: ColorType.GRAY, icon: 'fas fa-circle-slash' },
+  [ResourceStatus.DECOMMISSIONED]: { id: 30, name: 'DECOMMISSIONED', color: ColorType.GRAY, icon: 'fas fa-circle-o' },
 }
 
 export const ComputerTypeOptionInfo: Partial<Record<ComputerType, EnumOptionInfo>> = {

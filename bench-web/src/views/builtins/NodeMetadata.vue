@@ -38,15 +38,15 @@ const textClass = computed(() => [
     <!-- Resource metadata -->
     <span
       v-if="isResourceNode(node) && isNodeActive(node)"
-      class="fas fa-circle-small w-5 text-center"
-      :class="iconClass"
+      class="w-5 text-center"
+      :class="[iconClass, ResourceStatusOptionInfo[node.status]!.icon!]"
       :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
     />
     <!-- Claim metadata -->
     <span
       v-if="isNode(node, NodeType.CLAIM) && isNodeActive(node)"
-      class="fas fa-circle-small w-5 text-center"
-      :class="iconClass"
+      class="w-5 text-center"
+      :class="[iconClass, ClaimStatusOptionInfo[node.status]!.icon!]"
       :style="{ color: getColorHex(ClaimStatusOptionInfo[node.status]!.color!) }"
     />
     <!-- File metadata -->
@@ -56,14 +56,14 @@ const textClass = computed(() => [
     <!-- Run metadata -->
     <span
       v-if="isNode(node, NodeType.RUN)"
-      class="fas fa-circle-small w-5 text-center"
-      :class="iconClass"
+      class="w-5 text-center"
+      :class="[iconClass, RunStatusOptionInfo[node.status]!.icon!]"
       :style="{ color: getColorHex(RunStatusOptionInfo[node.status]!.color!) }"
     />
     <!-- Node mode, ... -->
     <span
       v-if="'mode' in node && node.mode != NodeMode.MAIN"
-      class="ml-0.5 rounded-sm border px-1 py-0.5 text-xs text-gray-900"
+      class="ml-1 rounded-sm border px-1 py-0.5 text-xs text-gray-900"
       :style="{
         backgroundColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S200),
         borderColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S300),

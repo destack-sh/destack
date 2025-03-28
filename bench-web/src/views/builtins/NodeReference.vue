@@ -216,7 +216,7 @@ defineExpose({
       <!-- Metadata -->
       <NodeMetadata
         v-if="!isMinimal"
-        class="flex-shrink-0"
+        class="ml-1 flex-shrink-0"
         :size="size"
         :node="node"
         :is-light="isLight"

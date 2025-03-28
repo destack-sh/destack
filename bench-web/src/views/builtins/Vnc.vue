@@ -64,6 +64,7 @@ function onConnect() {
   log.debug("vnc.connect");
   focus();
   isLoading.value = false;
+  isConnected.value = true;
 }
 
 /* Handle disconnection event */
@@ -74,6 +75,7 @@ function onDisconnect() {
     timeouts.value.push(setTimeout(connect, props.retryDuration ?? DEFAULT_RETRY_DURATION));
   }
   isLoading.value = true;
+  isConnected.value = false;
 }
 
 /* Handle credentials required event */
@@ -159,7 +161,6 @@ function connect() {
       }
     });
 
-    isConnected.value = true;
     log.debug("vnc.connect.attempt");
   } catch (err) {
     log.error("vnc.connect.error", err);
@@ -237,17 +238,5 @@ defineExpose({
     <div class="absolute left-0 top-0">
       <!-- ... -->
     </div>
-    <!-- Loading -->
-    <Transition
-      enter-from-class="opacity-0"
-      enter-active-class="transition-opacity duration-200"
-      enter-to-class="opacity-100"
-      appear
-      mode="out-in"
-    >
-      <div v-if="isLoading" class="flex h-full w-full items-center justify-center text-lg font-bold">
-        <i class="fas fa-spinner-third animate-spin text-gray-400" />
-      </div>
-    </Transition>
   </div>
 </template>

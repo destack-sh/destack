@@ -4,10 +4,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
 
-#
-# Environment
-# 
-
 # install libs
 RUN apt-get update && apt-get install -y \
     netcat \
@@ -65,28 +61,20 @@ ENV PYTHONUNBUFFERED=1
 COPY bench/requirements/computer.txt bench/requirements.txt
 RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
 
-#
-# Applications
-# 
-
-# install Chromium browser with extensions and fonts
-RUN apt-get update && apt-get install -y \
-    chromium-browser \
-    chromium-chromedriver \
-    fonts-freefont-ttf \
-    fonts-liberation \
-    fonts-noto-color-emoji \
-    fonts-noto \
-    libgbm-dev \
-    libxss1 \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libgtk-3-0 \
-    libx11-xcb1 \
-    libxtst6 \
-    unzip \
-    --no-install-recommends \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+# install Chromium from Debian instead of Snap (with proper GPG keys)
+RUN apt-get update && apt-get install -y gnupg curl && \
+    gpg --keyserver keyserver.ubuntu.com --recv-keys \
+        0E98404D386FA1D9 \
+        6ED0E7B82643E131 \
+        605C66F00D6C9793 && \
+    gpg --export 0E98404D386FA1D9 6ED0E7B82643E131 605C66F00D6C9793 | gpg --dearmor -o /usr/share/keyrings/debian-bullseye.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/debian-bullseye.gpg] http://deb.debian.org/debian bullseye main" > /etc/apt/sources.list.d/chromium.list && \
+    apt-get update && \
+    apt-get install -y chromium chromium-driver \
+        fonts-freefont-ttf fonts-liberation fonts-noto-color-emoji fonts-noto \
+        libgbm-dev libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 \
+        libx11-xcb1 libxtst6 unzip --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install uBlock Origin extension correctly
 RUN mkdir -p /usr/lib/chromium/extensions/ublock \
@@ -94,30 +82,56 @@ RUN mkdir -p /usr/lib/chromium/extensions/ublock \
  && unzip ublock.zip -d /usr/lib/chromium/extensions/ublock \
  && rm ublock.zip
 
-# add 'chromium' command
-RUN echo '#!/bin/sh\nexec chromium-browser --no-sandbox --disable-dev-shm-usage --load-extension=/usr/lib/chromium/extensions/ublock "$@"' \
-    > /usr/local/bin/chromium && chmod +x /usr/local/bin/chromium
-
-# create XFCE autostart entry for Chromium
-RUN mkdir -p /etc/xdg/autostart && \
-    echo '[Desktop Entry]\nType=Application\nExec=chromium\nHidden=false\nNoDisplay=false\nX-GNOME-Autostart-enabled=true\nName=Chromium' \
-    > /etc/xdg/autostart/chromium.desktop
-
-#
-# User
-#
-
 # create non-root user
 RUN useradd -ms /bin/bash bench \
-&& echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+ && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# add 'chromium' command
+RUN cat <<'EOF' > /usr/local/bin/chromium
+#!/bin/sh
+exec chromium --no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --load-extension=/usr/lib/chromium/extensions/ublock "$@"
+EOF
+RUN chmod +x /usr/local/bin/chromium
+
+# create XFCE autostart entry for Chromium
+RUN mkdir -p /etc/xdg/autostart
+RUN cat <<'EOF' > /etc/xdg/autostart/chromium.desktop
+[Desktop Entry]
+Type=Application
+Exec=chromium
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Chromium
+EOF
+
+# create Chromium desktop icon
+RUN mkdir -p /home/bench/Desktop && \
+    cat <<'EOF' > /home/bench/Desktop/chromium.desktop
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Chromium
+Exec=chromium
+Icon=chromium
+Terminal=false
+Categories=Network;WebBrowser;
+EOF
+RUN chmod +x /home/bench/Desktop/chromium.desktop && chown bench:bench /home/bench/Desktop/chromium.desktop
+
+# make Chromium default browser
+RUN update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/chromium 200 && \
+    update-alternatives --set x-www-browser /usr/local/bin/chromium
+RUN mkdir -p /home/bench/.config/xfce4/helpers && \
+    echo "WebBrowser=chromium" > /home/bench/.config/xfce4/helpers.rc && \
+    chown -R bench:bench /home/bench/.config/xfce4
+
 
 # copy application files
 COPY --chown=bench:bench bench.py /home/bench/
 COPY --chown=bench:bench pyproject.toml /home/bench/
 COPY --chown=bench:bench version /home/bench/
 COPY --chown=bench:bench bench/__init__.py /home/bench/bench/__init__.py
-# TODO :Security!: narrow down bench/language import for computer somehow 
-# (unfortunately we need to import proto service stuff, maybe we can factor that out?)
 COPY --chown=bench:bench bench/language /home/bench/bench/language
 COPY --chown=bench:bench bench/computer /home/bench/bench/computer
 COPY --chown=bench:bench bench/utils /home/bench/bench/utils
@@ -125,28 +139,19 @@ COPY --chown=bench:bench bench/cli /home/bench/bench/cli
 COPY --chown=bench:bench bench/proto /home/bench/bench/proto
 COPY --chown=bench:bench bench/pb2 /home/bench/bench/pb2
 
-#
-# XFCE
-#
-
-# explicitly set up XFCE user configuration for bench user
+# XFCE config
 RUN mkdir -p /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml
 
-# panel config (disable workspace switcher)
+# panel config
 RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-panel" version="2.0">
   <property name="panels" type="array">
-    <!-- We have 1 panel -->
     <value type="int" value="1"/>
     <property name="panel-1" type="empty">
-      <!-- position at bottom -->
       <property name="position" type="string" value="p=8;x=0;y=0"/>
-      <!-- 100% width -->
       <property name="length" type="uint" value="100"/>
-      <!-- horizontal layout -->
       <property name="mode" type="string" value="horizontal"/>
-      <!-- plugin IDs to load -->
       <property name="plugins" type="array">
         <value type="int" value="1"/>
         <value type="int" value="2"/>
@@ -155,23 +160,19 @@ RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-pan
     </property>
   </property>
   <property name="plugins" type="empty">
-    <!-- Must define plugin-ids here, matching the ints above -->
     <property name="plugin-ids" type="array">
       <value type="int" value="1"/>
       <value type="int" value="2"/>
       <value type="int" value="3"/>
     </property>
-    <!-- Applications menu plugin -->
     <property name="plugin-1" type="string" value="applicationsmenu"/>
-    <!-- Tasklist (open windows) plugin; sometimes named "windowbuttons" -->
     <property name="plugin-2" type="string" value="tasklist"/>
-    <!-- Clock plugin -->
     <property name="plugin-3" type="string" value="clock"/>
   </property>
 </channel>
 EOF
 
-# session config (disable logout/reboot/shutdown)
+# session config
 RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-session" version="2.0">
@@ -188,15 +189,11 @@ RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-ses
     </property>
 </channel>
 EOF
+
 RUN chown -R bench /home/bench/.config
-
-# create and set permissions on /tmp/.X11-unix
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
-
-# disable menu customization
 RUN chmod -w /home/bench/.config/xfce4 -R
 
-# disable shutdown/reboot/suspend/hibernate
 RUN cat <<'EOF' > /etc/polkit-1/localauthority/50-local.d/disable-shutdown.pkla
 [Disable Shutdown, Reboot, Suspend]
 Identity=unix-user:*
@@ -206,33 +203,26 @@ ResultInactive=no
 ResultActive=no
 EOF
 
-# disable screensaver
 RUN apt-get remove -y xscreensaver light-locker xfce4-screensaver && apt-get clean
-
-#
-# Startup
-# 
 
 # startup script
 RUN cat <<'EOF' > /home/bench/start.sh
 #!/bin/sh
 export DISPLAY=:99
 Xvfb :99 -screen 0 "$DISPLAY_SIZE" &
-until xdpyinfo -display :99 >/dev/null 2>&1; do
-  sleep 0.1
-done
+until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done
 x11vnc -nopw -shared -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
-until nc -z localhost 5900; do
-  sleep 0.1
-done
+until nc -z localhost 5900; do sleep 0.1; done
 DISPLAY=:99 xfce4-session &
+sleep 1
+DISPLAY=:99 xfce4-panel &
+sleep 1
+DISPLAY=:99 chromium &
 websockify --web=/usr/share/novnc 6080 localhost:5900 &
-DISPLAY=:99 exec python3 bench.py serve computer 0.0.0.0 5432
+DISPLAY=:99 python3 bench.py serve computer 0.0.0.0 5432
 EOF
-RUN chmod +x /home/bench/start.sh && \
-chown bench:bench /home/bench/start.sh
+RUN chmod +x /home/bench/start.sh && chown bench:bench /home/bench/start.sh
 
-# switch to non-root user
 RUN chown -R bench:bench /home/bench
 USER bench
 WORKDIR /home/bench

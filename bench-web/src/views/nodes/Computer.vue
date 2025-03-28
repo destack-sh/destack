@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ComputerData } from "@/proto/wire";
+import { ViewData, NodeType, ComputerData, ResourceStatus, ResourceStatusOptionInfo, ColorShade } from "@/proto/wire";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { canvas } from "@/system/space";
 import { computed, ref, Ref, toRef } from "vue";
@@ -8,6 +8,8 @@ import RootHeader from "@/views/builtins/RootHeader.vue";
 import { useAutoConnection } from "@/system/connection";
 import Vnc from "@/views/builtins/Vnc.vue";
 import { useElementSize } from "@vueuse/core";
+import { getColorHex } from "@/ui/style";
+import { toCamelName } from "@/language/core/const";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; isRoot?: boolean } & Partial<
@@ -40,18 +42,72 @@ defineExpose<ViewExpose>({ self, id, focus });
     <div ref="containerRef" class="relative flex w-full flex-1 items-center justify-center p-[32px]">
       <!-- VNC view -->
       <div
-        v-if="computer?.vncUri"
-        class="h-auto w-full rounded-2xl border overflow-hidden border-gray-200 bg-gray-100"
+        class="relative h-auto w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
         :style="{
           aspectRatio: computer?.width && computer?.height ? `${computer.width} / ${computer.height}` : 'auto',
           maxHeight: '100%',
         }"
       >
-        <Vnc ref="vncRef" class="h-full w-full" :url="computer?.vncUri" auto-connect scale-viewport />
-      </div>
-      <!-- nocheckin: Computer VNC/streaming view -->
-      <div v-else>
-        <!-- ... -->
+        <!-- Live VNC view -->
+        <Vnc
+          v-if="computer?.status == ResourceStatus.UP && computer?.vncUri"
+          ref="vncRef"
+          class="h-full w-full"
+          :url="computer?.vncUri"
+          auto-connect
+          scale-viewport
+        />
+        <!-- nocheckin: Computer VNC/streaming view -->
+        <div v-else>
+          <!-- ... -->
+        </div>
+
+        <!-- Loading -->
+        <Transition
+          enter-from-class="opacity-0"
+          enter-active-class="transition-opacity duration-200"
+          enter-to-class="opacity-100"
+          leave-from-class="opacity-100"
+          leave-active-class="transition-opacity duration-200"
+          leave-to-class="opacity-0"
+          appear
+          mode="out-in"
+        >
+          <div
+            v-if="computer == null || computer?.status == ResourceStatus.DECLARED || vncRef?.isLoading"
+            class="absolute left-0 top-0 flex h-full w-full items-center justify-center"
+          >
+            <i class="fas fa-spinner-third animate-spin text-lg font-bold text-gray-400" />
+          </div>
+        </Transition>
+
+        <Transition
+          enter-from-class="opacity-0"
+          enter-active-class="transition-opacity duration-200"
+          enter-to-class="opacity-100"
+          leave-from-class="opacity-100"
+          leave-active-class="transition-opacity duration-200"
+          leave-to-class="opacity-0"
+          appear
+          mode="out-in"
+        >
+          <div v-if="computer != null && !vncRef?.isConnected" class="absolute left-0 top-0 flex w-full justify-center">
+            <div
+              class="flex flex-row items-center rounded rounded-t-none border border-t-0 px-2 py-1"
+              :style="{
+                backgroundColor: getColorHex(ResourceStatusOptionInfo[computer.status]!.color!, ColorShade.S100),
+                borderColor: getColorHex(ResourceStatusOptionInfo[computer.status]!.color!, ColorShade.S200),
+              }"
+            >
+              <span
+                class="w-5 text-center"
+                :class="ResourceStatusOptionInfo[computer.status]!.icon!"
+                :style="{ color: getColorHex(ResourceStatusOptionInfo[computer.status]!.color!) }"
+              />
+              <span class="ml-1 font-semibold">{{ toCamelName(ResourceStatus, computer.status) }}</span>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
   </div>

@@ -44,13 +44,13 @@ class ClaimStatus(BuiltinEnum):
     # pre
     REQUESTED = 1, "Pending", "Pending", "fas fa-clock", ColorType.BLUE
     # active
-    OPEN = 10, "Active", "Active concurrent access", "fas fa-lock", ColorType.GREEN
+    OPEN = 10, "Active", "Active concurrent access", "fas fa-lock-open", ColorType.GREEN
     # inactive
     PAUSED = 20, "Paused", "Paused", "fas fa-pause", ColorType.PINK
     # terminal
     CANCELLED = 30, "Cancelled", None, "fas fa-circle-xmark", ColorType.RED
     REJECTED = 31, "Rejected", None, "fas fa-circle-exclamation", ColorType.RED
-    RELEASED = 32, "Released", None, "fas fa-circle-check", ColorType.GRAY
+    RELEASED = 32, "Released", None, "fas fa-circle-o", ColorType.GRAY
 
     @property
     def is_pending(self) -> bool:
