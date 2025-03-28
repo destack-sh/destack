@@ -1,12 +1,8 @@
 from typing import TYPE_CHECKING
 
 from bench.language import (
-    Application,
-    ApplicationType,
-    NodeMode,
     NodeType,
     Page,
-    icon,
 )
 
 from .application import IApplication
@@ -30,10 +26,4 @@ class IBrowserApplication(IApplication, Runner if TYPE_CHECKING else object):
 BrowserKit = class_to_kit(
     IBrowserApplication, "Browser Kit", icon=NodeType.APPLICATION.icon, template=ComputerKit
 )
-ChromeBrowserTemplate = Application(
-    name="Chrome Browser",
-    type=ApplicationType.CHROME_BROWSER,
-    mode=NodeMode.TEMPLATE,
-    icon=icon("fab fa-chrome"),
-)
-BrowserPage = Page.new("Browser", ChromeBrowserTemplate, BrowserKit)
+BrowserPage = Page.new("Browser", BrowserKit)
