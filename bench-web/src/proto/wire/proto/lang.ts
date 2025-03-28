@@ -3124,7 +3124,11 @@ export interface ComputerData {
      */
     connectionUri?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 65;
+     * @generated from protobuf field: optional string vnc_uri = 65;
+     */
+    vncUri?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 69;
      */
     clientPtr?: NodeReferenceData;
     /**
@@ -22131,7 +22135,8 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 64, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 65, name: "vnc_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 69, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 71, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 75, name: "width", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -22270,7 +22275,10 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional string connection_uri */ 64:
                     message.connectionUri = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 65:
+                case /* optional string vnc_uri */ 65:
+                    message.vncUri = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 69:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
                 case /* float cpu */ 70:
@@ -22405,9 +22413,12 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional string connection_uri = 64; */
         if (message.connectionUri !== undefined)
             writer.tag(64, WireType.LengthDelimited).string(message.connectionUri);
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 65; */
+        /* optional string vnc_uri = 65; */
+        if (message.vncUri !== undefined)
+            writer.tag(65, WireType.LengthDelimited).string(message.vncUri);
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 69; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
         /* float cpu = 70; */
         if (message.cpu !== 0)
             writer.tag(70, WireType.Bit32).float(message.cpu);
@@ -32962,7 +32973,8 @@ export enum ComputerProperty {
   externalName = 62,
   externalId = 63,
   connectionUri = 64,
-  clientPtr = 65,
+  vncUri = 65,
+  clientPtr = 69,
   cpu = 70,
   ram = 71,
   width = 75,
@@ -35246,8 +35258,8 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.28.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.28.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35284,16 +35296,17 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.26.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.28.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.targetVersion]: { id: 61, name: 'target_version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.28.0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [ComputerProperty.clientPtr]: { id: 65, name: 'client_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ComputerProperty.vncUri]: { id: 65, name: 'vnc_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [ComputerProperty.clientPtr]: { id: 69, name: 'client_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.cpu]: { id: 70, name: 'cpu', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.ram]: { id: 71, name: 'ram', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.width]: { id: 75, name: 'width', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1280, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.height]: { id: 76, name: 'height', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 960, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.height]: { id: 76, name: 'height', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 800, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
   [ApplicationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.APPLICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

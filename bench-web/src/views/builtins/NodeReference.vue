@@ -81,8 +81,8 @@ const identifierClass = computed(() => [
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
 const metadataClass = computed(() => [
-  props.size == "sm" ? "ml-1" : "",
-  props.size == "base" ? "ml-1.5" : "",
+  props.size == "sm" ? "ml-0.5" : "",
+  props.size == "base" ? "ml-1" : "",
   props.size == "title" ? "ml-1.5" : "",
   props.size == "inherit" ? "ml-[0.3em]" : "",
 ]);

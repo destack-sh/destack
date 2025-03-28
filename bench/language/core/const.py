@@ -67,7 +67,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.27.0"
+VERSION = "2025.03.28.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6

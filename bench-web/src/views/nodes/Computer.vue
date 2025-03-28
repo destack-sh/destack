@@ -40,8 +40,9 @@ defineExpose<ViewExpose>({ self, id, focus });
     <!-- nocheckin: Computer VNC view -->
     <div ref="containerRef" class="relative w-full flex-1">
       <Vnc
+        v-if="computer?.vncUri"
         ref="vncRef"
-        url="ws://localhost:6080"
+        :url="computer?.vncUri"
         auto-connect
         scale-viewport
       />

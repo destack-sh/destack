@@ -52,8 +52,9 @@ class Computer(IsSubject, Resource[ComputerData]):
     connection_uri: Optional[str] = p_kernel(
         64, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
+    vnc_uri: Optional[str] = p_kernel(65, require=False, default=None, sensitive=True)
     client: Optional["Client"] = p_system(
-        65, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
+        69, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
@@ -65,9 +66,9 @@ class Computer(IsSubject, Resource[ComputerData]):
     ram: float = p_system(
         71, description="GB", default=1.0, default_sql=None, constraint=RAM_CONSTRAINT
     )
-    # is_headless?
     width: int = p_system(75, default=1280, default_sql=None)
     height: int = p_system(76, default=800, default_sql=None)
+    # is_headless?
 
     applications: LocalNodeList["Application"] = p_node_children(NodeType.APPLICATION)
 
