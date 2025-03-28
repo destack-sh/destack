@@ -8,9 +8,12 @@ from bench.language import (
     BENCH_BUILTIN_PACKAGE_SLUG,
     SYSTEM_BENCH_ID,
     SYSTEM_BENCH_SLUG,
-    SYSTEM_PACKAGE_ID,
-    SYSTEM_PACKAGE_SLUG,
+    SYSTEM_MAIN_PACKAGE_ID,
+    SYSTEM_MAIN_PACKAGE_SLUG,
     Engine,
+    NodeReference,
+    NodeSuperGraph,
+    NodeType,
     Region,
     Store,
     User,
@@ -35,8 +38,12 @@ async def create_system_benches(
 ):
     """Bootstrap the Bench system."""
 
+    supergraph = NodeSuperGraph(
+        name="System", root_ptr=NodeReference(node_type=NodeType.BENCH, id=SYSTEM_BENCH_ID)
+    )
+
     async with global_session(
-        global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE, epoch=0
+        None, (global_pg_engine, regional_pg_engine), REAL_ORACLE, supergraph=supergraph, epoch=0
     ) as session:
         system_user = User(
             name="System",
@@ -57,8 +64,8 @@ async def create_system_benches(
             options=CreateBenchOptions(
                 create_computer_scaler=False,
                 bench_id=SYSTEM_BENCH_ID,
-                main_package_slug=SYSTEM_PACKAGE_SLUG,
-                main_package_id=SYSTEM_PACKAGE_ID,
+                main_package_slug=SYSTEM_MAIN_PACKAGE_SLUG,
+                main_package_id=SYSTEM_MAIN_PACKAGE_ID,
             ),
         )
         bench_bench_handle = system_user.handles.create(slug=BENCH_BENCH_SLUG)
