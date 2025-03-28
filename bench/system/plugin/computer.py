@@ -10,7 +10,7 @@ import structlog
 from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
-from bench.language import CLOUD, Bench, Computer, NodeType, ResourceStatus
+from bench.language import CLOUD, Bench, Client, Computer, NodeType, ResourceStatus
 from bench.language.compute.computer import ComputerType
 from bench.language.core import bittuple
 from bench.proto import dockerify_url, minikubeify_url
@@ -19,11 +19,7 @@ from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.telemetry import OTLP_ENDPOINT
 from bench.utils.utils import get_from_env
 
-from .kubernetes import (
-    KUBERNETES_COMPUTER_APP_LABEL,
-    KUBERNETES_NAMESPACE,
-    KubernetesApi,
-)
+from .kubernetes import KUBERNETES_COMPUTER_APP_LABEL, KUBERNETES_NAMESPACE, KubernetesApi
 from .provisioner import Provisioner
 
 if TYPE_CHECKING:
@@ -74,6 +70,8 @@ def _get_computer_env_vars(
         supervisor_url = minikubeify_url(supervisor_url)
     bench = computer.bench
     assert bench is not None, f"missing bench for {computer!r}"
+
+    # env vars
     env_vars: dict[str, str | None] = {
         # hosting
         "SERVICE_NAME": "runtime",
@@ -81,6 +79,8 @@ def _get_computer_env_vars(
         "CLOUD": CLOUD.slug,
         "REGION": computer.region.slug,
         "SUPERVISOR_URL": supervisor_url,
+        "IS_IN_DOCKER": "1" if is_in_docker else None,
+        "IS_IN_MINIKUBE": "1" if is_in_minikube else None,
         # bench
         "BENCH_ID": str(bench.id),
         "COMPUTER_ID": str(computer.id),
@@ -92,19 +92,16 @@ def _get_computer_env_vars(
         "TRACING": "1",
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
+        "SENTRY_DSN": SENTRY_DSN,
     }
-    if is_in_docker:
-        env_vars["IS_IN_DOCKER"] = "1"
-    if is_in_minikube:
-        env_vars["IS_IN_MINIKUBE"] = "1"
-    if SENTRY_DSN:
-        env_vars["SENTRY_DSN"] = SENTRY_DSN
+
+    # add secret api keys directly (for testing/development)
     if is_trusted:
-        # add secret api keys directly (for testing/development)
         env_vars["OPENAI_API_KEY"] = get_from_env("OPENAI_API_KEY", description="OpenAI API key")
         env_vars["ANTHROPIC_API_KEY"] = get_from_env(
             "ANTHROPIC_API_KEY", description="Anthropic API key"
         )
+
     return {k: v for k, v in env_vars.items() if v}
 
 
@@ -155,13 +152,13 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
 
     @override
     async def _do_provision(self, resource: Computer):
-        bench_dir = _get_bench_dir()
-
-        # find random port
+        assert resource.client_ptr is not None, f"{resource!r} has no client"
+        if resource.client is None:
+            _ = await Client.get(resource.client_ptr)
         assigned_port = random.randint(60100, 65000)
-
-        # assemble container name
-        env_vars = _get_computer_env_vars(resource, is_trusted=True, is_in_docker=True)
+        env_vars = _get_computer_env_vars(
+            resource, is_trusted=resource.type == ComputerType.RUNTIME, is_in_docker=True
+        )
         computer_id_prefix = str(resource.id).split("-")[0]
         external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-computer-{computer_id_prefix}"
         image = _get_computer_image(resource)
@@ -170,7 +167,7 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
             environment=env_vars,
             detach=True,
             name=external_name,
-            volumes=[f"{bench_dir}:/bench:ro"],  # mount our local code directly
+            volumes=[f"{_get_bench_dir()}:/bench:ro"],  # mount our local code directly
             ports={f"{assigned_port}/tcp": ("0.0.0.0", assigned_port)},
         )
         async with self.host.session(commit=True):

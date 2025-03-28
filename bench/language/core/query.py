@@ -467,13 +467,19 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def include_ancestors(self, *node_types: NodeTypeOrClass) -> "Query[NodeT, NodeDataT]":
         """Includes all ancestors in the results."""
-        # not quite happy with this API for getting a 'full' node yet, see :LoadOrphanNode
         clone = self.clone()
-        for node_type in node_types or ANCESTOR_NODE_TYPES[self._node_type]:
-            if not isinstance(node_type, NodeType):
-                node_type = node_type.metatype
-            if node_type not in clone._ancestor_types:
-                clone._ancestor_types.append(node_type)
+        if node_types:
+            # add node types
+            for node_type in node_types:
+                if not isinstance(node_type, NodeType):
+                    node_type = node_type.metatype
+                if node_type not in clone._ancestor_types:
+                    clone._ancestor_types.append(node_type)
+        else:
+            # add all ancestors
+            for ancestor_type in ANCESTOR_NODE_TYPES[self._node_type]:
+                if ancestor_type not in clone._ancestor_types:
+                    clone._ancestor_types.append(ancestor_type)
         return clone
 
     def include_descendants(self, *node_types: NodeTypeOrClass) -> "Query[NodeT, NodeDataT]":

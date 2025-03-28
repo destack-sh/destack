@@ -11,7 +11,6 @@ from bench.language.core.const import REGION, Region
 from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
-from bench.utils.utils import get_from_env
 
 from .utils import async_to_sync, parse_region
 
@@ -59,6 +58,7 @@ async def make_local_runtime_computer(
     bench_slug: str,
     title: str = "Local Runtime Computer",
     region: Annotated[Region, typer.Option(parser=parse_region)] = REGION,
+    local_computer_url: str = "http://localhost:60062",
 ):
     from bench.language import (
         Bench,
@@ -118,9 +118,7 @@ async def make_local_runtime_computer(
             session._create(client)
         computer.client = client
         computer.status = ResourceStatus.UP
-        computer.connection_uri = get_from_env(
-            "LOCAL_COMPUTER_URL", description="URL to local runtime computer"
-        )
+        computer.connection_uri = local_computer_url
 
         client_env = {
             "BENCH_ID": str(bench.id),

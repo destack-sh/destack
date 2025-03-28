@@ -83,7 +83,7 @@ class Commit[T: Node]:
                 cascaded_edits=[
                     e for e in self.cascaded_edits if any(filter(n) for n in self.edited)
                 ],
-                edited_types=self.edited_types,  # Can't trim bits since we don't know types
+                edited_types=self.edited_types,  # can't trim bits since we don't know types
                 added=tuple(node for node in self.added if filter(node)),
                 updated=tuple(node for node in self.updated if filter(node)),
                 removed=tuple(node for node in self.removed if filter(node)),

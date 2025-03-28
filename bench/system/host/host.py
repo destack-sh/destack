@@ -304,25 +304,25 @@ class HostService(GraphServiceBase, HostBase):
         provisioners: list[type[Provisioner]]
         if ENV == Env.TEST or ENV == Env.DEV:
             from bench.system.plugin import (
-                ComputerScalerProvisioner,
                 DockerComputerProvisioner,
                 LocalhostStoreProvisioner,
+                ScalerProvisioner,
             )
 
             provisioners = [
-                ComputerScalerProvisioner,
+                ScalerProvisioner,
                 DockerComputerProvisioner,
                 LocalhostStoreProvisioner,
             ]
         elif ENV == Env.STAGE or ENV == Env.PROD:
             from bench.system.plugin import (
-                ComputerScalerProvisioner,
                 KubernetesComputerProvisioner,
                 NeonStoreProvisioner,
+                ScalerProvisioner,
             )
 
             provisioners = [
-                ComputerScalerProvisioner,
+                ScalerProvisioner,
                 NeonStoreProvisioner,
                 KubernetesComputerProvisioner,
             ]
