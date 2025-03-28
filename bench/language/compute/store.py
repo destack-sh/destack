@@ -28,7 +28,6 @@ class Store(Resource[StoreData]):
     type: StoreType = p_system(30, default=StoreType.POSTGRES)
 
     version: str = p_system(60, default=VERSION, default_sql=None)
-    target_version: str = p_system(61, default=VERSION, default_sql=None)
     external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(

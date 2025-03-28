@@ -288,7 +288,7 @@ async def sql_migrate(
 
     # apply the migrations
     if not migrations_to_apply:
-        log.debug("migrations.apply.skip", store=store)
+        log.trace("migrations.apply.skip", store=store)
         return []
     else:
         await _do_sql_migrate(
@@ -1137,6 +1137,6 @@ WHERE
         )
         tables.append(table)
 
-    logger.debug("sql.introspect", cur=cur, tables=tables, span="current")
+    logger.trace("sql.introspect", cur=cur, tables=tables, span="current")
 
     return Schema(extensions=extensions, tables=tuple(tables))
