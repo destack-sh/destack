@@ -730,11 +730,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # clone self
         copy_kwargs = self._clone_kwargs(reset=reset)
         copy_kwargs.update(kwargs)
-        if detach and not reset:  # put the node in a new graph to isolate (because same ids)
+        if detach and not reset:  
+            # put the node in a new graph to isolate (because same ids)
             copy_kwargs["_graph"] = NodeGraph(
                 scope=self._graph.scope,
                 node_types=self._graph.node_types,
-                supergraph=self._graph.supergraph,
+                supergraph=active_session()._supergraph,
             )
         clone = self.__class__(**copy_kwargs, _is_new=True)
 

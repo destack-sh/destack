@@ -486,7 +486,7 @@ class NodeSuperGraph:
                     return node
             return None
         else:
-            # check only graphs that have the node type :)
+            # check only graphs that have the node type
             graphs = self._graphs_by_node_type.get(ptr.node_type, ())
             for graph in graphs:
                 if ptr.id is not None:
