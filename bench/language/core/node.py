@@ -373,7 +373,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
 
     # NOTE :Architecture!: we may need a better :NodeInheritance mechanism since some
-    #  nodes have different subtypes with varying properties (e.g. Action or View).
+    #  nodes have different subtypes with varying properties (e.g. View).
     # Mapping their union into database columns is annoying since there may be many,
     #  so maybe this has to wait until we have custom storage engines.
 

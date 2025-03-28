@@ -34,14 +34,15 @@ from bench.utils.base58 import base58_encode
 logger = structlog.get_logger(__name__)
 
 
-def reload_module(module):
+def reload_module(module: types.ModuleType):
     """Reloads a module and all its submodules."""
     visited = set()
 
-    def _reload(mod):
+    def _reload(mod: types.ModuleType):
         if mod.__name__ in visited:
             return
         visited.add(mod.__name__)
+        print("reload", mod.__name__)
 
         # first reload children
         for attr_name in dir(mod):
@@ -49,8 +50,18 @@ def reload_module(module):
             if isinstance(attr, type(sys)) and attr.__name__.startswith(mod.__name__):
                 _reload(attr)
 
+        # also check for submodules that might not be directly referenced
+        if hasattr(mod, "__path__"):
+            for submodule_info in pkgutil.iter_modules(mod.__path__, prefix=f"{mod.__name__}."):
+                submodule_name = submodule_info.name
+                if submodule_name in sys.modules:
+                    submodule = sys.modules[submodule_name]
+                    _reload(submodule)
+
         # then reload parent
         importlib.reload(mod)
+
+    import pkgutil
 
     _reload(module)
 
