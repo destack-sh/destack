@@ -221,7 +221,7 @@ Xvfb :99 -screen 0 "$DISPLAY_SIZE" &
 until xdpyinfo -display :99 >/dev/null 2>&1; do
   sleep 0.1
 done
-x11vnc -nopw -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
+x11vnc -nopw -shared -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
 until nc -z localhost 5900; do
   sleep 0.1
 done

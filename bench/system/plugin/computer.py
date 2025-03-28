@@ -102,6 +102,7 @@ def _get_computer_env_vars(
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
         "SENTRY_DSN": SENTRY_DSN,
+        "DISPLAY_SIZE": f"{computer.width}x{computer.height}x24",
     }
 
     # add secret api keys directly (for testing/development)

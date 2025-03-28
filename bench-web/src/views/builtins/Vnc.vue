@@ -230,7 +230,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative h-full w-full p-3" @click="focus">
+  <div class="relative" @click="focus">
     <!-- Screen -->
     <div v-show="!isLoading" ref="screenRef" :style="props.style" class="h-full w-full" @click="focus" />
     <!-- Overlay -->

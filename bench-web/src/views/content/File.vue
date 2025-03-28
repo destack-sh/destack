@@ -42,6 +42,8 @@ const props = defineProps<
     id: string;
     modelValue?: NodeReferenceData;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
+    isRoot?: boolean;
+    isPopover?: boolean;
   } & Partial<
     Pick<
       ViewData,

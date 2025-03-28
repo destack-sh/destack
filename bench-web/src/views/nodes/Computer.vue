@@ -37,15 +37,22 @@ defineExpose<ViewExpose>({ self, id, focus });
 <template>
   <div class="flex h-full w-full flex-col bg-white text-gray-900">
     <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
-    <!-- nocheckin: Computer VNC view -->
-    <div ref="containerRef" class="relative w-full flex-1">
-      <Vnc
+    <div ref="containerRef" class="relative flex w-full flex-1 items-center justify-center p-[32px]">
+      <!-- VNC view -->
+      <div
         v-if="computer?.vncUri"
-        ref="vncRef"
-        :url="computer?.vncUri"
-        auto-connect
-        scale-viewport
-      />
+        class="h-auto w-full rounded-2xl border overflow-hidden border-gray-200 bg-gray-100"
+        :style="{
+          aspectRatio: computer?.width && computer?.height ? `${computer.width} / ${computer.height}` : 'auto',
+          maxHeight: '100%',
+        }"
+      >
+        <Vnc ref="vncRef" class="h-full w-full" :url="computer?.vncUri" auto-connect scale-viewport />
+      </div>
+      <!-- nocheckin: Computer VNC/streaming view -->
+      <div v-else>
+        <!-- ... -->
+      </div>
     </div>
   </div>
 </template>
