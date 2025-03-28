@@ -84,12 +84,12 @@ RUN mkdir -p /usr/lib/chromium/extensions/ublock && \
     rm -rf /usr/lib/chromium/extensions/ublock/uBlock0.chromium ublock.zip
 
 # create non-root user
-RUN useradd -ms /bin/bash bench \
- && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN useradd -ms /bin/bash bench && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # create chromium launcher wrapper and disable bookmarks bar
 RUN cat <<'EOF' > /usr/local/bin/chromium
 #!/bin/sh
+export DBUS_SESSION_BUS_ADDRESS=/dev/null
 mkdir -p /tmp/chrome-profile/Default
 echo '{"bookmark_bar":{"show_on_all_tabs":false}}' > /tmp/chrome-profile/Default/Preferences
 exec /usr/bin/chromium \
@@ -117,18 +117,6 @@ exec /usr/bin/chromium \
 EOF
 RUN chmod +x /usr/local/bin/chromium
 
-# create XFCE autostart entry for Chromium
-RUN mkdir -p /etc/xdg/autostart
-RUN cat <<'EOF' > /etc/xdg/autostart/chromium.desktop
-[Desktop Entry]
-Type=Application
-Exec=chromium
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Name=Chromium
-EOF
-
 # create Chromium desktop icon
 RUN mkdir -p /home/bench/Desktop && \
     cat <<'EOF' > /home/bench/Desktop/chromium.desktop
@@ -150,73 +138,12 @@ RUN mkdir -p /home/bench/.config/xfce4/helpers && \
     echo "WebBrowser=chromium" > /home/bench/.config/xfce4/helpers.rc && \
     chown -R bench:bench /home/bench/.config/xfce4
 
-
 # copy application files
 COPY --chown=bench:bench bench.py /home/bench/
 COPY --chown=bench:bench pyproject.toml /home/bench/
 COPY --chown=bench:bench version /home/bench/
-COPY --chown=bench:bench bench/__init__.py /home/bench/bench/__init__.py
-COPY --chown=bench:bench bench/language /home/bench/bench/language
-COPY --chown=bench:bench bench/computer /home/bench/bench/computer
-COPY --chown=bench:bench bench/utils /home/bench/bench/utils
-COPY --chown=bench:bench bench/cli /home/bench/bench/cli
-COPY --chown=bench:bench bench/proto /home/bench/bench/proto
-COPY --chown=bench:bench bench/pb2 /home/bench/bench/pb2
+COPY --chown=bench:bench bench /home/bench/bench
 
-# XFCE config
-RUN mkdir -p /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml
-
-# panel config
-RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-panel" version="2.0">
-  <property name="panels" type="array">
-    <value type="int" value="1"/>
-    <property name="panel-1" type="empty">
-      <property name="position" type="string" value="p=8;x=0;y=0"/>
-      <property name="length" type="uint" value="100"/>
-      <property name="mode" type="string" value="horizontal"/>
-      <property name="plugins" type="array">
-        <value type="int" value="1"/>
-        <value type="int" value="2"/>
-        <value type="int" value="3"/>
-      </property>
-    </property>
-  </property>
-  <property name="plugins" type="empty">
-    <property name="plugin-ids" type="array">
-      <value type="int" value="1"/>
-      <value type="int" value="2"/>
-      <value type="int" value="3"/>
-    </property>
-    <property name="plugin-1" type="string" value="applicationsmenu"/>
-    <property name="plugin-2" type="string" value="tasklist"/>
-    <property name="plugin-3" type="string" value="clock"/>
-  </property>
-</channel>
-EOF
-
-# session config
-RUN cat <<'EOF' > /home/bench/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
-<?xml version="1.0" encoding="UTF-8"?>
-<channel name="xfce4-session" version="2.0">
-    <property name="general" type="empty">
-    <property name="PromptOnLogout" type="bool" value="false"/>
-    <property name="LogoutPrompt" type="bool" value="false"/>
-    </property>
-    <property name="shutdown" type="empty">
-    <property name="ShowSuspend" type="bool" value="false"/>
-    <property name="ShowHibernate" type="bool" value="false"/>
-    <property name="ShowLogout" type="bool" value="false"/>
-    <property name="ShowReboot" type="bool" value="false"/>
-    <property name="ShowShutdown" type="bool" value="false"/>
-    </property>
-</channel>
-EOF
-
-RUN chown -R bench /home/bench/.config
-RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
-RUN chmod -w /home/bench/.config/xfce4 -R
 
 RUN cat <<'EOF' > /etc/polkit-1/localauthority/50-local.d/disable-shutdown.pkla
 [Disable Shutdown, Reboot, Suspend]
@@ -232,17 +159,19 @@ RUN apt-get remove -y xscreensaver light-locker xfce4-screensaver && apt-get cle
 # startup script
 RUN cat <<'EOF' > /home/bench/start.sh
 #!/bin/sh
+
+# display
 export DISPLAY=:99
+rm -rf /home/bench/.cache/sessions
 Xvfb :99 -screen 0 "$DISPLAY_SIZE" &
 until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done
 x11vnc -nopw -shared -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
 until nc -z localhost 5900; do sleep 0.1; done
 DISPLAY=:99 xfce4-session &
-sleep 1
-DISPLAY=:99 xfce4-panel &
-sleep 1
-DISPLAY=:99 chromium &
+
+# applications
 websockify --web=/usr/share/novnc 6080 localhost:5900 &
+DISPLAY=:99 chromium &
 DISPLAY=:99 python3 bench.py serve computer 0.0.0.0 5432
 EOF
 RUN chmod +x /home/bench/start.sh && chown bench:bench /home/bench/start.sh
@@ -258,5 +187,8 @@ ARG VERSION
 ENV GIT_COMMIT=$GIT_COMMIT
 ENV VERSION=$VERSION
 ENV DISPLAY_SIZE="1280x960x24"
+
+ENV DESKTOP_SESSION=xfce
+ENV XDG_CURRENT_DESKTOP=XFCE
 
 EXPOSE 5900 5432 6080
