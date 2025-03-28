@@ -3,6 +3,7 @@ from typing import Collection, cast
 from uuid import UUID, uuid5
 
 from bench.language import (
+    BENCH_BENCH_ID,
     UUID_NAMESPACE,
     Block,
     IsInstantiable,
@@ -68,7 +69,9 @@ def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()) -> None:
         node.id = uuid5(namespace=UUID_NAMESPACE, name=path_by_node[node])
         if isinstance(node, IsInstantiable):
             cast(IsInstantiable, node).ck = node.id
-        assigned_ptrs_by_node[old_node_id] = node.to_ref()
+        node_ptr = node.to_ref()
+        node_ptr.bench_id = BENCH_BENCH_ID
+        assigned_ptrs_by_node[old_node_id] = node_ptr
 
     # update references & reindex
     for node in graph.nodes:
