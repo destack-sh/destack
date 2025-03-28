@@ -77,19 +77,43 @@ RUN apt-get update && apt-get install -y gnupg curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install uBlock Origin extension correctly
-RUN mkdir -p /usr/lib/chromium/extensions/ublock \
- && curl -sSL https://github.com/gorhill/uBlock/releases/download/1.63.2/uBlock0_1.63.2.chromium.zip -o ublock.zip \
- && unzip ublock.zip -d /usr/lib/chromium/extensions/ublock \
- && rm ublock.zip
+RUN mkdir -p /usr/lib/chromium/extensions/ublock && \
+    curl -sSL https://github.com/gorhill/uBlock/releases/download/1.63.2/uBlock0_1.63.2.chromium.zip -o ublock.zip && \
+    unzip -q ublock.zip -d /usr/lib/chromium/extensions/ublock && \
+    mv /usr/lib/chromium/extensions/ublock/uBlock0.chromium/* /usr/lib/chromium/extensions/ublock && \
+    rm -rf /usr/lib/chromium/extensions/ublock/uBlock0.chromium ublock.zip
 
 # create non-root user
 RUN useradd -ms /bin/bash bench \
  && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# add 'chromium' command
+# create chromium launcher wrapper and disable bookmarks bar
 RUN cat <<'EOF' > /usr/local/bin/chromium
 #!/bin/sh
-exec chromium --no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --load-extension=/usr/lib/chromium/extensions/ublock "$@"
+mkdir -p /tmp/chrome-profile/Default
+echo '{"bookmark_bar":{"show_on_all_tabs":false}}' > /tmp/chrome-profile/Default/Preferences
+exec /usr/bin/chromium \
+  --disable-dev-shm-usage \
+  --disable-gpu \
+  --disable-software-rasterizer \
+  --disable-default-apps \
+  --disable-translate \
+  --disable-features=TranslateUI \
+  --disable-background-networking \
+  --disable-sync \
+  --metrics-recording-only \
+  --disable-component-update \
+  --disable-domain-reliability \
+  --safebrowsing-disable-auto-update \
+  --disable-client-side-phishing-detection \
+  --disable-notifications \
+  --disable-prompt-on-repost \
+  --disable-infobars \
+  --no-service-autorun \
+  --start-maximized \
+  --user-data-dir=/tmp/chrome-profile \
+  --load-extension=/usr/lib/chromium/extensions/ublock \
+  "$@" >> /tmp/chromium.log 2>&1
 EOF
 RUN chmod +x /usr/local/bin/chromium
 
