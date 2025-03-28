@@ -14,10 +14,10 @@ from bench.language import (
     Resource,
     ResourceStatus,
 )
-from bench.system.host.plugin import Commit, DeferredHostPlugin
+from bench.system.host import Commit, DeferredHostPlugin, HostService
 
 if TYPE_CHECKING:
-    from bench.system.host import HostService
+    pass
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -30,7 +30,6 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     """
 
     provision_type: NodeType
-    provision_subtype: int | None = None
 
     def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
@@ -41,44 +40,24 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     def slug(self) -> str:
         return self._slug
 
-    def _filter_resource(self, resource: PT) -> bool:
-        """Whether to consider this Resource for provisioning."""
-        if resource.mode >= NodeMode.TEMPLATE:
-            return False
-        if (  # noqa: SIM103
-            self.provision_subtype is not None
-            and getattr(resource, "type", None) != self.provision_subtype
-        ):
-            return False
-        return True
-
     async def _get_resources(self) -> list[PT]:
         """Gets all Resource for this Provisioner."""
-        if self.provision_type in self.bench._graph.node_types:  # :NodeOverload
-            # get from memory
-            resources = cast(
-                list[PT],
-                self.bench._graph.get_descendants(self.bench, self.provision_type, recursive=True),
-            )
-            resources = [r for r in resources if self._filter_resource(r)]
-        else:
-            # get from database
-            provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
-            resources_query = provision_cls.where(
+        provision_cls = cast(type[PT], NODE_CLASS_BY_TYPE[self.provision_type])
+        resources_query = (
+            provision_cls.where(
                 provision_cls.get_property("bench").eq(self.bench)
+                & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
                 & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
-            ).select_all()
-            if self.provision_subtype is not None:
-                resources_query = resources_query.where(
-                    provision_cls.get_property("type").eq(self.provision_subtype)
-                )
-            resources = await resources_query.tolist()
-            resources = [r for r in resources if self._filter_resource(r)]
+            )
+            .include_ancestors()
+            .select_all()
+        )
+        resources_query._include_memory = False
+        resources = await resources_query.tolist()
         return resources
 
     @final
     async def start(self) -> None:
-        # custom start for provisioner first to update resource status from external state
         await self._do_start()
 
         resources = await self._get_resources()
@@ -109,15 +88,15 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
     @tracer.start_as_current_span("provisioner.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
         trace.get_current_span().set_attribute("plugin", self.name)
-        commit = commit.trim_to(
-            lambda r: r.metatype != self.provision_type or self._filter_resource(cast(PT, r))
-        )
-        if commit.is_empty:
-            return
 
         # handle edit by updating resource
         if commit.has(self.provision_type):
-            subcommit = cast(Commit[PT], commit.trim_to(self.provision_type))
+            subcommit = cast(
+                Commit[PT],
+                commit.trim_to(
+                    lambda r: r.metatype == self.provision_type and r.mode < NodeMode.TEMPLATE
+                ),
+            )
             for resource in subcommit.added:
                 if resource.target_status.is_extant and not resource.status.is_extant:
                     await self.provision(resource)

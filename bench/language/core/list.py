@@ -85,9 +85,10 @@ def attach_node[N: "Node"](
         from bench.language.connection import uncapture
 
         old_graph = node._graph
-        assert graph.supergraph.has(
-            node._graph.supergraph
-        ), f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {graph.supergraph!r})"
+        if not graph.supergraph.has(node._graph.supergraph):
+            raise ValueError(
+                f"{node!r} not in same supergraph as {parent!r} ({node._graph.supergraph!r} != {graph.supergraph!r})"
+            )
         moved = node._move_to_graph(graph)
         if len(old_graph) == 0:
             # clean up old graph

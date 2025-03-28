@@ -24,7 +24,6 @@ from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import (
-    ANCESTOR_NODE_TYPES,
     EMPTY_SCOPE_DATA,
     NODE_CLASS_BY_TYPE,
     NODE_TYPES,
@@ -241,12 +240,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
         """
 
-        query = query.clone()
-
         # query ancestors up to root
-        for ancestor_type in ANCESTOR_NODE_TYPES[query._node_type]:
-            if ancestor_type not in query._ancestor_types:
-                query._ancestor_types.append(ancestor_type)
+        query = query.include_ancestors()
 
         # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
         # TODO :Performance :Security: also pre-filter read options for owner?

@@ -1,6 +1,5 @@
-import abc
 import asyncio
-from typing import TYPE_CHECKING, Any, Sequence, cast, final, override
+from typing import TYPE_CHECKING, Any, Mapping, Sequence, cast, final, override
 
 import structlog
 from opentelemetry import trace
@@ -8,19 +7,21 @@ from opentelemetry import trace
 from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
+    Client,
+    ClientType,
     Computer,
     NodeMode,
     NodeType,
     Resource,
     ResourceStatus,
     Scaler,
-    ScalerType,
     Session,
     bittuple,
     isolated_graph,
 )
+from bench.system.core import ACCESS_TOKEN_LENGTH
 from bench.system.host import Commit
-from bench.utils.func import group_by
+from bench.utils.func import generate_access_token
 
 from .provisioner import Provisioner
 
@@ -33,56 +34,50 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC):
+class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
     """
     A Provisioner that scales a dynamic Resource for all the Scalers of its type.
     NOTE :Incomplete: ScalerProvisioner should probably be closer to the kubernetes cluster?
     """
 
     provision_type = NodeType.SCALER
-    provision_subtype: ScalerType
-    scale_type: NodeType
+    watch_types = bittuple(NodeType.SCALER, NodeType.COMPUTER)
+    scale_types = (NodeType.COMPUTER,)
 
     def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
         self._reconcile_event: asyncio.Event = asyncio.Event()
-        resource_cls = NODE_CLASS_BY_TYPE[self.scale_type]
-        assert issubclass(resource_cls, Resource), f"bad scaler type {self!r}"
-        self._resource_cls: type[Resource] = resource_cls
-        self._slug = f"{self.provision_subtype.bench_name.lower()}_scaler"
 
     @property
     def slug(self) -> str:
         return self._slug
 
-    async def _get_scaled_resources(self) -> Sequence[tuple[Scaler, Sequence[WT]]]:
+    async def _get_scaled_resources(self) -> Mapping[Scaler, list[WT]]:
         """Gets all the scaled Resources for this Provisioner."""
-        scalers = tuple(
-            s
-            for s in self.main_package.scalers
-            if s.mode <= NodeMode.TEMPLATE and s.type == self.provision_subtype
-        )
-        if self.scale_type in self.bench._graph.node_types:  # :NodeOverload
-            # get from memory
-            resources = cast(
-                list[WT],
-                self.bench._graph.get_descendants(self.main_package, self.scale_type),
-            )
-        else:
-            # get from database
-            provision_cls = cast(type[WT], NODE_CLASS_BY_TYPE[self.scale_type])
-            resources_query = provision_cls.where(
-                provision_cls.get_property("bench").eq(self.bench)
-                & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
-            ).select_all()
-            if self.provision_subtype is not None:
-                resources_query = resources_query.where(
-                    provision_cls.get_property("type").eq(self.provision_subtype)
+        # get from database
+        resources_by_scaler: dict[Scaler, list[WT]] = {}
+        for scale_type in self.scale_types:
+            provision_cls = cast(type[WT], NODE_CLASS_BY_TYPE[scale_type])
+            resources_query = (
+                provision_cls.where(
+                    provision_cls.get_property("bench").eq(self.bench)
+                    & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
+                    & provision_cls.get_property("scaler").is_not_none()
+                    & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
                 )
+                .include_ancestors()
+                .select_all()
+            )
+            resources_query._include_memory = False
             resources = await resources_query.tolist()
-        resources = [r for r in resources if r.mode < NodeMode.TEMPLATE]
-        resources_by_scaler = group_by(resources, lambda r: r.scaler_id)
-        return [(s, resources_by_scaler.get(s.id, ())) for s in scalers]
+            for r in resources:
+                scaler = r.scaler
+                if scaler is None:
+                    continue
+                if scaler not in resources_by_scaler:
+                    resources_by_scaler[scaler] = []
+                resources_by_scaler[scaler].append(r)
+        return resources_by_scaler
 
     @final
     @tracer.start_as_current_span("scaler.reconcile")
@@ -98,7 +93,7 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
 
         # reconcile
         async with self.host.session(commit=True) as session:
-            for scaler, resource_group in resources_by_scaler:
+            for scaler, resource_group in resources_by_scaler.items():
                 if not scaler.is_extant:
                     # decommission
                     for resource in resource_group:
@@ -119,13 +114,22 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
         elif len(resource_group) < scaler.target_count:
             # provision missing resources
             for _ in range(scaler.target_count - len(resource_group)):
-                resource_kwargs: dict[str, Any] = {
-                    "parent": self.main_package,
-                    "scaler": scaler,
-                }
-                resource = cast(WT, self._resource_cls(**resource_kwargs))
+                resource_cls = cast(type[WT], NODE_CLASS_BY_TYPE[cast(NodeType, scaler.type)])
+                resource_kwargs: dict[str, Any] = {"parent": self.main_package, "scaler": scaler}
+                resource = cast(WT, resource_cls(**resource_kwargs))
                 resource.name = scaler.name_template
                 resource.mode = scaler.mode
+                if isinstance(resource, Computer):
+                    client = Client(
+                        parent=resource.bench,
+                        type=ClientType.COMPUTER,
+                        name=resource.name,
+                        access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
+                        computer=resource,
+                        seen_at=session._oracle.utc(),
+                    )
+                    session._create(client)
+                    resource.client = client
                 session._create(resource)
                 added.append(resource)
         if added or removed:
@@ -155,19 +159,15 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
     @tracer.start_as_current_span("scaler.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[Scaler | WT]) -> None:
         trace.get_current_span().set_attribute("plugin", self.name)
-        commit = commit.trim_to(
-            lambda r: r.metatype != self.provision_type or self._filter_resource(cast(Scaler, r))
-        )
-        if commit.is_empty:
-            return
-
-        # add scalers to reconcile
+        # reconcile
         for node in commit.edited:
-            if node.metatype == self.provision_type:
+            if node.mode >= NodeMode.TEMPLATE:
+                continue
+            elif node.metatype == self.provision_type:
                 self._reconcile_event.set()
-            elif node.metatype == self.scale_type:
+            elif node.metatype in self.scale_types:
                 scaler = getattr(node, "scaler", None)
-                if isinstance(scaler, Scaler) and scaler.type == self.provision_subtype:
+                if isinstance(scaler, Scaler):
                     self._reconcile_event.set()
 
     @override
@@ -185,9 +185,3 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT], abc.ABC)
         self._reconcile_event.set()
         async with self.host.session(commit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
-
-
-class ComputerScalerProvisioner(ScalerProvisioner[Computer]):
-    watch_types = bittuple(NodeType.SCALER, NodeType.COMPUTER)
-    provision_subtype = ScalerType.COMPUTER
-    scale_type = NodeType.COMPUTER

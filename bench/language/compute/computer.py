@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 from bench.language.core import (
     CPU_CONSTRAINT,
@@ -8,6 +9,7 @@ from bench.language.core import (
     EnumType,
     IsSubject,
     LocalNodeList,
+    NodeReference,
     NodeType,
     Resource,
     enum_,
@@ -53,6 +55,9 @@ class Computer(IsSubject, Resource[ComputerData]):
     client: Optional["Client"] = p_system(
         65, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
+    if TYPE_CHECKING:
+        client_ptr: Optional[NodeReference] = None
+        client_id: Optional[UUID] = None
 
     cpu: float = p_system(
         70, description="vCPU count", default=1.0, default_sql=None, constraint=CPU_CONSTRAINT
