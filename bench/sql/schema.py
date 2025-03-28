@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.27.0"
+VERSION = "2025.03.28.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -368,6 +368,7 @@ COMPUTER_TABLE = Table(
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("vnc_uri", PrimitiveType.STRING, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("cpu", PrimitiveType.FLOAT32),
         Column("ram", PrimitiveType.FLOAT32),

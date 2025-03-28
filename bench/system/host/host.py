@@ -53,6 +53,7 @@ from bench.language import (
     patch_graph,
 )
 from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_BENCH_ID, QueryType
+from bench.language.core.object import EMPTY_SCOPE_DATA
 from bench.pb2 import MessageData
 from bench.proto import (
     DownloadFilesRequest,
@@ -402,7 +403,7 @@ class HostService(GraphServiceBase, HostBase):
             name="pg-global",
             store=self.global_store,
             bench=self._bench,
-            scope=self._scope,
+            scope=EMPTY_SCOPE_DATA,
             node_types=bittuple(NodeType.BENCH, NodeType.CLIENT, NodeType.USER),
             context=database_plugin.context,
         )

@@ -10,12 +10,22 @@ import structlog
 from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
-from bench.language import CLOUD, Bench, Client, Computer, NodeType, ResourceStatus
-from bench.language.compute.computer import ComputerType
-from bench.language.core import bittuple
+from bench.language import (
+    CLOUD,
+    Bench,
+    Client,
+    ClientType,
+    Computer,
+    ComputerType,
+    NodeType,
+    ResourceStatus,
+    bittuple,
+)
 from bench.proto import dockerify_url, minikubeify_url
+from bench.system.core.access import ACCESS_TOKEN_LENGTH
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
+from bench.utils.func import generate_access_token
 from bench.utils.telemetry import OTLP_ENDPOINT
 from bench.utils.utils import get_from_env
 
@@ -55,14 +65,13 @@ COMPUTER_VNC_PORT = get_from_env(
 
 def _get_computer_env_vars(
     computer: Computer,
+    client: Client,
     *,
     is_trusted: bool,
     is_in_docker: bool = False,
     is_in_minikube: bool = False,
 ) -> dict[str, str]:
     """Gets the environment variables for a Computer."""
-    client = computer.client
-    assert client, f"{computer!r} has no client"
     supervisor_url = get_from_env("SUPERVISOR_URL", description="Supervisor URL")
     if is_in_docker:
         supervisor_url = dockerify_url(supervisor_url)
@@ -122,7 +131,32 @@ def _get_computer_image(computer: Computer) -> str:
         raise NotImplementedError(f"cannot provision {computer!r}")
 
 
-class DockerComputerProvisioner(Provisioner[Computer, Computer]):
+class ComputerProvisioner(Provisioner[Computer, Computer]):
+    """Provision Computers."""
+
+    watch_types = bittuple(NodeType.COMPUTER)
+    provision_type = NodeType.COMPUTER
+
+    async def _get_or_create_client(self, resource: Computer) -> Client:
+        """Gets or creates a Client for the given Computer."""
+        if resource.client_ptr is None:
+            async with self.host.session(commit=True) as session:
+                client = Client(
+                    parent=resource.bench,
+                    type=ClientType.COMPUTER,
+                    name=resource.name,
+                    access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
+                    computer=resource,
+                    seen_at=session._oracle.utc(),
+                )
+                session._create(client)
+                resource.client = client
+        else:
+            client = await Client.get(resource.client_ptr)
+        return client
+
+
+class DockerComputerProvisioner(ComputerProvisioner):
     """Provision Computers as containers in a Docker installation."""
 
     # NOTE :DevX: use async docker api (instead of blocking sync)?
@@ -141,7 +175,6 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
             all=True
         )
         containers_by_id = {cast(str, c.id): c for c in containers}
-
         async with self.host.session(commit=True):
             for computer in computers:
                 if computer.external_id is None:
@@ -152,12 +185,14 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
 
     @override
     async def _do_provision(self, resource: Computer):
-        assert resource.client_ptr is not None, f"{resource!r} has no client"
-        if resource.client is None:
-            _ = await Client.get(resource.client_ptr)
-        assigned_port = random.randint(60100, 65000)
+        client = await self._get_or_create_client(resource)
+        grpc_port = random.randint(60100, 65000)
+        vnc_port = random.randint(60100, 65000)
         env_vars = _get_computer_env_vars(
-            resource, is_trusted=resource.type == ComputerType.RUNTIME, is_in_docker=True
+            computer=resource,
+            client=client,
+            is_trusted=resource.type == ComputerType.RUNTIME,
+            is_in_docker=True,
         )
         computer_id_prefix = str(resource.id).split("-")[0]
         external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-computer-{computer_id_prefix}"
@@ -168,13 +203,17 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
             detach=True,
             name=external_name,
             volumes=[f"{_get_bench_dir()}:/bench:ro"],  # mount our local code directly
-            ports={f"{assigned_port}/tcp": ("0.0.0.0", assigned_port)},
+            ports={
+                "5432/tcp": ("0.0.0.0", grpc_port),
+                "6080/tcp": ("0.0.0.0", vnc_port),
+            },
         )
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
             resource.status = ResourceStatus.UP
-            resource.connection_uri = f"http://localhost:{assigned_port}"
+            resource.connection_uri = f"http://localhost:{grpc_port}"
+            resource.vnc_uri = f"ws://localhost:{vnc_port}"
 
     @override
     async def _do_update(self, resource: Computer):
@@ -191,7 +230,7 @@ class DockerComputerProvisioner(Provisioner[Computer, Computer]):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
+class KubernetesComputerProvisioner(ComputerProvisioner):
     """Provision Computers as Pods on Kubernetes."""
 
     watch_types = bittuple(NodeType.COMPUTER)
@@ -248,7 +287,7 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
         except Exception:
             return None
 
-    def _make_pod_from_computer(self, computer: Computer):
+    def _make_pod_from_computer(self, computer: Computer, client: Client):
         """Creates a Kubernetes Pod for the Computer."""
 
         # context
@@ -263,7 +302,8 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
         }
         # TODO :Security!: kubernetes-deployed runtime computers should not be trusted
         env_vars = _get_computer_env_vars(
-            computer,
+            computer=computer,
+            client=client,
             is_trusted=computer.type == ComputerType.RUNTIME,
             is_in_minikube=IS_DEV or IS_TEST,
         )
@@ -300,7 +340,6 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
             ]
         else:
             raise NotImplementedError(f"cannot provision {computer!r}")
-
         main_container = k8.V1Container(
             name="main",
             image=image,
@@ -340,16 +379,19 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
             computer.version = version
 
         # status
-        pod_phase = cast(str, pod.status.phase) if pod.status else None  # type: ignore
+        pod_phase = pod.status.phase if pod.status else None
         status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
         if computer.status != status:
             computer.status = status
 
         # connection uri (using pod ip, only works inside cluster for now)
-        if pod.status and pod.status.pod_ip:  # type: ignore
-            connection_uri = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"  # type: ignore
+        if pod.status and pod.status.pod_ip:
+            connection_uri = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"
             if computer.connection_uri != connection_uri:
                 computer.connection_uri = connection_uri
+            vnc_uri = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
+            if computer.vnc_uri != vnc_uri:
+                computer.vnc_uri = vnc_uri
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
         """Watches for changes to these Pods, update corresponding Computers."""
@@ -411,7 +453,8 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
 
     @override
     async def _do_provision(self, resource: Computer):
-        pod = self._make_pod_from_computer(resource)
+        client = await self._get_or_create_client(resource)
+        pod = self._make_pod_from_computer(resource, client)
         await self.kubernetes_api.create_pod(pod)
         async with self.host.session(commit=True):
             resource.external_name = self._get_external_name(resource)
@@ -431,7 +474,8 @@ class KubernetesComputerProvisioner(Provisioner[Computer, Computer]):
             await self.kubernetes_api.delete_pod(resource.external_name)
         elif target_diff:
             assert resource.external_name is not None, f"{resource!r} has no external name"
-            pod = self._make_pod_from_computer(resource)
+            client = await self._get_or_create_client(resource)
+            pod = self._make_pod_from_computer(resource, client)
             if "version" in target_diff:
                 # replace full pod (to be recreated)
                 await self.kubernetes_api.delete_pod(resource.external_name)

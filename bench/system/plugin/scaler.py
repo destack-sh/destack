@@ -7,9 +7,6 @@ from opentelemetry import trace
 from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
-    Client,
-    ClientType,
-    Computer,
     NodeMode,
     NodeType,
     Resource,
@@ -19,9 +16,7 @@ from bench.language import (
     bittuple,
     isolated_graph,
 )
-from bench.system.core import ACCESS_TOKEN_LENGTH
 from bench.system.host import Commit
-from bench.utils.func import generate_access_token
 
 from .provisioner import Provisioner
 
@@ -119,17 +114,6 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
                 resource = cast(WT, resource_cls(**resource_kwargs))
                 resource.name = scaler.name_template
                 resource.mode = scaler.mode
-                if isinstance(resource, Computer):
-                    client = Client(
-                        parent=resource.bench,
-                        type=ClientType.COMPUTER,
-                        name=resource.name,
-                        access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                        computer=resource,
-                        seen_at=session._oracle.utc(),
-                    )
-                    session._create(client)
-                    resource.client = client
                 session._create(resource)
                 added.append(resource)
         if added or removed:
