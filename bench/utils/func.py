@@ -42,15 +42,8 @@ def reload_module(module: types.ModuleType):
         if mod.__name__ in visited:
             return
         visited.add(mod.__name__)
-        print("reload", mod.__name__)
 
-        # first reload children
-        for attr_name in dir(mod):
-            attr = getattr(mod, attr_name)
-            if isinstance(attr, type(sys)) and attr.__name__.startswith(mod.__name__):
-                _reload(attr)
-
-        # also check for submodules that might not be directly referenced
+        # reload submodules
         if hasattr(mod, "__path__"):
             for submodule_info in pkgutil.iter_modules(mod.__path__, prefix=f"{mod.__name__}."):
                 submodule_name = submodule_info.name
