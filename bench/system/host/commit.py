@@ -1,10 +1,8 @@
 from dataclasses import dataclass
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Callable,
     Collection,
-    Iterable,
     Sequence,
 )
 from uuid import UUID
@@ -44,6 +42,8 @@ class Commit[T: Node]:
     added: tuple[T, ...]
     updated: tuple[T, ...]
     removed: tuple[T, ...]
+    edited: tuple[T, ...]
+    edited_by_id: dict[UUID, T]
     epoch: int
 
     def __str__(self):
@@ -51,10 +51,6 @@ class Commit[T: Node]:
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s}>"
-
-    @property
-    def edited(self) -> Iterable[T]:
-        return chain(self.added, self.updated, self.removed)
 
     @property
     def is_empty(self) -> bool:
@@ -78,15 +74,22 @@ class Commit[T: Node]:
     ) -> "Commit[T]":
         """Trims the diff to only include nodes matching the filter."""
         if callable(filter):
+            added = tuple(node for node in self.added if filter(node))
+            updated = tuple(node for node in self.updated if filter(node))
+            removed = tuple(node for node in self.removed if filter(node))
+            edited = tuple(node for node in self.edited if filter(node))
+            edited_by_id = {id: node for id, node in self.edited_by_id.items() if filter(node)}
             return Commit(
                 edits=[e for e in self.edits if any(filter(n) for n in self.edited)],
                 cascaded_edits=[
                     e for e in self.cascaded_edits if any(filter(n) for n in self.edited)
                 ],
                 edited_types=self.edited_types,  # can't trim bits since we don't know types
-                added=tuple(node for node in self.added if filter(node)),
-                updated=tuple(node for node in self.updated if filter(node)),
-                removed=tuple(node for node in self.removed if filter(node)),
+                added=added,
+                updated=updated,
+                removed=removed,
+                edited=edited,
+                edited_by_id=edited_by_id,
                 epoch=self.epoch,
             )
         else:
@@ -94,15 +97,24 @@ class Commit[T: Node]:
                 filter = bittuple(filter)
             elif isinstance(filter, tuple):
                 filter = bittuple(*filter)
+            added = tuple(node for node in self.added if node.metatype in filter)
+            updated = tuple(node for node in self.updated if node.metatype in filter)
+            removed = tuple(node for node in self.removed if node.metatype in filter)
+            edited = tuple(node for node in self.edited if node.metatype in filter)
+            edited_by_id = {
+                id: node for id, node in self.edited_by_id.items() if node.metatype in filter
+            }
             return Commit(
                 edits=[e for e in self.edits if NodeType(e.node_ptr.node_type) in filter],
                 cascaded_edits=[
                     e for e in self.cascaded_edits if NodeType(e.node_ptr.node_type) in filter
                 ],
                 edited_types=self.edited_types & filter,
-                added=tuple(node for node in self.added if node.metatype in filter),
-                updated=tuple(node for node in self.updated if node.metatype in filter),
-                removed=tuple(node for node in self.removed if node.metatype in filter),
+                added=added,
+                updated=updated,
+                removed=removed,
+                edited=edited,
+                edited_by_id=edited_by_id,
                 epoch=self.epoch,
             )
 
@@ -188,6 +200,10 @@ def unpack_commit(
         # map
         _add_edit(edit, node)
 
+    edited = {}
+    edited.update(added)
+    edited.update(updated)
+    edited.update(removed)
     commit = Commit(
         edits=edits,
         cascaded_edits=cascaded_edits,
@@ -195,6 +211,8 @@ def unpack_commit(
         added=tuple(added.values()),
         updated=tuple(updated.values()),
         removed=tuple(removed.values()),
+        edited=tuple(edited.values()),
+        edited_by_id=edited,
         epoch=epoch,
     )
     return commit

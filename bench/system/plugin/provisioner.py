@@ -112,6 +112,8 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         """Provision the Resource."""
         try:
             async with self._lock:
+                if resource.status.is_extant:
+                    return  # already provisioned (while waiting)
                 with tracer.start_as_current_span(
                     f"{self.slug}.provision", attributes={"resource": str(resource)}
                 ):
@@ -141,6 +143,8 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         """Update the Resource properties."""
         try:
             async with self._lock:
+                if not resource.status.is_extant:
+                    return  # no longer around (while waiting)
                 with tracer.start_as_current_span(
                     f"{self.slug}.update", attributes={"resource": str(resource)}
                 ):
@@ -159,14 +163,15 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             )
             raise
 
-    async def _do_update(self, resource: PT):
-        pass
+    async def _do_update(self, resource: PT): ...
 
     @final
     async def decommission(self, resource: PT):
         """Decommission the Resource."""
         try:
             async with self._lock:
+                if not resource.status.is_extant:
+                    return  # was already decommissioned (while waiting)
                 with tracer.start_as_current_span(
                     f"{self.slug}.decommission", attributes={"resource": str(resource)}
                 ):
