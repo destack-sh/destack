@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
-import { INLINE_FILE_TYPES, uploadFile } from "@/language/resource/file";
+import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
@@ -861,7 +861,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                   :model-value="toNodeRef(file)"
                   :size="{
                     height:
-                      size?.height != null && INLINE_FILE_TYPES.includes(file.type)
+                      size?.height != null && INLINABLE_FILE_TYPES.includes(file.type)
                         ? Math.min(100, size.height / 3)
                         : undefined,
                   }"
