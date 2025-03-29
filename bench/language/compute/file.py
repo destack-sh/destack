@@ -42,6 +42,7 @@ from bench.language.core import (
     node_,
     object_,
     p_internal,
+    p_node_parent,
     p_regular,
     p_runtime,
     p_system,
@@ -60,7 +61,15 @@ from bench.utils.utils import get_from_env
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import File, Package, Session
+    from bench.language import (
+        Channel,
+        Database,
+        File,
+        Package,
+        Page,
+        Session,
+        Thread,
+    )
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -788,10 +797,21 @@ class File(Resource[FileData], FileBase):
     A File stored somewhere (like in a Drive, or externally).
     """
 
+    # meta
+    parent: Union["Package", "Page", "Database", "Channel", "Thread", None] = p_node_parent(
+        4,
+        NodeType.PACKAGE,
+        NodeType.PAGE,
+        NodeType.DATABASE,
+        NodeType.CHANNEL,
+        NodeType.THREAD,
+        ckless=True,
+    )
+
     # content/info
     # ...FileInfoBase[50-79]
 
-    # meta
+    # content
     retention: FileRetentionMode = p_system(
         80, default=FileRetentionMode.AUTOMATIC, default_sql=None
     )
@@ -1004,7 +1024,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    package: "Package | None" = None,
+    parent: Union["Package", "Page", "Database", "Channel", "Thread", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -1017,12 +1037,17 @@ async def upload_file(
     # bench
     if session is None:
         session = active_session()
-    if package is None:
+    if parent is None:
         bench = session.bench
-        package = bench.main_package if bench is not None else None
-        if package is None:
-            raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
-    file.parent = package
+        if session._runtime is not None and (runner := session._runtime.active_runner) is not None:
+            parent = runner.thread.thread
+        else:
+            package = bench.main_package if bench is not None else None
+            if package is None:
+                raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
+            parent = package
+
+    file.parent = parent
 
     # upload file, then create in session
     await upload_file_batch(files=[file], file_contents=[content], session=session)

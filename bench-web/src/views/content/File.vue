@@ -10,13 +10,16 @@ import {
   type FileUpload,
 } from "@/language/resource/file";
 import {
+  AnyNodeData,
   ColorShade,
   ColorType,
+  DatabaseData,
   FileFormat,
   FileType,
   FileTypeOptionInfo,
   NodeReferenceData,
   NodeType,
+  PageData,
   RectangleData,
   ViewData,
 } from "@/proto/wire";
@@ -32,9 +35,6 @@ import { humanizeBytes } from "@/utils/string";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
-const FILE_POPOVER_WIDTH_MIN = 400;
-const FILE_POPOVER_WIDTH_MAX = 800;
-
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
@@ -43,6 +43,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
     isPopover?: boolean;
+    parent?: AnyNodeData;
   } & Partial<
     Pick<
       ViewData,
@@ -92,7 +93,7 @@ async function onFileSelected(files: File[]) {
     upload.value = uploadFile(() => benchConnection.tx, content, {
       bench: bench.value,
       pkg: pkg.value,
-      parent: pkg.value, // not sure where else? containing page?
+      parent: (props.parent as PageData | DatabaseData | undefined) ?? pkg.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
     });
     await upload.value.completion.wait();

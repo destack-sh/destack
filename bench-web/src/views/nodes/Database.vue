@@ -971,6 +971,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               is-minimal
               is-small
               :size="{ width: column.width, height: ROW_HEIGHT_MAX }"
+              :parent="database"
               @update:model-value="(value: any) => writeColumnValue(record, column, value)"
               @mousedown.stop
             />

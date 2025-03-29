@@ -1,4 +1,4 @@
-import { ComputedValueData, FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import { AnyNodeData, ComputedValueData, FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { CommandMapKit } from "@/ui/command";
 import { Casing, toCasing } from "@/utils/string";
@@ -10,6 +10,7 @@ export type ViewProps = {
   placeholder?: string;
   isPopover?: boolean;
   isRoot?: boolean;
+  parent?: AnyNodeData;
 } & Partial<Omit<ViewData, "metatype" | "ck">>;
 export type ViewComponent = {
   new (): ComponentInstance<any>;
