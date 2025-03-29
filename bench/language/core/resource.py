@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.pb2 import AnyNodeData
@@ -11,7 +11,6 @@ from .const import (
     EnumType,
     NodeType,
     Region,
-    bittuple,
     enum_,
 )
 from .node import (
@@ -51,11 +50,6 @@ class ResourceStatus(BuiltinEnum):
     def is_extant(self) -> bool:
         """Whether this resouce does/should exist."""
         return 10 <= self.value <= 20
-
-
-EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value <= 20))
-
-NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component_()
@@ -129,12 +123,10 @@ class Resource[NodeDataT: AnyNodeData](
 
     def provision(self) -> None:
         """Provision this Resource."""
-        assert not self.status.is_extant, f"{self!r} already exists"
         self.activated_at = self.active_session._oracle.utc()
 
     def decommission(self) -> None:
         """Decommission this Resource."""
-        assert self.status.is_extant, f"{self!r} does not exist"
         self.decommissioned_at = self.active_session._oracle.utc()
 
     async def wait_until_status(

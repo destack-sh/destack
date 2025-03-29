@@ -142,9 +142,9 @@ export function isUnloadedNodeType(nodeType: any): boolean {
 /** Whether the Node is 'active' (not a template/archived/...) */
 export function isNodeActive(node: AnyNodeData): boolean {
   if ("mode" in node) {
-    return node.mode < NodeMode.TEMPLATE;
+    return node.mode < NodeMode.TEMPLATE && node.deletedAt == null;
   } else {
-    return true;
+    return node.deletedAt == null;
   }
 }
 
