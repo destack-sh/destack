@@ -85,6 +85,7 @@ export async function extractFile(
   identity: NodeReferenceData,
   bench: BenchData,
   pkg: PackageData,
+  parent: PackageData | PageData | ChannelData | ThreadData,
 ): Promise<FileData> {
   const name = content.name;
 
@@ -110,7 +111,7 @@ export async function extractFile(
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
-    parentPtr: toNodeRef(pkg),
+    parentPtr: toNodeRef(parent),
     packagePtr: toNodeRef(pkg),
     benchPtr: toNodeRef(bench),
     region: bench.region,
@@ -203,7 +204,13 @@ async function doUploadFiles(
     try {
       upload.status.value = FileStatus.PREPARING;
       if (options?.validate) {
-        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.bench, upload.package);
+        upload.file.value = await extractFile(
+          upload.content,
+          upload.nodePtr,
+          upload.bench,
+          upload.package,
+          upload.parent,
+        );
         options.validate(upload, upload.file.value);
       }
     } catch (e) {

@@ -69,7 +69,7 @@ class Resource[NodeDataT: AnyNodeData](
     """
 
     parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE, ckless=True
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, ckless=True
     )
     # ... space for type/name/...
 
