@@ -3,14 +3,15 @@ import { log } from "@/utils/log";
 import RFB, { type NoVncEvents, type NoVncOptions } from "@novnc/novnc/lib/rfb";
 import { onBeforeUnmount, onMounted, ref, watch, type StyleValue } from "vue";
 
-const DEFAULT_RETRY_DURATION = 3000;
+const DEFAULT_RETRY_DURATION = 1000;
+const DEFAULT_RETRY_BACKOFF_FACTOR = 1.5;
+const MAX_RETRY_DURATION = 10000;
 
 const props = defineProps<{
   url: string;
   style?: StyleValue;
   rfbOptions?: NoVncOptions;
   autoConnect?: boolean;
-  retryDuration?: number;
   debug?: boolean;
   viewOnly?: boolean;
   focusOnClick?: boolean;
@@ -31,14 +32,18 @@ const emit = defineEmits<{
   capabilities: [e: { detail: { capabilities: RFB["capabilities"] } }];
 }>();
 
+// state
 const rfb = ref<RFB | null>(null);
 const eventListeners = ref<{
   -readonly [Event in keyof NoVncEvents]?: (e: any) => void;
 }>({});
-const screenRef = ref<HTMLDivElement | null>(null);
-const timeouts = ref<Array<any>>([]);
+const attempt = ref<number>(0);
+const retryTimeout = ref<any | null>(null);
 const isConnected = ref<boolean>(false);
 const isLoading = ref<boolean>(true);
+
+// view
+const screenRef = ref<HTMLDivElement | null>(null);
 
 /* Watch for URL changes and reconnect */
 watch(
@@ -65,6 +70,11 @@ function onConnect() {
   focus();
   isLoading.value = false;
   isConnected.value = true;
+  attempt.value = 0;
+  if (retryTimeout.value != null) {
+    clearTimeout(retryTimeout.value);
+    retryTimeout.value = null;
+  }
 }
 
 /* Handle disconnection event */
@@ -72,10 +82,14 @@ function onDisconnect() {
   emit("disconnect", rfb.value as RFB | null);
   if (isConnected.value) {
     log.debug("vnc.disconnect");
-    timeouts.value.push(setTimeout(connect, props.retryDuration ?? DEFAULT_RETRY_DURATION));
   }
   isLoading.value = true;
   isConnected.value = false;
+  attempt.value++;
+  retryTimeout.value = setTimeout(
+    connect,
+    Math.min(DEFAULT_RETRY_DURATION * DEFAULT_RETRY_BACKOFF_FACTOR ** attempt.value, MAX_RETRY_DURATION),
+  );
 }
 
 /* Handle credentials required event */
@@ -94,7 +108,10 @@ function disconnect() {
     return;
   }
   try {
-    timeouts.value.forEach(clearTimeout);
+    if (retryTimeout.value != null) {
+      clearTimeout(retryTimeout.value);
+      retryTimeout.value = null;
+    }
     (Object.keys(eventListeners.value) as (keyof NoVncEvents)[]).forEach((event) => {
       if (eventListeners.value[event]) {
         rfb.value!.removeEventListener(event, eventListeners.value[event]);
