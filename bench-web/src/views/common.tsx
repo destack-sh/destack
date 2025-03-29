@@ -9,6 +9,7 @@ export type ViewProps = {
   modelValue?: any;
   placeholder?: string;
   isPopover?: boolean;
+  isLightbox?: boolean;
   isRoot?: boolean;
   parent?: AnyNodeData;
 } & Partial<Omit<ViewData, "metatype" | "ck">>;
