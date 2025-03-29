@@ -2841,7 +2841,6 @@ message ComputerData {
   optional google.protobuf.Timestamp decommissioned_at = 55;
   optional google.protobuf.Timestamp active_at = 56;
   string version = 60;
-  string target_version = 61;
   optional string external_name = 62;
   optional string external_id = 63;
   optional string connection_uri = 64;

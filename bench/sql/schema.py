@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.29.2"
+VERSION = "2025.03.29.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -368,7 +368,6 @@ COMPUTER_TABLE = Table(
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("version", PrimitiveType.STRING),
-        Column("target_version", PrimitiveType.STRING),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
