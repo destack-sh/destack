@@ -15,6 +15,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import Omnibar from "@/views/builtins/Omnibar.vue";
 import Split from "@/views/containers/Split.vue";
 import DragOverlay from "@/views/overlays/DragOverlay.vue";
+import LightboxOverlay from "@/views/overlays/LightboxOverlay.vue";
 import PopoverOverlay from "@/views/overlays/PopoverOverlay.vue";
 import RunOverlay from "@/views/overlays/RunOverlay.vue";
 import ToastOverlay from "@/views/overlays/ToastOverlay.vue";
@@ -113,8 +114,9 @@ watch(
     <DragOverlay />
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />
-    <TooltipOverlay />
+    <LightboxOverlay :box="mainBox" />
     <PopoverOverlay />
+    <TooltipOverlay />
   </div>
 </template>
 <style>

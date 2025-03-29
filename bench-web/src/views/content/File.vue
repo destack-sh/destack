@@ -22,11 +22,13 @@ import {
   PageData,
   RectangleData,
   ViewData,
+  ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, benchConnection, canvas, pkg } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
+import { setLightbox } from "@/ui/popover";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
@@ -43,6 +45,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
     isPopover?: boolean;
+    isLightbox?: boolean;
     parent?: AnyNodeData;
   } & Partial<
     Pick<
@@ -110,7 +113,15 @@ async function onFileSelected(files: File[]) {
 
 function openFile() {
   if (download.value?.getUrl.value == null) return;
-  window.open(download.value.getUrl.value, "_blank");
+  if (!props.isLightbox && INLINABLE_FILE_TYPES.includes(download.value.file.value?.type!)) {
+    setLightbox({
+      node: download.value.file.value!,
+      component: ViewType.FILE,
+      props: { ...props, size: undefined },
+    });
+  } else {
+    window.open(download.value.getUrl.value, "_blank");
+  }
 }
 
 // NOTE :UX: should constrain drop mime types to file types
@@ -247,7 +258,7 @@ defineExpose<ViewExpose>({
     <div
       v-else
       ref="containerRef"
-      class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
+      class="group relative flex h-full w-full cursor-pointer flex-col justify-center rounded border-gray-200"
       :class="[
         !isMinimal && !INLINABLE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
@@ -255,16 +266,18 @@ defineExpose<ViewExpose>({
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
       ]"
       data-suppress-drag="select"
+      :href="download?.getUrl.value ?? undefined"
+      target="_blank"
+      role="link"
+      @click.stop="openFile()"
     >
-      <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
-      <!-- Image File -->
       <!-- Image File -->
       <img
         v-if="optimisticValue.type == FileType.IMAGE && download?.getUrl.value != null"
         :key="download.getUrl.value"
         :src="download.getUrl.value"
         :alt="optimisticValue?.name ?? '???'"
-        class="h-full w-full cursor-pointer rounded object-contain object-center"
+        class="h-full w-full rounded object-contain object-center"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -297,6 +310,7 @@ defineExpose<ViewExpose>({
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
           aspectRatio: optimisticValue?.aspectRatio ?? undefined,
         }"
+        @click.stop=""
       />
       <!-- Generic File -->
       <div
@@ -315,10 +329,6 @@ defineExpose<ViewExpose>({
             ? (download?.file.value?.aspectRatio ?? undefined)
             : undefined,
         }"
-        :href="download?.getUrl.value ?? undefined"
-        target="_blank"
-        role="link"
-        @click.stop="openFile()"
       >
         <!-- Icon -->
         <div
@@ -358,6 +368,7 @@ defineExpose<ViewExpose>({
       </div>
       <!-- Overlay -->
       <div
+        v-if="!isLightbox"
         class="absolute top-0 w-full"
         :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors duration-150' : ''"
       >
@@ -386,11 +397,11 @@ defineExpose<ViewExpose>({
           </span>
           <!-- Focus -->
           <button
-            v-if="isInput && !isDisabled"
+            v-if="!isDisabled"
             class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="openFile()"
           >
-            <i class="fas fa-magnifying-glass-plus" />
+            <i class="fas fa-expand" />
           </button>
           <!-- Replace -->
           <button

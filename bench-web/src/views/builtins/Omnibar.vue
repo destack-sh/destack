@@ -1,12 +1,12 @@
 <script lang="tsx" setup>
 import { INLINE_NODE_TYPES } from "@/language/core/const";
-import { NodeMode, NodeType, ObjectType, Orientation } from "@/proto/wire";
-import { isNode } from "@/proto/wiring";
+import { ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
-import { canvas, hasLocalPkg, benchGraph } from "@/system/space";
+import { benchGraph, canvas, hasLocalPkg } from "@/system/space";
 import { OMNIBAR_MODES, addCommand, fireCommand, type CommandBuiltinId, type OmnibarMode } from "@/ui/command";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
+import { lightbox } from "@/ui/popover";
 import {
   COMMAND_INDEX,
   graphIndex,
@@ -182,7 +182,7 @@ for (const inMode of OMNIBAR_MODES) {
     icon: inMode == "commands" ? "fas fa-command" : "fas fa-magnifying-glass",
     text: TEXT_BY_MODE[inMode],
     command: () => open(inMode),
-    isEnabled: computed(() => props.box.width >= PANEL_WIDTH),
+    isEnabled: computed(() => props.box.width >= PANEL_WIDTH && lightbox.value == null),
   });
 }
 

@@ -625,3 +625,23 @@ export function pushDefaultMenu(
 export function pushDefaultContextMenu(e: MouseEvent) {
   pushDefaultMenu("context", undefined, e);
 }
+
+//
+// Lightbox
+//
+
+export type LightboxInfo = {
+  component: any | ViewType;
+  props: ViewComponent["props"];
+  node: AnyNodeData;
+};
+
+export const lightbox: Ref<LightboxInfo | undefined> = shallowRef(undefined);
+
+export function setLightbox(info: LightboxInfo) {
+  lightbox.value = info;
+}
+
+export function clearLightbox() {
+  lightbox.value = undefined;
+}
