@@ -37251,8 +37251,8 @@ export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOption
   [ResourceStatus.DECLARED]: { id: 1, name: 'DECLARED', color: ColorType.BLUE, icon: 'fas fa-circle-dot' },
   [ResourceStatus.UP]: { id: 10, name: 'UP', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
   [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', color: ColorType.BLUE, icon: 'fas fa-zzz' },
-  [ResourceStatus.DOWN]: { id: 15, name: 'DOWN', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
-  [ResourceStatus.DEGRADED]: { id: 16, name: 'DEGRADED', color: ColorType.YELLOW, icon: 'fas fa-circle-exclamation' },
+  [ResourceStatus.DOWN]: { id: 15, name: 'DOWN', color: ColorType.RED, icon: 'fas fa-skull' },
+  [ResourceStatus.DEGRADED]: { id: 16, name: 'DEGRADED', color: ColorType.YELLOW, icon: 'fas fa-triangle-exclamation' },
   [ResourceStatus.DECOMMISSIONED]: { id: 30, name: 'DECOMMISSIONED', color: ColorType.GRAY, icon: 'fas fa-circle-o' },
 }
 
@@ -37270,16 +37270,16 @@ export const ApplicationTypeOptionInfo: Partial<Record<ApplicationType, EnumOpti
 }
 
 export const FileTypeOptionInfo: Partial<Record<FileType, EnumOptionInfo>> = {
-  [FileType.TEXT]: { id: 1, name: 'TEXT', icon: 'fas fa-file-lines' },
-  [FileType.CODE]: { id: 2, name: 'CODE', icon: 'fas fa-file-code' },
-  [FileType.IMAGE]: { id: 3, name: 'IMAGE', icon: 'fas fa-image' },
-  [FileType.AUDIO]: { id: 4, name: 'AUDIO', icon: 'fas fa-volume' },
-  [FileType.VIDEO]: { id: 5, name: 'VIDEO', icon: 'fas fa-video' },
-  [FileType.DOCUMENT]: { id: 6, name: 'DOCUMENT', icon: 'fas fa-file-invoice' },
-  [FileType.DATA]: { id: 7, name: 'DATA', icon: 'fas fa-database' },
-  [FileType.ARCHIVE]: { id: 8, name: 'ARCHIVE', icon: 'fas fa-file-zipper' },
-  [FileType.EXECUTABLE]: { id: 9, name: 'EXECUTABLE', icon: 'fas fa-file-binary' },
-  [FileType.GENERIC]: { id: 99, name: 'GENERIC', icon: 'fas fa-file' },
+  [FileType.TEXT]: { id: 1, name: 'TEXT', color: ColorType.GRAY, icon: 'fas fa-file-lines' },
+  [FileType.CODE]: { id: 2, name: 'CODE', color: ColorType.GRAY, icon: 'fas fa-file-code' },
+  [FileType.IMAGE]: { id: 3, name: 'IMAGE', color: ColorType.BLUE, icon: 'fas fa-image' },
+  [FileType.AUDIO]: { id: 4, name: 'AUDIO', color: ColorType.BLUE, icon: 'fas fa-volume' },
+  [FileType.VIDEO]: { id: 5, name: 'VIDEO', color: ColorType.BLUE, icon: 'fas fa-video' },
+  [FileType.DOCUMENT]: { id: 6, name: 'DOCUMENT', color: ColorType.ROSE, icon: 'fas fa-file-invoice' },
+  [FileType.DATA]: { id: 7, name: 'DATA', color: ColorType.PURPLE, icon: 'fas fa-database' },
+  [FileType.ARCHIVE]: { id: 8, name: 'ARCHIVE', color: ColorType.PURPLE, icon: 'fas fa-file-zipper' },
+  [FileType.EXECUTABLE]: { id: 9, name: 'EXECUTABLE', color: ColorType.GRAY, icon: 'fas fa-file-binary' },
+  [FileType.GENERIC]: { id: 99, name: 'GENERIC', color: ColorType.GRAY, icon: 'fas fa-file' },
 }
 
 export const PrimitiveTypeOptionInfo: Partial<Record<PrimitiveType, EnumOptionInfo>> = {
@@ -37497,11 +37497,11 @@ export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
 
 export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {
   [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', color: ColorType.BLUE, icon: 'fas fa-clock' },
-  [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', color: ColorType.GREEN, icon: 'fas fa-lock' },
+  [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', color: ColorType.GREEN, icon: 'fas fa-lock-open' },
   [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-pause' },
   [ClaimStatus.CANCELLED]: { id: 30, name: 'CANCELLED', title: 'Cancelled', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
   [ClaimStatus.REJECTED]: { id: 31, name: 'REJECTED', title: 'Rejected', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
-  [ClaimStatus.RELEASED]: { id: 32, name: 'RELEASED', title: 'Released', color: ColorType.GRAY, icon: 'fas fa-circle-check' },
+  [ClaimStatus.RELEASED]: { id: 32, name: 'RELEASED', title: 'Released', color: ColorType.GRAY, icon: 'fas fa-circle-o' },
 }
 
 export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOptionInfo>> = {

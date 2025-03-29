@@ -40,7 +40,7 @@ export type SplitLayout = {
  * Sizes are distributed alongside the given orientation (the relative views subdividing the space not taken up by absolute views).
  * All views just get the container size for the other dimension.
  */
-export function splitView(
+export function useSplit(
   viewsRef: Ref<ViewData[]>,
   containerRef: Ref<{ width: number; height: number }>,
   layoutRef: Ref<SplitLayout>,
@@ -194,7 +194,7 @@ export function useSplitView(
   layoutRef: Ref<SplitLayout>,
   txFactory: () => Transaction,
 ) {
-  const { sizedViews, updateSeparator } = splitView(viewsRef, sizeRef, layoutRef);
+  const { sizedViews, updateSeparator } = useSplit(viewsRef, sizeRef, layoutRef);
   const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
   const draggingIdx = ref<number | null>(null);
 

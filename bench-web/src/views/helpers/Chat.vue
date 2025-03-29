@@ -833,7 +833,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       </div>
       <!-- Box -->
       <div
-        class="peer relative rounded border border-gray-200 px-2 py-2"
+        class="peer relative rounded border border-gray-200 px-2 pb-2 pt-3"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <div class="flex flex-row">
@@ -850,6 +850,31 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           </div>
           <!-- Input -->
           <div class="flex-1">
+            <!-- Extras -->
+            <div v-if="draftFiles.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2.5 gap-y-1">
+              <!-- should also be a proper :FileGallery -->
+              <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
+                <File
+                  :id="'file-' + file.id"
+                  is-inline
+                  class="pointer-events-none"
+                  :model-value="toNodeRef(file)"
+                  :size="{
+                    height:
+                      size?.height != null && INLINE_FILE_TYPES.includes(file.type)
+                        ? Math.min(100, size.height / 3)
+                        : undefined,
+                  }"
+                />
+                <!-- Remove -->
+                <button
+                  class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 hover:bg-gray-600 px-1 text-xs text-white transition-colors duration-150"
+                  @click.stop="removeFiles([file])"
+                >
+                  <i class="fas fa-xmark" />
+                </button>
+              </div>
+            </div>
             <Scroll
               id="input-scroll"
               ref="inputScrollRef"
@@ -857,31 +882,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               size-is-dynamic
               :size="{ height: size?.height != null ? size.height / 2 : undefined }"
             >
-              <!-- Extras -->
-              <div v-if="draftFiles.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2 gap-y-1">
-                <!-- should also be a proper :FileGallery -->
-                <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
-                  <File
-                    :id="'file-' + file.id"
-                    is-inline
-                    class="pointer-events-none"
-                    :model-value="toNodeRef(file)"
-                    :size="{
-                      height:
-                        size?.height != null && INLINE_FILE_TYPES.includes(file.type)
-                          ? Math.min(100, size.height / 3)
-                          : undefined,
-                    }"
-                  />
-                  <!-- Remove -->
-                  <button
-                    class="absolute right-1 top-2 rounded-full border border-gray-200 bg-gray-100/80 px-1.5 py-0.5 text-gray-700 transition-colors duration-150 group-hover/file:bg-white/100 group-hover/file:text-gray-900"
-                    @click.stop="removeFiles([file])"
-                  >
-                    <i class="fas fa-xmark" />
-                  </button>
-                </div>
-              </div>
               <!-- Text -->
               <Text
                 id="input"

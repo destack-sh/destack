@@ -10,27 +10,26 @@ import {
   type FileUpload,
 } from "@/language/resource/file";
 import {
+  ColorShade,
+  ColorType,
   FileFormat,
   FileType,
   FileTypeOptionInfo,
   NodeReferenceData,
   NodeType,
-  ObjectType,
   RectangleData,
   ViewData,
-  ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, canvas, pkg, benchConnection } from "@/system/space";
+import { bench, benchConnection, canvas, pkg } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
+import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
-import { getElement } from "@/utils/element";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
-import { type ViewEmits, type ViewExpose, type ViewProps } from "@/views/common";
+import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const FILE_POPOVER_WIDTH_MIN = 400;
@@ -75,31 +74,6 @@ const facetName = computed(() => {
 //
 // Interaction
 //
-
-const HOVER_MENU: HoverMenuOptions = {
-  reference: "trigger",
-  isEnabled: () =>
-    optimisticValue.value != null &&
-    [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.value.type),
-  popover: (context: PopoverContext) => ({
-    kind: "view",
-    component: ViewType.FILE,
-    props: {
-      ...(props as ViewProps),
-      title: undefined,
-      size: {
-        metatype: ObjectType.RECTANGLE,
-        width: Math.max(
-          FILE_POPOVER_WIDTH_MIN,
-          Math.min(FILE_POPOVER_WIDTH_MAX, getElement(context.element)!.getBoundingClientRect().width),
-        ),
-      },
-      isInline: true,
-      isInput: false,
-      modelValue: optimisticValue.value,
-    },
-  }),
-};
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
@@ -169,6 +143,7 @@ defineExpose<ViewExpose>({
   <div v-bind="props" :class="[size?.height != null ? 'h-full' : '']">
     <!-- Actual file input (hidden) -->
     <input
+      v-if="isInput"
       ref="fileInputRef"
       type="file"
       class="hidden"
@@ -185,7 +160,6 @@ defineExpose<ViewExpose>({
     <div
       v-if="!isInline"
       ref="containerRef"
-      v-hovermenu="HOVER_MENU"
       role="button"
       class="group flex w-full items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-200"
       :class="[
@@ -274,9 +248,7 @@ defineExpose<ViewExpose>({
       ref="containerRef"
       class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
-        !isMinimal && !INLINE_FILE_TYPES.includes(optimisticValue?.type)
-          ? 'border bg-gray-100 px-3 py-1.5 text-base'
-          : '',
+        !isMinimal && !INLINE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
@@ -285,12 +257,12 @@ defineExpose<ViewExpose>({
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
       <!-- Image File -->
-      <div v-if="optimisticValue?.type == FileType.IMAGE && download?.getUrl.value != null">
+      <div v-if="optimisticValue.type == FileType.IMAGE && download?.getUrl.value != null">
         <img
           :key="download.getUrl.value"
           :src="download.getUrl.value"
           :alt="optimisticValue?.name ?? '???'"
-          class="h-full w-full rounded object-contain object-center"
+          class="h-full w-full cursor-pointer rounded object-contain object-center"
           :style="{
             maxWidth: size?.width != null ? `${size.width}px` : undefined,
             maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -301,7 +273,7 @@ defineExpose<ViewExpose>({
       <!-- Generic File -->
       <div
         v-else-if="optimisticValue != null"
-        class="flex h-full w-full items-center justify-center text-center"
+        class="flex h-full w-full items-center hover:cursor-pointer"
         :class="[
           loadFailed ? 'text-danger-600' : '',
           (upload != null && upload.isActive.value) || (download != null && download.isActive.value && !isMinimal)
@@ -315,26 +287,48 @@ defineExpose<ViewExpose>({
             ? (download?.file.value?.aspectRatio ?? undefined)
             : undefined,
         }"
+        :href="download?.getUrl.value ?? undefined"
+        target="_blank"
+        role="link"
+        @click.stop="openFile()"
       >
-        <span>
+        <!-- Icon -->
+        <div
+          class="rounded px-2 py-1"
+          :style="{
+            backgroundColor: getColorHex(
+              FileTypeOptionInfo[optimisticValue.type]?.color ?? ColorType.GRAY,
+              ColorShade.S400,
+            ),
+          }"
+        >
           <IconInline
             v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
-            class="w-5 text-center"
-            :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
+            class="w-5 text-center text-lg text-white"
           />
-          <a
-            class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-gray-700"
-            :class="download?.getUrl.value != null ? 'hover:underline' : ''"
-            :href="download?.getUrl.value ?? undefined"
-            target="_blank"
-          >
-            {{ optimisticValue?.name ?? "???" }}
-          </a>
-          <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
-            {{ humanizeBytes(Number(optimisticValue?.size)) }}
-          </span>
-        </span>
+        </div>
+        <!-- Name/format/info -->
+        <div class="ml-2 flex flex-col">
+          <div>
+            <span
+              class="font-medium decoration-gray-300 underline-offset-3"
+              :class="download?.getUrl.value != null ? 'group-hover:underline' : ''"
+            >
+              {{ optimisticValue?.name ?? "???" }}
+            </span>
+          </div>
+          <div>
+            <span class="text-gray-400">
+              {{ FileFormat[optimisticValue.format!].toUpperCase().replace(/_/g, " ") }}
+            </span>
+            <span class="text-gray-400"> · </span>
+            <span v-if="optimisticValue.size != null" class="text-gray-400">
+              {{ humanizeBytes(Number(optimisticValue?.size)) }}
+            </span>
+          </div>
+        </div>
       </div>
+
       <!-- Not ready -->
       <div
         v-else
