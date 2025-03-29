@@ -2784,6 +2784,7 @@ message ApplicationData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   ApplicationType type = 30;
@@ -2820,6 +2821,7 @@ message ComputerData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   ComputerType type = 30;
@@ -2865,6 +2867,7 @@ message FileData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   FileType type = 30;
@@ -2913,6 +2916,7 @@ message ScalerData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   ScalerType type = 30;
@@ -2937,7 +2941,6 @@ message ScalerData {
   int32 max_count = 63;
   int32 min_ready_count = 64;
   optional string name_template = 65;
-  bool is_active = 75;
 }
 
 message SecretData {
@@ -2954,6 +2957,7 @@ message SecretData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 31;
@@ -2989,6 +2993,7 @@ message StoreData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   StoreType type = 30;
@@ -3027,6 +3032,7 @@ message StreamData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   StreamType type = 30;
@@ -3469,6 +3475,7 @@ message ActionData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
@@ -3644,6 +3651,7 @@ message FlowData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
@@ -3672,6 +3680,7 @@ message KitData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 31;

@@ -100,6 +100,7 @@ if TYPE_CHECKING:
         Bench,
         Block,
         Choice,
+        Claim,
         Class,
         Client,
         ComputedSourceIn,
@@ -446,6 +447,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     deleted_at: Optional[datetime] = p_system(14, default=None, autoset=True)
     # IsTemplatable.template/template_at: 15/16
     # IsOwnable.owned_by: 17
+    # IsClaimable.claimed_by: 18
     # ...managed_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
@@ -730,7 +732,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # clone self
         copy_kwargs = self._clone_kwargs(reset=reset)
         copy_kwargs.update(kwargs)
-        if detach and not reset:  
+        if detach and not reset:
             # put the node in a new graph to isolate (because same ids)
             copy_kwargs["_graph"] = NodeGraph(
                 scope=self._graph.scope,
@@ -1101,6 +1103,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self.deleted_at is None
 
     @property
+    def is_active(self) -> bool:
+        return self.deleted_at is None
+
+    @property
     def is_deleted(self) -> bool:
         parent = self.parent
         return self.deleted_at is not None or (parent is not None and parent.is_deleted)
@@ -1411,6 +1417,10 @@ class IsModal(BuiltinObject):
 
     mode: NodeMode = p_internal(20, default=NodeMode.MAIN, default_sql=str(NodeMode.MAIN.value))
 
+    @property
+    def is_active(self) -> bool:
+        return cast(Node, self).deleted_at is None and self.mode < NodeMode.TEMPLATE
+
 
 @node_component_()
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
@@ -1560,7 +1570,12 @@ class IsJoinable(BuiltinObject):
 class IsClaimable(BuiltinObject):
     """A Node that can be claimed by a Subject."""
 
-    pass
+    claimed_by: Optional["Claim"] = p_regular(
+        18, require=False, array=False, references=NodeType.CLAIM, same_bench=True
+    )
+    if TYPE_CHECKING:
+        claimed_by_id: Optional[UUID] = None
+        claimed_by_ptr: Optional[NodeReference] = None
 
 
 @node_component_()
@@ -1762,6 +1777,11 @@ class NodeReference(Struct[NodeReferenceData]):
     ck: Optional[UUID] = p_internal(32, default=None)
     bench_id: Optional[UUID] = p_internal(33, default=None)
     base_id: Optional[UUID] = p_internal(34, default=None)
+
+    async def get(self) -> "Node":
+        """Gets the Node referenced by this reference."""
+        node_cls = NODE_CLASS_BY_TYPE[self.node_type]
+        return await node_cls.get(self)
 
     @staticmethod
     def _clone_ref[T: NodeReference | Any](
