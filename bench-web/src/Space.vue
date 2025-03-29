@@ -92,7 +92,7 @@ watch(
     <Split
       v-if="window"
       id="window"
-      class="absolute"
+      class=""
       :type="ViewType.WINDOW"
       :self="toNodeRef(window)"
       :focus="window.focus"
@@ -115,11 +115,6 @@ watch(
     <Omnibar ref="omnibarRef" :box="mainBox" />
     <TooltipOverlay />
     <PopoverOverlay />
-
-    <!-- Icon -->
-    <div ref="iconDomRef" class="pointer-events-none absolute opacity-0">
-      <IconInline v-if="inspectedNodeIcon" v-bind="inspectedNodeIcon" />
-    </div>
   </div>
 </template>
 <style>

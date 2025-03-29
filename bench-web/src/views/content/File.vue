@@ -4,7 +4,7 @@ import {
   FileStatus,
   getFileAcceptFromConstraint,
   getFileIconMaybe,
-  INLINE_FILE_TYPES,
+  INLINABLE_FILE_TYPES,
   uploadFile,
   useFileDownload,
   type FileUpload,
@@ -248,7 +248,7 @@ defineExpose<ViewExpose>({
       ref="containerRef"
       class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
-        !isMinimal && !INLINE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
+        !isMinimal && !INLINABLE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
@@ -283,7 +283,7 @@ defineExpose<ViewExpose>({
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
-          aspectRatio: INLINE_FILE_TYPES.includes(optimisticValue.type)
+          aspectRatio: INLINABLE_FILE_TYPES.includes(optimisticValue.type)
             ? (download?.file.value?.aspectRatio ?? undefined)
             : undefined,
         }"
@@ -366,7 +366,7 @@ defineExpose<ViewExpose>({
         </div>
         <!-- Meta/Controls -->
         <div
-          v-if="!isMinimal && INLINE_FILE_TYPES.includes(optimisticValue?.type)"
+          v-if="!isMinimal && INLINABLE_FILE_TYPES.includes(optimisticValue?.type)"
           class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
