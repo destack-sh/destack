@@ -90,7 +90,7 @@ def assign_builtin_ids(graph: NodeGraph, ignore: Collection[Node] = ()) -> None:
     graph._reindex()
 
 
-def patch_node(target: Node, reference: Node) -> None:
+def patch_node(target: Node, reference: Node, track: bool = True) -> None:
     """Patch the target node *in place* from the reference node."""
     for prop in target.__wired_properties__.values():
         if prop.id < 30 or prop.is_computed:
@@ -98,7 +98,7 @@ def patch_node(target: Node, reference: Node) -> None:
         target_value = getattr(target, prop.name)
         reference_value = getattr(reference, prop.name)
         if target_value != reference_value:
-            target._do_set(prop.name, reference_value, track=True)
+            target._do_set(prop.name, reference_value, track=track)
 
 
 def sync_node(

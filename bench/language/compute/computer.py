@@ -14,7 +14,6 @@ from bench.language.core import (
     Resource,
     enum_,
     node_,
-    p_internal,
     p_kernel,
     p_node_children,
     p_regular,
@@ -46,7 +45,6 @@ class Computer(IsSubject, Resource[ComputerData]):
     type: ComputerType = p_regular(30, default=ComputerType.RUNTIME)
 
     version: str = p_system(60, default=VERSION, default_sql=None)
-    target_version: str = p_internal(61, default=VERSION, default_sql=None)
     external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(

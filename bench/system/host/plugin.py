@@ -122,11 +122,23 @@ class HostPlugin[T: Node]:
         pass
 
 
+def _patch_node(target: Node, reference: Node, track: bool = True) -> None:
+    """Patch the target node *in place* from the reference node."""
+    for prop in target.__wired_properties__.values():
+        if prop.id < 30 or prop.is_computed:
+            continue  # ignore internal properties
+        target_value = getattr(target, prop.name)
+        reference_value = getattr(reference, prop.name)
+        if target_value != reference_value:
+            target._do_set(prop.name, reference_value, track=track)
+
+
 class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     """A Host plugin with async event handlers."""
 
     def __init__(self, host: "HostService", bench: "Bench"):
         super().__init__(host, bench)
+        self._processing_commit: Commit[T] | None = None
         self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 
     @property
@@ -137,17 +149,30 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     @override
     async def start(self) -> None:
         await super().start()
-        self.tasks.start_queue(self._commit_queue, self.on_commit_deferred, skip_errors=True)
+        self.tasks.run(self.process_commit_queue())
 
     def filter_commit(self, commit: Commit) -> bool:
         """Filter a commit before adding it to the queue."""
         return True
 
+    def _patch_commit(self, new_commit: Commit, old_commit: Commit) -> None:
+        """Patch the commit based on the old commit."""
+        for new_node in new_commit.edited:
+            old_node = old_commit.edited_by_id.get(new_node.id)
+            if old_node is not None:
+                _patch_node(old_node, new_node, track=False)
+
     @override
-    @final
     async def on_commit(self, session: Session, commit: Commit) -> None:
         if self.filter_commit(commit):
+            # queue commit
             self._commit_queue.put_nowait(commit)
+
+        # patch nodes we're currently committing
+        for old_commit in self._commit_queue._queue:  # type: ignore
+            self._patch_commit(commit, old_commit)
+        if self._processing_commit is not None:
+            self._patch_commit(commit, self._processing_commit)
 
     @final
     async def wait_idle(self, timeout: float) -> None:
@@ -161,9 +186,23 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
             ) from e
         self.tasks.check_no_errors()
 
+    async def process_commit_queue(self) -> None:
+        """Process the commit queue."""
+        while True:
+            commit = await self._commit_queue.get()
+            try:
+                self._processing_commit = commit
+                await self.on_commit_deferred(commit)
+            except Exception as e:
+                # suppress errors and keep going
+                logger.exception("deferred.commit.error", owner=self, commit=commit, exc_info=e)
+                self.host.on_error(e)
+            finally:
+                self._processing_commit = None
+                self._commit_queue.task_done()
+
     async def on_commit_deferred(self, commit: Commit) -> None:
         """
-        React to the committed changes (outside the request, later).
-        NOTE :Robustness: the nodes in each commit may change before this is called
+        React to the committed changes (outside the request, later, one at a time).
         """
         pass  # to be overridden

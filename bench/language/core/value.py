@@ -603,7 +603,7 @@ def make_node_from_partial(partial_node: "CustomObject", **kwargs) -> "Node":
     return node
 
 
-def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
+def patch_node_from_partial(node: "Node", partial_node: "CustomObject", track: bool = True):
     """Applies the set Properties/Fields from the partial Node to the Node."""
     # apply properties
     for prop in get_custom_object_properties(partial_node._type, partial_node._value):
@@ -617,7 +617,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
             continue  # ignore internal
         new_prop_value = partial_node._do_get(prop)
         if new_prop_value is not None:
-            node._do_set(prop.name, new_prop_value, track=True)
+            node._do_set(prop.name, new_prop_value, track=track)
 
     # apply value
     for value_runtime_prop in node.__value_runtime_properties__.values():
@@ -628,7 +628,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject"):
         for field in value._type._base_fields:
             new_field_value = partial_node._do_get(field)
             if new_field_value is not None:
-                value._do_set(field, new_field_value, track=True, validate=False)
+                value._do_set(field, new_field_value, track=track, validate=False)
 
 
 def get_partial_object_type(

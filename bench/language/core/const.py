@@ -568,6 +568,7 @@ class NodeType(BuiltinEnum):
     # CACHE?
     COMPUTER = 2100, None, None, "fas fa-computer-classic"
     APPLICATION = 2110, None, None, "fas fa-globe"
+    # NETWORK, ...
 
     # data
     FILE = 2200, None, None, "fas fa-file"
