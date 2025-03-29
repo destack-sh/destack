@@ -1781,7 +1781,9 @@ class NodeReference(Struct[NodeReferenceData]):
     async def get(self) -> "Node":
         """Gets the Node referenced by this reference."""
         node_cls = NODE_CLASS_BY_TYPE[self.node_type]
-        return await node_cls.get(self)
+        query = node_cls._query()
+        query._include_memory = False
+        return await query.get(self)
 
     @staticmethod
     def _clone_ref[T: NodeReference | Any](
