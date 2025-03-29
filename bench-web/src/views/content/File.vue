@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
+import { INLINE_NODE_TYPES, toCamelName } from "@/language/core/const";
 import {
   FileStatus,
   getFileAcceptFromConstraint,
@@ -220,7 +220,7 @@ defineExpose<ViewExpose>({
       </div>
     </div>
 
-    <!-- Inline drop area -->
+    <!-- Inline drop area (no value) -->
     <div
       v-else-if="optimisticValue == null"
       ref="containerRef"
@@ -258,19 +258,46 @@ defineExpose<ViewExpose>({
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
       <!-- Image File -->
-      <div v-if="optimisticValue.type == FileType.IMAGE && download?.getUrl.value != null">
-        <img
-          :key="download.getUrl.value"
-          :src="download.getUrl.value"
-          :alt="optimisticValue?.name ?? '???'"
-          class="h-full w-full cursor-pointer rounded object-contain object-center"
-          :style="{
-            maxWidth: size?.width != null ? `${size.width}px` : undefined,
-            maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
-            aspectRatio: optimisticValue?.aspectRatio ?? undefined,
-          }"
-        />
-      </div>
+      <!-- Image File -->
+      <img
+        v-if="optimisticValue.type == FileType.IMAGE && download?.getUrl.value != null"
+        :key="download.getUrl.value"
+        :src="download.getUrl.value"
+        :alt="optimisticValue?.name ?? '???'"
+        class="h-full w-full cursor-pointer rounded object-contain object-center"
+        :style="{
+          maxWidth: size?.width != null ? `${size.width}px` : undefined,
+          maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
+          aspectRatio: optimisticValue?.aspectRatio ?? undefined,
+        }"
+      />
+      <!-- Audio File -->
+      <audio
+        v-else-if="optimisticValue.type == FileType.AUDIO && download?.getUrl.value != null"
+        :key="download.getUrl.value"
+        :src="download.getUrl.value"
+        :alt="optimisticValue?.name ?? '???'"
+        controls
+        class="rounded"
+        :style="{
+          maxWidth: size?.width != null ? `${size.width}px` : undefined,
+          maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
+        }"
+      />
+      <!-- Video File -->
+      <video
+        v-else-if="optimisticValue.type == FileType.VIDEO && download?.getUrl.value != null"
+        :key="download.getUrl.value"
+        :src="download.getUrl.value"
+        :alt="optimisticValue?.name ?? '???'"
+        controls
+        class="h-full w-full rounded object-contain object-center"
+        :style="{
+          maxWidth: size?.width != null ? `${size.width}px` : undefined,
+          maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
+          aspectRatio: optimisticValue?.aspectRatio ?? undefined,
+        }"
+      />
       <!-- Generic File -->
       <div
         v-else-if="optimisticValue != null"
@@ -312,7 +339,7 @@ defineExpose<ViewExpose>({
         <div class="ml-2 flex flex-col">
           <div>
             <span
-              class="font-medium decoration-gray-300 underline-offset-3"
+              class="font-medium decoration-gray-300 underline-offset-3 transition-colors duration-150"
               :class="download?.getUrl.value != null ? 'group-hover:underline' : ''"
             >
               {{ optimisticValue?.name ?? "???" }}
@@ -329,30 +356,6 @@ defineExpose<ViewExpose>({
           </div>
         </div>
       </div>
-
-      <!-- Not ready -->
-      <div
-        v-else
-        class="flex h-full w-full flex-row items-center justify-center"
-        :class="[loadFailed ? 'text-warning-600' : 'text-gray-400']"
-      >
-        <span>
-          <!-- Uploading -->
-          <i v-if="upload != null && upload.isActive.value" class="fas fa-spinner-third animate-spin text-gray-400" />
-          <i
-            v-else-if="download?.status.value == FileStatus.FAILED"
-            class="fas fa-circle-exclamation text-danger-600"
-          />
-          <template v-if="download?.file.value">
-            <span class="ml-1.5">{{ download.file.value.name ?? "???" }}</span>
-            <span v-if="download.file.value.size != null" class="ml-1.5 text-xs text-gray-400">
-              {{ humanizeBytes(Number(download.file.value.size)) }}
-            </span>
-          </template>
-          <span v-else class="ml-1.5">{{ facetName }}</span>
-        </span>
-      </div>
-
       <!-- Overlay -->
       <div
         class="absolute top-0 w-full"
@@ -375,7 +378,10 @@ defineExpose<ViewExpose>({
             {{ FileFormat[optimisticValue.format].toUpperCase().replace(/_/g, " ") }}
           </span>
           <!-- Size -->
-          <span v-if="optimisticValue != null && optimisticValue?.type == FileType.IMAGE" class="text-gray-400">
+          <span
+            v-if="optimisticValue != null && INLINABLE_FILE_TYPES.includes(optimisticValue.type)"
+            class="text-gray-400"
+          >
             ({{ humanizeBytes(Number(optimisticValue.size)) }})
           </span>
           <!-- Focus -->
