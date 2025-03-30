@@ -40,7 +40,7 @@ export const FILE_DOWNLOAD_REFRESH_LOOKAHEAD = FILE_DOWNLOAD_URL_EXPIRY / 10; //
 export const FILE_CACHE_EXPIRY = FILE_DOWNLOAD_URL_EXPIRY / 10; // after no longer used, remove from cache
 export const FILE_IMAGE_MAX_WIDTH = 3840;
 export const FILE_IMAGE_MAX_HEIGHT = 2160;
-export const FILE_IMAGE_COMPRESSION_QUALITY = 0.8;
+export const FILE_IMAGE_COMPRESSION_QUALITY = 0.85;
 export const FILE_IMAGE_COMPRESSION_MAX_SIZE = 10 * 1024 * 1024; // 1 MB
 
 export const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE];
@@ -714,7 +714,7 @@ async function compressFileImage(file: File): Promise<File> {
               lastModified: Date.now(),
             });
 
-            if (compressedFile.size > FILE_IMAGE_COMPRESSION_MAX_SIZE && quality > 0.2) {
+            if (compressedFile.size > FILE_IMAGE_COMPRESSION_MAX_SIZE && quality > 0.5) {
               // try again with lower quality
               doCompress(quality - 0.1);
             } else {
