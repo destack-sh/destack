@@ -65,7 +65,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text pm-compact relative rounded hover:cursor-text"
+    class="pm-text pm-compact relative rounded"
     :class="[
       !isMinimal
         ? 'border border-gray-200 px-2 py-0.5 focus-within:border-gray-400 not-focus-within:hover:border-gray-200'

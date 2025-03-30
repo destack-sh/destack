@@ -62,8 +62,9 @@ defineExpose({ commands, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text pm-compact pm-paddingless relative inline-block rounded hover:cursor-text"
+    class="pm-text pm-compact pm-paddingless relative inline-block rounded"
     :class="[
+      isInput ? 'hover:cursor-text' : '',
       truncate ? 'pm-truncate truncate' : '',
       props.forceLineType == 'inherit' ? 'pm-inherit' : isSmall ? 'pm-sm' : 'pm-base',
     ]"

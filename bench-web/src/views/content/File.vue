@@ -115,7 +115,7 @@ async function onFileSelected(files: File[]) {
 
 function openFile() {
   if (download.value?.getUrl.value == null) return;
-  if (!props.isLightbox && INLINABLE_FILE_TYPES.includes(download.value.file.value?.type!)) {
+  if (!props.isLightbox) {
     setLightbox({
       node: download.value.file.value!,
       component: ViewType.FILE,
@@ -260,18 +260,25 @@ defineExpose<ViewExpose>({
     <div
       v-else
       ref="containerRef"
-      class="group relative flex h-full w-full cursor-pointer flex-col justify-center rounded border-gray-200"
+      class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
       :class="[
         !isMinimal && !INLINABLE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
+        !isPopover && !isLightbox ? 'cursor-pointer' : '',
       ]"
       data-suppress-drag="select"
       :href="download?.getUrl.value ?? undefined"
       target="_blank"
       role="link"
-      @click.stop="openFile()"
+      @click.stop.prevent="
+        () => {
+          if (!isLightbox) {
+            openFile();
+          }
+        }
+      "
     >
       <!-- Image File -->
       <img
