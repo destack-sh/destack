@@ -32,7 +32,10 @@ import { makeIcon } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
+import { DateTime } from "luxon";
 import { computed, markRaw, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+
+export const FILE_URL_EXPIRY = 3600; // 1 hour :FileUrlExpiry
 
 export enum FileStatus {
   PENDING = 0,
@@ -42,7 +45,7 @@ export enum FileStatus {
   FAILED = 5,
 }
 
-/** A file upload. */
+/** A File upload. */
 export type FileUpload = {
   status: Ref<FileStatus>;
   isActive: Ref<boolean>;
@@ -55,9 +58,10 @@ export type FileUpload = {
   getUrl: Ref<string | null>;
   progress: Ref<number>; // [0.0, 100.0]
   completion: AsyncEvent;
+  compress: boolean;
 };
 
-/** A file download. */
+/** A File download. */
 export type FileDownload = {
   status: Ref<FileStatus>;
   isActive: Ref<boolean>;
@@ -67,6 +71,7 @@ export type FileDownload = {
   getUrl: Ref<string | null>;
   progress: Ref<number>; // [0.0, 100.0]
   includesContent: boolean;
+  downloadedAt: Ref<DateTime | null>;
   completion: AsyncEvent;
 };
 
@@ -79,6 +84,63 @@ const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({});
 export const fileUploads = computed(() => Object.values(uploadsByFileId.value));
 export const activeFileUploads = computed(() => fileUploads.value.filter((u) => u.isActive.value));
 
+/** Compress an image file to reduce its size */
+async function compressFileImage(file: File, maxWidth = 3840, maxHeight = 2160, quality = 0.9): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+
+      // calculate new dimensions while maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+      if (width > maxWidth) {
+        height = Math.round(height * (maxWidth / width));
+        width = maxWidth;
+      }
+      if (height > maxHeight) {
+        width = Math.round(width * (maxHeight / height));
+        height = maxHeight;
+      }
+
+      // create canvas and draw resized image
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error(`could not get canvas context: ${file.name}`));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // convert to blob/file
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error(`could not create blob from canvas: ${file.name}`));
+            return;
+          }
+          const compressedFile = new File([blob], file.name, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        },
+        "image/jpeg",
+        quality,
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error(`failed to load image for compression: ${file.name}`));
+    };
+  });
+}
+
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
 export async function extractFile(
   content: File,
@@ -86,12 +148,27 @@ export async function extractFile(
   bench: BenchData,
   pkg: PackageData,
   parent: PackageData | PageData | ChannelData | ThreadData,
+  compress: boolean,
 ): Promise<FileData> {
-  const name = content.name;
+  // compress
+  let processedContent = content;
+  if (compress && content.type.startsWith("image/")) {
+    try {
+      processedContent = await compressFileImage(content);
+      log.trace(
+        "file.compress",
+        content.name,
+        `${humanizeBytes(content.size)} -> ${humanizeBytes(processedContent.size)}`,
+      );
+    } catch (e) {
+      log.warn("file.compress.failed", content.name, e);
+    }
+  }
 
   // guess file type using extension & mime type
+  const name = processedContent.name;
   let format: FileFormat | undefined = undefined;
-  const mimeType: string | undefined = content.type == "" ? undefined : content.type;
+  const mimeType: string | undefined = processedContent.type == "" ? undefined : processedContent.type;
   if (name.includes(".")) {
     const extension = name.split(".").pop();
     if (extension && FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()]) {
@@ -122,17 +199,17 @@ export async function extractFile(
     mimeType,
     format,
     retention: FileRetentionMode.AUTOMATIC,
-    size: BigInt(content.size),
-    sha256: await sha256(content),
+    size: BigInt(processedContent.size),
+    sha256: await sha256(processedContent),
   });
 
-  // TODO :Incomplete: extract more file metadata :ExtractFileInfo
+  // NOTE :Incomplete: extract more file metadata :ExtractFileInfo
 
   // image metadata
   if (type == FileType.IMAGE) {
     // turn into data URL & load as Image (this feels a bit hacky)
     const imageLoaded = new AsyncEvent();
-    const contentAsDataUrl = window.URL.createObjectURL(content);
+    const contentAsDataUrl = window.URL.createObjectURL(processedContent);
     const image = new Image();
     image.src = contentAsDataUrl;
     image.onload = () => {
@@ -203,14 +280,15 @@ async function doUploadFiles(
   for (const upload of uploads) {
     try {
       upload.status.value = FileStatus.PREPARING;
+      upload.file.value = await extractFile(
+        upload.content,
+        upload.nodePtr,
+        upload.bench,
+        upload.package,
+        upload.parent,
+        upload.compress,
+      );
       if (options?.validate) {
-        upload.file.value = await extractFile(
-          upload.content,
-          upload.nodePtr,
-          upload.bench,
-          upload.package,
-          upload.parent,
-        );
         options.validate(upload, upload.file.value);
       }
     } catch (e) {
@@ -280,6 +358,7 @@ export function uploadFiles(
     parent: PackageData | PageData | ChannelData | ThreadData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
+    compress: boolean;
   },
 ): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
@@ -296,12 +375,13 @@ export function uploadFiles(
       getUrl: shallowRef(null),
       progress: shallowRef(0),
       completion: new AsyncEvent(),
+      compress: options.compress,
     };
     uploadsByFileId.value[fileIdentity.id!] = upload;
     triggerRef(uploadsByFileId);
 
     // immediately cache upload as download
-    const download = uploadAsDownload(upload);
+    const download = uploadToDownload(upload);
     cacheDownload(download);
 
     return markRaw(upload);
@@ -334,6 +414,7 @@ export function uploadFile(
     parent: PackageData | PageData | ChannelData | ThreadData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
+    compress: boolean;
   },
 ): FileUpload {
   const upload = uploadFiles(txFactory, [content], options)[0];
@@ -349,7 +430,7 @@ export const fileDownloads = computed(() => Object.values(downloadsByFileId.valu
 export const activeFileDownloads = computed(() => fileDownloads.value.filter((d) => d.isActive.value));
 
 /** Turn a completed upload into a download. */
-function uploadAsDownload(upload: FileUpload): FileDownload {
+function uploadToDownload(upload: FileUpload): FileDownload {
   const download: FileDownload = {
     status: computed(() => {
       if (upload.status.value == FileStatus.COMPLETED) return FileStatus.COMPLETED;
@@ -364,6 +445,7 @@ function uploadAsDownload(upload: FileUpload): FileDownload {
     progress: upload.progress,
     completion: upload.completion,
     includesContent: true,
+    downloadedAt: shallowRef(null),
   };
   return markRaw(download);
 }
@@ -403,6 +485,7 @@ export function downloadFiles(
       content: shallowRef(null),
       getUrl: shallowRef(null),
       progress: shallowRef(0),
+      downloadedAt: shallowRef(null),
       completion: new AsyncEvent(),
       includesContent:
         typeof options?.includeContent == "function"
@@ -470,6 +553,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     } else {
       download.status.value = FileStatus.COMPLETED;
     }
+    download.downloadedAt.value = DateTime.now();
     download.completion.resolve();
   }
 }

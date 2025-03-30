@@ -98,6 +98,7 @@ async function onFileSelected(files: File[]) {
       pkg: pkg.value,
       parent: (props.parent as PageData | DatabaseData | undefined) ?? pkg.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
+      compress: true,
     });
     await upload.value.completion.wait();
     if (upload.value.file.value == null) throw new Error("missing file in upload");
