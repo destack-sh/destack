@@ -82,8 +82,9 @@ const facetName = computed(() => {
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 const upload: Ref<FileUpload | null> = ref(null);
-const download = useFileDownload(toRef(props, "modelValue"));
+const { download, cachedGetUrl } = useFileDownload(toRef(props, "modelValue"));
 const optimisticValue = computed(() => upload.value?.file.value ?? download.value?.file.value);
+const cachedUrl = computed(() => cachedGetUrl.value ?? download.value?.getUrl.value);
 const loadFailed = computed(() => download.value?.status.value == FileStatus.FAILED);
 
 async function onFileSelected(files: File[]) {
@@ -192,8 +193,8 @@ defineExpose<ViewExpose>({
         />
         <a
           class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-gray-700"
-          :class="download?.getUrl.value != null ? 'hover:underline' : ''"
-          :href="download?.getUrl.value ?? undefined"
+          :class="cachedUrl != null ? 'hover:underline' : ''"
+          :href="cachedUrl ?? undefined"
           target="_blank"
         >
           {{ optimisticValue.name ?? "???" }}
@@ -274,9 +275,9 @@ defineExpose<ViewExpose>({
     >
       <!-- Image File -->
       <img
-        v-if="optimisticValue.type == FileType.IMAGE && download?.getUrl.value != null"
-        :key="download.getUrl.value"
-        :src="download.getUrl.value"
+        v-if="optimisticValue.type == FileType.IMAGE && cachedUrl != null"
+        :key="cachedUrl"
+        :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         class="rounded object-contain object-center"
         :style="{
@@ -287,9 +288,9 @@ defineExpose<ViewExpose>({
       />
       <!-- Audio File -->
       <audio
-        v-else-if="optimisticValue.type == FileType.AUDIO && download?.getUrl.value != null"
-        :key="download.getUrl.value"
-        :src="download.getUrl.value"
+        v-else-if="optimisticValue.type == FileType.AUDIO && cachedUrl != null"
+        :key="cachedUrl"
+        :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         controls
         class="rounded"
@@ -300,9 +301,9 @@ defineExpose<ViewExpose>({
       />
       <!-- Video File -->
       <video
-        v-else-if="optimisticValue.type == FileType.VIDEO && download?.getUrl.value != null"
-        :key="download.getUrl.value"
-        :src="download.getUrl.value"
+        v-else-if="optimisticValue.type == FileType.VIDEO && cachedUrl != null"
+        :key="cachedUrl"
+        :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         controls
         class="rounded object-contain object-center"
@@ -386,7 +387,7 @@ defineExpose<ViewExpose>({
           class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
-          <span v-if="optimisticValue?.format" class="">
+          <span v-if="optimisticValue?.format" class="text-gray-400">
             {{ FileFormat[optimisticValue.format].toUpperCase().replace(/_/g, " ") }}
           </span>
           <!-- Size -->
@@ -394,7 +395,7 @@ defineExpose<ViewExpose>({
             v-if="optimisticValue != null && INLINABLE_FILE_TYPES.includes(optimisticValue.type)"
             class="text-gray-400"
           >
-            ({{ humanizeBytes(Number(optimisticValue.size)) }})
+            {{ humanizeBytes(Number(optimisticValue.size)) }}
           </span>
           <!-- Focus -->
           <button
