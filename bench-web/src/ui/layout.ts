@@ -135,23 +135,44 @@ export function useSplit(
     const viewB = sizedViews.value[sepIdx + 1];
     let viewATargetPx = sepAtPx - (isHorizontal ? viewA.left : viewA.top);
     let viewBTargetPx = isHorizontal ? viewB.left + viewB.width - sepAtPx : viewB.top + viewB.height - sepAtPx;
-    // clamp target sizes
+
+    // Get constraints for both views
     const viewAMin = getMinSize(viewA.view);
     const viewBMin = getMinSize(viewB.view);
     const viewAMax = getMaxSize(viewA.view);
     const viewBMax = getMaxSize(viewB.view);
+
+    // Calculate total available space
+    const totalSpace = viewATargetPx + viewBTargetPx;
+
+    // check min constraints (these take priority)
     if (viewATargetPx < viewAMin) {
-      viewBTargetPx += viewATargetPx - viewAMin;
       viewATargetPx = viewAMin;
-    } else if (viewATargetPx > viewAMax) {
-      viewBTargetPx += viewATargetPx - viewAMax;
-      viewATargetPx = viewAMax;
-    } else if (viewBTargetPx < viewBMin) {
-      viewATargetPx += viewBTargetPx - viewBMin;
+      viewBTargetPx = totalSpace - viewATargetPx;
+    }
+    if (viewBTargetPx < viewBMin) {
       viewBTargetPx = viewBMin;
-    } else if (viewBTargetPx > viewBMax) {
-      viewATargetPx += viewBTargetPx - viewBMax;
+      viewATargetPx = totalSpace - viewBTargetPx;
+    }
+
+    // check max constraints
+    if (viewATargetPx > viewAMax) {
+      viewATargetPx = viewAMax;
+      viewBTargetPx = totalSpace - viewATargetPx;
+    }
+    if (viewBTargetPx > viewBMax) {
       viewBTargetPx = viewBMax;
+      viewATargetPx = totalSpace - viewBTargetPx;
+    }
+
+    // validate min constraints
+    if (viewATargetPx < viewAMin) {
+      viewATargetPx = viewAMin;
+      viewBTargetPx = totalSpace - viewATargetPx;
+    }
+    if (viewBTargetPx < viewBMin) {
+      viewBTargetPx = viewBMin;
+      viewATargetPx = totalSpace - viewBTargetPx;
     }
 
     // create a partial view update to set the view to a specific size in pixels (relative or absolute)
