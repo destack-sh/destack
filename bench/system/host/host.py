@@ -93,7 +93,7 @@ tracer = trace.get_tracer(__name__)
 S3_PRESIGNED_URL_EXPIRY = get_from_env(
     "S3_PRESIGNED_URL_EXPIRY",
     typ=int,
-    default=3600,
+    default=3600,  # :FileUrlExpiry
     description="S3 presigned URL expiry (in seconds)",
 )
 

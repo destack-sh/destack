@@ -436,6 +436,7 @@ async function addFiles(files: FileList | File[]) {
       bench: bench.value,
       pkg: pkg.value,
       parent: thread ?? channel ?? pkg.value,
+      compress: true,
     });
     await upload.completion.wait();
     state.update(
@@ -868,7 +869,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 />
                 <!-- Remove -->
                 <button
-                  class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 hover:bg-gray-600 px-1 text-xs text-white transition-colors duration-150"
+                  class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-150 hover:bg-gray-600"
                   @click.stop="removeFiles([file])"
                 >
                   <i class="fas fa-xmark" />
