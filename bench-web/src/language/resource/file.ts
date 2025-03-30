@@ -33,9 +33,18 @@ import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
 import { DateTime } from "luxon";
-import { computed, markRaw, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { computed, markRaw, onBeforeUnmount, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
-export const FILE_URL_EXPIRY = 3600; // 1 hour :FileUrlExpiry
+export const FILE_DOWNLOAD_URL_EXPIRY = 3600; // 1 hour :FileUrlExpiry
+export const FILE_DOWNLOAD_REFRESH_LOOKAHEAD = FILE_DOWNLOAD_URL_EXPIRY / 10; // refresh this much before expiry
+export const FILE_CACHE_EXPIRY = FILE_DOWNLOAD_URL_EXPIRY / 10; // after no longer used, remove from cache
+export const FILE_IMAGE_MAX_WIDTH = 3840;
+export const FILE_IMAGE_MAX_HEIGHT = 2160;
+export const FILE_IMAGE_COMPRESSION_QUALITY = 0.8;
+export const FILE_IMAGE_COMPRESSION_MAX_SIZE = 10 * 1024 * 1024; // 1 MB
+
+export const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE];
+export const INLINABLE_FILE_TYPES = [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO];
 
 export enum FileStatus {
   PENDING = 0,
@@ -44,6 +53,11 @@ export enum FileStatus {
   COMPLETED = 4,
   FAILED = 5,
 }
+
+//
+// Uploads
+// NOTE :UX: indicate active uploads in UI (maybe as sticky notification)?
+//
 
 /** A File upload. */
 export type FileUpload = {
@@ -61,85 +75,9 @@ export type FileUpload = {
   compress: boolean;
 };
 
-/** A File download. */
-export type FileDownload = {
-  status: Ref<FileStatus>;
-  isActive: Ref<boolean>;
-  nodePtr: NodeReferenceData;
-  file: Ref<FileData | null>;
-  content: Ref<File | null>;
-  getUrl: Ref<string | null>;
-  progress: Ref<number>; // [0.0, 100.0]
-  includesContent: boolean;
-  downloadedAt: Ref<DateTime | null>;
-  completion: AsyncEvent;
-};
-
-//
-// Uploads
-// TODO :UX: indicate active uploads in UI (maybe as sticky notification)
-//
-
 const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({});
 export const fileUploads = computed(() => Object.values(uploadsByFileId.value));
 export const activeFileUploads = computed(() => fileUploads.value.filter((u) => u.isActive.value));
-
-/** Compress an image file to reduce its size */
-async function compressFileImage(file: File, maxWidth = 3840, maxHeight = 2160, quality = 0.9): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-
-    img.onload = () => {
-      URL.revokeObjectURL(img.src);
-
-      // calculate new dimensions while maintaining aspect ratio
-      let width = img.width;
-      let height = img.height;
-      if (width > maxWidth) {
-        height = Math.round(height * (maxWidth / width));
-        width = maxWidth;
-      }
-      if (height > maxHeight) {
-        width = Math.round(width * (maxHeight / height));
-        height = maxHeight;
-      }
-
-      // create canvas and draw resized image
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error(`could not get canvas context: ${file.name}`));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // convert to blob/file
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error(`could not create blob from canvas: ${file.name}`));
-            return;
-          }
-          const compressedFile = new File([blob], file.name, {
-            type: "image/jpeg",
-            lastModified: Date.now(),
-          });
-          resolve(compressedFile);
-        },
-        "image/jpeg",
-        quality,
-      );
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      reject(new Error(`failed to load image for compression: ${file.name}`));
-    };
-  });
-}
 
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
 export async function extractFile(
@@ -425,17 +363,81 @@ export function uploadFile(
 // Downloads
 //
 
+/** A File download. */
+export type FileDownload = {
+  status: Ref<FileStatus>;
+  isActive: Ref<boolean>;
+  nodePtr: NodeReferenceData;
+  file: Ref<FileData | null>;
+  content: Ref<File | null>;
+  getUrl: Ref<string | null>;
+  progress: Ref<number>; // [0.0, 100.0]
+  includesContent: boolean;
+  downloadedAt: Ref<DateTime | null>;
+  lastUsedAt: Ref<DateTime | null>;
+  completion: AsyncEvent;
+  referenceCount: Ref<number>;
+};
+
 const downloadsByFileId: Ref<Record<string, FileDownload>> = shallowRef({});
 export const fileDownloads = computed(() => Object.values(downloadsByFileId.value));
 export const activeFileDownloads = computed(() => fileDownloads.value.filter((d) => d.isActive.value));
+
+const FILE_DOWNLOAD_BATCH_INTERVAL = 50; // ms
+const pendingDownloads: FileDownload[] = [];
+
+// batch downloads
+setInterval(() => {
+  if (pendingDownloads.length > 0) {
+    const toDownload = pendingDownloads.splice(0, pendingDownloads.length);
+    doDownloadFiles(toDownload);
+  }
+}, FILE_DOWNLOAD_BATCH_INTERVAL);
+
+// remove expired downloads without references
+setInterval(() => {
+  const now = DateTime.now();
+  const expiredDownloads = fileDownloads.value.filter(
+    (d) =>
+      d.referenceCount.value == 0 &&
+      d.lastUsedAt.value != null &&
+      now.diff(d.lastUsedAt.value).as("seconds") > FILE_CACHE_EXPIRY,
+  );
+  if (expiredDownloads.length > 0) {
+    for (const download of expiredDownloads) {
+      delete downloadsByFileId.value[download.nodePtr.id!];
+    }
+    triggerRef(downloadsByFileId);
+    log.trace("file.download.expire", expiredDownloads);
+  }
+}, FILE_CACHE_EXPIRY * 1000);
+
+// update downloads FILE_DOWNLOAD_REFRESH_LOOKAHEAD seconds before expiry
+setInterval(() => {
+  const now = DateTime.now();
+  const downloadsAboutToExpire = fileDownloads.value.filter(
+    (d) =>
+      d.downloadedAt.value != null &&
+      now.diff(d.downloadedAt.value).as("seconds") > FILE_DOWNLOAD_URL_EXPIRY - FILE_DOWNLOAD_REFRESH_LOOKAHEAD,
+  );
+  // log how close they are to expiry
+  if (downloadsAboutToExpire.length > 0) {
+    pendingDownloads.push(...downloadsAboutToExpire);
+    log.trace("file.download.refresh", downloadsAboutToExpire);
+  }
+}, FILE_DOWNLOAD_REFRESH_LOOKAHEAD * 1000);
 
 /** Turn a completed upload into a download. */
 function uploadToDownload(upload: FileUpload): FileDownload {
   const download: FileDownload = {
     status: computed(() => {
-      if (upload.status.value == FileStatus.COMPLETED) return FileStatus.COMPLETED;
-      else if (upload.status.value == FileStatus.FAILED) return FileStatus.FAILED;
-      else return FileStatus.PENDING;
+      if (upload.status.value == FileStatus.COMPLETED) {
+        return FileStatus.COMPLETED;
+      } else if (upload.status.value == FileStatus.FAILED) {
+        return FileStatus.FAILED;
+      } else {
+        return FileStatus.PENDING;
+      }
     }),
     isActive: upload.isActive,
     nodePtr: upload.nodePtr,
@@ -446,6 +448,8 @@ function uploadToDownload(upload: FileUpload): FileDownload {
     completion: upload.completion,
     includesContent: true,
     downloadedAt: shallowRef(null),
+    lastUsedAt: shallowRef(null),
+    referenceCount: shallowRef(0),
   };
   return markRaw(download);
 }
@@ -454,17 +458,6 @@ function cacheDownload(download: FileDownload) {
   downloadsByFileId.value[download.nodePtr.id!] = download;
   triggerRef(downloadsByFileId);
 }
-
-const FILE_DOWNLOAD_BATCH_INTERVAL = 50; // ms
-const pendingDownloads: FileDownload[] = [];
-
-// periodically batch downloads
-setInterval(() => {
-  if (pendingDownloads.length > 0) {
-    const toDownload = pendingDownloads.splice(0, pendingDownloads.length);
-    doDownloadFiles(toDownload);
-  }
-}, FILE_DOWNLOAD_BATCH_INTERVAL);
 
 /**
  * 'Downloads' the given files as get URLs from the Host. Returns as soon as the download starts.
@@ -486,11 +479,13 @@ export function downloadFiles(
       getUrl: shallowRef(null),
       progress: shallowRef(0),
       downloadedAt: shallowRef(null),
+      lastUsedAt: shallowRef(null),
       completion: new AsyncEvent(),
       includesContent:
         typeof options?.includeContent == "function"
           ? options.includeContent(file)
           : (options?.includeContent ?? false),
+      referenceCount: shallowRef(0),
     };
     cacheDownload(download);
     return markRaw(download);
@@ -579,40 +574,86 @@ export function getCachedFileDownload(file: SomeFile): FileDownload | null {
 export function useFileDownload(
   file: MaybeRef<SomeFile | null | undefined>,
   options?: { includeContent?: boolean },
-): Ref<FileDownload | null> {
+): { download: Ref<FileDownload | null>; cachedGetUrl: Ref<string | null> } {
   const fileRef = toRef(file) as Ref<SomeFile | null>;
   const download: Ref<FileDownload | null> = shallowRef(null);
+  const cachedGetUrl: Ref<string | null> = shallowRef(null);
+  let currentFileId: string | null = null;
+
+  // Decrement reference count when component unmounts or file changes
+  const releaseFile = () => {
+    if (currentFileId && downloadsByFileId.value[currentFileId]) {
+      const currentDownload = downloadsByFileId.value[currentFileId];
+      if (currentDownload.referenceCount.value > 0) {
+        currentDownload.referenceCount.value--;
+      }
+    }
+  };
 
   watch(
     fileRef,
-    (newFile) => {
+    (newFile, oldFile) => {
+      if (newFile?.id == oldFile?.id) return; // nothing changed
+
+      // release old file
+      releaseFile();
+
+      // get new file
       if (newFile == null) {
         download.value = null;
+        currentFileId = null;
       } else {
+        currentFileId = newFile.id!;
         const existing = getCachedFileDownload(newFile);
         if (existing != null) {
           download.value = existing;
+          existing.referenceCount.value++;
+          existing.lastUsedAt.value = DateTime.now();
         } else {
           download.value = downloadFile(newFile, options);
+          download.value.referenceCount.value++;
+          download.value.lastUsedAt.value = DateTime.now();
+        }
+
+        // update cached get URL
+        if (download.value.getUrl.value != null) {
+          cachedGetUrl.value = download.value.getUrl.value;
+        } else {
+          download.value.completion.then(() => {
+            if (
+              download.value != null &&
+              download.value.getUrl.value != null &&
+              newFile.id == download.value.nodePtr.id
+            ) {
+              cachedGetUrl.value = download.value.getUrl.value;
+            }
+          });
         }
       }
     },
     { immediate: true },
   );
 
-  return download;
-}
+  // release
+  onBeforeUnmount(() => {
+    releaseFile();
+  });
 
-export const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT];
-export const INLINABLE_FILE_TYPES = [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO];
+  return { download, cachedGetUrl };
+}
 
 /** Prefetch the given files (incl. content where it makes sense). */
 export async function prefetchFiles(files: FileData[]): Promise<void> {
   downloadFiles(files, {
     includeContent: (file) => {
-      if (!isNodeOrRef(file, NodeType.FILE)) return false;
-      if (PREFETCH_FILE_TYPES.includes((file as FileData).type)) return true;
-      else return false;
+      if (!isNodeOrRef(file, NodeType.FILE)) {
+        return false;
+      }
+      if (PREFETCH_FILE_TYPES.includes((file as FileData).type)) {
+        return true;
+      } else {
+        return false;
+      }
     },
   });
 }
@@ -625,6 +666,78 @@ export async function prefetchFile(file: FileData): Promise<void> {
 //
 // File utilities
 //
+
+/** Compress an image file to reduce its size */
+async function compressFileImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+
+      // calculate new dimensions while maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+      if (width > FILE_IMAGE_MAX_WIDTH) {
+        height = Math.round(height * (FILE_IMAGE_MAX_WIDTH / width));
+        width = FILE_IMAGE_MAX_WIDTH;
+      }
+      if (height > FILE_IMAGE_MAX_HEIGHT) {
+        width = Math.round(width * (FILE_IMAGE_MAX_HEIGHT / height));
+        height = FILE_IMAGE_MAX_HEIGHT;
+      }
+
+      // create canvas and draw resized image
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error(`could not get canvas context: ${file.name}`));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // try with decreasing quality until file size is below max
+      const doCompress = (quality: number) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error(`could not create blob from canvas: ${file.name}`));
+              return;
+            }
+
+            const compressedFile = new File([blob], file.name, {
+              ...file,
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+
+            if (compressedFile.size > FILE_IMAGE_COMPRESSION_MAX_SIZE && quality > 0.2) {
+              // try again with lower quality
+              doCompress(quality - 0.1);
+            } else {
+              // done (or out of quality)
+              resolve(compressedFile);
+              log.trace("file.compress", file, compressedFile);
+            }
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+
+      // start with configured quality
+      doCompress(FILE_IMAGE_COMPRESSION_QUALITY);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error(`failed to load image for compression: ${file.name}`));
+    };
+  });
+}
 
 /** Hash the given file content (SHA-256). */
 async function sha256(content: File): Promise<string> {

@@ -75,7 +75,7 @@ export function encodeB64VLQ(value: number | bigint): string {
     return "A";
   } else if (value < 0) {
     throw new Error(`cannot encode negative value: ${value}`);
-  } else if (typeof value === 'bigint') {
+  } else if (typeof value === "bigint") {
     let result = "";
     while (value > 0n) {
       const index = Number(value & 63n);
@@ -158,6 +158,14 @@ export class AsyncEvent {
       this._resolve = resolve;
       this._reject = reject;
     });
+  }
+
+  then(onfulfilled?: (value: void) => void, onrejected?: (reason: any) => void): Promise<void> {
+    if (this._promise == null) {
+      return Promise.resolve().then(onfulfilled, onrejected);
+    } else {
+      return this._promise.then(onfulfilled, onrejected);
+    }
   }
 }
 

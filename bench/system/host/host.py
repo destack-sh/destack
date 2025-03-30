@@ -90,11 +90,11 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-S3_PRESIGNED_URL_EXPIRY = get_from_env(
-    "S3_PRESIGNED_URL_EXPIRY",
+FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
+    "FILE_DOWNLOAD_URL_EXPIRY",
     typ=int,
     default=3600,  # :FileUrlExpiry
-    description="S3 presigned URL expiry (in seconds)",
+    description="File download URL expiry (in seconds)",
 )
 
 BENCH_QUERY = Bench.include_descendants(
@@ -761,14 +761,14 @@ class HostService(GraphServiceBase, HostBase):
                 Key=file_key,
                 Fields=file_fields,
                 Conditions=[{k: v} for k, v in file_fields.items()],
-                ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
+                ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
             )
             fields = ProtoStruct()
             fields.update(presigned_post["fields"])
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": get_drive_bucket(self.bench), "Key": file_key},
-                ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
+                ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
             )
             handle = UploadFilesResponse.UploadHandle(
                 file=file_data, post_url=presigned_post["url"], fields=fields, get_url=get_url
@@ -803,7 +803,7 @@ class HostService(GraphServiceBase, HostBase):
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": bucket, "Key": file_key},
-                ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
+                ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
             )
             handle = DownloadFilesResponse.DownloadHandle(file=file._to_data(), get_url=get_url)
             handles.append(handle)
