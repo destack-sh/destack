@@ -277,7 +277,7 @@ defineExpose<ViewExpose>({
         :key="download.getUrl.value"
         :src="download.getUrl.value"
         :alt="optimisticValue?.name ?? '???'"
-        class="h-full w-full rounded object-contain object-center"
+        class="rounded object-contain object-center"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -304,7 +304,7 @@ defineExpose<ViewExpose>({
         :src="download.getUrl.value"
         :alt="optimisticValue?.name ?? '???'"
         controls
-        class="h-full w-full rounded object-contain object-center"
+        class="rounded object-contain object-center"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
