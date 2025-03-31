@@ -470,7 +470,8 @@ async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWork
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run, _ = create_run(Flow1, parent=runtime.main_package)
+    run, _ = create_run(Flow1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    await runtime.session.commit()
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
     await asyncio.sleep(0.5)

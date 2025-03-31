@@ -111,7 +111,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             ) or runner.is_stopped:
                 continue  # ignore boundary Actions
             runner.stop()
-            runner.close()
 
     def _complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Actions."""

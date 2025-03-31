@@ -424,7 +424,8 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         runners: list[Runner] = []
         for run in matching_runs:
             runner = self.runtime._runners_by_id.get(run.id)
-            assert runner is not None, f"missing runner for {run!r}"
+            if runner is None:
+                raise RuntimeError(f"missing runner for {run!r}")
             runners.append(runner)
         return runners
 

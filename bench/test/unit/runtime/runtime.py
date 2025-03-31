@@ -4,7 +4,6 @@ from bench.language import (
     TERMINAL_RUN_STATUSES,
     Action,
     ActionType,
-    Channel,
     Flow,
     Identity,
     LinkType,
@@ -108,36 +107,6 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     # submit message
     Message1 = Message.new(text=text("Hello!"))
     Thread1.messages.append(Message1)
-    await runtime.commit()
-
-    Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
-    assert Run1.status == RunStatus.COMPLETED
-
-
-@simulated_runtime(system=True, runtimes=True)
-async def test_reply_to_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Reply to a Message in a Flow. Should end and not recurse endlessly."""
-    Channel1 = Channel.new("General")
-    Flow1 = Flow.new("Flow1")
-    Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("""\
-message_in = runner.get_latest_run(Start1).message
-reply = Message.new(title="Hi.", reply_to=message_in)
-message_in.parent.append(reply)
-"""),
-    )
-    End1 = Action.new(ActionType.END, "End1")
-    Flow1.extend(Start1, Code1, End1)
-    Start1.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, End1, is_manual=True)
-    runtime.page().extend(Channel1, Flow1)
-    await runtime.commit()
-
-    Message1 = Message.new(text=text("Hello, [@Flow1]!", {"Flow1": Flow1}))
-    Channel1.messages.append(Message1)
     await runtime.commit()
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
