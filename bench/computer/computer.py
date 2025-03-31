@@ -1,6 +1,7 @@
 import asyncio
+import base64
 import os
-from typing import Mapping, Tuple
+from typing import Mapping
 from uuid import UUID
 
 import structlog
@@ -36,7 +37,7 @@ class ComputerService(ServiceBase, ComputerBase):
         self.display = display
 
     @tracer.start_as_current_span("computer.shell")
-    async def _execute_shell(self, cmd: str) -> Tuple[bytes, bytes, int]:
+    async def _execute_shell(self, cmd: str) -> tuple[str, str, int]:
         """Execute a shell command and return stdout, stderr, and return code"""
         try:
             logger.trace("computer.shell.start", cmd=cmd)
@@ -47,6 +48,8 @@ class ComputerService(ServiceBase, ComputerBase):
                 env={**os.environ, "DISPLAY": f":{self.display}"},
             )
             stdout, stderr = await proc.communicate()
+            stdout = stdout.decode()
+            stderr = stderr.decode()
             self.logger.debug(
                 "computer.shell",
                 span="current",
@@ -61,7 +64,7 @@ class ComputerService(ServiceBase, ComputerBase):
             raise
 
     @tracer.start_as_current_span("computer.exec")
-    async def _execute_cmd(self, program: str, *args: str) -> Tuple[bytes, bytes, int]:
+    async def _execute_cmd(self, program: str, *args: str) -> tuple[bytes, bytes, int]:
         """Execute a command with arguments and return stdout, stderr, and return code"""
         try:
             logger.trace("computer.exec.start", program=program, args=args)
@@ -89,9 +92,10 @@ class ComputerService(ServiceBase, ComputerBase):
 
     async def screenshot(self, request: ScreenshotRequest, headers: Mapping) -> ScreenshotResponse:
         """Take a screenshot of the current screen"""
-        cmd = "import -window root png:- | base64 -w 0"
-        stdout, _, _ = await self._execute_shell(cmd)
-        return ScreenshotResponse(image=stdout)
+        cmd = "import -window root jpeg:- | base64 -w 0"
+        image_b64, _, _ = await self._execute_shell(cmd)
+        image_bytes = base64.b64decode(image_b64)
+        return ScreenshotResponse(image=image_bytes)
 
     async def click(self, request: ClickRequest, headers: Mapping) -> Empty:
         """Click an element at the specified coordinates"""
@@ -144,6 +148,4 @@ class ComputerService(ServiceBase, ComputerBase):
     async def shell(self, request: ShellCommandRequest, headers: Mapping) -> ShellCommandResponse:
         """Execute a shell command and return its output"""
         stdout, stderr, returncode = await self._execute_shell(request.command)
-        return ShellCommandResponse(
-            exit_code=returncode, stdout=stdout.decode(), stderr=stderr.decode()
-        )
+        return ShellCommandResponse(exit_code=returncode, stdout=stdout, stderr=stderr)

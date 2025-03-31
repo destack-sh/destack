@@ -185,14 +185,14 @@ defineExpose<ViewExpose>({
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
       <!-- Current value -->
-      <span v-if="optimisticValue != null" :class="[loadFailed ? 'text-danger-600' : 'text-gray-700']">
+      <span v-if="optimisticValue != null" class="">
         <IconInline
           v-bind="facetIcon"
           class="mr-1.5 w-5 text-center"
           :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
         />
         <a
-          class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-gray-700"
+          class="max-w-full truncate text-gray-900 decoration-gray-300 underline-offset-3 group-hover:underline group-hover:decoration-gray-700"
           :class="cachedUrl != null ? 'hover:underline' : ''"
           :href="cachedUrl ?? undefined"
           target="_blank"
@@ -326,7 +326,6 @@ defineExpose<ViewExpose>({
         v-else-if="optimisticValue != null"
         class="flex h-full w-full items-center hover:cursor-pointer"
         :class="[
-          loadFailed ? 'text-danger-600' : '',
           (upload != null && upload.isActive.value) || (download != null && download.isActive.value && !isMinimal)
             ? 'animate-pulse'
             : '',

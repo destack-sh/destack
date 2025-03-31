@@ -48,12 +48,7 @@ from bench.language.core import (
     p_system,
     struct_,
 )
-from bench.pb2 import (
-    DownloadFilesRequest,
-    FileData,
-    FileInfoData,
-    UploadFilesRequest,
-)
+from bench.pb2 import DownloadFilesRequest, FileData, FileInfoData, UploadFilesRequest
 from bench.utils.func import group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
@@ -67,6 +62,7 @@ if TYPE_CHECKING:
         File,
         Package,
         Page,
+        Run,
         Session,
         Thread,
     )
@@ -798,13 +794,14 @@ class File(Resource[FileData], FileBase):
     """
 
     # meta
-    parent: Union["Package", "Page", "Database", "Channel", "Thread", None] = p_node_parent(
+    parent: Union["Package", "Page", "Database", "Channel", "Thread", "Run", None] = p_node_parent(
         4,
         NodeType.PACKAGE,
         NodeType.PAGE,
         NodeType.DATABASE,
         NodeType.CHANNEL,
         NodeType.THREAD,
+        NodeType.RUN,
         ckless=True,
     )
 
@@ -1024,7 +1021,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Package", "Page", "Database", "Channel", "Thread", None] = None,
+    parent: Union["Package", "Page", "Database", "Channel", "Thread", "Run", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
