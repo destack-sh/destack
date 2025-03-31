@@ -11,6 +11,7 @@ from bench.language.core import (
     IsComputable,
     IsModal,
     IsNamed,
+    IsOwnable,
     IsTemplatable,
     LocalNodeList,
     NodeReference,
@@ -42,7 +43,9 @@ class FlowType(BuiltinEnum):
 
 
 @node_(NodeType.FLOW)
-class Flow(IsComputable, IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNode[FlowData]):
+class Flow(
+    IsComputable, IsTemplatable, IsOwnable, IsClaimable, IsModal, IsNamed, InlineNode[FlowData]
+):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)

@@ -2,7 +2,9 @@ from typing import TYPE_CHECKING, Union, overload
 
 from bench.language.core import (
     InlineNode,
+    IsClaimable,
     IsModal,
+    IsOwnable,
     IsTemplatable,
     IsTitled,
     LocalNodeList,
@@ -23,7 +25,14 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.PAGE)
-class Page(IsTemplatable, IsModal, IsTitled, InlineNode[BlockData]):
+class Page(
+    IsTemplatable,
+    IsModal,
+    IsTitled,
+    IsOwnable,
+    IsClaimable,
+    InlineNode[BlockData],
+):
     """A Page of Blocks."""
 
     # meta

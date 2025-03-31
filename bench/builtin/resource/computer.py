@@ -27,7 +27,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
 
     def _get_service(self, Self: "Computer") -> "ComputerClient":
         """Get the ComputerService."""
-        raise NotImplementedError(f"nocheckin: get {Self!r} service")
+        raise NotImplementedError(f"nocheckin: get {Self!r} service (put it in Runner/Thread?)")
 
     @abc.abstractmethod
     async def Screenshot(self, Self: "Computer") -> Annotated[dict[str, File], {"Image": File}]:

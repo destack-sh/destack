@@ -1,6 +1,7 @@
 from typing import override
 
 from bench.language import Claim, ClaimStatus, NodeMode, NodeType, Resource, bittuple
+from bench.language.core.node import IsInstantiable
 from bench.system.host import Commit, DeferredHostPlugin
 
 
@@ -38,7 +39,7 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
 
                     # add target resource if needed
                     target_template = claim.target_template
-                    if target_template is not None:
+                    if isinstance(target_template, IsInstantiable):
                         target = target_template.instance(detach=True)
                         target.move(to=parent)
                         target._supergraph = parent._supergraph

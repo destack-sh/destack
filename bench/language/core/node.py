@@ -1568,7 +1568,7 @@ class IsJoinable(BuiltinObject):
 
 @node_component_()
 class IsClaimable(BuiltinObject):
-    """A Node that can be claimed by a Subject."""
+    """A Node that can be claimed with a Claim."""
 
     claimed_by: Optional["Claim"] = p_regular(
         18, require=False, array=False, references=NodeType.CLAIM, same_bench=True

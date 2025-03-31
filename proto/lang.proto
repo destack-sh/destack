@@ -2723,9 +2723,11 @@ message RecordData {
   google.protobuf.Timestamp updated_at = 12;
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 32;
+  optional string name = 31;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;
@@ -3212,6 +3214,7 @@ message PlanData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   PlanType type = 30;
@@ -3251,6 +3254,7 @@ message TaskData {
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
   optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   TaskType type = 30;
@@ -3572,6 +3576,8 @@ message DatabaseData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 31;
@@ -3650,6 +3656,7 @@ message FlowData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   repeated ComputedValueData computed_values = 28;
@@ -3679,6 +3686,7 @@ message KitData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
@@ -3781,6 +3789,8 @@ message PageData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   optional TextLineData title = 32;
@@ -3833,6 +3843,8 @@ message ViewData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   ViewType type = 30;

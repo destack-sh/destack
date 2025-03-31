@@ -7,6 +7,7 @@ from bench.language.core import (
     ColorType,
     EnumType,
     InlineNode,
+    IsClaimable,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -79,6 +80,7 @@ class PlanFailureMode(BuiltinEnum):
 class Plan(
     IsTimed,
     IsOwnable,
+    IsClaimable,
     IsRuntime,
     IsModal,
     IsInstantiable,

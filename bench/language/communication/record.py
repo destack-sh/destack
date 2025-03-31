@@ -5,7 +5,10 @@ import structlog
 from bench.language.core import (
     FieldType,
     IsBased,
+    IsClaimable,
     IsModal,
+    IsNamed,
+    IsOwnable,
     Node,
     NodeType,
     PackageNode,
@@ -36,7 +39,14 @@ logger = structlog.get_logger(__name__)
     passthrough_set=("value",),
     stored_value_unraveled=True,
 )
-class Record(IsBased, IsModal, PackageNode[RecordData]):
+class Record(
+    IsBased,
+    IsModal,
+    IsOwnable,
+    IsClaimable,
+    IsNamed,
+    PackageNode[RecordData],
+):
     """
     A Record from a Database.
     """
@@ -44,7 +54,6 @@ class Record(IsBased, IsModal, PackageNode[RecordData]):
     # meta
     parent: Union["Database", "Record", None] = p_node_parent(4, NodeType.DATABASE, NodeType.RECORD)
     # type: RecordType?
-    name: Optional[str] = p_regular(32, default=None)
     order_key: str | None = p_internal(33, default=INTEGER_ZERO)
     icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
     text: Optional["Text"] = p_regular(

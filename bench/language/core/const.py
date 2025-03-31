@@ -35,13 +35,16 @@ if TYPE_CHECKING:
         Channel,
         Claim,
         Computer,
+        Database,
         Flow,
         Identity,
         Kit,
         Node,
         Organization,
         Package,
+        Page,
         Plan,
+        Record,
         Resource,
         Session,
         Severity,
@@ -54,6 +57,7 @@ if TYPE_CHECKING:
         Thread,
         Transaction,
         User,
+        View,
     )
     from bench.runtime import Runner
 
@@ -67,7 +71,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.29.3"
+VERSION = "2025.03.31.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -798,29 +802,62 @@ BENCH_NODE_TYPES = _get_node_types(
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 
-Ownable = Union["Resource", "Thread", "Bench", "Claim", "Plan", "Task", "Package", "Space"]
+Ownable = Union[
+    "Bench",
+    "Resource",
+    "Package",
+    "Space",
+    "Page",
+    "Flow",
+    "Kit",
+    "View",
+    "Database",
+    "Thread",
+    "Plan",
+    "Task",
+    "Claim",
+    "Record",
+]
 OWNABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES.tuple,
-    NodeType.THREAD,
     NodeType.BENCH,
-    NodeType.CLAIM,
-    NodeType.PLAN,
-    NodeType.TASK,
+    *RESOURCE_NODE_TYPES.tuple,
     NodeType.PACKAGE,
     NodeType.SPACE,
+    NodeType.PAGE,
+    NodeType.FLOW,
+    NodeType.KIT,
+    NodeType.VIEW,
+    NodeType.DATABASE,
+    NodeType.THREAD,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.CLAIM,
+    NodeType.RECORD,
 )
 
-Subject = Union["User", "Organization", "Identity", "Computer"]
-SUBJECT_NODE_TYPES = bittuple(
-    NodeType.USER,
-    NodeType.ORGANIZATION,
-    NodeType.IDENTITY,
-    NodeType.COMPUTER,
-)
-
-Claimable = Union["Resource", "Flow", "Action", "Kit"]
+Claimable = Union[
+    "Resource",
+    "Page",
+    "Flow",
+    "Action",
+    "Kit",
+    "View",
+    "Database",
+    "Plan",
+    "Task",
+    "Record",
+]
 CLAIMABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES.tuple, NodeType.FLOW, NodeType.ACTION, NodeType.KIT
+    *RESOURCE_NODE_TYPES.tuple,
+    NodeType.PAGE,
+    NodeType.FLOW,
+    NodeType.ACTION,
+    NodeType.KIT,
+    NodeType.VIEW,
+    NodeType.DATABASE,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.RECORD,
 )
 
 Joinable = Union["Package", "Team", "Channel", "Thread"]
@@ -831,19 +868,28 @@ JOINABLE_NODE_TYPES = bittuple(
     NodeType.THREAD,
 )
 
+Subject = Union["User", "Organization", "Computer", "Identity"]
+SUBJECT_NODE_TYPES = bittuple(
+    NodeType.USER,
+    NodeType.ORGANIZATION,
+    NodeType.COMPUTER,
+    NodeType.IDENTITY,
+)
+
+
 # NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
 UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE, NodeType.STREAM)
 LOADED_PACKAGE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES,
     *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
     NodeType.CHANNEL,
+    NodeType.TEAM,
+    NodeType.MEMBERSHIP,
+    NodeType.ROLE,
+    NodeType.IDENTITY,
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
-    NodeType.ROLE,
-    NodeType.IDENTITY,
-    NodeType.TEAM,
-    NodeType.MEMBERSHIP,
 )
 
 
