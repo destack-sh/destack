@@ -2845,8 +2845,8 @@ message ComputerData {
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
-  optional string connection_uri = 64;
-  optional string vnc_uri = 65;
+  optional string grpc_uri = 65;
+  optional string vnc_uri = 66;
   optional NodeReferenceData client_ptr = 69;
   float cpu = 70;
   float ram = 71;

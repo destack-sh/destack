@@ -1,15 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar, Sequence
 
-from bench.language import (
-    CustomObject,
-    IsRuntime,
-    ModelType,
-    RunnableNode,
-    RunOptions,
-    RunType,
-    TypeBase,
-)
+from bench.language import CustomObject, ModelType, RunnableNode, RunOptions, RunType, TypeBase
 from bench.runtime.core import RunIn, Runner, Runtime
 
 from .prompt import Prompt, PromptElement
@@ -32,7 +24,6 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
         node: R,
         model_type: ModelType,
         options: RunOptions,
-        context: IsRuntime,
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
@@ -42,7 +33,6 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
             runtime=runtime,
             node=node,
             options=options,
-            context=context,
             parent=parent,
             inputs=inputs,
             outputs=outputs,

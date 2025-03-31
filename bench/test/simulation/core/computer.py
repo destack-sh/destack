@@ -88,7 +88,7 @@ class ComputerHandle:
                 name=self.spec.name,
                 type=ComputerType.RUNTIME,
                 status=ResourceStatus.UP,
-                connection_uri=connection_uri,
+                grpc_uri=connection_uri,
             )
             session._create(computer)
             client = Client(

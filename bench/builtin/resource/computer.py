@@ -30,7 +30,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Take a screenshot of the current screen
         ICON: fas fa-camera
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         response = await computer_client.screenshot(ScreenshotRequest())
         screenshot_timestamp = self.session._oracle.utc().strftime("%Y-%m-%d %H:%M:%S")
         screenshot = await upload_file(
@@ -44,7 +44,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Click an element
         ICON: fas fa-arrow-pointer
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.click(ClickRequest(x=X, y=Y, button=Button))
 
     @abc.abstractmethod
@@ -53,7 +53,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Double click an element
         ICON: fas fa-arrow-pointer
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.double_click(ClickRequest(x=X, y=Y))
 
     @abc.abstractmethod
@@ -62,7 +62,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Press a key
         ICON: fas fa-keyboard
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.press(PressRequest(keys=Keys))
 
     @abc.abstractmethod
@@ -71,7 +71,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Type a string on the keyboard
         ICON: fas fa-keyboard
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.type(TypeRequest(text=String))
 
     @abc.abstractmethod
@@ -80,7 +80,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Move the mouse to a position
         ICON: fas fa-mouse
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.move(MoveRequest(x=X, y=Y))
 
     @abc.abstractmethod
@@ -89,7 +89,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Scroll the mouse
         ICON: fas fa-mouse
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.scroll(ScrollRequest(x=X, y=Y, scroll_x=Scroll_X, scroll_y=Scroll_Y))
 
     @abc.abstractmethod
@@ -98,7 +98,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Execute a shell command
         ICON: fas fa-terminal
         """
-        computer_client = await self.get_computer_client(Self)
+        computer_client = await self.thread.get_computer_client(Self)
         await computer_client.shell(ShellCommandRequest(command=Command))
 
 

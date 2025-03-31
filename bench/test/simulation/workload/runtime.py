@@ -22,7 +22,10 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
     @override
     async def prepare_in_session(self):
         self.runtime = Runtime(
-            session=self.session, cache=MemoryCache(self.bench), oracle=self.oracle
+            session=self.session,
+            network=self.simulation.network.network,
+            cache=MemoryCache(self.bench),
+            oracle=self.oracle,
         )
         await self.runtime.start()
 

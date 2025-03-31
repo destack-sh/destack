@@ -61,6 +61,7 @@ from bench.language import (
     synchronize_nodes,
 )
 from bench.language.connection.capture import GraphCapture
+from bench.proto.network import Network
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
 
@@ -106,6 +107,7 @@ class Runtime:
         self,
         *,
         session: Session,
+        network: Network,
         cache: Cache,
         oracle: Oracle,
         process: "RuntimeProcess | None" = None,
@@ -121,6 +123,7 @@ class Runtime:
         self.session._graph.add_types(*COMMUNICATION_NODE_TYPES)
         self.session_ptr = session.to_ref()
         self.session_id = session.id
+        self.network = network
         self.bench = session.bench
         self.cache = cache
         self.oracle = oracle
@@ -801,7 +804,7 @@ class Runtime:
                 return thread
 
             # load thread
-            handle = ThreadHandle(thread_ptr)
+            handle = ThreadHandle(runtime=self, thread_ptr=thread_ptr)
             self._threads_by_id[thread_ptr.id] = handle
             await handle.open()
             logger.debug("runtime.load_thread", thread=handle, span="current")
