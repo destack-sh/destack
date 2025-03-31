@@ -47,9 +47,12 @@ RUNTIME_HEALTHCHECK_TIMEOUT = get_from_env(
 class RuntimeProcessHandle:
     """An active RuntimeProcess in this service."""
 
-    def __init__(self, service: "RuntimeService", *, id: str, mode: RuntimeProcessMode):
+    def __init__(
+        self, service: "RuntimeService", *, id: str, process_id: int, mode: RuntimeProcessMode
+    ):
         self.service = service
         self.id: str = id
+        self.process_id: int = process_id
         self.mode = mode
 
         self._client: RuntimeClient | RuntimeBase | None = None
@@ -105,7 +108,7 @@ class RuntimeProcessHandle:
             # run subprocess
             self._port = random.randint(60000, 65535)
             self._real_process, self._channel, self._client = await self._start_process(
-                id=self.id, port=self._port
+                id=self.id, process_id=self.process_id, port=self._port
             )
         else:
             assert_never(self.mode)
@@ -130,7 +133,7 @@ class RuntimeProcessHandle:
             with contextlib.suppress(Exception):  # don't care about errors up here
                 await self.do(client.check(request), timeout=5)
 
-    async def _start_process(self, *, id: str, port: int):
+    async def _start_process(self, *, id: str, process_id: int, port: int):
         """Creates a RuntimeProcess in a subprocess."""
         assert sys.executable, f"no python executable for {self!r}"
         argv = (
@@ -140,7 +143,7 @@ class RuntimeProcessHandle:
             "runtime",
             "127.0.0.1",
             str(port),
-            f"--process-id={id}",
+            f"--process-id={process_id}",
         )
         process = await asyncio.create_subprocess_exec(*argv)
         on_exit(process.kill)  # kill on normal exit
@@ -164,22 +167,22 @@ class RuntimeProcessHandle:
                     self._real_process.kill()
                     _ = await self._real_process.wait()
                 except Exception as e:
-                    logger.error("runtime.process.terminate.error", process=self, exc_info=e)
+                    logger.error("runtime_process.terminate.error", process=self, exc_info=e)
             self._real_process, self._channel, self._client = await self._start_process(
-                id=self.id, port=self._port
+                id=self.id, process_id=self.process_id, port=self._port
             )
         else:
             assert_never(self.mode)
         self._restarts += 1
         self._restarted_at = self.service.oracle.utc()
-        logger.debug("runtime.process", process=self, restarts=self._restarts)
+        logger.debug("runtime_process.restart", process=self, restarts=self._restarts)
 
     async def do[T](self, func: Awaitable[T], *, timeout: float | None) -> T:
         """Await something from the given process. If it doesn't respond in time, we restart it."""
         try:
             return await asyncio.wait_for(func, timeout=timeout)
         except (asyncio.TimeoutError, grpclib.exceptions.StreamTerminatedError) as e:
-            logger.error("runtime.process.timeout", process=self, error=e)
+            logger.error("runtime_process.timeout", process=self, error=e)
             # restart if process wasn't restarted recently
             if (
                 not self._restarted_at
@@ -278,7 +281,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         assert self._max_processs > 0, f"no processs for {self!r}"
         assert self._max_processs == 1, f"multi-processs not supported for {self!r}"  # :RunRouting
         self._processs = [
-            RuntimeProcessHandle(self, id=f"{self.id}-process-{i}", mode=self._mode)
+            RuntimeProcessHandle(self, id=f"{self.id}-process-{i}", process_id=i, mode=self._mode)
             for i in range(self._max_processs)
         ]
         await asyncio.gather(*(t.start() for t in self._processs))
