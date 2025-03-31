@@ -21,6 +21,7 @@ from opentelemetry import trace
 from bench.language import (
     RUNTIME_NODE_TYPES,
     Action,
+    Agent,
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
@@ -29,7 +30,6 @@ from bench.language import (
     Error,
     Flow,
     GraphCapture,
-    Identity,
     Interruption,
     InterruptionStatus,
     InterruptionType,
@@ -187,7 +187,7 @@ class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
         parent: "Runner[Any] | None" = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
-        identity: "Identity | None" = None,
+        agent: "Agent | None" = None,
     ) -> None:
         self.runtime = runtime
         self.node = node
@@ -244,7 +244,7 @@ class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
                     status=self.status,
                     mode=self.mode,
                     inputs=self.inputs,
-                    identity=identity,
+                    agent=agent,
                     session=self.session,
                 )
             else:
@@ -593,7 +593,7 @@ def create_run(
     thread: "Thread | None" = None,
     message: "Message | None" = None,
     trigger: "Trigger | None" = None,
-    identity: "Identity | None" = None,
+    agent: "Agent | None" = None,
     session: "Session | None" = None,
     graph: NodeGraph | None = None,
 ) -> tuple["Run", "Thread"]:
@@ -629,12 +629,12 @@ def create_run(
     if flow is None and isinstance(parent, Run):
         # inherit flow from parent if unset
         flow = parent.flow
-    if identity is None and flow is not None:
-        identity = flow.default_identity
-        if identity is None:
-            from bench.builtin import BenchIdentity
+    if agent is None and flow is not None:
+        agent = flow.default_agent
+        if agent is None:
+            from bench.builtin import BenchAgent
 
-            identity = BenchIdentity
+            agent = BenchAgent
 
     # create root thread
     if isinstance(parent, Package):
@@ -674,7 +674,7 @@ def create_run(
         thread=thread,
         message=message,
         trigger=trigger,
-        identity=identity,
+        agent=agent,
         status=status or RunStatus.CREATED,
         _graph=graph,
         _skip_validate_self=True,
@@ -735,7 +735,7 @@ def make_runner(
     inputs: Any | None = None,
     outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
-    identity: "Identity | None" = None,
+    agent: "Agent | None" = None,
     parent: "Runner[Any] | None" = None,
 ) -> "Runner":
     """Make a Runner from a runnable Node."""
@@ -766,7 +766,7 @@ def make_runner(
         "run": run,
         "node": node,
         "parent": parent,
-        "identity": identity,
+        "agent": agent,
     }
 
     # map to runner

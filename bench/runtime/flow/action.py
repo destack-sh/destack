@@ -7,11 +7,11 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     ActionType,
+    Agent,
     Aliasing,
     BreakpointScope,
     BreakpointSite,
     CustomObject,
-    Identity,
     IsRuntime,
     ModelDeveloper,
     ModelType,
@@ -56,7 +56,7 @@ class ActionRunner(Runner[Action], ABC):
         run: RunIn,
         options: RunOptions,
         context: IsRuntime,
-        identity: Identity | None = None,
+        agent: Agent | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
@@ -68,7 +68,7 @@ class ActionRunner(Runner[Action], ABC):
             options=options,
             context=context,
             parent=parent,
-            identity=identity,
+            agent=agent,
             inputs=inputs,
             outputs=outputs,
             run=run,
@@ -87,7 +87,7 @@ class ActionRunner(Runner[Action], ABC):
 
     def _get_resumable_subrunner(
         self,
-        node: Identity | RunnableNode,
+        node: Agent | RunnableNode,
         inputs: CustomObject | None,
         output_type: TypeBase | None = None,
     ):
@@ -98,20 +98,20 @@ class ActionRunner(Runner[Action], ABC):
         """
         assert self.tracked_run is not None, f"{self!r} must be tracked"
 
-        if isinstance(node, Identity):
-            runnable = node.default_flow
+        if isinstance(node, Agent):
+            runnable = node.main_flow
             assert runnable is not None, f"{node!r} must have a default Flow"
-            identity = node
+            agent = node
         else:
             runnable = node
-            identity = None
+            agent = None
 
         for run in self.tracked_run.runs:
             # try to resume interrupted Run
             if (
                 run.status.is_interrupted
                 and run.runnable == runnable
-                and (identity is None or run.identity_id == identity.id)
+                and (agent is None or run.agent_id == agent.id)
             ):
                 return self.runtime.restore_runner(run)
         else:
@@ -122,7 +122,7 @@ class ActionRunner(Runner[Action], ABC):
                 run="track",
                 context=self.context,
                 inputs=inputs,
-                identity=identity,
+                agent=agent,
                 outputs=output_type,
             )
             return runner

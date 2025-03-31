@@ -4,8 +4,8 @@ from bench.language import (
     TERMINAL_RUN_STATUSES,
     Action,
     ActionType,
+    Agent,
     Flow,
-    Identity,
     LinkType,
     Membership,
     Message,
@@ -94,7 +94,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
     Start1.connect(LinkType.REQUIRE, End1, is_manual=True)
-    Agent1 = Identity.new("Agent", default_flow=Flow1)
+    Agent1 = Agent.new("Agent", main_flow=Flow1)
     Page1 = runtime.page()
     Page1.extend(Flow1, Agent1)
     await runtime.commit()

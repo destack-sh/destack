@@ -54,7 +54,7 @@ class BlockType(BuiltinEnum):
     DATABASE = 5090
     TEAM = 5600
     ROLE = 5630
-    IDENTITY = 5640
+    AGENT = 5640
     PLAN = 6100
     TASK = 6110
     CHANNEL = 5500

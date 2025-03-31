@@ -45,6 +45,7 @@ from .value import SomeValue
 if typing.TYPE_CHECKING:
     from bench.language import (
         Action,
+        Agent,
         Block,
         Choice,
         Class,
@@ -53,7 +54,6 @@ if typing.TYPE_CHECKING:
         Field,
         FileType,
         Flow,
-        Identity,
         Link,
     )
 
@@ -481,7 +481,7 @@ TypeIn = Union[
     "Class",
     "Choice",
     "Flow",
-    "Identity",
+    "Agent",
     "BuiltinEnum",
     "Link",
     "Action",
@@ -500,13 +500,13 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
     """Converts a type-like object to a Type."""
     from bench.language import (
         Action,
+        Agent,
         Block,
         Choice,
         Class,
         Database,
         FileType,
         Flow,
-        Identity,
         Link,
     )
 
@@ -515,7 +515,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
 
     if isinstance(type_in, TypeBase):
         return cast("Type", type_in)
-    elif isinstance(type_in, (Class, Choice, Flow, Action, Link, Database, Identity)):
+    elif isinstance(type_in, (Class, Choice, Flow, Action, Link, Database, Agent)):
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"

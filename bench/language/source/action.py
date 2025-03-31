@@ -36,12 +36,12 @@ from bench.utils.fractional import INTEGER_ZERO
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Agent,
         Claim,
         Code,
         Field,
         Flow,
         Icon,
-        Identity,
         Kit,
         Link,
         LinkType,
@@ -114,11 +114,11 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
         struct=StructType.CODE,
         description="The implementation code for this action.",
     )
-    tool: Union["Identity", "Flow", "Action", None] = p_regular(
+    tool: Union["Agent", "Flow", "Action", None] = p_regular(
         53,
         require=False,
         array=False,
-        references=(NodeType.IDENTITY, NodeType.FLOW, NodeType.ACTION),
+        references=(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
     )
     inputs_packed: Any = p_value_packed(55)
@@ -207,7 +207,7 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
         field_types: list[FieldType] | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language import Identity, Kit, Type
+        from bench.language import Agent, Kit, Type
 
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -220,8 +220,8 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:
                 base = self.tool
-                if isinstance(base, Identity):
-                    base = base.default_flow
+                if isinstance(base, Agent):
+                    base = base.main_flow
             else:
                 base = self
             return Type(

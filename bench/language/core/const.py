@@ -31,13 +31,13 @@ from bench.utils.utils import frozendict, get_from_env
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Agent,
         Bench,
         Channel,
         Claim,
         Computer,
         Database,
         Flow,
-        Identity,
         Kit,
         Node,
         Organization,
@@ -71,7 +71,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.31.2"
+VERSION = "2025.03.31.4"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -621,12 +621,12 @@ class NodeType(BuiltinEnum):
     # REACTION?
     NOTIFICATION = 5540, None, None, "fas fa-bell"
 
-    # auth
+    # identity
     TEAM = 5600, None, None, "fas fa-users"
     MEMBERSHIP = 5610, None, None, "fas fa-users"
     INVITE = 5620, None, None, "fas fa-user-plus"
     ROLE = 5630, None, None, "fas fa-user-tag"
-    IDENTITY = 5640, None, None, "fas fa-user-tag"
+    AGENT = 5640, None, None, "fas fa-robot"
     # CHALLENGE?
 
     # runtime
@@ -763,7 +763,7 @@ INLINE_NODE_TYPES = bittuple(
     NodeType.THREAD,
     NodeType.CHANNEL,
     NodeType.TEAM,
-    NodeType.IDENTITY,
+    NodeType.AGENT,
 )
 INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.ACTION,
@@ -776,7 +776,7 @@ INSTANTIABLE_NODE_TYPES = bittuple(
     NodeType.CLAIM,
     NodeType.CHANNEL,
     NodeType.TEAM,
-    NodeType.IDENTITY,
+    NodeType.AGENT,
     NodeType.MEMBERSHIP,
 )
 TEMPLATABLE_NODE_TYPES = bittuple(
@@ -819,6 +819,7 @@ Ownable = Union[
     "Plan",
     "Task",
     "Claim",
+    "Agent",
     "Record",
 ]
 OWNABLE_NODE_TYPES = bittuple(
@@ -835,6 +836,7 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
+    NodeType.AGENT,
     NodeType.RECORD,
 )
 
@@ -848,6 +850,7 @@ Claimable = Union[
     "Database",
     "Plan",
     "Task",
+    "Agent",
     "Record",
 ]
 CLAIMABLE_NODE_TYPES = bittuple(
@@ -860,6 +863,7 @@ CLAIMABLE_NODE_TYPES = bittuple(
     NodeType.DATABASE,
     NodeType.PLAN,
     NodeType.TASK,
+    NodeType.AGENT,
     NodeType.RECORD,
 )
 
@@ -871,12 +875,12 @@ JOINABLE_NODE_TYPES = bittuple(
     NodeType.THREAD,
 )
 
-Subject = Union["User", "Organization", "Computer", "Identity"]
+Subject = Union["User", "Organization", "Computer", "Agent"]
 SUBJECT_NODE_TYPES = bittuple(
     NodeType.USER,
     NodeType.ORGANIZATION,
     NodeType.COMPUTER,
-    NodeType.IDENTITY,
+    NodeType.AGENT,
 )
 
 
@@ -889,7 +893,7 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.TEAM,
     NodeType.MEMBERSHIP,
     NodeType.ROLE,
-    NodeType.IDENTITY,
+    NodeType.AGENT,
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
@@ -900,7 +904,7 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
 
 # automatically included descendants :AutoLoading
 AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
-    NodeType.THREAD: (NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.IDENTITY),
+    NodeType.THREAD: (NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.AGENT),
 }
 
 #

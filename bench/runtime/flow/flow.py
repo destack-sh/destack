@@ -9,10 +9,10 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     ActionType,
+    Agent,
     CustomObject,
     Error,
     Flow,
-    Identity,
     Interruption,
     IsRuntime,
     Link,
@@ -84,7 +84,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         parent: Runner[RunnableNode] | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
-        identity: Identity | None = None,
+        agent: Agent | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -95,7 +95,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             parent=parent,
             inputs=inputs,
             outputs=outputs,
-            identity=identity,
+            agent=agent,
         )
         self._interrupted_runners: list[Runner] = []
         self._active_runners_by_id: dict[UUID, LinkRunner | ActionRunner] = {}

@@ -181,7 +181,7 @@ export const INLINE_NODE_TYPES = [
   NodeType.TASK,
   NodeType.PLAN,
   NodeType.ROLE,
-  NodeType.IDENTITY,
+  NodeType.AGENT,
   NodeType.TEAM,
 ];
 INLINE_NODE_TYPES.sort();
@@ -194,14 +194,14 @@ export const LOADED_PACKAGE_NODE_TYPES = [
   NodeType.PLAN,
   NodeType.TASK,
   NodeType.ROLE,
-  NodeType.IDENTITY,
+  NodeType.AGENT,
   NodeType.TEAM,
   NodeType.SPACE,
   NodeType.VIEW,
 ];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
-export const TYPE_NODE_TYPES = [NodeType.IDENTITY, NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];
+export const TYPE_NODE_TYPES = [NodeType.AGENT, NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];
 export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES];
 
 // block types
