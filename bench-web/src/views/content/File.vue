@@ -115,7 +115,7 @@ async function onFileSelected(files: File[]) {
 
 function openFile() {
   if (download.value?.getUrl.value == null) return;
-  if (!props.isLightbox) {
+  if (!props.isLightbox && INLINABLE_FILE_TYPES.includes(download.value.file.value?.type!)) {
     setLightbox({
       node: download.value.file.value!,
       component: ViewType.FILE,
