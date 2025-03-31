@@ -363,15 +363,6 @@ class Runtime:
         # traverse resources up
         raise NotImplementedError(f"nocheckin: _find_resource {runner!r} {claim!r}")
 
-    def _get_resource[R: Resource = Resource](
-        self, runner: Runner, claim: type[R] | R | Claim
-    ) -> R:
-        """Finds a Resource of the given type/template."""
-        resource = self._find_resource(runner, claim)
-        if resource is None:
-            raise LookupError(f"no resource for {claim!r} in {runner!r}")
-        return resource
-
     def _set_context(self, node: IsRuntime):
         """Sets the current context on a Span."""
         if node.session_id != self.session.id:
@@ -533,12 +524,11 @@ class Runtime:
         # prepare resources
         open_claims: list[Claim] = []
         for claim in runner.node.claims:
-            resource = self._find_resource(runner, claim)
-            if resource is None:
-                # create new claim
-                claim = claim.instance(recursive=False, detach=True)
-                claim.parent = runner.thread.thread
-                self.session._create(claim)
+            # create new claim
+            claim = claim.instance(recursive=False, detach=True)
+            claim.parent = runner.thread.thread
+            self.session._create(claim)
+            open_claims.append(claim)
         if open_claims:
             with capture_span(
                 tracer, "runtime.acquire_resources", SpanType.ACQUIRE, runner=runner

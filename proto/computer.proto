@@ -4,7 +4,7 @@ package symbolx.computer;
 
 // Computer service :ComputerKit
 service Computer {
-  // Take a screenshot of the current screen
+  // Take a screenshot of the current screen (JPEG)
   rpc Screenshot(ScreenshotRequest) returns (ScreenshotResponse);
 
   // Click an element

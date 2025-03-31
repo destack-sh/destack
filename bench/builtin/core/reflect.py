@@ -15,6 +15,7 @@ from bench.language import (
     text,
     to_icon,
 )
+from bench.language.registry import BENCH_CLASS_BY_NAME
 from bench.utils.func import parse_py_annotation
 
 
@@ -96,7 +97,7 @@ def class_to_kit(
         for param_name, param in params:
             param_type = param.annotation if param.annotation != inspect.Parameter.empty else Any
             default_value = None if param.default == inspect.Parameter.empty else param.default
-            type_info = parse_py_annotation(cast(Any, param_type), {})
+            type_info = parse_py_annotation(cast(Any, param_type), BENCH_CLASS_BY_NAME)
             field = Field.input(
                 name=param_name.replace("_", " ").title(),
                 typ=cast(TypeIn, type_info.type),
@@ -116,7 +117,7 @@ def class_to_kit(
             _, metadata = get_args(return_type)
             if isinstance(metadata, dict):
                 for output_name, output_type in metadata.items():
-                    type_info = parse_py_annotation(output_type, {})
+                    type_info = parse_py_annotation(output_type, BENCH_CLASS_BY_NAME)
                     field = Field.output(
                         name=output_name.replace("_", " ").title(),
                         typ=type_info.type,

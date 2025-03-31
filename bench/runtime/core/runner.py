@@ -23,7 +23,6 @@ from bench.language import (
     Breakpoint,
     BreakpointScope,
     BreakpointSite,
-    Claim,
     Code,
     CustomObject,
     Error,
@@ -44,8 +43,6 @@ from bench.language import (
     NodeType,
     Package,
     Plan,
-    Resource,
-    ResourceStatus,
     Run,
     RunnableNode,
     RunOptions,
@@ -536,15 +533,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         """Yield/resume a pause the given Runner if required."""
         if self.should_pause:
             self._trap_interruption(InterruptionType.PAUSE)
-
-    def _get_resource[R: Resource = Resource](self, claim: type[R] | R | Claim) -> R:
-        """Finds a Resource in the current context of a Runner."""
-        resource = self.runtime._get_resource(self, claim)
-        if resource is None:
-            raise LookupError(f"no resource for {claim!r} in {self!r}")
-        if resource.status != ResourceStatus.UP:
-            raise RuntimeError(f"resource {resource!r} is not ready in {self!r}")
-        return resource
 
     #
     # Run
