@@ -10,6 +10,7 @@ from bench.language.core import (
     EnumType,
     FieldType,
     InlineNode,
+    IsClaimable,
     IsInstantiable,
     IsModal,
     IsOwnable,
@@ -82,6 +83,7 @@ class TaskStatus(BuiltinEnum):
 class Task(
     IsTimed,
     IsOwnable,
+    IsClaimable,
     IsRuntime,
     IsModal,
     IsTitled,

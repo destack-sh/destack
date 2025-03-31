@@ -7,6 +7,7 @@ from bench.language.core import (
     IsClaimable,
     IsModal,
     IsNamed,
+    IsOwnable,
     IsTemplatable,
     LocalNodeList,
     NodeType,
@@ -26,7 +27,14 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.KIT)
-class Kit(IsTemplatable, IsClaimable, IsModal, IsNamed, InlineNode[KitData]):
+class Kit(
+    IsTemplatable,
+    IsOwnable,
+    IsClaimable,
+    IsModal,
+    IsNamed,
+    InlineNode[KitData],
+):
     """
     A Kit of Actions for a Node.
     """
