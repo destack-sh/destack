@@ -90,7 +90,7 @@ defineExpose<ViewExpose>({ self, id, commands });
               props: {
                 valueType: makeType({
                   kind: TypeKind.NODE,
-                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.IDENTITY, NodeType.USER, NodeType.TEAM] }),
+                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.AGENT, NodeType.USER, NodeType.TEAM] }),
                 }),
               },
               onApply: (value?: NodeReferenceData) => {

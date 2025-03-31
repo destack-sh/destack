@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.31.2"
+VERSION = "2025.03.31.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -912,9 +912,9 @@ FLOW_TABLE = Table(
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("default_identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("default_identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("default_identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("default_agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("default_agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("default_agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1200,9 +1200,9 @@ THREAD_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1427,8 +1427,8 @@ ROLE_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-IDENTITY_TABLE = Table(
-    "bench_identity",
+AGENT_TABLE = Table(
+    "bench_agent",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
@@ -1446,6 +1446,10 @@ IDENTITY_TABLE = Table(
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("claimed_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("claimed_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
@@ -1455,8 +1459,8 @@ IDENTITY_TABLE = Table(
         Column("thread_id", PrimitiveType.UUID, is_nullable=True),
         Column("thread_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tags_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("default_flow_id", PrimitiveType.UUID, is_nullable=True),
-        Column("default_flow_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_flow_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_flow_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
@@ -1491,9 +1495,9 @@ SESSION_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
@@ -1561,9 +1565,9 @@ RUN_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_trigger_id_trigger_key", IndexType.BTREE, ("trigger_id", "trigger_key")),
@@ -1624,9 +1628,9 @@ SPAN_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1677,9 +1681,9 @@ INTERRUPTION_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1712,9 +1716,9 @@ LOG_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1768,9 +1772,9 @@ PLAN_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1843,9 +1847,9 @@ TASK_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1899,9 +1903,9 @@ CLAIM_TABLE = Table(
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
         Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_id", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("agent_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

@@ -936,14 +936,14 @@ class Runtime:
                 and (flow := action.flow) is not None
             ):
                 # find existing Flow to lift into
-                identity_id = run.identity_id
+                identity_id = run.agent_id
                 self.session.commit_optimistic()
                 for existing_runner in self._runners_by_id.values():
                     if (
                         (existing_run := existing_runner.tracked_run) is not None
                         and existing_run.type == RunType.FLOW
                         and existing_run.flow_id == flow.id
-                        and existing_run.identity_id == identity_id
+                        and existing_run.agent_id == identity_id
                     ):
                         target_runner = existing_runner
                         assert isinstance(

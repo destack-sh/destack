@@ -13,7 +13,7 @@ from bench.language import (
 
 from .core import assign_builtin_ids, get_stable_builtin_path, sync_node
 from .resource import BrowserPage, ComputerKit, ComputerPage, UbuntuComputerTemplate
-from .source import ActionKit, ActionPage, BenchFlow, BenchIdentity, FlowPage
+from .source import ActionKit, ActionPage, BenchAgent, BenchFlow, FlowPage
 
 BuiltinPackage = Package(
     type=PackageType.OPEN,
@@ -38,8 +38,8 @@ assign_builtin_ids(BuiltinPackage._graph, ignore=(BuiltinPackage,))
 __all__ = [
     "ActionKit",
     "ActionPage",
+    "BenchAgent",
     "BenchFlow",
-    "BenchIdentity",
     "BrowserPage",
     "BuiltinPackage",
     "ComputerKit",

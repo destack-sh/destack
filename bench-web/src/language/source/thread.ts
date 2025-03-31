@@ -1,4 +1,4 @@
-import { BENCH_BUILTIN_IDENTITY_PTR } from "@/language/core/builtin";
+import { BENCH_BUILTIN_AGENT_PTR } from "@/language/core/builtin";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { newChangeId, Transaction } from "@/language/runtime/transaction";
 import { createMembership } from "@/language/source/membership";
@@ -28,7 +28,7 @@ export function createThread(
         membership: {
           parentPtr: toNodeRef(thread),
           packagePtr: thread.packagePtr,
-          memberPtr: BENCH_BUILTIN_IDENTITY_PTR,
+          memberPtr: BENCH_BUILTIN_AGENT_PTR,
         },
       });
     } else if (member == "user") {

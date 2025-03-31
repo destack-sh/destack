@@ -17,7 +17,7 @@ from bench.language.core import (
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Block,
+        Agent,
         Flow,
         Kit,
         Link,
@@ -153,16 +153,14 @@ class EditContext(Struct):
     run_root: Optional["Run"] = p_internal(
         75, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
-    identity: Optional["Block"] = p_internal(
-        76, require=False, array=False, references=NodeType.BLOCK
-    )
+    agent: Optional["Agent"] = p_internal(76, require=False, array=False, references=NodeType.AGENT)
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
         session_ptr: Optional[NodeReference] = None
         run_ptr: Optional[NodeReference] = None
         run_root_ptr: Optional[NodeReference] = None
-        identity_ptr: Optional[NodeReference] = None
+        agent_ptr: Optional[NodeReference] = None
 
 
 @struct_(StructType.CONTEXT)

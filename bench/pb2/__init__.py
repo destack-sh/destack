@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.03.31.2"
+VERSION = "2025.03.31.4"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -58,7 +58,7 @@ AnyNodeData = Union[
     MembershipData,
     InviteData,
     RoleData,
-    IdentityData,
+    AgentData,
     SessionData,
     RunData,
     SpanData,
@@ -163,7 +163,7 @@ BenchNodeData = Union[
     MembershipData,
     InviteData,
     RoleData,
-    IdentityData,
+    AgentData,
     SessionData,
     RunData,
     SpanData,
@@ -215,15 +215,15 @@ InlineNodeData = Union[
     ThreadData,
     TeamData,
     RoleData,
-    IdentityData,
+    AgentData,
     PlanData,
     TaskData,
     ViewData,
 ]
-SubjectNodeData = Union[UserData, OrganizationData, ComputerData, IdentityData]
+SubjectNodeData = Union[UserData, OrganizationData, ComputerData, AgentData]
 JoinableNodeData = Union[PackageData, ChannelData, ThreadData, TeamData]
-TypeBaseNodeData = Union[ChoiceData, ClassData, FlowData, ActionData, DatabaseData, IdentityData]
-FieldBaseNodeData = Union[ClassData, FlowData, ActionData, DatabaseData, IdentityData]
+TypeBaseNodeData = Union[ChoiceData, ClassData, FlowData, ActionData, DatabaseData, AgentData]
+FieldBaseNodeData = Union[ClassData, FlowData, ActionData, DatabaseData, AgentData]
 ClaimableNodeData = Union[
     ScalerData,
     StoreData,
@@ -237,6 +237,7 @@ ClaimableNodeData = Union[
     ActionData,
     KitData,
     DatabaseData,
+    AgentData,
     PlanData,
     TaskData,
     ViewData,
@@ -257,6 +258,7 @@ OwnableNodeData = Union[
     KitData,
     DatabaseData,
     ThreadData,
+    AgentData,
     PlanData,
     TaskData,
     ClaimData,

@@ -18,7 +18,7 @@ THREAD_QUERY = Thread.include_descendants(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
-    NodeType.IDENTITY,
+    NodeType.AGENT,
 )
 
 

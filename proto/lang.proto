@@ -172,7 +172,7 @@ enum NodeType {
   NODE_TYPE_MEMBERSHIP = 5610;
   NODE_TYPE_INVITE = 5620;
   NODE_TYPE_ROLE = 5630;
-  NODE_TYPE_IDENTITY = 5640;
+  NODE_TYPE_AGENT = 5640;
   NODE_TYPE_SESSION = 6000;
   NODE_TYPE_RUN = 6010;
   NODE_TYPE_SPAN = 6011;
@@ -283,7 +283,7 @@ enum ObjectType {
   OBJECT_TYPE_MEMBERSHIP = 5610;
   OBJECT_TYPE_INVITE = 5620;
   OBJECT_TYPE_ROLE = 5630;
-  OBJECT_TYPE_IDENTITY = 5640;
+  OBJECT_TYPE_AGENT = 5640;
   OBJECT_TYPE_SESSION = 6000;
   OBJECT_TYPE_RUN = 6010;
   OBJECT_TYPE_SPAN = 6011;
@@ -390,7 +390,7 @@ enum BenchType {
   BENCH_TYPE_MEMBERSHIP = 5610;
   BENCH_TYPE_INVITE = 5620;
   BENCH_TYPE_ROLE = 5630;
-  BENCH_TYPE_IDENTITY = 5640;
+  BENCH_TYPE_AGENT = 5640;
   BENCH_TYPE_SESSION = 6000;
   BENCH_TYPE_RUN = 6010;
   BENCH_TYPE_SPAN = 6011;
@@ -1023,7 +1023,7 @@ enum BlockType {
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_TEAM = 5600;
   BLOCK_TYPE_ROLE = 5630;
-  BLOCK_TYPE_IDENTITY = 5640;
+  BLOCK_TYPE_AGENT = 5640;
   BLOCK_TYPE_PLAN = 6100;
   BLOCK_TYPE_TASK = 6110;
   BLOCK_TYPE_CHANNEL = 5500;
@@ -2260,7 +2260,7 @@ message EditContextData {
   optional NodeReferenceData session_ptr = 73;
   optional NodeReferenceData run_ptr = 74;
   optional NodeReferenceData run_root_ptr = 75;
-  optional NodeReferenceData identity_ptr = 76;
+  optional NodeReferenceData agent_ptr = 76;
 }
 
 message ContextData {
@@ -2269,7 +2269,7 @@ message ContextData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message RunTraceData {
@@ -2508,7 +2508,7 @@ message EmptyData {
   optional google.protobuf.Value subnode_packed = 29;
 }
 
-message IdentityData {
+message AgentData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
@@ -2522,6 +2522,8 @@ message IdentityData {
   optional google.protobuf.Timestamp deleted_at = 14;
   optional NodeReferenceData template_ptr = 15;
   optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 31;
@@ -2530,7 +2532,7 @@ message IdentityData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData thread_ptr = 36;
   repeated NodeReferenceData tags_ptr = 37;
-  optional NodeReferenceData default_flow_ptr = 40;
+  optional NodeReferenceData main_flow_ptr = 40;
   optional NodeReferenceData implemented_by_ptr = 41;
   optional ColorType color = 45;
   optional google.protobuf.Value inputs_packed = 61;
@@ -2767,7 +2769,7 @@ message ThreadData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message ApplicationData {
@@ -3194,7 +3196,7 @@ message ClaimData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message PlanData {
@@ -3234,7 +3236,7 @@ message PlanData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message TaskData {
@@ -3282,7 +3284,7 @@ message TaskData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message InterruptionData {
@@ -3318,7 +3320,7 @@ message InterruptionData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message LogData {
@@ -3342,7 +3344,7 @@ message LogData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message RunData {
@@ -3393,7 +3395,7 @@ message RunData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message SessionData {
@@ -3416,7 +3418,7 @@ message SessionData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message SpanData {
@@ -3459,7 +3461,7 @@ message SpanData {
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;
   optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData identity_ptr = 96;
+  optional NodeReferenceData agent_ptr = 96;
 }
 
 message ActionData {
@@ -3669,7 +3671,7 @@ message FlowData {
   repeated NodeReferenceData tags_ptr = 37;
   optional RunOptionsData options = 40;
   optional TextData text = 41;
-  optional NodeReferenceData default_identity_ptr = 50;
+  optional NodeReferenceData default_agent_ptr = 50;
 }
 
 message KitData {
@@ -4044,7 +4046,7 @@ message SomeNodeData {
     MembershipData membership = 33;
     InviteData invite = 34;
     RoleData role = 35;
-    IdentityData identity = 36;
+    AgentData agent = 36;
     SessionData session = 37;
     RunData run = 38;
     SpanData span = 39;

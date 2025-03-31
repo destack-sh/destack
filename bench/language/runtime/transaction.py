@@ -311,8 +311,8 @@ class Transaction:
         if now is None:
             now = session._oracle.utc()
         run = session._runtime.active_run if session._runtime is not None else None
-        if run is not None and run.identity_ptr is not None:
-            subject_ptr = run.identity_ptr
+        if run is not None and run.agent_ptr is not None:
+            subject_ptr = run.agent_ptr
         elif session._subject is not None:
             subject_ptr = session._subject.to_ref()
         else:

@@ -29,7 +29,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Claim, Field, Identity, Link, Page, RunOptions
+    from bench.language import Action, Agent, Claim, Field, Link, Page, RunOptions
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -60,16 +60,16 @@ class Flow(
     )
 
     # auth
-    default_identity: Optional["Identity"] = p_regular(
+    default_agent: Optional["Agent"] = p_regular(
         50,
         require=False,
         array=False,
-        references=NodeType.IDENTITY,
-        description="The default Identity to use for this Flow.",
+        references=NodeType.AGENT,
+        description="The default Agent to use for this Flow.",
     )
     if TYPE_CHECKING:
-        default_identity_ptr: Optional[NodeReference] = None
-        default_identity_id: Optional[UUID] = None
+        default_agent_ptr: Optional[NodeReference] = None
+        default_agent_id: Optional[UUID] = None
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)

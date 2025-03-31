@@ -7,9 +7,11 @@ from bench.language.core import (
     CustomObject,
     FieldType,
     InlineNode,
+    IsClaimable,
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsOwnable,
     IsSubject,
     LocalNodeList,
     NodeReference,
@@ -24,7 +26,7 @@ from bench.language.core import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.pb2 import IdentityData
+from bench.pb2 import AgentData
 
 if TYPE_CHECKING:
     from bench.language import Channel, Claim, Field, Flow, Page, Run, Text, Thread
@@ -32,31 +34,39 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.IDENTITY)
-class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityData]):
-    """The Identity of an 'Agent' (tied to a Flow). May run for another Flow than its own."""
+@node_(NodeType.AGENT)
+class Agent(
+    IsInstantiable,
+    IsOwnable,
+    IsClaimable,
+    IsModal,
+    IsSubject,
+    IsNamed,
+    InlineNode[AgentData],
+):
+    """An Agent is an autonomous entity that implements Plans/Tasks using Actions and Resources."""
 
     # meta
     parent: Union["Page", "Channel", "Thread", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD
     )
 
-    default_flow: Optional["Flow"] = p_regular(
+    main_flow: Optional["Flow"] = p_regular(
         40,
         require=False,
         references=NodeType.FLOW,
-        description="The default Flow backing this Identity.",
+        description="The main Flow backing this Agent.",
     )
     implemented_by: Optional["Run"] = p_regular(
         41,
         require=False,
         references=NodeType.RUN,
-        description="The Run implementing this Identity.",
+        description="The Run implementing this Agent.",
     )
     color: ColorType | None = p_regular(45)
     if TYPE_CHECKING:
-        default_flow_ptr: Optional[NodeReference] = None
-        default_flow_id: Optional[UUID] = None
+        main_flow_ptr: Optional[NodeReference] = None
+        main_flow_id: Optional[UUID] = None
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 
@@ -114,6 +124,6 @@ class Identity(IsInstantiable, IsModal, IsSubject, IsNamed, InlineNode[IdentityD
         return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod
-    def new(name: str, **kwargs) -> "Identity":
-        identity = Identity(name=name, **kwargs)
-        return identity
+    def new(name: str, **kwargs) -> "Agent":
+        agent = Agent(name=name, **kwargs)
+        return agent

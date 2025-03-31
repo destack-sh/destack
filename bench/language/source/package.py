@@ -23,12 +23,12 @@ from bench.pb2 import PackageData
 
 if TYPE_CHECKING:
     from bench.language import (
+        Agent,
         Bench,
         Channel,
         Dependency,
         Flow,
         Icon,
-        Identity,
         Membership,
         Page,
         Scaler,
@@ -75,11 +75,11 @@ class Package(IsOwnable, IsJoinable, IsTemplatable, IsModal, IsNamed, PackageNod
         references=NodeType.FLOW,
         description="The default Flow for dynamic behavior.",
     )
-    default_identity: Optional["Identity"] = p_regular(
+    default_identity: Optional["Agent"] = p_regular(
         52,
         require=False,
         array=False,
-        references=NodeType.IDENTITY,
+        references=NodeType.AGENT,
         same_bench=True,
         ckless=True,
         description="The default Identity for Flows.",

@@ -5,7 +5,7 @@ from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
-    Identity,
+    Agent,
     Message,
     NodeType,
     Run,
@@ -53,9 +53,9 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                 if membership.member_id == message.created_by_id:
                     continue  # skip if we're the author
                 member = membership.member
-                if not isinstance(member, Identity):
-                    continue  # not an Identity or deleted
-                flow = member.default_flow
+                if not isinstance(member, Agent):
+                    continue  # not an Agent or deleted
+                flow = member.main_flow
                 if flow is None:
                     continue  # no Flow to trigger
                 for action in flow.actions:
@@ -79,7 +79,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                         trigger=trigger,
                         message=message,
                         thread=thread,
-                        identity=member,
+                        agent=member,
                     )
                     runs.append(run)
             logger.info("message_trigger_plugin.trigger", message=message, runs=runs)

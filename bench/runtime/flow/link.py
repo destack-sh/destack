@@ -5,10 +5,10 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    Agent,
     BreakpointScope,
     BreakpointSite,
     CustomObject,
-    Identity,
     IsRuntime,
     Link,
     LinkType,
@@ -38,7 +38,7 @@ class LinkRunner(Runner[Link], ABC):
         run: RunIn,
         flow: "FlowRunner | None" = None,
         parent: Runner | None = None,
-        identity: Identity | None = None,
+        agent: Agent | None = None,
         inputs: CustomObject | None = None,
         outputs: TypeBase | CustomObject | None = None,
     ) -> None:
@@ -48,7 +48,7 @@ class LinkRunner(Runner[Link], ABC):
             options=options,
             context=context,
             parent=parent,
-            identity=identity,
+            agent=agent,
             inputs=inputs,
             outputs=outputs,
             run=run,

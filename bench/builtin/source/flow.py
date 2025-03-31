@@ -1,8 +1,8 @@
 from bench.language import (
     Action,
     ActionType,
+    Agent,
     Flow,
-    Identity,
     LinkType,
     Page,
     Trigger,
@@ -27,13 +27,13 @@ Tool1.connect(LinkType.DECIDE, Tool1)
 Tool1.connect(LinkType.DECIDE, Complete1)
 
 # default Agent
-BenchIdentity = Identity.new(
+BenchAgent = Agent.new(
     "Bench",
     icon=icon("fas fa-robot"),
-    text=text("The default Identity of a Bench."),
-    default_flow=BenchFlow,
+    text=text("The default Agent of a Bench."),
+    main_flow=BenchFlow,
 )
-BenchFlow.default_identity = BenchIdentity
+BenchFlow.default_agent = BenchAgent
 
 FlowPage = Page.new("Flow")
-FlowPage.extend(BenchFlow, BenchIdentity)
+FlowPage.extend(BenchFlow, BenchAgent)

@@ -97,6 +97,7 @@ from .validation import NAME_CONSTRAINT, on_invalid_raise
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Agent,
         Bench,
         Block,
         Choice,
@@ -114,7 +115,6 @@ if TYPE_CHECKING:
         Flow,
         GetConnection,
         Icon,
-        Identity,
         Link,
         NodeLink,
         NodeReference,
@@ -1389,9 +1389,7 @@ class IsRuntime(BuiltinObject):
         94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
     )
     user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
-    identity: Optional["Identity"] = p_internal(
-        96, require=False, array=False, references=NodeType.IDENTITY
-    )
+    agent: Optional["Agent"] = p_internal(96, require=False, array=False, references=NodeType.AGENT)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
@@ -1401,9 +1399,9 @@ class IsRuntime(BuiltinObject):
         computer_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
-        identity_ptr: Optional[NodeReference] = None
-        identity_id: Optional[UUID] = None
-        identity_ck: Optional[UUID] = None
+        agent_ptr: Optional[NodeReference] = None
+        agent_id: Optional[UUID] = None
+        agent_ck: Optional[UUID] = None
 
     @property
     def runtime(self):
@@ -1659,9 +1657,9 @@ class IsTitled(BuiltinObject):
 
 RunnableNode = Union["Flow", "Action", "Link"]
 RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
-FieldBaseNode = Union["Identity", "Flow", "Action", "Class", "Database"]
+FieldBaseNode = Union["Agent", "Flow", "Action", "Class", "Database"]
 FIELD_BASE_NODE_TYPES = (
-    NodeType.IDENTITY,
+    NodeType.AGENT,
     NodeType.FLOW,
     NodeType.ACTION,
     NodeType.CLASS,
