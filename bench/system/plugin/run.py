@@ -77,7 +77,7 @@ class RunPlugin(HostPlugin[Run]):
         return pending_op
 
     @override
-    async def on_commit(self, session: Session, commit: Commit[Run]) -> None:
+    async def post_commit(self, session: Session, commit: Commit[Run]) -> None:
         for run in commit.added:
             # start new scheduled runs
             if run.status <= RunStatus.SCHEDULED and run.parent_type != NodeType.RUN:

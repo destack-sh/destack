@@ -116,7 +116,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
                 )
 
     @override
-    async def on_commit_prepare(self, session: Session, commit: Commit[Database | Field]) -> None:
+    async def pre_commit(self, session: Session, commit: Commit[Database | Field]) -> None:
         # check if any databases were touched
         touched_databases_by_id: dict[UUID, Database] = {}
         for node in commit.edited:
@@ -181,7 +181,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
         )
 
     @override
-    async def on_commit(self, session: Session, commit: Commit[Database | Field]) -> None:
+    async def post_commit(self, session: Session, commit: Commit[Database | Field]) -> None:
         # actually remove tables for removed databases
         for node in commit.removed:
             if node.id in self.context.databases_by_id:
@@ -189,6 +189,6 @@ class DatabasePlugin(HostPlugin[Database | Field]):
                 del self.context.custom_tables_by_database[cast(Database, node)]
 
     @override
-    async def on_commit_failed(self, session: Session, error: BaseException) -> None:
+    async def post_commit_failed(self, session: Session, error: BaseException) -> None:
         # reset context
         self._init_context_from_databases()

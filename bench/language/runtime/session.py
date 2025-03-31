@@ -155,9 +155,9 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE_DATA)
     _local_epoch: int | None = p_runtime(default=None)
-    _on_commit_prepare: CommitPrepareHook | None = p_runtime(default=None)
-    _on_commit: CommitHook | None = p_runtime(default=None)
-    _on_commit_failed: CommitFailedHook | None = p_runtime(default=None)
+    _pre_commit: CommitPrepareHook | None = p_runtime(default=None)
+    _post_commit: CommitHook | None = p_runtime(default=None)
+    _post_commit_failed: CommitFailedHook | None = p_runtime(default=None)
     _on_edit_subs: dict[UUID, list[Callable[[Node], None]]] = p_runtime(default_factory=dict)
 
     # runtime
@@ -772,7 +772,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             async with self._tx_lock:
                 assert self._tx is not None, f"no active transaction in {self!r}"
                 # prepare commit
-                if self._on_commit_prepare is not None:
+                if self._pre_commit is not None:
                     # NOTE :Architecture: we exclude Records from preflush in commit prepare
                     #  because our DatabasePlugin needs to update schemas before touching any Records.
                     excluded_node_types = (NodeType.RECORD,)
@@ -784,7 +784,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                     pending_graphs.append(graph)
                     if data_graph is None:
                         data_graph = self._make_pending_data_graph()
-                    await self._on_commit_prepare(self, graph, data_graph, edits, cascaded_edits)
+                    await self._pre_commit(self, graph, data_graph, edits, cascaded_edits)
 
                 # do commit
                 self._preflush()
@@ -792,7 +792,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 log = log.bind(edits=len(edits), cascaded_edits=len(cascaded_edits))
 
             # on commit hook
-            if self._on_commit is not None:
+            if self._post_commit is not None:
                 graph = self._make_pending_graph()
                 pending_graphs.append(graph)
                 if data_graph is None:
@@ -805,14 +805,14 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                         if node_data.id in data_graph:
                             data_graph.update(node_data)
 
-                await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
+                await self._post_commit(self, graph, data_graph, edits, cascaded_edits)
                 self._pending_nodes_by_id = {}
 
             log.trace("session.commit")
             return edits, cascaded_edits
         except BaseException as e:
-            if self._on_commit_failed is not None:
-                await self._on_commit_failed(self, e)
+            if self._post_commit_failed is not None:
+                await self._post_commit_failed(self, e)
             if isinstance(e, EngineUnavailableError):
                 logger.error("session.commit.error", error=e, connectors=self._connectors)
                 for connector in self._connectors:

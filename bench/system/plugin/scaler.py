@@ -142,8 +142,8 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
         self.tasks.run(self._reconcile_forever(), task_id=f"{self.slug}.reconcile")
 
     @final
-    @tracer.start_as_current_span("scaler.on_commit_deferred")
-    async def on_commit_deferred(self, commit: Commit[Scaler | WT]) -> None:
+    @tracer.start_as_current_span("scaler.post_commit_deferred")
+    async def post_commit_deferred(self, commit: Commit[Scaler | WT]) -> None:
         trace.get_current_span().set_attribute("plugin", self.name)
         # reconcile
         for node in commit.edited:

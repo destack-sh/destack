@@ -292,9 +292,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             _default_scope=self._scope,
             _engines=engines if engines is not None else self.get_engines(),
             _local_epoch=self._local_epoch,
-            _on_commit_prepare=self._on_commit_prepare_hook if not raw_commit else None,
-            _on_commit=self._on_commit_hook if not raw_commit else None,
-            _on_commit_failed=self._on_commit_failed_hook if not raw_commit else None,
+            _pre_commit=self._pre_commit_hook if not raw_commit else None,
+            _post_commit=self._post_commit_hook if not raw_commit else None,
+            _post_commit_failed=self._post_commit_failed_hook if not raw_commit else None,
             _supergraph=supergraph,
             _split_read=self.split_reads,
             _oracle=self.oracle,
@@ -302,7 +302,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         )
 
     @final
-    async def _on_commit_prepare_hook(
+    async def _pre_commit_hook(
         self,
         session: Session,
         graph: NodeGraph,
@@ -310,7 +310,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ) -> None:
-        return await self.on_commit_prepare(
+        return await self.pre_commit(
             session=session,
             graph=graph,
             data_graph=data_graph,
@@ -319,7 +319,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             cascaded_edits=cascaded_edits,
         )
 
-    async def on_commit_prepare(
+    async def pre_commit(
         self,
         session: Session,
         graph: NodeGraph,
@@ -331,7 +331,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         """Extend a commit."""
         pass  # do nothing by default
 
-    async def _on_commit_hook(
+    async def _post_commit_hook(
         self,
         session: Session,
         graph: NodeGraph,
@@ -341,7 +341,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
     ) -> None:
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
         self._local_epoch = session._local_epoch
-        await self.on_commit(
+        await self.post_commit(
             session=session,
             graph=graph,
             data_graph=data_graph,
@@ -349,7 +349,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             cascaded_edits=cascaded_edits,
         )
 
-    async def on_commit(
+    async def post_commit(
         self,
         session: Session,
         graph: NodeGraph,
@@ -358,19 +358,19 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         cascaded_edits: Sequence[EditData],
     ):
         """Handle an accepted commit."""
-        self.connector.on_commit(
+        self.connector.post_commit(
             data_graph, edits, cascaded_edits, self._local_epoch
         )  # update cache
 
     @final
-    async def _on_commit_failed_hook(
+    async def _post_commit_failed_hook(
         self,
         session: Session,
         exc: BaseException,
     ) -> None:
-        await self.on_commit_failed(session=session, exc=exc)
+        await self.post_commit_failed(session=session, exc=exc)
 
-    async def on_commit_failed(self, session: Session, exc: BaseException):
+    async def post_commit_failed(self, session: Session, exc: BaseException):
         """Handle a failed commit."""
         pass  # do nothing by default
 
