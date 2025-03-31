@@ -32,6 +32,7 @@ from .registry import (
 )
 from .runtime import *  # noqa: F403
 from .source import *  # noqa: F403
+from .view import *  # noqa: F403
 
 # after all the imports, we can finalize
 _complete_bench_setup()

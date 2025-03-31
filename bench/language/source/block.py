@@ -42,24 +42,23 @@ _type = type
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
-    COMPUTER = 2100, "Computer", "Computer", "fas fa-computer"
-    APPLICATION = 2110, "Application", "Application", "fas fa-browser"
-    FILE = 2200, "File", "Any File", "fas fa-file"
-    PAGE = 5020, "Page", "Page to write", "fas fa-page"
-    CHOICE = 5030, "Choice", "Choice of options", "fas fa-check-circle"
-    CLASS = 5031, "Class", "Class of Fields", "fas fa-boxes-stacked"
-    TAG = 5040, "Tag", "Tag to tag other Nodes", "fas fa-tag"
-    FLOW = 5050, "Flow", "Flow to run", "fas fa-play"
-    KIT = 5060, "Kit", "Kit of Actions", "fas fa-screwdriver-wrench"
-    VIEW = 5080, "View", "Graphical Interface", "fas fa-eye"
-    DATABASE = 5090, "Database", "Database to store", "fas fa-database"
-    TEAM = 5600, "Team", "Team of entities", "fas fa-users"
-    ROLE = 5630, "Role", "Role to assign", "fas fa-user-shield"
-    IDENTITY = 5640, "Identity", "Identity to assign", "fas fa-user"
-    PLAN = 6100, "Plan", "Plan to execute", "fas fa-list-check"
-    TASK = 6110, "Task", "Task to accomplish", "fas fa-square-check"
-    CHANNEL = 5500, "Channel", "Channel to send", "fas fa-envelope"
-    THREAD = 5510, "Thread", "Thread to send", "fas fa-reel"
+    COMPUTER = 2100
+    APPLICATION = 2110
+    FILE = 2200
+    PAGE = 5020
+    CHOICE = 5030
+    CLASS = 5031
+    TAG = 5040
+    FLOW = 5050
+    KIT = 5060
+    DATABASE = 5090
+    TEAM = 5600
+    ROLE = 5630
+    IDENTITY = 5640
+    PLAN = 6100
+    TASK = 6110
+    CHANNEL = 5500
+    THREAD = 5510
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
@@ -85,6 +84,16 @@ class BlockType(BuiltinEnum):
 
     # layout?
     # ROW
+
+
+# copy NodeType properties to BlockType
+for block_type in BlockType:
+    if block_type.id < 10000:
+        node_type = NodeType(block_type.id)
+        block_type.title = node_type.title
+        block_type.color = node_type.color
+        block_type.icon = node_type.icon
+        block_type.text = node_type.text
 
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)

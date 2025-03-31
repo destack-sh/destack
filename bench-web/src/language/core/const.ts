@@ -196,6 +196,8 @@ export const LOADED_PACKAGE_NODE_TYPES = [
   NodeType.ROLE,
   NodeType.IDENTITY,
   NodeType.TEAM,
+  NodeType.SPACE,
+  NodeType.VIEW,
 ];
 
 export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];

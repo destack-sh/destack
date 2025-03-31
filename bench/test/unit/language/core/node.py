@@ -35,7 +35,7 @@ from bench.language import (
     TextLine,
 )
 from bench.language.communication.channel import Channel
-from bench.language.source.view import ChatView, View, ViewType
+from bench.language.view.view import ChatView, View, ViewType
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
