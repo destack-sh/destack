@@ -77,7 +77,7 @@ from .runner import (
     create_run,
     restore_runner,
 )
-from .thread import RuntimeThread
+from .thread import ThreadHandle
 
 if TYPE_CHECKING:
     from bench.runtime.process import RuntimeProcess
@@ -134,7 +134,7 @@ class Runtime:
 
         self._locks_by_run_id: dict[UUID, asyncio.Lock] = {}
         self._locks_by_thread_id: dict[UUID, asyncio.Lock] = {}
-        self._threads_by_id: dict[UUID, RuntimeThread] = {}
+        self._threads_by_id: dict[UUID, ThreadHandle] = {}
         self._runners_by_id: dict[UUID, Runner] = {}
         self._runners_by_thread_id: dict[UUID, list[Runner]] = {}
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
@@ -777,12 +777,12 @@ class Runtime:
     # Orchestration
     #
 
-    def get_thread(self, thread_id: UUID) -> RuntimeThread | None:
+    def get_thread(self, thread_id: UUID) -> ThreadHandle | None:
         """Get a Thread."""
         return self._threads_by_id.get(thread_id)
 
     @tracer.start_as_current_span("runtime.load_thread")
-    async def _load_thread(self, thread_ptr: NodeReference) -> RuntimeThread:
+    async def _load_thread(self, thread_ptr: NodeReference) -> ThreadHandle:
         """Load a Thread."""
         trace.get_current_span().set_attribute("thread_id", str(thread_ptr.id))
 
@@ -801,7 +801,7 @@ class Runtime:
                 return thread
 
             # load thread
-            handle = RuntimeThread(thread_ptr)
+            handle = ThreadHandle(thread_ptr)
             self._threads_by_id[thread_ptr.id] = handle
             await handle.open()
             logger.debug("runtime.load_thread", thread=handle, span="current")
@@ -1030,7 +1030,7 @@ class Runtime:
                 if not self._runners_by_thread_id[runner.id]:
                     thread = runner.thread
                     assert thread is not None, f"{runner!r} has no thread"
-                    await thread.close()
+                    thread.close()
                     del self._runners_by_thread_id[thread.id]
 
         return inner_runner

@@ -12,6 +12,7 @@ from typing import (
     assert_never,
     cast,
     final,
+    override,
 )
 
 import structlog
@@ -57,10 +58,11 @@ from bench.language import (
     active_session,
 )
 from bench.language.core.const import COMMUNICATION_NODE_TYPES
-from bench.runtime.core.thread import RuntimeThread
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
+from .scope import RuntimeScope
+from .thread import ThreadHandle
 
 if TYPE_CHECKING:
     from .runtime import Runtime
@@ -137,7 +139,7 @@ RunnerEvent = (
 )
 
 
-class Runner[N: RunnableNode = RunnableNode](abc.ABC):
+class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
     """
     A Runner to run a Run/Span (every Run has one Runner, some Spans have one).
     Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interruption.
@@ -321,7 +323,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         return self.runtime.session
 
     @property
-    def thread(self) -> RuntimeThread:
+    def thread(self) -> ThreadHandle:
         run = self.tracked_run or self.closest_tracked_run
         assert run is not None, f"{self!r} has no tracked Run"
         assert run.thread_ptr is not None, f"{run!r} has no Thread"
@@ -562,6 +564,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
 
+    @override
     def close(self, recursive: bool = True):
         """Close this Runner/Run."""
         if self.capture is not None:
