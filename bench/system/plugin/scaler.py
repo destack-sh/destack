@@ -49,15 +49,17 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
 
     async def _get_scaled_resources(self) -> Mapping[Scaler, list[WT]]:
         """Gets all the scaled Resources for this Provisioner."""
-        # get from database
         resources_by_scaler: dict[Scaler, list[WT]] = {}
+        for scaler in self.main_package.scalers:
+            if scaler.is_active:
+                resources_by_scaler[scaler] = []
         for scale_type in self.scale_types:
             provision_cls = cast(type[WT], NODE_CLASS_BY_TYPE[scale_type])
             resources_query = (
                 provision_cls.where(
                     provision_cls.get_property("bench").eq(self.bench)
-                    & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
                     & provision_cls.get_property("scaler").is_not_none()
+                    & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
                     & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
                 )
                 .include_ancestors()
@@ -89,13 +91,13 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
         # reconcile
         async with self.host.session(commit=True) as session:
             for scaler, resource_group in resources_by_scaler.items():
-                if not scaler.is_extant:
+                if scaler.is_active:
+                    # rebalance resource group
+                    self._rebalance(session, scaler, resource_group)
+                else:
                     # decommission
                     for resource in resource_group:
                         resource.decommission()
-                elif scaler.is_active:
-                    # rebalance resource group
-                    self._rebalance(session, scaler, resource_group)
 
     def _rebalance(self, session: Session, scaler: Scaler, resource_group: Sequence[WT]) -> None:
         """Rebalance a Scaler's (dynamic) Resource group."""
