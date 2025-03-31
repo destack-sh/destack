@@ -57,7 +57,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           auto-connect
           scale-viewport
         />
-        <!-- nocheckin: Computer VNC/streaming view -->
+        <!-- TODO :Incomplete: proper Computer VNC/streaming view -->
         <div v-else>
           <!-- ... -->
         </div>
