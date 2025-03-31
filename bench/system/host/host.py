@@ -443,8 +443,8 @@ class HostService(GraphServiceBase, HostBase):
             parent=self._bench,
             _default_scope=self.scope,
             _engines=self._engines,
-            _on_commit_prepare=self._on_commit_prepare_hook,
-            _on_commit=self._on_commit_hook,
+            _pre_commit=self._pre_commit_hook,
+            _post_commit=self._post_commit_hook,
             _supergraph=self._bench._supergraph,
             _split_read=True,
             _oracle=self.oracle,
@@ -608,8 +608,8 @@ class HostService(GraphServiceBase, HostBase):
                 _apply_edit(edit)
 
     @override
-    @tracer.start_as_current_span("host.on_commit_prepare")
-    async def on_commit_prepare(
+    @tracer.start_as_current_span("host.pre_commit")
+    async def pre_commit(
         self,
         session: Session,
         graph: NodeGraph,
@@ -642,11 +642,11 @@ class HostService(GraphServiceBase, HostBase):
         )
         for plugin in self._plugins:
             if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
-                await plugin.on_commit_prepare(session, commit)
+                await plugin.pre_commit(session, commit)
 
     @override
-    @tracer.start_as_current_span("host.on_commit")
-    async def on_commit(
+    @tracer.start_as_current_span("host.post_commit")
+    async def post_commit(
         self,
         session: Session,
         graph: NodeGraph,
@@ -654,7 +654,7 @@ class HostService(GraphServiceBase, HostBase):
         edits: Sequence[EditData],
         cascaded_edits: Sequence[EditData],
     ):
-        await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
+        await super().post_commit(session, graph, data_graph, edits, cascaded_edits)
 
         assert self._session is not None, f"session not ready in {self!r}"
 
@@ -672,15 +672,15 @@ class HostService(GraphServiceBase, HostBase):
             for plugin in self._plugins:
                 if plugin.watch_types is None or commit.edited_types & plugin.watch_types:
                     with tracer.start_as_current_span(
-                        "host.on_commit.plugin", attributes={"plugin": plugin.name}
+                        "host.post_commit.plugin", attributes={"plugin": plugin.name}
                     ):
                         if plugin.watch_types is not None:
                             trimmed_commit = commit.trim_to(plugin.watch_types)
                         else:
                             trimmed_commit = commit
-                        await plugin.on_commit(self._session, trimmed_commit)
+                        await plugin.post_commit(self._session, trimmed_commit)
                         logger.trace(
-                            "host.on_commit.plugin",
+                            "host.post_commit.plugin",
                             host=self,
                             plugin=plugin,
                             commit=trimmed_commit,
@@ -688,7 +688,7 @@ class HostService(GraphServiceBase, HostBase):
                         )
             await self._session.commit()
         logger.debug(
-            "host.on_commit",
+            "host.post_commit",
             host=self,
             added=commit.added,
             updated=commit.updated,
@@ -697,7 +697,7 @@ class HostService(GraphServiceBase, HostBase):
         )
 
     @override
-    async def on_commit_failed(self, session: Session, exc: BaseException):
+    async def post_commit_failed(self, session: Session, exc: BaseException):
         # reload graphs (discard optimistic edits)
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
@@ -707,7 +707,7 @@ class HostService(GraphServiceBase, HostBase):
 
         # run plugins
         for plugin in self._plugins:
-            await plugin.on_commit_failed(session, exc)
+            await plugin.post_commit_failed(session, exc)
 
     #
     # Files

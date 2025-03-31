@@ -73,15 +73,15 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 await self.decommission(resource)
 
         # then start watching in host plugin
-        #  (starting watch after above is important because there is no lock between this and on_commit_deferred,
+        #  (starting watch after above is important because there is no lock between this and post_commit_deferred,
         #   and we assume exclusivity in the provisioning methods. Host plugins start the queue in .start)
         await super().start()
 
     async def _do_start(self) -> None:
         pass  # to be overridden
 
-    @tracer.start_as_current_span("provisioner.on_commit_deferred")
-    async def on_commit_deferred(self, commit: Commit[WT]) -> None:
+    @tracer.start_as_current_span("provisioner.post_commit_deferred")
+    async def post_commit_deferred(self, commit: Commit[WT]) -> None:
         trace.get_current_span().set_attribute("plugin", self.name)
 
         # handle edit by updating resource

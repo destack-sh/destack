@@ -17,7 +17,7 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
         await super().start()
 
     @override
-    async def on_commit_deferred(self, commit: Commit[Claim]) -> None:
+    async def post_commit_deferred(self, commit: Commit[Claim]) -> None:
         pending_claims: list[Claim] = [
             claim
             for claim in commit.added

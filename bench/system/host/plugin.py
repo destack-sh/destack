@@ -98,9 +98,7 @@ class HostPlugin[T: Node]:
     # Events
     #
 
-    async def on_commit_prepare(
-        self, session: Session, commit: Commit[T]
-    ) -> Sequence[EditData] | None:
+    async def pre_commit(self, session: Session, commit: Commit[T]) -> Sequence[EditData] | None:
         """
         Add edits that logically belong to the same Transaction.
         The commit contains only direct edits, not cascaded edits.
@@ -108,14 +106,14 @@ class HostPlugin[T: Node]:
         """
         pass
 
-    async def on_commit(self, session: Session, commit: Commit[T]) -> None:
+    async def post_commit(self, session: Session, commit: Commit[T]) -> None:
         """
         React to the commit in a new Transaction (but still in the request lifecycle).
         The commit contains edits and cascaded edits.
         """
         pass
 
-    async def on_commit_failed(self, session: Session, error: BaseException) -> None:
+    async def post_commit_failed(self, session: Session, error: BaseException) -> None:
         """
         React to a failed commit.
         """
@@ -163,7 +161,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
                 _patch_node(old_node, new_node, track=False)
 
     @override
-    async def on_commit(self, session: Session, commit: Commit) -> None:
+    async def post_commit(self, session: Session, commit: Commit) -> None:
         if self.filter_commit(commit):
             # queue commit
             self._commit_queue.put_nowait(commit)
@@ -192,7 +190,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
             commit = await self._commit_queue.get()
             try:
                 self._processing_commit = commit
-                await self.on_commit_deferred(commit)
+                await self.post_commit_deferred(commit)
             except Exception as e:
                 # suppress errors and keep going
                 logger.exception("deferred.commit.error", owner=self, commit=commit, exc_info=e)
@@ -201,7 +199,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
                 self._processing_commit = None
                 self._commit_queue.task_done()
 
-    async def on_commit_deferred(self, commit: Commit) -> None:
+    async def post_commit_deferred(self, commit: Commit) -> None:
         """
         React to the committed changes (outside the request, later, one at a time).
         """

@@ -38,7 +38,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
     watch_types = bittuple(NodeType.TRIGGER, NodeType.MESSAGE)
 
     @override
-    async def on_commit_prepare(
+    async def pre_commit(
         self, session: Session, commit: Commit[Trigger | Message]
     ) -> Sequence[EditData] | None:
         # collect fired triggers

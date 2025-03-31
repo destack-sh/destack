@@ -147,7 +147,7 @@ class Connection[
         self._subscribers.remove(subscription)
 
     @abc.abstractmethod
-    def on_commit(
+    def post_commit(
         self,
         graph: NodeDataGraph,
         edits: Sequence[EditData],
@@ -355,7 +355,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
         self._result_data = connection.result_data
         return self._result_data
 
-    def on_commit(
+    def post_commit(
         self,
         graph: NodeDataGraph,
         edits: Sequence[EditData],
@@ -419,7 +419,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
         self._result_roots_ids = {node.id for node in self._result_data.roots}
         return self._result_data
 
-    def on_commit(
+    def post_commit(
         self,
         graph: NodeDataGraph,
         edits: Sequence[EditData],
@@ -557,7 +557,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateDa
         self._result_data = connection.result_data
         return self._result_data
 
-    def on_commit(
+    def post_commit(
         self,
         graph: NodeDataGraph,
         edits: Sequence[EditData],
@@ -675,8 +675,8 @@ class ConnectionIndex:
         subscription = await connection.subscribe(subject, since_epoch)
         return subscription
 
-    @tracer.start_as_current_span("connection.on_commit")
-    def on_commit(
+    @tracer.start_as_current_span("connection.post_commit")
+    def post_commit(
         self,
         graph: NodeDataGraph,
         edits: Sequence[EditData],
@@ -690,4 +690,4 @@ class ConnectionIndex:
             edited_node_types.bits[node_type.ord] = True
         for connection in self._connections_by_hash.values():
             if (connection.node_types.bits & edited_node_types.bits).any():
-                connection.on_commit(graph, edits, cascaded_edits, epoch)
+                connection.post_commit(graph, edits, cascaded_edits, epoch)
