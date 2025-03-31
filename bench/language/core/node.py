@@ -456,7 +456,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_type: NodeType | None = None
     # IsModal.mode: 20
 
-    # NOTE :Architecture!: obviously, a better system would store subnodes directly
+    # NOTE :Architecture! :PolyViews: obviously, a better system would store subnodes directly
     #  (but we can't do that yet because we map properties to Postgres columns,
     #   so we can't have crazy numbers of subtype-properties unless we pack them like this,
     #   similarly, our protobuf types would explode if we flatten out subnodes)

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.03.31.1"
+VERSION = "2025.03.31.2"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -49,9 +49,7 @@ AnyNodeData = Union[
     LinkData,
     TriggerData,
     KitData,
-    ViewData,
     DatabaseData,
-    SpaceData,
     ChannelData,
     ThreadData,
     MessageData,
@@ -69,6 +67,8 @@ AnyNodeData = Union[
     PlanData,
     TaskData,
     ClaimData,
+    ViewData,
+    SpaceData,
     RecordData,
     SkipData,
     EmptyData,
@@ -154,9 +154,7 @@ BenchNodeData = Union[
     LinkData,
     TriggerData,
     KitData,
-    ViewData,
     DatabaseData,
-    SpaceData,
     ChannelData,
     ThreadData,
     MessageData,
@@ -174,6 +172,8 @@ BenchNodeData = Union[
     PlanData,
     TaskData,
     ClaimData,
+    ViewData,
+    SpaceData,
     RecordData,
 ]
 ResourceNodeData = Union[
@@ -194,9 +194,7 @@ SourceNodeData = Union[
     LinkData,
     TriggerData,
     KitData,
-    ViewData,
     DatabaseData,
-    SpaceData,
 ]
 InlineNodeData = Union[
     ScalerData,
@@ -212,7 +210,6 @@ InlineNodeData = Union[
     TagData,
     FlowData,
     KitData,
-    ViewData,
     DatabaseData,
     ChannelData,
     ThreadData,
@@ -221,6 +218,7 @@ InlineNodeData = Union[
     IdentityData,
     PlanData,
     TaskData,
+    ViewData,
 ]
 SubjectNodeData = Union[UserData, OrganizationData, ComputerData, IdentityData]
 JoinableNodeData = Union[PackageData, ChannelData, ThreadData, TeamData]
@@ -238,10 +236,10 @@ ClaimableNodeData = Union[
     FlowData,
     ActionData,
     KitData,
-    ViewData,
     DatabaseData,
     PlanData,
     TaskData,
+    ViewData,
     RecordData,
 ]
 OwnableNodeData = Union[
@@ -257,12 +255,12 @@ OwnableNodeData = Union[
     PageData,
     FlowData,
     KitData,
-    ViewData,
     DatabaseData,
-    SpaceData,
     ThreadData,
     PlanData,
     TaskData,
     ClaimData,
+    ViewData,
+    SpaceData,
     RecordData,
 ]

@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+# TODO :Architecture! :PolyViews: make Views properly polymorphic (with their own tables & proto types)
+
 
 @enum_(EnumType.VIEW_TYPE)
 class ViewType(BuiltinEnum):

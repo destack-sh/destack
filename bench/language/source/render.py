@@ -68,10 +68,9 @@ from .link import Link
 from .option import Option
 from .page import Page
 from .trigger import Trigger, TriggerEffect
-from .view import View
 
 if TYPE_CHECKING:
-    from bench.language import Claim, Plan, Task
+    from bench.language import Claim, Plan, Task, View
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -700,12 +699,12 @@ class BlockRenderer(PackageNodeRenderer[Block]):
 
 
 @_renderer(NodeType.VIEW)
-class ViewRenderer(PackageNodeRenderer[View]):
+class ViewRenderer(PackageNodeRenderer["View"]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: View,
+        obj: "View",
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:

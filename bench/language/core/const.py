@@ -71,7 +71,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.31.1"
+VERSION = "2025.03.31.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -608,14 +608,10 @@ class NodeType(BuiltinEnum):
     LINK = 5052, None, None, "fas fa-link"
     TRIGGER = 5053, None, None, "fas fa-bolt"
     KIT = 5060, None, None, "fas fa-screwdriver-wrench"
-    VIEW = 5080, None, None, "fas fa-window-frame"
     DATABASE = 5090, None, None, "fas fa-database"
 
     # IDENTITY?
     # BADGE? POLICY? RULE?
-
-    # space
-    SPACE = 5200, None, None, "fas fa-space-between"
 
     # communication
     CHANNEL = 5500, None, None, "fas fa-hashtag"
@@ -645,6 +641,11 @@ class NodeType(BuiltinEnum):
     TASK = 6110, None, None, "far fa-square-check"
     CLAIM = 6150, None, None, "fas fa-stamp"
     # ENTITLEMENT, CURSOR, POOL, LOCK, BARRIER, ...?
+
+    # view
+    VIEW = 7000, None, None, "fas fa-window-frame"  # :PolyViews
+    # ... all the Views once we have :PolcyViews
+    SPACE = 7900, None, None, "fas fa-space-between"
 
     #
     # Local (8000-10000)
@@ -784,6 +785,8 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     *INSTANTIABLE_NODE_TYPES,
     NodeType.CHANNEL,
     NodeType.ROLE,
+    NodeType.SPACE,
+    NodeType.VIEW,
 )
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)
@@ -890,6 +893,8 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.CLAIM,
+    NodeType.SPACE,
+    NodeType.VIEW,
 )
 
 

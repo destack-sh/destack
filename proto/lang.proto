@@ -163,9 +163,7 @@ enum NodeType {
   NODE_TYPE_LINK = 5052;
   NODE_TYPE_TRIGGER = 5053;
   NODE_TYPE_KIT = 5060;
-  NODE_TYPE_VIEW = 5080;
   NODE_TYPE_DATABASE = 5090;
-  NODE_TYPE_SPACE = 5200;
   NODE_TYPE_CHANNEL = 5500;
   NODE_TYPE_THREAD = 5510;
   NODE_TYPE_MESSAGE = 5520;
@@ -183,6 +181,8 @@ enum NodeType {
   NODE_TYPE_PLAN = 6100;
   NODE_TYPE_TASK = 6110;
   NODE_TYPE_CLAIM = 6150;
+  NODE_TYPE_VIEW = 7000;
+  NODE_TYPE_SPACE = 7900;
   NODE_TYPE_RECORD = 8000;
   NODE_TYPE_SKIP = 9998;
   NODE_TYPE_EMPTY = 9999;
@@ -274,9 +274,7 @@ enum ObjectType {
   OBJECT_TYPE_LINK = 5052;
   OBJECT_TYPE_TRIGGER = 5053;
   OBJECT_TYPE_KIT = 5060;
-  OBJECT_TYPE_VIEW = 5080;
   OBJECT_TYPE_DATABASE = 5090;
-  OBJECT_TYPE_SPACE = 5200;
   OBJECT_TYPE_CHANNEL = 5500;
   OBJECT_TYPE_THREAD = 5510;
   OBJECT_TYPE_MESSAGE = 5520;
@@ -294,6 +292,8 @@ enum ObjectType {
   OBJECT_TYPE_PLAN = 6100;
   OBJECT_TYPE_TASK = 6110;
   OBJECT_TYPE_CLAIM = 6150;
+  OBJECT_TYPE_VIEW = 7000;
+  OBJECT_TYPE_SPACE = 7900;
   OBJECT_TYPE_RECORD = 8000;
   OBJECT_TYPE_SKIP = 9998;
   OBJECT_TYPE_EMPTY = 9999;
@@ -381,9 +381,7 @@ enum BenchType {
   BENCH_TYPE_LINK = 5052;
   BENCH_TYPE_TRIGGER = 5053;
   BENCH_TYPE_KIT = 5060;
-  BENCH_TYPE_VIEW = 5080;
   BENCH_TYPE_DATABASE = 5090;
-  BENCH_TYPE_SPACE = 5200;
   BENCH_TYPE_CHANNEL = 5500;
   BENCH_TYPE_THREAD = 5510;
   BENCH_TYPE_MESSAGE = 5520;
@@ -401,6 +399,8 @@ enum BenchType {
   BENCH_TYPE_PLAN = 6100;
   BENCH_TYPE_TASK = 6110;
   BENCH_TYPE_CLAIM = 6150;
+  BENCH_TYPE_VIEW = 7000;
+  BENCH_TYPE_SPACE = 7900;
   BENCH_TYPE_RECORD = 8000;
   BENCH_TYPE_SKIP = 9998;
   BENCH_TYPE_EMPTY = 9999;
@@ -1020,7 +1020,6 @@ enum BlockType {
   BLOCK_TYPE_TAG = 5040;
   BLOCK_TYPE_FLOW = 5050;
   BLOCK_TYPE_KIT = 5060;
-  BLOCK_TYPE_VIEW = 5080;
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_TEAM = 5600;
   BLOCK_TYPE_ROLE = 5630;
@@ -2379,6 +2378,26 @@ message ChangeData {
   repeated EditData edits = 34;
 }
 
+message ScheduleData {
+  ObjectType metatype = 1;
+  ScheduleFrequency frequency = 30;
+  int32 interval = 31;
+  optional google.protobuf.Timestamp start = 32;
+  optional google.protobuf.Timestamp end = 33;
+  optional int32 count = 34;
+  optional Day week_start = 35;
+  repeated int32 by_set_pos = 36;
+  repeated Month by_month = 37;
+  repeated int32 by_month_day = 38;
+  repeated int32 by_year_day = 39;
+  repeated int32 by_easter = 40;
+  repeated int32 by_week_no = 41;
+  repeated Day by_week_day = 42;
+  repeated int32 by_hour = 43;
+  repeated int32 by_minute = 44;
+  repeated int32 by_second = 45;
+}
+
 message FontData {
   ObjectType metatype = 1;
   optional FontType type = 31;
@@ -2449,26 +2468,6 @@ message RectangleConstraintData {
   optional int32 max_width = 51;
   optional int32 min_height = 52;
   optional int32 max_height = 53;
-}
-
-message ScheduleData {
-  ObjectType metatype = 1;
-  ScheduleFrequency frequency = 30;
-  int32 interval = 31;
-  optional google.protobuf.Timestamp start = 32;
-  optional google.protobuf.Timestamp end = 33;
-  optional int32 count = 34;
-  optional Day week_start = 35;
-  repeated int32 by_set_pos = 36;
-  repeated Month by_month = 37;
-  repeated int32 by_month_day = 38;
-  repeated int32 by_year_day = 39;
-  repeated int32 by_easter = 40;
-  repeated int32 by_week_no = 41;
-  repeated Day by_week_day = 42;
-  repeated int32 by_hour = 43;
-  repeated int32 by_minute = 44;
-  repeated int32 by_second = 45;
 }
 
 message BaseNodeData {
@@ -3830,6 +3829,56 @@ message TriggerData {
   optional google.protobuf.Timestamp closed_at = 45;
 }
 
+message TagData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData thread_ptr = 36;
+  repeated NodeReferenceData tags_ptr = 37;
+}
+
+message SpaceData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  SpaceType type = 30;
+  optional string name = 31;
+  optional TextData text = 32;
+  string order_key = 33;
+  optional SelectionData focus = 70;
+  optional SelectionData selection = 71;
+  optional NodeReferenceData inspection_ptr = 73;
+  optional NodeReferenceData channel_ptr = 75;
+  optional NodeReferenceData run_ptr = 77;
+}
+
 message ViewData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3940,56 +3989,6 @@ message IconViewData {
   optional bool include_color = 100;
 }
 
-message SpaceData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  SpaceType type = 30;
-  optional string name = 31;
-  optional TextData text = 32;
-  string order_key = 33;
-  optional SelectionData focus = 70;
-  optional SelectionData selection = 71;
-  optional NodeReferenceData inspection_ptr = 73;
-  optional NodeReferenceData channel_ptr = 75;
-  optional NodeReferenceData run_ptr = 77;
-}
-
-message TagData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
-}
-
 enum BuiltinEnum {
   BUILTIN_ENUM_UNSPECIFIED = 0;
 }
@@ -4036,26 +4035,26 @@ message SomeNodeData {
     LinkData link = 24;
     TriggerData trigger = 25;
     KitData kit = 26;
-    ViewData view = 27;
-    DatabaseData database = 28;
-    SpaceData space = 29;
-    ChannelData channel = 30;
-    ThreadData thread = 31;
-    MessageData message = 32;
-    NotificationData notification = 33;
-    TeamData team = 34;
-    MembershipData membership = 35;
-    InviteData invite = 36;
-    RoleData role = 37;
-    IdentityData identity = 38;
-    SessionData session = 39;
-    RunData run = 40;
-    SpanData span = 41;
-    InterruptionData interruption = 42;
-    LogData log = 43;
-    PlanData plan = 44;
-    TaskData task = 45;
-    ClaimData claim = 46;
+    DatabaseData database = 27;
+    ChannelData channel = 28;
+    ThreadData thread = 29;
+    MessageData message = 30;
+    NotificationData notification = 31;
+    TeamData team = 32;
+    MembershipData membership = 33;
+    InviteData invite = 34;
+    RoleData role = 35;
+    IdentityData identity = 36;
+    SessionData session = 37;
+    RunData run = 38;
+    SpanData span = 39;
+    InterruptionData interruption = 40;
+    LogData log = 41;
+    PlanData plan = 42;
+    TaskData task = 43;
+    ClaimData claim = 44;
+    ViewData view = 45;
+    SpaceData space = 46;
     RecordData record = 47;
     SkipData skip = 48;
     EmptyData empty = 49;

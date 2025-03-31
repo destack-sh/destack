@@ -9,7 +9,7 @@ from bench.language import (
     ViewType,
 )
 from bench.language.core import text
-from bench.language.source.view import ChatView, Offset
+from bench.language.view.view import ChatView, Offset
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
