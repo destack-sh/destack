@@ -71,11 +71,11 @@ import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtins/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
@@ -147,7 +147,7 @@ function addSort(column: ColumnView, type: ExpressionType) {
     }
   } else if (column.kind == "field") {
     const existing = sorts.value.find((sort) => sort.fieldPtr?.ck == column.field.ck);
-    const sort = makeExpression({ type, blockPtr: databasePtr.value, fieldPtr: toNodeRef(column.field) });
+    const sort = makeExpression({ type, fieldPtr: toNodeRef(column.field) });
     if (existing != null) {
       sorts.value = [...sorts.value.filter((sort) => sort.fieldPtr?.ck != column.field.ck), sort];
     } else {

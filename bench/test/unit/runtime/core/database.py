@@ -69,6 +69,7 @@ async def test_create_record_kwargs(simulation: Simulation, runtime: RuntimeLamb
     """Create a Record with keyword arguments (into value)."""
     Database1 = Database.new(
         "Database1",
+        Field.member("name", Field.get_property("name")),  # internal property
         Field.member("Name", str),
         Field.member("Age", int),
         Field.member("Aliases", str, is_list=True),
@@ -127,7 +128,11 @@ async def test_create_database_and_records_simultaneously(
 @simulated_runtime()
 async def test_update_record(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Update a record with a simple Field and query it."""
-    Database1 = Database.new("Database1", Field.member("Name", str))
+    Database1 = Database.new(
+        "Database1",
+        Field.member("name", Field.get_property("name")),  # internal property
+        Field.member("Name", str),
+    )
     runtime.page().append(Database1)
 
     # create & query

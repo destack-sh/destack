@@ -39,7 +39,6 @@ from .value import unpack_proto_json
 
 if TYPE_CHECKING:
     from bench.language import (
-        Block,
         Code,
         ComputedValueMode,
         Field,
@@ -133,18 +132,10 @@ class Expression(Struct):
     field: Optional["Field"] = p_regular(
         32, require=False, default=None, array=False, references=NodeType.FIELD
     )
-    block: Optional["Block"] = p_regular(
-        33,
-        require=False,
-        default=None,
-        array=False,
-        references=NodeType.FIELD,
-        description="The Block the Field refers to (if ambiguous).",
-    )
     if TYPE_CHECKING:
         property_ptr: Optional[PropertyReference] = None
         field_ptr: Optional[NodeReference] = None
-        block_ptr: Optional[NodeReference] = None
+        field_id: Optional[UUID] = None
 
     # content
     clauses: list["Expression"] | None = p_regular(40, array=True, struct=StructType.EXPRESSION)

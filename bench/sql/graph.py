@@ -787,7 +787,7 @@ def _pg_pack_node_data_row(
         for name, prop in node_cls.__wired_properties__.items():
             if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:
                 continue  # value is stored in unraveled columns
-            elif prop.reference_source is None:
+            elif prop.reference_source is None or not prop.is_node_reference:
                 # regular non-ref property
                 if prop.is_optional_scalar and not node.HasField(name):
                     value = None
@@ -848,7 +848,7 @@ def _pg_unpack_node_data_row(
         for name, prop in node_cls.__wired_properties__.items():
             if prop.is_value_packed and node_cls.__is_stored_value_unraveled__:
                 continue  # value is stored in unraveled columns
-            if prop.reference_source is not None:
+            if prop.reference_source is not None and prop.is_node_reference:
                 # ravel stored node reference :StoredPointers
                 _pg_unpack_node_reference_from_row(prop.reference_source, row, obj_data)
                 continue

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.03.31.0"
+VERSION = "2025.03.31.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -795,6 +795,7 @@ FIELD_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
+        Column("property_ptr", PrimitiveType.JSON, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("primitive_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_type", PrimitiveType.INT16, is_nullable=True),
