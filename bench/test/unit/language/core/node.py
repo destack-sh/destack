@@ -160,7 +160,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_a.id,
             ck=message_a.ck,
             bench_id=bench_a.id,
-            base_id=class_a_1.id,
+            base_id=None,
         )
     )
 
@@ -182,7 +182,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_b.id,
             ck=message_b.ck,
             bench_id=bench_b.id,
-            base_id=class_b_1.id,
+            base_id=None,
         )
     )
     assert message_b.parent_ptr

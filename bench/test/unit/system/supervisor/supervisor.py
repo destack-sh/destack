@@ -36,7 +36,7 @@ async def supervisor_service(global_store: Store, regional_store: Store):
         network=NullNetwork(),
         oracle=REAL_ORACLE,
         host_map=StaticHostMap({}),
-        store_map=StoreMap({}),
+        store_map=StoreMap({"*": regional_store}),
         create_bench_options=CreateBenchOptions(create_computer_scaler=False),
     )
     await supervisor_service.start()
@@ -77,6 +77,7 @@ async def test_user_registration(supervisor: SupervisorClient):
         email=cast(str, user_in.email),
         client=cast(ClientDataIn, client_in),
         password="Password123!",
+        region=pb2.Region.REGION_ZURICH,
     )
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.slug == user_slug

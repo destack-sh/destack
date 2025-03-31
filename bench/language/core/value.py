@@ -164,7 +164,7 @@ class CustomObject(Mapping[str, Any]):
                     set_fields.append(f"{prop.name}=<{prop_value.absolute_path}>")
                 else:
                     set_fields.append(f"{prop.name}={prop_value!r}")
-        for field in self._type._fields:  # should support :DynamicBaseType
+        for field in self._type._fields:
             field_value = self._do_get(field)
             if field_value is not None and (not field.is_list or field_value):
                 if type(field_value) is list:
@@ -185,7 +185,7 @@ class CustomObject(Mapping[str, Any]):
         if self._type.kind == TypeKind.PARTIAL_OBJECT and self._type.bench_type is not None:
             return f"Partial{self._type.bench_type.bench_name}"
         elif self._type.base_type is not None:
-            return self._type.base_type.absolute_path  # :DynamicBaseType?
+            return self._type.base_type.absolute_path
         else:
             return self._type.kind.bench_name
 
@@ -1187,8 +1187,6 @@ def coerce_custom_object_scalar(
             prop_value = value.pop(prop.name, None)
         if prop_value is not None:
             obj._do_set(prop, prop_value, track=False)
-    # NOTE :Incomplete: should support dynamic base type from value :DynamicBaseType
-    #  (for ToolAction, but also for Record and such would be nice to get the base from the value)
     for field in typ._base_fields:
         # try getting value by storage key, name and ident
         if not field.name:
