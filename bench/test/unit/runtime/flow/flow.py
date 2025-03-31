@@ -393,7 +393,8 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     await runtime.commit()
 
     # check that all yield points are hit in order
-    run, _ = create_run(Flow1, parent=runtime.main_package)
+    run, _ = create_run(Flow1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    await runtime.session.commit()
     runner = None
     for yield_point in (
         Start,

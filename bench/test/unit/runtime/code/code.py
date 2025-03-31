@@ -182,7 +182,8 @@ async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeL
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run, _ = create_run(Code1, parent=runtime.main_package)
+    run, _ = create_run(Code1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    await runtime.session.commit()
     runner = await runtime.run_in_runtime(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
@@ -204,7 +205,8 @@ async def test_run_code_invalid_outputs(simulation: Simulation, runtime: Runtime
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run, _ = create_run(Code1, parent=runtime.main_package)
+    run, _ = create_run(Code1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    await runtime.session.commit()
     runner = await runtime.run_in_runtime(run, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE

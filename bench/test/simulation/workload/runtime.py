@@ -2,7 +2,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, override
 
-from bench.language import NodeMode, Run, RunnableNode, RunOptions
+from bench.language import NodeMode, Run, RunnableNode, RunOptions, RunStatus
 from bench.runtime import MemoryCache, Runner, Runtime, create_run
 from bench.test.simulation.core import Simulation
 
@@ -44,7 +44,9 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
                 mode=mode,
                 parent=self.main_package,
                 session=self.session,
+                status=RunStatus.QUEUED,
             )
+            await self.session.commit()
         runner = await self.runtime.run(run, _return_error=return_error)
         await self.session.commit()
         assert runner is not None, f"no runner for {run!r}"

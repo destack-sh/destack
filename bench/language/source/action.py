@@ -207,7 +207,7 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
         field_types: list[FieldType] | None = None,
     ) -> "TypeBase | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language import Kit, Type
+        from bench.language import Identity, Kit, Type
 
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
