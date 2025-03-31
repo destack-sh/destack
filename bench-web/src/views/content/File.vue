@@ -283,7 +283,6 @@ defineExpose<ViewExpose>({
       <!-- Image File -->
       <img
         v-if="optimisticValue.type == FileType.IMAGE && cachedUrl != null"
-        :key="cachedUrl"
         :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         class="rounded object-contain object-center"
@@ -296,7 +295,6 @@ defineExpose<ViewExpose>({
       <!-- Audio File -->
       <audio
         v-else-if="optimisticValue.type == FileType.AUDIO && cachedUrl != null"
-        :key="cachedUrl"
         :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         controls
@@ -309,7 +307,6 @@ defineExpose<ViewExpose>({
       <!-- Video File -->
       <video
         v-else-if="optimisticValue.type == FileType.VIDEO && cachedUrl != null"
-        :key="cachedUrl"
         :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         controls

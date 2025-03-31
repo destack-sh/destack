@@ -20,6 +20,8 @@ _graph_capture: contextvars.ContextVar["GraphCapture | None"] = contextvars.Cont
 
 
 class GraphCapture:
+    """A registry of graph-related objects for collective capture and cleanup."""
+
     __slots__ = ("connections", "graphs", "links", "parent")
 
     def __init__(self, parent: "GraphCapture | None" = None):

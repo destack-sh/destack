@@ -32,7 +32,7 @@ from .runner import (
     restore_runner,
 )
 from .runtime import Runtime
-from .thread import RuntimeThread
+from .thread import ThreadHandle
 
 __all__ = [
     "ATTEMPT_FOREVER",
@@ -67,7 +67,7 @@ __all__ = [
     "RunnerOutputEvent",
     "Runtime",
     "RuntimeError",
-    "RuntimeThread",
+    "ThreadHandle",
     "create_run",
     "make_runner",
     "restore_runner",

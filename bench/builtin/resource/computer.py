@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Annotated
 from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page, upload_file
 from bench.pb2 import (
     ClickRequest,
-    ComputerClient,
     MoveRequest,
     PressRequest,
     ScreenshotRequest,
@@ -25,17 +24,13 @@ from bench.builtin.core import class_to_kit
 class IComputer(Runner if TYPE_CHECKING else object):
     """The basic interface to any sort of a Computer :ComputerKit."""
 
-    def _get_service(self, Self: "Computer") -> "ComputerClient":
-        """Get the ComputerService."""
-        raise NotImplementedError(f"nocheckin: get {Self!r} service (put it in Runner/Thread?)")
-
     @abc.abstractmethod
     async def Screenshot(self, Self: "Computer") -> Annotated[dict[str, File], {"Image": File}]:
         """
         Take a screenshot of the current screen
         ICON: fas fa-camera
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         response = await computer_client.screenshot(ScreenshotRequest())
         screenshot_timestamp = self.session._oracle.utc().strftime("%Y-%m-%d %H:%M:%S")
         screenshot = await upload_file(
@@ -49,7 +44,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Click an element
         ICON: fas fa-arrow-pointer
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.click(ClickRequest(x=X, y=Y, button=Button))
 
     @abc.abstractmethod
@@ -58,7 +53,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Double click an element
         ICON: fas fa-arrow-pointer
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.double_click(ClickRequest(x=X, y=Y))
 
     @abc.abstractmethod
@@ -67,7 +62,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Press a key
         ICON: fas fa-keyboard
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.press(PressRequest(keys=Keys))
 
     @abc.abstractmethod
@@ -76,7 +71,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Type a string on the keyboard
         ICON: fas fa-keyboard
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.type(TypeRequest(text=String))
 
     @abc.abstractmethod
@@ -85,7 +80,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Move the mouse to a position
         ICON: fas fa-mouse
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.move(MoveRequest(x=X, y=Y))
 
     @abc.abstractmethod
@@ -94,7 +89,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Scroll the mouse
         ICON: fas fa-mouse
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.scroll(ScrollRequest(x=X, y=Y, scroll_x=Scroll_X, scroll_y=Scroll_Y))
 
     @abc.abstractmethod
@@ -103,7 +98,7 @@ class IComputer(Runner if TYPE_CHECKING else object):
         Execute a shell command
         ICON: fas fa-terminal
         """
-        computer_client = self._get_service(Self)
+        computer_client = await self.get_computer_client(Self)
         await computer_client.shell(ShellCommandRequest(command=Command))
 
 

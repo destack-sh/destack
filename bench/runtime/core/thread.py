@@ -10,6 +10,8 @@ from bench.language import (
     Thread,
 )
 
+from .scope import RuntimeScope
+
 THREAD_QUERY = Thread.include_descendants(
     *RESOURCE_NODE_TYPES,
     NodeType.MEMBERSHIP,
@@ -20,7 +22,7 @@ THREAD_QUERY = Thread.include_descendants(
 )
 
 
-class RuntimeThread:
+class ThreadHandle(RuntimeScope):
     """
     A handle to a Thread at runtime.
     Automatically loads the Thread and its Messages.
@@ -97,5 +99,6 @@ class RuntimeThread:
                 .search_connection(live=True)
             )
 
-    async def close(self):
-        self.capture.close_and_detach()
+    def close(self):
+        if self.capture is not None:
+            self.capture.close_and_detach()
