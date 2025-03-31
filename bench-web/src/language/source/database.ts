@@ -1,7 +1,7 @@
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
-import { Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/runtime/transaction";
 import { BenchType, DatabaseData, FieldType, NodeType, ObjectType, TypeData, TypeKind } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 
@@ -13,6 +13,9 @@ export function createDatabase(
 ): DatabaseData {
   if (options.database.definitionPtr == null) {
     throw new Error("cannot create inline Database without block");
+  }
+  if (tx?.change?.key == null) {
+    tx = tx.with({ change: { key: newChangeId() } });
   }
   const siblings = graph.getChildren(options.database.parentPtr!, NodeType.DATABASE);
   const name =

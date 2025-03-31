@@ -1,18 +1,18 @@
-import typing
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     FIELD_BASE_NODE_TYPES,
     FieldBaseNode,
     FieldType,
-    InlineNode,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsTemplatable,
+    NodeMode,
     NodeType,
     PackageNode,
     Property,
+    PropertyReference,
     StructType,
     TypeBase,
     TypeConstraint,
@@ -30,11 +30,13 @@ from bench.language.core import (
 from bench.pb2 import FieldData
 from bench.utils.fractional import INTEGER_ZERO
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.language import Icon, Text
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
+
+property_ = property
 
 
 @node_(NodeType.FIELD, has_subtypes=True)
@@ -48,7 +50,7 @@ class Field(
     _IntoQuery,
 ):
     """
-    A custom attribute of some value, the user-defined counterpart to Properties in BuiltinObjects.
+    A Field is a user-defined attribute of something.
     """
 
     parent: Union[FieldBaseNode, None] = p_node_parent(4, *FIELD_BASE_NODE_TYPES)
@@ -58,11 +60,21 @@ class Field(
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
+    property: Optional[Property] = p_regular(
+        36,
+        require=False,
+        default=None,
+        array=False,
+        struct=StructType.PROPERTY_REFERENCE,
+        description="The Property the Field refers to (for builtin Fields).",
+    )
+    if TYPE_CHECKING:
+        property_ptr: Optional["PropertyReference"] = None
 
     # type identity
     # ...TypeInfo[40-69]
 
-    _introspected_from: Optional[Property] = p_runtime(default=None)
+    _introspected_from: Optional[Property] = p_runtime(default=None)  # should match Field.property
 
     def __content_str__(self) -> str:
         return TypeBase.__content_str__(self)
@@ -70,15 +82,13 @@ class Field(
     def __eq__(self, other):  # type: ignore
         return _IntoQuery.__eq__(self, other)  # override to avoid recursion
 
-    __hash__ = InlineNode.__hash__  # type: ignore
-    # (not entirely sure why we need to override Field.__hash__ but not for any other node, maybe
-    #  one of the base structs takes precende for some reason (but SourceNode is first in MRO...))
+    __hash__ = PackageNode.__hash__  # type: ignore
 
-    @property
+    @property_
     def type_info(self) -> TypeBase:
         return self
 
-    @property
+    @property_
     def storage_key(self) -> str:
         return encode_storage_key(self)
 
@@ -88,10 +98,17 @@ class Field(
     def new(
         name: str,
         type: FieldType,
-        typ: TypeIn,
+        typ: TypeIn | Property,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":
+        if isinstance(typ, Property):
+            property = typ
+            typ = typ.type_info
+            mode = NodeMode.BUILTIN
+        else:
+            property = None
+            mode = None
         typ = to_type_scalar(typ)
         for prop in TypeBase.__declared_properties__.values():
             if prop.name not in kwargs:
@@ -100,13 +117,15 @@ class Field(
             if isinstance(constraint, TypeConstraintIn):
                 constraint = constraint.into()
             kwargs["constraint"] = constraint
-        field = Field(name=name, type=type, **kwargs)
+        field = Field(name=name, type=type, property=property, **kwargs)
+        if mode is not None:
+            field.mode = mode
         return field
 
     @staticmethod
     def member(
         name: str,
-        typ: TypeIn,
+        typ: TypeIn | Property,
         constraint: TypeConstraintIn | TypeConstraint | None = None,
         **kwargs,
     ) -> "Field":

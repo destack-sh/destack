@@ -42,7 +42,6 @@ from bench.language import (
     PathElementType,
     PathError,
     PathOptions,
-    Resource,
     Run,
     RunStatus,
     RunType,
@@ -354,14 +353,6 @@ class Runtime:
                     link.close()
             for sub in subs:
                 sub()
-
-    def _find_resource[R: Resource = Resource](
-        self, runner: Runner, claim: type[R] | R | Claim
-    ) -> R:
-        """Finds a Resource of the given type/template."""
-
-        # traverse resources up
-        raise NotImplementedError(f"nocheckin: _find_resource {runner!r} {claim!r}")
 
     def _set_context(self, node: IsRuntime):
         """Sets the current context on a Span."""

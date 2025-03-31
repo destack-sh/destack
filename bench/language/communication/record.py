@@ -63,6 +63,10 @@ class Record(
         36, require=True, references=NodeType.BLOCK, description="The Database this Record is from."
     )
 
+    # page? (tie Record to a Page for a Notion-like experience in some Databases)
+    # task? (tie Record to a Task)
+    # ... general Record 'tying'?
+
     # value
     value_packed: Any = p_value_packed(40)
     value: "CustomObject | None" = p_value_runtime(

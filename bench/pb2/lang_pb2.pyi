@@ -3837,12 +3837,11 @@ class SelectionData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[SelectionType, str]] = ..., selections: _Optional[_Iterable[_Union[SelectionData, _Mapping]]] = ..., node_types: _Optional[_Iterable[_Union[NodeType, str]]] = ..., nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., scopes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., tags_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., from_node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., to_node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., fields_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., properties_ptr: _Optional[_Iterable[_Union[PropertyReferenceData, _Mapping]]] = ...) -> None: ...
 
 class ExpressionData(_message.Message):
-    __slots__ = ("metatype", "type", "property_ptr", "field_ptr", "block_ptr", "clauses", "value_packed", "sort_mode", "tolerance")
+    __slots__ = ("metatype", "type", "property_ptr", "field_ptr", "clauses", "value_packed", "sort_mode", "tolerance")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
     FIELD_PTR_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_PTR_FIELD_NUMBER: _ClassVar[int]
     CLAUSES_FIELD_NUMBER: _ClassVar[int]
     VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
     SORT_MODE_FIELD_NUMBER: _ClassVar[int]
@@ -3851,12 +3850,11 @@ class ExpressionData(_message.Message):
     type: ExpressionType
     property_ptr: PropertyReferenceData
     field_ptr: NodeReferenceData
-    block_ptr: NodeReferenceData
     clauses: _containers.RepeatedCompositeFieldContainer[ExpressionData]
     value_packed: _struct_pb2.Value
     sort_mode: SortMode
     tolerance: float
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ExpressionType, str]] = ..., property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., block_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., clauses: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., sort_mode: _Optional[_Union[SortMode, str]] = ..., tolerance: _Optional[float] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[ExpressionType, str]] = ..., property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., field_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., clauses: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ..., value_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., sort_mode: _Optional[_Union[SortMode, str]] = ..., tolerance: _Optional[float] = ...) -> None: ...
 
 class AggregationResultData(_message.Message):
     __slots__ = ("metatype", "op", "exists", "count", "scalar")
@@ -6629,7 +6627,7 @@ class DependencyData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., dependency_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class FieldData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "order_key", "text", "icon", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_types", "property_field_types", "oneof_ptr", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "mode", "subnode_packed", "type", "name", "order_key", "text", "icon", "property_ptr", "kind", "primitive_type", "bench_type", "base_type_ptr", "base_field_types", "property_field_types", "oneof_ptr", "default_packed", "format", "condition", "constraint", "is_required", "is_list", "is_secret")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -6650,6 +6648,7 @@ class FieldData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
+    PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     PRIMITIVE_TYPE_FIELD_NUMBER: _ClassVar[int]
     BENCH_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -6684,6 +6683,7 @@ class FieldData(_message.Message):
     order_key: str
     text: TextData
     icon: IconData
+    property_ptr: PropertyReferenceData
     kind: TypeKind
     primitive_type: PrimitiveType
     bench_type: BenchType
@@ -6698,7 +6698,7 @@ class FieldData(_message.Message):
     is_required: bool
     is_list: bool
     is_secret: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., property_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., template_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[FieldType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., kind: _Optional[_Union[TypeKind, str]] = ..., primitive_type: _Optional[_Union[PrimitiveType, str]] = ..., bench_type: _Optional[_Union[BenchType, str]] = ..., base_type_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., base_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., property_field_types: _Optional[_Iterable[_Union[FieldType, str]]] = ..., oneof_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., format: _Optional[_Union[TypeFormat, str]] = ..., condition: _Optional[_Union[ExpressionData, _Mapping]] = ..., constraint: _Optional[_Union[TypeConstraintData, _Mapping]] = ..., is_required: bool = ..., is_list: bool = ..., is_secret: bool = ...) -> None: ...
 
 class FlowData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "template_ptr", "template_at", "owned_by_ptr", "claimed_by_ptr", "mode", "computed_values", "subnode_packed", "type", "name", "order_key", "icon", "definition_ptr", "thread_ptr", "tags_ptr", "options", "text", "default_identity_ptr")
