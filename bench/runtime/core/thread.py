@@ -1,16 +1,28 @@
+from typing import TYPE_CHECKING
+
+import structlog
+from opentelemetry import trace
+
 from bench.language import (
     RESOURCE_NODE_TYPES,
+    Computer,
     GetConnection,
     GraphCapture,
     Message,
     NodeReference,
     NodeType,
     Plan,
+    ResourceStatus,
     SearchConnection,
     Thread,
 )
+from bench.pb2 import ComputerClient
 
-from .scope import RuntimeScope
+if TYPE_CHECKING:
+    from bench.runtime import Runtime
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 THREAD_QUERY = Thread.include_descendants(
     *RESOURCE_NODE_TYPES,
@@ -22,24 +34,28 @@ THREAD_QUERY = Thread.include_descendants(
 )
 
 
-class ThreadHandle(RuntimeScope):
+class ThreadHandle:
     """
     A handle to a Thread at runtime.
     Automatically loads the Thread and its Messages.
     """
 
     __slots__ = (
+        "_computer_clients_by_uri",
         "_messages_connection",
         "_thread_connection",
         "capture",
         "id",
+        "runtime",
         "thread_ptr",
     )
 
-    def __init__(self, thread_ptr: NodeReference):
+    def __init__(self, *, runtime: "Runtime", thread_ptr: NodeReference):
         self.id = thread_ptr.id
+        self.runtime = runtime
         self.thread_ptr = thread_ptr
         self.capture: GraphCapture = GraphCapture()
+        self._computer_clients_by_uri: dict[str, ComputerClient] = {}
         self._thread_connection: GetConnection | SearchConnection | None = None
         self._messages_connection: SearchConnection | None = None
 
@@ -102,3 +118,23 @@ class ThreadHandle(RuntimeScope):
     def close(self):
         if self.capture is not None:
             self.capture.close_and_detach()
+
+    async def get_computer_client(self, computer: Computer) -> ComputerClient:
+        """Get a ComputerClient for the given Computer and display."""
+        if (
+            computer.grpc_uri is None
+            or not computer.is_active
+            or computer.status != ResourceStatus.UP
+        ):
+            raise ValueError(f"{computer!r} has no connection info")
+
+        if computer.grpc_uri not in self._computer_clients_by_uri:
+            computer_client = ComputerClient(
+                await self.runtime.network.get_channel(computer.grpc_uri, source_id="runtime")
+            )
+            self._computer_clients_by_uri[computer.grpc_uri] = computer_client
+            logger.debug("thread_handle.connect", computer=computer)
+        else:
+            computer_client = self._computer_clients_by_uri[computer.grpc_uri]
+
+        return computer_client

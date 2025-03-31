@@ -108,6 +108,7 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
         cache = RedisCache(bench=self._bench)
         self._runtime = Runtime(
             session=self._session,
+            network=self.network,
             cache=cache,
             oracle=self.oracle,
             process=self,

@@ -213,7 +213,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
             resource.external_name = external_name
             resource.external_id = container.id
             resource.status = ResourceStatus.UP
-            resource.connection_uri = f"http://localhost:{grpc_port}"
+            resource.grpc_uri = f"http://localhost:{grpc_port}"
             resource.vnc_uri = f"ws://localhost:{vnc_port}"
 
     @override
@@ -388,8 +388,8 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         # connection uri (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:
             connection_uri = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"
-            if computer.connection_uri != connection_uri:
-                computer.connection_uri = connection_uri
+            if computer.grpc_uri != connection_uri:
+                computer.grpc_uri = connection_uri
             vnc_uri = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
             if computer.vnc_uri != vnc_uri:
                 computer.vnc_uri = vnc_uri

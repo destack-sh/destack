@@ -3136,11 +3136,11 @@ export interface ComputerData {
      */
     externalId?: string;
     /**
-     * @generated from protobuf field: optional string connection_uri = 64;
+     * @generated from protobuf field: optional string grpc_uri = 65;
      */
-    connectionUri?: string;
+    grpcUri?: string;
     /**
-     * @generated from protobuf field: optional string vnc_uri = 65;
+     * @generated from protobuf field: optional string vnc_uri = 66;
      */
     vncUri?: string;
     /**
@@ -22242,8 +22242,8 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 64, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 65, name: "vnc_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 65, name: "grpc_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 66, name: "vnc_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 69, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 71, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
@@ -22379,10 +22379,10 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional string external_id */ 63:
                     message.externalId = reader.string();
                     break;
-                case /* optional string connection_uri */ 64:
-                    message.connectionUri = reader.string();
+                case /* optional string grpc_uri */ 65:
+                    message.grpcUri = reader.string();
                     break;
-                case /* optional string vnc_uri */ 65:
+                case /* optional string vnc_uri */ 66:
                     message.vncUri = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData client_ptr */ 69:
@@ -22517,12 +22517,12 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional string external_id = 63; */
         if (message.externalId !== undefined)
             writer.tag(63, WireType.LengthDelimited).string(message.externalId);
-        /* optional string connection_uri = 64; */
-        if (message.connectionUri !== undefined)
-            writer.tag(64, WireType.LengthDelimited).string(message.connectionUri);
-        /* optional string vnc_uri = 65; */
+        /* optional string grpc_uri = 65; */
+        if (message.grpcUri !== undefined)
+            writer.tag(65, WireType.LengthDelimited).string(message.grpcUri);
+        /* optional string vnc_uri = 66; */
         if (message.vncUri !== undefined)
-            writer.tag(65, WireType.LengthDelimited).string(message.vncUri);
+            writer.tag(66, WireType.LengthDelimited).string(message.vncUri);
         /* optional symbolx.bench.NodeReferenceData client_ptr = 69; */
         if (message.clientPtr)
             NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(69, WireType.LengthDelimited).fork(), options).join();
@@ -33196,8 +33196,8 @@ export enum ComputerProperty {
   version = 60,
   externalName = 62,
   externalId = 63,
-  connectionUri = 64,
-  vncUri = 65,
+  grpcUri = 65,
+  vncUri = 66,
   clientPtr = 69,
   cpu = 70,
   ram = 71,
@@ -35545,8 +35545,8 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.03.31.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [ComputerProperty.connectionUri]: { id: 64, name: 'connection_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
-  [ComputerProperty.vncUri]: { id: 65, name: 'vnc_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [ComputerProperty.grpcUri]: { id: 65, name: 'grpc_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [ComputerProperty.vncUri]: { id: 66, name: 'vnc_uri', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.clientPtr]: { id: 69, name: 'client_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.cpu]: { id: 70, name: 'cpu', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 16.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.ram]: { id: 71, name: 'ram', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },

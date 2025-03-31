@@ -12,7 +12,6 @@ from typing import (
     assert_never,
     cast,
     final,
-    override,
 )
 
 import structlog
@@ -61,7 +60,6 @@ from bench.language.core.const import COMMUNICATION_NODE_TYPES
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
-from .scope import RuntimeScope
 from .thread import ThreadHandle
 
 if TYPE_CHECKING:
@@ -139,7 +137,7 @@ RunnerEvent = (
 )
 
 
-class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
+class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     """
     A Runner to run a Run/Span (every Run has one Runner, some Spans have one).
     Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interruption.
@@ -182,7 +180,6 @@ class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
         runtime: "Runtime",
         node: N,
         options: RunOptions,
-        context: IsRuntime,
         run: RunIn,
         parent: "Runner[Any] | None" = None,
         inputs: CustomObject | None = None,
@@ -193,7 +190,6 @@ class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
         self.node = node
         self.status = RunStatus.QUEUED
         self.options = options
-        self.context: IsRuntime = context
         self.parent = parent or runtime.active_runner
         self.runners: list[Runner] = []
         self.task: asyncio.Task | None = None
@@ -564,7 +560,6 @@ class Runner[N: RunnableNode = RunnableNode](RuntimeScope, abc.ABC):
             self.tracked_run._mark_terminated()
             self.status = self.tracked_run.status
 
-    @override
     def close(self, recursive: bool = True):
         """Close this Runner/Run."""
         if self.capture is not None:

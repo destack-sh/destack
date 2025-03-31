@@ -16,7 +16,6 @@ from bench.language import (
     CodeType,
     CustomObject,
     Field,
-    IsRuntime,
     Node,
     RenderOptions,
     RunnableNode,
@@ -56,7 +55,6 @@ class CodeRunner(Runner, ABC):
         code: Code,
         aliasing: Aliasing,
         options: RunOptions,
-        context: IsRuntime,
         run: RunIn,
         parent: Runner | None = None,
         agent: Agent | None = None,
@@ -67,7 +65,6 @@ class CodeRunner(Runner, ABC):
             runtime=runtime,
             node=node,
             options=options,
-            context=context,
             parent=parent,
             agent=agent,
             inputs=inputs,
@@ -164,7 +161,7 @@ class CodeRunner(Runner, ABC):
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
         resolved_references: dict[str, Node] = {}
         for reference_name in self.compiled.references:
-            reference = get_node_or_error(self.node, self.context, f"^{reference_name}")
+            reference = get_node_or_error(self.node, self.tracked, f"^{reference_name}")
             if isinstance(reference, Field):
                 # replace Field reference with the underlying type if it's the same name
                 # (this is useful for Choice/)

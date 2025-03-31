@@ -118,7 +118,7 @@ async def make_local_runtime_computer(
             session._create(client)
         computer.client = client
         computer.status = ResourceStatus.UP
-        computer.connection_uri = local_computer_url
+        computer.grpc_uri = local_computer_url
 
         client_env = {
             "BENCH_ID": str(bench.id),
