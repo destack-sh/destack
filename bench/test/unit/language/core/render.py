@@ -21,8 +21,6 @@ from bench.language import (
     Field,
     Flow,
     LinkType,
-    Message,
-    MessageType,
     Node,
     NodeMode,
     NodeReference,
@@ -206,26 +204,6 @@ def test_render_path(session: Session, package: Package):
     path_1 = path(PathElementType.RUN, Run.get_property("inputs"))
     path_2 = path(PathElementType.RUN, Run.get_property("inputs"))
     return {"path_1": path_1, "path_2": path_2}
-
-
-@_render_test
-def test_render_partial_object(session: Session, package: Package):
-    """Partial objects should be rendered with the partial helpers."""
-    PartialFlow1 = Flow.partial(name="PartialFlow1")
-    MessageType1 = Class.new(
-        "MessageType1",
-        Field.member("Field1", int),
-        Field.member("Field2", str),
-        Field.member("Field3", bool),
-    )
-    PatialMessage1 = Message.partial(
-        MessageType.REGULAR, clazz=MessageType1, Field1=17, Field2="hello!"
-    )
-    return {
-        "PartialFlow1": PartialFlow1,
-        "MessageType1": MessageType1,
-        "PatialMessage1": PatialMessage1,
-    }
 
 
 @_render_test

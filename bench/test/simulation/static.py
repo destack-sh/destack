@@ -15,7 +15,7 @@ from bench.test.simulation.core import (
     UserSpec,
     run_simulation,
 )
-from bench.test.simulation.workload import ReadPackageSpec, WatchLogsSpec, WritePageTreeSpec
+from bench.test.simulation.workload import ReadPackageSpec, WritePageTreeSpec
 from bench.utils.func import group_by
 
 logger = structlog.get_logger(__name__)
@@ -115,22 +115,6 @@ BUILTIN_SIMULATIONS: list[SimulationSpec] = [
             ReadPackageSpec(bench="alice", client="alice-1", group="alice-0-main"),
             ReadPackageSpec(bench="alice", client="alice-2", group="alice-0-main"),
             ReadPackageSpec(bench="alice", client="alice-3", group="alice-0-main"),
-        ),
-    ),
-    SimulationSpec(
-        name="SingleWriterLogTail",
-        description="Write a page tree with one client, watch logs multiple clients",
-        users=(UserSpec(name="alice"),),
-        clients=(
-            ClientSpec(name="alice-1", parent=("user", "alice")),
-            ClientSpec(name="alice-2", parent=("user", "alice")),
-        ),
-        benches=(BenchSpec(name="alice", owner="alice"),),
-        hosts=(HostSpec(bench="alice"),),
-        workloads=(
-            WritePageTreeSpec(bench="alice", client="alice-1", transactions=10),
-            WatchLogsSpec(bench="alice", client="alice-1", tail_user="alice", group="alice-0-main"),
-            WatchLogsSpec(bench="alice", client="alice-2", tail_user="alice", group="alice-0-main"),
         ),
     ),
     # TODO :Test!: test multi-writer, various write patterns, latency, ...

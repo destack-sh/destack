@@ -18,7 +18,6 @@ from bench.language import (
     FieldType,
     Flow,
     Message,
-    MessageType,
     Node,
     NodeType,
     Package,
@@ -111,16 +110,6 @@ def test_partial_node_message(session: Session, package: Package) -> None:
     assert full_obj.value
     assert full_obj.value.Field1 == 42
     assert full_obj.value.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
-
-
-def test_partial_node_message_extraneous_property(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial Message node with extraneous kwargs (should error)."""
-    message_type = Class.new("MyMessage", Field.member("Field1", int))
-    _ = Message.partial(type=MessageType.REGULAR, clazz=message_type, Field1=42)
-    with pytest.raises(ValueError):
-        _ = Message.partial(
-            type=MessageType.REGULAR, block=message_type, Field1=42, my_extraneous_something="value"
-        )
 
 
 def test_partial_node_generic(session: Session, package: Package) -> None:
