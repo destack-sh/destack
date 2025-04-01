@@ -151,7 +151,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected client: {client!r}")
 
     @override
-    def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
+    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
         raise RuntimeError("supervisor does not support database-level requests")
 
     #

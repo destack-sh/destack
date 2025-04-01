@@ -265,7 +265,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
     @abc.abstractmethod
-    def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
+    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
         """Resolve a database pointer from a request message."""
         ...
 
@@ -396,7 +396,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             with self.tracer.start_as_current_span(f"{self.name}.commit.read"):
                 for (base_id, node_type), node_references in area.scopes_by_base_and_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
-                    database = self.resolve_request_base(base_id) if base_id else None
+                    database = await self.resolve_request_base(base_id) if base_id else None
                     select = (
                         SelectOptions(select_fields=list(database.fields))
                         if isinstance(database, Database)
@@ -567,7 +567,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    database = self.resolve_request_base(base_type_ptr)
+                    database = await self.resolve_request_base(base_type_ptr)
                     if database is None:
                         raise NodeNotFoundError(base_type_ptr)
                 else:
@@ -689,7 +689,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     base_type_ptr = wiring.unpack_builtin_object(
                         request.base_type_ptr, supergraph=None, expect=NodeReference
                     )
-                    database = self.resolve_request_base(base_type_ptr)
+                    database = await self.resolve_request_base(base_type_ptr)
                     if database is None:  # raising here is not great.. :SearchWithMissingBlock
                         raise NodeNotFoundError(base_type_ptr)
                 else:
