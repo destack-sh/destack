@@ -16,6 +16,7 @@ from bench.language import (
     RUN_STATUS_BY_INTERRUPTION_TYPE,
     RUNTIME_NODE_TYPES,
     Action,
+    Agent,
     BenchError,
     BreakpointSite,
     BuiltinObject,
@@ -215,7 +216,7 @@ class Runtime:
             return evaluate_path(
                 current=runner.node,
                 scope=runner.node,
-                context=runner.context,
+                context=runner.tracked,
                 path=source_path,
                 options=PathOptions(missing_is="invalid"),
             )
@@ -240,7 +241,7 @@ class Runtime:
         target_obj = evaluate_path(
             current=runner.node,
             scope=runner.node,
-            context=runner.context,
+            context=runner.tracked,
             path=computed_value.target_path.elements[:-1],
             options=PathOptions(missing_is="none"),
         )
@@ -939,14 +940,14 @@ class Runtime:
                 and (flow := action.flow) is not None
             ):
                 # find existing Flow to lift into
-                identity_id = run.agent_id
+                agent_id = run.agent_id
                 self.session.commit_optimistic()
                 for existing_runner in self._runners_by_id.values():
                     if (
                         (existing_run := existing_runner.tracked_run) is not None
                         and existing_run.type == RunType.FLOW
                         and existing_run.flow_id == flow.id
-                        and existing_run.agent_id == identity_id
+                        and existing_run.agent_id == agent_id
                     ):
                         target_runner = existing_runner
                         assert isinstance(
@@ -1058,7 +1059,7 @@ class Runtime:
         if self._is_stop_requested:
             raise RuntimeError(f"{self!r} was stopped")
 
-        runs_by_parent: dict[Package | Thread | Run | None, list[Run]] = group_by(
+        runs_by_parent: dict[Package | Thread | Run | Agent | None, list[Run]] = group_by(
             runs, key=lambda run: run.parent
         )
         for parent, child_runs in runs_by_parent.items():

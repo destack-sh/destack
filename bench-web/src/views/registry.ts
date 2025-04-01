@@ -29,11 +29,10 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.THREAD]: () => import("@/views/nodes/Thread.vue"),
   [ViewType.CHANNEL]: () => import("@/views/nodes/Thread.vue"), // shared with Thread
   [ViewType.TASK]: () => import("@/views/nodes/Task.vue"),
+  [ViewType.AGENT]: () => import("@/views/nodes/Agent.vue"),
   // structs
   [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/objects/Object.vue"),
-  [ViewType.FIELD_LIST]: () => import("@/views/objects/FieldList.vue"),
-  [ViewType.COMPUTED_VALUE]: () => import("@/views/objects/ComputedValue.vue"),
   [ViewType.PATH]: () => import("@/views/objects/Path.vue"),
   // helpers
   [ViewType.USER_WIZARD]: () => import("@/views/helpers/UserWizard.vue"),

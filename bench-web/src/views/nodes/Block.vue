@@ -9,6 +9,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import File from "@/views/content/File.vue";
+import Agent from "@/views/nodes/Agent.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Flow from "@/views/nodes/Flow.vue";
@@ -171,6 +172,17 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
     <Task
       v-else-if="block.type == BlockType.TASK"
       id="task"
+      ref="nodeRef"
+      :node-ptr="nodePtr"
+      :prepared-connection="preparedConnection"
+      is-minimal
+      is-inline
+      is-input
+      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+    />
+    <Agent
+      v-else-if="block.type == BlockType.AGENT"
+      id="agent"
       ref="nodeRef"
       :node-ptr="nodePtr"
       :prepared-connection="preparedConnection"

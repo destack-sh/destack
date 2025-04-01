@@ -121,8 +121,8 @@ class CodeRunner(Runner, ABC):
 
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
-        _get_node = functools.partial(get_node, self.node, self.context)
-        _get_node_or_error = functools.partial(get_node_or_error, self.node, self.context)
+        _get_node = functools.partial(get_node, self.node, self.tracked)
+        _get_node_or_error = functools.partial(get_node_or_error, self.node, self.tracked)
         _get_path = functools.partial(get_path, self.node)
         _render = functools.partial(
             render, options=RenderOptions(scope=self.node, aliasing=self.aliasing)

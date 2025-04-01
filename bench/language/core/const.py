@@ -71,7 +71,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.03.31.5"
+VERSION = "2025.04.01.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -436,6 +436,7 @@ class EnumType(BuiltinEnum):
     SCHEDULE_FREQUENCY = 22041
     CLAIM_TYPE = 22050
     CLAIM_STATUS = 22051
+    AGENT_STATUS = 22061
 
     # error (22100-22149)
     ERROR_KIND = 22100
@@ -610,9 +611,6 @@ class NodeType(BuiltinEnum):
     KIT = 5060, None, None, "fas fa-screwdriver-wrench"
     DATABASE = 5090, None, None, "fas fa-database"
 
-    # IDENTITY?
-    # BADGE? POLICY? RULE?
-
     # communication
     CHANNEL = 5500, None, None, "fas fa-hashtag"
     THREAD = 5510, None, None, "fas fa-reel"
@@ -628,6 +626,7 @@ class NodeType(BuiltinEnum):
     ROLE = 5630, None, None, "fas fa-user-tag"
     AGENT = 5640, None, None, "fas fa-robot"
     # CHALLENGE?
+    # BADGE? POLICY? RULE?
 
     # runtime
     SESSION = 6000, None, None, "fas fa-circle-play"

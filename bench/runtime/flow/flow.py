@@ -167,7 +167,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         runner = make_runner(
             runtime=self.runtime,
             node=node,
-            context=self.context,
             inputs=inputs,
             parent=cast(Runner[RunnableNode], self),
             run="track",

@@ -90,6 +90,7 @@ enum EnumType {
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22041;
   ENUM_TYPE_CLAIM_TYPE = 22050;
   ENUM_TYPE_CLAIM_STATUS = 22051;
+  ENUM_TYPE_AGENT_STATUS = 22061;
   ENUM_TYPE_ERROR_KIND = 22100;
   ENUM_TYPE_ERROR_TYPE = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
@@ -537,6 +538,7 @@ enum BenchType {
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22041;
   BENCH_TYPE_CLAIM_TYPE = 22050;
   BENCH_TYPE_CLAIM_STATUS = 22051;
+  BENCH_TYPE_AGENT_STATUS = 22061;
   BENCH_TYPE_ERROR_KIND = 22100;
   BENCH_TYPE_ERROR_TYPE = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
@@ -1444,6 +1446,22 @@ enum ClaimStatus {
   CLAIM_STATUS_RELEASED = 32;
 }
 
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_CREATED = 1;
+  AGENT_STATUS_SCHEDULED = 2;
+  AGENT_STATUS_QUEUED = 3;
+  AGENT_STATUS_RUNNING = 10;
+  AGENT_STATUS_PAUSED = 20;
+  AGENT_STATUS_YIELDED = 21;
+  AGENT_STATUS_WAITING = 22;
+  AGENT_STATUS_CANCELLED = 30;
+  AGENT_STATUS_ABORTED = 31;
+  AGENT_STATUS_FAILED = 32;
+  AGENT_STATUS_COMPLETED = 33;
+  AGENT_STATUS_SKIPPED = 34;
+}
+
 enum ErrorKind {
   ERROR_KIND_UNSPECIFIED = 0;
   ERROR_KIND_INTERNAL = 1;
@@ -1629,20 +1647,18 @@ enum ViewType {
   VIEW_TYPE_LINK = 5052;
   VIEW_TYPE_TRIGGER = 5053;
   VIEW_TYPE_KIT = 5060;
-  VIEW_TYPE_VIEW = 5080;
   VIEW_TYPE_DATABASE = 5090;
-  VIEW_TYPE_CHANNEL = 5100;
-  VIEW_TYPE_THREAD = 5501;
+  VIEW_TYPE_CHANNEL = 5500;
+  VIEW_TYPE_THREAD = 5510;
+  VIEW_TYPE_AGENT = 5640;
   VIEW_TYPE_RUN = 6010;
-  VIEW_TYPE_PLAN = 6040;
-  VIEW_TYPE_TASK = 6041;
+  VIEW_TYPE_PLAN = 6100;
+  VIEW_TYPE_TASK = 6110;
   VIEW_TYPE_OBJECT = 10000;
   VIEW_TYPE_TYPE = 10001;
-  VIEW_TYPE_FIELD_LIST = 10003;
   VIEW_TYPE_PATH = 10004;
   VIEW_TYPE_COMPUTED_VALUE = 10005;
   VIEW_TYPE_SELECTION = 10006;
-  VIEW_TYPE_CLAIM_LIST = 10007;
   VIEW_TYPE_USER_WIZARD = 20001;
   VIEW_TYPE_EMPTY = 20100;
   VIEW_TYPE_CREATE = 20201;
@@ -1656,16 +1672,11 @@ enum ViewType {
   VIEW_TYPE_TAB = 30002;
   VIEW_TYPE_HISTORY = 30003;
   VIEW_TYPE_SPLIT = 30004;
-  VIEW_TYPE_SPLIT_DRAWER = 30005;
   VIEW_TYPE_STACK = 30006;
   VIEW_TYPE_DRAWER = 30007;
   VIEW_TYPE_SCROLL = 30008;
-  VIEW_TYPE_GRID = 30009;
-  VIEW_TYPE_GROUP = 30100;
-  VIEW_TYPE_SECTION = 30101;
-  VIEW_TYPE_FORM = 30102;
-  VIEW_TYPE_SPACER = 30200;
-  VIEW_TYPE_DIVIDER = 30201;
+  VIEW_TYPE_SECTION = 30100;
+  VIEW_TYPE_DIVIDER = 30200;
   VIEW_TYPE_LIST = 30300;
   VIEW_TYPE_TABLE = 30301;
   VIEW_TYPE_TREE = 30302;
@@ -2508,121 +2519,6 @@ message EmptyData {
   optional google.protobuf.Value subnode_packed = 29;
 }
 
-message AgentData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
-  optional NodeReferenceData main_flow_ptr = 40;
-  optional NodeReferenceData implemented_by_ptr = 41;
-  optional ColorType color = 45;
-  optional google.protobuf.Value inputs_packed = 61;
-  optional google.protobuf.Value outputs_packed = 62;
-  optional TextData text = 65;
-}
-
-message InviteData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData member_ptr = 40;
-}
-
-message MembershipData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  NodeReferenceData member_ptr = 41;
-}
-
-message RoleData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
-  optional ColorType color = 45;
-}
-
-message TeamData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData organization_ptr = 7;
-  optional NodeReferenceData team_ptr = 8;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp deleted_at = 14;
-  optional NodeReferenceData template_ptr = 15;
-  optional google.protobuf.Timestamp template_at = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
-}
-
 message ChannelData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2643,8 +2539,6 @@ message ChannelData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   ChannelStatus status = 50;
   optional google.protobuf.Timestamp closed_at = 55;
   optional NodeReferenceData main_page_ptr = 60;
@@ -2756,8 +2650,6 @@ message ThreadData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   optional NodeReferenceData channel_ptr = 40;
   optional NodeReferenceData scope_ptr = 41;
   ThreadStatus status = 50;
@@ -2794,8 +2686,6 @@ message ApplicationData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -2831,8 +2721,6 @@ message ComputerData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -2876,8 +2764,6 @@ message FileData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -2925,8 +2811,6 @@ message ScalerData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -2965,8 +2849,6 @@ message SecretData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -3002,8 +2884,6 @@ message StoreData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -3041,8 +2921,6 @@ message StreamData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   Region region = 40;
   optional NodeReferenceData scaler_ptr = 41;
   ResourceStatus status = 50;
@@ -3164,6 +3042,121 @@ message UserData {
   bool is_staff = 90;
 }
 
+message AgentData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  optional NodeReferenceData owned_by_ptr = 17;
+  optional NodeReferenceData claimed_by_ptr = 18;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  AgentStatus status = 40;
+  optional google.protobuf.Duration duration = 41;
+  optional google.protobuf.Timestamp started_at = 42;
+  optional google.protobuf.Timestamp terminated_at = 43;
+  optional google.protobuf.Timestamp interrupted_at = 44;
+  optional NodeReferenceData interruption_ptr = 45;
+  optional google.protobuf.Value inputs_packed = 50;
+  optional google.protobuf.Value outputs_packed = 51;
+  optional TextData text = 52;
+  optional NodeReferenceData main_flow_ptr = 55;
+  optional NodeReferenceData implemented_by_ptr = 56;
+  optional ColorType color = 57;
+}
+
+message InviteData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional google.protobuf.Value subnode_packed = 29;
+  NodeReferenceData member_ptr = 40;
+}
+
+message MembershipData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  NodeReferenceData member_ptr = 41;
+}
+
+message RoleData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+  optional ColorType color = 45;
+}
+
+message TeamData {
+  ObjectType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData organization_ptr = 7;
+  optional NodeReferenceData team_ptr = 8;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp deleted_at = 14;
+  optional NodeReferenceData template_ptr = 15;
+  optional google.protobuf.Timestamp template_at = 16;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+}
+
 message ClaimData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3222,8 +3215,6 @@ message PlanData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   PlanTerminationMode on_terminate = 41;
   PlanFailureMode on_failure = 42;
   optional NodeReferenceData implemented_by_ptr = 43;
@@ -3262,8 +3253,6 @@ message TaskData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   optional NodeReferenceData implemented_by_ptr = 41;
   TaskStatus status = 50;
   optional google.protobuf.Duration duration = 51;
@@ -3271,7 +3260,7 @@ message TaskData {
   optional google.protobuf.Timestamp started_at = 53;
   optional google.protobuf.Timestamp stopped_at = 54;
   optional google.protobuf.Timestamp terminated_at = 55;
-  optional ErrorData error = 56;
+  optional google.protobuf.Timestamp interrupted_at = 56;
   optional TextData text = 60;
   optional NodeReferenceData target_ptr = 62;
   optional NodeReferenceData tool_ptr = 63;
@@ -3535,8 +3524,6 @@ message ChoiceData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
 }
 
 message ClassData {
@@ -3558,8 +3545,6 @@ message ClassData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
 }
 
 message DatabaseData {
@@ -3584,8 +3569,6 @@ message DatabaseData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
 }
 
 message DependencyData {
@@ -3667,8 +3650,6 @@ message FlowData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   optional RunOptionsData options = 40;
   optional TextData text = 41;
   optional NodeReferenceData default_agent_ptr = 50;
@@ -3695,8 +3676,6 @@ message KitData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   optional NodeReferenceData target_ptr = 40;
   optional TextData text = 41;
 }
@@ -3798,8 +3777,6 @@ message PageData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
 }
 
 message TriggerData {
@@ -3850,8 +3827,6 @@ message TagData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
 }
 
 message SpaceData {
@@ -3904,8 +3879,6 @@ message ViewData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData thread_ptr = 36;
-  repeated NodeReferenceData tags_ptr = 37;
   optional google.protobuf.Value subviews_packed = 39;
   optional TypeData value_type = 41;
   optional NodeReferenceData node_ptr = 42;

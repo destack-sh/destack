@@ -121,7 +121,10 @@ class Task(
     terminated_at: Optional[datetime] = p_internal(
         55, default=None, description="When the Task terminated."
     )
-    error: Optional["Error"] = p_internal(56, require=False, array=False, struct=StructType.ERROR)
+    interrupted_at: Optional[datetime] = p_regular(56, default=None)
+    interruption: Optional["Interruption"] = p_internal(
+        57, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+    )
 
     # routing
     text: Optional["Text"] = p_regular(
