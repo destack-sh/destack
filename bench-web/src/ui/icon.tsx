@@ -117,7 +117,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   }
   if (props.faName) {
     // font awesome
-    return <i class={`${props.faName} text-center`} style={{ color: colorHex }} />;
+    return <span class={`${props.faName} text-center`} style={{ color: colorHex }} />;
   } else if (props.emoji) {
     // emoji
     return <span style={{ color: colorHex }}>{props.emoji}</span>;

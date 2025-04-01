@@ -1,6 +1,7 @@
 import { supergraph } from "@/globals";
 import { getTkB64FromCk, isNodeType, NAME_CONSTRAINT, toCamelName } from "@/language/core/const";
 import { getEnumTitle } from "@/language/core/enum";
+import { agentToType } from "@/language/runtime/agent";
 import { blockToTypeMaybe } from "@/language/source/block";
 import { choiceToType } from "@/language/source/choice";
 import { classToType } from "@/language/source/class";
@@ -405,6 +406,8 @@ export function nodeToTypeMaybe(
     return flowToType(node, of, fieldTypes);
   } else if (isNode(node, NodeType.DATABASE)) {
     return databaseToType(node);
+  } else if (isNode(node, NodeType.AGENT)) {
+    return agentToType(node, of, fieldTypes);
   } else {
     return undefined;
   }

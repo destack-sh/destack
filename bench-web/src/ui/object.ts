@@ -930,6 +930,16 @@ export class TaskLayout extends NodeLayout<NodeType.TASK> {
 export class AgentLayout extends NodeLayout<NodeType.AGENT> {
   make() {
     this.section(undefined, []);
+    this.section("Catalog", [{ type: "claims-list", title: undefined }], {});
+    this.section(
+      "Schema",
+      [
+        { type: "fields-list", fieldType: FieldType.INPUT },
+        { type: "icon", icon: makeIcon("fas fa-arrow-down") },
+        { type: "fields-list", fieldType: FieldType.OUTPUT },
+      ],
+      {},
+    );
   }
 }
 
@@ -1016,6 +1026,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.CHANNEL]: ChannelLayout,
   [NodeType.THREAD]: ThreadLayout,
   [NodeType.TASK]: TaskLayout,
+  [NodeType.AGENT]: AgentLayout,
   [NodeType.BENCH]: BenchLayout,
 };
 

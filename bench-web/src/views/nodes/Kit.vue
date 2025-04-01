@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { cloneNode, makeNodeName, moveNode, packSubnode } from "@/language/core/node";
+import { makeNodeName, packSubnode } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
 import {
@@ -13,20 +13,19 @@ import {
   PickerVariant,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
-import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
+import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ACTION_SIZE } from "@/ui/flow";
 import { generateOrderKey } from "@/utils/fractional";
+import Grid from "@/views/builtins/Grid.vue";
 import InlineHeader from "@/views/builtins/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, Ref, ref, toRef } from "vue";
-
+import { ComponentPublicInstance, Ref, ref, toRef } from "vue";
 const GUTTER_WIDTH = 60;
 
 const props = defineProps<
@@ -53,51 +52,11 @@ const actions = graph.getChildrenRef(nodePtr, NodeType.ACTION);
 const containerRef = ref<HTMLElement | null>(null);
 const containerSize = useElementSize(containerRef);
 const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
-const gridRef = ref<HTMLElement | null>(null);
-const actionRefs: Ref<Record<string, InstanceType<typeof Action> | null>> = ref({});
+const gridRef = ref<ComponentPublicInstance<typeof Grid> | null>(null);
 
 function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
   headerRef.value?.focus?.(anchor ?? "top");
 }
-
-// drag and drop
-const { activeDropZone } = useMultiDropZone({
-  name: "action",
-  container: gridRef,
-  targetsInOrder: computed(() => actions.value.map((action) => action.id)),
-  targetsById: actionRefs,
-  kinds: ["node", "selection"],
-  metatypes: [NodeType.ACTION],
-  fallbackToClosest: true,
-  onDrop: (dragged, anchor, targetId, event) => {
-    if (targetId == null) return;
-    const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
-    const targetNode = graph.getOrError({ id: targetId });
-
-    if (dragged.kind == "node") {
-      // move node
-      let node = graph.getOrError(dragged.node);
-      if (event.altKey) {
-        // clone node before moving
-        node = cloneNode(tx, graph, node, { keepProperties: true });
-      }
-      moveNode(tx, graph, node, { anchor, target: targetNode });
-    } else if (dragged.kind == "selection") {
-      // move nodes
-      for (let i = 0; i < dragged.nodes.length; i++) {
-        let node = graph.getOrError(dragged.nodes[i]);
-        if (event.altKey) {
-          // clone node before moving
-          node = cloneNode(tx, graph, node, { keepProperties: true });
-        }
-        moveNode(tx, graph, node, {
-          anchor: i == 0 ? anchor : "after",
-          target: i == 0 ? targetNode : graph.getOrError(dragged.nodes[i - 1]),
-        });
-      }
-    }
-  },
-});
 
 /** Creates a new Action. */
 function createAction(actionIn: Partial<ActionData>) {
@@ -182,49 +141,34 @@ defineExpose<ViewExpose>({ self, id, focus });
     </InlineHeader>
 
     <!-- Action grid -->
-    <div
+    <Grid
+      :id="`${id}-grid`"
       ref="gridRef"
-      class="relative gap-x-2 gap-y-2 py-2"
+      :node-ptr="nodePtr"
+      :prepared-connection="preparedConnection"
+      :element-type="NodeType.ACTION"
+      :element-size="ACTION_SIZE"
+      :is-root="isRoot"
       :style="{
-        display: 'grid',
-        gridTemplateColumns: `repeat(auto-fill, minmax(${ACTION_SIZE.width}px, 1fr))`,
         marginLeft: isRoot ? `${GUTTER_WIDTH}px` : undefined,
         marginRight: isRoot ? `${GUTTER_WIDTH}px` : undefined,
       }"
+      @create="createActionPopover"
     >
-      <!-- Commands -->
-      <div v-for="action in actions" :key="action.id" class="relative">
-        <!-- Drop indicator -->
-        <div
-          v-if="activeDropZone?.targetId === action.id"
-          class="absolute z-10 rounded bg-gray-400"
-          :class="[activeDropZone.anchor === 'start' ? '-left-[6px]' : '-right-[6px]', 'top-0 h-full w-1']"
-        />
+      <template #element="{ element, elementRef, nodePtr, isDragging, elementSize, startDragging }">
         <Action
-          :id="action.id"
-          :ref="(el: any) => (el ? (actionRefs[action.id] = el) : delete actionRefs[action.id])"
-          :node-ptr="toNodeRef(action)"
+          :id="element.id"
+          :ref="elementRef"
+          :node-ptr="nodePtr"
+          :prepared-connection="preparedConnection"
           class="w-full transition-opacity duration-150"
-          :class="{ 'opacity-50': isDragging(action) }"
-          :style="{ height: ACTION_SIZE.height + 'px' }"
+          :class="{ 'opacity-50': isDragging }"
+          :style="{ height: elementSize.height + 'px' }"
           data-suppress-drag="select"
           :draggable="true"
-          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, action)"
+          @dragstart.stop="startDragging"
         />
-      </div>
-      <!-- Add action -->
-      <button
-        class="group/action flex w-full flex-row items-center gap-x-2.5 rounded border border-dashed border-gray-200 px-1 py-1 text-left transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100"
-        :style="{ height: ACTION_SIZE.height + 'px' }"
-        @click.stop.prevent="(e) => createActionPopover(e)"
-      >
-        <div class="flex h-10 w-10 items-center justify-center rounded bg-gray-100">
-          <i
-            class="fas fa-plus text-lg text-gray-400 transition-colors duration-150 group-hover/action:text-gray-700"
-          />
-        </div>
-        <div class="flex flex-1 flex-col"></div>
-      </button>
-    </div>
+      </template>
+    </Grid>
   </div>
 </template>

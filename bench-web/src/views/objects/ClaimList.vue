@@ -16,14 +16,14 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { startDraggingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { pushPopover } from "@/ui/popover";
-import NodeReference from "@/views/builtins/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
+import Claim from "@/views/nodes/Claim.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, ref, toRef } from "vue";
 
@@ -38,19 +38,18 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
+const state = canvas.registerView(self, id);
 const isHorizontal = computed(
   () => orientation.value == Orientation.HORIZONTAL || orientation.value == Orientation.HORIZONTAL_REVERSED,
 );
-const state = canvas.registerView(self, id);
-
-const containerRef = ref<HTMLElement | null>(null);
 
 const basePtr = computed(() => props.nodePtr);
 const { graph, connection } = props.preparedConnection ?? useAutoConnection(basePtr);
 const base = graph.getRef(basePtr);
 const claims = graph.getChildrenRef(basePtr, NodeType.CLAIM);
 
-// selecting
+// view
+const containerRef = ref<HTMLElement | null>(null);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
@@ -81,8 +80,7 @@ defineExpose<ViewExpose>({ self, id, commands });
           (e: DragEvent) => startDraggingIfAllowed(e, claim.targetPtr ?? claim.targetTemplatePtr ?? claim)
         "
       >
-        <!-- TODO :Incomplete: show/control? actual Claim status somehow -->
-        <NodeReference :node-ptr="claim.targetPtr ?? claim.targetTemplatePtr" is-light size="sm" />
+        <Claim :id="claim.id" :node-ptr="toNodeRef(claim)" :prepared-connection="preparedConnection" is-minimal />
       </li>
       <!-- Create -->
       <button

@@ -445,7 +445,7 @@ defineExpose<ViewExpose>({
             <IconInline
               v-if="(item as any).icon"
               v-bind="(item as any).icon"
-              class="mr-1.5 w-6 flex-shrink-0 rounded-md py-1 text-gray-900"
+              class="mr-1.5 w-6 flex-shrink-0 rounded-md py-1 text-center text-gray-900"
               :style="{
                 backgroundColor: item.color != null ? getColorHex(item.color, ColorShade.S300) : undefined,
               }"
