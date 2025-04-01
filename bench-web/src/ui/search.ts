@@ -715,7 +715,10 @@ function walkGraph(options: {
 
 /** Whether the Node is a hidden builtin node (NOTE :HiddenBuiltinStuff) */
 export function isHiddenBuiltinNodeItem(node: AnyNodeData): boolean {
-  if (isResourceNode(node) && node.mode == NodeMode.BUILTIN) {
+  if (
+    (isNode(node, NodeType.BLOCK) || isNode(node, NodeType.PAGE) || isResourceNode(node)) &&
+    node.mode == NodeMode.BUILTIN
+  ) {
     return true;
   } else {
     return false;

@@ -99,7 +99,7 @@ const valueType = computed(() => {
     return makeType({
       kind: TypeKind.NODE,
       constraint: makeTypeConstraint({
-        nodeTypes: [NodeType.USER, ...INLINE_NODE_TYPES.filter((t) => t != NodeType.VIEW)],
+        nodeTypes: [NodeType.USER, NodeType.AGENT, NodeType.ROLE, NodeType.PAGE, NodeType.DATABASE],
       }),
     });
   } else {
