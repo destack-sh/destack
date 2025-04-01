@@ -291,7 +291,7 @@ class HostService(GraphServiceBase, HostBase):
         return subject
 
     @override
-    def resolve_request_base(self, node_ptr: NodeReference | UUID) -> TypeBaseNode | None:
+    async def resolve_request_base(self, node_ptr: NodeReference | UUID) -> TypeBaseNode | None:
         base_id = node_ptr.id if isinstance(node_ptr, NodeReference) else node_ptr
         assert base_id, f"no base id in {node_ptr!r}"
         node = self.main_package._graph.get(base_id)
@@ -602,7 +602,7 @@ class HostService(GraphServiceBase, HostBase):
             if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
                 _apply_edit(edit)
         for edit in cascaded_edits:
-            if edit.type in (EditType.ARCHIVE, EditType.UNARCHIVE, EditType.DELETE, EditType.ERASE):
+            if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                 continue  # remove cascades are implicit
             if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
                 _apply_edit(edit)

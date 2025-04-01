@@ -36,6 +36,7 @@ from bench.proto import (
     GraphScopeData,
     NodeReferenceData,
     unwrap_some_node,
+    wiring,
 )
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import Oracle
@@ -206,7 +207,7 @@ def _get_edited_node(edit: EditData, graph: NodeDataGraph) -> AnyNodeData | None
     assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
     updated_node = graph.get(node_id)
     if updated_node is None:
-        if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE):
+        if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UNARCHIVE, EditType.RESTORE):
             assert edit.HasField("node_data"), f"missing new node data for {edit!r}"
             updated_node = unwrap_some_node(edit.node_data)
         else:
@@ -224,9 +225,9 @@ def is_edit_in_scope(edit: EditData, graph: NodeDataGraph, root_id: str) -> bool
         return False  # irrelevant type
 
     # filter scope
-    if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE):
+    if edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UNARCHIVE, EditType.RESTORE):
         node = _get_edited_node(edit, graph)
-        assert node is not None, f"missing node {edit.node_ptr.id} for {edit!r}"
+        assert node is not None, f"missing node data for {wiring.describe_edit(edit)}"
         # add: parent must be in a root, in our graph or be optional
         parent_id = node.parent_ptr.id
         if parent_id not in graph:

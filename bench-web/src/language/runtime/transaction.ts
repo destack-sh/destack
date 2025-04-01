@@ -428,7 +428,7 @@ export class TransactionBuilder implements Transaction {
     this._doUpdate(EditType.MOVE, node, update, options);
   }
 
-  _remove(editType: EditType.ARCHIVE | EditType.DELETE | EditType.ERASE, node: AnyNodeData, title: string) {
+  _doRemove(editType: EditType.ARCHIVE | EditType.DELETE | EditType.ERASE, node: AnyNodeData, title: string) {
     let tx: TransactionBuilder = this;
     if (this.change?.key == null) {
       tx = tx.with({ change: { key: newChangeId(), title } }) as TransactionBuilder;
@@ -449,20 +449,20 @@ export class TransactionBuilder implements Transaction {
     }
   }
 
-  _recover(editType: EditType.RESTORE | EditType.UNARCHIVE, node: AnyNodeData, title: string) {
+  _doRecover(editType: EditType.RESTORE | EditType.UNARCHIVE, node: AnyNodeData, title: string) {
     let tx: TransactionBuilder = this;
     if (this.change?.key == null) {
       tx = tx.with({ change: { key: newChangeId(), title } }) as TransactionBuilder;
     }
 
-    const nodeWithoutTimestamp = { ...node };
+    const cleanNode = { ...node };
     if (editType === EditType.UNARCHIVE) {
-      nodeWithoutTimestamp.archivedAt = undefined;
+      cleanNode.archivedAt = undefined;
     } else if (editType === EditType.RESTORE) {
-      nodeWithoutTimestamp.deletedAt = undefined;
+      cleanNode.deletedAt = undefined;
     }
 
-    tx._addSimpleEdit(editType, nodeWithoutTimestamp, null);
+    tx._addSimpleEdit(editType, cleanNode, null);
 
     // handle blocks and definitions together
     if (isNode(node, NodeType.BLOCK)) {
@@ -479,19 +479,19 @@ export class TransactionBuilder implements Transaction {
   }
 
   delete(node: AnyNodeData) {
-    this._remove(EditType.DELETE, node, "Delete");
+    this._doRemove(EditType.DELETE, node, "Delete");
   }
 
   restore(node: AnyNodeData) {
-    this._recover(EditType.RESTORE, node, "Restore");
+    this._doRecover(EditType.RESTORE, node, "Restore");
   }
 
   archive(node: AnyNodeData) {
-    this._remove(EditType.ARCHIVE, node, "Archive");
+    this._doRemove(EditType.ARCHIVE, node, "Archive");
   }
 
   unarchive(node: AnyNodeData) {
-    this._recover(EditType.UNARCHIVE, node, "Unarchive");
+    this._doRecover(EditType.UNARCHIVE, node, "Unarchive");
   }
 }
 

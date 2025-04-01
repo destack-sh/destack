@@ -1430,6 +1430,8 @@ async def _pg_edit_cascade(
                 category=root_edit.category,
                 context=root_edit.context,
             )
+            if root_edit.HasField("origin"):
+                cascaded_edit.origin.CopyFrom(root_edit.origin)
             if root_edit.HasField("subject_ptr"):
                 cascaded_edit.subject_ptr.CopyFrom(root_edit.subject_ptr)
             all_cascaded_edits.append(cascaded_edit)
