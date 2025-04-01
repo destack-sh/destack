@@ -386,7 +386,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         """Commit some Edits."""
 
         # pre-validate/prepare edits
-        include_deleted = any(e.type == EditType.RESTORE for e in edits)
+        include_removed = any(e.type == EditType.RESTORE for e in edits)
 
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
@@ -407,14 +407,14 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         node_type=node_type,
                         base_type=database,
                         roots=node_references,
-                        include_deleted=include_deleted,
+                        include_removed=include_removed,
                         select=select,
                     )
                     adapted_query = self._adapt_read_query(subject, query)
                     channel = await session._get_connector_for(
                         scope,
                         adapted_query.all_node_types,
-                        include_deleted=include_deleted,
+                        include_removed=include_removed,
                         include_memory=True,
                         is_readonly=True,
                     )
@@ -434,11 +434,12 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     if len(missing_node_ptrs) > 0:
                         adapted_query = adapted_query.clone()
                         adapted_query._roots = missing_node_ptrs
+                        adapted_query._include_removed = True
                         adapted_query._include_memory = False
                         raw_channel = await session._get_connector_for(
                             scope,
                             adapted_query.all_node_types,
-                            include_deleted=True,
+                            include_removed=True,
                             include_memory=False,
                             is_readonly=True,
                         )
@@ -462,7 +463,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             # (and update true 'old' values in prepass, simplify edits for sql engine)
             session.tx._track_edits(edits)  # (assign epochs)
             flat_edits = edit_data_graph(
-                graph=data_graph, edits=edits, include_deleted=True, is_prepass=True
+                graph=data_graph, edits=edits, include_removed=True, is_prepass=True
             )
             assert flat_edits and len(flat_edits) == len(edits), f"{flat_edits!r} != {edits!r}"
             unpacked_graph = wiring.unpack_node_graph(
@@ -594,7 +595,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     base_type=database,
                     ancestor_types=ancestor_types,
                     descendant_types=descendant_types,
-                    include_deleted=request.include_deleted,
+                    include_removed=request.include_removed,
                     include_memory=not request.no_memory,
                     select=select,
                 )
@@ -968,6 +969,8 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         should_set_node_data = edit.type in (
             EditType.CREATE,
             EditType.UPSERT,
+            EditType.ARCHIVE,
+            EditType.UNARCHIVE,
             EditType.DELETE,
             EditType.RESTORE,
             EditType.ERASE,

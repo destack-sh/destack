@@ -84,7 +84,7 @@ class PostgresEngine(Engine):
         return channel
 
     @property
-    def include_deleted(self) -> bool:
+    def include_removed(self) -> bool:
         return True
 
     @property

@@ -32,7 +32,7 @@ tracer = trace.get_tracer(__name__)
 @dataclass
 class WritePageTreeSpec(ClientWorkloadSpec):
     type: WorkloadType = WorkloadType.WRITE_PAGE_TREE
-    edit_types: tuple[EditType, ...] = (EditType.CREATE, EditType.DELETE)
+    edit_types: tuple[EditType, ...] = (EditType.CREATE, EditType.ARCHIVE, EditType.DELETE)
     transactions: int | SampledInt = 1
     transactions_interval: float | SampledFloat = 0.0
     edits_per_transaction: int | SampledInt = 10
@@ -66,9 +66,14 @@ class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
                     page = Page.new(title=f"Page {self.page_num}")
                     self.page_num += 1
                     parent.pages.append(page)
+                elif edit_type == EditType.ARCHIVE:
+                    if not pages:
+                        continue  # no pages yet
+                    page = self.random.choice(pages)
+                    page.archive()
                 elif edit_type == EditType.DELETE:
                     if not pages:
-                        continue  # no pages to delete yet
+                        continue  # no pages yet
                     page = self.random.choice(pages)
                     page.delete()
                 else:

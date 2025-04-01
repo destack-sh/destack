@@ -356,6 +356,7 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   if ("templatedEpoch" in node) (clone as any).templatedEpoch = node.templatedEpoch;
   clone.createdAt = now;
   clone.updatedAt = now;
+  clone.archivedAt = undefined;
   clone.deletedAt = undefined;
   return clone;
 }

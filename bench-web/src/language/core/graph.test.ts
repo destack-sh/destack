@@ -403,25 +403,28 @@ function markUndeleted<T extends AnyNodeData>(obj: T): T {
 }
 
 function _baseTestFilteredGraph(base: NodeGraph, composite: ReadNodeGraph & { filter: Ref<NodeGraphFilter> }) {
-  let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"], set: { id: "package1" } });
+  let package1 = fabricate(ObjectType.PACKAGE, {
+    unset: ["parentPtr", "deletedAt", "archivedAt"],
+    set: { id: "package1" },
+  });
   const space11 = fabricate(ObjectType.SPACE, {
-    unset: ["deletedAt"],
+    unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeRef(package1), id: "space11", orderKey: "a0" },
   });
   let view111 = fabricate(ObjectType.VIEW, {
-    unset: ["deletedAt"],
+    unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeRef(space11), id: "view111", orderKey: "a0" },
   });
   const view112 = fabricate(ObjectType.VIEW, {
-    unset: ["deletedAt"],
+    unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeRef(space11), id: "view112", orderKey: "a1" },
   });
   let space12 = fabricate(ObjectType.SPACE, {
-    unset: ["deletedAt"],
+    unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeRef(package1), id: "space12", orderKey: "a1" },
   });
   const view121 = fabricate(ObjectType.VIEW, {
-    unset: ["deletedAt"],
+    unset: ["archivedAt", "deletedAt"],
     set: { parentPtr: toNodeRef(space12), id: "view121", orderKey: "a0" },
   });
 
@@ -533,13 +536,13 @@ describe("filtered layered graph", () => {
   _baseTestFilteredGraph(base, composite);
 
   test("filtered layered crud", () => {
-    const package9 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "deletedAt"] });
+    const package9 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
     const space91 = fabricate(ObjectType.SPACE, {
-      unset: ["deletedAt"],
+      unset: ["archivedAt", "deletedAt"],
       set: { parentPtr: toNodeRef(package9), id: "space91", orderKey: "a0" },
     });
     let view911 = fabricate(ObjectType.VIEW, {
-      unset: ["deletedAt"],
+      unset: ["archivedAt", "deletedAt"],
       set: { parentPtr: toNodeRef(space91), id: "view911", orderKey: "a0" },
     });
     base.extend(package9, space91, view911);

@@ -71,7 +71,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.01.0"
+VERSION = "2025.04.01.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1249,6 +1249,8 @@ class EditType(BuiltinEnum):
     UPSERT = 21
     UPDATE = 22
     MOVE = 23
+    ARCHIVE = 24
+    UNARCHIVE = 25
     DELETE = 26
     RESTORE = 27
     ERASE = 28

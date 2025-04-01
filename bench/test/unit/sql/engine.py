@@ -269,6 +269,39 @@ async def test_cascade_edits(omni_session: Session):
         assert len(cascaded_edits) == 0
         assert await Client.get(id=client_1_c.id)
 
+        # archive non-cascading
+        session._archive(client_1_c)
+        await session.commit()
+        with pytest.raises(NodeNotFoundError):
+            await Client.get(id=client_1_c.id)
+
+        # archive cascading
+        session._archive(user_1)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 2
+        with pytest.raises(NodeNotFoundError):
+            await User.get(id=user_1.id)
+        with pytest.raises(NodeNotFoundError):
+            await Client.get(id=client_1_a.id)
+
+        # unarchive cascading
+        session._unarchive(user_1)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 2
+        assert await User.get(id=user_1.id)
+        assert await Client.get(id=client_1_a.id)
+        with pytest.raises(NodeNotFoundError):  # should only unarchive its own archived children
+            await Client.get(id=client_1_c.id)
+
+        # unarchive non-cascading
+        session._unarchive(client_1_c)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 0
+        assert await Client.get(id=client_1_c.id)
+
 
 async def test_crud_node_pointers(omni_session: Session):
     """Ensures that node pointers (parent, regular, ancestor, ...) roundtrip correctly."""

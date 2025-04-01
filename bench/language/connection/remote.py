@@ -87,7 +87,7 @@ class RemoteEngine(Engine["RemoteConnector"]):
         return RemoteConnector(self, session)
 
     @property
-    def include_deleted(self) -> bool:
+    def include_removed(self) -> bool:
         return True
 
     @property
@@ -194,7 +194,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
             ancestor_types=[wiring.pack_enum(NodeType, t) for t in query._ancestor_types],
             descendant_types=[wiring.pack_enum(NodeType, t) for t in query._descendant_types],
             select=query._select._to_data() if query._select else None,
-            include_deleted=query._include_deleted,
+            include_removed=query._include_removed,
         )
         try:
             response = await self.connector.engine.remote.get_nodes(

@@ -429,7 +429,7 @@ class HostService(GraphServiceBase, HostBase):
                 scope=self._scope,
                 node_types=bittuple(*BENCH_QUERY.all_node_types),
                 graph=self._bench._data_graph,
-                include_deleted=False,
+                include_removed=False,
             ),
         )
         self._engines = (
@@ -588,13 +588,13 @@ class HostService(GraphServiceBase, HostBase):
                     graph=bench_graph,
                     supergraph=self._supergraph,
                     edits=(edit,),
-                    include_deleted=False,
+                    include_removed=False,
                     validate=False,
                 )
             edit_data_graph(
                 graph=bench_data_graph,
                 edits=(edit,),
-                include_deleted=False,
+                include_removed=False,
             )
 
         bench_id = str(self._bench.id)
@@ -602,7 +602,7 @@ class HostService(GraphServiceBase, HostBase):
             if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
                 _apply_edit(edit)
         for edit in cascaded_edits:
-            if edit.type in (EditType.DELETE, EditType.ERASE):
+            if edit.type in (EditType.ARCHIVE, EditType.UNARCHIVE, EditType.DELETE, EditType.ERASE):
                 continue  # remove cascades are implicit
             if is_edit_in_scope(edit, bench_data_graph, root_id=bench_id):
                 _apply_edit(edit)

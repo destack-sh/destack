@@ -150,7 +150,11 @@ BENCH_RECORD_TABLE_PREFIX = "bench_record_"
 BENCH_RECORD_VALUE_PREFIX = "value_"
 
 CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
-    EditType.DELETE, EditType.RESTORE, EditType.ERASE
+    EditType.ARCHIVE,
+    EditType.UNARCHIVE,
+    EditType.DELETE,
+    EditType.RESTORE,
+    EditType.ERASE,
 )
 CASCADING_PARENT_NODE_TYPES = HAS_CHILD_NODE_TYPES
 CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES
@@ -902,8 +906,8 @@ def _pg_unpack_node_data_row(
 #
 
 
-def _combine_filter(*, include_deleted: bool, filter: Expression | None) -> Expression | None:
-    if include_deleted:
+def _combine_filter(*, include_removed: bool, filter: Expression | None) -> Expression | None:
+    if include_removed:
         return filter
     else:
         if filter is None:
@@ -943,7 +947,7 @@ async def pg_graph_select(
                 continue
             column = node_table.get_column(field)
             columns.append(column)
-    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+    filter = _combine_filter(include_removed=query._include_removed, filter=query._filter)
     where = (
         _pg_compile_conditional(node_type, node_cls, node_table, base_type, filter)
         if filter is not None
@@ -990,7 +994,7 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Qu
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
         node_table, _ = ctx.get_custom_table(query.database)
-    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+    filter = _combine_filter(include_removed=query._include_removed, filter=query._filter)
     where = (
         _pg_compile_conditional(node_type, node_cls, node_table, query._base_type, filter)
         if filter is not None
@@ -1012,7 +1016,7 @@ async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Q
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
     else:
         node_table, _ = ctx.get_custom_table(query.database)
-    filter = _combine_filter(include_deleted=query._include_deleted, filter=query._filter)
+    filter = _combine_filter(include_removed=query._include_removed, filter=query._filter)
     where = (
         _pg_compile_conditional(node_type, node_cls, node_table, query._base_type, filter)
         if filter is not None
@@ -1150,7 +1154,7 @@ async def pg_graph_get(
             base_type=query._base_type,
             filter=root_filter,
             select=query._select,
-            include_deleted=query.include_deleted,
+            include_removed=query.include_removed,
         )
         root_nodes = await pg_graph_select(cur=cur, ctx=ctx, query=root_query)
     else:  # already got nodes
@@ -1186,7 +1190,7 @@ async def pg_graph_get(
                     node_type,
                     filter=parents_filter,
                     select=query._select,
-                    include_deleted=query.include_deleted,
+                    include_removed=query.include_removed,
                 )
                 new_parents = await pg_graph_select(cur=cur, ctx=ctx, query=parents_query)
                 next_parents.extend(new_parents)
@@ -1202,7 +1206,7 @@ async def pg_graph_get(
             ctx=ctx,
             roots=root_nodes,
             descendant_types=query._descendant_types,
-            extra_filter=get_default_query_filter() if not query.include_deleted else None,
+            extra_filter=get_default_query_filter() if not query.include_removed else None,
         )
         descendant_node_ptrs_by_type = group_by(descendant_node_ptrs, lambda ptr: ptr.node_type)
         for wire_node_type, node_ptrs in descendant_node_ptrs_by_type.items():
@@ -1215,7 +1219,7 @@ async def pg_graph_get(
                 node_type,
                 filter=children_filter,
                 select=query._select,
-                include_deleted=query.include_deleted,
+                include_removed=query.include_removed,
             )
             new_children = await pg_graph_select(cur=cur, ctx=ctx, query=children_query)
             for node in new_children:
@@ -1258,7 +1262,7 @@ async def pg_graph_search(
             ancestor_types=query._ancestor_types,
             descendant_types=query._descendant_types,
             select=query._select,
-            include_deleted=query.include_deleted,
+            include_removed=query.include_removed,
         )
         _ = await pg_graph_get(cur=cur, ctx=ctx, query=get_query, visited_graph=visited_graph)
         return roots, visited_graph, total
@@ -1379,17 +1383,21 @@ async def _pg_edit_cascade(
 
     # figure out which nodes to cascade to
     root_nodes = tuple(root_edit.node_ptr for root_edit in batch)
-    root_edit_by_root_node_id = {cast(str, root_edit.node_ptr.id): root_edit for root_edit in batch}
-    if edit_type == EditType.RESTORE:
+    root_edit_by_root_node_id = {root_edit.node_ptr.id: root_edit for root_edit in batch}
+    if edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE:
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
         for root_edit in batch:
             assert root_edit.HasField(
                 "old_edited_at"
-            ), f"no old edited at for {wiring.describe_edit(root_edit)}"
+            ), f"missing old_edited_at for {wiring.describe_edit(root_edit)}"
             removed_at = root_edit.old_edited_at.ToDatetime(tzinfo=pytz.utc)
             removed_dts.append(removed_at)
-        extra_filter = C(op=ConditionalType.IN, property=Node.deleted_at, value=removed_dts)
+        extra_filter = C(
+            op=ConditionalType.IN,
+            property=Node.archived_at if edit_type == EditType.UNARCHIVE else Node.deleted_at,
+            value=removed_dts,
+        )
     elif edit_type == EditType.ERASE:
         # cascade to all
         extra_filter = None
@@ -1425,7 +1433,7 @@ async def _pg_edit_cascade(
             if root_edit.HasField("subject_ptr"):
                 cascaded_edit.subject_ptr.CopyFrom(root_edit.subject_ptr)
             all_cascaded_edits.append(cascaded_edit)
-            root_edit_by_cascaded_node_id[cast(str, node_ptr.id)] = root_edit
+            root_edit_by_cascaded_node_id[node_ptr.id] = root_edit
 
     # batch operations by edit kind and node table
     cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.node_type)
@@ -1436,10 +1444,10 @@ async def _pg_edit_cascade(
             QueryType.GET,
             node_type=NodeType(descendant_node_type),
             filter=C(ConditionalType.IN, property=Node.id, value=nodes_ids),
-            include_deleted=True,
+            include_removed=True,
         )
         nodes_by_id: dict[str, AnyNodeData] = {}
-        if any(edit.type == EditType.ERASE for edit in cascaded_edits):
+        if any(edit.type == EditType.ERASE for edit in batch):
             # get erased nodes before applying since we won't get them afterwards
             nodes = await pg_graph_select(cur=cur, ctx=ctx, query=descendant_query)
             nodes_by_id.update({node.id: node for node in nodes})
@@ -1523,13 +1531,22 @@ async def _pg_edit_batch(
                 conflict_columns=(node_table._primary_key,),
                 static_columns=tuple(c for c in node_table.columns if c != node_table._primary_key),
             )
-    elif edit_type in (EditType.UPDATE, EditType.MOVE, EditType.DELETE, EditType.RESTORE):
+    elif edit_type in (
+        EditType.UPDATE,
+        EditType.MOVE,
+        EditType.ARCHIVE,
+        EditType.UNARCHIVE,
+        EditType.DELETE,
+        EditType.RESTORE,
+    ):
         # collect dynamic columns (incl. implicit metadata)
         implicit_properties: list[Property | Any] = [
             node_cls.updated_at,
             node_cls.get_property("updated_by"),
         ]
-        if edit_type in (EditType.DELETE, EditType.RESTORE):
+        if edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+            implicit_properties.append(node_cls.archived_at)
+        elif edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
         dynamic_columns: list[Column] = [node_table._primary_key]
         dynamic_fields: list[Field] = (
@@ -1602,7 +1619,11 @@ async def _pg_edit_batch(
             row["updated_at"] = edited_at
             subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
             _pg_pack_node_reference_into_row(node_cls.get_property("updated_by"), row, subject_ptr)
-            if edit_type == EditType.DELETE:
+            if edit_type == EditType.ARCHIVE:
+                row["archived_at"] = edited_at
+            elif edit_type == EditType.UNARCHIVE:
+                row["archived_at"] = None
+            elif edit_type == EditType.DELETE:
                 row["deleted_at"] = edited_at
             elif edit_type == EditType.RESTORE:
                 row["deleted_at"] = None

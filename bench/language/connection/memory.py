@@ -44,11 +44,11 @@ class MemoryEngine(Engine["MemoryConnector"]):
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
         graph: "NodeDataGraph",
-        include_deleted: bool,
+        include_removed: bool,
     ):
         super().__init__(name, scope, node_types)
         self.graph = graph
-        self._include_deleted = include_deleted
+        self._include_removed = include_removed
 
     def __str__(self):
         return f"'{self.name}' [scope={repr_scope(self.scope)}, node_types={repr_enums(self.node_types)}, graph={self.graph!r}]"
@@ -58,8 +58,8 @@ class MemoryEngine(Engine["MemoryConnector"]):
         return True
 
     @property
-    def include_deleted(self) -> bool:
-        return self._include_deleted
+    def include_removed(self) -> bool:
+        return self._include_removed
 
     async def connector(self, session: "Session"):
         return MemoryConnector(self, session)
