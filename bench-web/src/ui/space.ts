@@ -1412,6 +1412,19 @@ export function deleteSelection(command: Command, ctx: CommandContext): boolean 
   return true;
 }
 
+/** Archives the selected nodes */
+export function archiveSelection(command: Command, ctx: CommandContext): boolean {
+  const { connection, graph, nodes } = getNodesForCommand(command, ctx);
+  if (connection == null || graph == null || nodes.length == 0) {
+    return false; // bubble up
+  }
+  const tx = connection.tx.with({ change: { key: newChangeId(), title: "Archive" } });
+  for (const node of nodes) {
+    tx.archive(node);
+  }
+  return true;
+}
+
 // space
 declareCommands<"space">({
   "space.omnibar.bench": {
@@ -1460,6 +1473,13 @@ declareCommands<"space">({
     text: "Duplicate this item",
     shortcuts: ["mod+d"],
     command: (command, ctx) => duplicateSelection(command, ctx),
+  },
+  "space.edit.archive": {
+    icon: "fas fa-archive",
+    title: "Archive",
+    text: "Archive this item",
+    shortcuts: ["mod+shift+a"],
+    command: (command, ctx) => archiveSelection(command, ctx),
   },
   "space.edit.delete": {
     icon: "fas fa-trash",

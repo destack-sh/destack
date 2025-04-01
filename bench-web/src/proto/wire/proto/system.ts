@@ -73,11 +73,11 @@ export interface GetNodesRequest {
      */
     select?: SelectOptionsData;
     /**
-     * Whether to include deleted nodes.
+     * Whether to include deleted and archived nodes.
      *
-     * @generated from protobuf field: optional bool include_deleted = 21;
+     * @generated from protobuf field: optional bool include_removed = 21;
      */
-    includeDeleted?: boolean;
+    includeRemoved?: boolean;
     /**
      * Whether to include memory.
      *
@@ -946,7 +946,7 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
             { no: 10, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 11, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 20, name: "select", kind: "message", T: () => SelectOptionsData },
-            { no: 21, name: "include_deleted", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 21, name: "include_removed", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 22, name: "no_memory", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 30, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 31, name: "is_optional", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
@@ -992,8 +992,8 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
                 case /* optional symbolx.bench.SelectOptionsData select */ 20:
                     message.select = SelectOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.select);
                     break;
-                case /* optional bool include_deleted */ 21:
-                    message.includeDeleted = reader.bool();
+                case /* optional bool include_removed */ 21:
+                    message.includeRemoved = reader.bool();
                     break;
                 case /* optional bool no_memory */ 22:
                     message.noMemory = reader.bool();
@@ -1042,9 +1042,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         /* optional symbolx.bench.SelectOptionsData select = 20; */
         if (message.select)
             SelectOptionsData.internalBinaryWrite(message.select, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool include_deleted = 21; */
-        if (message.includeDeleted !== undefined)
-            writer.tag(21, WireType.Varint).bool(message.includeDeleted);
+        /* optional bool include_removed = 21; */
+        if (message.includeRemoved !== undefined)
+            writer.tag(21, WireType.Varint).bool(message.includeRemoved);
         /* optional bool no_memory = 22; */
         if (message.noMemory !== undefined)
             writer.tag(22, WireType.Varint).bool(message.noMemory);

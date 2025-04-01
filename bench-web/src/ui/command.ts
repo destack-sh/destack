@@ -1,4 +1,4 @@
-import { canvas, space, supergraph } from "@/globals";
+import { canvas, supergraph } from "@/globals";
 import { COSMOS_NODE_TYPES, RESOURCE_NODE_TYPES, ROOT_NODE_TYPES, RUNTIME_NODE_TYPES } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeType, NodeTypeMapping, NodeTypeOptionInfo, type AnyNodeData, type IconData } from "@/proto/wire";
@@ -44,6 +44,7 @@ export const COMMAND_BUILTIN_IDS = [
   "space.edit.cut",
   "space.edit.paste",
   "space.edit.duplicate",
+  "space.edit.archive",
   "space.edit.delete",
   // navigate
   "space.navigate.open",
@@ -566,6 +567,7 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,
 ];
+export const NON_ARCHIVEABLE_NODE_TYPES = [...ROOT_NODE_TYPES, NodeType.PACKAGE, NodeType.SPAN];
 export const NON_DELETABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,
   NodeType.PACKAGE,
@@ -578,7 +580,11 @@ export const NON_DELETABLE_NODE_TYPES = [
 ];
 
 export const SCALAR_CONTEXT_COMMANDS: CommandBuiltinId[] = ["space.edit.rename"];
-export const NODE_CONTEXT_COMMANDS: CommandBuiltinId[] = ["space.edit.duplicate", "space.edit.delete"];
+export const NODE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
+  "space.edit.duplicate",
+  "space.edit.archive",
+  "space.edit.delete",
+];
 export const FIELD_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
 export const BLOCK_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
 export const RECORD_CONTEXT_COMMANDS: CommandBuiltinId[] = [];
@@ -612,9 +618,12 @@ for (const nodeType of RESOURCE_NODE_TYPES) {
 export function getNodeCommands(node: AnyNodeData): Command[] {
   const commands: CommandBuiltinId[] = [];
   const nodeType = node.metatype as unknown as NodeType;
-  // duplicate/delete
+  // duplicate/archive/delete
   if (!NON_DUPLICATABLE_NODE_TYPES.includes(nodeType)) {
     commands.push("space.edit.duplicate");
+  }
+  if (!NON_ARCHIVEABLE_NODE_TYPES.includes(nodeType)) {
+    commands.push("space.edit.archive");
   }
   if (!NON_DELETABLE_NODE_TYPES.includes(nodeType)) {
     commands.push("space.edit.delete");

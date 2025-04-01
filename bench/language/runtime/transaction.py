@@ -331,7 +331,13 @@ class Transaction:
         )
         if operation is not None:
             edit_event.operations = [operation]
-        if type in (EditType.DELETE, EditType.RESTORE, EditType.ERASE):
+        if type in (
+            EditType.ARCHIVE,
+            EditType.UNARCHIVE,
+            EditType.DELETE,
+            EditType.RESTORE,
+            EditType.ERASE,
+        ):
             node_data = node._to_data()
             if node._is_new:
                 # find previous create event and set node_data now to 'fresh' node
@@ -418,7 +424,15 @@ class Transaction:
                     operations.extend(e.operations)
             elif edit_type in (EditType.CREATE, EditType.UPSERT):
                 node_data = edit_event.node_data or edit_event.node._to_data()
-            elif edit_type in (EditType.DELETE, EditType.ERASE, EditType.RESTORE):
+            elif edit_type in (EditType.ARCHIVE, EditType.UNARCHIVE):
+                assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
+                old_edited_at = edit_event.node_data.archived_at
+                node_data = edit_event.node_data
+            elif edit_type in (
+                EditType.DELETE,
+                EditType.ERASE,
+                EditType.RESTORE,
+            ):
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 old_edited_at = edit_event.node_data.deleted_at
                 node_data = edit_event.node_data
@@ -508,7 +522,7 @@ class Transaction:
             engine = self.session._get_engine(
                 edit.scope,
                 NodeType(edit.node_ptr.node_type),
-                include_deleted=False,
+                include_removed=False,
                 is_readonly=False,
                 include_memory=False,
             )
@@ -739,7 +753,7 @@ def edit_graph(
     supergraph: "NodeSuperGraph",
     edits: Collection[EditData],
     *,
-    include_deleted: bool,
+    include_removed: bool,
     validate: bool,
 ) -> None:
     """Applies the edits to the graph (in place!)."""
@@ -752,7 +766,8 @@ def edit_graph(
         node_id = UUID(edit.node_ptr.id)
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
-            not include_deleted and edit_type == EditType.RESTORE
+            not include_removed
+            and (edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE)
         ):
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
             node_data = wiring.unwrap_some_node(edit.node_data)
@@ -771,7 +786,9 @@ def edit_graph(
                 graph.add(node)
             else:
                 graph.update(node)
-        elif edit_type == EditType.ERASE or (not include_deleted and edit_type == EditType.DELETE):
+        elif edit_type == EditType.ERASE or (
+            not include_removed and (edit_type == EditType.ARCHIVE or edit_type == EditType.DELETE)
+        ):
             node = graph.get(node_id)
             assert (
                 node is not None
@@ -798,7 +815,11 @@ def edit_graph(
                 else None
             )
             node._do_set("updated_by_ptr", updated_by_ptr, track=False)
-            if edit_type == EditType.DELETE:
+            if edit_type == EditType.ARCHIVE:
+                node._do_set("archived_at", edit.edited_at, track=False)
+            elif edit_type == EditType.UNARCHIVE:
+                node._do_set("archived_at", None, track=False)
+            elif edit_type == EditType.DELETE:
                 node._do_set("deleted_at", edit.edited_at, track=False)
             elif edit_type == EditType.RESTORE:
                 node._do_set("deleted_at", None, track=False)
@@ -810,7 +831,7 @@ def edit_data_graph(
     graph: NodeDataGraph,
     edits: Collection[EditData],
     *,
-    include_deleted: bool,
+    include_removed: bool,
     is_prepass: bool = False,
 ) -> list[EditData] | None:
     """
@@ -843,7 +864,9 @@ def edit_data_graph(
         subject_ptr = edit.subject_ptr if edit.subject_ptr.metatype != 0 else None
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
-            not include_deleted and edit_type == EditType.RESTORE and not is_prepass
+            not include_removed
+            and (edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE)
+            and not is_prepass
         ):
             # add
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
@@ -870,7 +893,11 @@ def edit_data_graph(
                 edit.vignette.CopyFrom(_make_vignette(node))
                 flat_edits.append(edit)
         elif (
-            edit_type == EditType.ERASE or (not include_deleted and edit_type == EditType.DELETE)
+            edit_type == EditType.ERASE
+            or (
+                not include_removed
+                and (edit_type == EditType.ARCHIVE or edit_type == EditType.DELETE)
+            )
         ) and not is_prepass:
             # remove
             node = graph.get(node_id)
@@ -934,7 +961,11 @@ def edit_data_graph(
                 node.updated_by_ptr.CopyFrom(edit.subject_ptr)
             else:
                 node.ClearField("updated_by_ptr")
-            if edit_type == EditType.DELETE:
+            if edit_type == EditType.ARCHIVE:
+                node.archived_at.CopyFrom(edit.edited_at)
+            elif edit_type == EditType.UNARCHIVE:
+                node.ClearField("archived_at")
+            elif edit_type == EditType.DELETE:
                 node.deleted_at.CopyFrom(edit.edited_at)
             elif edit_type == EditType.RESTORE:
                 node.ClearField("deleted_at")

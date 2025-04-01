@@ -59,6 +59,7 @@ class BlockType(BuiltinEnum):
     TASK = 6110
     CHANNEL = 5500
     THREAD = 5510
+    VIEW = 7000
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

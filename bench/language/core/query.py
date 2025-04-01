@@ -72,7 +72,9 @@ def _init_default_query():
 
 
 def get_default_query_filter():
-    return Node.get_property("deleted_at").not_exists()
+    return (
+        Node.get_property("archived_at").not_exists() & Node.get_property("deleted_at").not_exists()
+    )
 
 
 NodeT = TypeVar("NodeT", bound=Node)
@@ -222,8 +224,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         "_descendant_types",
         "_filter",
         "_first",
-        "_include_deleted",
         "_include_memory",
+        "_include_removed",
         "_node_cls",
         "_node_type",
         "_roots",
@@ -247,8 +249,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         descendant_types: list[NodeType] | None = None,
         # options
         select: Optional["SelectOptions"] = None,
-        include_deleted: bool = False,
-        include_memory: bool = True,  # NOTE :Cleanup: doesn't include_memory overlap with include_deleted?
+        include_removed: bool = False,
+        include_memory: bool = True,  # NOTE :Cleanup: doesn't include_memory overlap with include_removed?
         first: int | None = None,
     ):
         from .node import Node
@@ -267,7 +269,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self._descendant_types = descendant_types or []
         # options
         self._select = select
-        self._include_deleted = include_deleted
+        self._include_removed = include_removed
         self._include_memory = include_memory
         self._first = first
 
@@ -284,7 +286,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             "skip",
             "aggregation",
             "include_memory",
-            "include_deleted",
+            "include_removed",
         ):
             v = getattr(self, f"_{k}", None)
             if k == "query":
@@ -322,7 +324,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             self._descendant_types,
             # options
             self._select._stable_hash() if self._select is not None else None,
-            self._include_deleted,
+            self._include_removed,
             self._include_memory,
             self._first,
         )
@@ -339,8 +341,8 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         return self._base_type
 
     @property
-    def include_deleted(self) -> bool:
-        return self._include_deleted
+    def include_removed(self) -> bool:
+        return self._include_removed
 
     @property
     def include_memory(self) -> bool:
@@ -366,7 +368,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             descendant_types=self._descendant_types,
             # options
             select=self._select.clone() if self._select is not None else None,
-            include_deleted=self._include_deleted,
+            include_removed=self._include_removed,
             include_memory=self._include_memory,
             first=self._first,
         )
@@ -505,7 +507,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         return await session._get_connector_for(
             scope,
             self.all_node_types,
-            include_deleted=self.include_deleted,
+            include_removed=self.include_removed,
             is_readonly=True,
         )
 

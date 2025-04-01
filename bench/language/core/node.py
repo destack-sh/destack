@@ -442,8 +442,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         baseless=True,
         ckless=True,
     )
-    deleted_at: Optional[datetime] = p_system(14, default=None, autoset=True)
-    # IsTemplatable.template/template_at: 15/16
+    archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
+    deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
+    # IsTemplatable.template/template_at: 16
     # IsOwnable.owned_by: 17
     # IsClaimable.claimed_by: 18
     # ...managed_by?
@@ -673,7 +674,12 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         content_str = self.__content_str__()
         if content_str:
             content_str = f" ({content_str})"
-        status_str = " [deleted]" if self.deleted_at is not None else ""
+        if self.deleted_at is not None:
+            status_str = " [deleted]"
+        elif self.archived_at is not None:
+            status_str = " [archived]"
+        else:
+            status_str = ""
         return f"{self._ident_key}{content_str}{status_str}"
 
     @final
@@ -1098,25 +1104,42 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def is_extant(self):
-        return self.deleted_at is None
+        return self.deleted_at is None and self.archived_at is None
 
     @property
     def is_active(self) -> bool:
-        return self.deleted_at is None
+        return self.deleted_at is None and self.archived_at is None
+
+    @property
+    def is_archived(self) -> bool:
+        return self.archived_at is not None or (
+            (parent := self.parent) is not None and parent.is_archived
+        )
 
     @property
     def is_deleted(self) -> bool:
-        parent = self.parent
-        return self.deleted_at is not None or (parent is not None and parent.is_deleted)
+        return self.deleted_at is not None or (
+            (parent := self.parent) is not None and parent.is_deleted
+        )
+
+    def archive(self, _now: datetime | None = None):
+        """Archive this Node."""
+        assert not self.archived_at, f"{self!r} is already archived"
+        self.active_session._archive(self, _now=_now)
+
+    def unarchive(self, _now: datetime | None = None):
+        """Unarchive this Node."""
+        assert self.archived_at, f"{self!r} is not archived"
+        self.active_session._unarchive(self, _now=_now)
 
     def delete(self, _now: datetime | None = None):
         """Delete this Node."""
-        assert not self.is_deleted, f"{self!r} is already deleted"
+        assert not self.deleted_at, f"{self!r} is already deleted"
         self.active_session._delete(self, _now=_now)
 
     def restore(self, _now: datetime | None = None):
         """Restore this deleted Node from the trash."""
-        assert self.is_deleted, f"{self!r} is not deleted"
+        assert self.deleted_at, f"{self!r} is not deleted"
         self.active_session._restore(self, _now=_now)
 
     def erase(self):
@@ -1415,7 +1438,11 @@ class IsModal(BuiltinObject):
 
     @property
     def is_active(self) -> bool:
-        return cast(Node, self).deleted_at is None and self.mode < NodeMode.TEMPLATE
+        return (
+            cast(Node, self).deleted_at is None
+            and cast(Node, self).archived_at is None
+            and self.mode < NodeMode.TEMPLATE
+        )
 
 
 @node_component_()
@@ -1450,15 +1477,13 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
 class IsTemplatable(BuiltinObject):
     """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
 
-    template: Optional["Node"] = p_node_template(15)
+    template: Optional["Node"] = p_node_template(16)
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
-    template_at: datetime | None = p_system(16, default=None, autoset=True)
 
     def instance(
         self,
-        template_at: datetime | None = None,
         recursive: bool = True,
         detach: bool = True,
         map: bool | dict[UUID, "Node"] = True,
@@ -1470,19 +1495,15 @@ class IsTemplatable(BuiltinObject):
         """
         assert isinstance(self, Node), f"{self!r} must be a Node"
         assert isinstance(self, IsModal), f"{self!r} must be modal"
-        session = active_session()
 
         # instance self
         instance_kwargs = self._clone_kwargs(reset=True)
         if self.mode == NodeMode.TEMPLATE:
             instance_kwargs["mode"] = NodeMode.MAIN
-        if template_at is None:
-            template_at = session._oracle.utc()
         instance_kwargs.update(kwargs)
         if isinstance(self, IsInstantiable):
             instance_kwargs["ck"] = self.ck
         instance_kwargs["template"] = self
-        instance_kwargs["template_at"] = template_at
         instance = self.__class__(**instance_kwargs)
 
         # instance children and append to self
@@ -1491,12 +1512,7 @@ class IsTemplatable(BuiltinObject):
                 for child in self._graph.iter_descendants(self, child_type):
                     if isinstance(child, IsInstantiable):
                         # instance child
-                        child_clone = child.instance(
-                            recursive=True,
-                            detach=True,
-                            map=map,
-                            template_at=template_at,
-                        )
+                        child_clone = child.instance(recursive=True, detach=True, map=map)
                         attach_node(child_clone, instance, instance._graph)  # re-attach
                         if type(map) is dict:
                             map[child.id] = child_clone

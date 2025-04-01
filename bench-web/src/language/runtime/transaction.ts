@@ -61,7 +61,7 @@ const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
   long: 2000,
 };
 
-const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedByPtr", "deletedAt"].map(
+const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedByPtr", "archivedAt", "deletedAt"].map(
   (p) => BlockProperty[p as any] as unknown as number,
 );
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
@@ -127,6 +127,10 @@ export type Transaction = TransactionMeta & {
     update: Partial<T> & { parentPtr: NodeReferenceData },
     options?: TransactionOptions,
   ): void;
+  /** Archive node (incl. descendants) */
+  archive(node: AnyNodeData): void;
+  /** Unarchive node (incl. descendants) */
+  unarchive(node: AnyNodeData): void;
   /** Soft delete node (incl. descendants), marked for later deletion after retention period */
   delete(node: AnyNodeData): void;
   /** Restore node from soft delete */
@@ -273,7 +277,14 @@ export class TransactionBuilder implements Transaction {
 
   /** Adds a simple (non-update) edit */
   _addSimpleEdit(
-    editType: EditType.CREATE | EditType.UPSERT | EditType.DELETE | EditType.RESTORE | EditType.ERASE,
+    editType:
+      | EditType.CREATE
+      | EditType.UPSERT
+      | EditType.ARCHIVE
+      | EditType.UNARCHIVE
+      | EditType.DELETE
+      | EditType.RESTORE
+      | EditType.ERASE,
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
@@ -293,7 +304,7 @@ export class TransactionBuilder implements Transaction {
       changeKey: this.change?.key,
       category: this.category,
       editedAt: Timestamp.now(),
-      oldEditedAt: node.deletedAt,
+      oldEditedAt: editType == EditType.ARCHIVE ? node.archivedAt : node.deletedAt,
       nodeData: wrapSomeNode(node),
       operations: [],
     };
@@ -417,46 +428,70 @@ export class TransactionBuilder implements Transaction {
     this._doUpdate(EditType.MOVE, node, update, options);
   }
 
-  delete(node: AnyNodeData) {
+  _remove(editType: EditType.ARCHIVE | EditType.DELETE | EditType.ERASE, node: AnyNodeData, title: string) {
     let tx: TransactionBuilder = this;
     if (this.change?.key == null) {
-      tx = tx.with({ change: { key: newChangeId(), title: "Delete" } }) as TransactionBuilder;
+      tx = tx.with({ change: { key: newChangeId(), title } }) as TransactionBuilder;
     }
-    tx._addSimpleEdit(EditType.DELETE, { ...node }, null);
+    tx._addSimpleEdit(editType, { ...node }, null);
 
-    // delete blocks and definitions together
+    // handle blocks and definitions together
     if (isNode(node, NodeType.BLOCK)) {
-      // for definition blocks, also delete the source node
+      // for definition blocks, also handle the source node
       const source = unwrapBlockDefinition(node);
       if (source?.definitionPtr?.id == node.id) {
-        tx._addSimpleEdit(EditType.DELETE, source, null);
+        tx._addSimpleEdit(editType, source, null);
       }
     } else if (isInlineNode(node) && node.definitionPtr != null) {
-      // for inline source nodes, also delete the block definition
+      // for inline source nodes, also handle the block definition
       const block = supergraph.getOrError(node.definitionPtr) as BlockData;
-      tx._addSimpleEdit(EditType.DELETE, block, null);
+      tx._addSimpleEdit(editType, block, null);
     }
   }
 
-  restore(node: AnyNodeData) {
+  _recover(editType: EditType.RESTORE | EditType.UNARCHIVE, node: AnyNodeData, title: string) {
     let tx: TransactionBuilder = this;
     if (this.change?.key == null) {
-      tx = tx.with({ change: { key: newChangeId(), title: "Restore" } }) as TransactionBuilder;
+      tx = tx.with({ change: { key: newChangeId(), title } }) as TransactionBuilder;
     }
-    tx._addSimpleEdit(EditType.RESTORE, { ...node, deletedAt: undefined }, null);
 
-    // restore blocks and definitions together
+    const nodeWithoutTimestamp = { ...node };
+    if (editType === EditType.UNARCHIVE) {
+      nodeWithoutTimestamp.archivedAt = undefined;
+    } else if (editType === EditType.RESTORE) {
+      nodeWithoutTimestamp.deletedAt = undefined;
+    }
+
+    tx._addSimpleEdit(editType, nodeWithoutTimestamp, null);
+
+    // handle blocks and definitions together
     if (isNode(node, NodeType.BLOCK)) {
-      // for definition blocks, also restore the source node
+      // for definition blocks, also handle the source node
       const source = unwrapBlockDefinition(node);
       if (source?.definitionPtr?.id == node.id) {
-        tx._addSimpleEdit(EditType.RESTORE, source, null);
+        tx._addSimpleEdit(editType, source, null);
       }
     } else if (isInlineNode(node) && node.definitionPtr != null) {
-      // for inline source nodes, also restore the block definition
+      // for inline source nodes, also handle the block definition
       const block = supergraph.getOrError(node.definitionPtr) as BlockData;
-      tx._addSimpleEdit(EditType.RESTORE, block, null);
+      tx._addSimpleEdit(editType, block, null);
     }
+  }
+
+  delete(node: AnyNodeData) {
+    this._remove(EditType.DELETE, node, "Delete");
+  }
+
+  restore(node: AnyNodeData) {
+    this._recover(EditType.RESTORE, node, "Restore");
+  }
+
+  archive(node: AnyNodeData) {
+    this._remove(EditType.ARCHIVE, node, "Archive");
+  }
+
+  unarchive(node: AnyNodeData) {
+    this._recover(EditType.UNARCHIVE, node, "Unarchive");
   }
 }
 
@@ -632,6 +667,7 @@ export function editGraph(
     if (
       edit.type == EditType.CREATE ||
       edit.type == EditType.UPSERT ||
+      (edit.type == EditType.UNARCHIVE && !graph.has(edit.nodePtr!)) ||
       (edit.type == EditType.RESTORE && !graph.has(edit.nodePtr!))
     ) {
       // add
@@ -665,7 +701,7 @@ export function editGraph(
     } else {
       // update
       let updatedNode: AnyNodeData | null;
-      if (edit.type == EditType.RESTORE) {
+      if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
         if (edit.nodeData == null) {
           throw new Error(`missing node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
         }
@@ -692,7 +728,11 @@ export function editGraph(
       // implicit metadata
       updatedNode.updatedAt = edit.editedAt;
       updatedNode.updatedByPtr = edit.subjectPtr;
-      if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
+      if (edit.type == EditType.ARCHIVE) {
+        updatedNode.archivedAt = edit.editedAt;
+      } else if (edit.type == EditType.UNARCHIVE) {
+        updatedNode.archivedAt = undefined;
+      } else if (edit.type == EditType.DELETE || edit.type == EditType.ERASE) {
         // (we handle removes here for overlays)
         updatedNode.deletedAt = edit.editedAt;
       } else if (edit.type == EditType.RESTORE) {

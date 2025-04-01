@@ -142,9 +142,9 @@ export function isUnloadedNodeType(nodeType: any): boolean {
 /** Whether the Node is 'active' (not a template/archived/...) */
 export function isNodeActive(node: AnyNodeData): boolean {
   if ("mode" in node) {
-    return node.mode < NodeMode.TEMPLATE && node.deletedAt == null;
+    return node.mode < NodeMode.TEMPLATE && node.deletedAt == null && node.archivedAt == null;
   } else {
-    return node.deletedAt == null;
+    return node.deletedAt == null && node.archivedAt == null;
   }
 }
 
@@ -306,25 +306,6 @@ export const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it'
 //
 // Enums
 //
-
-export const EDIT_TYPE_PRESENT_VERB: Partial<Record<EditType, string>> = {
-  [EditType.CREATE]: "creates",
-  [EditType.UPSERT]: "upserts",
-  [EditType.UPDATE]: "updates",
-  [EditType.MOVE]: "moves",
-  [EditType.DELETE]: "deletes",
-  [EditType.RESTORE]: "restores",
-  [EditType.ERASE]: "erases",
-};
-export const EDIT_TYPE_PAST_VERB: Partial<Record<EditType, string>> = {
-  [EditType.CREATE]: "created",
-  [EditType.UPSERT]: "upserted",
-  [EditType.UPDATE]: "updated",
-  [EditType.MOVE]: "moved",
-  [EditType.DELETE]: "deleted",
-  [EditType.RESTORE]: "restored",
-  [EditType.ERASE]: "erased",
-};
 
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [

@@ -48,11 +48,11 @@ export type NodeSubscriptionOptions = {
 
 /** A filter for nodes in a graph. Nodes pretend to not be in the graph when this predicate fails. */
 export type NodeGraphFilter = {
-  /** Hidden = deletedAt */
-  includeDeleted: boolean;
+  /** Removed ~= archivedAt/deletedAt */
+  includeRemoved: boolean;
 };
-export const DEFAULT_NODE_FILTER = { includeDeleted: false };
-export const PASSTHROUGH_NODE_FILTER = { includeDeleted: true };
+export const DEFAULT_NODE_FILTER: NodeGraphFilter = { includeRemoved: false };
+export const PASSTHROUGH_NODE_FILTER: NodeGraphFilter = { includeRemoved: true };
 
 /** A node graph with read methods */
 export interface ReadNodeGraph {
@@ -823,7 +823,7 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
 
   /** Checks whether the node itself is visible according to its own state */
   protected isNodeVisibleSelf(node: AnyNodeData): boolean {
-    return this.filter.value.includeDeleted || node.deletedAt == null;
+    return this.filter.value.includeRemoved || (node.deletedAt == null && node.archivedAt == null);
   }
 
   /** Checks whether the node itself *and* all of its ancestors are visible */

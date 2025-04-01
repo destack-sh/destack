@@ -22,8 +22,8 @@ message GetNodesRequest {
   repeated NodeType descendant_types = 11;
   // Which properties/fields to select.
   optional SelectOptionsData select = 20;
-  // Whether to include deleted nodes.
-  optional bool include_deleted = 21;
+  // Whether to include deleted and archived nodes.
+  optional bool include_removed = 21;
   // Whether to include memory.
   optional bool no_memory = 22;
   // Whether to sideline the cache.

@@ -81,7 +81,7 @@ class SplitConnection(Connection):
         match_types: set[NodeType],
         *,
         is_readonly: bool,
-        include_deleted: bool,
+        include_removed: bool,
         include_memory: bool,
     ) -> tuple[Engine, set[NodeType]]:
         """Get the engine with best coverage of required node types from candidates."""
@@ -90,7 +90,7 @@ class SplitConnection(Connection):
             for engine in self.session._engines
             if (
                 (is_readonly or not engine.is_readonly)
-                and (not include_deleted or engine.include_deleted)
+                and (not include_removed or engine.include_removed)
                 and (include_memory or not isinstance(engine, MemoryEngine))
                 and scope_includes(engine.scope, scope)
                 and any(t in engine.node_types for t in required_types)
@@ -126,7 +126,7 @@ class SplitConnection(Connection):
             remaining_types,
             remaining_types,
             is_readonly=True,
-            include_deleted=query.include_deleted,
+            include_removed=query.include_removed,
             include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
@@ -153,7 +153,7 @@ class SplitConnection(Connection):
                         value=parent_ids,
                     ),
                     descendant_types=list(set(DESCENDANT_NODE_TYPES[child_type]) & covered_types),
-                    include_deleted=query.include_deleted,
+                    include_removed=query.include_removed,
                     select=query._select,
                 )
                 descendant_connection = await connector.search(
@@ -192,7 +192,7 @@ class SplitConnection(Connection):
             next_ancestor_types,
             next_ancestor_types,
             is_readonly=True,
-            include_deleted=query.include_deleted,
+            include_removed=query.include_removed,
             include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
@@ -213,7 +213,7 @@ class SplitConnection(Connection):
                     for p in parents
                 ],
                 ancestor_types=list(covered_types),
-                include_deleted=query.include_deleted,
+                include_removed=query.include_removed,
                 select=query._select,
             )
             ancestor_connection = await connector.get(ancestor_query, self.options)
@@ -274,7 +274,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitConnector, T], SplitC
             {query._node_type},
             set(query.all_node_types),
             is_readonly=True,
-            include_deleted=query.include_deleted,
+            include_removed=query.include_removed,
             include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)
@@ -310,7 +310,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitConnector, T], SplitConnect
             {query._node_type},
             set(query.all_node_types),
             is_readonly=True,
-            include_deleted=query.include_deleted,
+            include_removed=query.include_removed,
             include_memory=query.include_memory,
         )
         connector = await self.session._get_connector(engine)

@@ -281,7 +281,7 @@ class Engine[C: "Connector"](abc.ABC):
 
     @property
     @abc.abstractmethod
-    def include_deleted(self) -> bool:
+    def include_removed(self) -> bool:
         """Whether this connector includes deleted nodes."""
         ...
 
@@ -298,7 +298,7 @@ class NullEngine(Engine):
         raise EngineIncapableError(self, reason="null engine")
 
     @property
-    def include_deleted(self) -> bool:
+    def include_removed(self) -> bool:
         return False
 
     @property

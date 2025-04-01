@@ -410,7 +410,7 @@ class GetConnection[ConnectorT: Connector, T: Node](
         # apply
         if result_data is not None:
             edit_data_graph(
-                result_data.graph, update.edits, include_deleted=self.query.include_deleted
+                result_data.graph, update.edits, include_removed=self.query.include_removed
             )
         if result is not None:
             if unpack_update:
@@ -421,7 +421,12 @@ class GetConnection[ConnectorT: Connector, T: Node](
 
                 # collect pre-edit nodes (for remove)
                 for edit in new_edits:
-                    if edit.type in (EditType.DELETE, EditType.ERASE):
+                    if edit.type in (
+                        EditType.ARCHIVE,
+                        EditType.UNARCHIVE,
+                        EditType.DELETE,
+                        EditType.ERASE,
+                    ):
                         node = result.graph.get(UUID(edit.node_ptr.id))
                         assert (
                             node is not None
@@ -433,7 +438,7 @@ class GetConnection[ConnectorT: Connector, T: Node](
                     graph=result.graph,
                     supergraph=self.session._supergraph,
                     edits=new_edits,
-                    include_deleted=self.query.include_deleted,
+                    include_removed=self.query.include_removed,
                     validate=False,
                 )
 
@@ -456,7 +461,7 @@ class GetConnection[ConnectorT: Connector, T: Node](
                     graph=result.graph,
                     supergraph=self.session._supergraph,
                     edits=new_edits,
-                    include_deleted=self.query.include_deleted,
+                    include_removed=self.query.include_removed,
                     validate=False,
                 )
 
@@ -538,7 +543,12 @@ class SearchConnection[ConnectorT: Connector, T: Node](
 
             # collect pre-edit nodes (for remove)
             for edit in new_edits:
-                if edit.type in (EditType.DELETE, EditType.ERASE):
+                if edit.type in (
+                    EditType.ARCHIVE,
+                    EditType.UNARCHIVE,
+                    EditType.DELETE,
+                    EditType.ERASE,
+                ):
                     node = result.graph.get(UUID(edit.node_ptr.id))
                     assert node is not None, f"missing node for edit: {wiring.describe_edit(edit)}"
                     removed[node.id] = node
@@ -565,13 +575,13 @@ class SearchConnection[ConnectorT: Connector, T: Node](
 
             # apply edits
             edit_data_graph(
-                result_data.graph, update.edits, include_deleted=self.query.include_deleted
+                result_data.graph, update.edits, include_removed=self.query.include_removed
             )
             edit_graph(
                 graph=result.graph,
                 supergraph=self.session._supergraph,
                 edits=new_edits,
-                include_deleted=self.query.include_deleted,
+                include_removed=self.query.include_removed,
                 validate=False,
             )
 
@@ -610,7 +620,7 @@ class SearchConnection[ConnectorT: Connector, T: Node](
         else:
             # just apply edits to result_data
             edit_data_graph(
-                result_data.graph, update.edits, include_deleted=self.query.include_deleted
+                result_data.graph, update.edits, include_removed=self.query.include_removed
             )
 
             # update roots list

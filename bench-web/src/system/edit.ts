@@ -73,7 +73,6 @@ class EditStack {
     const undoEdits: EditData[] = [];
     const editedAt = Timestamp.now();
     for (const originalEdit of originalEdits) {
-      
       // invert edit
       const undoEdit: EditData = { ...originalEdit, id: newEditId(), editedAt, changeKey: change.key };
       invertEdit(originalEdit, this._editedAtByEditId[originalEdit.id]!, undoEdit, "undo");
@@ -208,6 +207,8 @@ export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
   [EditType.UPSERT]: EditType.DELETE,
   [EditType.UPDATE]: EditType.UPDATE,
   [EditType.MOVE]: EditType.MOVE,
+  [EditType.ARCHIVE]: EditType.UNARCHIVE,
+  [EditType.UNARCHIVE]: EditType.ARCHIVE,
   [EditType.DELETE]: EditType.RESTORE,
   [EditType.RESTORE]: EditType.DELETE,
 };
@@ -230,7 +231,7 @@ function invertEdit(originalEdit: EditData, editedAt: Timestamp, invertedEdit: E
 
   // edit content
   invertedEdit.nodeData = originalEdit.nodeData;
-  if (invertedEdit.type == EditType.RESTORE) {
+  if (invertedEdit.type == EditType.UNARCHIVE || invertedEdit.type == EditType.RESTORE) {
     invertedEdit.oldEditedAt = editedAt;
   }
 

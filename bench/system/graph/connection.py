@@ -283,7 +283,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
             # filter scope
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
-                not self.query.include_deleted and edit_type == EditType.RESTORE
+                not self.query.include_removed and edit_type == EditType.RESTORE
             ):
                 # add: node or its ancestors must be in a root, in our graph or be optional
                 node = _get_edited_node(edit, updated_graph)
@@ -333,7 +333,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
                 # apply (just use updated node instead of actually applying edit, we're read only)
                 relevant_edits.append(edit)
                 if edit_type == EditType.ERASE or (
-                    not self.query.include_deleted and edit_type == EditType.DELETE
+                    not self.query.include_removed and edit_type == EditType.DELETE
                 ):
                     if node.id in result_graph:
                         result_graph.remove(node)
@@ -348,7 +348,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
         connector = await session._get_connector_for(
             self.scope,
             self.query.all_node_types,
-            include_deleted=self.query.include_deleted,
+            include_removed=self.query.include_removed,
             is_readonly=True,
         )
         connection = await connector.get(self.query, GetOptions(live=False, mode="packed"))
@@ -409,7 +409,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
         connector = await session._get_connector_for(
             self.scope,
             self.query.all_node_types,
-            include_deleted=self.query.include_deleted,
+            include_removed=self.query.include_removed,
             is_readonly=True,
         )
         connection = await connector.search(
@@ -548,7 +548,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateDa
         connector = await session._get_connector_for(
             self.scope,
             self.query.all_node_types,
-            include_deleted=self.query.include_deleted,
+            include_removed=self.query.include_removed,
             is_readonly=True,
         )
         connection = await connector.aggregate(

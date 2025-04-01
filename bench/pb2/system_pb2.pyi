@@ -27,14 +27,14 @@ DOCKER: ComputerEnvironment
 MINIKUBE: ComputerEnvironment
 
 class GetNodesRequest(_message.Message):
-    __slots__ = ("scope", "roots", "base_type_ptr", "ancestor_types", "descendant_types", "select", "include_deleted", "no_memory", "no_cache", "is_optional")
+    __slots__ = ("scope", "roots", "base_type_ptr", "ancestor_types", "descendant_types", "select", "include_removed", "no_memory", "no_cache", "is_optional")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     ROOTS_FIELD_NUMBER: _ClassVar[int]
     BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
     ANCESTOR_TYPES_FIELD_NUMBER: _ClassVar[int]
     DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
     SELECT_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_DELETED_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_REMOVED_FIELD_NUMBER: _ClassVar[int]
     NO_MEMORY_FIELD_NUMBER: _ClassVar[int]
     NO_CACHE_FIELD_NUMBER: _ClassVar[int]
     IS_OPTIONAL_FIELD_NUMBER: _ClassVar[int]
@@ -44,11 +44,11 @@ class GetNodesRequest(_message.Message):
     ancestor_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
     descendant_types: _containers.RepeatedScalarFieldContainer[_lang_pb2.NodeType]
     select: _lang_pb2.SelectOptionsData
-    include_deleted: bool
+    include_removed: bool
     no_memory: bool
     no_cache: bool
     is_optional: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., roots: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., include_deleted: bool = ..., no_memory: bool = ..., no_cache: bool = ..., is_optional: bool = ...) -> None: ...
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., roots: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., ancestor_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[_lang_pb2.NodeType, str]]] = ..., select: _Optional[_Union[_lang_pb2.SelectOptionsData, _Mapping]] = ..., include_removed: bool = ..., no_memory: bool = ..., no_cache: bool = ..., is_optional: bool = ...) -> None: ...
 
 class GetNodesResponse(_message.Message):
     __slots__ = ("nodes", "epoch", "connection_token")

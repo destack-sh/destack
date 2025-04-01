@@ -276,7 +276,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         *,
         is_readonly: bool,
         include_memory: bool,
-        include_deleted: bool,
+        include_removed: bool,
     ) -> Engine:
         """Gets the appropriate Engine to read/write Nodes."""
         node_types = (node_types,) if isinstance(node_types, NodeType) else tuple(node_types)
@@ -285,7 +285,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             for engine in self._engines
             if (
                 (is_readonly or not engine.is_readonly)
-                and (not include_deleted or engine.include_deleted)
+                and (not include_removed or engine.include_removed)
                 and (include_memory or not isinstance(engine, MemoryEngine))
                 and scope_includes(engine.scope, scope)
                 and all(t in engine.node_types for t in node_types)
@@ -327,7 +327,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool = False,
-        include_deleted: bool = False,
+        include_removed: bool = False,
         include_memory: bool = True,
         expect: type[ConnectorT] = Connector,
     ) -> ConnectorT:
@@ -343,7 +343,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 scope=scope,
                 node_types=node_types,
                 is_readonly=is_readonly,
-                include_deleted=include_deleted,
+                include_removed=include_removed,
                 include_memory=include_memory,
             )
             connector = await self._get_connector(engine)
@@ -559,6 +559,35 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 new_value_packed=pack_proto_json(new_value_packed),
             )
             self._tx.record_edit_event(EditType.UPDATE, node, operation=operation)
+
+    def _archive(self, *nodes: Node, _now: datetime | None = None):
+        """Archives a Node. The operation *is* applied directly."""
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
+
+        for node in nodes:
+            assert node.is_attached, f"cannot archive detached node {node!r}"
+            now = _now if _now is not None else self._oracle.utc()
+            self._pending_nodes_by_id[node.id] = node
+            # descendants will be removed from graph, so remember them manually
+            for descendant in node._graph.iter_descendants(node, recursive=True):
+                self._pending_nodes_by_id[descendant.id] = descendant
+            self._tx.record_edit_event(EditType.ARCHIVE, node, now=now)
+            node.archived_at = now
+            node._graph.remove(node)
+
+    def _unarchive(self, *nodes: Node, _now: datetime | None = None):
+        """Unarchives a Node. The operation *is* applied directly."""
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert not self._is_suspended, f"cannot edit {nodes!r} in {self!r}"
+
+        for node in nodes:
+            assert node.is_attached, f"cannot unarchive detached node {node!r}"
+            now = _now if _now is not None else self._oracle.utc()
+            self._pending_nodes_by_id[node.id] = node
+            self._tx.record_edit_event(EditType.UNARCHIVE, node, now=now)
+            node.archived_at = None
+            node._graph.add(node)
 
     def _delete(self, *nodes: Node, _now: datetime | None = None):
         """Deletes a Node. The operation *is* applied directly."""

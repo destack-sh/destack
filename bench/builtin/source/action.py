@@ -14,6 +14,13 @@ if TYPE_CHECKING:
 class IActionKit(ActionRunner if TYPE_CHECKING else object):
     """Common utility Actions for Flows."""
 
+    async def Pass(self) -> None:
+        """
+        Do nothing.
+        ICON: fas fa-forward
+        """
+        pass
+
     async def Fail(self, Message: str, Is_Retryable: bool = True) -> None:
         """
         Fail with an error.
