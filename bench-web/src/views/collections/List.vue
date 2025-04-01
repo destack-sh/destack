@@ -4,7 +4,7 @@ import { makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { AnyNodeData, ExpressionType, NodeType, RecordProperty, ViewData, ViewType } from "@/proto/wire";
 import { EMPTY_SCOPE, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
-import { BENCH_SCOPE } from "@/system/client";
+import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { CONTEXT_COMMANDS_BY_TYPE, getCommand, isCommandEnabled } from "@/ui/command";
@@ -44,7 +44,7 @@ const { connection, graph, page, roots, isConnecting, isStale } = useSearchConne
   { name: "list", live: true },
   computed(() => ({
     nodeType: nodeType.value!,
-    scope: nodeType.value != null && isBenchNodeType(nodeType.value) ? BENCH_SCOPE.value : EMPTY_SCOPE,
+    scope: nodeType.value != null && isBenchNodeType(nodeType.value) ? CURRENT_BENCH_SCOPE.value : EMPTY_SCOPE,
     sort: [DEFAULT_SORT],
     filter: filter.value,
     isEnabled: nodeType.value != null,

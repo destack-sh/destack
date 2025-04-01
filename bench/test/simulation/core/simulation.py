@@ -11,11 +11,11 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BENCH_SLUG,
+    BENCH_ID,
+    BENCH_SLUG,
     REGION,
-    SYSTEM_BENCH_ID,
-    SYSTEM_BENCH_SLUG,
+    SYSTEM_ID,
+    SYSTEM_SLUG,
     NodeArea,
     Store,
 )
@@ -349,10 +349,10 @@ class Simulation:
         # system
         if self.spec.system:
             # maybe this should happen in a SystemHandle or such?
-            add_bench(BenchSpec(name=SYSTEM_BENCH_SLUG, owner="system"))
-            add_host(HostSpec(bench=SYSTEM_BENCH_SLUG))
-            add_bench(BenchSpec(name=BENCH_BENCH_SLUG, owner="system"))
-            add_host(HostSpec(bench=BENCH_BENCH_SLUG))
+            add_bench(BenchSpec(name=SYSTEM_SLUG, owner="system"))
+            add_host(HostSpec(bench=SYSTEM_SLUG))
+            add_bench(BenchSpec(name=BENCH_SLUG, owner="system"))
+            add_host(HostSpec(bench=BENCH_SLUG))
 
     async def wait_idle(self, min_idle_time: float = 0.1):
         """Wait until all services are idle for at least min_idle_time."""
@@ -484,8 +484,8 @@ async def run_simulation(spec: SimulationSpec):
         for database_name in (
             global_store.external_name,
             regional_store.external_name,
-            f"test-{BENCH_BENCH_ID}",
-            f"test-{SYSTEM_BENCH_ID}",
+            f"test-{BENCH_ID}",
+            f"test-{SYSTEM_ID}",
         ):
             if not database_name:
                 continue

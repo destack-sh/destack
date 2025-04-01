@@ -1,7 +1,7 @@
 from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BUILTIN_PACKAGE_ID,
-    BENCH_BUILTIN_PACKAGE_SLUG,
+    BENCH_BENCH_PACKAGE_ID,
+    BENCH_BENCH_PACKAGE_SLUG,
+    BENCH_ID,
     IsModal,
     NodeMode,
     NodeReference,
@@ -11,21 +11,29 @@ from bench.language import (
     PackageType,
 )
 
+from .bench import (
+    ActionKit,
+    ActionPage,
+    BenchAgent,
+    BenchFlow,
+    ComputerKit,
+    ComputerPage,
+    FlowPage,
+    UbuntuComputerTemplate,
+)
 from .core import assign_builtin_ids, get_stable_builtin_path, sync_node
-from .resource import ComputerKit, ComputerPage, UbuntuComputerTemplate
-from .source import ActionKit, ActionPage, BenchAgent, BenchFlow, FlowPage
 
 BuiltinPackage = Package(
     type=PackageType.OPEN,
-    id=BENCH_BUILTIN_PACKAGE_ID,
-    slug=BENCH_BUILTIN_PACKAGE_SLUG,
+    id=BENCH_BENCH_PACKAGE_ID,
+    slug=BENCH_BENCH_PACKAGE_SLUG,
     _is_new=True,
 )
 BuiltinPackage.extend(ActionPage, FlowPage, ComputerPage)
 
 # finalize
 supergraph = NodeSuperGraph(
-    name="Builtin", root_ptr=NodeReference(node_type=NodeType.BENCH, id=BENCH_BENCH_ID)
+    name="Builtin", root_ptr=NodeReference(node_type=NodeType.BENCH, id=BENCH_ID)
 )
 BuiltinPackage._graph.supergraph = supergraph
 supergraph.add_graph(BuiltinPackage._graph)
@@ -49,3 +57,5 @@ __all__ = [
     "get_stable_builtin_path",
     "sync_node",
 ]
+
+# TODO: reorganize builtins .. (mirroring language seems wrong)

@@ -42,7 +42,7 @@ import {
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { PACKAGE_SCOPE } from "@/system/client";
+import { CURRENT_PACKAGE_SCOPE } from "@/system/client";
 import { SearchConnectionParams, useAutoConnection, useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { CommandMapKit, fireCommandById } from "@/ui/command";
@@ -172,7 +172,7 @@ const {
   { name: "table.records", live: true },
   computed(
     (): SearchConnectionParams<NodeType.RECORD> => ({
-      scope: PACKAGE_SCOPE.value,
+      scope: CURRENT_PACKAGE_SCOPE.value,
       nodeType: NodeType.RECORD,
       first: limit.value,
       count: true,

@@ -2,7 +2,7 @@ import { isBenchNodeType, isUnloadedNodeType } from "@/language/core/const";
 import { NodeSuperGraph } from "@/language/core/graph";
 import { NodeReferenceData, NodeType } from "@/proto/wire";
 import { describeNode, makeScope, toNodeRef } from "@/proto/wiring";
-import { BENCH_SCOPE } from "@/system/client";
+import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { acquireConnection, GetConnectionParams, releaseConnection, RemoteGetConnection } from "@/system/connection";
 import { groupByList, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -183,7 +183,7 @@ export class NodeAutoloader {
     }
 
     // load
-    const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+    const scope = isBenchNodeType(nodeType) ? CURRENT_BENCH_SCOPE.value : makeScope({});
     const params: GetConnectionParams<any> = {
       roots: nodeRefs as NodeReferenceData[],
       scope,

@@ -125,7 +125,7 @@ export type GetConnectionParams<T extends NodeType> = {
   ancestorTypes?: NodeType[];
   descendantTypes?: NodeType[];
   select?: Partial<SelectOptionsData>;
-  includeDeleted?: boolean;
+  includeRemoved?: boolean;
   noMemory?: boolean;
 };
 export type GetConnectionResult<T extends NodeType> = {
@@ -619,7 +619,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         descendantTypes: params.descendantTypes ?? [],
         select: select,
         isOptional: params.isOptional,
-        includeDeleted: params.includeDeleted,
+        includeRemoved: params.includeRemoved,
         noMemory: params.noMemory,
       },
       { abort, ...this.operationMeta },

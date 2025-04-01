@@ -1,5 +1,5 @@
 import { setCanvas, setSpace, supergraph } from "@/globals";
-import { BENCH_BUILTIN_PACKAGE_PTR, BENCH_BUILTIN_SCOPE } from "@/language/core/builtin";
+import { BENCH_PTR, BENCH_SCOPE } from "@/language/core/builtin";
 import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/core/graph";
 import { getHostClient } from "@/proto/services";
@@ -15,7 +15,7 @@ import {
   unwrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import local, { BENCH_SCOPE, LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
+import local, { CURRENT_BENCH_SCOPE, LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
 import { useAutoConnection, useGetConnection } from "@/system/connection";
 import { createDesktopDefaultSpace, SpaceCanvas } from "@/ui/space";
 import { toaster } from "@/ui/toast";
@@ -26,7 +26,7 @@ import { computed, nextTick, watch } from "vue";
 export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
   { name: "current.bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
-    scope: BENCH_SCOPE.value,
+    scope: CURRENT_BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
     descendantTypes: [NodeType.PACKAGE, ...LOADED_PACKAGE_NODE_TYPES],
     isEnabled: local.benchPtr.value != null,
@@ -50,13 +50,13 @@ benchConnection.onError((e) => {
 export const { graph: builtinGraph, connection: builtinConnection } = useGetConnection(
   { name: "dependency.bench.builtin", live: true },
   computed(() => ({
-    scope: BENCH_BUILTIN_SCOPE,
-    roots: [BENCH_BUILTIN_PACKAGE_PTR],
+    scope: BENCH_SCOPE,
+    roots: [BENCH_PTR],
     descendantTypes: [NodeType.PACKAGE, ...LOADED_PACKAGE_NODE_TYPES],
     isEnabled: local.benchPtr.value != null,
   })),
 );
-export const builtinBench = builtinGraph.getRef(BENCH_BUILTIN_PACKAGE_PTR);
+export const builtinBench = builtinGraph.getRef(BENCH_PTR);
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
 export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER });

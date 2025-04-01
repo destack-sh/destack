@@ -8,6 +8,7 @@ import grpclib
 import pytest
 import structlog
 
+from bench.language.core.const import SYSTEM_SYSTEM_PACKAGE_ID
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -16,8 +17,7 @@ _setup_test_env()
 from opentelemetry import trace
 
 from bench.language import (
-    SYSTEM_BENCH_ID,
-    SYSTEM_MAIN_PACKAGE_ID,
+    SYSTEM_ID,
     VERSION,
     Bench,
     BenchStatus,
@@ -65,7 +65,7 @@ def make_global_store(name: str):
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
-        id=SYSTEM_BENCH_ID,
+        id=SYSTEM_ID,
         name="System",
         slug="system",
         region=Region.ZURICH,
@@ -78,7 +78,7 @@ def make_global_store(name: str):
     system_package_stub = Package(
         parent=system_bench_stub,
         type=PackageType.OPEN,
-        id=SYSTEM_MAIN_PACKAGE_ID,
+        id=SYSTEM_SYSTEM_PACKAGE_ID,
         name="Main",
         slug="main",
         _supergraph=supergraph,
@@ -110,7 +110,7 @@ def make_regional_store(name: str):
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(name="Regional", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
-        id=SYSTEM_BENCH_ID,
+        id=SYSTEM_ID,
         name="System",
         slug="system",
         region=Region.ZURICH,
@@ -123,7 +123,7 @@ def make_regional_store(name: str):
     system_package_stub = Package(
         parent=system_bench_stub,
         type=PackageType.OPEN,
-        id=SYSTEM_MAIN_PACKAGE_ID,
+        id=SYSTEM_SYSTEM_PACKAGE_ID,
         name="Main",
         slug="main",
         _supergraph=supergraph,

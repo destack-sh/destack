@@ -52,7 +52,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
-from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_BENCH_ID, QueryType
+from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_ID, QueryType
 from bench.language.core.object import EMPTY_SCOPE_DATA
 from bench.pb2 import MessageData
 from bench.proto import (
@@ -468,7 +468,7 @@ class HostService(GraphServiceBase, HostBase):
         await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
 
         # handle builtin bench
-        if self.bench_id == BENCH_BENCH_ID:
+        if self.bench_id == BENCH_ID:
             # sync builtins if we're the builtin bench
             from bench.builtin import BuiltinPackage, sync_node
 

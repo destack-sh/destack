@@ -2,14 +2,14 @@ import structlog
 import typer
 
 from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BENCH_SLUG,
-    BENCH_BUILTIN_PACKAGE_ID,
-    BENCH_BUILTIN_PACKAGE_SLUG,
-    SYSTEM_BENCH_ID,
-    SYSTEM_BENCH_SLUG,
-    SYSTEM_MAIN_PACKAGE_ID,
-    SYSTEM_MAIN_PACKAGE_SLUG,
+    BENCH_BENCH_PACKAGE_ID,
+    BENCH_BENCH_PACKAGE_SLUG,
+    BENCH_ID,
+    BENCH_SLUG,
+    SYSTEM_ID,
+    SYSTEM_SLUG,
+    SYSTEM_SYSTEM_PACKAGE_ID,
+    SYSTEM_SYSTEM_PACKAGE_SLUG,
     Engine,
     NodeReference,
     NodeSuperGraph,
@@ -39,7 +39,7 @@ async def create_system_benches(
     """Bootstrap the Bench system."""
 
     supergraph = NodeSuperGraph(
-        name="System", root_ptr=NodeReference(node_type=NodeType.BENCH, id=SYSTEM_BENCH_ID)
+        name="System", root_ptr=NodeReference(node_type=NodeType.BENCH, id=SYSTEM_ID)
     )
 
     async with global_session(
@@ -55,7 +55,7 @@ async def create_system_benches(
         session._create(system_user)
         await session.flush(optimistic=True)
         # create builtin benches :Builtins
-        system_user.main_handle = system_user.handles.create(slug=SYSTEM_BENCH_SLUG)
+        system_user.main_handle = system_user.handles.create(slug=SYSTEM_SLUG)
         system_bench = await create_default_bench(
             main_handle=system_user.main_handle,
             owned_by=system_user,
@@ -63,21 +63,21 @@ async def create_system_benches(
             session=session,
             options=CreateBenchOptions(
                 create_computer_scaler=False,
-                bench_id=SYSTEM_BENCH_ID,
-                main_package_slug=SYSTEM_MAIN_PACKAGE_SLUG,
-                main_package_id=SYSTEM_MAIN_PACKAGE_ID,
+                bench_id=SYSTEM_ID,
+                main_package_slug=SYSTEM_SYSTEM_PACKAGE_SLUG,
+                main_package_id=SYSTEM_SYSTEM_PACKAGE_ID,
             ),
         )
-        bench_bench_handle = system_user.handles.create(slug=BENCH_BENCH_SLUG)
+        bench_bench_handle = system_user.handles.create(slug=BENCH_SLUG)
         bench_bench = await create_default_bench(
             main_handle=bench_bench_handle,
             owned_by=system_user,
             region=region,
             session=session,
             options=CreateBenchOptions(
-                bench_id=BENCH_BENCH_ID,
-                main_package_slug=BENCH_BUILTIN_PACKAGE_SLUG,
-                main_package_id=BENCH_BUILTIN_PACKAGE_ID,
+                bench_id=BENCH_ID,
+                main_package_slug=BENCH_BENCH_PACKAGE_SLUG,
+                main_package_id=BENCH_BENCH_PACKAGE_ID,
                 main_package_name="Builtin Package",
                 create_computer_scaler=False,
             ),

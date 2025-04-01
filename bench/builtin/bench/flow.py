@@ -37,5 +37,3 @@ BenchFlow.default_agent = BenchAgent
 
 FlowPage = Page.new("Flow")
 FlowPage.extend(BenchFlow, BenchAgent)
-
-# nocheckin: reorganize builtins .. (mirroring language seems wrong)

@@ -286,7 +286,7 @@ def basic_field_reference(package: Package):
 
 
 @example_("Simple Action Outputs")
-def action_simple(package: Package):
+def action_simple_output(package: Package):
     """A super simple meaningless Action."""
     Action1 = Action.new(
         ActionType.DO,
@@ -301,7 +301,7 @@ def action_simple(package: Package):
     )
 
 
-@example_("Failing an Impossible Request")
+@example_("Fail Impossible Request")
 def action_failing_impossible_request(package: Package):
     """How to fail an impossible request."""
     Act1 = Action.new(
@@ -321,9 +321,9 @@ raise IncapableError("I'm afraid I cannot do that.")
     )
 
 
-@example_("Refusing an Illegal Request")
-def action_refusing_illegal_request(package: Package):
-    """How to refuse an illegal request."""
+@example_("Refuse Disallowed Request")
+def action_refusing_disallowed_request(package: Package):
+    """How to refuse an disallowed request."""
     Generate1 = Action.new(
         ActionType.DO,
         name="Generate1",
@@ -345,7 +345,7 @@ raise RefusedError("I cannot assist with that.")
 # Flows
 #
 
-# nocheckin: flow/action/planning examples
+# nocheckin: flow/action/message/planning examples
 
 
 def get_examples(action: Action, runner: Runner) -> Sequence[PromptExample]:

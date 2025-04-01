@@ -56,10 +56,10 @@ def test_make_builtin_package(session: Session) -> None:
 async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Test the Builtin package."""
     from bench.builtin import BuiltinPackage as BuiltinPackageRaw
-    from bench.language import BENCH_BUILTIN_PACKAGE_PTR
+    from bench.language import BENCH_BENCH_PACKAGE_PTR
 
     # builtin graph in memory and builtin graph loaded from runtime/bench should be equal
-    BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BUILTIN_PACKAGE_PTR)
+    BuiltinPackageLoaded = runtime.main_package._supergraph.get_or_error(BENCH_BENCH_PACKAGE_PTR)
     assert isinstance(BuiltinPackageLoaded, Package)
     BuiltinPackageLoadedGraph = BuiltinPackageLoaded._graph.copy()
     loaded_bench_bench = BuiltinPackageLoaded.parent
