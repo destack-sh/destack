@@ -46,6 +46,7 @@ from .context import HasRunContext
 if TYPE_CHECKING:
     from bench.language import (
         Action,
+        Agent,
         AudioOptions,
         Breakpoint,
         Code,
@@ -158,7 +159,9 @@ class Run(
     """
 
     # meta
-    parent: Union["Thread", "Run", None] = p_node_parent(4, NodeType.THREAD, NodeType.RUN)
+    parent: Union["Thread", "Agent", "Run", None] = p_node_parent(
+        4, NodeType.THREAD, NodeType.AGENT, NodeType.RUN
+    )
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True

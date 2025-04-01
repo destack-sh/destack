@@ -117,7 +117,6 @@ class ActionRunner(Runner[Action], ABC):
                 runtime=self.runtime,
                 node=runnable,
                 run="track",
-                context=self.context,
                 inputs=inputs,
                 agent=agent,
                 outputs=output_type,

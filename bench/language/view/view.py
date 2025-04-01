@@ -42,7 +42,6 @@ class ViewType(BuiltinEnum):
     #
     # Intrinsics (0-30000)
     #
-
     # nodes (0-10000)
     COMPUTER = 2100
     PAGE = 5020
@@ -55,22 +54,20 @@ class ViewType(BuiltinEnum):
     LINK = 5052
     TRIGGER = 5053
     KIT = 5060
-    VIEW = 5080
     DATABASE = 5090
-    CHANNEL = 5100
-    THREAD = 5501
+    CHANNEL = 5500
+    THREAD = 5510
+    AGENT = 5640
     RUN = 6010
-    PLAN = 6040
-    TASK = 6041
+    PLAN = 6100
+    TASK = 6110
 
     # objects (10000-20000)
     OBJECT = 10000
     TYPE = 10001
-    FIELD_LIST = 10003
     PATH = 10004
     COMPUTED_VALUE = 10005
     SELECTION = 10006
-    CLAIM_LIST = 10007
 
     # helpers (20000-30000)
     USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"
@@ -92,20 +89,17 @@ class ViewType(BuiltinEnum):
     TAB = 30002, "Tab", "Tabbed interface", "fas fa-sidebar"
     HISTORY = 30003, "History", "History of views", "fas fa-clock-rotate-left"
     SPLIT = 30004, "Split", "Split view", "fas fa-split"
-    SPLIT_DRAWER = 30005, "Split drawer", "Split drawer view", "fas fa-split"
     STACK = 30006, "Stack", "Stacked views", "fas fa-layer-group"
     DRAWER = 30007, "Drawer", "Drawer view", "fas fa-square-minus"
     SCROLL = 30008, "Scroll", "Scrollable view", "fas fa-arrows-alt-v"
-    GRID = 30009, "Grid", "Grid view", "fas fa-table-cells-large"
+    # SPLIT_DRAWER, GRID
 
     # groups (30100-30200)
-    GROUP = 30100, "Group", "Grouped views", "fas fa-object-group"
-    SECTION = 30101, "Section", "Sectioned view", "fas fa-xmark-lines"
-    FORM = 30102, "Form", "Form view", "fas fa-clipboard-list"
+    SECTION = 30100, "Section", "Sectioned view", "fas fa-xmark-lines"
+    # GROUP, FORM, ...
 
     # presentation (30200-30300)
-    SPACER = 30200, "Spacer", "Spacer view", "fas fa-square-dashed"
-    DIVIDER = 30201, "Divider", "Divider view", "fas fa-horizontal-rule"
+    DIVIDER = 30200, "Divider", "Divider view", "fas fa-horizontal-rule"
 
     # collections (30300-30400)
     LIST = 30300, "List", "List view", "fas fa-list"
@@ -171,6 +165,16 @@ class ViewType(BuiltinEnum):
 
     # expression
     # ...
+
+
+# copy NodeType properties to ViewType
+for view_type in ViewType:
+    if view_type.id < 10000:
+        node_type = NodeType(view_type.id)
+        view_type.title = node_type.title
+        view_type.color = node_type.color
+        view_type.icon = node_type.icon
+        view_type.text = node_type.text
 
 
 @enum_(EnumType.FONT_TYPE)

@@ -32,7 +32,6 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     InterruptionType,
-    IsRuntime,
     Kit,
     Link,
     Log,
@@ -149,7 +148,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
     __slots__ = (
         "capture",
         "connection",
-        "context",
         "error",
         "hooks",
         "id",
@@ -281,8 +279,6 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.id = self.tracked.id
 
         # runtime
-        if self.context is None:
-            self.context = self.tracked
         self.capture: GraphCapture | None = None  # for root runner
         self.hooks: list[Callable[[RunnerEvent], None]] = []
         if self.id in self.runtime._runners_by_id:
@@ -580,7 +576,7 @@ RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
 def create_run(
     node: "RunnableNode",
     *,
-    parent: "Package | Thread | Run",
+    parent: "Package | Thread | Run | Agent",
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
@@ -653,9 +649,18 @@ def create_run(
         if mode is None:
             mode = parent.mode
         graph = parent._graph
+    elif isinstance(parent, Agent):
+        if isinstance((grandparent := parent.parent), Thread):
+            thread = grandparent
+        else:
+            raise RuntimeError(f"expected {parent!r} to be in a Thread")
+        if mode is None:
+            mode = parent.mode
+        graph = parent._graph
     else:
         assert_never(parent)
-    assert thread is not None, f"no thread for {node!r}"
+    if thread is None:
+        raise RuntimeError(f"no Thread for {node!r}")
 
     # build run
     run = Run(
@@ -715,7 +720,6 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
         node,
         run=run,
         type=run.type,
-        context=run,
         inputs=inputs,
     )
 
@@ -726,7 +730,6 @@ def make_runner(
     run: RunIn,
     *,
     type: RunType | None = None,
-    context: IsRuntime | None = None,
     inputs: Any | None = None,
     outputs: TypeBase | CustomObject | None = None,
     options: RunOptions | None = None,
@@ -755,7 +758,6 @@ def make_runner(
     base_kwargs: dict[str, Any] = {
         "runtime": runtime,
         "options": options,
-        "context": context or run,
         "inputs": inputs,
         "outputs": outputs,
         "run": run,

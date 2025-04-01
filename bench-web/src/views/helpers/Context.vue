@@ -72,18 +72,6 @@ const scope = computed(() => {
     return inspection.value;
   }
 });
-const threadPtr = computed(() => {
-  if (isInlineNode(scope.value) && scope.value.threadPtr != null) {
-    // current thread for scope (if in same channel)
-    return scope.value.threadPtr;
-  } else if (isNode(scope.value, NodeType.CHANNEL) || isNode(scope.value, NodeType.THREAD)) {
-    // don't show the same thread twice
-    return undefined;
-  } else {
-    return scope.value != null ? toNodeRef(scope.value) : undefined;
-  }
-});
-const thread = supergraph.getRef(threadPtr);
 
 // run
 const containingRun: Ref<RunData | null> = computed(() => {

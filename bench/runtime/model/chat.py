@@ -106,7 +106,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             prompt = make_chat_prompt(
                 action=self.node,
                 runner=cast(Runner[RunnableNode], self),
-                context=self.context,
+                context=self.tracked,
                 inputs=self.inputs,
                 outputs=self.outputs,
                 output_type=self.output_type,

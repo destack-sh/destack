@@ -124,9 +124,7 @@ if TYPE_CHECKING:
         Query,
         SearchConnection,
         Session,
-        Tag,
         TextLine,
-        Thread,
         Type,
         User,
     )
@@ -1688,24 +1686,10 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
         same_bench=True,
         description="The Block where this Node is 'defined'.",
     )
-    thread: Optional["Thread"] = p_regular(
-        36,
-        require=False,
-        array=False,
-        references=NodeType.THREAD,
-        same_bench=True,
-        description="The current main Thread for this Node.",
-    )
-    tags: list["Tag"] = p_internal(
-        37, require=False, array=True, same_bench=True, references=NodeType.TAG
-    )
     if TYPE_CHECKING:
         definition_id: Optional[UUID] = None
         definition_ck: Optional[UUID] = None
         definition_ptr: Optional[NodeReference] = None
-        thread_id: Optional[UUID] = None
-        thread_ptr: Optional[NodeReference] = None
-        tags_ptr: tuple[NodeReference, ...] = ()
 
     @property
     def containing_page(self) -> "Page | None":

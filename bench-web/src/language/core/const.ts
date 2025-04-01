@@ -334,6 +334,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.CHOICE,
   BlockType.TASK,
   BlockType.KIT,
+  BlockType.AGENT,
   ...TEXT_BLOCK_TYPES,
 ];
 export const EXPOSED_STRUCT_TYPES = [

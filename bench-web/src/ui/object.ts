@@ -927,6 +927,12 @@ export class TaskLayout extends NodeLayout<NodeType.TASK> {
   }
 }
 
+export class AgentLayout extends NodeLayout<NodeType.AGENT> {
+  make() {
+    this.section(undefined, []);
+  }
+}
+
 export class BenchLayout extends NodeLayout<NodeType.BENCH> {
   make() {
     this.section("Members", [{ type: "membership-list", title: undefined, delegatePtr: this.node.mainPackagePtr }], {});
