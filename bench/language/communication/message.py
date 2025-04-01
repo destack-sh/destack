@@ -82,7 +82,13 @@ class MessageStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
-class Message(IsTimed, IsBased, IsTitled, IsModal, PackageNode[MessageData]):
+class Message(
+    IsTimed,
+    IsBased,
+    IsTitled,
+    IsModal,
+    PackageNode[MessageData],
+):
     """
     A Message about something (usually in a Thread or a Channel).
     """

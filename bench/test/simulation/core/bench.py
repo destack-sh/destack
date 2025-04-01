@@ -3,10 +3,10 @@ from uuid import UUID
 
 from bench import pb2
 from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BENCH_SLUG,
-    SYSTEM_BENCH_ID,
-    SYSTEM_BENCH_SLUG,
+    BENCH_ID,
+    BENCH_SLUG,
+    SYSTEM_ID,
+    SYSTEM_SLUG,
     NodeReference,
 )
 from bench.proto import CreateBenchRequest, SupervisorClient
@@ -47,10 +47,10 @@ class BenchHandle:
 
     async def prepare(self, supervisor_client: SupervisorClient, client: "ClientHandle | None"):
         # create bench in supervisor
-        if self.spec.name == BENCH_BENCH_SLUG:
-            self._bench_id = BENCH_BENCH_ID
-        elif self.spec.name == SYSTEM_BENCH_SLUG:
-            self._bench_id = SYSTEM_BENCH_ID
+        if self.spec.name == BENCH_SLUG:
+            self._bench_id = BENCH_ID
+        elif self.spec.name == SYSTEM_SLUG:
+            self._bench_id = SYSTEM_ID
         else:
             assert client is not None, f"need client for {self!r}"
             assert isinstance(client.parent, UserHandle), f"{client!r} is not from a User"

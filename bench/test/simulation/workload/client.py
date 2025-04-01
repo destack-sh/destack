@@ -7,8 +7,8 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    BENCH_BENCH_PTR,
-    BENCH_BENCH_SLUG,
+    BENCH_PTR,
+    BENCH_SLUG,
     LOADED_PACKAGE_NODE_TYPES,
     Bench,
     NodeReference,
@@ -56,7 +56,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
         self.client = self.simulation.get_client(self.spec.client)
         self.self_host = self.simulation.get_host(self.spec.bench)
         if self.spec.system:
-            self.bench_host = self.simulation.get_host(BENCH_BENCH_SLUG)
+            self.bench_host = self.simulation.get_host(BENCH_SLUG)
         else:
             self.bench_host = None
         self.session = await make_remote_session(
@@ -86,7 +86,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
             self.session.parent = self.bench  # patch in the session parent
             if self.bench_host is not None:
                 self.bench_bench = await Bench.include_descendants(*LOADED_PACKAGE_NODE_TYPES).get(
-                    BENCH_BENCH_PTR, live=True
+                    BENCH_PTR, live=True
                 )
             else:
                 self.bench_bench = None

@@ -10,9 +10,9 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BENCH_PTR,
+    BENCH_ID,
     BENCH_NODE_TYPES,
+    BENCH_PTR,
     EMPTY_SCOPE_DATA,
     LOADED_PACKAGE_NODE_TYPES,
     NONCE,
@@ -132,7 +132,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
     async def start(self):
         # setup host
         self._self_host = await self.resolve_host_client(self._bench_id)
-        self._bench_host = await self.resolve_host_client(BENCH_BENCH_ID)
+        self._bench_host = await self.resolve_host_client(BENCH_ID)
         self._engines = (
             # global
             RemoteEngine(
@@ -155,7 +155,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             # bench bench engine
             RemoteEngine(
                 name="remote-bench-bench",
-                scope=GraphScope(bench_id=BENCH_BENCH_ID)._to_data(),
+                scope=GraphScope(bench_id=BENCH_ID)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=self._bench_host,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -182,7 +182,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
             self._session.parent = self._bench
             # NOTE: bench bench is not live because it only ever changes on Host restart
             #  (in which case we auto-reconnect and get the new stuff anyway)
-            self._bench_bench = await BENCH_QUERY.get(BENCH_BENCH_PTR, live=False)
+            self._bench_bench = await BENCH_QUERY.get(BENCH_PTR, live=False)
             self._client = await Client.get(id=self._client_id)
             assert self._client, f"{self._bench!r} has no client {self._client_id}"
             if self._computer_id:

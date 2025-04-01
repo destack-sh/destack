@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, assert_never
 from uuid import UUID
 
 from bench.language import (
-    BENCH_BENCH_ID,
-    BENCH_BENCH_SLUG,
+    BENCH_ID,
     BENCH_NODE_TYPES,
+    BENCH_SLUG,
     EMPTY_SCOPE_DATA,
     PUBLIC_NODE_TYPES,
     Client,
@@ -83,12 +83,12 @@ async def make_remote_session(
         ),
     ]
     if system:
-        bench_host = simulation.get_host(BENCH_BENCH_SLUG)
+        bench_host = simulation.get_host(BENCH_SLUG)
         bench_host_client = await bench_host.connect(source_id)
         engines.append(
             RemoteEngine(
                 name="remote-bench-bench",
-                scope=GraphScope(bench_id=BENCH_BENCH_ID)._to_data(),
+                scope=GraphScope(bench_id=BENCH_ID)._to_data(),
                 node_types=BENCH_NODE_TYPES,
                 remote=bench_host_client,
                 write_retry=RETRY_GRPC_FOREVER,

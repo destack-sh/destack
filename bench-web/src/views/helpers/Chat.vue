@@ -27,7 +27,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
+import { CURRENT_BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
@@ -142,7 +142,7 @@ const {
   { name: "chat", live: true },
   computed(
     (): SearchConnectionParams<NodeType.MESSAGE> => ({
-      scope: BENCH_SCOPE.value,
+      scope: CURRENT_BENCH_SCOPE.value,
       nodeType: NodeType.MESSAGE,
       count: true,
       filter: filter.value,

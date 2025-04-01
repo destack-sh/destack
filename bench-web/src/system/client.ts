@@ -182,8 +182,8 @@ export const packagePtr = computed(() => {
       benchId: _benchPtr.value.id!,
     });
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
-export const BENCH_SCOPE = computedValue(() => makeScope({ benchId: _benchPtr.value?.id }));
-export const PACKAGE_SCOPE = computedValue(() =>
+export const CURRENT_BENCH_SCOPE = computedValue(() => makeScope({ benchId: _benchPtr.value?.id }));
+export const CURRENT_PACKAGE_SCOPE = computedValue(() =>
   makeScope({ benchId: _benchPtr.value?.id, packageIds: packagePtr.value?.id != null ? [packagePtr.value.id] : [] }),
 );
 

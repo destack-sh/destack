@@ -43,7 +43,7 @@ import {
   NodeMode,
 } from "@/proto/wire";
 import { isNode, makeScope, propertyReference, toNodeRef } from "@/proto/wiring";
-import { BENCH_SCOPE } from "@/system/client";
+import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import {
   acquireConnection,
   releaseConnection,
@@ -414,7 +414,7 @@ export function makeRemoteSearchParams(options: {
     }),
   ];
   // params
-  const scope = isBenchNodeType(nodeType) ? BENCH_SCOPE.value : makeScope({});
+  const scope = isBenchNodeType(nodeType) ? CURRENT_BENCH_SCOPE.value : makeScope({});
   const params: SearchConnectionParams<any> = {
     nodeType,
     scope,
