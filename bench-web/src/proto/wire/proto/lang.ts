@@ -3970,18 +3970,6 @@ export interface AgentData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_flow_ptr = 40;
-     */
-    mainFlowPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41;
-     */
-    implementedByPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorType color = 45;
-     */
-    color?: ColorType;
-    /**
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 50;
      */
     inputsPacked?: JsonValue;
@@ -3990,9 +3978,29 @@ export interface AgentData {
      */
     outputsPacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 52;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_flow_ptr = 53;
+     */
+    mainFlowPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_page_ptr = 54;
+     */
+    mainPagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_plan_ptr = 55;
+     */
+    mainPlanPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 56;
+     */
+    implementedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 57;
      */
     text?: TextData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorType color = 58;
+     */
+    color?: ColorType;
     /**
      * @generated from protobuf field: symbolx.bench.AgentStatus status = 80;
      */
@@ -13203,6 +13211,10 @@ export enum ModelType {
      * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
      */
     GOOGLE_GEMINI_2_0_FLASH_THINKING = 401,
+    /**
+     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_5_PRO = 410;
+     */
+    GOOGLE_GEMINI_2_5_PRO = 410,
     /**
      * @generated from protobuf enum value: MODEL_TYPE_DEEPSEEK_R_1_0 = 701;
      */
@@ -24065,12 +24077,14 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "main_flow_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 45, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 50, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 51, name: "outputs_packed", kind: "message", T: () => Value },
-            { no: 52, name: "text", kind: "message", T: () => TextData },
+            { no: 53, name: "main_flow_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 54, name: "main_page_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 55, name: "main_plan_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 56, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 57, name: "text", kind: "message", T: () => TextData },
+            { no: 58, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.AgentStatus", AgentStatus, "AGENT_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
@@ -24168,23 +24182,29 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData main_flow_ptr */ 40:
-                    message.mainFlowPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainFlowPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 41:
-                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
-                    break;
-                case /* optional symbolx.bench.ColorType color */ 45:
-                    message.color = reader.int32();
-                    break;
                 case /* optional google.protobuf.Value inputs_packed */ 50:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional google.protobuf.Value outputs_packed */ 51:
                     message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.TextData text */ 52:
+                case /* optional symbolx.bench.NodeReferenceData main_flow_ptr */ 53:
+                    message.mainFlowPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainFlowPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData main_page_ptr */ 54:
+                    message.mainPagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPagePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData main_plan_ptr */ 55:
+                    message.mainPlanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPlanPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 56:
+                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
+                    break;
+                case /* optional symbolx.bench.TextData text */ 57:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional symbolx.bench.ColorType color */ 58:
+                    message.color = reader.int32();
                     break;
                 case /* symbolx.bench.AgentStatus status */ 80:
                     message.status = reader.int32();
@@ -24309,24 +24329,30 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData main_flow_ptr = 40; */
-        if (message.mainFlowPtr)
-            NodeReferenceData.internalBinaryWrite(message.mainFlowPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41; */
-        if (message.implementedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ColorType color = 45; */
-        if (message.color !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.color);
         /* optional google.protobuf.Value inputs_packed = 50; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value outputs_packed = 51; */
         if (message.outputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 52; */
+        /* optional symbolx.bench.NodeReferenceData main_flow_ptr = 53; */
+        if (message.mainFlowPtr)
+            NodeReferenceData.internalBinaryWrite(message.mainFlowPtr, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_page_ptr = 54; */
+        if (message.mainPagePtr)
+            NodeReferenceData.internalBinaryWrite(message.mainPagePtr, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_plan_ptr = 55; */
+        if (message.mainPlanPtr)
+            NodeReferenceData.internalBinaryWrite(message.mainPlanPtr, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 56; */
+        if (message.implementedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TextData text = 57; */
         if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+            TextData.internalBinaryWrite(message.text, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorType color = 58; */
+        if (message.color !== undefined)
+            writer.tag(58, WireType.Varint).int32(message.color);
         /* symbolx.bench.AgentStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
@@ -32091,7 +32117,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.DATABASE, NodeType.CLASS, NodeType.AGENT, NodeType.FLOW, NodeType.ACTION],
   [NodeType.OPTION]: [NodeType.CHOICE],
   [NodeType.TAG]: [NodeType.PACKAGE, NodeType.PAGE],
-  [NodeType.FLOW]: [NodeType.PAGE],
+  [NodeType.FLOW]: [NodeType.AGENT, NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.FLOW, NodeType.ACTION, NodeType.KIT],
   [NodeType.LINK]: [NodeType.FLOW, NodeType.ACTION],
   [NodeType.TRIGGER]: [NodeType.RUN, NodeType.ACTION, NodeType.PLAN, NodeType.TASK],
@@ -32158,7 +32184,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.MEMBERSHIP]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.INVITE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.AGENT]: [NodeType.CLAIM, NodeType.AGENT, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.RUN],
+  [NodeType.AGENT]: [NodeType.FLOW, NodeType.CLAIM, NodeType.AGENT, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.RUN],
   [NodeType.SESSION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RUN]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.PLAN, NodeType.FILE, NodeType.RUN, NodeType.SPAN, NodeType.TRIGGER, NodeType.TASK],
   [NodeType.SPAN]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32197,10 +32223,10 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.PAGE, NodeType.DATABASE, NodeType.CLASS, NodeType.FLOW, NodeType.ACTION, NodeType.CHANNEL],
   [NodeType.OPTION]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE, NodeType.CHOICE],
   [NodeType.TAG]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
-  [NodeType.FLOW]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
-  [NodeType.ACTION]: [NodeType.BENCH, NodeType.KIT, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
-  [NodeType.LINK]: [NodeType.BENCH, NodeType.KIT, NodeType.PACKAGE, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
-  [NodeType.TRIGGER]: [NodeType.FLOW, NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.PAGE, NodeType.AGENT, NodeType.PLAN, NodeType.RUN, NodeType.ACTION, NodeType.CHANNEL, NodeType.TASK],
+  [NodeType.FLOW]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.PAGE],
+  [NodeType.ACTION]: [NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
+  [NodeType.LINK]: [NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.PAGE, NodeType.FLOW, NodeType.ACTION, NodeType.CHANNEL],
+  [NodeType.TRIGGER]: [NodeType.FLOW, NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.PLAN, NodeType.PAGE, NodeType.TASK, NodeType.RUN, NodeType.ACTION, NodeType.CHANNEL],
   [NodeType.KIT]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.DATABASE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.CHANNEL]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
@@ -32256,15 +32282,15 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.KIT]: [NodeType.CLAIM, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER],
   [NodeType.DATABASE]: [NodeType.RECORD, NodeType.FILE, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.LOG, NodeType.FILE, NodeType.FIELD, NodeType.COMPUTER, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
-  [NodeType.THREAD]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.FILE, NodeType.FIELD, NodeType.COMPUTER, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
+  [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.LOG, NodeType.FILE, NodeType.FIELD, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
+  [NodeType.THREAD]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.FILE, NodeType.FIELD, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.NOTIFICATION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
   [NodeType.MEMBERSHIP]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.INVITE]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.ROLE]: [NodeType.CLAIM, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.AGENT]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.AGENT, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.PLAN, NodeType.FILE, NodeType.RUN, NodeType.SPAN, NodeType.TRIGGER, NodeType.TASK],
+  [NodeType.AGENT]: [NodeType.INTERRUPTION, NodeType.ACTION, NodeType.CLAIM, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.PLAN, NodeType.FILE, NodeType.RUN, NodeType.TASK, NodeType.FIELD, NodeType.FLOW, NodeType.SPAN, NodeType.LINK, NodeType.TRIGGER],
   [NodeType.SESSION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.RUN]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.PLAN, NodeType.FILE, NodeType.RUN, NodeType.SPAN, NodeType.TRIGGER, NodeType.TASK],
   [NodeType.SPAN]: [NodeType.SKIP, NodeType.EMPTY],
@@ -33971,12 +33997,14 @@ export enum AgentProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  mainFlowPtr = 40,
-  implementedByPtr = 41,
-  color = 45,
   inputsPacked = 50,
   outputsPacked = 51,
-  text = 52,
+  mainFlowPtr = 53,
+  mainPagePtr = 54,
+  mainPlanPtr = 55,
+  implementedByPtr = 56,
+  text = 57,
+  color = 58,
   status = 80,
   duration = 81,
   scheduledAt = 82,
@@ -35518,7 +35546,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35554,7 +35582,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35915,7 +35943,7 @@ export const TagDataInfo: Record<TagProperty, PropertyInfo> = {
 export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FLOW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FlowProperty.id]: { id: 2, name: 'id', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FlowProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.FLOW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36289,12 +36317,14 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.icon]: { id: 34, name: 'icon', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [AgentProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.mainFlowPtr]: { id: 40, name: 'main_flow_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.implementedByPtr]: { id: 41, name: 'implemented_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.color]: { id: 45, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [AgentProperty.outputsPacked]: { id: 51, name: 'outputs_packed', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [AgentProperty.text]: { id: 52, name: 'text', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [AgentProperty.mainFlowPtr]: { id: 53, name: 'main_flow_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.mainPagePtr]: { id: 54, name: 'main_page_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.mainPlanPtr]: { id: 55, name: 'main_plan_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.implementedByPtr]: { id: 56, name: 'implemented_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.text]: { id: 57, name: 'text', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [AgentProperty.color]: { id: 58, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.AGENT_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -37828,6 +37858,7 @@ export const ModelTypeOptionInfo: Partial<Record<ModelType, EnumOptionInfo>> = {
   [ModelType.ANTHROPIC_CLAUDE_3_7_SONNET]: { id: 302, name: 'ANTHROPIC_CLAUDE_3_7_SONNET', text: 'Claude 3.7 Sonnet', title: 'Claude 3.7 Sonnet' },
   [ModelType.GOOGLE_GEMINI_2_0_FLASH]: { id: 400, name: 'GOOGLE_GEMINI_2_0_FLASH', text: 'Gemini 2.0 Flash', title: 'Gemini 2.0 Flash' },
   [ModelType.GOOGLE_GEMINI_2_0_FLASH_THINKING]: { id: 401, name: 'GOOGLE_GEMINI_2_0_FLASH_THINKING', text: 'Gemini 2.0 Flash Thinking', title: 'Gemini 2.0 Flash Thinking' },
+  [ModelType.GOOGLE_GEMINI_2_5_PRO]: { id: 410, name: 'GOOGLE_GEMINI_2_5_PRO', text: 'Gemini 2.5 Pro', title: 'Gemini 2.5 Pro' },
   [ModelType.DEEPSEEK_R_1_0]: { id: 701, name: 'DEEPSEEK_R_1_0', text: 'DeepSeek R 1.0', title: 'DeepSeek R 1.0' },
 }
 

@@ -56,9 +56,9 @@ class Flow(
     IsFieldBase,
     InlineNode[FlowData],
 ):
-    """A building block with logic, types, UI, state, auth, AI, ..."""
+    """A Flow orchestrates a sequence of steps (like Actions)."""
 
-    parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
+    parent: Union["Page", "Agent", None] = p_node_parent(4, NodeType.PAGE, NodeType.AGENT)
     type: FlowType = p_regular(30, default=FlowType.ACTION, default_sql=None)
 
     # meta

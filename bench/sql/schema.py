@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.02.1"
+VERSION = "2025.04.02.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -855,6 +855,7 @@ FLOW_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1410,14 +1411,17 @@ AGENT_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
-        Column("main_flow_id", PrimitiveType.UUID, is_nullable=True),
-        Column("main_flow_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
-        Column("color", PrimitiveType.INT16, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("main_flow_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_flow_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_page_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_plan_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_plan_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("color", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),

@@ -1560,6 +1560,7 @@ enum ModelType {
   MODEL_TYPE_ANTHROPIC_CLAUDE_3_7_SONNET = 302;
   MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 400;
   MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
+  MODEL_TYPE_GOOGLE_GEMINI_2_5_PRO = 410;
   MODEL_TYPE_DEEPSEEK_R_1_0 = 701;
 }
 
@@ -3080,12 +3081,14 @@ message AgentData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData main_flow_ptr = 40;
-  optional NodeReferenceData implemented_by_ptr = 41;
-  optional ColorType color = 45;
   optional google.protobuf.Value inputs_packed = 50;
   optional google.protobuf.Value outputs_packed = 51;
-  optional TextData text = 52;
+  optional NodeReferenceData main_flow_ptr = 53;
+  optional NodeReferenceData main_page_ptr = 54;
+  optional NodeReferenceData main_plan_ptr = 55;
+  optional NodeReferenceData implemented_by_ptr = 56;
+  optional TextData text = 57;
+  optional ColorType color = 58;
   AgentStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;

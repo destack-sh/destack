@@ -91,7 +91,8 @@ class Action(
     PackageNode[ActionData],
 ):
     """
-    A data or control flow node in a Flow. Actions are connected by Links."""
+    A unit of work to do, usually expressed with Code, some Flow or some other tool.
+    """
 
     parent: Union["Flow", "Kit", "Action", None] = p_node_parent(
         4, NodeType.FLOW, NodeType.KIT, NodeType.ACTION

@@ -1,5 +1,5 @@
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, cast, final, override
+from abc import ABC
+from typing import TYPE_CHECKING, Any, ClassVar, override
 
 import structlog
 from opentelemetry import trace
@@ -13,14 +13,11 @@ from bench.language import (
     BreakpointSite,
     CustomObject,
     IsType,
-    ModelDeveloper,
-    ModelType,
     Runnable,
     RunOptions,
     RunType,
     Span,
     SpanType,
-    TypeKind,
     code,
 )
 from bench.runtime.core import (
@@ -30,7 +27,6 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.model.chat import get_chat_model_runner_cls
 
 if TYPE_CHECKING:
     from .flow import FlowRunner
@@ -124,59 +120,9 @@ class ActionRunner(Runner[Action], ABC):
             return runner
 
 
-class StaticActionRunner(ActionRunner):
-    @final
+class StartActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
-        """Run the static and the dynamic parts of the Action."""
-        # static implementation
-        await self.run_static()
-
-        # dynamic calls (if needed)
-        has_plan = (
-            not self.node.type.is_boundary
-            and self.outputs is not None
-            and self.outputs._type.kind == TypeKind.PARTIAL_OBJECT
-            and (getattr(self.outputs, "plans", None))
-        )
-        if (
-            self.flow is not None
-            and not has_plan
-            and any(p.source_id == self.node.id and not p.is_manual for p in self.flow.node.links)
-        ):
-            model_developer = ModelDeveloper.OPENAI
-            model_type = ModelType.OPENAI_GPT4_0
-            model_runner_cls = get_chat_model_runner_cls(
-                model_developer=model_developer, model_type=model_type
-            )
-            model_runner = model_runner_cls(
-                runtime=self.runtime,
-                node=self.node,
-                model_type=model_type,
-                options=self.options,
-                inputs=self.inputs,
-                outputs=self.outputs or self.output_type,
-                parent=cast(Runner[Any], self),
-                run=SpanType.FLOW_PLAN,
-            )
-            try:
-                await self.runtime.run_runner(model_runner)
-            finally:
-                if model_runner.code is not None:
-                    # track code in both Span and Run
-                    self.tracked.code = model_runner.code
-                    if self.tracked_run is not None and self.tracked_run is not self.tracked:
-                        self.tracked_run.code = model_runner.code
-
-    @abstractmethod
-    async def run_static(self) -> None:
-        """Run the static part of the Action."""
-        ...
-
-
-class StartActionRunner(StaticActionRunner):
-    @override
-    async def run_static(self) -> None:
         pass  # nothing to do
 
 
@@ -187,9 +133,9 @@ class EndActionRunner(ActionRunner):
             self.flow._complete(outputs=self.inputs)
 
 
-class ToolActionRunner(StaticActionRunner):
+class ToolActionRunner(ActionRunner):
     @override
-    async def run_static(self) -> None:
+    async def run(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be in a Run"
         if self.node.tool_ptr is not None:
             # run static tool
