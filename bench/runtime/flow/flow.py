@@ -1,6 +1,6 @@
 from abc import ABC
 from asyncio import Queue
-from typing import ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
+from typing import Any, ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -17,6 +17,8 @@ from bench.language import (
     IsType,
     Link,
     LinkType,
+    ModelDeveloper,
+    ModelType,
     Plan,
     PlanFailureMode,
     PlanStatus,
@@ -27,9 +29,11 @@ from bench.language import (
     RunOptions,
     RunStatus,
     RunType,
+    SpanType,
     Task,
     TextLine,
     TriggerType,
+    TypeKind,
     coerce_custom_object_scalar,
 )
 from bench.runtime.core import (
@@ -45,6 +49,7 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
+from bench.runtime.model.chat import get_chat_model_runner_cls
 
 from .action import ActionRunner
 from .link import LinkRunner
@@ -359,6 +364,43 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         else:
             next_run = self._start(next_action, incoming=(runner.tracked_run,))
         return TickLinkResult(new_runs=(next_run,), is_handled=True)
+
+    async def _plan(self, runner: ActionRunner):
+        # nocheckin: implement planning at FlowRunner level
+        # dynamic calls (if needed)
+        current_action = runner.node
+        has_plan = (
+            not current_action.type.is_boundary
+            and runner.outputs is not None
+            and runner.outputs._type.kind == TypeKind.PARTIAL_OBJECT
+            and (getattr(runner.outputs, "plans", None))
+        )
+        if not has_plan and any(
+            p.source_id == current_action.id and not p.is_manual for p in self.node.links
+        ):
+            model_developer = ModelDeveloper.OPENAI
+            model_type = ModelType.OPENAI_GPT4_0
+            model_runner_cls = get_chat_model_runner_cls(
+                model_developer=model_developer, model_type=model_type
+            )
+            model_runner = model_runner_cls(
+                runtime=self.runtime,
+                node=current_action,
+                model_type=model_type,
+                options=self.options,
+                inputs=self.inputs,
+                outputs=self.outputs or self.output_type,
+                parent=cast(Runner[Any], self),
+                run=SpanType.FLOW_PLAN,
+            )
+            try:
+                await self.runtime.run_runner(model_runner)
+            finally:
+                if model_runner.code is not None:
+                    # track code in both Span and Run
+                    self.tracked.code = model_runner.code
+                    if self.tracked_run is not None and self.tracked_run is not self.tracked:
+                        self.tracked_run.code = model_runner.code
 
     @override
     async def run(self) -> None:

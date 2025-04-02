@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         Field,
         Flow,
         Page,
+        Plan,
         Run,
         Text,
         Thread,
@@ -98,25 +99,6 @@ class Agent(
     parent: Union["Page", "Channel", "Thread", "Agent", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.AGENT
     )
-    main_flow: Optional["Flow"] = p_regular(
-        40,
-        require=False,
-        references=NodeType.FLOW,
-        description="The main Flow backing this Agent.",
-    )
-    implemented_by: Optional["Run"] = p_regular(
-        41,
-        require=False,
-        references=NodeType.RUN,
-        same_bench=True,
-        description="The Run implementing this Agent (there may be only one at a time).",
-    )
-    color: ColorType | None = p_regular(45)
-    if TYPE_CHECKING:
-        main_flow_ptr: Optional[NodeReference] = None
-        main_flow_id: Optional[UUID] = None
-        implemented_by_ptr: Optional[NodeReference] = None
-        implemented_by_id: Optional[UUID] = None
 
     # content
     inputs_packed: Any = p_value_packed(50)
@@ -127,7 +109,46 @@ class Agent(
     outputs: "CustomObject | None" = p_value_runtime(
         51, type=FieldType.OUTPUT, typ=lambda self: cast("Agent", self).output_type
     )
-    text: Optional["Text"] = p_regular(52, default=None, struct=StructType.TEXT)
+    main_flow: Optional["Flow"] = p_regular(
+        53,
+        require=False,
+        references=NodeType.FLOW,
+        description="The main Flow backing this Agent.",
+    )
+    main_page: Optional["Page"] = p_regular(
+        54,
+        require=False,
+        array=False,
+        references=NodeType.PAGE,
+        same_bench=True,
+        description="The main or root Page used by this Agent (may be shared).",
+    )
+    main_plan: Optional["Plan"] = p_regular(
+        55,
+        require=False,
+        array=False,
+        references=NodeType.PLAN,
+        same_bench=True,
+        description="The main Plan to consider in this Agent (may be on the Page).",
+    )
+    implemented_by: Optional["Run"] = p_regular(
+        56,
+        require=False,
+        references=NodeType.RUN,
+        same_bench=True,
+        description="The Run implementing this Agent (there may be only one at a time).",
+    )
+    text: Optional["Text"] = p_regular(57, default=None, struct=StructType.TEXT)
+    color: ColorType | None = p_regular(58)
+    if TYPE_CHECKING:
+        main_flow_ptr: Optional[NodeReference] = None
+        main_flow_id: Optional[UUID] = None
+        main_page_ptr: Optional[NodeReference] = None
+        main_page_id: Optional[UUID] = None
+        main_plan_ptr: Optional[NodeReference] = None
+        main_plan_id: Optional[UUID] = None
+        implemented_by_ptr: Optional[NodeReference] = None
+        implemented_by_id: Optional[UUID] = None
 
     # status [80-90]
     status: AgentStatus = p_regular(80, default=AgentStatus.CREATED)

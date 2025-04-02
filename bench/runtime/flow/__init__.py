@@ -5,7 +5,6 @@ from .action import (
     DoActionRunner,
     EndActionRunner,
     StartActionRunner,
-    StaticActionRunner,
     ToolActionRunner,
 )
 from .flow import FlowRunner
@@ -21,6 +20,5 @@ __all__ = [
     "FlowRunner",
     "LinkRunner",
     "StartActionRunner",
-    "StaticActionRunner",
     "ToolActionRunner",
 ]

@@ -89,6 +89,7 @@ class ModelType(BuiltinEnum):  # :ModelType
     # google-gemini
     GOOGLE_GEMINI_2_0_FLASH = 400, "Gemini 2.0 Flash", "Gemini 2.0 Flash"
     GOOGLE_GEMINI_2_0_FLASH_THINKING = 401, "Gemini 2.0 Flash Thinking", "Gemini 2.0 Flash Thinking"
+    GOOGLE_GEMINI_2_5_PRO = 410, "Gemini 2.5 Pro", "Gemini 2.5 Pro"
     # deepseek-r
     DEEPSEEK_R_1_0 = 701, "DeepSeek R 1.0", "DeepSeek R 1.0"
 
