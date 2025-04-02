@@ -7,11 +7,11 @@ import regex
 from .const import BenchError, NodeType, TypeFormat
 
 if TYPE_CHECKING:
-    from bench.language import Node, Property, TypeBase, TypeConstraint
+    from bench.language import IsType, Node, Property, TypeConstraint
 
     from .value import SomeValue
 
-ValidationSite = Union["TypeBase", tuple["Property | Any", ...]]
+ValidationSite = Union["IsType", tuple["Property | Any", ...]]
 
 
 class ValidationError(BenchError, ValueError):

@@ -8,13 +8,13 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
+    IsType,
     NodeMode,
     NodeType,
     PackageNode,
     Property,
     PropertyReference,
     StructType,
-    TypeBase,
     TypeConstraint,
     TypeConstraintIn,
     TypeIn,
@@ -46,7 +46,7 @@ class Field(
     IsModal,
     IsNamed,
     PackageNode[FieldData],
-    TypeBase,
+    IsType,
     _IntoQuery,
 ):
     """
@@ -77,7 +77,7 @@ class Field(
     _introspected_from: Optional[Property] = p_runtime(default=None)  # should match Field.property
 
     def __content_str__(self) -> str:
-        return TypeBase.__content_str__(self)
+        return IsType.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
         return _IntoQuery.__eq__(self, other)  # override to avoid recursion
@@ -85,7 +85,7 @@ class Field(
     __hash__ = PackageNode.__hash__  # type: ignore
 
     @property_
-    def type_info(self) -> TypeBase:
+    def type_info(self) -> IsType:
         return self
 
     @property_
@@ -110,7 +110,7 @@ class Field(
             property = None
             mode = None
         typ = to_type_scalar(typ)
-        for prop in TypeBase.__declared_properties__.values():
+        for prop in IsType.__declared_properties__.values():
             if prop.name not in kwargs:
                 kwargs[prop.name] = getattr(typ, prop.name)
         if constraint is not None:

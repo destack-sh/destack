@@ -13,18 +13,9 @@ from .const import (
     Region,
     enum_,
 )
-from .node import (
-    InlineNode,
-    IsClaimable,
-    IsModal,
-    IsNamed,
-    IsOwnable,
-    IsTemplatable,
-    Node,
-    NodeReference,
-    node_component_,
-)
+from .node import InlineNode, Node, NodeReference, node_component_
 from .property import p_internal, p_node_parent, p_system
+from .trait import IsClaimable, IsModal, IsNamed, IsOwnable, IsTemplatable
 
 if TYPE_CHECKING:
     from bench.language import Channel, Package, Page, Region, Scaler, Thread

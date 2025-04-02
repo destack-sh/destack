@@ -6,10 +6,11 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsTemplatable,
+    IsType,
+    IsTypeBase,
     LocalNodeList,
     NodeType,
     Type,
-    TypeBase,
     TypeKind,
     node_,
     p_node_children,
@@ -24,7 +25,13 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CHOICE, passthrough_get=("options",))
-class Choice(IsTemplatable, IsModal, IsNamed, InlineNode[ChoiceData]):
+class Choice(
+    IsTemplatable,
+    IsModal,
+    IsNamed,
+    IsTypeBase,
+    InlineNode[ChoiceData],
+):
     """A Choice of Options."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
@@ -34,17 +41,17 @@ class Choice(IsTemplatable, IsModal, IsNamed, InlineNode[ChoiceData]):
     def __content_str__(self):
         return ""
 
-    def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "TypeBase | None":
+    def to_type_maybe(self, of: Literal["instance", "value"] = "instance") -> "IsType | None":
         return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.OPTION)
 
-    def to_type(self) -> "TypeBase":
+    def to_type(self) -> "IsType":
         typ = self.to_type_maybe()
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def instance_type(self) -> "TypeBase":
+    def instance_type(self) -> "IsType":
         return self.to_type()
 
     @staticmethod

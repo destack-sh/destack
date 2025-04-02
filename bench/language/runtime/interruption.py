@@ -33,13 +33,13 @@ if TYPE_CHECKING:
     from bench.language import (
         Action,
         Flow,
+        IsType,
         Link,
         Message,
         Run,
         Span,
         Task,
         Text,
-        TypeBase,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -247,13 +247,13 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             return self.flow
 
     @property
-    def input_type(self) -> "TypeBase | None":
+    def input_type(self) -> "IsType | None":
         if (runnable := self.runnable) is None:
             return None
         return runnable.input_type
 
     @property
-    def output_type(self) -> "TypeBase | None":
+    def output_type(self) -> "IsType | None":
         if (runnable := self.runnable) is None:
             return None
         return runnable.output_type

@@ -21,7 +21,6 @@ from bench.pb2 import AnyNodeData, EditData, NodeReferenceData
 from .const import (
     ACCESS_CLASSES,
     NODE_TYPES,
-    OWNABLE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     ROOT_NODE_TYPES,
     RUNTIME_NODE_TYPES,
@@ -42,6 +41,7 @@ from .node import NODE_CLASS_BY_TYPE, NodeReference
 from .property import Property, p_regular, p_runtime, p_system
 from .struct import Struct, struct_
 from .text import Text
+from .trait import OWNABLE_NODE_TYPES
 from .validation import NAME_CONSTRAINT, ValidationError
 
 if TYPE_CHECKING:

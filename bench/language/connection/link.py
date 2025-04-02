@@ -5,8 +5,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.core import Node, NodeReference
-from bench.language.core.node import TYPE_BASE_NODE_TYPES
+from bench.language.core import TYPE_BASE_NODE_TYPES, Node, NodeReference
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.func import group_by
 

@@ -9,9 +9,12 @@ from bench.language.core import (
     FieldType,
     IsClaimable,
     IsComputable,
+    IsFieldBase,
     IsInstantiable,
     IsModal,
     IsNamed,
+    IsRunnable,
+    IsType,
     LocalNodeList,
     NodeReference,
     NodeSubtypeStub,
@@ -19,7 +22,6 @@ from bench.language.core import (
     PackageNode,
     RunType,
     StructType,
-    TypeBase,
     TypeKind,
     enum_,
     node_,
@@ -78,10 +80,18 @@ class ActionType(BuiltinEnum):
 
 
 @node_(NodeType.ACTION, has_subtypes=True)
-class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, PackageNode[ActionData]):
+class Action(
+    IsComputable,
+    IsClaimable,
+    IsInstantiable,
+    IsNamed,
+    IsModal,
+    IsFieldBase,
+    IsRunnable,
+    PackageNode[ActionData],
+):
     """
-    A data or control flow node in a Flow. Actions are connected by Links.
-    """
+    A data or control flow node in a Flow. Actions are connected by Links."""
 
     parent: Union["Flow", "Kit", "Action", None] = p_node_parent(
         4, NodeType.FLOW, NodeType.KIT, NodeType.ACTION
@@ -205,7 +215,7 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
         self,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "TypeBase | None":
+    ) -> "IsType | None":
         """Gets a type represented by this Action (if any)"""
         from bench.language import Agent, Kit, Type
 
@@ -233,18 +243,18 @@ class Action(IsComputable, IsClaimable, IsInstantiable, IsNamed, IsModal, Packag
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
+    ) -> "IsType":
         typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "TypeBase | None":
+    def input_type(self) -> "IsType | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 
     @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "TypeBase | None":
+    def output_type(self) -> "IsType | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod

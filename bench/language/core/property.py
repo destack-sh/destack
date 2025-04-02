@@ -43,10 +43,10 @@ from .list import LocalNodeList, NodeList, ValueList
 if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
+        IsType,
         NodeReference,
         PropertyReference,
         Type,
-        TypeBase,
         TypeConstraint,
         TypeConstraintIn,
     )
@@ -121,7 +121,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     is_value_packed: bool = False  # for packed value properties (the underlying value)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
     value_runtime_ptr: Union["Property", None] = None  # the runtime value
-    value_type_info_getter: Callable[["BuiltinObject"], "TypeBase | None"] | None = None
+    value_type_info_getter: Callable[["BuiltinObject"], "IsType | None"] | None = None
     value_field_type: FieldType | None = None  # what field type this value represents
     value_is_partial: bool = False
 
@@ -985,7 +985,7 @@ def p_value_runtime(
     packed: int,
     *,
     type: FieldType | None = None,
-    typ: Callable[["BuiltinObject"], "TypeBase | None"] | None,
+    typ: Callable[["BuiltinObject"], "IsType | None"] | None,
     field_type: FieldType | None = None,
     partial: bool = False,
 ) -> Any:

@@ -5,7 +5,9 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IndexIn,
+    IsJoinable,
     IsModal,
+    IsNamed,
     IsOwnable,
     IsTemplatable,
     LocalNodeList,
@@ -18,7 +20,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.node import IsJoinable, IsNamed
 from bench.pb2 import PackageData
 
 if TYPE_CHECKING:

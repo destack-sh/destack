@@ -24,13 +24,13 @@ from bench.language import (
     FieldType,
     Icon,
     IconType,
+    IsType,
     NodeReference,
     NodeType,
     ObjectType,
     PrimitiveType,
     StructType,
     Type,
-    TypeBase,
     TypeConstraint,
     TypeKind,
     ValidationError,
@@ -111,7 +111,7 @@ def properties(object_type: ObjectType | None = None):
 
 @cacheable
 @defines_strategy()
-def from_type_info_scalar(typ: TypeBase) -> st.SearchStrategy[Any]:
+def from_type_info_scalar(typ: IsType) -> st.SearchStrategy[Any]:
     """Turns a type into a strategy for a scalar. Considers constraints. See check_value_scalar."""
     constraint = typ.constraint or TypeConstraint()
     if typ.kind == TypeKind.PRIMITIVE:
@@ -185,7 +185,7 @@ def wrap_value_scalar(
 
 @cacheable
 @defines_strategy()
-def from_type_info(typ: TypeBase) -> st.SearchStrategy[Any]:
+def from_type_info(typ: IsType) -> st.SearchStrategy[Any]:
     value_st = from_type_info_scalar(typ)
     constraint = typ.constraint or TypeConstraint()
     return wrap_value_scalar(

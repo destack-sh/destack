@@ -9,13 +9,13 @@ from bench.language import (
     Action,
     Code,
     CustomObject,
+    IsType,
     ModelDeveloper,
     ModelType,
-    RunnableNode,
+    Runnable,
     RunOptions,
     Severity,
     SpanType,
-    TypeBase,
     capture_span,
 )
 from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
@@ -45,7 +45,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        outputs: TypeBase | CustomObject | None = None,
+        outputs: IsType | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -105,7 +105,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         with capture_span(tracer, "model.prepare", SpanType.MODEL_PREPARE, level=Severity.DEBUG):
             prompt = make_chat_prompt(
                 action=self.node,
-                runner=cast(Runner[RunnableNode], self),
+                runner=cast(Runner[Runnable], self),
                 context=self.tracked,
                 inputs=self.inputs,
                 outputs=self.outputs,
@@ -131,7 +131,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             options=ATTEMPT_ONCE,
             inputs=self.inputs,
             outputs=self.output_type,
-            parent=cast(Runner[RunnableNode], self),
+            parent=cast(Runner[Runnable], self),
             run=SpanType.MODEL_PARSE,
         )
         await self.runtime.run_runner(code_runner)

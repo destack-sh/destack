@@ -26,10 +26,11 @@ from .const import (
     StructType,
     enum_,
 )
-from .node import BenchNode, IsRuntime, Node, NodeReference, PackageNode, RunnableNode
+from .node import BenchNode, Node, NodeReference, PackageNode
 from .object import PropertyReference
 from .property import Property, p_regular
 from .struct import Struct, struct_
+from .trait import IsRuntime, Runnable
 from .validation import SLUG_REGEX_CHAR
 
 if TYPE_CHECKING:
@@ -712,7 +713,7 @@ def evaluate_path(
                 raise PathLogicError(f"cannot get run of {context!r} in {path!r}")
             run_selector = element.run or PathRunSelector.LATEST
             if run_selector == PathRunSelector.LATEST:
-                current = context.get_latest_run(cast("RunnableNode", current))
+                current = context.get_latest_run(cast(Runnable, current))
             else:
                 assert_never(run_selector)
         else:

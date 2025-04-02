@@ -30,34 +30,13 @@ from bench.utils.utils import frozendict, get_from_env
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
-        Agent,
-        Bench,
-        Channel,
-        Claim,
-        Computer,
-        Database,
-        Flow,
-        Kit,
         Node,
-        Organization,
-        Package,
-        Page,
-        Plan,
-        Record,
-        Resource,
         Session,
         Severity,
-        Space,
         Span,
         SpanType,
-        Task,
-        Team,
         Text,
-        Thread,
         Transaction,
-        User,
-        View,
     )
     from bench.runtime import Runner
 
@@ -746,6 +725,26 @@ NODE_TYPES_BY_AREA = {
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
+
+COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
+RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)
+BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
+PACKAGE_NODE_TYPES = _get_node_types(5000, 900, NodeType.SKIP, NodeType.EMPTY)
+BENCH_NODE_TYPES = _get_node_types(
+    2000,
+    10000,
+    NodeType.BENCH,
+    NodeType.PACKAGE,
+    NodeType.HANDLE,
+    NodeType.MEMBERSHIP,
+    NodeType.INVITE,
+    NodeType.CLIENT,
+)
+PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
+USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
+
+# NOTE: these traits should also be in trait.py but we need the constants in property.py
+#  (which also depends on trait.py, and we can't have a circular dependency)
 INLINE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     NodeType.CHOICE,
@@ -786,100 +785,6 @@ TEMPLATABLE_NODE_TYPES = bittuple(
     NodeType.ROLE,
     NodeType.SPACE,
     NodeType.VIEW,
-)
-COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
-RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)
-BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
-PACKAGE_NODE_TYPES = _get_node_types(5000, 900, NodeType.SKIP, NodeType.EMPTY)
-BENCH_NODE_TYPES = _get_node_types(
-    2000,
-    10000,
-    NodeType.BENCH,
-    NodeType.PACKAGE,
-    NodeType.HANDLE,
-    NodeType.MEMBERSHIP,
-    NodeType.INVITE,
-    NodeType.CLIENT,
-)
-PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
-USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
-
-Ownable = Union[
-    "Bench",
-    "Resource",
-    "Package",
-    "Space",
-    "Page",
-    "Flow",
-    "Kit",
-    "View",
-    "Database",
-    "Thread",
-    "Plan",
-    "Task",
-    "Claim",
-    "Agent",
-    "Record",
-]
-OWNABLE_NODE_TYPES = bittuple(
-    NodeType.BENCH,
-    *RESOURCE_NODE_TYPES.tuple,
-    NodeType.PACKAGE,
-    NodeType.SPACE,
-    NodeType.PAGE,
-    NodeType.FLOW,
-    NodeType.KIT,
-    NodeType.VIEW,
-    NodeType.DATABASE,
-    NodeType.THREAD,
-    NodeType.PLAN,
-    NodeType.TASK,
-    NodeType.CLAIM,
-    NodeType.AGENT,
-    NodeType.RECORD,
-)
-
-Claimable = Union[
-    "Resource",
-    "Page",
-    "Flow",
-    "Action",
-    "Kit",
-    "View",
-    "Database",
-    "Plan",
-    "Task",
-    "Agent",
-    "Record",
-]
-CLAIMABLE_NODE_TYPES = bittuple(
-    *RESOURCE_NODE_TYPES.tuple,
-    NodeType.PAGE,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.KIT,
-    NodeType.VIEW,
-    NodeType.DATABASE,
-    NodeType.PLAN,
-    NodeType.TASK,
-    NodeType.AGENT,
-    NodeType.RECORD,
-)
-
-Joinable = Union["Package", "Team", "Channel", "Thread"]
-JOINABLE_NODE_TYPES = bittuple(
-    NodeType.PACKAGE,
-    NodeType.TEAM,
-    NodeType.CHANNEL,
-    NodeType.THREAD,
-)
-
-Subject = Union["User", "Organization", "Computer", "Agent"]
-SUBJECT_NODE_TYPES = bittuple(
-    NodeType.USER,
-    NodeType.ORGANIZATION,
-    NodeType.COMPUTER,
-    NodeType.AGENT,
 )
 
 

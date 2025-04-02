@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar, Sequence
 
-from bench.language import CustomObject, ModelType, RunnableNode, RunOptions, RunType, TypeBase
+from bench.language import CustomObject, IsType, ModelType, Runnable, RunOptions, RunType
 from bench.runtime.core import RunIn, Runner, Runtime
 
 from .prompt import Prompt, PromptElement
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     pass
 
 
-class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
+class ModelRunner[R: Runnable = Runnable](Runner[R], ABC):
     """
     Run a Model that takes Prompts and returns some Model-specific output (maybe streaming).
     """
@@ -27,7 +27,7 @@ class ModelRunner[R: RunnableNode = RunnableNode](Runner[R], ABC):
         run: RunIn,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        outputs: TypeBase | CustomObject | None = None,
+        outputs: IsType | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,

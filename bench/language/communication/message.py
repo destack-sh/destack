@@ -14,13 +14,13 @@ from bench.language.core import (
     IsModal,
     IsTimed,
     IsTitled,
+    IsType,
     Node,
     NodeType,
     PackageNode,
     StructType,
     Text,
     TextLine,
-    TypeBase,
     enum_,
     p_internal,
     p_node_ancestor,
@@ -206,7 +206,7 @@ class Message(
             return self.parent
 
     @property
-    def value_type(self) -> "TypeBase | None":
+    def value_type(self) -> "IsType | None":
         class_ = self.clazz
         return class_.to_type() if class_ is not None else None
 

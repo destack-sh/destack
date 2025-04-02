@@ -32,6 +32,7 @@ from bench.language import (
     Interruption,
     InterruptionStatus,
     InterruptionType,
+    IsType,
     Kit,
     Link,
     Log,
@@ -43,7 +44,7 @@ from bench.language import (
     Package,
     Plan,
     Run,
-    RunnableNode,
+    Runnable,
     RunOptions,
     RunStatus,
     RunType,
@@ -52,7 +53,6 @@ from bench.language import (
     SpanType,
     Thread,
     Trigger,
-    TypeBase,
     active_session,
 )
 from bench.language.core.const import COMMUNICATION_NODE_TYPES
@@ -136,7 +136,7 @@ RunnerEvent = (
 )
 
 
-class Runner[N: RunnableNode = RunnableNode](abc.ABC):
+class Runner[N: Runnable = Runnable](abc.ABC):
     """
     A Runner to run a Run/Span (every Run has one Runner, some Spans have one).
     Runners work similar to asyncio Tasks, making progress until terminated or stopped by an Interruption.
@@ -181,7 +181,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         run: RunIn,
         parent: "Runner[Any] | None" = None,
         inputs: CustomObject | None = None,
-        outputs: TypeBase | CustomObject | None = None,
+        outputs: IsType | CustomObject | None = None,
         agent: "Agent | None" = None,
     ) -> None:
         self.runtime = runtime
@@ -198,7 +198,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
         assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
-        if isinstance(outputs, TypeBase):
+        if isinstance(outputs, IsType):
             self.outputs: CustomObject | None = None
             self.output_type = outputs or node.output_type
         elif isinstance(outputs, CustomObject):
@@ -396,7 +396,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
         else:
             return None
 
-    def get_runs(self, runnable: RunnableNode) -> list[Run]:
+    def get_runs(self, runnable: Runnable) -> list[Run]:
         """Find all Runs of a Node in this Runner."""
         root_runner = self.root
         root_run = root_runner.tracked_run
@@ -404,12 +404,12 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             return []
         return root_run.get_runs(runnable, recursive=True)
 
-    def get_latest_run(self, runnable: RunnableNode) -> Run | None:
+    def get_latest_run(self, runnable: Runnable) -> Run | None:
         """Find the latest Run of a Node in this Runner tree."""
         matching_runs = self.get_runs(runnable)
         return matching_runs[0] if matching_runs else None
 
-    def get_runners(self, runnable: RunnableNode) -> list["Runner"]:
+    def get_runners(self, runnable: Runnable) -> list["Runner"]:
         """Find all Runners of a Node in this Runner tree."""
         matching_runs = self.get_runs(runnable)
         runners: list[Runner] = []
@@ -420,7 +420,7 @@ class Runner[N: RunnableNode = RunnableNode](abc.ABC):
             runners.append(runner)
         return runners
 
-    def get_latest_runner(self, runnable: RunnableNode) -> "Runner | None":
+    def get_latest_runner(self, runnable: Runnable) -> "Runner | None":
         """Find the latest Runner of a Node in this Runner tree."""
         matching_runners = self.get_runners(runnable)
         return matching_runners[0] if matching_runners else None
@@ -574,7 +574,7 @@ RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
 
 
 def create_run(
-    node: "RunnableNode",
+    node: "Runnable",
     *,
     parent: "Package | Thread | Run | Agent",
     inputs: Any | None = None,
@@ -726,12 +726,12 @@ def restore_runner(runtime: "Runtime", run: Run) -> "Runner":
 
 def make_runner(
     runtime: "Runtime",
-    node: RunnableNode,
+    node: Runnable,
     run: RunIn,
     *,
     type: RunType | None = None,
     inputs: Any | None = None,
-    outputs: TypeBase | CustomObject | None = None,
+    outputs: IsType | CustomObject | None = None,
     options: RunOptions | None = None,
     agent: "Agent | None" = None,
     parent: "Runner[Any] | None" = None,
