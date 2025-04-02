@@ -20,13 +20,13 @@ tracer = trace.get_tracer(__name__)
 
 class NeonCreateProjectRep(NamedTuple):
     project_id: str
-    connection_uri: str
+    sql_url: str
 
 
 class NeonCreateBranchRep(NamedTuple):
     branch_id: str
     compute_id: str
-    connection_uri: str
+    sql_url: str
 
 
 # NOTE: we assume throughout our Neon use that there will only be one endpoint per branch for now
@@ -149,7 +149,7 @@ class NeonApiRemote(NeonApi):
         assert rep is not None, "no response"
         return NeonCreateProjectRep(
             project_id=rep["project"]["id"],
-            connection_uri=rep["connection_uris"][0]["connection_uri"],
+            sql_url=rep["sql_urls"][0]["sql_url"],
         )
 
     async def delete_project(self, *, project_id: str) -> None:

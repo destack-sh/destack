@@ -17,7 +17,7 @@ async def test_neon_provisioner():
             branch="main",
         )
         assert create_project_rep.project_id
-        assert create_project_rep.connection_uri
+        assert create_project_rep.sql_url
     finally:
         if create_project_rep and create_project_rep.project_id:
             await neon_api.delete_project(project_id=create_project_rep.project_id)

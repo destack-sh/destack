@@ -30,6 +30,6 @@ class Store(Resource[StoreData]):
     version: str = p_system(60, default=VERSION, default_sql=None)
     external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
-    connection_uri: Optional[str] = p_kernel(
+    sql_url: Optional[str] = p_kernel(
         64, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )

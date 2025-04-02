@@ -250,7 +250,7 @@ def example_(title: str, weight: int = 1):
 
 
 #
-# Basics
+# Examples
 #
 
 
@@ -278,11 +278,6 @@ def basic_field_reference(package: Package):
         nodes=[Sentiment, Action1],
         response=ExampleResponseIn(node=Action1, outputs={"Sentiment": Sentiment.options.Happy}),
     )
-
-
-#
-# Actions
-#
 
 
 @example_("Simple Action Outputs")
@@ -339,13 +334,6 @@ raise RefusedError("I cannot assist with that.")
 """,
         ),
     )
-
-
-#
-# Flows
-#
-
-# nocheckin: flow/action/message/planning examples
 
 
 def get_examples(action: Action, runner: Runner) -> Sequence[PromptExample]:

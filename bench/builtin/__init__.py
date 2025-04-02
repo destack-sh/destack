@@ -57,5 +57,3 @@ __all__ = [
     "get_stable_builtin_path",
     "sync_node",
 ]
-
-# TODO: reorganize builtins .. (mirroring language seems wrong)

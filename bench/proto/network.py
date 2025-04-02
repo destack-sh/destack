@@ -107,9 +107,9 @@ class Network(abc.ABC):
     """A Network for connecting gRPC Services and Clients"""
 
     @abc.abstractmethod
-    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
+    async def get_channel(self, url: str, *, source_id: str) -> Channel:
         """
-        Get a gRPC Channel to the given connection URI.
+        Get a gRPC Channel to the given URL.
         The source_id should match the 'calling' Service's id
          and is used for internal tracking and routing (esp. in Simulation).
         """
@@ -120,10 +120,8 @@ class NullNetwork(Network):
     """A Network that does nothing."""
 
     @override
-    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
-        raise NotImplementedError(
-            f"{self.__class__.__name__} is disabled: {connection_uri=}, {source_id=}"
-        )
+    async def get_channel(self, url: str, *, source_id: str) -> Channel:
+        raise NotImplementedError(f"{self.__class__.__name__} is disabled: {url=}, {source_id=}")
 
 
 class RealNetwork(Network):
@@ -133,16 +131,16 @@ class RealNetwork(Network):
         self.channels = cachetools.TTLCache(maxsize=128, ttl=300)
 
     @override
-    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
-        channel = self.channels.get(connection_uri)
+    async def get_channel(self, url: str, *, source_id: str) -> Channel:
+        channel = self.channels.get(url)
         if channel is not None:
             return channel
-        connection_info = urlparse(connection_uri)
-        assert isinstance(connection_info.netloc, str), f"invalid connection uri: {connection_uri}"
-        assert connection_info.port is not None, f"invalid connection uri: {connection_uri}"
+        connection_info = urlparse(url)
+        assert isinstance(connection_info.netloc, str), f"invalid URL: {url}"
+        assert connection_info.port is not None, f"invalid URL: {url}"
         netloc = connection_info.netloc.split(":", 1)[0]
         channel = Channel(
             host=netloc, port=connection_info.port, ssl=connection_info.scheme == "https"
         )
-        self.channels[connection_uri] = channel
+        self.channels[url] = channel
         return channel

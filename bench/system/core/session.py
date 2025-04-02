@@ -61,7 +61,7 @@ def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
         parent=system_package_stub,
         name="Store",
         version=VERSION,
-        connection_uri=pg_url,
+        sql_url=pg_url,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,

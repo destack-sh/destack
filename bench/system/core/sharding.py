@@ -24,9 +24,9 @@ class StoreInfo:
         return f"{self.pg_url}|{self.pg_crypto_key}"
 
     @staticmethod
-    def parse(region_uri: str) -> "StoreInfo":
-        """Parses a region URI like 'postgresql://user:pass@host/db|crypto_key'."""
-        pg_url, crypto_key = region_uri.split("|", maxsplit=1)
+    def parse(region_url: str) -> "StoreInfo":
+        """Parses a region URL like 'postgresql://user:pass@host/db|crypto_key'."""
+        pg_url, crypto_key = region_url.split("|", maxsplit=1)
         return StoreInfo(pg_url=pg_url, pg_crypto_key=crypto_key)
 
 
@@ -120,14 +120,14 @@ class HostInfo:
         return f"{self.host_domain}:{self.grpc_port}/{self.grpc_web_port}{'s' if self.ssl else ''}"
 
     @staticmethod
-    def parse(host_uri: str) -> "HostInfo":
-        """Parses a host URI like 'host.justbench.com:8080/443'."""
-        if host_uri.endswith("s"):
+    def parse(host_url: str) -> "HostInfo":
+        """Parses a host URL like 'host.justbench.com:8080/443'."""
+        if host_url.endswith("s"):
             ssl = True
-            host_uri = host_uri[:-1]
+            host_url = host_url[:-1]
         else:
             ssl = False
-        domain, ports_str = host_uri.split(":", maxsplit=1)
+        domain, ports_str = host_url.split(":", maxsplit=1)
         grpc_port, grpc_web_port = ports_str.split("/", maxsplit=1)
         return HostInfo(
             host_domain=domain, grpc_port=int(grpc_port), grpc_web_port=int(grpc_web_port), ssl=ssl
@@ -136,7 +136,7 @@ class HostInfo:
 
 class HostMap(abc.ABC):
     """
-    Maps Regions and Bench IDs to Host URIs.
+    Maps Regions and Bench IDs to Host URLs.
     """
 
     @abc.abstractmethod

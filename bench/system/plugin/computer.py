@@ -213,8 +213,8 @@ class DockerComputerProvisioner(ComputerProvisioner):
             resource.external_name = external_name
             resource.external_id = container.id
             resource.status = ResourceStatus.UP
-            resource.grpc_uri = f"http://localhost:{grpc_port}"
-            resource.vnc_uri = f"ws://localhost:{vnc_port}"
+            resource.grpc_url = f"http://localhost:{grpc_port}"
+            resource.vnc_url = f"ws://localhost:{vnc_port}"
 
     @override
     async def _do_update(self, resource: Computer):
@@ -385,14 +385,14 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         if computer.status != status:
             computer.status = status
 
-        # connection uri (using pod ip, only works inside cluster for now)
+        # connection urls (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:
-            connection_uri = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"
-            if computer.grpc_uri != connection_uri:
-                computer.grpc_uri = connection_uri
-            vnc_uri = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
-            if computer.vnc_uri != vnc_uri:
-                computer.vnc_uri = vnc_uri
+            grpc_url = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"
+            if computer.grpc_url != grpc_url:
+                computer.grpc_url = grpc_url
+            vnc_url = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
+            if computer.vnc_url != vnc_url:
+                computer.vnc_url = vnc_url
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
         """Watches for changes to these Pods, update corresponding Computers."""

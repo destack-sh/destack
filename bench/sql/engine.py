@@ -76,7 +76,7 @@ def _trace_pg_span[F: Callable](func: F) -> F:
         cur = kwargs.get("cur")
         assert isinstance(cur, psycopg.AsyncCursor), f"bad cur for {func.__name__}: {cur!r}"
         span = trace.get_current_span()
-        span.set_attribute("connection_uri", get_sanitized_connection_uri(cur.connection))
+        span.set_attribute("sql_url", get_sanitized_sql_url(cur.connection))
         span.set_attribute("connection_id", id(cur.connection))
         table = kwargs.get("table")
         if isinstance(table, Table):
@@ -91,8 +91,8 @@ def _trace_pg_span[F: Callable](func: F) -> F:
     return cast(F, wrapped)
 
 
-def get_sanitized_connection_uri(conn: psycopg.AsyncConnection) -> str:
-    """Gets the connection URI like postgresql://user:****@host:port/dbname."""
+def get_sanitized_sql_url(conn: psycopg.AsyncConnection) -> str:
+    """Gets the SQL URL like postgresql://user:****@host:port/dbname."""
     pgconn = conn.pgconn
     host = pgconn.host.decode()
     port = pgconn.port.decode()
@@ -106,8 +106,8 @@ class SqlError(BenchError):
         if conn is not None:
             if isinstance(conn, psycopg.AsyncCursor):
                 conn = conn.connection
-            conn_str = get_sanitized_connection_uri(conn)
-            super().__init__(f"{conn_str}: {message} (conn={id(conn)})")
+            sql_url = get_sanitized_sql_url(conn)
+            super().__init__(f"{sql_url}: {message} (conn={id(conn)})")
         else:
             super().__init__(message)
 

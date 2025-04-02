@@ -122,19 +122,19 @@ class ThreadHandle:
     async def get_computer_client(self, computer: Computer) -> ComputerClient:
         """Get a ComputerClient for the given Computer and display."""
         if (
-            computer.grpc_uri is None
+            computer.grpc_url is None
             or not computer.is_active
             or computer.status != ResourceStatus.UP
         ):
             raise ValueError(f"{computer!r} has no connection info")
 
-        if computer.grpc_uri not in self._computer_clients_by_uri:
+        if computer.grpc_url not in self._computer_clients_by_uri:
             computer_client = ComputerClient(
-                await self.runtime.network.get_channel(computer.grpc_uri, source_id="runtime")
+                await self.runtime.network.get_channel(computer.grpc_url, source_id="runtime")
             )
-            self._computer_clients_by_uri[computer.grpc_uri] = computer_client
+            self._computer_clients_by_uri[computer.grpc_url] = computer_client
             logger.debug("thread_handle.connect", computer=computer)
         else:
-            computer_client = self._computer_clients_by_uri[computer.grpc_uri]
+            computer_client = self._computer_clients_by_uri[computer.grpc_url]
 
         return computer_client

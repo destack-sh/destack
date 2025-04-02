@@ -489,8 +489,8 @@ class dualmethod:  # noqa: N801
             return self._instance_func.__get__(instance, owner)
 
 
-def sanitize_connection_uri(uri: str) -> str:
-    return regex.sub(r":[^@]+@", ":*****@", uri)
+def sanitize_connection_url(url: str) -> str:
+    return regex.sub(r":[^@]+@", ":*****@", url)
 
 
 def generate_access_token(length: int) -> str:

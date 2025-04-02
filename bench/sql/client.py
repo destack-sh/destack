@@ -10,7 +10,7 @@ from psycopg.sql import SQL
 from psycopg_pool import AsyncConnectionPool, PoolTimeout
 
 from bench.language import Store
-from bench.utils.func import sanitize_connection_uri
+from bench.utils.func import sanitize_connection_url
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -100,12 +100,12 @@ class PostgresConnectionPool:
         self._pool: AsyncConnectionPool | None = None
         self._pool_lock = asyncio.Lock()
         self._connections: list[PostgresConnection] = []
-        assert store.connection_uri, f"store {store!r} has no connection_uri"
-        self._connection_uri = store.connection_uri
-        self._sanitized_connection_uri = sanitize_connection_uri(self._connection_uri)
+        assert store.sql_url, f"store {store!r} has no SQL URL"
+        self._sql_url = store.sql_url
+        self._sanitized_sql_url = sanitize_connection_url(self._sql_url)
 
     def __str__(self):
-        return f"id={self.id}, uri={self._sanitized_connection_uri}, used={len(self._connections)}, pool={"<open>" if self._pool else '<closed>'}, store={self.store!r}"
+        return f"id={self.id}, uri={self._sanitized_sql_url}, used={len(self._connections)}, pool={"<open>" if self._pool else '<closed>'}, store={self.store!r}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -123,7 +123,7 @@ class PostgresConnectionPool:
             return  # already open
         # open new pool
         self._pool = AsyncConnectionPool(
-            self._connection_uri,
+            self._sql_url,
             min_size=self.min_size,
             max_size=self.max_size,
             max_idle=PG_MAX_IDLE_TIMEOUT,
@@ -131,7 +131,7 @@ class PostgresConnectionPool:
             reconnect_timeout=PG_RECONNECT_TIMEOUT,
             connection_class=psycopg.AsyncConnection,
             kwargs={"row_factory": dict_row},
-            name=self._sanitized_connection_uri,
+            name=self._sanitized_sql_url,
         )
         await self._pool.open()
         logger.trace("postgres.pool.open", pool=self, span="current")
@@ -231,7 +231,7 @@ class PostgresConnection:
         self.autocommit = autocommit
 
     def __str__(self):
-        return f"id={self.id}, pool={self.pool.id}, store={self.pool.store!r}, uri={self.pool._sanitized_connection_uri}"
+        return f"id={self.id}, pool={self.pool.id}, store={self.pool.store!r}, uri={self.pool._sanitized_sql_url}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
