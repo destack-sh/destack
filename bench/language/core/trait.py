@@ -1,10 +1,10 @@
 import abc
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Self, Union
 from uuid import UUID
 
 from bench.language.registry import CHILD_NODE_TYPES
-from bench.pb2 import AnyNodeData
-from bench.pb2.lang_pb2 import NodeReferenceData
+from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.uuidt import UUIDT
 
 from .const import RESOURCE_NODE_TYPES, NodeMode, NodeType, StructType, bittuple
@@ -29,7 +29,9 @@ if TYPE_CHECKING:
         ComputedValueMode,
         Computer,
         Database,
+        Error,
         Flow,
+        Interruption,
         Kit,
         Link,
         Node,
@@ -343,42 +345,6 @@ class IsTitled(BuiltinObject):
 
 
 @object_()
-class IsRuntime(BuiltinObject):
-    """Context for a Node that's relevant at runtime."""
-
-    # NOTE :Security: session context properties are p_internal (not p_system) so we can update
-    #   them in all Clients. But this also means Users could mess with them if they really want to.
-    session: Optional["Session"] = p_internal(
-        90, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    client: Optional["Client"] = p_internal(
-        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
-    )
-    computer: Optional["Computer"] = p_internal(
-        94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
-    )
-    user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
-    agent: Optional["Agent"] = p_internal(96, require=False, array=False, references=NodeType.AGENT)
-    if TYPE_CHECKING:
-        session_ptr: Optional[NodeReference] = None
-        session_id: Optional[UUID] = None
-        client_ptr: Optional[NodeReference] = None
-        client_id: Optional[UUID] = None
-        computer_ptr: Optional[NodeReference] = None
-        computer_id: Optional[UUID] = None
-        user_ptr: Optional[NodeReference] = None
-        user_id: Optional[UUID] = None
-        agent_ptr: Optional[NodeReference] = None
-        agent_id: Optional[UUID] = None
-        agent_ck: Optional[UUID] = None
-
-    @property
-    def runtime(self):
-        """The Runtime associated with this context (if any)."""
-        return self.session._runtime if self.session is not None else None
-
-
-@object_()
 class IsRunnable(BuiltinObject):
     """A Node that can be run."""
 
@@ -412,3 +378,86 @@ class IsModal(BuiltinObject):
             and self.archived_at is None  # type: ignore
             and self.mode < NodeMode.TEMPLATE
         )
+
+
+@object_()
+class IsRuntime(BuiltinObject):
+    """Context for a Node that's relevant at runtime."""
+
+    # NOTE :Security: session context properties are p_internal (not p_system) so we can update
+    #   them in all Clients. But this also means Users could mess with them if they really want to.
+    session: Optional["Session"] = p_internal(
+        91, require=False, array=False, references=NodeType.SESSION, same_bench=True
+    )
+    client: Optional["Client"] = p_internal(
+        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+    )
+    computer: Optional["Computer"] = p_internal(
+        94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
+    )
+    user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
+    agent: Optional["Agent"] = p_internal(96, require=False, array=False, references=NodeType.AGENT)
+    if TYPE_CHECKING:
+        session_ptr: Optional[NodeReference] = None
+        session_id: Optional[UUID] = None
+        client_ptr: Optional[NodeReference] = None
+        client_id: Optional[UUID] = None
+        computer_ptr: Optional[NodeReference] = None
+        computer_id: Optional[UUID] = None
+        user_ptr: Optional[NodeReference] = None
+        user_id: Optional[UUID] = None
+        agent_ptr: Optional[NodeReference] = None
+        agent_id: Optional[UUID] = None
+        agent_ck: Optional[UUID] = None
+
+    @property
+    def runtime(self):
+        """The Runtime associated with this context (if any)."""
+        return self.session._runtime if self.session is not None else None
+
+
+@object_()
+class IsRuntimeControllable(IsRuntime):
+    """A Node that can be 'controlled' (paused, resumed, stopped, etc.) at runtime."""
+
+    # status: 80 ...
+    duration: Optional[timedelta] = p_internal(
+        81,
+        default=None,
+        description="Duration from first attempt start to last attempt termination.",
+    )
+    scheduled_at: Optional[datetime] = p_internal(
+        82, default=None, description="When the Node is scheduled to start."
+    )
+    started_at: Optional[datetime] = p_internal(
+        83, default=None, description="When the Node first started."
+    )
+    stopped_at: Optional[datetime] = p_internal(
+        84, default=None, description="When the Node was requested to stop."
+    )
+    interrupted_at: Optional[datetime] = p_internal(
+        85, default=None, description="When the Node was interrupted."
+    )
+    paused_at: Optional[datetime] = p_internal(
+        86, default=None, description="When the Node was requested to pause."
+    )
+    resumed_at: Optional[datetime] = p_internal(
+        87, default=None, description="When the Node was requested to resume."
+    )
+    terminated_at: Optional[datetime] = p_internal(
+        88, default=None, description="When the Node was last terminated."
+    )
+    error: Optional["Error"] = p_internal(
+        89, default=None, require=False, array=False, struct=StructType.ERROR
+    )
+    interruption: Optional["Interruption"] = p_internal(
+        90,
+        require=False,
+        array=False,
+        references=NodeType.INTERRUPTION,
+        same_bench=True,
+        description="The latest Interruption concerning the Node.",
+    )
+    if TYPE_CHECKING:
+        interruption_ptr: Optional[NodeReference] = None
+        interruption_id: Optional[UUID] = None

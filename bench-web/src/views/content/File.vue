@@ -32,6 +32,7 @@ import { setLightbox } from "@/ui/popover";
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
+import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -390,12 +391,12 @@ defineExpose<ViewExpose>({
           class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
-          <span v-if="optimisticValue?.format" class="text-gray-400">
+          <span v-if="optimisticValue?.format" class="text-gray-700">
             {{ FileFormat[optimisticValue.format].toUpperCase().replace(/_/g, " ") }}
           </span>
           <!-- Size -->
           <span
-            v-if="optimisticValue != null && INLINABLE_FILE_TYPES.includes(optimisticValue.type)"
+            v-if="IS_DEVELOPER_MODE && optimisticValue != null && INLINABLE_FILE_TYPES.includes(optimisticValue.type)"
             class="text-gray-400"
           >
             {{ humanizeBytes(Number(optimisticValue.size)) }}

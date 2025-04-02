@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
@@ -14,7 +14,7 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsOwnable,
-    IsRuntime,
+    IsRuntimeControllable,
     IsTimed,
     IsTitled,
     IsType,
@@ -42,7 +42,6 @@ if TYPE_CHECKING:
         Class,
         Error,
         Flow,
-        Interruption,
         Node,
         NodeReference,
         Page,
@@ -84,7 +83,7 @@ class Task(
     IsTimed,
     IsOwnable,
     IsClaimable,
-    IsRuntime,
+    IsRuntimeControllable,
     IsModal,
     IsTitled,
     IsInstantiable,
@@ -110,23 +109,8 @@ class Task(
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 
-    # status
-    status: TaskStatus = p_regular(50, default=TaskStatus.CREATED)
-    duration: Optional[timedelta] = p_internal(51, default=None)
-    due_at: Optional[datetime] = p_regular(52, default=None)
-    started_at: Optional[datetime] = p_internal(53, default=None)
-    stopped_at: Optional[datetime] = p_internal(
-        54, default=None, description="When the Task was requested to stop."
-    )
-    terminated_at: Optional[datetime] = p_internal(
-        55, default=None, description="When the Task terminated."
-    )
-    interrupted_at: Optional[datetime] = p_regular(56, default=None)
-    interruption: Optional["Interruption"] = p_internal(
-        57, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
-
     # routing
+    due_at: Optional[datetime] = p_regular(52, default=None)
     text: Optional["Text"] = p_regular(
         60, default=None, require=False, array=False, struct=StructType.TEXT
     )
@@ -142,26 +126,14 @@ class Task(
         references=(NodeType.FLOW, NodeType.ACTION),
         description="The tool Node to use (at the target).",
     )
-    interruption: Optional["Interruption"] = p_regular(
-        67,
-        require=False,
-        array=False,
-        references=NodeType.INTERRUPTION,
-        description="The Interruption this is about.",
-        same_bench=True,
-    )
     is_manual: bool = p_regular(
         69, default=False, description="Whether to implement this Task manually."
     )
     if TYPE_CHECKING:
-        clazz_ptr: Optional[NodeReference] = None
-        clazz_id: Optional[UUID] = None
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
         tool_ptr: Optional[NodeReference] = None
         tool_id: Optional[UUID] = None
-        interruption_ptr: Optional[NodeReference] = None
-        interruption_id: Optional[UUID] = None
 
     # content
     clazz: Optional["Class"] = p_internal(
@@ -181,6 +153,9 @@ class Task(
     if TYPE_CHECKING:
         nodes_ptr: Optional[NodeReference] = None
         nodes_id: Optional[UUID] = None
+
+    # status [80-90]
+    status: TaskStatus = p_regular(80, default=TaskStatus.CREATED)
 
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)

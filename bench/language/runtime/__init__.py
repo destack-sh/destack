@@ -1,4 +1,4 @@
-from .context import Context, EditContext, HasRunContext
+from .context import Context, EditContext, IsRun
 from .error import Error, ErrorType
 from .interruption import (
     INTERRUPTION_TYPE_BY_RUN_STATUS,
@@ -52,12 +52,12 @@ __all__ = [
     "EditOperation",
     "Error",
     "ErrorType",
-    "HasRunContext",
     "ImageOptions",
     "Interruption",
     "InterruptionResponse",
     "InterruptionStatus",
     "InterruptionType",
+    "IsRun",
     "Log",
     "LogType",
     "ModelDeveloper",

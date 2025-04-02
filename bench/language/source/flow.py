@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 @enum_(EnumType.FLOW_TYPE)
 class FlowType(BuiltinEnum):
     ACTION = 10, "Action", "Link Actions into a procedural Flow"
-    # PLAN? (lay out a sequence of Tasks declaratively)
+    # PLAN/TASK? (lay out a sequence of Tasks declaratively)
     # MESSAGE? (define communication links between agents)
     # ESCALATION/AUTH?
 

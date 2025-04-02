@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
@@ -11,12 +10,11 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsOwnable,
-    IsRuntime,
+    IsRuntimeControllable,
     IsTimed,
     IsTitled,
     LocalNodeList,
     NodeType,
-    StructType,
     TextLineIn,
     enum_,
     p_internal,
@@ -81,7 +79,7 @@ class Plan(
     IsTimed,
     IsOwnable,
     IsClaimable,
-    IsRuntime,
+    IsRuntimeControllable,
     IsModal,
     IsInstantiable,
     IsTitled,
@@ -103,12 +101,8 @@ class Plan(
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 
-    # status
-    status: PlanStatus = p_internal(50, default=PlanStatus.CREATED)
-    duration: Optional[timedelta] = p_internal(51, default=None)
-    started_at: Optional[datetime] = p_internal(52, default=None)
-    terminated_at: Optional[datetime] = p_internal(55, default=None)
-    error: Optional["Error"] = p_internal(56, require=False, array=False, struct=StructType.ERROR)
+    # status [80-90]
+    status: PlanStatus = p_regular(80, default=PlanStatus.CREATED)
 
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
