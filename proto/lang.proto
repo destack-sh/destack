@@ -1034,6 +1034,7 @@ enum BlockType {
   BLOCK_TYPE_TASK = 6110;
   BLOCK_TYPE_CHANNEL = 5500;
   BLOCK_TYPE_THREAD = 5510;
+  BLOCK_TYPE_VIEW = 7000;
   BLOCK_TYPE_PARAGRAPH = 10001;
   BLOCK_TYPE_HEADING_1 = 10010;
   BLOCK_TYPE_HEADING_2 = 10011;
@@ -2743,8 +2744,8 @@ message ComputerData {
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
-  optional string grpc_uri = 65;
-  optional string vnc_uri = 66;
+  optional string grpc_url = 65;
+  optional string vnc_url = 66;
   optional NodeReferenceData client_ptr = 69;
   float cpu = 70;
   float ram = 71;
@@ -2906,7 +2907,7 @@ message StoreData {
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
-  optional string connection_uri = 64;
+  optional string sql_url = 64;
 }
 
 message StreamData {

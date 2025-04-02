@@ -6,7 +6,7 @@ import structlog
 import typer
 
 from bench.language.core.const import REGION, NodeArea, Region
-from bench.utils.func import sanitize_connection_uri
+from bench.utils.func import sanitize_connection_url
 from bench.utils.oracle import REAL_ORACLE
 
 from .utils import async_to_sync, parse_area, parse_region
@@ -59,18 +59,18 @@ async def shell(
     else:
         raise ValueError(f"invalid area: {area!r}")
 
-    assert store.connection_uri, f"store {store!r} has no connection_uri"
+    assert store.sql_url, f"store {store!r} has no connection_uri"
     logger.info(
         "shell.psql",
         area=area,
         bench=bench,
         store=store,
-        connection_uri=sanitize_connection_uri(store.connection_uri),
+        sql_url=sanitize_connection_url(store.sql_url),
     )
     sigint_handler = signal.getsignal(signal.SIGINT)
     try:
         # allow SIGINT to pass to psql to abort queries
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        subprocess.run(["psql", store.connection_uri], check=True)  # noqa: ASYNC221
+        subprocess.run(["psql", store.sql_url], check=True)  # noqa: ASYNC221
     finally:
         signal.signal(signal.SIGINT, sigint_handler)

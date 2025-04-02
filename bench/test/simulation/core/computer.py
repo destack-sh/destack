@@ -79,8 +79,8 @@ class ComputerHandle:
                 ),
                 None,
             )
-            # add connection uri if we have a runtime :SimulatedNetwork
-            connection_uri = f"simulation://{runtime.id}:0" if runtime else None
+            # add connection url if we have a runtime :SimulatedNetwork
+            grpc_url = f"simulation://{runtime.id}:0" if runtime else None
             package = bench.main_package
             assert package is not None, f"no main package for {bench!r}"
             computer = Computer(
@@ -88,7 +88,7 @@ class ComputerHandle:
                 name=self.spec.name,
                 type=ComputerType.RUNTIME,
                 status=ResourceStatus.UP,
-                grpc_uri=connection_uri,
+                grpc_url=grpc_url,
             )
             session._create(computer)
             client = Client(

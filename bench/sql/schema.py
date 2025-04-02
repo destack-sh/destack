@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.01.1"
+VERSION = "2025.04.02.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -319,7 +319,7 @@ STORE_TABLE = Table(
         Column("version", PrimitiveType.STRING),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
-        Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("sql_url", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -366,8 +366,8 @@ COMPUTER_TABLE = Table(
         Column("version", PrimitiveType.STRING),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
-        Column("grpc_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
-        Column("vnc_uri", PrimitiveType.STRING, is_nullable=True),
+        Column("grpc_url", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("vnc_url", PrimitiveType.STRING, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("cpu", PrimitiveType.FLOAT32),
         Column("ram", PrimitiveType.FLOAT32),

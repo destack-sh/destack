@@ -28,11 +28,11 @@ class SimulatedNetwork(Network):
         self.simulation = simulation
 
     @override
-    async def get_channel(self, connection_uri: str, *, source_id: str) -> Channel:
+    async def get_channel(self, url: str, *, source_id: str) -> Channel:
         # trim prefix and port (we expect something like simulation://<id>:<port>)
-        service_id = connection_uri.rsplit("/", 1)[1]
+        service_id = url.rsplit("/", 1)[1]
         service_id = service_id.rsplit(":", 1)[0]
-        assert service_id, f"unexpected connection uri: {connection_uri}"
+        assert service_id, f"unexpected URL: {url}"
         service = self.simulation.get_service(service_id)
         channel = await self.network.connect(source_id, service)
         return channel.channel

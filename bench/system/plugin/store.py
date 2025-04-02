@@ -66,7 +66,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         )
         async with self.host.session(commit=True):
             resource.external_id = neon_project.project_id
-            resource.connection_uri = neon_project.connection_uri
+            resource.sql_url = neon_project.sql_url
             resource.status = ResourceStatus.UP
         # migrate it immediately
         await self._do_migrate(resource)
@@ -95,9 +95,9 @@ class LocalhostStoreProvisioner(StoreProvisioner):
         async with pg_connection(self.host.global_store, owner=self, autocommit=True) as conn:
             await conn.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
         async with self.host.session(commit=True):
-            connection_uri = self.host.global_store.connection_uri
-            assert connection_uri, f"{self.host.global_store!r} has no connection URI"
-            resource.connection_uri = f"{connection_uri.rsplit('/', 1)[0]}/{resource.external_name}"
+            sql_url = self.host.global_store.sql_url
+            assert sql_url, f"{self.host.global_store!r} has no SQL URL"
+            resource.sql_url = f"{sql_url.rsplit('/', 1)[0]}/{resource.external_name}"
             resource.status = ResourceStatus.UP
         # migrate it immediately
         await self._do_migrate(resource)
