@@ -34,10 +34,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PLAN_TYPE)
 class PlanType(BuiltinEnum):
-    CUSTOM = 10, "Custom", "Execute in a custom order", "fas fa-list"
-    SERIAL = 20, "Serial", "Execute Tasks one after another", "fas fa-list-ol"
-    PARALLEL = 30, "Parallel", "Execute Tasks in at the same time", "fas fa-list-ul"
-    QUEUE = 40, "Queue", "Execute Tasks in a queue", "fas fa-list-check"
+    GENERAL = 10, "Generic", "Define general Tasks to do", "fas fa-list"
+    FLOW = 20, "Flow", "Sequence Tasks in a Flow", "fas fa-list-ol"
 
 
 @enum_(EnumType.PLAN_STATUS)
@@ -59,12 +57,6 @@ class PlanStatus(BuiltinEnum):
     @property
     def is_terminal(self) -> bool:
         return self >= 30
-
-
-@enum_(EnumType.PLAN_TERMINATION_MODE)
-class PlanTerminationMode(BuiltinEnum):
-    PASS = 10, "Complete", "Complete the Plan"
-    RETURN = 20, "Return", "Return to caller (for more planning)"
 
 
 @enum_(EnumType.PLAN_FAILURE_MODE)
@@ -92,7 +84,6 @@ class Plan(
         4, NodeType.PAGE, NodeType.THREAD, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
-    on_terminate: "PlanTerminationMode" = p_internal(41)
     on_failure: "PlanFailureMode" = p_internal(42)
     implemented_by: Optional["Run"] = p_internal(
         43, require=False, array=False, references=NodeType.RUN, same_bench=True
@@ -108,41 +99,39 @@ class Plan(
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
 
+    def start(self) -> None:
+        self.status = PlanStatus.RUNNING
+        self.started_at = self.active_session._oracle.utc()
+
     def complete(self) -> None:
         self.status = PlanStatus.COMPLETED
+        self.terminated_at = self.active_session._oracle.utc()
+        if self.started_at is not None:
+            self.duration = self.terminated_at - self.started_at
 
     def fail(self, error: "Error | None") -> None:
         self.error = error
         self.status = PlanStatus.FAILED
+        self.terminated_at = self.active_session._oracle.utc()
+        if self.started_at is not None:
+            self.duration = self.terminated_at - self.started_at
 
     @staticmethod
-    def serial(
+    def general(
         title: "TextLineIn",
         *tasks: "Task",
-        on_terminate: PlanTerminationMode,
         on_failure: PlanFailureMode = PlanFailureMode.END,
     ) -> "Plan":
-        plan = Plan(
-            type=PlanType.SERIAL,
-            title=text_line(title),
-            on_terminate=on_terminate,
-            on_failure=on_failure,
-        )
+        plan = Plan(type=PlanType.GENERAL, title=text_line(title), on_failure=on_failure)
         plan.tasks.extend(*tasks)
         return plan
 
     @staticmethod
-    def parallel(
+    def flow(
         title: "TextLineIn",
         *tasks: "Task",
-        on_terminate: PlanTerminationMode,
         on_failure: PlanFailureMode = PlanFailureMode.END,
     ) -> "Plan":
-        plan = Plan(
-            type=PlanType.PARALLEL,
-            title=text_line(title),
-            on_terminate=on_terminate,
-            on_failure=on_failure,
-        )
+        plan = Plan(type=PlanType.FLOW, title=text_line(title), on_failure=on_failure)
         plan.tasks.extend(*tasks)
         return plan

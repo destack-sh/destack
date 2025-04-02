@@ -1,5 +1,5 @@
 from .anthropic import AnthropicChatModelRunner
-from .chat import ChatModelRunner, make_chat_prompt
+from .chat import ChatModelRunner, make_flow_plan_prompt
 from .gemini import GeminiChatModelRunner
 from .model import ModelRunner
 from .openai import OpenaiChatModelRunner
@@ -35,6 +35,6 @@ __all__ = [
     "PromptRun",
     "PromptSeparator",
     "PromptText",
-    "make_chat_prompt",
+    "make_flow_plan_prompt",
     "prompt_region",
 ]

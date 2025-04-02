@@ -1,5 +1,5 @@
 from .claim import Claim, ClaimStatus, ClaimType
-from .plan import Plan, PlanFailureMode, PlanStatus, PlanTerminationMode, PlanType
+from .plan import Plan, PlanFailureMode, PlanStatus, PlanType
 from .task import Task, TaskStatus, TaskType
 
 __all__ = [
@@ -9,7 +9,6 @@ __all__ = [
     "Plan",
     "PlanFailureMode",
     "PlanStatus",
-    "PlanTerminationMode",
     "PlanType",
     "Task",
     "TaskStatus",

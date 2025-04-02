@@ -55,10 +55,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    CUSTOM = 10, "Generic", "Describe a general purpose task", "far fa-square-check"
-    SCHEDULED = 20, "Scheduled", "Schedule a task", "fas fa-calendar-days"
+    GENERAL = 10, "General", "Describe a general purpose task", "far fa-square-check"
     RUN = 30, "Run", "Run a specific Node", "fas fa-play"
-    INTERRUPTION = 40, "Interruption", "Handle an Interruption", "fas fa-hand"
 
 
 @enum_(EnumType.TASK_STATUS)
@@ -95,7 +93,7 @@ class Task(
     parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
-    type: TaskType = p_regular(30, default=TaskType.CUSTOM)
+    type: TaskType = p_regular(30, default=TaskType.GENERAL)
     # priority?
     implemented_by: Optional["Run"] = p_internal(
         41,
@@ -160,8 +158,15 @@ class Task(
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
+    def start(self) -> None:
+        self.status = TaskStatus.RUNNING
+        self.started_at = self.active_session._oracle.utc()
+
     def complete(self) -> None:
         self.status = TaskStatus.COMPLETED
+        self.terminated_at = self.active_session._oracle.utc()
+        if self.started_at is not None:
+            self.duration = self.terminated_at - self.started_at
 
     def stop(self) -> None:
         self.stopped_at = self.active_session._oracle.utc()
@@ -180,7 +185,7 @@ class Task(
             return None
 
     @staticmethod
-    def generic(
+    def general(
         title: "TextLineIn | None",
         text: "Text | None",
         clazz: "Class | None",
@@ -193,7 +198,7 @@ class Task(
         else:
             value = None
         task = Task(
-            type=TaskType.CUSTOM,
+            type=TaskType.GENERAL,
             title=text_line(title) if title is not None else None,
             text=text,
             clazz=clazz,
