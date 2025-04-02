@@ -852,29 +852,9 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             for graph in pending_graphs:
                 self._supergraph.remove_graph(graph)
 
-    @tracer.start_as_current_span("session.flush.schedule")
-    async def flush(self, *, optimistic: bool = False) -> tuple[list[EditData], list[EditData]]:
-        """
-        Flushes the current pending edits.
-        If optimistic, this just marks an "edit boundary" and doesn't flush (or schedule a flush).
-        Cascaded edits are only returned for non-optimistic flushes.
-        """
-        assert self.is_open, f"cannot flush {self!r} when closed"
-        assert self._tx is not None, f"no active transaction in {self!r}"
-
-        if optimistic:
-            new_edits = self._preflush(runtime=False)
-            logger.trace("session.flush.mark", session=self, edits=len(new_edits), span="current")
-            return new_edits, []
-        else:
-            await self._commit_queue.join()  # wait for any pending commit
-            if not self._tx.has_pending_edits:
-                return [], []  # nothing to do
-            return await self._do_flush()
-
-    @tracer.start_as_current_span("session.commit.schedule")
-    def commit_optimistic(self, *, runtime: bool = False):
-        """Commit optimistically without waiting for the next background commit."""
+    @tracer.start_as_current_span("session.stage")
+    def stage(self, *, runtime: bool = False):
+        """Stage pending edits without waiting for the next background commit."""
         # schedule a new commit
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
@@ -883,13 +863,28 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
         if not self._tx.has_edits:
             return [], []  # nothing to do
         self._commit_queue.put_nowait(event)
-        logger.trace("session.commit.schedule", session=self, e=event, span="current")
+        logger.trace("session.stage", session=self, e=event, span="current")
         return event.new_edits, []
 
+    @tracer.start_as_current_span("session.flush.schedule")
+    async def flush(self) -> tuple[list[EditData], list[EditData]]:
+        """
+        Flushes the current pending edits.
+        Cascaded edits are only returned for non-optimistic flushes.
+        """
+        assert self.is_open, f"cannot flush {self!r} when closed"
+        assert self._tx is not None, f"no active transaction in {self!r}"
+
+        with tracer.start_as_current_span("session.flush.wait"):
+            await self._commit_queue.join()  # wait for any pending commit
+        if not self._tx.has_pending_edits:
+            return [], []  # nothing to do
+        return await self._do_flush()
+
+    @tracer.start_as_current_span("session.commit.schedule")
     async def commit(
         self,
         *,
-        optimistic: bool = False,
         _data_graph: NodeDataGraph | None = None,
         _ignore_open: bool = False,
     ) -> tuple[list[EditData], list[EditData]]:
@@ -903,19 +898,14 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             return [], []  # nothing to do
 
         assert self.is_open or _ignore_open, f"cannot commit {self!r} when closed"
-        trace.get_current_span().set_attribute("optimistic", optimistic)
 
-        if optimistic:
-            return self.commit_optimistic()
-
-        with tracer.start_as_current_span("session.commit.schedule"):
-            # wait for any pending commit, then commit directly
-            with tracer.start_as_current_span("session.commit.wait"):
-                await self._commit_queue.join()
-            if not self._tx.has_edits and not self._tx._touched_engine_ids:
-                return [], []  # nothing to do
-            new_edits, cascaded_edits = await self._do_commit(data_graph=_data_graph)
-            return new_edits, cascaded_edits
+        # wait for any pending commit, then commit directly
+        with tracer.start_as_current_span("session.commit.wait"):
+            await self._commit_queue.join()
+        if not self._tx.has_edits and not self._tx._touched_engine_ids:
+            return [], []  # nothing to do
+        new_edits, cascaded_edits = await self._do_commit(data_graph=_data_graph)
+        return new_edits, cascaded_edits
 
     async def __aenter__(self):
         await self.open()

@@ -230,13 +230,13 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.password, user.password_salt)
             session._create(user)
-            await session.flush(optimistic=True)
+            session.stage()
 
             # create Client
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._create(client)
-            await session.flush(optimistic=True)
+            session.stage()
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
 
