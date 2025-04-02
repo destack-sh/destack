@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from uuid import UUID
@@ -16,7 +15,9 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOwnable,
+    IsRuntimeControllable,
     IsSubject,
+    IsTimed,
     IsType,
     LocalNodeList,
     NodeReference,
@@ -25,7 +26,6 @@ from bench.language.core import (
     TypeKind,
     enum_,
     node_,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
         Claim,
         Field,
         Flow,
-        Interruption,
         Page,
         Run,
         Text,
@@ -78,50 +77,46 @@ class AgentStatus(BuiltinEnum):
 
 @node_(NodeType.AGENT)
 class Agent(
+    IsTimed,
     IsInstantiable,
     IsOwnable,
     IsClaimable,
     IsModal,
     IsFieldBase,
+    IsRuntimeControllable,
     IsSubject,
     IsNamed,
     InlineNode[AgentData],
 ):
-    """An Agent is an autonomous entity that implements Plans/Tasks using Actions and Resources."""
+    """
+    An Agent is an autonomous entity that creates and implements Plans and Tasks.
+    Agents run Flows using Actions, Resources, Pages, and other Bench stuff.
+    Agents are not directly runnable; Agent instances are implemented by running their Flow.
+    """
 
     # meta
     parent: Union["Page", "Channel", "Thread", "Agent", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, NodeType.AGENT
     )
     main_flow: Optional["Flow"] = p_regular(
-        55,
+        40,
         require=False,
         references=NodeType.FLOW,
         description="The main Flow backing this Agent.",
     )
     implemented_by: Optional["Run"] = p_regular(
-        56,
+        41,
         require=False,
         references=NodeType.RUN,
         same_bench=True,
         description="The Run implementing this Agent (there may be only one at a time).",
     )
-    color: ColorType | None = p_regular(57)
+    color: ColorType | None = p_regular(45)
     if TYPE_CHECKING:
         main_flow_ptr: Optional[NodeReference] = None
         main_flow_id: Optional[UUID] = None
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
-
-    # status
-    status: AgentStatus = p_regular(40, default=AgentStatus.CREATED)
-    duration: Optional[timedelta] = p_regular(41, default=None)
-    started_at: Optional[datetime] = p_regular(42, default=None)
-    terminated_at: Optional[datetime] = p_regular(43, default=None)
-    interrupted_at: Optional[datetime] = p_regular(44, default=None)
-    interruption: Optional["Interruption"] = p_internal(
-        45, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
 
     # content
     inputs_packed: Any = p_value_packed(50)
@@ -133,6 +128,9 @@ class Agent(
         51, type=FieldType.OUTPUT, typ=lambda self: cast("Agent", self).output_type
     )
     text: Optional["Text"] = p_regular(52, default=None, struct=StructType.TEXT)
+
+    # status [80-90]
+    status: AgentStatus = p_regular(80, default=AgentStatus.CREATED)
 
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)

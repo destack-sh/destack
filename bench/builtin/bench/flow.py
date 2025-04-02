@@ -20,11 +20,11 @@ Start1 = Action.new(
     position=vector2(0, 0),
 )
 Tool1 = Action.new(ActionType.TOOL, "Tool", position=vector2(400, 0))
-Complete1 = Action.new(ActionType.END, "Complete", position=vector2(800, 0))
-BenchFlow.actions.extend(Start1, Tool1, Complete1)
+End1 = Action.new(ActionType.END, "End", position=vector2(800, 0))
+BenchFlow.actions.extend(Start1, Tool1, End1)
 Start1.connect(LinkType.REQUIRE, Tool1)
 Tool1.connect(LinkType.DECIDE, Tool1)
-Tool1.connect(LinkType.DECIDE, Complete1)
+Tool1.connect(LinkType.DECIDE, End1)
 
 # default Agent
 BenchAgent = Agent.new(

@@ -36,12 +36,12 @@ if TYPE_CHECKING:
 
 
 @node_component_()
-class HasRunContext(BuiltinObject):
+class IsRun(BuiltinObject):
     """Context for a Node that's in a Run."""
 
     # context
     flow: Optional["Flow"] = p_internal(
-        80,
+        70,
         require=False,
         array=False,
         references=NodeType.FLOW,
@@ -49,7 +49,7 @@ class HasRunContext(BuiltinObject):
         description="The Flow the Action is in.",
     )
     kit: Optional["Kit"] = p_internal(
-        81,
+        71,
         require=False,
         array=False,
         references=NodeType.KIT,
@@ -57,7 +57,7 @@ class HasRunContext(BuiltinObject):
         description="The Kit the Action is in.",
     )
     action: Optional["Action"] = p_internal(
-        82,
+        72,
         require=False,
         array=False,
         references=NodeType.ACTION,
@@ -65,7 +65,7 @@ class HasRunContext(BuiltinObject):
         description="The Action this Run is executing.",
     )
     link: Optional["Link"] = p_internal(
-        83,
+        73,
         require=False,
         array=False,
         references=NodeType.LINK,
@@ -73,7 +73,7 @@ class HasRunContext(BuiltinObject):
         description="The Link this Run is executing.",
     )
     plan: Optional["Plan"] = p_internal(
-        84,
+        74,
         require=False,
         array=False,
         references=NodeType.PLAN,
@@ -81,7 +81,7 @@ class HasRunContext(BuiltinObject):
         description="The Plan this Run is following (leaf).",
     )
     task: Optional["Task"] = p_internal(
-        85,
+        75,
         require=False,
         array=False,
         references=NodeType.TASK,
@@ -89,7 +89,7 @@ class HasRunContext(BuiltinObject):
         description="The Task this Run is implementing.",
     )
     trigger: Optional["Trigger"] = p_regular(
-        86,
+        76,
         require=False,
         array=False,
         references=NodeType.TRIGGER,
@@ -97,13 +97,13 @@ class HasRunContext(BuiltinObject):
         description="The Trigger this Run is triggered by.",
     )
     trigger_key: Optional[str] = p_internal(
-        87,
+        77,
         require=False,
         default=None,
         description="A unique key for this invocation of the Trigger.",
     )
     message: Optional["Message"] = p_internal(
-        88,
+        78,
         require=False,
         array=False,
         references=NodeType.MESSAGE,
@@ -127,7 +127,7 @@ class HasRunContext(BuiltinObject):
 
     def _copy_context_to(self, span: "Span"):
         """Copy context from this HasRunContext to a Span."""
-        for prop in HasRunContext.__declared_properties__.values():
+        for prop in IsRun.__declared_properties__.values():
             if type(prop.reference_wired_ptr) is Property:
                 prop = prop.reference_wired_ptr
             prop_value = getattr(self, prop.name)

@@ -220,7 +220,7 @@ class CodeActionRunner(ActionRunner):
         assert self.tracked_run is not None, f"{self!r} must be in a Run"
         from bench.runtime.code import CodeFunctionRunner
 
-        # try to resume interrupted span (in a new Runner)
+        # try to resume interrupted span
         resumed_span: Span | None = None
         resumed_runner: Runner | None = None
         for span in self.tracked_run.spans:

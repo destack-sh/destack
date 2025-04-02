@@ -254,9 +254,9 @@ def example_(title: str, weight: int = 1):
 #
 
 
-@example_("Field Reference")
-def basic_field_reference(package: Package):
-    """How to reference a Field or any other Node."""
+@example_("Option Reference")
+def basic_option_reference(package: Package):
+    """How to reference an Option."""
     Sentiment = Choice.new(
         "Sentiment",
         options=[
@@ -299,11 +299,6 @@ def action_simple_output(package: Package):
 @example_("Fail Impossible Request")
 def action_failing_impossible_request(package: Package):
     """How to fail an impossible request."""
-    Act1 = Action.new(
-        ActionType.DO,
-        name="Act1",
-        text=text("Generate the solution to all the worlds problem in one go"),
-    )
     # ---
     return ExampleIn(
         nodes=[Act1],
@@ -319,11 +314,6 @@ raise IncapableError("I'm afraid I cannot do that.")
 @example_("Refuse Disallowed Request")
 def action_refusing_disallowed_request(package: Package):
     """How to refuse an disallowed request."""
-    Generate1 = Action.new(
-        ActionType.DO,
-        name="Generate1",
-        text=text("Implement some obviously terrible logic for nefarious purposes"),
-    )
     # ---
     return ExampleIn(
         nodes=[Generate1],

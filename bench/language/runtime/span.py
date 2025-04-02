@@ -22,7 +22,7 @@ from bench.language.core import (
 )
 from bench.pb2 import SpanData
 
-from .context import HasRunContext
+from .context import IsRun
 
 if TYPE_CHECKING:
     from bench.language import Code, Error, Interruption, NodeReference, Run
@@ -36,7 +36,7 @@ class Span(
     IsTimed,
     IsRuntime,
     IsModal,
-    HasRunContext,
+    IsRun,
     PackageNode[SpanData],
 ):
     """
@@ -55,22 +55,22 @@ class Span(
         root_id: Optional[UUID] = None
     severity: "Severity" = p_regular(33, default=Severity.INFO)
 
-    # status
-    status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)
-    duration: Optional[timedelta] = p_regular(41, default=None)
-    started_at: Optional[datetime] = p_regular(42, default=None)
-    terminated_at: Optional[datetime] = p_regular(43, default=None)
-    interrupted_at: Optional[datetime] = p_regular(44, default=None)
-    interruption: Optional["Interruption"] = p_internal(
-        53, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
-    error: Optional["Error"] = p_internal(54, require=False, array=False, struct=StructType.ERROR)
-
     # content
     title: str | None = p_regular(60, default=None)
     text: Optional["Text"] = p_regular(61, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(62, default=None, struct=StructType.CODE)
     nodes: list["Node"] = p_regular(65, array=True, require=False, references="any")
+
+    # status [80-90]
+    status: RunStatus = p_regular(80, default=RunStatus.SCHEDULED)
+    duration: Optional[timedelta] = p_regular(81, default=None)
+    started_at: Optional[datetime] = p_regular(82, default=None)
+    terminated_at: Optional[datetime] = p_regular(83, default=None)
+    interrupted_at: Optional[datetime] = p_regular(84, default=None)
+    interruption: Optional["Interruption"] = p_internal(
+        85, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
+    )
+    error: Optional["Error"] = p_internal(86, require=False, array=False, struct=StructType.ERROR)
 
     @property
     def is_retryable(self) -> bool:

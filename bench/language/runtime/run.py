@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Union, assert_never, cast
 from uuid import UUID
 
@@ -12,7 +12,7 @@ from bench.language.core import (
     IndexIn,
     IsBased,
     IsModal,
-    IsRuntime,
+    IsRuntimeControllable,
     IsTimed,
     IsTitled,
     LocalNodeList,
@@ -41,7 +41,7 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.tenacity import RetryOptions
 
-from .context import HasRunContext
+from .context import IsRun
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -51,7 +51,6 @@ if TYPE_CHECKING:
         Breakpoint,
         Code,
         CustomObject,
-        Error,
         ErrorType,
         Flow,
         ImageOptions,
@@ -147,11 +146,11 @@ class RunOptions(Struct):
 @timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
 class Run(
     IsTimed,
-    IsRuntime,
+    IsRuntimeControllable,
     IsModal,
     IsBased,
     IsTitled,
-    HasRunContext,
+    IsRun,
     PackageNode[RunData],
 ):
     """
@@ -184,50 +183,6 @@ class Run(
         thread_ptr: Optional[NodeReference] = None
         thread_id: Optional[UUID] = None
 
-    # status
-    status: RunStatus = p_internal(40, default=RunStatus.CREATED)
-    attempt: int | None = p_internal(41)
-    duration: Optional[timedelta] = p_internal(
-        42,
-        default=None,
-        description="Duration from first attempt start to last attempt termination.",
-    )
-    scheduled_at: Optional[datetime] = p_system(
-        43, default=None, description="When the Run is scheduled to start."
-    )
-    started_at: Optional[datetime] = p_internal(
-        44, default=None, description="When the Run first started."
-    )
-    stopped_at: Optional[datetime] = p_internal(
-        45, default=None, description="When the Run was requested to stop."
-    )
-    interrupted_at: Optional[datetime] = p_internal(
-        46, default=None, description="When the Run was interrupted."
-    )
-    paused_at: Optional[datetime] = p_internal(
-        47, default=None, description="When the Run was requested to pause."
-    )
-    resumed_at: Optional[datetime] = p_internal(
-        48, default=None, description="When the Run was requested to resume."
-    )
-    terminated_at: Optional[datetime] = p_internal(
-        49, default=None, description="When the Run terminated."
-    )
-    error: Optional["Error"] = p_internal(
-        50, default=None, require=False, array=False, struct=StructType.ERROR
-    )
-    interruption: Optional["Interruption"] = p_internal(
-        51,
-        require=False,
-        array=False,
-        references=NodeType.INTERRUPTION,
-        same_bench=True,
-        description="The latest Interruption blocking the Run.",
-    )
-    if TYPE_CHECKING:
-        interruption_ptr: Optional[NodeReference] = None
-        interruption_id: Optional[UUID] = None
-
     # content
     inputs_packed: Any = p_value_packed(61)
     inputs: "CustomObject | None" = p_value_runtime(
@@ -240,7 +195,8 @@ class Run(
     text: Optional["Text"] = p_regular(65, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(66, default=None, struct=StructType.CODE)
 
-    # ...HasContext[90-99]
+    # status [80-90]
+    status: RunStatus = p_internal(80, default=RunStatus.CREATED)
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["Span"] = p_node_children(NodeType.SPAN)
