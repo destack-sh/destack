@@ -6,16 +6,14 @@ from bench.language import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     STRUCT_CLASS_BY_TYPE,
     UNSET,
-    Action,
     ActionType,
     Aliasing,
     BlockType,
     BuiltinEnum,
     BuiltinObject,
-    CustomObject,
     File,
+    Flow,
     IsRuntime,
-    IsType,
     LinkType,
     Node,
     PackageNode,
@@ -35,7 +33,6 @@ from bench.runtime.core import Runner
 from .prompt import (
     Prompt,
     PromptBreak,
-    PromptCustomObject,
     PromptFile,
     PromptNodes,
     PromptPart,
@@ -43,7 +40,6 @@ from .prompt import (
     PromptRegion,
     PromptRun,
     PromptRunAttempt,
-    PromptSeparator,
     PromptText,
     prompt_region,
 )
@@ -92,43 +88,45 @@ Databases represent real Postgres tables comprising Records in your own database
 `Database.fields` maps to Postgres columns.
 You SHOULD create and update Databases and Records as needed (when asked or obvious).
 
-# Actions and Kits
+# Actions, Flows and Kits
 Actions are how a Bench acts (via Python code).
 Actions are invoked in Flows and may be grouped into Kits.
-# nocheckin
-# You MUST advance the Flow by completing a specific Action in context for one invocation:
-#  - plan the next Actions (by creating Plans with Tasks)
-#  - edit the Bench (like creating or updating Pages, Blocks, Records, ...)
-#  - return the Action's outputs as a dict (for dynamic Actions with output Fields)
-Actions can 'call' other Actions by including them in a Plan (in a Flow).
+Actions MUST NOT 'call' other Actions directly.
+ (Actions MAY delegate to other Actions by including them in a Flow's Plan.)
+Actions MAY return outputs as a dict.
+Flows orchestrate Actions (via Links) to implement Plans and Tasks.
  
-# Flows and Agents
-Flows orchestrate Actions (via Links).
+# Agents, Roles and Teams
+Agents are individual identities implemented by Flows to do something.
 
 # Plans and Tasks
-Plans comprise Tasks to do (in some form).
-A Task tracks general progress OR runs a specific Action.
-Plans MAY be updated while they're being implemented (in any way).
-You SHOULD chain a series of Tasks in one Plan if you're confident (it's faster).
-Once a Plan is complete, it MAY route back to the initiator if `on_terminate==CallTerminationMode.RETURN`.
+Plans consist of Tasks to do. There are two types:
+ - GeneralPlan: generic to-do list with a rough sequence of Tasks (handled manually)
+    `Plan.tasks.append(Task.general(...))`
+ - FlowPlan: serial sequence of Tasks which run specific Actions and tools (handled automatically)
+    `Plan.flow("...", Task.run(Tool, ...))`
+For general Plans/Tasks, you MUST update the Tasks manually:
+ `task.start()`, `task.complete()`, `task.fail("...")`
+Plans and Tasks MAY change while they're being implemented.
 
 # Triggers
-Triggers are conditional events that do something (like start a Run of an Agent on a Message).
+Triggers are conditional events (like start a Run of an Agent on a Message).
 A Trigger may also create a Task for a scheduled Task, which is then implemented by some Run.
 
 # Resources and Claims
-Resources represent external things (like Files, Computers, Accounts).
-Claims are how you get access to Resources.
+Resources represent external things (like Files, Computers, Accounts) in Bench.
+Claims are how you request and get access to Resources.
 Sometimes the Resources already exist, sometimes we provision/acquire them automatically for a Claim.
 
 # Threads and Messages
-A Thread is a Message thread, a sequence of related Messages on something.
-Threads have Memberships, every member MAY respond to any Messages.
-Threads also have access to a catalog of select Resources (like an Ubuntu Computer).
+A Thread is a sequence of related Messages on something.
+Threads have Memberships, any member MAY create Messages.
+Threads have a catalog of Claims/Resources.
 You SHOULD use Messages to communicate with Users and other Agents as needed.
+You MAY include Nodes (like Files, Databases, Records, ...) in Messages as appropriate.
 
 # Runtime
-The Runtime is the orchestration layer, providing your Python shell with access to its Bench context.
+The Runtime is the orchestration layer for Bench with your Python shell.
 Runs (of Flows, Actions, Links, ...) are executed in a Runtime on a Computer within a Session.
 A Run = 1 invocation with multiple attempts (Spans), so Runs naturally form a tree.
 The Runtime implements some logic directly, for other logic it calls out to relevant Actions or Resources. 
@@ -140,17 +138,17 @@ You MUST use Python to express your response.
 You MUST use your inherent reasoning/language/vision capabilities.
  (You MUST NOT use ML libraries or code for AI stuff.)
 You SHOULD prefer built-in Actions; just pick the most relevant tool.
-You MAY `return` your final outputs (inline, at the end, even if they're an empty dict).
+Actions MAY `return` their final outputs (inline, at the end).
 
 # Tone and Language
-The default tone for user-facing text and media is friendly, cordial and helpful.
- (Code is not user-facing, so code SHOULD be concise and use English.)
 The general vibe is this is like a casual workplace Discord or Slack server with friends.
+The default tone for user-facing messaging is friendly, cordial and helpful.
+ (code is not user-facing, so code SHOULD be concise and use English.)
 You SHOULD aim to match the user's tone and language; if in doubt, stay friendly.
-You SHOULD NOT sound artificial or robotic, just be 'natural'.
+You SHOULD NOT sound artificial or robotic, just be 'natural', matching your Agent/Roles/etc.
 
 # Policy
-You are trusted with important work, private data, and our proprietary Bench system.
+You are trusted with important and private work and our proprietary Bench system.
 If something violates safety or content policies, you SHOULD raise RefusedError.
 If something is missing or is not possible, you SHOULD raise IncapableError.
 You MUST NOT leak anything from this Bench to the outside unless expliclty asked by the Bench.
@@ -272,26 +270,18 @@ BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
 LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
 
 
-def make_chat_prompt(
-    action: Action,
-    runner: "Runner",
-    context: "IsRuntime",
-    inputs: CustomObject | None,
-    outputs: CustomObject | None,
-    output_type: IsType,
-) -> "Prompt":
-    """Build a Prompt from the given context."""
+def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> "Prompt":
+    """Build a Prompt to plan Flow execution."""
+
     from .example import get_examples
 
     # TODO :Cleanup! :Architecture: Prompt building and rendering is a mess
     # (separating Aliasing, Projection and Renderer feels verbose.. but I don't have a better idea)
     aliasing = Aliasing()
-    projection = Projection(supergraph=action._supergraph, options=ProjectOptions())
+    projection = Projection(supergraph=flow._supergraph, options=ProjectOptions())
     renderer = Renderer(
-        options=RenderOptions(scope=action, aliasing=aliasing, implicit_partials=True)
+        options=RenderOptions(scope=flow, aliasing=aliasing, implicit_partials=True)
     )
-    run = runner.closest_tracked_run
-    assert run is not None, f"{runner!r} is not tracked"
 
     #
     # run
@@ -359,133 +349,11 @@ def make_chat_prompt(
     run_region = prompt_region(run_part, title="Current Run", weight=10)
     run_items.append(run_region)
 
-    #
-    # action
-    #
-
-    action_parts: list[PromptPart] = [
-        PromptNodes(title="Action", weight=1, nodes=[action]),
-        PromptBreak(title=None),
-    ]
-    projection.collect_node(action, depth=0)
-    if inputs is not None and inputs.any():
-        projection.collect_custom_object(inputs, depth=0)
-        action_parts.append(
-            prompt_region(
-                PromptCustomObject(title="Inputs to this Action", weight=1, object=inputs),
-                title="Inputs to this Action",
-                weight=1,
-            )
-        )
-    if outputs is not None and outputs.any():
-        projection.collect_custom_object(outputs, depth=0)
-        action_parts.append(
-            prompt_region(
-                PromptCustomObject(title="Outputs from this Action", weight=1, object=outputs),
-                title="Outputs from this Action",
-                weight=1,
-            )
-        )
-
     # flow
-    if (flow := action.flow) is not None:
-        from bench.runtime.flow import FlowRunner
-
-        connected_actions = [
-            (link, target)
-            for link in flow.links
-            if link.source_id == action.id
-            and (target := link.target) is not None
-            and link.is_extant
-            and target.is_extant
-        ]
-        flow_parts: list[PromptPart] = [
-            PromptNodes(title=None, weight=1, nodes=[flow]),
-            PromptText(
-                None, f"You are part of the Flow '{flow.code_name}'. Consider the flow as a whole."
-            ),
-        ]
-        projection.collect_node(flow, depth=1)
-        # repeat flow resources/inputs
-        flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
-        assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
-        flow_parts.append(PromptBreak(title=None))
-        if flow_run.inputs is not None and flow_run.inputs.any():
-            flow_parts.append(
-                PromptCustomObject(title="Inputs to this Flow", weight=1, object=flow_run.inputs)
-            )
-
-        can_flow_be_empty = all(p.type == LinkType.REQUIRE for p, a in connected_actions)
-        if len(connected_actions) == 0:
-            flow_parts.append(
-                PromptText(
-                    None,
-                    "You SHOULD NOT plan any Actions as you are not connected to any other Actions.",
-                )
-            )
-        elif can_flow_be_empty:
-            flow_parts.append(
-                PromptText(
-                    None,
-                    "You MAY plan the next Actions in this Flow. Your plan may be empty if none of the connected Actions need arguments you have.",
-                )
-            )
-        else:
-            flow_parts.append(
-                PromptText(
-                    None,
-                    "You MUST plan the next Actions in this Flow. You MUST include at least one of the SELECT-connected Actions or raise IncapableError.",
-                )
-            )
-        flow_parts.append(PromptSeparator(title=None))
-        flow_parts.append(
-            PromptText(
-                title=None,
-                text=f"""\
-Your outgoing Actions are (name: LinkType->ActionType):
-{'\n'.join(f" - {renderer.render_node_ref(p.target)}: {p.type.bench_name}->{a.type.bench_name}" for p, a in connected_actions) or '<none>'}
-""",
-            )
-        )
-        flow_region = prompt_region(*flow_parts, title="Containing Flow", weight=10)
-        action_parts.append(flow_region)
-
-    # outputs + type-specific instructions
-    if outputs is None:
-        # no existing outputs, dynamic planning
-        action_parts.append(
-            PromptText(
-                title=None,
-                text=f"""\
-Remember, it's a dynamic {action.type.bench_name} Action.
- - You MUST complete the Action and generate the outputs including the call plans (if any).
-""",
-            )
-        )
-    else:
-        # existing outputs, only planning
-        action_parts.append(
-            PromptText(
-                title=None,
-                text=f"""\
-Remember, it's a static {action.type.bench_name} Action.
-You already have the outputs, so you MUST return the existing outputs *as is*.
-You MUST add any call plans to the outputs without touching the existing outputs.
- - You MUST reuse the given outputs; YOU SHOULD NOT reproduce the outputs.
- - Reference 'outputs' directly. No verbatim copy.
- - You SHOULD just `return {{**outputs, 'plans': ... }}`.
-""",
-            )
-        )
-    action_parts.append(
-        PromptText(
-            title=None,
-            text="""\
- - The plans SHOULD progress the containing Flow as much as possible. 
-   - Try something else, Complete, Fail, raise or do whatever to terminate eventually.
-""",
-        )
-    )
+    projection.collect_node(flow, depth=1)
+    # repeat flow resources/inputs
+    flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
+    assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
 
     #
     # general context (relative to all the other stuff)

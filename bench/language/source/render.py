@@ -81,13 +81,7 @@ class RenderOptions:
     scope: Node
     aliasing: "Aliasing"
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    inline_node_types: Collection[NodeType] = (
-        NodeType.FIELD,
-        NodeType.OPTION,
-        NodeType.TRIGGER,
-        NodeType.TASK,
-        NodeType.CLAIM,
-    )
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
     use_code_paths: bool = True
     implicit_partials: bool = False
     # formatting

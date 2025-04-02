@@ -20,15 +20,8 @@ from bench.language import (
     Aliasing,
     Bench,
     BenchStatus,
-    Block,
-    BlockType,
-    Channel,
     Choice,
-    CustomObject,
     Field,
-    Flow,
-    LinkType,
-    Message,
     Node,
     NodeGraph,
     NodeReference,
@@ -38,23 +31,18 @@ from bench.language import (
     Option,
     Package,
     PackageType,
-    PathElementType,
     Plan,
-    PlanTerminationMode,
     Region,
     Renderer,
     RenderOptions,
-    Run,
     Runnable,
     Session,
-    Task,
     User,
     UserStatus,
     _is_setup_complete,
     coerce_custom_object_scalar,
     format_code,
     text,
-    text_line,
 )
 from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
@@ -254,76 +242,7 @@ def example_(title: str, weight: int = 1):
 #
 
 
-@example_("Option Reference")
-def basic_option_reference(package: Package):
-    """How to reference an Option."""
-    Sentiment = Choice.new(
-        "Sentiment",
-        options=[
-            Option.new("Happy"),
-            Option.new("Sad"),
-            Option.new("Angry"),
-            Option.new("Neutral"),
-        ],
-    )
-    Action1 = Action.new(
-        ActionType.DO,
-        name="Classify",
-        fields=[Field.input("Text", str), Field.output("Sentiment", Sentiment)],
-    )
-    # Input
-    {"Text": "Feeling pretty good today."}
-    # ---
-    return ExampleIn(
-        nodes=[Sentiment, Action1],
-        response=ExampleResponseIn(node=Action1, outputs={"Sentiment": Sentiment.options.Happy}),
-    )
-
-
-@example_("Simple Action Outputs")
-def action_simple_output(package: Package):
-    """A super simple meaningless Action."""
-    Action1 = Action.new(
-        ActionType.DO,
-        name="Action1",
-        text=text("Generate some example outputs"),
-        fields=[Field.output("Output1", str), Field.output("Output2", str, is_required=True)],
-    )
-    # ---
-    return ExampleIn(
-        nodes=[Action1],
-        response=ExampleResponseIn(node=Action1, outputs={"Output2": "Hello World!"}),
-    )
-
-
-@example_("Fail Impossible Request")
-def action_failing_impossible_request(package: Package):
-    """How to fail an impossible request."""
-    # ---
-    return ExampleIn(
-        nodes=[Act1],
-        response=ExampleResponseIn(
-            node=Act1,
-            code="""\
-raise IncapableError("I'm afraid I cannot do that.")
-""",
-        ),
-    )
-
-
-@example_("Refuse Disallowed Request")
-def action_refusing_disallowed_request(package: Package):
-    """How to refuse an disallowed request."""
-    # ---
-    return ExampleIn(
-        nodes=[Generate1],
-        response=ExampleResponseIn(
-            node=Generate1,
-            code="""\
-raise RefusedError("I cannot assist with that.")
-""",
-        ),
-    )
+...  # nocheckin
 
 
 def get_examples(action: Action, runner: Runner) -> Sequence[PromptExample]:

@@ -6,9 +6,9 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    Action,
     Code,
     CustomObject,
+    Flow,
     IsType,
     ModelDeveloper,
     ModelType,
@@ -20,7 +20,7 @@ from bench.language import (
 )
 from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
 
-from .instruct import make_chat_prompt
+from .instruct import make_flow_plan_prompt
 from .model import ModelRunner
 from .prompt import Prompt, PromptCompound, PromptElement, PromptPart
 
@@ -32,17 +32,18 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class ChatModelRunner(ModelRunner[Action], ABC):
+class ChatModelRunner(ModelRunner[Flow], ABC):
     """Run a chat-based Model."""
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Action,
+        node: Flow,
         model_type: ModelType,
         options: RunOptions,
         run: RunIn,
+        prompt: Prompt,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         outputs: IsType | CustomObject | None = None,
@@ -58,7 +59,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             run=run,
         )
         self.model_type = model_type
-        self.prompt: Prompt | None = None
+        self.prompt = prompt
         self.code: Code | None = None
 
     @override
@@ -102,20 +103,11 @@ class ChatModelRunner(ModelRunner[Action], ABC):
         assert self.output_type is not None, f"{self!r} has no output type"
 
         # build prompt
-        with capture_span(tracer, "model.prepare", SpanType.MODEL_PREPARE, level=Severity.DEBUG):
-            prompt = make_chat_prompt(
-                action=self.node,
-                runner=cast(Runner[Runnable], self),
-                context=self.tracked,
-                inputs=self.inputs,
-                outputs=self.outputs,
-                output_type=self.output_type,
-            )
-            parts = await self.build(prompt, 1000)
+        parts = await self.build(self.prompt, 1000)
 
         # run model to generate code as response
         code = await self.generate(
-            prompt=prompt,
+            prompt=self.prompt,
             parts=parts,
             user_id=str(self.session.bench_id),
             options=ATTEMPT_ONCE,
@@ -127,7 +119,7 @@ class ChatModelRunner(ModelRunner[Action], ABC):
             runtime=self.runtime,
             node=self.node,
             code=code,
-            aliasing=prompt.aliasing,
+            aliasing=self.prompt.aliasing,
             options=ATTEMPT_ONCE,
             inputs=self.inputs,
             outputs=self.output_type,
