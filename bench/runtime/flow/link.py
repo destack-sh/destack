@@ -9,11 +9,11 @@ from bench.language import (
     BreakpointScope,
     BreakpointSite,
     CustomObject,
+    IsType,
     Link,
     LinkType,
     RunOptions,
     RunType,
-    TypeBase,
 )
 from bench.runtime.core import RunIn, Runner, Runtime
 
@@ -38,7 +38,7 @@ class LinkRunner(Runner[Link], ABC):
         parent: Runner | None = None,
         agent: Agent | None = None,
         inputs: CustomObject | None = None,
-        outputs: TypeBase | CustomObject | None = None,
+        outputs: IsType | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,

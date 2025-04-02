@@ -2,7 +2,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, override
 
-from bench.language import NodeMode, Run, RunnableNode, RunOptions, RunStatus
+from bench.language import NodeMode, Run, Runnable, RunOptions, RunStatus
 from bench.runtime import MemoryCache, Runner, Runtime, create_run
 from bench.test.simulation.core import Simulation
 
@@ -31,7 +31,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
 
     async def run_in_runtime(
         self,
-        run: Run | RunnableNode,
+        run: Run | Runnable,
         *,
         inputs: Any | None = None,
         options: RunOptions | None = None,

@@ -70,19 +70,23 @@ def _complete_bench_setup():
     from bench.language import (
         BuiltinObject,
         CustomObject,
+        InlineNode,
         IsClaimable,
+        IsFieldBase,
+        IsInstantiable,
         IsJoinable,
         IsOwnable,
+        IsRunnable,
         IsSubject,
+        IsTemplatable,
+        IsTypeBase,
         Node,
         Struct,
     )
     from bench.language.core import (
-        InlineNode,
-        IsInstantiable,
-        IsTemplatable,
         NodeSubtypeStub,
         const,
+        trait,
     )
     from bench.language.core.object import (
         _is_setup_complete,
@@ -247,10 +251,13 @@ def _complete_bench_setup():
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
             (IsInstantiable, const.INSTANTIABLE_NODE_TYPES.tuple),
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
-            (IsJoinable, const.JOINABLE_NODE_TYPES.tuple),
-            (IsClaimable, const.CLAIMABLE_NODE_TYPES.tuple),
-            (IsSubject, const.SUBJECT_NODE_TYPES.tuple),
-            (IsOwnable, const.OWNABLE_NODE_TYPES.tuple),
+            (IsJoinable, trait.JOINABLE_NODE_TYPES.tuple),
+            (IsClaimable, trait.CLAIMABLE_NODE_TYPES.tuple),
+            (IsSubject, trait.SUBJECT_NODE_TYPES.tuple),
+            (IsOwnable, trait.OWNABLE_NODE_TYPES.tuple),
+            (IsRunnable, trait.RUNNABLE_NODE_TYPES.tuple),
+            (IsFieldBase, trait.FIELD_BASE_NODE_TYPES.tuple),
+            (IsTypeBase, trait.TYPE_BASE_NODE_TYPES.tuple),
         ]:
             actual_node_types = [
                 cast(Node, n).metatype

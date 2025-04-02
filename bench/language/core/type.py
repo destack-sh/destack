@@ -35,10 +35,11 @@ from .const import (
     is_node_type,
     is_struct_type,
 )
-from .node import TYPE_BASE_NODE_TYPES, FieldBaseNode, Node, NodeReference, TypeBaseNode
+from .node import Node, NodeReference, TypeBaseNode
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
 from .property import Property, p_internal, p_regular, p_runtime, p_value_packed, p_value_runtime
 from .struct import Struct, struct_
+from .trait import TYPE_BASE_NODE_TYPES, FieldBaseNode
 from .validation import TypeConstraintIn
 from .value import SomeValue
 
@@ -96,7 +97,7 @@ class TypeIdentity(NamedTuple):
     constraint: Optional["TypeConstraint"] = None
 
 
-def encode_type_identity(typ: "TypeBase | TypeIdentity") -> str:
+def encode_type_identity(typ: "IsType | TypeIdentity") -> str:
     """
     Encodes the type identity into a key for storage & implicit typing.
     Format is <kind>[id] (with id encoded as base64).
@@ -239,7 +240,7 @@ constraint = TypeConstraintIn
 
 
 @object_()
-class TypeBase(BuiltinObject):
+class IsType(BuiltinObject):
     """
     A Type describes the properties and shape of a value.
 
@@ -266,7 +267,7 @@ class TypeBase(BuiltinObject):
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
     base_type: Union[TypeBaseNode, None] = p_regular(
-        43, array=False, require=False, default=None, references=TYPE_BASE_NODE_TYPES
+        43, array=False, require=False, default=None, references=TYPE_BASE_NODE_TYPES.tuple
     )
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
@@ -284,7 +285,7 @@ class TypeBase(BuiltinObject):
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)
-    default = p_value_runtime(packed=50, typ=lambda self: cast("TypeBase", self))
+    default = p_value_runtime(packed=50, typ=lambda self: cast("IsType", self))
     format: Optional["TypeFormat"] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
@@ -376,7 +377,7 @@ class TypeBase(BuiltinObject):
     ):
         """Change this type to another type."""
         typ = to_type(typ, constraint=constraint, is_required=is_required, is_list=is_list)
-        for prop in TypeBase.__declared_properties__.values():
+        for prop in IsType.__declared_properties__.values():
             new_typ_value = getattr(typ, prop.name)
             old_typ_value = getattr(self, prop.name)
             if new_typ_value != old_typ_value:
@@ -451,11 +452,11 @@ class TypeBase(BuiltinObject):
 
 
 @struct_(StructType.TYPE)
-class Type(Struct, TypeBase):
+class Type(Struct, IsType):
     """A Type in the type system."""
 
     # redirect so we get TypeBase.__content_str__ (not Struct.__content_str__)
-    __content_str__ = TypeBase.__content_str__  # type: ignore
+    __content_str__ = IsType.__content_str__  # type: ignore
 
     @staticmethod
     def from_type(
@@ -475,7 +476,7 @@ class Type(Struct, TypeBase):
 #
 
 TypeIn = Union[
-    "TypeBase",
+    "IsType",
     "Block",
     "Database",
     "Class",
@@ -513,7 +514,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
     if isinstance(type_in, Block) and (node := type_in.node) is not None:
         type_in = cast(TypeIn, node)  # unpack inner node automatically
 
-    if isinstance(type_in, TypeBase):
+    if isinstance(type_in, IsType):
         return cast("Type", type_in)
     elif isinstance(type_in, (Class, Choice, Flow, Action, Link, Database, Agent)):
         type_scalar = type_in.to_type_maybe()
@@ -572,7 +573,7 @@ def to_type(
     return type_scalar
 
 
-def reverse_type_scalar(typ: TypeBase) -> TypeIn | None:
+def reverse_type_scalar(typ: IsType) -> TypeIn | None:
     """
     Reverses a Type into a TypeIn as closely as possible.
     Does not consider non-scalar properties (is_list, is_required, etc.)

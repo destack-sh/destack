@@ -9,16 +9,18 @@ from bench.language.core import (
     InlineNode,
     IsClaimable,
     IsComputable,
+    IsFieldBase,
     IsModal,
     IsNamed,
     IsOwnable,
+    IsRunnable,
     IsTemplatable,
+    IsType,
     LocalNodeList,
     NodeReference,
     NodeType,
     StructType,
     Text,
-    TypeBase,
     TypeKind,
     enum_,
     node_,
@@ -44,7 +46,15 @@ class FlowType(BuiltinEnum):
 
 @node_(NodeType.FLOW)
 class Flow(
-    IsComputable, IsTemplatable, IsOwnable, IsClaimable, IsModal, IsNamed, InlineNode[FlowData]
+    IsComputable,
+    IsTemplatable,
+    IsOwnable,
+    IsClaimable,
+    IsModal,
+    IsNamed,
+    IsRunnable,
+    IsFieldBase,
+    InlineNode[FlowData],
 ):
     """A building block with logic, types, UI, state, auth, AI, ..."""
 
@@ -84,7 +94,7 @@ class Flow(
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
+    ) -> "IsType":
         """Get a type represented by this Block (if any)"""
         from bench.language.core import Type
 
@@ -104,18 +114,18 @@ class Flow(
         *,
         of: Literal["instance", "value"] = "instance",
         field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
+    ) -> "IsType":
         typ = self.to_type_maybe(of=of, field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def input_type(self) -> "TypeBase | None":
+    def input_type(self) -> "IsType | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.INPUT])
 
     @cached_property  # :CachedTypeInfo
-    def output_type(self) -> "TypeBase | None":
+    def output_type(self) -> "IsType | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
 
     @staticmethod

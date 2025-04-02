@@ -10,6 +10,7 @@ from bench.language.core import (
     NODE_TYPES_SET,
     BuiltinObject,
     CustomObject,
+    IsType,
     Node,
     NodeReference,
     NodeType,
@@ -17,7 +18,6 @@ from bench.language.core import (
     ReferenceKind,
     SomeValue,
     Struct,
-    TypeBase,
     TypeKind,
     get_custom_object_properties,
 )
@@ -177,7 +177,7 @@ class Projection:
                 continue
             self.collect_value(field_value, field, depth)
 
-    def collect_value(self, value: SomeValue, typ: TypeBase, depth: int):
+    def collect_value(self, value: SomeValue, typ: IsType, depth: int):
         """Collect a typed value."""
         if value is None:
             return

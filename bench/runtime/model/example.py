@@ -45,7 +45,7 @@ from bench.language import (
     Renderer,
     RenderOptions,
     Run,
-    RunnableNode,
+    Runnable,
     Session,
     Task,
     User,
@@ -173,7 +173,7 @@ class ExampleIn(NamedTuple):
 
 
 class ExampleResponseIn(NamedTuple):
-    node: RunnableNode
+    node: Runnable
     code: str | None = None
     outputs: dict[str, Any] | None = None
     plans: list[Plan] | None = None

@@ -56,6 +56,7 @@ if TYPE_CHECKING:
         Flow,
         ImageOptions,
         Interruption,
+        IsType,
         Link,
         Log,
         ModelDeveloper,
@@ -63,11 +64,10 @@ if TYPE_CHECKING:
         ModelType,
         NodeReference,
         Plan,
-        RunnableNode,
+        Runnable,
         Span,
         TextOptions,
         Thread,
-        TypeBase,
         VideoOptions,
     )
 
@@ -289,7 +289,7 @@ class Run(
             return None
 
     @property
-    def base(self) -> Optional["RunnableNode"]:
+    def base(self) -> Optional["Runnable"]:
         if self.link_ptr is not None:
             return self.link
         elif self.action_ptr is not None:
@@ -310,7 +310,7 @@ class Run(
             return cast(RunData, data).flow_ptr
 
     @staticmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional["RunnableNode"]:
+    def get_base_from_partial(data: dict[str, Any]) -> Optional["Runnable"]:
         if "link" in data:
             return data["link"]
         elif "action" in data:
@@ -332,7 +332,7 @@ class Run(
         return self.status not in TERMINAL_RUN_STATUSES
 
     @property
-    def input_type(self) -> "TypeBase | None":
+    def input_type(self) -> "IsType | None":
         if (link := self.link) is not None:
             return link.input_type
         elif (action := self.action) is not None:
@@ -343,7 +343,7 @@ class Run(
             return None
 
     @property
-    def output_type(self) -> "TypeBase | None":
+    def output_type(self) -> "IsType | None":
         if (link := self.link) is not None:
             return link.output_type
         elif (action := self.action) is not None:
@@ -386,7 +386,7 @@ class Run(
             run = run.parent
         return False
 
-    def get_runs(self, runnable: "RunnableNode", recursive: bool = True) -> list["Run"]:
+    def get_runs(self, runnable: "Runnable", recursive: bool = True) -> list["Run"]:
         """Find all Runs of a Node in this Run."""
         matching_runs: list[Run] = []
         if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id == runnable.id:
@@ -401,7 +401,7 @@ class Run(
         )
         return matching_runs
 
-    def get_latest_run(self, runnable: "RunnableNode") -> "Run | None":
+    def get_latest_run(self, runnable: "Runnable") -> "Run | None":
         """Find the latest Run of a Node in this Run."""
         matching_runs = self.get_runs(runnable)
         return matching_runs[0] if matching_runs else None
@@ -485,7 +485,7 @@ class Run(
 
     @staticmethod
     async def get_run_of(
-        node: "RunnableNode",
+        node: "Runnable",
         where: Optional[Expression] | Collection[RunStatus] = None,
         timeout: timedelta | None = None,
     ) -> "Run":

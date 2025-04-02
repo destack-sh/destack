@@ -15,6 +15,7 @@ from bench.language import (
     CustomObject,
     File,
     IsRuntime,
+    IsType,
     LinkType,
     Node,
     PackageNode,
@@ -27,7 +28,6 @@ from bench.language import (
     Resource,
     Run,
     RunType,
-    TypeBase,
     _is_setup_complete,
 )
 from bench.runtime.core import Runner
@@ -270,7 +270,7 @@ def make_chat_prompt(
     context: "IsRuntime",
     inputs: CustomObject | None,
     outputs: CustomObject | None,
-    output_type: TypeBase,
+    output_type: IsType,
 ) -> "Prompt":
     """Build a Prompt from the given context."""
     from .example import get_examples

@@ -12,14 +12,14 @@ from bench.language import (
     BreakpointScope,
     BreakpointSite,
     CustomObject,
+    IsType,
     ModelDeveloper,
     ModelType,
-    RunnableNode,
+    Runnable,
     RunOptions,
     RunType,
     Span,
     SpanType,
-    TypeBase,
     TypeKind,
     code,
 )
@@ -57,7 +57,7 @@ class ActionRunner(Runner[Action], ABC):
         agent: Agent | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
-        outputs: TypeBase | CustomObject | None = None,
+        outputs: IsType | CustomObject | None = None,
         flow: "FlowRunner | None" = None,
     ) -> None:
         super().__init__(
@@ -84,9 +84,9 @@ class ActionRunner(Runner[Action], ABC):
 
     def _get_resumable_subrunner(
         self,
-        node: Agent | RunnableNode,
+        node: Agent | Runnable,
         inputs: CustomObject | None,
-        output_type: TypeBase | None = None,
+        output_type: IsType | None = None,
     ):
         """
         Gets the Runner for the given Node within this Runner.
@@ -145,7 +145,7 @@ class StaticActionRunner(ActionRunner):
             and any(p.source_id == self.node.id and not p.is_manual for p in self.flow.node.links)
         ):
             model_developer = ModelDeveloper.OPENAI
-            model_type = ModelType.OPENAI_GPT4_5
+            model_type = ModelType.OPENAI_GPT4_0
             model_runner_cls = get_chat_model_runner_cls(
                 model_developer=model_developer, model_type=model_type
             )
@@ -192,7 +192,7 @@ class ToolActionRunner(StaticActionRunner):
     async def run_static(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be in a Run"
         if self.node.tool_ptr is not None:
-            # static tool
+            # run static tool
             tool = self.node.tool
             assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
             tool_runner: Runner[Any] = self._get_resumable_subrunner(
@@ -201,7 +201,7 @@ class ToolActionRunner(StaticActionRunner):
             await self.runtime.run_runner(tool_runner)
             self.outputs = tool_runner.outputs
         else:
-            # dynamic tool (from Task)
+            # run dynamic tool (from Task)
             task = self.tracked_run.task
             assert task is not None, f"{self!r} must have a Task (as tool is not provided)"
             tool_ptr = task.tool_ptr
@@ -233,6 +233,7 @@ class CodeActionRunner(ActionRunner):
                 resumed_runner = self.runtime.get_runner(resumed_span)
                 break
 
+        # run code
         code = (resumed_span.code if resumed_span else self.node.code) or CODE_PASS
         if resumed_runner is not None:
             code_runner = resumed_runner
@@ -254,11 +255,12 @@ class CodeActionRunner(ActionRunner):
         self.outputs = code_runner.outputs
 
 
-class DynamicActionRunner(ActionRunner):
+class DoActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
         from bench.builtin import BenchFlow
 
+        # run main flow
         flow_runner = self._get_resumable_subrunner(
             node=BenchFlow,
             inputs=self.inputs,
@@ -276,5 +278,5 @@ ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
     ActionType.END: EndActionRunner,
     ActionType.TOOL: ToolActionRunner,
     ActionType.CODE: CodeActionRunner,
-    ActionType.DO: DynamicActionRunner,
+    ActionType.DO: DoActionRunner,
 }

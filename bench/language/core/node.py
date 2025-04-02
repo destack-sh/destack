@@ -42,7 +42,6 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dualmethod, stable_hash
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
-from bench.utils.uuidt import UUIDT
 
 from .const import (
     ACTIVE_SESSION,
@@ -52,18 +51,15 @@ from .const import (
     IS_IN_USER_CODE,
     NODE_TYPES,
     PACKAGE_NODE_TYPES,
-    SUBJECT_NODE_TYPES,
     UNSET,
     BuiltinEnum,
     FieldType,
     NodeArea,
-    NodeMode,
     NodeType,
     ObjectType,
     QueryType,
     ReferenceKind,
     StructType,
-    Subject,
     TypeKind,
     active_session,
     bittuple,
@@ -77,7 +73,6 @@ from .object import (
     NodeTypeOrClass,
     _process_object_cls,
     _trace_edit_operation,
-    object_,
 )
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -85,48 +80,33 @@ from .property import (
     p_internal,
     p_node_ancestor_with_self,
     p_node_parent,
-    p_node_template,
     p_regular,
     p_runtime,
     p_subnode_packed,
     p_system,
 )
 from .struct import Struct, struct_
-from .validation import NAME_CONSTRAINT, on_invalid_raise
+from .trait import SUBJECT_NODE_TYPES, IsBased, IsInstantiable, IsModal, Subject, TypeBaseNode
+from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
-        Agent,
         Bench,
         Block,
-        Choice,
-        Claim,
-        Class,
-        Client,
-        ComputedSourceIn,
-        ComputedValue,
-        ComputedValueMode,
-        Computer,
         CustomObject,
-        Database,
         Expression,
         Field,
-        Flow,
         GetConnection,
         Icon,
-        Link,
         NodeLink,
         NodeReference,
         Package,
         Page,
-        PathIn,
         Query,
         SearchConnection,
         Session,
         TextLine,
         Type,
-        User,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -1271,6 +1251,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         **kwargs: Any,
     ) -> "CustomObject":
         """Creates a new partial Node of this type."""
+        from .trait import IsBased
         from .value import coerce_custom_object_scalar
 
         if base_type is None and issubclass(cls, IsBased):
@@ -1394,57 +1375,6 @@ class NodeSubtypeStub[NodeT: Node]:
         return self._node_cls(type=self._node_subtype, **kwargs)
 
 
-@object_()
-class IsRuntime(BuiltinObject):
-    """Context for a Node that's relevant at runtime."""
-
-    # NOTE :Security: session context properties are p_internal (not p_system) so we can update
-    #   them in all Clients. But this also means Users could mess with them if they really want to.
-    session: Optional["Session"] = p_internal(
-        90, require=False, array=False, references=NodeType.SESSION, same_bench=True
-    )
-    client: Optional["Client"] = p_internal(
-        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
-    )
-    computer: Optional["Computer"] = p_internal(
-        94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
-    )
-    user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
-    agent: Optional["Agent"] = p_internal(96, require=False, array=False, references=NodeType.AGENT)
-    if TYPE_CHECKING:
-        session_ptr: Optional[NodeReference] = None
-        session_id: Optional[UUID] = None
-        client_ptr: Optional[NodeReference] = None
-        client_id: Optional[UUID] = None
-        computer_ptr: Optional[NodeReference] = None
-        computer_id: Optional[UUID] = None
-        user_ptr: Optional[NodeReference] = None
-        user_id: Optional[UUID] = None
-        agent_ptr: Optional[NodeReference] = None
-        agent_id: Optional[UUID] = None
-        agent_ck: Optional[UUID] = None
-
-    @property
-    def runtime(self):
-        """The Runtime associated with this context (if any)."""
-        return self.session._runtime if self.session is not None else None
-
-
-@object_()
-class IsModal(BuiltinObject):
-    """A Node that can be in different modes."""
-
-    mode: NodeMode = p_internal(20, default=NodeMode.MAIN, default_sql=str(NodeMode.MAIN.value))
-
-    @property
-    def is_active(self) -> bool:
-        return (
-            cast(Node, self).deleted_at is None
-            and cast(Node, self).archived_at is None
-            and self.mode < NodeMode.TEMPLATE
-        )
-
-
 @node_component_()
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     """A Node inside a Bench."""
@@ -1471,216 +1401,6 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         package_id: Optional[UUID] = None
         package_ptr: Optional[NodeReference] = None
-
-
-@node_component_()
-class IsTemplatable(BuiltinObject):
-    """A Node that can be templated (we can create Nodes that are derived from 'templates')."""
-
-    template: Optional["Node"] = p_node_template(16)
-    if TYPE_CHECKING:
-        template_id: Optional[UUID] = None
-        template_ptr: Optional[NodeReference] = None
-
-    def instance(
-        self,
-        recursive: bool = True,
-        detach: bool = True,
-        map: bool | dict[UUID, "Node"] = True,
-        **kwargs: Any,
-    ) -> Self:
-        """
-        Creates a new instance of this Node.
-        Similar to Node.clone, but sets the original Nodes as the template source.
-        """
-        assert isinstance(self, Node), f"{self!r} must be a Node"
-        assert isinstance(self, IsModal), f"{self!r} must be modal"
-
-        # instance self
-        instance_kwargs = self._clone_kwargs(reset=True)
-        if self.mode == NodeMode.TEMPLATE:
-            instance_kwargs["mode"] = NodeMode.MAIN
-        instance_kwargs.update(kwargs)
-        if isinstance(self, IsInstantiable):
-            instance_kwargs["ck"] = self.ck
-        instance_kwargs["template"] = self
-        instance = self.__class__(**instance_kwargs)
-
-        # instance children and append to self
-        if recursive:
-            for child_type in CHILD_NODE_TYPES[self.metatype]:
-                for child in self._graph.iter_descendants(self, child_type):
-                    if isinstance(child, IsInstantiable):
-                        # instance child
-                        child_clone = child.instance(recursive=True, detach=True, map=map)
-                        attach_node(child_clone, instance, instance._graph)  # re-attach
-                        if type(map) is dict:
-                            map[child.id] = child_clone
-                    else:
-                        # clone if not instantiable
-                        child_clone = child.clone(reset=True, recursive=True, detach=True, map=map)
-                        attach_node(child_clone, instance, instance._graph)  # re-attach
-                        if type(map) is dict:
-                            map[child.id] = child_clone
-
-        # map new identities
-        if type(map) is dict:
-            for node in map.values():
-                node.replace_references(map)
-
-        # append to our parent to re-attach
-        parent = self.parent
-        if detach:
-            instance.parent_ptr = None
-        elif parent:
-            parent.append(instance)
-
-        return instance
-
-
-@node_component_()
-class IsInstantiable(IsTemplatable):
-    """A Node that can be instanced (we can create Nodes that are 'instances' of this Node)."""
-
-    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
-
-
-@node_component_()
-class IsSubject(BuiltinObject):
-    """A Node that can be a Subject."""
-
-    pass
-
-
-@node_component_()
-class IsOwnable(BuiltinObject):
-    """A Node that can be owned by another Node."""
-
-    owned_by: Optional[Subject] = p_regular(
-        17,
-        require=False,
-        array=False,
-        references=SUBJECT_NODE_TYPES.tuple,
-        same_bench=True,
-        baseless=True,
-        ckless=True,
-    )
-    if TYPE_CHECKING:
-        owned_by_id: Optional[UUID] = None
-        owned_by_type: Optional[NodeType] = None
-        owned_by_ptr: Optional[NodeReference] = None
-
-
-@node_component_()
-class IsJoinable(BuiltinObject):
-    """A Node that can be joined by a Subject."""
-
-    pass
-
-
-@node_component_()
-class IsClaimable(BuiltinObject):
-    """A Node that can be claimed with a Claim."""
-
-    claimed_by: Optional["Claim"] = p_regular(
-        18, require=False, array=False, references=NodeType.CLAIM, same_bench=True
-    )
-    if TYPE_CHECKING:
-        claimed_by_id: Optional[UUID] = None
-        claimed_by_ptr: Optional[NodeReference] = None
-
-
-@node_component_()
-class IsComputable(BuiltinObject):
-    """A Node that can be computed at runtime."""
-
-    computed_values: list["ComputedValue"] = p_internal(
-        28, require=False, array=True, struct=StructType.COMPUTED_VALUE
-    )
-
-    def set_computed(
-        self,
-        target: "PathIn",
-        source: "ComputedSourceIn",
-        *,
-        mode: "ComputedValueMode | None" = None,
-        is_active: bool = True,
-    ):
-        """Sets and overrides the computed value for the target path."""
-        from .expression import ComputedValue, ComputedValueMode
-
-        computed_value = ComputedValue.new(
-            target=target, source=source, mode=mode or ComputedValueMode.ALWAYS, is_active=is_active
-        )
-        self.computed_values = [
-            *(cv for cv in self.computed_values if cv.target_path != target),
-            computed_value,
-        ]
-
-    def clear_computed(self, target: "PathIn"):
-        """Clears the computed value for the target path."""
-        from .path import to_path
-
-        target = to_path(target)
-        self.computed_values = [
-            *(cv for cv in self.computed_values if cv.target_path != target),
-        ]
-
-
-@node_component_()
-class IsBased(BuiltinObject, abc.ABC):
-    """A Node which may have a 'base' in another Node (e.g., its type definition)."""
-
-    @property
-    @abc.abstractmethod
-    def base(self) -> Optional[BenchNode]: ...
-
-    @property
-    def base_id(self) -> Optional[UUID]:
-        return self.base.id if self.base is not None else None
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
-
-    @staticmethod
-    @abc.abstractmethod
-    def get_base_from_partial(data: dict[str, Any]) -> Optional[BenchNode]: ...
-
-
-@node_component_()
-class IsTimed(BuiltinObject, abc.ABC):
-    """A Node with a time-based identity."""
-
-    __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
-
-
-@node_component_()
-class IsNamed(BuiltinObject):
-    """A Node with a plain name."""
-
-    name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-
-
-@node_component_()
-class IsTitled(BuiltinObject):
-    """A Node with a rich title."""
-
-    title: Optional["TextLine"] = p_regular(32, struct=StructType.TEXT_LINE)
-
-
-RunnableNode = Union["Flow", "Action", "Link"]
-RUNNABLE_NODE_TYPES = (NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
-FieldBaseNode = Union["Agent", "Flow", "Action", "Class", "Database"]
-FIELD_BASE_NODE_TYPES = (
-    NodeType.AGENT,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.CLASS,
-    NodeType.DATABASE,
-)
-TypeBaseNode = Union[FieldBaseNode, "Choice"]
-TYPE_BASE_NODE_TYPES = (*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 
 
 @node_component_()
@@ -1865,7 +1585,7 @@ class NodeReference(Struct[NodeReferenceData]):
             reference.bench_id = node_data.parent_ptr.bench_id
         # base
         if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = cast(IsBased, node_cls).get_base_from_data(node_data)
+            base = cast("IsBased", node_cls).get_base_from_data(node_data)
             if base is not None:
                 reference.base_id = base.id
 

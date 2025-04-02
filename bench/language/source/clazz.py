@@ -4,12 +4,13 @@ from typing import TYPE_CHECKING, Literal, Union
 from bench.language.core import (
     FieldType,
     InlineNode,
+    IsFieldBase,
     IsModal,
     IsNamed,
     IsTemplatable,
+    IsType,
     LocalNodeList,
     NodeType,
-    TypeBase,
     TypeKind,
     node_,
     p_node_children,
@@ -24,7 +25,13 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.CLASS, passthrough_get=("fields",))
-class Class(IsTemplatable, IsModal, IsNamed, InlineNode[BlockData]):
+class Class(
+    IsTemplatable,
+    IsModal,
+    IsNamed,
+    IsFieldBase,
+    InlineNode[BlockData],
+):
     """A Class with Fields."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
@@ -39,7 +46,7 @@ class Class(IsTemplatable, IsModal, IsNamed, InlineNode[BlockData]):
         *,
         of: Literal["instance", "value"] = "value",
         field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
+    ) -> "IsType":
         """Get a type represented by this Block (if any)"""
         from bench.language.core import Type
 
@@ -58,14 +65,14 @@ class Class(IsTemplatable, IsModal, IsNamed, InlineNode[BlockData]):
         self,
         *,
         field_types: list[FieldType] | None = None,
-    ) -> "TypeBase":
+    ) -> "IsType":
         typ = self.to_type_maybe(field_types=field_types)
         if typ is None:
             raise ValueError(f"{self!r} does not have a type")
         return typ
 
     @cached_property  # :CachedTypeInfo
-    def member_type(self) -> "TypeBase | None":
+    def member_type(self) -> "IsType | None":
         return self.to_type_maybe(field_types=[FieldType.MEMBER])
 
     @staticmethod

@@ -9,11 +9,11 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOwnable,
+    IsType,
     Node,
     NodeType,
     PackageNode,
     StructType,
-    TypeBase,
     node_,
     p_internal,
     p_node_parent,
@@ -91,7 +91,7 @@ class Record(
         return self.database
 
     @property
-    def value_type(self) -> "TypeBase | None":
+    def value_type(self) -> "IsType | None":
         database = self.database
         return database.to_type_maybe(of="value") if database is not None else None
 

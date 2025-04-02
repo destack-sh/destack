@@ -33,9 +33,10 @@ from .const import (
     active_session,
 )
 from .expression import Expression, coerce_conditional
-from .node import NODE_CLASS_BY_TYPE, FieldBaseNode, Node, NodeReference, TypeBaseNode
+from .node import NODE_CLASS_BY_TYPE, Node, NodeReference, TypeBaseNode
 from .property import Property, p_regular
 from .struct import Struct, struct_
+from .trait import FieldBaseNode
 
 if TYPE_CHECKING:
     from bench.language import (

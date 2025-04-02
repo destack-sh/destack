@@ -30,7 +30,10 @@ from bitarray import bitarray
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from bench.language.registry import (
+    BUILTIN_OBJECT_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
+)
 from bench.pb2 import AnyObjectData, AnyStructData, GraphScopeData, lang_pb2
 from bench.pb2.lang_pb2 import EditOperationData
 from bench.utils.func import dualmethod, stable_hash

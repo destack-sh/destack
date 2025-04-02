@@ -8,13 +8,14 @@ from bench.language.core import (
     EnumType,
     IsComputable,
     IsModal,
+    IsRunnable,
     IsTemplatable,
+    IsType,
     NodeType,
     PackageNode,
     RunStatus,
     RunType,
     StructType,
-    TypeBase,
     enum_,
     node_,
     p_internal,
@@ -66,7 +67,13 @@ LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.it
 
 
 @node_(NodeType.LINK, has_subtypes=True)
-class Link(IsTemplatable, IsModal, IsComputable, PackageNode[LinkData]):
+class Link(
+    IsTemplatable,
+    IsModal,
+    IsComputable,
+    IsRunnable,
+    PackageNode[LinkData],
+):
     """
     A Link between Actions in a Flow (source = outgoing, target = incoming).
     """
@@ -134,19 +141,19 @@ class Link(IsTemplatable, IsModal, IsComputable, PackageNode[LinkData]):
     def claims(self) -> tuple["Claim", ...]:
         return ()
 
-    def to_type_maybe(self) -> "TypeBase | None":
+    def to_type_maybe(self) -> "IsType | None":
         return None
 
     @property
-    def resource_type(self) -> "TypeBase | None":
+    def resource_type(self) -> "IsType | None":
         return None  # Links don't have resources (?)
 
     @property
-    def input_type(self) -> "TypeBase | None":
+    def input_type(self) -> "IsType | None":
         return None  # Links don't have inputs (?)
 
     @property
-    def output_type(self) -> "TypeBase | None":
+    def output_type(self) -> "IsType | None":
         return None  # Links don't have outputs (?)
 
     def is_triggered_by(self, status: RunStatus):

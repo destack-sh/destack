@@ -22,6 +22,7 @@ from bench.language.core import (
     Icon,
     IsComputable,
     IsModal,
+    IsType,
     Node,
     NodeMode,
     NodeReference,
@@ -41,7 +42,6 @@ from bench.language.core import (
     StructType,
     Text,
     TextLine,
-    TypeBase,
     TypeConstraint,
     TypeFormat,
     TypeKind,
@@ -238,7 +238,7 @@ class Renderer:
             prop = prop.value_runtime_ptr
         return f'{prop.component.__name__}.get_property("{prop.name}")'
 
-    def render_value_scalar(self, value: "ScalarValue", typ: "TypeBase") -> str:
+    def render_value_scalar(self, value: "ScalarValue", typ: "IsType") -> str:
         """Renders single scalar value into an expression."""
         if typ.kind == TypeKind.PRIMITIVE:
             if typ.primitive_type == PrimitiveType.BYTES:
@@ -323,7 +323,7 @@ class Renderer:
             kwargs_str = f"{{{', '.join({kwargs_str})}}}"
             return kwargs_str
 
-    def render_value(self, value: "SomeValue | None", typ: "TypeBase") -> str:
+    def render_value(self, value: "SomeValue | None", typ: "IsType") -> str:
         """Renders a value into an expression."""
         from bench.language.core import CustomObject
 
@@ -515,7 +515,7 @@ def _render_custom_object_kwargs(
 
 
 def _deconstruct_type_in(
-    renderer: "Renderer", obj: TypeBase, kwargs: dict[str, Any]
+    renderer: "Renderer", obj: IsType, kwargs: dict[str, Any]
 ) -> tuple[str | None, dict[str, Any]]:
     """Remaps a Type to its TypeIn for rendering."""
     # remap back to type in if possible
@@ -537,7 +537,7 @@ def _deconstruct_type_in(
     return rendered_type, kwargs
 
 
-def _desconstruct_partial_type(renderer: "Renderer", obj: TypeBase):
+def _desconstruct_partial_type(renderer: "Renderer", obj: IsType):
     kwargs = {}
     if obj.bench_type is not None:
         node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, obj.bench_type)]
@@ -1009,9 +1009,9 @@ class ClaimRenderer(NodeRenderer["Claim"]):
 
 
 @_renderer(StructType.TYPE)
-class TypeRenderer(BuiltinObjectRenderer[TypeBase]):
+class TypeRenderer(BuiltinObjectRenderer[IsType]):
     @override
-    def render(self, renderer: "Renderer", obj: TypeBase) -> str:
+    def render(self, renderer: "Renderer", obj: IsType) -> str:
         if obj.kind == TypeKind.PARTIAL_OBJECT:
             node_cls, rendered_kwargs = _desconstruct_partial_type(renderer, obj)
             return f"{node_cls.__name__}.partial_type({renderer.render_kwargs(**rendered_kwargs)})"
@@ -1130,7 +1130,7 @@ class ComputedValueRenderer(BuiltinObjectRenderer[ComputedValue]):
 #
 
 
-def render_value(value: SomeValue, typ: TypeBase, options: RenderOptions) -> str:
+def render_value(value: SomeValue, typ: IsType, options: RenderOptions) -> str:
     """Render the given value to a python expression."""
     renderer = Renderer(options)
     rendered = renderer.render_value(value, typ)

@@ -68,10 +68,10 @@ if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
         Field,
+        IsType,
         Node,
         NodeReference,
         Session,
-        TypeBase,
         TypeConstraint,
         TypeConstraintIn,
         TypeIdentity,
@@ -133,7 +133,7 @@ class CustomObject(Mapping[str, Any]):
 
     def __init__(
         self,
-        typ: "TypeBase",
+        typ: "IsType",
         value: dict[str, SomeValue],
         parent: ValueParent | None = None,
         parent_key: ValueParentKey | None = None,
@@ -243,7 +243,7 @@ class CustomObject(Mapping[str, Any]):
 
     __getattr__ = __getitem__
 
-    def _get_storage(self, key: "Field | Property") -> tuple[str, "TypeBase"]:
+    def _get_storage(self, key: "Field | Property") -> tuple[str, "IsType"]:
         if isinstance(key, Property):
             if key.is_value_runtime:
                 assert isinstance(
@@ -470,7 +470,7 @@ class CustomObject(Mapping[str, Any]):
     @staticmethod
     def new(
         value: dict[str, SomeValue] | None,
-        typ: "TypeBase",
+        typ: "IsType",
         parent: ValueParent | None = None,
         parent_property: ValueParentKey | None = None,
         supergraph: NodeSuperGraph | None = None,
@@ -489,7 +489,7 @@ class CustomObject(Mapping[str, Any]):
 
 
 def value_equals(
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     self_value: Any,
     other_value: Any,
     identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
@@ -632,7 +632,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject", track: b
 
 
 def get_partial_object_type(
-    typ: "TypeBase | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
+    typ: "IsType | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
 ) -> tuple[NodeType | None, type["Node"], int | None, type["Node"] | None]:
     """
     Gets the actual partial object type as specified in the type/value.
@@ -672,7 +672,7 @@ def get_partial_object_type(
 
 
 def get_custom_object_properties(
-    typ: "TypeBase | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
+    typ: "IsType | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
 ) -> "Iterable[Property]":
     """Gets all the custom object properties available in this value."""
     if typ.kind == TypeKind.PARTIAL_OBJECT:
@@ -692,7 +692,7 @@ def get_custom_object_properties(
 
 
 def get_custom_object_property(
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     value_packed: Mapping[str, JsonValue | SomeValue],
     name: str,
 ) -> "Property | None":
@@ -838,7 +838,7 @@ DEFAULT_CHECK_OPTIONS = CheckOptions()
 
 def check_value_scalar_constraint(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     constraint: "TypeConstraint | TypeConstraintIn",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
@@ -869,7 +869,7 @@ def check_value_scalar_constraint(
 
 def check_value_scalar(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -942,7 +942,7 @@ def check_value_scalar(
 
 def _check_is_list(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -961,7 +961,7 @@ def _check_is_list(
 
 def _check_is_object(
     value: SomeValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -974,7 +974,7 @@ def _check_is_object(
 
 def check_custom_object_scalar(
     value: SomeValue,
-    typ: "TypeBase",
+    typ: "IsType",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -988,7 +988,7 @@ def check_custom_object_scalar(
 
 def check_value(
     value: Any,
-    typ: "TypeBase",
+    typ: "IsType",
     *,
     options: CheckOptions = DEFAULT_CHECK_OPTIONS,
     invalid: "ValidationHandler" = on_invalid_raise,
@@ -1015,7 +1015,7 @@ def check_value(
                 check_value_scalar(element, typ, options=options, invalid=invalid)
 
 
-def is_value(value: Any, typ: "TypeBase", options: CheckOptions = DEFAULT_CHECK_OPTIONS) -> bool:
+def is_value(value: Any, typ: "IsType", options: CheckOptions = DEFAULT_CHECK_OPTIONS) -> bool:
     """Checks whether the given value has the expected type (recursively)."""
     # NOTE :Performance: make is_value more efficient (don't just use check_value?)
     try:
@@ -1091,7 +1091,7 @@ def _register_other_coercions():
 
 
 def _do_coerce(
-    value: ScalarValue, typ: "TypeBase | TypeIdentity", source_type: type, target_type: type
+    value: ScalarValue, typ: "IsType | TypeIdentity", source_type: type, target_type: type
 ) -> ScalarValue:
     """Apply coercion rules to get from source type to target type."""
     coercion = COERCION_RULE_BY_TYPE.get(target_type)
@@ -1111,7 +1111,7 @@ def _do_coerce(
 
 
 def coerce_value_scalar(
-    value: ScalarValue, typ: "TypeBase | TypeIdentity", *, as_packed: bool = False
+    value: ScalarValue, typ: "IsType | TypeIdentity", *, as_packed: bool = False
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
     # apply coercion/check rules
@@ -1161,7 +1161,7 @@ def coerce_value_scalar(
 
 def coerce_custom_object_scalar(
     value: Mapping[str, Any] | CustomObject | None,
-    typ: "TypeBase",
+    typ: "IsType",
     *,
     as_packed: bool = False,
     supergraph: NodeSuperGraph | None = None,
@@ -1210,7 +1210,7 @@ def coerce_custom_object_scalar(
 
 def coerce_value(
     value: Any,
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     *,
     as_packed: bool = False,
     supergraph: NodeSuperGraph | None = None,
@@ -1221,10 +1221,10 @@ def coerce_value(
     NOTE :Performance: we re-create and copy lists during coercion even if the type was already good
     """
     if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
-        from bench.language.core import TypeBase
+        from bench.language.core import IsType
 
         assert typ.base_field_types, f"missing base field types for {typ!r}"
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+        assert isinstance(typ, IsType), f"expected full Type for {typ!r}"
         if not typ.is_list:
             return coerce_custom_object_scalar(
                 cast(dict, value), typ, as_packed=as_packed, supergraph=supergraph
@@ -1263,7 +1263,7 @@ def coerce_value(
 
 
 def pack_value_scalar(
-    value: ScalarValue | ScalarValueData, typ: "TypeBase | TypeIdentity"
+    value: ScalarValue | ScalarValueData, typ: "IsType | TypeIdentity"
 ) -> JsonValue:
     """
     Packs the given scalar runtime or data value into a JSON-able representation.
@@ -1325,7 +1325,7 @@ def pack_value_scalar(
 
 
 def unpack_value_scalar(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", *, supergraph: NodeSuperGraph | None
+    value_packed: JsonValue, typ: "IsType | TypeIdentity", *, supergraph: NodeSuperGraph | None
 ) -> ScalarValue:
     """
     Unpacks the given scalar value into its runtime representation.
@@ -1358,7 +1358,7 @@ def unpack_value_scalar(
 
 
 def unpack_value_scalar_data(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity"
+    value_packed: JsonValue, typ: "IsType | TypeIdentity"
 ) -> ScalarValueData:
     """
     Unpacks the given scalar value into its proto data representation. See above.
@@ -1521,7 +1521,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> dict[str, JsonValue]:
+def pack_custom_object(value: CustomObject, typ: "IsType | TypeIdentity") -> dict[str, JsonValue]:
     """
     Packs an object value into a JSON representation. :UnpackedCustomObject
     """
@@ -1580,7 +1580,7 @@ def pack_custom_object(value: CustomObject, typ: "TypeBase | TypeIdentity") -> d
 
 def unpack_custom_object(
     value_packed: dict[str, JsonValue],
-    typ: "TypeBase",
+    typ: "IsType",
     *,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
@@ -1664,7 +1664,7 @@ def unpack_custom_object(
 
 
 def pack_value(
-    value: SomeValue | None, typ: "TypeBase | TypeIdentity", *, wrap_scalar: bool = False
+    value: SomeValue | None, typ: "IsType | TypeIdentity", *, wrap_scalar: bool = False
 ) -> JsonValue:
     """
     Packs a value into a JSON representation.
@@ -1694,15 +1694,15 @@ def pack_value(
         else:
             value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
         if wrap_scalar:
-            from bench.language.core import TypeBase
+            from bench.language.core import IsType
 
-            assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+            assert isinstance(typ, IsType), f"expected full Type for {typ!r}"
             value_packed = {typ.identity_key: value_packed}
         return value_packed
 
 
 def pack_value_data(
-    value: SomeValueData, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = False
+    value: SomeValueData, typ: "IsType | TypeIdentity", wrap_scalar: bool = False
 ) -> JsonValue:
     """Packs a data value into a JSON representation. See above."""
     assert typ.kind not in (
@@ -1718,16 +1718,16 @@ def pack_value_data(
     else:
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
     if wrap_scalar:
-        from bench.language.core import TypeBase
+        from bench.language.core import IsType
 
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+        assert isinstance(typ, IsType), f"expected full Type for {typ!r}"
         value_packed = {typ.identity_key: value_packed}
     return value_packed
 
 
 def unpack_value(
     value_packed: JsonValue,
-    typ: "TypeBase | TypeIdentity",
+    typ: "IsType | TypeIdentity",
     *,
     parent: ValueParent | None = None,
     parent_key: ValueParentKey | None = None,
@@ -1739,9 +1739,9 @@ def unpack_value(
     """
     if typ.kind == TypeKind.CUSTOM_OBJECT or typ.kind == TypeKind.PARTIAL_OBJECT:
         # nested object
-        from bench.language.core import TypeBase
+        from bench.language.core import IsType
 
-        assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+        assert isinstance(typ, IsType), f"expected full Type for {typ!r}"
         if not typ.is_list:
             if not isinstance(value_packed, dict):
                 raise TypeError(f"{value_packed!r} is not a dict, expected {typ!r}")
@@ -1768,9 +1768,9 @@ def unpack_value(
     else:
         # unwrap scalar
         if wrap_scalar and isinstance(value_packed, dict):
-            from bench.language.core import TypeBase
+            from bench.language.core import IsType
 
-            assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+            assert isinstance(typ, IsType), f"expected full Type for {typ!r}"
             value_packed = value_packed.get(typ.identity_key)
         if value_packed is None:
             return None
@@ -1785,7 +1785,7 @@ def unpack_value(
 
 
 def unpack_value_data(
-    value_packed: JsonValue, typ: "TypeBase | TypeIdentity", wrap_scalar: bool = False
+    value_packed: JsonValue, typ: "IsType | TypeIdentity", wrap_scalar: bool = False
 ) -> SomeValueData | JsonValue | None:
     """
     Unpacks a value from its JSON representation. Return nested objects as JSON (as is).
@@ -1796,9 +1796,9 @@ def unpack_value_data(
     else:
         # scalar
         if wrap_scalar and isinstance(value_packed, dict):
-            from bench.language.core import TypeBase
+            from bench.language.core import IsType
 
-            assert isinstance(typ, TypeBase), f"expected full Type for {typ!r}"
+            assert isinstance(typ, IsType), f"expected full Type for {typ!r}"
             value_packed = value_packed.get(typ.identity_key)
         if value_packed is None:
             return None

@@ -14,6 +14,7 @@ from bench.language import (
     Error,
     Flow,
     Interruption,
+    IsType,
     Link,
     LinkType,
     Plan,
@@ -22,14 +23,13 @@ from bench.language import (
     PlanTerminationMode,
     PlanType,
     Run,
-    RunnableNode,
+    Runnable,
     RunOptions,
     RunStatus,
     RunType,
     Task,
     TextLine,
     TriggerType,
-    TypeBase,
     coerce_custom_object_scalar,
 )
 from bench.runtime.core import (
@@ -79,9 +79,9 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         node: N,
         options: RunOptions,
         run: RunIn,
-        parent: Runner[RunnableNode] | None = None,
+        parent: Runner[Runnable] | None = None,
         inputs: CustomObject | None = None,
-        outputs: TypeBase | CustomObject | None = None,
+        outputs: IsType | CustomObject | None = None,
         agent: Agent | None = None,
     ) -> None:
         super().__init__(
@@ -168,7 +168,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             runtime=self.runtime,
             node=node,
             inputs=inputs,
-            parent=cast(Runner[RunnableNode], self),
+            parent=cast(Runner[Runnable], self),
             run="track",
         )
         assert isinstance(runner, (ActionRunner, LinkRunner)), f"unexpected {runner!r}"
@@ -404,7 +404,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         elif isinstance(self._stop_result, Error):
             raise RetryableError(title=self._stop_result.title, error=self._stop_result)
         elif isinstance(self._stop_result, Interruption):
-            raise Interrupted(cast(Runner[RunnableNode], self), self.tracked_run, self._stop_result)
+            raise Interrupted(cast(Runner[Runnable], self), self.tracked_run, self._stop_result)
         else:
             assert_never(self._stop_result)
 

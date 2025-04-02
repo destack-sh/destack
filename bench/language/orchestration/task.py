@@ -17,12 +17,12 @@ from bench.language.core import (
     IsRuntime,
     IsTimed,
     IsTitled,
+    IsType,
     NodeList,
     NodeType,
     StructType,
     Text,
     TextLineIn,
-    TypeBase,
     coerce_custom_object_scalar,
     enum_,
     p_internal,
@@ -196,7 +196,7 @@ class Task(
         self.status = TaskStatus.FAILED
 
     @cached_property
-    def value_type(self) -> Optional["TypeBase"]:
+    def value_type(self) -> Optional["IsType"]:
         if (tool := self.tool) is not None:
             return tool.to_type_maybe(of="value", field_types=[FieldType.INPUT])
         elif (node := self.target) is not None:
