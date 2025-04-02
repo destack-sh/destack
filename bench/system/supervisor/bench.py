@@ -26,7 +26,7 @@ class CreateBenchOptions(NamedTuple):
     create_computer_scaler: bool = True
 
 
-async def create_default_bench(
+async def create_default_bench(  # noqa: RUF029
     *,
     main_handle: Handle,
     owned_by: User | Organization,
@@ -47,7 +47,7 @@ async def create_default_bench(
         _is_new=True,
     )
     session._create(bench)
-    await session.flush(optimistic=True)
+    session.stage()
 
     # main Package
     main_package = Package(
@@ -60,7 +60,7 @@ async def create_default_bench(
     )
     main_package.memberships.append(Membership.new(owned_by, mode=NodeMode.BUILTIN))
     session._create(main_package)
-    await session.flush(optimistic=True)
+    session.stage()
     bench.main_package = main_package
 
     # main Store
@@ -69,9 +69,9 @@ async def create_default_bench(
         region=bench.region,
         name=options.local_store_name,
     )
-    await session.flush(optimistic=True)
+    session.stage()
     bench.main_store = store
-    await session.flush(optimistic=True)
+    session.stage()
 
     if options.create_computer_scaler:
         _ = main_package.scalers.create(

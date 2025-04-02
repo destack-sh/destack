@@ -674,7 +674,7 @@ class Runtime:
         if span.started_at is None:
             span.started_at = self.oracle.utc()
         span.status = RunStatus.RUNNING
-        self.session.commit_optimistic()
+        self.session.stage()
 
         # actually attempt Run
         try:
@@ -733,7 +733,7 @@ class Runtime:
                     span.duration = span.terminated_at - span.started_at  # type: ignore
 
             # commit intermediate session edits
-            self.session.commit_optimistic(runtime=runner.is_root)
+            self.session.stage(runtime=runner.is_root)
 
             # notify
             self._active_runners_by_id.pop(runner.id, None)
@@ -939,7 +939,7 @@ class Runtime:
             ):
                 # find existing Flow to lift into
                 agent_id = run.agent_id
-                self.session.commit_optimistic()
+                self.session.stage()
                 for existing_runner in self._runners_by_id.values():
                     if (
                         (existing_run := existing_runner.tracked_run) is not None
@@ -960,7 +960,7 @@ class Runtime:
                     outer_run = target_runner.tracked_run
                     assert outer_run is not None, f"{target_runner!r} has no tracked run"
                     run.move(to=outer_run)
-                    self.session.commit_optimistic(runtime=True)
+                    self.session.stage(runtime=True)
                     runner.close()  # we're moving the runner to an existing runner
 
                     # bail if target runner is already active
@@ -982,7 +982,7 @@ class Runtime:
                         graph=parent_node._graph,
                     )
                     run.move(to=outer_run)
-                    self.session.commit_optimistic(runtime=True)
+                    self.session.stage(runtime=True)
                     runner.close()  # we're loading a new runner to cover the outer run
                     await self.session.commit()  # wait for Run to actually exist
                     runner, run = await self._load_runner(outer_run.to_ref())
@@ -1001,14 +1001,14 @@ class Runtime:
             except (BenchError, ValueError, TypeError) as e:
                 # re-raised inner user error
                 self._try_mark_failed(run, ErrorKind.RUNTIME, e)
-                self.session.commit_optimistic()
+                self.session.stage()
                 logger.info("runtime.run.error", thread=thread, run=run, exc_info=e, span="current")
                 if not _return_error:
                     raise
             except BaseException as e:
                 # some unexpected internal error
                 self._try_mark_failed(run, ErrorKind.INTERNAL, e)
-                self.session.commit_optimistic()
+                self.session.stage()
                 logger.error(
                     "runtime.run.internal_error", thread=thread, run=run, exc_info=e, span="current"
                 )

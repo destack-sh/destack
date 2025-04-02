@@ -8,7 +8,6 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    EMPTY_DICT,
     IS_IN_USER_CODE,
     Agent,
     Aliasing,
@@ -127,7 +126,7 @@ class CodeRunner(Runner, ABC):
         _render = functools.partial(
             render, options=RenderOptions(scope=self.node, aliasing=self.aliasing)
         )
-        _upload = functools.partial(upload_file)
+        _upload = functools.partial(upload_file, parent=self.tracked_run)
         glbls = {  # :CodeGlobals
             # static
             **self.combined_glbls,
@@ -140,8 +139,8 @@ class CodeRunner(Runner, ABC):
             "run": self.closest_tracked_run,
             "runner": self,
             "aliasing": self.aliasing,
-            "inputs": self.inputs or EMPTY_DICT,
-            "outputs": self.outputs or EMPTY_DICT,
+            "inputs": self.inputs,
+            "outputs": self.outputs,
             "get_node": _get_node,
             "get_node_or_error": _get_node_or_error,
             "get_path": _get_path,
