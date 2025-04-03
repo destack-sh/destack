@@ -4,15 +4,12 @@ from bench.language import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     STRUCT_CLASS_BY_TYPE,
     UNSET,
-    ActionType,
     Aliasing,
-    BlockType,
     BuiltinEnum,
     BuiltinObject,
     File,
     Flow,
     IsRuntime,
-    LinkType,
     Node,
     PackageNode,
     Page,
@@ -260,9 +257,6 @@ def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
 
 RESOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(Resource)
 PACKAGE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(PackageNode)
-ACTION_TYPE_ENUM_PROMPT = render_builtin_enum(ActionType, compact=False)
-BLOCK_TYPE_ENUM_PROMPT = render_builtin_enum(BlockType, compact=False)
-LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
 
 
 def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> "Prompt":
@@ -340,24 +334,6 @@ def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> 
             PromptText(title=None, text=PACKAGE_NODE_HIERARCHY_PROMPT),
             title="PackageNode hierarchy",
             text="Stylized signatures for PackageNodes",
-            weight=1,
-        ),
-        prompt_region(
-            PromptText(title=None, text=ACTION_TYPE_ENUM_PROMPT),
-            title="ActionTypes",
-            weight=1,
-        ),
-        prompt_region(
-            PromptText(
-                title=None,
-                text="""\
-self: Action
-session: Session
-bench: Bench
-run: Run
-""",
-            ),
-            title="Context resources (available inline)",
             weight=1,
         ),
     ]
