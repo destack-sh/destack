@@ -6,12 +6,13 @@ LABEL org.opencontainers.image.description="Bench"
 
 #
 # OS
-# 
+#
 
 # install libraries
 RUN apt-get update && apt-get install -y \
     cmake \
     curl \
+    dbus \
     dbus-x11 \
     evince \
     ffmpeg \
@@ -50,7 +51,6 @@ RUN apt-get update && apt-get install -y \
     xfce4-goodies \
     xfce4-terminal \
     xvfb && \
-    # docker
     curl -fsSL https://get.docker.com -o /tmp/get-docker.sh && \
     chmod 700 /tmp/get-docker.sh && \
     /tmp/get-docker.sh
@@ -60,7 +60,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
  && apt-get update \
  && apt-get install -y python3.13 python3.13-dev \
  && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 
- 
+
 # cleanup
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -70,28 +70,36 @@ RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-inst
 ENV PATH="/usr/local/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# python harness (install packages as root)
-COPY bench/requirements/computer.txt bench/requirements.txt
-RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
+#
+# Users
+#
 
-# create non-root user
-RUN useradd -ms /bin/bash bench && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN useradd -ms /bin/bash bench-system && \
+    useradd -ms /bin/bash bench-user && \
+    echo "bench-user ALL=(root) NOPASSWD: /usr/bin/apt-get install *, /usr/bin/apt-get update" >> /etc/sudoers
+RUN chown -R bench-system:bench-system /home/bench-system
+RUN chown -R bench-user:bench-user /home/bench-user
+
+#
+# Python packages (installed system-wide by privileged user)
+#
+
+COPY --chown=bench-system:bench-system bench/requirements/computer.txt bench/requirements.txt
+RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
 
 # disable screensaver
 RUN apt-get remove -y xscreensaver light-locker xfce4-screensaver
 
 #
 # Chrome
-# 
+#
 
-# install Chromium from Debian instead of Snap (with proper GPG keys)
-RUN apt-get update && apt-get install -y wget gnupg libgbm-dev libxss1 libasound2 \
-    libatk-bridge2.0-0 libgtk-3-0 libx11-xcb1 libxtst6 fonts-liberation unzip --no-install-recommends && \
-    wget http://ftp.debian.org/debian/pool/main/c/chromium/chromium_122.0.6261.57-1~deb12u1_arm64.deb && \
-    wget http://ftp.debian.org/debian/pool/main/c/chromium/chromium-common_122.0.6261.57-1~deb12u1_arm64.deb && \
-    dpkg -i chromium-common_*.deb chromium_*.deb || apt-get install -fy
+# install Chromium
+RUN add-apt-repository ppa:xtradeb/apps -y
+RUN apt-get update
+RUN apt-get install -y chromium
 
-# install uBlock Origin extension correctly
+# install uBlock Origin extension
 RUN mkdir -p /usr/lib/chromium/extensions/ublock && \
     curl -sSL https://github.com/gorhill/uBlock/releases/download/1.63.2/uBlock0_1.63.2.chromium.zip -o ublock.zip && \
     unzip -q ublock.zip -d /usr/lib/chromium/extensions/ublock && \
@@ -101,10 +109,13 @@ RUN mkdir -p /usr/lib/chromium/extensions/ublock && \
 # create chromium launcher wrapper and disable bookmarks bar
 RUN cat <<'EOF' > /usr/local/bin/chromium
 #!/bin/sh
-export DBUS_SESSION_BUS_ADDRESS=/dev/null
+export DISPLAY=:99
+export XDG_RUNTIME_DIR=/tmp/runtime-root
+mkdir -p "$XDG_RUNTIME_DIR"
 mkdir -p /tmp/chrome-profile/Default
 echo '{"bookmark_bar":{"show_on_all_tabs":false}}' > /tmp/chrome-profile/Default/Preferences
 exec /usr/bin/chromium \
+  --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu \
   --disable-software-rasterizer \
@@ -130,8 +141,8 @@ EOF
 RUN chmod +x /usr/local/bin/chromium
 
 # create Chromium desktop icon
-RUN mkdir -p /home/bench/Desktop && \
-    cat <<'EOF' > /home/bench/Desktop/chromium.desktop
+RUN mkdir -p /home/bench-user/Desktop && \
+    cat <<'EOF' > /home/bench-user/Desktop/chromium.desktop
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -141,52 +152,66 @@ Icon=chromium
 Terminal=false
 Categories=Network;WebBrowser;
 EOF
-RUN chmod +x /home/bench/Desktop/chromium.desktop && chown bench:bench /home/bench/Desktop/chromium.desktop
+RUN chmod +x /home/bench-user/Desktop/chromium.desktop && chown bench-user:bench-user /home/bench-user/Desktop/chromium.desktop
 
 # make Chromium default browser
 RUN update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/local/bin/chromium 200 && \
     update-alternatives --set x-www-browser /usr/local/bin/chromium
-RUN mkdir -p /home/bench/.config/xfce4/helpers && \
-    echo "WebBrowser=chromium" > /home/bench/.config/xfce4/helpers.rc && \
-    chown -R bench:bench /home/bench/.config/xfce4
+RUN mkdir -p /home/bench-user/.config/xfce4/helpers && \
+    echo "WebBrowser=chromium" > /home/bench-user/.config/xfce4/helpers.rc && \
+    chown -R bench-user:bench-user /home/bench-user/.config/xfce4
 
 #
 # Bench
 #
 
-# copy source
-# nocheckin :Security!: copy only needed files (?)
-COPY --chown=bench:bench bench.py /home/bench/
-COPY --chown=bench:bench pyproject.toml /home/bench/
-COPY --chown=bench:bench version /home/bench/
-COPY --chown=bench:bench bench/ /home/bench/bench/
+# copy source code (privileged only)
+COPY --chown=bench-system:bench-system bench.py /home/bench-system/
+COPY --chown=bench-system:bench-system pyproject.toml /home/bench-system/
+COPY --chown=bench-system:bench-system version /home/bench-system/
+COPY --chown=bench-system:bench-system bench/ /home/bench-system/bench/
 # prune unnecessary files
-RUN rm -rf /home/bench/bench/system /home/bench/bench/test /home/bench/bench/runtime
-RUN find /home/bench/bench/ -type f -name 'test_*.py' -delete
+RUN rm -rf /home/bench-system/bench/system /home/bench-system/bench/test /home/bench-system/bench/runtime
+RUN find /home/bench-system/bench/ -type f -name 'test_*.py' -delete
+RUN chmod -R 700 /home/bench-system
 
-# startup script
-RUN cat <<'EOF' > /home/bench/start.sh
+#
+# Startup
+#
+
+# startup script (runs GUI as bench-user, backend as bench-system)
+RUN cat <<'EOF' > /start.sh
 #!/bin/sh
-# display
+# display setup
 export DISPLAY=:99
-rm -rf /home/bench/.cache/sessions
 Xvfb :99 -screen 0 "$DISPLAY_SIZE" &
 until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done
-x11vnc -nopw -shared -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
+# dbus
+mkdir -p /var/run/dbus
+dbus-daemon --system --fork
+# vnc
+x11vnc -passwd bench -shared -display :99 -forever -listen 0.0.0.0 -rfbport 5900 &
 until nc -z localhost 5900; do sleep 0.1; done
-DISPLAY=:99 xfce4-session &
-# run
-websockify --web=/usr/share/novnc 6080 localhost:5900 &
-DISPLAY=:99 chromium &
-DISPLAY=:99 python3.13 bench.py serve computer 0.0.0.0 5432
+# user
+mkdir -p /tmp/runtime-bench-user
+chown bench-user:bench-user /tmp/runtime-bench-user
+su bench-user -s /bin/bash -c '
+  export DISPLAY=:99
+  export XDG_RUNTIME_DIR=/tmp/runtime-bench-user
+  eval $(dbus-launch --sh-syntax)
+  xfce4-session &
+  chromium &
+'
+# system
+su bench-system -s /bin/bash -m -c "DISPLAY=:99 python3.13 /home/bench-system/bench.py serve computer 0.0.0.0 5432"
 EOF
-RUN chmod +x /home/bench/start.sh && chown bench:bench /home/bench/start.sh
+RUN chmod +x /start.sh
 
-RUN chown -R bench:bench /home/bench
-USER bench
-WORKDIR /home/bench
+# (start as root, but we switch to users in start script)
+USER root 
+WORKDIR /home/bench-system
 
-CMD ["/home/bench/start.sh"]
+CMD ["/start.sh"]
 
 ARG GIT_COMMIT
 ARG VERSION
