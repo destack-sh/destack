@@ -37626,9 +37626,9 @@ export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOption
   [ResourceStatus.RETRYING]: { id: 3, name: 'RETRYING', text: 'Retrying provisioning', title: 'Retrying', color: ColorType.YELLOW, icon: 'fas fa-exclamation-triangle' },
   [ResourceStatus.AVAILABLE]: { id: 10, name: 'AVAILABLE', text: 'Operational and available', title: 'Available', color: ColorType.GREEN, icon: 'fas fa-check-circle' },
   [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', text: 'Available but not running', title: 'Sleeping', color: ColorType.BLUE, icon: 'fas fa-moon' },
-  [ResourceStatus.UNAVAILABLE]: { id: 15, name: 'UNAVAILABLE', text: 'Unavailable or not responding', title: 'Unavailable', color: ColorType.RED, icon: 'fas fa-plug-circle-xmark' },
+  [ResourceStatus.UNAVAILABLE]: { id: 15, name: 'UNAVAILABLE', text: 'Unavailable or not responding', title: 'Unavailable', color: ColorType.YELLOW, icon: 'fas fa-plug-circle-xmark' },
   [ResourceStatus.IMPAIRED]: { id: 16, name: 'IMPAIRED', text: 'Operational but experiencing issues', title: 'Impaired', color: ColorType.YELLOW, icon: 'fas fa-exclamation-triangle' },
-  [ResourceStatus.OFFLINE]: { id: 30, name: 'OFFLINE', text: 'Decommissioned and unavailable', title: 'Offline', color: ColorType.GRAY, icon: 'fas fa-circle-dot' },
+  [ResourceStatus.OFFLINE]: { id: 30, name: 'OFFLINE', text: 'Decommissioned and unavailable', title: 'Offline', color: ColorType.GRAY, icon: 'fas fa-power-off' },
   [ResourceStatus.FAILED]: { id: 31, name: 'FAILED', text: 'Failed to provision', title: 'Failed', color: ColorType.RED, icon: 'fas fa-exclamation-triangle' },
 }
 
