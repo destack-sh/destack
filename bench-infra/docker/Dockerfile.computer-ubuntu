@@ -1,46 +1,58 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
 
-# install libs
+#
+# OS
+# 
+
+# install libraries
 RUN apt-get update && apt-get install -y \
-    netcat \
-    xfce4 \
-    xfce4-goodies \
-    x11vnc \
-    xvfb \
-    xdotool \
-    imagemagick \
-    x11-apps \
-    sudo \
-    software-properties-common \
-    libpq-dev \
-    libzbar-dev \
-    postgresql-client \
+    cmake \
+    curl \
+    evince \
     ffmpeg \
+    g++ \
     gcc \
     gfortran \
-    g++ \
-    pkg-config \
-    cmake \
-    libopenblas-dev \
+    git \
+    imagemagick \
     liblapack-dev \
+    libopenblas-dev \
+    libpq-dev \
+    libsm6 \
+    libxext6 \
     libxml2-dev \
     libxslt-dev \
-    git \
-    curl \
+    libzbar-dev \
     libreoffice \
-    thunar \
-    evince \
     mousepad \
-    xfce4-terminal \
-    websockify \
+    netcat-openbsd \
     novnc \
+    jupyter \
+    p7zip-full \
+    pkg-config \
     policykit-1 \
- && apt-get remove -y light-locker xfce4-screensaver xfce4-power-manager || true \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+    postgresql-client \
+    software-properties-common \
+    sudo \
+    thunar \
+    unzip \
+    websockify \
+    wget \
+    x11-apps \
+    x11vnc \
+    xdotool \
+    xfce4 \
+    xfce4-goodies \
+    xfce4-terminal \
+    xvfb && \
+    # docker
+    curl -fsSL https://get.docker.com -o /tmp/get-docker.sh && \
+    chmod 700 /tmp/get-docker.sh && \
+    /tmp/get-docker.sh
 
 # install Python 3.13
 RUN add-apt-repository ppa:deadsnakes/ppa \
@@ -48,8 +60,10 @@ RUN add-apt-repository ppa:deadsnakes/ppa \
  && apt-get install -y python3.13 python3.13-dev \
  && rm -f /usr/bin/python3 \
  && ln -s /usr/bin/python3.13 /usr/bin/python3 \
- && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 \
- && apt-get clean && rm -rf /var/lib/apt/lists/*
+ && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 
+ 
+# cleanup
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install uv globally
 ADD https://astral.sh/uv/install.sh /uv-installer.sh
@@ -60,6 +74,28 @@ ENV PYTHONUNBUFFERED=1
 # python harness (install packages as root)
 COPY bench/requirements/computer.txt bench/requirements.txt
 RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
+
+# create non-root user
+RUN useradd -ms /bin/bash bench && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+#
+# Display
+#
+
+# disable shutdown
+RUN cat <<'EOF' > /etc/polkit-1/localauthority/50-local.d/disable-shutdown.pkla
+[Disable Shutdown, Reboot, Suspend]
+Identity=unix-user:*
+Action=org.freedesktop.login1.power-off;org.freedesktop.login1.reboot;org.freedesktop.login1.suspend;org.freedesktop.login1.hibernate
+ResultAny=no
+ResultInactive=no
+ResultActive=no
+EOF
+RUN apt-get remove -y xscreensaver light-locker xfce4-screensaver && apt-get clean
+
+#
+# Chrome
+# 
 
 # install Chromium from Debian instead of Snap (with proper GPG keys)
 RUN apt-get update && apt-get install -y gnupg curl && \
@@ -82,9 +118,6 @@ RUN mkdir -p /usr/lib/chromium/extensions/ublock && \
     unzip -q ublock.zip -d /usr/lib/chromium/extensions/ublock && \
     mv /usr/lib/chromium/extensions/ublock/uBlock0.chromium/* /usr/lib/chromium/extensions/ublock && \
     rm -rf /usr/lib/chromium/extensions/ublock/uBlock0.chromium ublock.zip
-
-# create non-root user
-RUN useradd -ms /bin/bash bench && echo "bench ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # create chromium launcher wrapper and disable bookmarks bar
 RUN cat <<'EOF' > /usr/local/bin/chromium
@@ -138,28 +171,23 @@ RUN mkdir -p /home/bench/.config/xfce4/helpers && \
     echo "WebBrowser=chromium" > /home/bench/.config/xfce4/helpers.rc && \
     chown -R bench:bench /home/bench/.config/xfce4
 
-# copy application files
+#
+# Bench
+#
+
+# copy source
+# nocheckin :Security: copy only needed files
 COPY --chown=bench:bench bench.py /home/bench/
 COPY --chown=bench:bench pyproject.toml /home/bench/
 COPY --chown=bench:bench version /home/bench/
-COPY --chown=bench:bench bench /home/bench/bench
-
-
-RUN cat <<'EOF' > /etc/polkit-1/localauthority/50-local.d/disable-shutdown.pkla
-[Disable Shutdown, Reboot, Suspend]
-Identity=unix-user:*
-Action=org.freedesktop.login1.power-off;org.freedesktop.login1.reboot;org.freedesktop.login1.suspend;org.freedesktop.login1.hibernate
-ResultAny=no
-ResultInactive=no
-ResultActive=no
-EOF
-
-RUN apt-get remove -y xscreensaver light-locker xfce4-screensaver && apt-get clean
+COPY --chown=bench:bench bench/ /home/bench/bench/
+# prune unnecessary files
+RUN rm -rf /home/bench/bench/system /home/bench/bench/test /home/bench/bench/runtime
+RUN find /home/bench/bench/ -type f -name 'test_*.py' -delete
 
 # startup script
 RUN cat <<'EOF' > /home/bench/start.sh
 #!/bin/sh
-
 # display
 export DISPLAY=:99
 rm -rf /home/bench/.cache/sessions
@@ -168,8 +196,7 @@ until xdpyinfo -display :99 >/dev/null 2>&1; do sleep 0.1; done
 x11vnc -nopw -shared -display :99 -forever -listen 127.0.0.1 -rfbport 5900 &
 until nc -z localhost 5900; do sleep 0.1; done
 DISPLAY=:99 xfce4-session &
-
-# applications
+# run
 websockify --web=/usr/share/novnc 6080 localhost:5900 &
 DISPLAY=:99 chromium &
 DISPLAY=:99 python3 bench.py serve computer 0.0.0.0 5432

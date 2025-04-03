@@ -242,10 +242,4 @@ def example_(title: str, weight: int = 1):
 #
 
 
-...  # nocheckin
-
-
-def get_examples(action: Action, runner: Runner) -> Sequence[PromptExample]:
-    examples: list[PromptExample] = [*EXAMPLES]
-    # TODO :Tuning: select specific examples for action/runner?
-    return examples
+...  # nocheckin: examples

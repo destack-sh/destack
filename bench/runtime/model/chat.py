@@ -8,19 +8,15 @@ from opentelemetry import trace
 from bench.language import (
     Code,
     CustomObject,
-    Flow,
     IsType,
     ModelDeveloper,
     ModelType,
     Runnable,
     RunOptions,
-    Severity,
     SpanType,
-    capture_span,
 )
 from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
 
-from .instruct import make_flow_plan_prompt
 from .model import ModelRunner
 from .prompt import Prompt, PromptCompound, PromptElement, PromptPart
 
@@ -32,14 +28,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class ChatModelRunner(ModelRunner[Flow], ABC):
+class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
     """Run a chat-based Model."""
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Flow,
+        node: R,
         model_type: ModelType,
         options: RunOptions,
         run: RunIn,
