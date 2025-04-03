@@ -60,7 +60,7 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
                     provision_cls.get_property("bench").eq(self.bench)
                     & provision_cls.get_property("scaler").is_not_none()
                     & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
-                    & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+                    & provision_cls.get_property("status").neq(ResourceStatus.OFFLINE)
                 )
                 .include_ancestors()
                 .select_all()
@@ -160,7 +160,7 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
     async def _do_provision(self, resource: Scaler):
         self._reconcile_event.set()
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.UP  # Scalar is automatically considered up?
+            resource.status = ResourceStatus.AVAILABLE  # Scalar is automatically considered up?
 
     @override
     async def _do_update(self, resource: Scaler):
@@ -170,4 +170,4 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
     async def _do_decommission(self, resource: Scaler):
         self._reconcile_event.set()
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.OFFLINE

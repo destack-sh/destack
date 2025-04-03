@@ -182,7 +182,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
                     continue
                 container = containers_by_id.get(computer.external_id)
                 if container is None:
-                    computer.status = ResourceStatus.DECLARED
+                    computer.status = ResourceStatus.PENDING
 
     @override
     async def _do_provision(self, resource: Computer):
@@ -212,7 +212,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
-            resource.status = ResourceStatus.UP
+            resource.status = ResourceStatus.AVAILABLE
             resource.grpc_url = f"http://localhost:{grpc_port}"
             resource.vnc_url = f"ws://localhost:{vnc_port}"
 
@@ -228,7 +228,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
         if container is not None:
             container.remove(force=True)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.OFFLINE
 
 
 class KubernetesComputerProvisioner(ComputerProvisioner):
@@ -381,7 +381,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
 
         # status
         pod_phase = pod.status.phase if pod.status else None
-        status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
+        status = ResourceStatus.AVAILABLE if pod_phase == "Running" else ResourceStatus.UNAVAILABLE
         if computer.status != status:
             computer.status = status
 
@@ -411,7 +411,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 elif event_type == "DELETED":
                     self._kubernetes_pods_by_name.pop(pod.metadata.name, None)
                     async with self.host.session(commit=True):
-                        computer.status = ResourceStatus.DECOMMISSIONED
+                        computer.status = ResourceStatus.OFFLINE
                 else:
                     assert_never(event_type)
 
@@ -444,7 +444,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                     computer.external_name
                     and computer.external_name not in self._kubernetes_pods_by_name
                 ):
-                    computer.status = ResourceStatus.DECLARED
+                    computer.status = ResourceStatus.PENDING
 
         # and keep watching for pod changes
         self.tasks.run(
@@ -508,7 +508,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 # probably already gone
                 logger.warn("computer.decommission.error", resource=resource, exc_info=e)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.OFFLINE
 
     @override
     async def wait_closed(self) -> None:

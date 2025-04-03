@@ -46,7 +46,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             provision_cls.where(
                 provision_cls.get_property("bench").eq(self.bench)
                 & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
-                & provision_cls.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+                & provision_cls.get_property("status").neq(ResourceStatus.OFFLINE)
             )
             .include_ancestors()
             .select_all()

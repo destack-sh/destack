@@ -400,7 +400,7 @@ export function makeRemoteSearchParams(options: {
     const clause = makeExpression({
       type: ExpressionType.NOT_EQUALS,
       propertyPtr: propertyReference(nodeType, nodeProperties["status"]),
-      value: ResourceStatus.DECOMMISSIONED,
+      value: ResourceStatus.OFFLINE,
     });
     filterClauses.push(clause);
   }

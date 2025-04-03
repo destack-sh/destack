@@ -49,7 +49,7 @@ export const RESOURCE_COMMANDS = provideCommands<"resource">({
       isResourceCommandEnabled(
         command,
         context,
-        (status) => status != ResourceStatus.UP && status != ResourceStatus.DECOMMISSIONED,
+        (status) => status != ResourceStatus.AVAILABLE && status != ResourceStatus.OFFLINE,
       ),
     command: (command, context) => applyResourceCommand(command, context, activateResource),
   },
@@ -58,7 +58,7 @@ export const RESOURCE_COMMANDS = provideCommands<"resource">({
     title: "Suspend",
     text: "Suspend this Resource",
     isEnabled: (command, context) =>
-      isResourceCommandEnabled(command, context, (status) => status == ResourceStatus.UP),
+      isResourceCommandEnabled(command, context, (status) => status == ResourceStatus.AVAILABLE),
     command: (command, context) => applyResourceCommand(command, context, suspendResource),
   },
   "resource.status.decommission": {
@@ -66,7 +66,7 @@ export const RESOURCE_COMMANDS = provideCommands<"resource">({
     title: "Decommission",
     text: "Decommission this Resource",
     isEnabled: (command, context) =>
-      isResourceCommandEnabled(command, context, (status) => status == ResourceStatus.UP),
+      isResourceCommandEnabled(command, context, (status) => status == ResourceStatus.AVAILABLE),
     command: (command, context) => applyResourceCommand(command, context, decommissionResource),
   },
 });
