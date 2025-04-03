@@ -84,7 +84,7 @@ class ResourceStatus(BuiltinEnum):
         30,
         "Offline",
         "Decommissioned and unavailable",
-        "fas fa-circle-dot",
+        "fas fa-power-off",
         ColorType.GRAY,
     )
     FAILED = (

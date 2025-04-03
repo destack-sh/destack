@@ -86,3 +86,4 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                         target = await claim.target_ptr.get()
                     if isinstance(target, Resource):
                         target.decommission()
+                        logger.info("claim.decommission", claim=claim, target=target)
