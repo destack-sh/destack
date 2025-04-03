@@ -124,7 +124,7 @@ class ThreadHandle:
         if (
             computer.grpc_url is None
             or not computer.is_active
-            or computer.status != ResourceStatus.UP
+            or computer.status != ResourceStatus.AVAILABLE
         ):
             raise ValueError(f"{computer!r} has no connection info")
 

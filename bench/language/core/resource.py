@@ -27,19 +27,55 @@ if TYPE_CHECKING:
 class ResourceStatus(BuiltinEnum):
     """Generalized status of a Resource in its lifecycle."""
 
-    # definition
-    DECLARED = 1, None, None, "fas fa-circle-dot", ColorType.BLUE
-    # extant
-    UP = 10, None, None, "fas fa-circle-check", ColorType.GREEN
-    SLEEPING = 11, None, None, "fas fa-zzz", ColorType.BLUE
-    DOWN = 15, None, None, "fas fa-skull", ColorType.RED
-    DEGRADED = 16, None, None, "fas fa-triangle-exclamation", ColorType.YELLOW
+    # pre
+    PENDING = (
+        1,
+        "Pending",
+        "Defined and awaiting activation",
+        "fas fa-hourglass-start",
+        ColorType.BLUE,
+    )
+    # active states
+    AVAILABLE = (
+        10,
+        "Available",
+        "Operational and available",
+        "fas fa-check-circle",
+        ColorType.GREEN,
+    )
+    SLEEPING = (
+        11,
+        "Sleeping",
+        "Available but not running",
+        "fas fa-moon",
+        ColorType.BLUE,
+    )
+    UNAVAILABLE = (
+        15,
+        "Unavailable",
+        "Unavailable or not responding",
+        "fas fa-plug-circle-xmark",
+        ColorType.RED,
+    )
+    IMPAIRED = (
+        16,
+        "Impaired",
+        "Operational but experiencing issues",
+        "fas fa-exclamation-triangle",
+        ColorType.YELLOW,
+    )
     # terminal
-    DECOMMISSIONED = 30, None, None, "fas fa-circle-o", ColorType.GRAY
+    OFFLINE = (
+        30,
+        "Offline",
+        "Decommissioned and unavailable",
+        "fas fa-circle-dot",
+        ColorType.GRAY,
+    )
 
     @property
     def is_extant(self) -> bool:
-        """Whether this resouce does/should exist."""
+        """Whether this Resource does/should exist."""
         return 10 <= self.value <= 20
 
 
@@ -68,7 +104,7 @@ class Resource[NodeDataT: AnyNodeData](
         scaler_ptr: Optional[NodeReference] = None
 
     # status
-    status: ResourceStatus = p_system(50, default=ResourceStatus.DECLARED, default_sql=None)
+    status: ResourceStatus = p_system(50, default=ResourceStatus.PENDING, default_sql=None)
     # target
     activated_at: Optional[datetime] = p_internal(51, default=None)
     deactivated_at: Optional[datetime] = p_internal(52, default=None)
@@ -100,7 +136,7 @@ class Resource[NodeDataT: AnyNodeData](
     def target_status(self) -> ResourceStatus:
         """The implied target status of this Resource."""
         if self.decommissioned_at is not None:
-            return ResourceStatus.DECOMMISSIONED
+            return ResourceStatus.OFFLINE
         elif self.suspended_at is not None and not (
             self.activated_at is not None and self.activated_at > self.suspended_at
         ):
@@ -108,9 +144,9 @@ class Resource[NodeDataT: AnyNodeData](
         elif self.deactivated_at is not None and not (
             self.activated_at is not None and self.activated_at > self.deactivated_at
         ):
-            return ResourceStatus.DOWN
+            return ResourceStatus.UNAVAILABLE
         else:
-            return ResourceStatus.UP
+            return ResourceStatus.AVAILABLE
 
     def provision(self) -> None:
         """Provision this Resource."""
@@ -128,4 +164,4 @@ class Resource[NodeDataT: AnyNodeData](
 
     async def wait_until_ready(self, timeout: timedelta | None = None) -> None:
         """Wait until this Resource is ready."""
-        await self.wait_until(lambda r: r.status == ResourceStatus.UP, timeout=timeout)
+        await self.wait_until(lambda r: r.status == ResourceStatus.AVAILABLE, timeout=timeout)

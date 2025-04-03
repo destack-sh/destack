@@ -50,10 +50,10 @@ defineExpose<ViewExpose>({ self, id, focus });
       >
         <!-- Live VNC view -->
         <Vnc
-          v-if="computer?.status == ResourceStatus.UP && computer?.vncUri"
+          v-if="computer?.status == ResourceStatus.AVAILABLE && computer?.vncUrl"
           ref="vncRef"
           class="h-full w-full"
-          :url="computer?.vncUri"
+          :url="computer?.vncUrl"
           auto-connect
           scale-viewport
         />
@@ -74,7 +74,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           mode="out-in"
         >
           <div
-            v-if="computer == null || computer?.status == ResourceStatus.DECLARED || vncRef?.isLoading"
+            v-if="computer == null || computer?.status == ResourceStatus.PENDING || vncRef?.isLoading"
             class="absolute left-0 top-0 flex h-full w-full items-center justify-center"
           >
             <i class="fas fa-spinner-third animate-spin text-lg font-bold text-gray-400" />

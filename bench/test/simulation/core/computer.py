@@ -87,7 +87,7 @@ class ComputerHandle:
                 parent=package,
                 name=self.spec.name,
                 type=ComputerType.RUNTIME,
-                status=ResourceStatus.UP,
+                status=ResourceStatus.AVAILABLE,
                 grpc_url=grpc_url,
             )
             session._create(computer)

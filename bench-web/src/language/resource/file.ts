@@ -130,7 +130,7 @@ export async function extractFile(
     packagePtr: toNodeRef(pkg),
     benchPtr: toNodeRef(bench),
     region: bench.region,
-    status: ResourceStatus.UP,
+    status: ResourceStatus.AVAILABLE,
     kind: FileKind.DRIVE,
     name,
     type,

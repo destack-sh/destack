@@ -100,7 +100,7 @@ class RunPlugin(HostPlugin[Run]):
             computer
             for computer in self.bench._graph.nodes_of_type(Computer)
             if computer.type == ComputerType.RUNTIME
-            and computer.status == ResourceStatus.UP
+            and computer.status == ResourceStatus.AVAILABLE
             and computer.mode < NodeMode.TEMPLATE
         ]
         # if last computer is still available, use that

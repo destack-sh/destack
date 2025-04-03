@@ -10578,29 +10578,29 @@ export enum ResourceStatus {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DECLARED = 1;
+     * @generated from protobuf enum value: RESOURCE_STATUS_PENDING = 1;
      */
-    DECLARED = 1,
+    PENDING = 1,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UP = 10;
+     * @generated from protobuf enum value: RESOURCE_STATUS_AVAILABLE = 10;
      */
-    UP = 10,
+    AVAILABLE = 10,
     /**
      * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 11;
      */
     SLEEPING = 11,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DOWN = 15;
+     * @generated from protobuf enum value: RESOURCE_STATUS_UNAVAILABLE = 15;
      */
-    DOWN = 15,
+    UNAVAILABLE = 15,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DEGRADED = 16;
+     * @generated from protobuf enum value: RESOURCE_STATUS_IMPAIRED = 16;
      */
-    DEGRADED = 16,
+    IMPAIRED = 16,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DECOMMISSIONED = 30;
+     * @generated from protobuf enum value: RESOURCE_STATUS_OFFLINE = 30;
      */
-    DECOMMISSIONED = 30
+    OFFLINE = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.ScalerType
@@ -35583,7 +35583,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.03.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35620,7 +35620,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.03.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -37609,12 +37609,12 @@ export const RegionAreaOptionInfo: Partial<Record<RegionArea, EnumOptionInfo>> =
 }
 
 export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOptionInfo>> = {
-  [ResourceStatus.DECLARED]: { id: 1, name: 'DECLARED', color: ColorType.BLUE, icon: 'fas fa-circle-dot' },
-  [ResourceStatus.UP]: { id: 10, name: 'UP', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
-  [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', color: ColorType.BLUE, icon: 'fas fa-zzz' },
-  [ResourceStatus.DOWN]: { id: 15, name: 'DOWN', color: ColorType.RED, icon: 'fas fa-skull' },
-  [ResourceStatus.DEGRADED]: { id: 16, name: 'DEGRADED', color: ColorType.YELLOW, icon: 'fas fa-triangle-exclamation' },
-  [ResourceStatus.DECOMMISSIONED]: { id: 30, name: 'DECOMMISSIONED', color: ColorType.GRAY, icon: 'fas fa-circle-o' },
+  [ResourceStatus.PENDING]: { id: 1, name: 'PENDING', text: 'Defined and awaiting activation', title: 'Pending', color: ColorType.BLUE, icon: 'fas fa-hourglass-start' },
+  [ResourceStatus.AVAILABLE]: { id: 10, name: 'AVAILABLE', text: 'Operational and available', title: 'Available', color: ColorType.GREEN, icon: 'fas fa-check-circle' },
+  [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', text: 'Available but not running', title: 'Sleeping', color: ColorType.BLUE, icon: 'fas fa-moon' },
+  [ResourceStatus.UNAVAILABLE]: { id: 15, name: 'UNAVAILABLE', text: 'Unavailable or not responding', title: 'Unavailable', color: ColorType.RED, icon: 'fas fa-plug-circle-xmark' },
+  [ResourceStatus.IMPAIRED]: { id: 16, name: 'IMPAIRED', text: 'Operational but experiencing issues', title: 'Impaired', color: ColorType.YELLOW, icon: 'fas fa-exclamation-triangle' },
+  [ResourceStatus.OFFLINE]: { id: 30, name: 'OFFLINE', text: 'Decommissioned and unavailable', title: 'Offline', color: ColorType.GRAY, icon: 'fas fa-circle-dot' },
 }
 
 export const ComputerTypeOptionInfo: Partial<Record<ComputerType, EnumOptionInfo>> = {

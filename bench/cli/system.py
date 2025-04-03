@@ -91,7 +91,7 @@ async def make_local_runtime_computer(
         computers = await Computer.where(
             Computer.get_property("bench").eq(bench)
             & Computer.get_property("type").eq(ComputerType.RUNTIME)
-            & Computer.get_property("status").neq(ResourceStatus.DECOMMISSIONED)
+            & Computer.get_property("status").neq(ResourceStatus.OFFLINE)
         ).to_list()
         computer = first(computers, None)
         if computer is None:
@@ -117,7 +117,7 @@ async def make_local_runtime_computer(
             )
             session._create(client)
         computer.client = client
-        computer.status = ResourceStatus.UP
+        computer.status = ResourceStatus.AVAILABLE
         computer.grpc_url = local_computer_url
 
         client_env = {
