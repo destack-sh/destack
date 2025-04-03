@@ -70,6 +70,9 @@ RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-inst
 ENV PATH="/usr/local/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
+# remove GNOME keyring
+RUN apt-get remove -y gnome-keyring
+
 #
 # Users
 #
@@ -101,10 +104,68 @@ RUN apt-get install -y chromium
 
 # install uBlock Origin extension
 RUN mkdir -p /usr/lib/chromium/extensions/ublock && \
-    curl -sSL https://github.com/gorhill/uBlock/releases/download/1.63.2/uBlock0_1.63.2.chromium.zip -o ublock.zip && \
-    unzip -q ublock.zip -d /usr/lib/chromium/extensions/ublock && \
-    mv /usr/lib/chromium/extensions/ublock/uBlock0.chromium/* /usr/lib/chromium/extensions/ublock && \
-    rm -rf /usr/lib/chromium/extensions/ublock/uBlock0.chromium ublock.zip
+    curl -sSL https://github.com/uBlockOrigin/uBOL-home/releases/download/uBOLite_2025.4.1.700/uBOLite_2025.4.1.700.chromium.mv3.zip -o ublock.zip && \
+    unzip -q ublock.zip -d /tmp/ublock-ext && \
+    mv /tmp/ublock-ext/* /usr/lib/chromium/extensions/ublock && \
+    chown -R bench-user:bench-user /usr/lib/chromium/extensions/ublock && \
+    rm -rf /tmp/ublock-ext ublock.zip
+
+# create chrome profile with pre-approved uBlock Origin Lite (no popups)
+RUN mkdir -p /tmp/chrome-profile/Default && \
+    cat <<'EOF' > /tmp/chrome-profile/Default/Preferences
+{
+  "intl": {
+    "accept_languages": "en-US,en",
+    "selected_languages": "en-US,en"
+  },
+  "bookmark_bar": {
+    "show_on_all_tabs": false
+  },
+  "extensions": {
+    "settings": {
+      "kmkbmpjakngkkahilgegpddnmicjhjei": {
+        "active_permissions": {
+          "api": [
+            "activeTab",
+            "storage",
+            "declarativeNetRequest",
+            "declarativeNetRequestFeedback",
+            "scripting"
+          ],
+          "explicit_host": ["<all_urls>"],
+          "explicit_host_permissions": ["<all_urls>"],
+          "manifest_permissions": [],
+          "scriptable_host": []
+        },
+        "granted_permissions": {
+          "api": [
+            "activeTab",
+            "storage",
+            "declarativeNetRequest",
+            "declarativeNetRequestFeedback",
+            "scripting"
+          ],
+          "explicit_host": ["<all_urls>"],
+          "explicit_host_permissions": ["<all_urls>"],
+          "manifest_permissions": [],
+          "scriptable_host": []
+        },
+        "state": 1,
+        "was_installed_by_default": true,
+        "from_webstore": false,
+        "location": 8,
+        "path": "/usr/lib/chromium/extensions/ublock",
+        "manifest": {
+          "name": "uBlock Origin Lite",
+          "version": "2025.4.1.700"
+        },
+        "withholding_permissions": false
+      }
+    }
+  }
+}
+EOF
+RUN chown -R bench-user:bench-user /tmp/chrome-profile
 
 # create chromium launcher wrapper and disable bookmarks bar
 RUN cat <<'EOF' > /usr/local/bin/chromium
@@ -112,10 +173,7 @@ RUN cat <<'EOF' > /usr/local/bin/chromium
 export DISPLAY=:99
 export XDG_RUNTIME_DIR=/tmp/runtime-root
 mkdir -p "$XDG_RUNTIME_DIR"
-mkdir -p /tmp/chrome-profile/Default
-echo '{"bookmark_bar":{"show_on_all_tabs":false}}' > /tmp/chrome-profile/Default/Preferences
 exec /usr/bin/chromium \
-  --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu \
   --disable-software-rasterizer \
@@ -133,6 +191,8 @@ exec /usr/bin/chromium \
   --disable-prompt-on-repost \
   --disable-infobars \
   --no-service-autorun \
+  --no-first-run \
+  --disable-component-update \
   --start-maximized \
   --user-data-dir=/tmp/chrome-profile \
   --load-extension=/usr/lib/chromium/extensions/ublock \
@@ -200,7 +260,6 @@ su bench-user -s /bin/bash -c '
   export XDG_RUNTIME_DIR=/tmp/runtime-bench-user
   eval $(dbus-launch --sh-syntax)
   xfce4-session &
-  chromium &
 '
 # system
 su bench-system -s /bin/bash -m -c "DISPLAY=:99 python3.13 /home/bench-system/bench.py serve computer 0.0.0.0 5432"
