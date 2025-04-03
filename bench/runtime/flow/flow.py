@@ -20,7 +20,6 @@ from bench.language import (
     ModelDeveloper,
     ModelType,
     Plan,
-    PlanFailureMode,
     PlanType,
     Run,
     Runnable,
@@ -45,7 +44,7 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.model import get_chat_model_runner_cls, make_flow_plan_prompt
+from bench.runtime.model import ModelRunner, get_chat_model_runner_cls, make_flow_plan_prompt
 
 from .action import ActionRunner
 from .link import LinkRunner
@@ -99,6 +98,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         self._active_runners_by_id: dict[UUID, LinkRunner | ActionRunner] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._events: Queue[RunnerEvent] = Queue()
+        self._active_planning_runner: ModelRunner | None = None
 
     def _abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
@@ -158,9 +158,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         self,
         node: Action | Link,
         *,
-        incoming: Sequence[Run],
-        plan: Plan | None = None,
-        task: Task | None = None,
+        run_plan: Plan | None = None,
+        run_task: Task | None = None,
         inputs: CustomObject | None = None,
         title: TextLine | None = None,
     ) -> Run:
@@ -177,11 +176,10 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
         run.title = title
-        run.plan = plan
-        run.task = task
-        run.incoming_ptr = tuple(run.to_ref() for run in incoming)
-        if task is not None:
-            task.implemented_by = run
+        run.run_plan = run_plan
+        run.run_task = run_task
+        if run_task is not None:
+            run_task.implemented_by = run
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(self._events.put_nowait)
@@ -215,21 +213,21 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
                 if isinstance(runner.node, Action):
-                    await self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                    self._tick_action(cast(ActionRunner, runner), runner.node, event)
                 elif isinstance(runner.node, Link):
-                    await self._tick_link(cast(LinkRunner, runner), runner.node, event)
+                    self._tick_link(cast(LinkRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
             self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
                 assert runner.error is not None, f"missing error for {runner!r}"
                 if isinstance(runner.node, Action):
-                    tick = await self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                    tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
                     if not tick.is_handled:
                         self._fail(runner.error)  # fail on unhandled action error
                 elif isinstance(runner.node, Link):
                     self._fail(runner.error)  # fail on any link fail?
 
-    async def _tick_action(
+    def _tick_action(
         self,
         runner: ActionRunner,
         action: Action,
@@ -244,18 +242,12 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         suppressed_fail = False
 
         # tick caller plan
-        if (
-            (task := run.task) is not None
-            and (plan := run.plan) is not None
-            and plan.status.is_active
-        ):
+        if (task := run.run_task) is not None and (plan := run.run_plan) is not None:
+            assert plan.type == PlanType.RUN, f"{plan!r} is not a Flow"
             parent_run = plan.parent
             assert isinstance(parent_run, Run), f"{plan!r} is not from a Run"
-
-            # start next task
-            if plan.type == PlanType.FLOW and (
-                is_completed or (is_failed and plan.on_failure == PlanFailureMode.CONTINUE)
-            ):
+            # progress run plan
+            if is_completed:
                 next_run = None
                 tasks = plan.tasks.tolist()
                 step = tasks.index(task)
@@ -267,97 +259,52 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                             link.target_id == next_task.target_id
                             and link.source_id == parent_run.action_id
                         ):
-                            next_run = self._start(
-                                link, plan=plan, task=next_task, incoming=(parent_run,)
-                            )
+                            next_run = self._start(link, run_plan=plan, run_task=next_task)
                             new_runs.append(next_run)
                             break
                 if next_run is None:
                     # no next task, complete plan
                     plan.complete()
+            elif is_failed:
+                plan.fail(run.error)
+                suppressed_fail = True
 
-            # terminate plan on failure
-            if is_failed:
-                if plan.on_failure == PlanFailureMode.FAIL:
-                    plan.fail(run.error)
-                elif plan.on_failure == PlanFailureMode.END:
-                    plan.complete()
-                    suppressed_fail = True
-
-        # own plans
-        outgoing_links = tuple(
-            p for p in self.node.links if p.source_id == action.id and p.is_extant
-        )
-        required_links = tuple(
-            p
-            for p in outgoing_links
-            if p.type == LinkType.REQUIRE and p.is_triggered_by(run.status)
-        )
-        uncalled_required_links = set(required_links)
-
-        # begin own flow plans (on success)
+        # start manual links
         if is_completed:
-            for plan in run.plans:
-                assert plan.type == PlanType.FLOW, f"{plan!r} is not a FlowPlan"
-                # start plan
-                plan.start()
-                # run calls via links
-                plan_tasks = plan.tasks.tolist()
-                if not plan_tasks:
-                    continue  # no tasks in plan
-                next_tasks = (plan_tasks[0],)
-                for next_task in next_tasks:
-                    link = next(
-                        (p for p in outgoing_links if p.target_id == next_task.target_id), None
-                    )
-                    if link is None:
-                        continue  # ignore, can't call arbitrary nodes
-                    link_run = self._start(link, plan=plan, task=next_task, incoming=(run,))
-                    new_runs.append(link_run)
-                    uncalled_required_links.discard(link)
-
-        # call required links that were not called
-        for link in uncalled_required_links:
-            self._start(link, incoming=(run,))
+            for link in self.node.links:
+                if link.type == LinkType.MANUAL and link.source_id == action.id:
+                    self._start(link)
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
         return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or suppressed_fail)
 
-    async def _tick_link(
-        self, runner: LinkRunner, link: Link, event: RunnerEvent
-    ) -> TickLinkResult:
+    def _tick_link(self, runner: LinkRunner, link: Link, event: RunnerEvent) -> TickLinkResult:
         """Ticks the Link to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
-
-        # check plan for
-        plan = runner.tracked_run.plan
-        task = runner.tracked_run.task
 
         # start next action
         next_action = link.target
         if next_action is None or next_action.is_deleted:
             return TickLinkResult(new_runs=(), is_handled=False)
-        if task is not None:
+        if (run_plan := runner.tracked_run.run_plan) is not None and (
+            run_task := runner.tracked_run.run_task
+        ) is not None:
             next_run = self._start(
                 next_action,
-                incoming=(runner.tracked_run,),
-                plan=plan,
-                task=task,
-                inputs=task.value,
-                title=task.title,
+                run_plan=run_plan,
+                run_task=run_task,
+                inputs=run_task.value,
+                title=run_task.title,
             )
         else:
-            next_run = self._start(next_action, incoming=(runner.tracked_run,))
+            next_run = self._start(next_action)
         return TickLinkResult(new_runs=(next_run,), is_handled=True)
 
-    async def _plan(self, from_runner: ActionRunner):
+    async def _plan(self):
         """Plan the execution of this Flow."""
-        # nocheckin: implement planning at FlowRunner level
-        # build prompt
-        run = from_runner.tracked_run
-        assert run is not None, f"{from_runner!r} must be tracked"
-        action = from_runner.node
-        prompt = make_flow_plan_prompt(flow=self.node, from_run=run, context=self.tracked)
+        run = self.tracked_run
+        assert run is not None, f"{self!r} must be tracked"
+        prompt = make_flow_plan_prompt(flow=self.node, run=run)
         model_developer = ModelDeveloper.OPENAI
         model_type = ModelType.OPENAI_GPT4_0
         model_runner_cls = get_chat_model_runner_cls(
@@ -365,25 +312,29 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         )
         model_runner = model_runner_cls(
             runtime=self.runtime,
-            node=action,
+            node=self.node,
             model_type=model_type,
             options=self.options,
             inputs=self.inputs,
             outputs=self.outputs or self.output_type,
             prompt=prompt,
-            parent=cast(Runner[Runnable], from_runner),
+            parent=cast(Runner[Runnable], self),
             run=SpanType.FLOW_PLAN,
         )
-        await self.runtime.run_runner(model_runner)
+        try:
+            await self.runtime.run_runner(model_runner)
+        finally:
+            self._active_planning_runner = None
 
     @override
     async def run(self) -> None:
         """Run this Flow until it stops."""
-        assert self.tracked_run is not None, f"{self!r} must be tracked"
+        run = self.tracked_run
+        assert run is not None, f"{self!r} must be tracked"
         self._stop_result = None  # clear
 
         # start / resume
-        runs = self.tracked_run.runs.tolist()
+        runs = run.runs.tolist()
         if not runs:
             # start from scratch
             for action in self.node.actions:
@@ -391,7 +342,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     trigger.type == TriggerType.START and trigger.status.is_open
                     for trigger in action.triggers
                 ):
-                    self._start(action, inputs=self.inputs, incoming=())
+                    self._start(action, inputs=self.inputs)
         else:
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
@@ -405,8 +356,18 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         # tick on events until stop
         try:
             while not self._is_stopping:
+                # process next event
                 event = await self._events.get()
                 await self._process_event(event)
+
+                # create or update plan
+                if (
+                    run.run_plan is None or run.run_plan.status.is_terminal
+                ) and not self._is_stopping:
+                    # await self._plan()
+                    pass  # nocheckin
+
+                # stop if no more events
                 if self._events.empty():
                     self._try_stop()
         except Exception:
@@ -420,7 +381,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         elif isinstance(self._stop_result, Error):
             raise RetryableError(title=self._stop_result.title, error=self._stop_result)
         elif isinstance(self._stop_result, Interruption):
-            raise Interrupted(cast(Runner[Runnable], self), self.tracked_run, self._stop_result)
+            raise Interrupted(cast(Runner[Runnable], self), run, self._stop_result)
         else:
             assert_never(self._stop_result)
 
@@ -436,4 +397,4 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             else:
                 runnable = run.action or run.link
                 assert runnable is not None, f"{run!r} has no runnable"
-                self._start(runnable, inputs=run.inputs, incoming=())
+                self._start(runnable, inputs=run.inputs)

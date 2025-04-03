@@ -148,7 +148,7 @@ class ToolActionRunner(ActionRunner):
             self.outputs = tool_runner.outputs
         else:
             # run dynamic tool (from Task)
-            task = self.tracked_run.task
+            task = self.tracked_run.run_task
             assert task is not None, f"{self!r} must have a Task (as tool is not provided)"
             tool_ptr = task.tool_ptr
             assert tool_ptr is not None, f"{task!r} for {self!r} must have a tool"

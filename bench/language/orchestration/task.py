@@ -55,15 +55,15 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.TASK_TYPE)
 class TaskType(BuiltinEnum):
-    GENERAL = 10, "General", "Describe a general purpose task", "far fa-square-check"
-    RUN = 30, "Run", "Run a specific Node", "fas fa-play"
+    MANUAL = 10, "Manual", "Describe a manual Task", "far fa-square-check"
+    RUN = 20, "Run", "Run a specific Node", "fas fa-play"
 
 
 @enum_(EnumType.TASK_STATUS)
 class TaskStatus(BuiltinEnum):
     # pre
     CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
-    ASSIGNED = 2, None, None, "far fa-rhombus", ColorType.GRAY
+    ASSIGNED = 3, None, None, "far fa-rhombus", ColorType.GRAY
     # active
     RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.BLUE
     # waiting
@@ -93,7 +93,7 @@ class Task(
     parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
-    type: TaskType = p_regular(30, default=TaskType.GENERAL)
+    type: TaskType = p_regular(30, default=TaskType.MANUAL)
     # priority?
     implemented_by: Optional["Run"] = p_internal(
         41,
@@ -198,7 +198,7 @@ class Task(
         else:
             value = None
         task = Task(
-            type=TaskType.GENERAL,
+            type=TaskType.MANUAL,
             title=text_line(title) if title is not None else None,
             text=text,
             clazz=clazz,

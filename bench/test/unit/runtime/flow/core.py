@@ -72,7 +72,7 @@ async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWo
     Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -110,8 +110,8 @@ async def test_run_flow_code(simulation: Simulation, runtime: RuntimeLambdaWorkl
         source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output1),
     )
     Flow1.actions.extend(Start, Code1, End)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, Code1)
+    Code1.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -180,7 +180,7 @@ async def test_run_flow_computed_value_chain(
                 target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.IntIn),
                 source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
             )
-        prev.connect(LinkType.REQUIRE, Code, is_manual=True)
+        prev.connect(LinkType.MANUAL, Code)
         prev = Code
     End = Action.new(ActionType.END, "End")
     End.set_computed(
@@ -192,7 +192,7 @@ async def test_run_flow_computed_value_chain(
         source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
     )
     Flow1.actions.append(End)
-    prev.connect(LinkType.REQUIRE, End, is_manual=True)
+    prev.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -213,7 +213,7 @@ async def test_run_flow_invalid_computed_target(
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, End)
     End.set_computed(
         # refers to Output, but we delete output below (oh no!, should be ignored)
         target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
@@ -247,7 +247,7 @@ async def test_run_flow_computed_value_mode(simulation: Simulation, runtime: Run
     Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     # always
     End.set_computed(
@@ -309,8 +309,8 @@ return {'Block': block}
         source=(Create, PathElementType.RUN, Run.get_property("outputs"), Create.fields.Block),
     )
     Flow1.actions.extend(Start, Create, End)
-    Start.connect(LinkType.REQUIRE, Create, is_manual=True)
-    Create.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, Create)
+    Create.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -340,8 +340,8 @@ else:
     )
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Code1, End)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, Code1)
+    Code1.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -368,7 +368,7 @@ async def test_run_flow_link_from_nowhere(simulation: Simulation, runtime: Runti
     Flow1.actions.extend(Start, End)
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Nowhere.connect(LinkType.REQUIRE, End, parent=Flow1)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -384,8 +384,8 @@ async def test_run_flow_link_to_nowhere(simulation: Simulation, runtime: Runtime
     End = Action.new(ActionType.END, "End")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Flow1.actions.extend(Start, Nowhere, End)
-    Start.connect(LinkType.REQUIRE, Nowhere, parent=Flow1, is_manual=True)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, Nowhere, parent=Flow1)
+    Start.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     Nowhere.delete()
     await runtime.commit()
@@ -406,7 +406,7 @@ async def test_run_flow_force_invalid_output(
     Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -431,8 +431,8 @@ async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: Run
     )
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Code1, End)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, Code1)
+    Code1.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -448,7 +448,7 @@ async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWork
     Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
+    Start.connect(LinkType.MANUAL, Code1)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -465,8 +465,8 @@ async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWork
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Code1, End)
-    Start.connect(LinkType.REQUIRE, Code1, is_manual=True)
-    Code1.connect(LinkType.REQUIRE, End, is_manual=True)
+    Start.connect(LinkType.MANUAL, Code1)
+    Code1.connect(LinkType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 

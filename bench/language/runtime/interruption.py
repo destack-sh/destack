@@ -10,10 +10,10 @@ from bench.language.core import (
     IsModal,
     IsRuntime,
     IsTimed,
-    Node,
     NodeReference,
     NodeType,
     PackageNode,
+    Runnable,
     RunStatus,
     Struct,
     StructType,
@@ -266,12 +266,12 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     def is_closed(self) -> bool:
         return self.status == InterruptionStatus.COMPLETED
 
-    def is_in(self, *nodes: Node, recursive: bool = True) -> bool:
+    def is_in(self, *nodes: Runnable) -> bool:
         """Whether the Interruption is a descendant of a Run of any of the given Nodes."""
         if (parent := self.parent) is None:
             return False
         else:
-            return parent.is_in(*nodes, recursive=recursive)
+            return parent.is_in(*nodes)
 
     def complete(self, outputs: CustomObject | None = None, _trigger_runtime: bool = True) -> None:
         """Mark this Interrupt as closed."""

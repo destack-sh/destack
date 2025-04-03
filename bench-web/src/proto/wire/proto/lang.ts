@@ -4612,10 +4612,6 @@ export interface PlanData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.PlanFailureMode on_failure = 42;
-     */
-    onFailure: PlanFailureMode;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 43;
      */
     implementedByPtr?: NodeReferenceData;
@@ -5180,10 +5176,6 @@ export interface RunData {
      */
     rootPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData incoming_ptr = 34;
-     */
-    incomingPtr: NodeReferenceData[];
-    /**
      * @generated from protobuf field: symbolx.bench.RunOptionsData options = 35;
      */
     options?: RunOptionsData;
@@ -5224,25 +5216,29 @@ export interface RunData {
      */
     linkPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData plan_ptr = 74;
-     */
-    planPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData task_ptr = 75;
-     */
-    taskPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 76;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 74;
      */
     triggerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string trigger_key = 77;
-     */
-    triggerKey?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 78;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 75;
      */
     messagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData manual_plan_ptr = 76;
+     */
+    manualPlanPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData manual_task_ptr = 77;
+     */
+    manualTaskPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_plan_ptr = 78;
+     */
+    runPlanPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_task_ptr = 79;
+     */
+    runTaskPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
      */
@@ -5498,25 +5494,29 @@ export interface SpanData {
      */
     linkPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData plan_ptr = 74;
-     */
-    planPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData task_ptr = 75;
-     */
-    taskPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 76;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData trigger_ptr = 74;
      */
     triggerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string trigger_key = 77;
-     */
-    triggerKey?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 78;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData message_ptr = 75;
      */
     messagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData manual_plan_ptr = 76;
+     */
+    manualPlanPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData manual_task_ptr = 77;
+     */
+    manualTaskPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_plan_ptr = 78;
+     */
+    runPlanPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_task_ptr = 79;
+     */
+    runTaskPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
      */
@@ -6504,17 +6504,9 @@ export interface LinkData {
      */
     options?: RunOptionsData;
     /**
-     * @generated from protobuf field: symbolx.bench.LinkTrigger trigger = 40;
-     */
-    trigger: LinkTrigger;
-    /**
      * @generated from protobuf field: optional google.protobuf.Duration delay = 50;
      */
     delay?: Duration;
-    /**
-     * @generated from protobuf field: bool is_manual = 60;
-     */
-    isManual: boolean;
     /**
      * @generated from protobuf field: optional symbolx.bench.ColorData color = 80;
      */
@@ -7966,10 +7958,6 @@ export enum EnumType {
      */
     PLAN_STATUS = 22004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PLAN_FAILURE_MODE = 22006;
-     */
-    PLAN_FAILURE_MODE = 22006,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_TASK_TYPE = 22010;
      */
     TASK_TYPE = 22010,
@@ -8089,10 +8077,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 22353;
      */
     LINK_TYPE = 22353,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_LINK_TRIGGER = 22354;
-     */
-    LINK_TRIGGER = 22354,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FLOW_TYPE = 22360;
      */
@@ -9726,10 +9710,6 @@ export enum BenchType {
      */
     PLAN_STATUS = 22004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PLAN_FAILURE_MODE = 22006;
-     */
-    PLAN_FAILURE_MODE = 22006,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_TASK_TYPE = 22010;
      */
     TASK_TYPE = 22010,
@@ -9849,10 +9829,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 22353;
      */
     LINK_TYPE = 22353,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINK_TRIGGER = 22354;
-     */
-    LINK_TRIGGER = 22354,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FLOW_TYPE = 22360;
      */
@@ -12484,13 +12460,13 @@ export enum PlanType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PLAN_TYPE_GENERAL = 10;
+     * @generated from protobuf enum value: PLAN_TYPE_MANUAL = 10;
      */
-    GENERAL = 10,
+    MANUAL = 10,
     /**
-     * @generated from protobuf enum value: PLAN_TYPE_FLOW = 20;
+     * @generated from protobuf enum value: PLAN_TYPE_RUN = 20;
      */
-    FLOW = 20
+    RUN = 20
 }
 /**
  * @generated from protobuf enum symbolx.bench.PlanStatus
@@ -12526,27 +12502,6 @@ export enum PlanStatus {
     COMPLETED = 33
 }
 /**
- * @generated from protobuf enum symbolx.bench.PlanFailureMode
- */
-export enum PlanFailureMode {
-    /**
-     * @generated from protobuf enum value: PLAN_FAILURE_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PLAN_FAILURE_MODE_FAIL = 10;
-     */
-    FAIL = 10,
-    /**
-     * @generated from protobuf enum value: PLAN_FAILURE_MODE_END = 20;
-     */
-    END = 20,
-    /**
-     * @generated from protobuf enum value: PLAN_FAILURE_MODE_CONTINUE = 30;
-     */
-    CONTINUE = 30
-}
-/**
  * @generated from protobuf enum symbolx.bench.TaskType
  */
 export enum TaskType {
@@ -12555,13 +12510,13 @@ export enum TaskType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TASK_TYPE_GENERAL = 10;
+     * @generated from protobuf enum value: TASK_TYPE_MANUAL = 10;
      */
-    GENERAL = 10,
+    MANUAL = 10,
     /**
-     * @generated from protobuf enum value: TASK_TYPE_RUN = 30;
+     * @generated from protobuf enum value: TASK_TYPE_RUN = 20;
      */
-    RUN = 30
+    RUN = 20
 }
 /**
  * @generated from protobuf enum symbolx.bench.TaskStatus
@@ -12576,9 +12531,9 @@ export enum TaskStatus {
      */
     CREATED = 1,
     /**
-     * @generated from protobuf enum value: TASK_STATUS_ASSIGNED = 2;
+     * @generated from protobuf enum value: TASK_STATUS_ASSIGNED = 3;
      */
-    ASSIGNED = 2,
+    ASSIGNED = 3,
     /**
      * @generated from protobuf enum value: TASK_STATUS_RUNNING = 10;
      */
@@ -12828,17 +12783,9 @@ export enum ClaimStatus {
      */
     PAUSED = 20,
     /**
-     * @generated from protobuf enum value: CLAIM_STATUS_CANCELLED = 30;
+     * @generated from protobuf enum value: CLAIM_STATUS_CLOSED = 30;
      */
-    CANCELLED = 30,
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_REJECTED = 31;
-     */
-    REJECTED = 31,
-    /**
-     * @generated from protobuf enum value: CLAIM_STATUS_RELEASED = 32;
-     */
-    RELEASED = 32
+    CLOSED = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.AgentStatus
@@ -13379,34 +13326,17 @@ export enum LinkType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: LINK_TYPE_DECIDE = 10;
+     * @generated from protobuf enum value: LINK_TYPE_MANUAL = 10;
      */
-    DECIDE = 10,
+    MANUAL = 10,
     /**
-     * @generated from protobuf enum value: LINK_TYPE_REQUIRE = 20;
+     * @generated from protobuf enum value: LINK_TYPE_DECIDE = 20;
      */
-    REQUIRE = 20
-}
-/**
- * @generated from protobuf enum symbolx.bench.LinkTrigger
- */
-export enum LinkTrigger {
+    DECIDE = 20,
     /**
-     * @generated from protobuf enum value: LINK_TRIGGER_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: LINK_TYPE_REQUIRE = 30;
      */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: LINK_TRIGGER_ON_COMPLETED = 1;
-     */
-    ON_COMPLETED = 1,
-    /**
-     * @generated from protobuf enum value: LINK_TRIGGER_ON_FAILED = 2;
-     */
-    ON_FAILED = 2,
-    /**
-     * @generated from protobuf enum value: LINK_TRIGGER_ON_TERMINATED = 3;
-     */
-    ON_TERMINATED = 3
+    REQUIRE = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.FlowType
@@ -25403,7 +25333,6 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "on_failure", kind: "enum", T: () => ["symbolx.bench.PlanFailureMode", PlanFailureMode, "PLAN_FAILURE_MODE_"] },
             { no: 43, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.PlanStatus", PlanStatus, "PLAN_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
@@ -25430,7 +25359,6 @@ class PlanData$Type extends MessageType$<PlanData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
-        message.onFailure = 0;
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<PlanData>(this, message, value);
@@ -25506,9 +25434,6 @@ class PlanData$Type extends MessageType$<PlanData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* symbolx.bench.PlanFailureMode on_failure */ 42:
-                    message.onFailure = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 43:
                     message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
@@ -25639,9 +25564,6 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PlanFailureMode on_failure = 42; */
-        if (message.onFailure !== 0)
-            writer.tag(42, WireType.Varint).int32(message.onFailure);
         /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 43; */
         if (message.implementedByPtr)
             NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -26579,7 +26501,6 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.RunType", RunType, "RUN_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "incoming_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 35, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 38, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "inputs_packed", kind: "message", T: () => Value },
@@ -26590,11 +26511,12 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 71, name: "kit_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "action_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 73, name: "link_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 74, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 75, name: "task_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 76, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 77, name: "trigger_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 78, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 74, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 75, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 76, name: "manual_plan_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 77, name: "manual_task_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 78, name: "run_plan_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 79, name: "run_task_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
@@ -26619,7 +26541,6 @@ class RunData$Type extends MessageType$<RunData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
-        message.incomingPtr = [];
         message.status = 0;
         if (value !== undefined)
             reflectionMergePartial<RunData>(this, message, value);
@@ -26678,9 +26599,6 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData root_ptr */ 33:
                     message.rootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootPtr);
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData incoming_ptr */ 34:
-                    message.incomingPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
                 case /* symbolx.bench.RunOptionsData options */ 35:
                     message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
@@ -26711,20 +26629,23 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData link_ptr */ 73:
                     message.linkPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.linkPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData plan_ptr */ 74:
-                    message.planPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.planPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData task_ptr */ 75:
-                    message.taskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.taskPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 76:
+                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 74:
                     message.triggerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerPtr);
                     break;
-                case /* optional string trigger_key */ 77:
-                    message.triggerKey = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 78:
+                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 75:
                     message.messagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messagePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData manual_plan_ptr */ 76:
+                    message.manualPlanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.manualPlanPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData manual_task_ptr */ 77:
+                    message.manualTaskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.manualTaskPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_plan_ptr */ 78:
+                    message.runPlanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPlanPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_task_ptr */ 79:
+                    message.runTaskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runTaskPtr);
                     break;
                 case /* symbolx.bench.RunStatus status */ 80:
                     message.status = reader.int32();
@@ -26834,9 +26755,6 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData root_ptr = 33; */
         if (message.rootPtr)
             NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData incoming_ptr = 34; */
-        for (let i = 0; i < message.incomingPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.incomingPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.RunOptionsData options = 35; */
         if (message.options)
             RunOptionsData.internalBinaryWrite(message.options, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
@@ -26867,21 +26785,24 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData link_ptr = 73; */
         if (message.linkPtr)
             NodeReferenceData.internalBinaryWrite(message.linkPtr, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData plan_ptr = 74; */
-        if (message.planPtr)
-            NodeReferenceData.internalBinaryWrite(message.planPtr, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData task_ptr = 75; */
-        if (message.taskPtr)
-            NodeReferenceData.internalBinaryWrite(message.taskPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 76; */
+        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 74; */
         if (message.triggerPtr)
-            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
-        /* optional string trigger_key = 77; */
-        if (message.triggerKey !== undefined)
-            writer.tag(77, WireType.LengthDelimited).string(message.triggerKey);
-        /* optional symbolx.bench.NodeReferenceData message_ptr = 78; */
+            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData message_ptr = 75; */
         if (message.messagePtr)
-            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(78, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData manual_plan_ptr = 76; */
+        if (message.manualPlanPtr)
+            NodeReferenceData.internalBinaryWrite(message.manualPlanPtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData manual_task_ptr = 77; */
+        if (message.manualTaskPtr)
+            NodeReferenceData.internalBinaryWrite(message.manualTaskPtr, writer.tag(77, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_plan_ptr = 78; */
+        if (message.runPlanPtr)
+            NodeReferenceData.internalBinaryWrite(message.runPlanPtr, writer.tag(78, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_task_ptr = 79; */
+        if (message.runTaskPtr)
+            NodeReferenceData.internalBinaryWrite(message.runTaskPtr, writer.tag(79, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.RunStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
@@ -27158,11 +27079,12 @@ class SpanData$Type extends MessageType$<SpanData> {
             { no: 71, name: "kit_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "action_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 73, name: "link_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 74, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 75, name: "task_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 76, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 77, name: "trigger_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 78, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 74, name: "trigger_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 75, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 76, name: "manual_plan_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 77, name: "manual_task_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 78, name: "run_plan_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 79, name: "run_task_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "started_at", kind: "message", T: () => Timestamp },
@@ -27267,20 +27189,23 @@ class SpanData$Type extends MessageType$<SpanData> {
                 case /* optional symbolx.bench.NodeReferenceData link_ptr */ 73:
                     message.linkPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.linkPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData plan_ptr */ 74:
-                    message.planPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.planPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData task_ptr */ 75:
-                    message.taskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.taskPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 76:
+                case /* optional symbolx.bench.NodeReferenceData trigger_ptr */ 74:
                     message.triggerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.triggerPtr);
                     break;
-                case /* optional string trigger_key */ 77:
-                    message.triggerKey = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 78:
+                case /* optional symbolx.bench.NodeReferenceData message_ptr */ 75:
                     message.messagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.messagePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData manual_plan_ptr */ 76:
+                    message.manualPlanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.manualPlanPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData manual_task_ptr */ 77:
+                    message.manualTaskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.manualTaskPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_plan_ptr */ 78:
+                    message.runPlanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPlanPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_task_ptr */ 79:
+                    message.runTaskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runTaskPtr);
                     break;
                 case /* symbolx.bench.RunStatus status */ 80:
                     message.status = reader.int32();
@@ -27402,21 +27327,24 @@ class SpanData$Type extends MessageType$<SpanData> {
         /* optional symbolx.bench.NodeReferenceData link_ptr = 73; */
         if (message.linkPtr)
             NodeReferenceData.internalBinaryWrite(message.linkPtr, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData plan_ptr = 74; */
-        if (message.planPtr)
-            NodeReferenceData.internalBinaryWrite(message.planPtr, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData task_ptr = 75; */
-        if (message.taskPtr)
-            NodeReferenceData.internalBinaryWrite(message.taskPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 76; */
+        /* optional symbolx.bench.NodeReferenceData trigger_ptr = 74; */
         if (message.triggerPtr)
-            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
-        /* optional string trigger_key = 77; */
-        if (message.triggerKey !== undefined)
-            writer.tag(77, WireType.LengthDelimited).string(message.triggerKey);
-        /* optional symbolx.bench.NodeReferenceData message_ptr = 78; */
+            NodeReferenceData.internalBinaryWrite(message.triggerPtr, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData message_ptr = 75; */
         if (message.messagePtr)
-            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(78, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.messagePtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData manual_plan_ptr = 76; */
+        if (message.manualPlanPtr)
+            NodeReferenceData.internalBinaryWrite(message.manualPlanPtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData manual_task_ptr = 77; */
+        if (message.manualTaskPtr)
+            NodeReferenceData.internalBinaryWrite(message.manualTaskPtr, writer.tag(77, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_plan_ptr = 78; */
+        if (message.runPlanPtr)
+            NodeReferenceData.internalBinaryWrite(message.runPlanPtr, writer.tag(78, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_task_ptr = 79; */
+        if (message.runTaskPtr)
+            NodeReferenceData.internalBinaryWrite(message.runTaskPtr, writer.tag(79, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.RunStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
@@ -29301,9 +29229,7 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 39, name: "options", kind: "message", T: () => RunOptionsData },
-            { no: 40, name: "trigger", kind: "enum", T: () => ["symbolx.bench.LinkTrigger", LinkTrigger, "LINK_TRIGGER_"] },
             { no: 50, name: "delay", kind: "message", T: () => Duration },
-            { no: 60, name: "is_manual", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 80, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
@@ -29315,8 +29241,6 @@ class LinkData$Type extends MessageType$<LinkData> {
         message.computedValues = [];
         message.type = 0;
         message.orderKey = "";
-        message.trigger = 0;
-        message.isManual = false;
         if (value !== undefined)
             reflectionMergePartial<LinkData>(this, message, value);
         return message;
@@ -29392,14 +29316,8 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional symbolx.bench.RunOptionsData options */ 39:
                     message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
-                case /* symbolx.bench.LinkTrigger trigger */ 40:
-                    message.trigger = reader.int32();
-                    break;
                 case /* optional google.protobuf.Duration delay */ 50:
                     message.delay = Duration.internalBinaryRead(reader, reader.uint32(), options, message.delay);
-                    break;
-                case /* bool is_manual */ 60:
-                    message.isManual = reader.bool();
                     break;
                 case /* optional symbolx.bench.ColorData color */ 80:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
@@ -29482,15 +29400,9 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional symbolx.bench.RunOptionsData options = 39; */
         if (message.options)
             RunOptionsData.internalBinaryWrite(message.options, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.LinkTrigger trigger = 40; */
-        if (message.trigger !== 0)
-            writer.tag(40, WireType.Varint).int32(message.trigger);
         /* optional google.protobuf.Duration delay = 50; */
         if (message.delay)
             Duration.internalBinaryWrite(message.delay, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_manual = 60; */
-        if (message.isManual !== false)
-            writer.tag(60, WireType.Varint).bool(message.isManual);
         /* optional symbolx.bench.ColorData color = 80; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
@@ -32630,7 +32542,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.PLAN_TYPE]: PlanType,
   [EnumType.PLAN_STATUS]: PlanStatus,
-  [EnumType.PLAN_FAILURE_MODE]: PlanFailureMode,
   [EnumType.TASK_TYPE]: TaskType,
   [EnumType.TASK_STATUS]: TaskStatus,
   [EnumType.SESSION_STATUS]: SessionStatus,
@@ -32661,7 +32572,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.LINK_TYPE]: LinkType,
-  [EnumType.LINK_TRIGGER]: LinkTrigger,
   [EnumType.FLOW_TYPE]: FlowType,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
@@ -32992,7 +32902,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.PLAN_TYPE]: PlanType,
   [EnumType.PLAN_STATUS]: PlanStatus,
-  [EnumType.PLAN_FAILURE_MODE]: PlanFailureMode,
   [EnumType.TASK_TYPE]: TaskType,
   [EnumType.TASK_STATUS]: TaskStatus,
   [EnumType.SESSION_STATUS]: SessionStatus,
@@ -33023,7 +32932,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.LINK_TYPE]: LinkType,
-  [EnumType.LINK_TRIGGER]: LinkTrigger,
   [EnumType.FLOW_TYPE]: FlowType,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
@@ -33735,9 +33643,7 @@ export enum LinkProperty {
   sourcePtr = 35,
   targetPtr = 36,
   options = 39,
-  trigger = 40,
   delay = 50,
-  isManual = 60,
   color = 80,
 }
 
@@ -34112,7 +34018,6 @@ export enum RunProperty {
   type = 30,
   title = 32,
   rootPtr = 33,
-  incomingPtr = 34,
   options = 35,
   threadPtr = 38,
   inputsPacked = 61,
@@ -34123,11 +34028,12 @@ export enum RunProperty {
   kitPtr = 71,
   actionPtr = 72,
   linkPtr = 73,
-  planPtr = 74,
-  taskPtr = 75,
-  triggerPtr = 76,
-  triggerKey = 77,
-  messagePtr = 78,
+  triggerPtr = 74,
+  messagePtr = 75,
+  manualPlanPtr = 76,
+  manualTaskPtr = 77,
+  runPlanPtr = 78,
+  runTaskPtr = 79,
   status = 80,
   duration = 81,
   scheduledAt = 82,
@@ -34171,11 +34077,12 @@ export enum SpanProperty {
   kitPtr = 71,
   actionPtr = 72,
   linkPtr = 73,
-  planPtr = 74,
-  taskPtr = 75,
-  triggerPtr = 76,
-  triggerKey = 77,
-  messagePtr = 78,
+  triggerPtr = 74,
+  messagePtr = 75,
+  manualPlanPtr = 76,
+  manualTaskPtr = 77,
+  runPlanPtr = 78,
+  runTaskPtr = 79,
   status = 80,
   duration = 81,
   startedAt = 82,
@@ -34275,7 +34182,6 @@ export enum PlanProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  onFailure = 42,
   implementedByPtr = 43,
   status = 80,
   duration = 81,
@@ -35595,7 +35501,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.03.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.03.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35632,7 +35538,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.03.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.03.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -36073,9 +35979,7 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.LINK, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.LINK, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.options]: { id: 39, name: 'options', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [LinkProperty.trigger]: { id: 40, name: 'trigger', component: ObjectType.LINK, enumType: EnumType.LINK_TRIGGER, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.delay]: { id: 50, name: 'delay', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.isManual]: { id: 60, name: 'is_manual', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.color]: { id: 80, name: 'color', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
@@ -36436,7 +36340,6 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN, enumType: EnumType.RUN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [RunProperty.rootPtr]: { id: 33, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.incomingPtr]: { id: 34, name: 'incoming_ptr', component: ObjectType.RUN, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.options]: { id: 35, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [RunProperty.threadPtr]: { id: 38, name: 'thread_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -36447,11 +36350,12 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.kitPtr]: { id: 71, name: 'kit_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.KIT], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.actionPtr]: { id: 72, name: 'action_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.linkPtr]: { id: 73, name: 'link_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LINK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.planPtr]: { id: 74, name: 'plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.taskPtr]: { id: 75, name: 'task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.triggerPtr]: { id: 76, name: 'trigger_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.triggerKey]: { id: 77, name: 'trigger_key', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.messagePtr]: { id: 78, name: 'message_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.triggerPtr]: { id: 74, name: 'trigger_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.messagePtr]: { id: 75, name: 'message_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.manualPlanPtr]: { id: 76, name: 'manual_plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.manualTaskPtr]: { id: 77, name: 'manual_task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.runPlanPtr]: { id: 78, name: 'run_plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.runTaskPtr]: { id: 79, name: 'run_task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.status]: { id: 80, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 81, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36494,11 +36398,12 @@ export const SpanDataInfo: Record<SpanProperty, PropertyInfo> = {
   [SpanProperty.kitPtr]: { id: 71, name: 'kit_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.KIT], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.actionPtr]: { id: 72, name: 'action_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.linkPtr]: { id: 73, name: 'link_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LINK], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.planPtr]: { id: 74, name: 'plan_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.taskPtr]: { id: 75, name: 'task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.triggerPtr]: { id: 76, name: 'trigger_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.triggerKey]: { id: 77, name: 'trigger_key', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.messagePtr]: { id: 78, name: 'message_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.triggerPtr]: { id: 74, name: 'trigger_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.messagePtr]: { id: 75, name: 'message_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.manualPlanPtr]: { id: 76, name: 'manual_plan_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.manualTaskPtr]: { id: 77, name: 'manual_task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.runPlanPtr]: { id: 78, name: 'run_plan_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.runTaskPtr]: { id: 79, name: 'run_task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.status]: { id: 80, name: 'status', component: ObjectType.SPAN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.startedAt]: { id: 82, name: 'started_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
@@ -36595,7 +36500,6 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PlanProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.onFailure]: { id: 42, name: 'on_failure', component: ObjectType.PLAN, enumType: EnumType.PLAN_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.implementedByPtr]: { id: 43, name: 'implemented_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PLAN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -37796,8 +37700,8 @@ export const SpanTypeOptionInfo: Partial<Record<SpanType, EnumOptionInfo>> = {
 }
 
 export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
-  [PlanType.GENERAL]: { id: 10, name: 'GENERAL', text: 'Define general Tasks to do', title: 'Generic', icon: 'fas fa-list' },
-  [PlanType.FLOW]: { id: 20, name: 'FLOW', text: 'Sequence Tasks in a Flow', title: 'Flow', icon: 'fas fa-list-ol' },
+  [PlanType.MANUAL]: { id: 10, name: 'MANUAL', text: 'Define manual Tasks to do', title: 'Manual', icon: 'fas fa-list' },
+  [PlanType.RUN]: { id: 20, name: 'RUN', text: 'Sequence Tasks in a Run', title: 'Run', icon: 'fas fa-list-ol' },
 }
 
 export const PlanStatusOptionInfo: Partial<Record<PlanStatus, EnumOptionInfo>> = {
@@ -37809,20 +37713,14 @@ export const PlanStatusOptionInfo: Partial<Record<PlanStatus, EnumOptionInfo>> =
   [PlanStatus.COMPLETED]: { id: 33, name: 'COMPLETED', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
 }
 
-export const PlanFailureModeOptionInfo: Partial<Record<PlanFailureMode, EnumOptionInfo>> = {
-  [PlanFailureMode.FAIL]: { id: 10, name: 'FAIL', text: 'Fail the Plan', title: 'Fail' },
-  [PlanFailureMode.END]: { id: 20, name: 'END', text: 'Complete the Plan', title: 'Complete' },
-  [PlanFailureMode.CONTINUE]: { id: 30, name: 'CONTINUE', text: 'Continue the Plan (skip failures)', title: 'Continue' },
-}
-
 export const TaskTypeOptionInfo: Partial<Record<TaskType, EnumOptionInfo>> = {
-  [TaskType.GENERAL]: { id: 10, name: 'GENERAL', text: 'Describe a general purpose task', title: 'General', icon: 'far fa-square-check' },
-  [TaskType.RUN]: { id: 30, name: 'RUN', text: 'Run a specific Node', title: 'Run', icon: 'fas fa-play' },
+  [TaskType.MANUAL]: { id: 10, name: 'MANUAL', text: 'Describe a manual Task', title: 'Manual', icon: 'far fa-square-check' },
+  [TaskType.RUN]: { id: 20, name: 'RUN', text: 'Run a specific Node', title: 'Run', icon: 'fas fa-play' },
 }
 
 export const TaskStatusOptionInfo: Partial<Record<TaskStatus, EnumOptionInfo>> = {
   [TaskStatus.CREATED]: { id: 1, name: 'CREATED', color: ColorType.GRAY, icon: 'fas fa-clock' },
-  [TaskStatus.ASSIGNED]: { id: 2, name: 'ASSIGNED', color: ColorType.GRAY, icon: 'far fa-rhombus' },
+  [TaskStatus.ASSIGNED]: { id: 3, name: 'ASSIGNED', color: ColorType.GRAY, icon: 'far fa-rhombus' },
   [TaskStatus.RUNNING]: { id: 10, name: 'RUNNING', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
   [TaskStatus.WAITING]: { id: 22, name: 'WAITING', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [TaskStatus.REVIEWING]: { id: 23, name: 'REVIEWING', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
@@ -37866,9 +37764,7 @@ export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>>
   [ClaimStatus.REQUESTED]: { id: 1, name: 'REQUESTED', text: 'Pending', title: 'Pending', color: ColorType.BLUE, icon: 'fas fa-clock' },
   [ClaimStatus.OPEN]: { id: 10, name: 'OPEN', text: 'Active concurrent access', title: 'Active', color: ColorType.GREEN, icon: 'fas fa-lock-open' },
   [ClaimStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-pause' },
-  [ClaimStatus.CANCELLED]: { id: 30, name: 'CANCELLED', title: 'Cancelled', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
-  [ClaimStatus.REJECTED]: { id: 31, name: 'REJECTED', title: 'Rejected', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
-  [ClaimStatus.RELEASED]: { id: 32, name: 'RELEASED', title: 'Released', color: ColorType.GRAY, icon: 'fas fa-circle-o' },
+  [ClaimStatus.CLOSED]: { id: 30, name: 'CLOSED', text: 'Closed', title: 'Closed', color: ColorType.GRAY, icon: 'fas fa-power-off' },
 }
 
 export const AgentStatusOptionInfo: Partial<Record<AgentStatus, EnumOptionInfo>> = {
@@ -37937,14 +37833,9 @@ export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> =
 }
 
 export const LinkTypeOptionInfo: Partial<Record<LinkType, EnumOptionInfo>> = {
-  [LinkType.DECIDE]: { id: 10, name: 'DECIDE', text: 'Determine when and how to call', title: 'Decide', icon: 'far fa-shuffle' },
-  [LinkType.REQUIRE]: { id: 20, name: 'REQUIRE', text: 'Determine how to call', title: 'Require', icon: 'fas fa-arrow-right-long' },
-}
-
-export const LinkTriggerOptionInfo: Partial<Record<LinkTrigger, EnumOptionInfo>> = {
-  [LinkTrigger.ON_COMPLETED]: { id: 1, name: 'ON_COMPLETED', text: 'If the action succeeds', title: 'On completed', icon: 'fas fa-check' },
-  [LinkTrigger.ON_FAILED]: { id: 2, name: 'ON_FAILED', text: 'If the action fails', title: 'On failed', icon: 'fas fa-xmark' },
-  [LinkTrigger.ON_TERMINATED]: { id: 3, name: 'ON_TERMINATED', text: 'Always, success or failure', title: 'On terminated', icon: 'fas fa-check-double' },
+  [LinkType.MANUAL]: { id: 10, name: 'MANUAL', text: 'Manually triggered', title: 'Manual', icon: 'fas fa-link' },
+  [LinkType.DECIDE]: { id: 20, name: 'DECIDE', text: 'Determine when and how to call', title: 'Decide', icon: 'far fa-shuffle' },
+  [LinkType.REQUIRE]: { id: 30, name: 'REQUIRE', text: 'Determine how to call', title: 'Require', icon: 'fas fa-arrow-right-long' },
 }
 
 export const FlowTypeOptionInfo: Partial<Record<FlowType, EnumOptionInfo>> = {
@@ -38052,7 +37943,6 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.SPAN_TYPE]: SpanTypeOptionInfo,
   [EnumType.PLAN_TYPE]: PlanTypeOptionInfo,
   [EnumType.PLAN_STATUS]: PlanStatusOptionInfo,
-  [EnumType.PLAN_FAILURE_MODE]: PlanFailureModeOptionInfo,
   [EnumType.TASK_TYPE]: TaskTypeOptionInfo,
   [EnumType.TASK_STATUS]: TaskStatusOptionInfo,
   [EnumType.SEVERITY]: SeverityOptionInfo,
@@ -38068,7 +37958,6 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.MODEL_PROVIDER]: ModelProviderOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.LINK_TYPE]: LinkTypeOptionInfo,
-  [EnumType.LINK_TRIGGER]: LinkTriggerOptionInfo,
   [EnumType.FLOW_TYPE]: FlowTypeOptionInfo,
   [EnumType.VIEW_TYPE]: ViewTypeOptionInfo,
   [EnumType.MESSAGE_TYPE]: MessageTypeOptionInfo,

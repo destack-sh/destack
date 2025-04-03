@@ -76,7 +76,6 @@ enum EnumType {
   ENUM_TYPE_SPAN_TYPE = 22002;
   ENUM_TYPE_PLAN_TYPE = 22003;
   ENUM_TYPE_PLAN_STATUS = 22004;
-  ENUM_TYPE_PLAN_FAILURE_MODE = 22006;
   ENUM_TYPE_TASK_TYPE = 22010;
   ENUM_TYPE_TASK_STATUS = 22011;
   ENUM_TYPE_SESSION_STATUS = 22020;
@@ -107,7 +106,6 @@ enum EnumType {
   ENUM_TYPE_ACTION_TYPE = 22350;
   ENUM_TYPE_PORT_SIDE = 22352;
   ENUM_TYPE_LINK_TYPE = 22353;
-  ENUM_TYPE_LINK_TRIGGER = 22354;
   ENUM_TYPE_FLOW_TYPE = 22360;
   ENUM_TYPE_SPACE_TYPE = 22400;
   ENUM_TYPE_VIEW_TYPE = 22401;
@@ -523,7 +521,6 @@ enum BenchType {
   BENCH_TYPE_SPAN_TYPE = 22002;
   BENCH_TYPE_PLAN_TYPE = 22003;
   BENCH_TYPE_PLAN_STATUS = 22004;
-  BENCH_TYPE_PLAN_FAILURE_MODE = 22006;
   BENCH_TYPE_TASK_TYPE = 22010;
   BENCH_TYPE_TASK_STATUS = 22011;
   BENCH_TYPE_SESSION_STATUS = 22020;
@@ -554,7 +551,6 @@ enum BenchType {
   BENCH_TYPE_ACTION_TYPE = 22350;
   BENCH_TYPE_PORT_SIDE = 22352;
   BENCH_TYPE_LINK_TYPE = 22353;
-  BENCH_TYPE_LINK_TRIGGER = 22354;
   BENCH_TYPE_FLOW_TYPE = 22360;
   BENCH_TYPE_SPACE_TYPE = 22400;
   BENCH_TYPE_VIEW_TYPE = 22401;
@@ -1326,8 +1322,8 @@ enum SpanType {
 
 enum PlanType {
   PLAN_TYPE_UNSPECIFIED = 0;
-  PLAN_TYPE_GENERAL = 10;
-  PLAN_TYPE_FLOW = 20;
+  PLAN_TYPE_MANUAL = 10;
+  PLAN_TYPE_RUN = 20;
 }
 
 enum PlanStatus {
@@ -1340,23 +1336,16 @@ enum PlanStatus {
   PLAN_STATUS_COMPLETED = 33;
 }
 
-enum PlanFailureMode {
-  PLAN_FAILURE_MODE_UNSPECIFIED = 0;
-  PLAN_FAILURE_MODE_FAIL = 10;
-  PLAN_FAILURE_MODE_END = 20;
-  PLAN_FAILURE_MODE_CONTINUE = 30;
-}
-
 enum TaskType {
   TASK_TYPE_UNSPECIFIED = 0;
-  TASK_TYPE_GENERAL = 10;
-  TASK_TYPE_RUN = 30;
+  TASK_TYPE_MANUAL = 10;
+  TASK_TYPE_RUN = 20;
 }
 
 enum TaskStatus {
   TASK_STATUS_UNSPECIFIED = 0;
   TASK_STATUS_CREATED = 1;
-  TASK_STATUS_ASSIGNED = 2;
+  TASK_STATUS_ASSIGNED = 3;
   TASK_STATUS_RUNNING = 10;
   TASK_STATUS_WAITING = 22;
   TASK_STATUS_REVIEWING = 23;
@@ -1437,9 +1426,7 @@ enum ClaimStatus {
   CLAIM_STATUS_REQUESTED = 1;
   CLAIM_STATUS_OPEN = 10;
   CLAIM_STATUS_PAUSED = 20;
-  CLAIM_STATUS_CANCELLED = 30;
-  CLAIM_STATUS_REJECTED = 31;
-  CLAIM_STATUS_RELEASED = 32;
+  CLAIM_STATUS_CLOSED = 30;
 }
 
 enum AgentStatus {
@@ -1608,15 +1595,9 @@ enum PortSide {
 
 enum LinkType {
   LINK_TYPE_UNSPECIFIED = 0;
-  LINK_TYPE_DECIDE = 10;
-  LINK_TYPE_REQUIRE = 20;
-}
-
-enum LinkTrigger {
-  LINK_TRIGGER_UNSPECIFIED = 0;
-  LINK_TRIGGER_ON_COMPLETED = 1;
-  LINK_TRIGGER_ON_FAILED = 2;
-  LINK_TRIGGER_ON_TERMINATED = 3;
+  LINK_TYPE_MANUAL = 10;
+  LINK_TYPE_DECIDE = 20;
+  LINK_TYPE_REQUIRE = 30;
 }
 
 enum FlowType {
@@ -3243,7 +3224,6 @@ message PlanData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  PlanFailureMode on_failure = 42;
   optional NodeReferenceData implemented_by_ptr = 43;
   PlanStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3392,7 +3372,6 @@ message RunData {
   RunType type = 30;
   optional TextLineData title = 32;
   optional NodeReferenceData root_ptr = 33;
-  repeated NodeReferenceData incoming_ptr = 34;
   RunOptionsData options = 35;
   NodeReferenceData thread_ptr = 38;
   optional google.protobuf.Value inputs_packed = 61;
@@ -3403,11 +3382,12 @@ message RunData {
   optional NodeReferenceData kit_ptr = 71;
   optional NodeReferenceData action_ptr = 72;
   optional NodeReferenceData link_ptr = 73;
-  optional NodeReferenceData plan_ptr = 74;
-  optional NodeReferenceData task_ptr = 75;
-  optional NodeReferenceData trigger_ptr = 76;
-  optional string trigger_key = 77;
-  optional NodeReferenceData message_ptr = 78;
+  optional NodeReferenceData trigger_ptr = 74;
+  optional NodeReferenceData message_ptr = 75;
+  optional NodeReferenceData manual_plan_ptr = 76;
+  optional NodeReferenceData manual_task_ptr = 77;
+  optional NodeReferenceData run_plan_ptr = 78;
+  optional NodeReferenceData run_task_ptr = 79;
   RunStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
@@ -3475,11 +3455,12 @@ message SpanData {
   optional NodeReferenceData kit_ptr = 71;
   optional NodeReferenceData action_ptr = 72;
   optional NodeReferenceData link_ptr = 73;
-  optional NodeReferenceData plan_ptr = 74;
-  optional NodeReferenceData task_ptr = 75;
-  optional NodeReferenceData trigger_ptr = 76;
-  optional string trigger_key = 77;
-  optional NodeReferenceData message_ptr = 78;
+  optional NodeReferenceData trigger_ptr = 74;
+  optional NodeReferenceData message_ptr = 75;
+  optional NodeReferenceData manual_plan_ptr = 76;
+  optional NodeReferenceData manual_task_ptr = 77;
+  optional NodeReferenceData run_plan_ptr = 78;
+  optional NodeReferenceData run_task_ptr = 79;
   RunStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp started_at = 82;
@@ -3744,9 +3725,7 @@ message LinkData {
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
   optional RunOptionsData options = 39;
-  LinkTrigger trigger = 40;
   optional google.protobuf.Duration delay = 50;
-  bool is_manual = 60;
   optional ColorData color = 80;
 }
 

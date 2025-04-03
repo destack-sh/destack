@@ -42,7 +42,6 @@ from bench.language import (
     NodeMode,
     NodeType,
     Package,
-    Plan,
     Run,
     Runnable,
     RunOptions,
@@ -388,13 +387,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         while parent is not None:
             yield parent
             parent = parent.parent
-
-    @property
-    def plan(self) -> Plan | None:
-        if (run := self.tracked_run) is not None or (run := self.closest_tracked_run) is not None:
-            return run.plan
-        else:
-            return None
 
     def get_runs(self, runnable: Runnable) -> list[Run]:
         """Find all Runs of a Node in this Runner."""

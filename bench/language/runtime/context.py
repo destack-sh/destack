@@ -72,42 +72,55 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Link this Run is executing.",
     )
-    plan: Optional["Plan"] = p_internal(
-        74,
-        require=False,
-        array=False,
-        references=NodeType.PLAN,
-        same_bench=True,
-        description="The Plan this Run is following (leaf).",
-    )
-    task: Optional["Task"] = p_internal(
-        75,
-        require=False,
-        array=False,
-        references=NodeType.TASK,
-        same_bench=True,
-        description="The Task this Run is implementing.",
-    )
     trigger: Optional["Trigger"] = p_regular(
-        76,
+        74,
         require=False,
         array=False,
         references=NodeType.TRIGGER,
         same_bench=True,
         description="The Trigger this Run is triggered by.",
     )
-    trigger_key: Optional[str] = p_internal(
-        77,
-        require=False,
-        default=None,
-        description="A unique key for this invocation of the Trigger.",
-    )
     message: Optional["Message"] = p_internal(
-        78,
+        75,
         require=False,
         array=False,
         references=NodeType.MESSAGE,
         same_bench=True,
+        description="The Message this Run is triggered by.",
+    )
+    manual_plan: Optional["Plan"] = p_internal(
+        76,
+        require=False,
+        array=False,
+        references=NodeType.PLAN,
+        same_bench=True,
+        description="The manual Plan this Run is following (leaf).",
+    )
+    manual_task: Optional["Task"] = p_internal(
+        77,
+        require=False,
+        array=False,
+        references=NodeType.TASK,
+        same_bench=True,
+        description="The manual Task this Run is implementing (leaf).",
+    )
+    run_plan: Optional["Plan"] = p_internal(
+        78,
+        require=False,
+        array=False,
+        references=NodeType.PLAN,
+        same_bench=True,
+        ckless=True,
+        description="The specific Run Plan this Run is following.",
+    )
+    run_task: Optional["Task"] = p_internal(
+        79,
+        require=False,
+        array=False,
+        references=NodeType.TASK,
+        same_bench=True,
+        ckless=True,
+        description="The specific Run Task this Run is implementing.",
     )
     if TYPE_CHECKING:
         flow_ptr: Optional[NodeReference] = None
@@ -124,6 +137,14 @@ class IsRun(BuiltinObject):
         trigger_id: Optional[UUID] = None
         message_ptr: Optional[NodeReference] = None
         message_id: Optional[UUID] = None
+        manual_plan_ptr: Optional[NodeReference] = None
+        manual_plan_id: Optional[UUID] = None
+        manual_task_ptr: Optional[NodeReference] = None
+        manual_task_id: Optional[UUID] = None
+        run_plan_ptr: Optional[NodeReference] = None
+        run_plan_id: Optional[UUID] = None
+        run_task_ptr: Optional[NodeReference] = None
+        run_task_id: Optional[UUID] = None
 
     def _copy_context_to(self, span: "Span"):
         """Copy context from this HasRunContext to a Span."""

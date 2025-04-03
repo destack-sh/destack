@@ -34,8 +34,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PLAN_TYPE)
 class PlanType(BuiltinEnum):
-    GENERAL = 10, "Generic", "Define general Tasks to do", "fas fa-list"
-    FLOW = 20, "Flow", "Sequence Tasks in a Flow", "fas fa-list-ol"
+    MANUAL = 10, "Manual", "Define manual Tasks to do", "fas fa-list"
+    RUN = 20, "Run", "Sequence Tasks in a Run", "fas fa-list-ol"
 
 
 @enum_(EnumType.PLAN_STATUS)
@@ -59,13 +59,6 @@ class PlanStatus(BuiltinEnum):
         return self >= 30
 
 
-@enum_(EnumType.PLAN_FAILURE_MODE)
-class PlanFailureMode(BuiltinEnum):
-    FAIL = 10, "Fail", "Fail the Plan"
-    END = 20, "Complete", "Complete the Plan"
-    CONTINUE = 30, "Continue", "Continue the Plan (skip failures)"
-
-
 @timed_node_(NodeType.PLAN)
 class Plan(
     IsTimed,
@@ -84,7 +77,6 @@ class Plan(
         4, NodeType.PAGE, NodeType.THREAD, NodeType.PLAN, NodeType.RUN
     )
     type: PlanType = p_regular(30)
-    on_failure: "PlanFailureMode" = p_internal(42)
     implemented_by: Optional["Run"] = p_internal(
         43, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
@@ -117,21 +109,13 @@ class Plan(
             self.duration = self.terminated_at - self.started_at
 
     @staticmethod
-    def general(
-        title: "TextLineIn",
-        *tasks: "Task",
-        on_failure: PlanFailureMode = PlanFailureMode.END,
-    ) -> "Plan":
-        plan = Plan(type=PlanType.GENERAL, title=text_line(title), on_failure=on_failure)
+    def general(title: "TextLineIn", *tasks: "Task") -> "Plan":
+        plan = Plan(type=PlanType.MANUAL, title=text_line(title))
         plan.tasks.extend(*tasks)
         return plan
 
     @staticmethod
-    def flow(
-        title: "TextLineIn",
-        *tasks: "Task",
-        on_failure: PlanFailureMode = PlanFailureMode.END,
-    ) -> "Plan":
-        plan = Plan(type=PlanType.FLOW, title=text_line(title), on_failure=on_failure)
+    def flow(title: "TextLineIn", *tasks: "Task") -> "Plan":
+        plan = Plan(type=PlanType.RUN, title=text_line(title))
         plan.tasks.extend(*tasks)
         return plan

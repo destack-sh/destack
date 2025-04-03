@@ -9,14 +9,12 @@ from bench.language.core import (
     EnumType,
     Expression,
     FieldType,
-    IndexIn,
     IsBased,
     IsModal,
     IsRuntimeControllable,
     IsTimed,
     IsTitled,
     LocalNodeList,
-    Node,
     NodeType,
     PackageNode,
     RunStatus,
@@ -143,7 +141,7 @@ class RunOptions(Struct):
         )
 
 
-@timed_node_(NodeType.RUN, index=((IndexIn(columns=("trigger_id", "trigger_key"))),))
+@timed_node_(NodeType.RUN)
 class Run(
     IsTimed,
     IsRuntimeControllable,
@@ -164,9 +162,6 @@ class Run(
     type: RunType = p_system(30)
     root: "Run | None" = p_node_ancestor(
         33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
-    )
-    incoming: list["Run"] = p_internal(
-        34, require=False, array=True, references=NodeType.RUN, same_bench=True
     )
     options: "RunOptions" = p_internal(35, require=True, array=False, struct=StructType.RUN_OPTIONS)
     thread: "Thread" = p_internal(
@@ -320,7 +315,7 @@ class Run(
                 return span
         return None
 
-    def has(self, *nodes: Node, recursive: bool = True) -> bool:
+    def has(self, *nodes: "Runnable", recursive: bool = True) -> bool:
         """Whether the Run has any of the given Nodes."""
         nodes_id = tuple(n.id for n in nodes)
         if (runnable_ptr := self.runnable_ptr) is not None and runnable_ptr.id in nodes_id:
@@ -331,7 +326,7 @@ class Run(
                 return True
         return False
 
-    def is_in(self, *nodes: Node, recursive: bool = True) -> bool:
+    def is_in(self, *nodes: "Runnable") -> bool:
         """Whether the Run is a descendant of a Run of any of the given Nodes."""
         run = self
         while isinstance(run, Run):
