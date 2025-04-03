@@ -31,10 +31,25 @@ class ResourceStatus(BuiltinEnum):
     PENDING = (
         1,
         "Pending",
-        "Defined and awaiting activation",
+        "Waiting for provisioning",
         "fas fa-hourglass-start",
         ColorType.BLUE,
     )
+    CREATING = (
+        2,
+        "Creating",
+        "Actively provisioning",
+        "fas fa-hourglass-start",
+        ColorType.BLUE,
+    )
+    RETRYING = (
+        3,
+        "Retrying",
+        "Retrying provisioning",
+        "fas fa-exclamation-triangle",
+        ColorType.YELLOW,
+    )
+
     # active states
     AVAILABLE = (
         10,
@@ -55,7 +70,7 @@ class ResourceStatus(BuiltinEnum):
         "Unavailable",
         "Unavailable or not responding",
         "fas fa-plug-circle-xmark",
-        ColorType.RED,
+        ColorType.YELLOW,
     )
     IMPAIRED = (
         16,
@@ -72,11 +87,28 @@ class ResourceStatus(BuiltinEnum):
         "fas fa-circle-dot",
         ColorType.GRAY,
     )
+    FAILED = (
+        31,
+        "Failed",
+        "Failed to provision",
+        "fas fa-exclamation-triangle",
+        ColorType.RED,
+    )
+
+    @property
+    def is_pre(self) -> bool:
+        """Whether this Resource is in the pre-provisioning state."""
+        return 1 <= self.value < 10
 
     @property
     def is_extant(self) -> bool:
         """Whether this Resource does/should exist."""
         return 10 <= self.value <= 20
+
+    @property
+    def is_terminal(self) -> bool:
+        """Whether this Resource is terminal."""
+        return 30 <= self.value <= 40
 
 
 @node_component_()

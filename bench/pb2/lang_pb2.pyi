@@ -778,11 +778,14 @@ class ResourceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     RESOURCE_STATUS_UNSPECIFIED: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_PENDING: _ClassVar[ResourceStatus]
+    RESOURCE_STATUS_CREATING: _ClassVar[ResourceStatus]
+    RESOURCE_STATUS_RETRYING: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_AVAILABLE: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_SLEEPING: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_UNAVAILABLE: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_IMPAIRED: _ClassVar[ResourceStatus]
     RESOURCE_STATUS_OFFLINE: _ClassVar[ResourceStatus]
+    RESOURCE_STATUS_FAILED: _ClassVar[ResourceStatus]
 
 class ScalerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2631,11 +2634,14 @@ ACCESS_TYPE_SEND: AccessType
 ACCESS_TYPE_RECEIVE: AccessType
 RESOURCE_STATUS_UNSPECIFIED: ResourceStatus
 RESOURCE_STATUS_PENDING: ResourceStatus
+RESOURCE_STATUS_CREATING: ResourceStatus
+RESOURCE_STATUS_RETRYING: ResourceStatus
 RESOURCE_STATUS_AVAILABLE: ResourceStatus
 RESOURCE_STATUS_SLEEPING: ResourceStatus
 RESOURCE_STATUS_UNAVAILABLE: ResourceStatus
 RESOURCE_STATUS_IMPAIRED: ResourceStatus
 RESOURCE_STATUS_OFFLINE: ResourceStatus
+RESOURCE_STATUS_FAILED: ResourceStatus
 SCALER_TYPE_UNSPECIFIED: ScalerType
 SCALER_TYPE_COMPUTER: ScalerType
 SCALER_STRATEGY_UNSPECIFIED: ScalerStrategy
