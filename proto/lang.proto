@@ -76,7 +76,6 @@ enum EnumType {
   ENUM_TYPE_SPAN_TYPE = 22002;
   ENUM_TYPE_PLAN_TYPE = 22003;
   ENUM_TYPE_PLAN_STATUS = 22004;
-  ENUM_TYPE_PLAN_TERMINATION_MODE = 22005;
   ENUM_TYPE_PLAN_FAILURE_MODE = 22006;
   ENUM_TYPE_TASK_TYPE = 22010;
   ENUM_TYPE_TASK_STATUS = 22011;
@@ -524,7 +523,6 @@ enum BenchType {
   BENCH_TYPE_SPAN_TYPE = 22002;
   BENCH_TYPE_PLAN_TYPE = 22003;
   BENCH_TYPE_PLAN_STATUS = 22004;
-  BENCH_TYPE_PLAN_TERMINATION_MODE = 22005;
   BENCH_TYPE_PLAN_FAILURE_MODE = 22006;
   BENCH_TYPE_TASK_TYPE = 22010;
   BENCH_TYPE_TASK_STATUS = 22011;
@@ -1325,10 +1323,8 @@ enum SpanType {
 
 enum PlanType {
   PLAN_TYPE_UNSPECIFIED = 0;
-  PLAN_TYPE_CUSTOM = 10;
-  PLAN_TYPE_SERIAL = 20;
-  PLAN_TYPE_PARALLEL = 30;
-  PLAN_TYPE_QUEUE = 40;
+  PLAN_TYPE_GENERAL = 10;
+  PLAN_TYPE_FLOW = 20;
 }
 
 enum PlanStatus {
@@ -1341,12 +1337,6 @@ enum PlanStatus {
   PLAN_STATUS_COMPLETED = 33;
 }
 
-enum PlanTerminationMode {
-  PLAN_TERMINATION_MODE_UNSPECIFIED = 0;
-  PLAN_TERMINATION_MODE_PASS = 10;
-  PLAN_TERMINATION_MODE_RETURN = 20;
-}
-
 enum PlanFailureMode {
   PLAN_FAILURE_MODE_UNSPECIFIED = 0;
   PLAN_FAILURE_MODE_FAIL = 10;
@@ -1356,10 +1346,8 @@ enum PlanFailureMode {
 
 enum TaskType {
   TASK_TYPE_UNSPECIFIED = 0;
-  TASK_TYPE_CUSTOM = 10;
-  TASK_TYPE_SCHEDULED = 20;
+  TASK_TYPE_GENERAL = 10;
   TASK_TYPE_RUN = 30;
-  TASK_TYPE_INTERRUPTION = 40;
 }
 
 enum TaskStatus {
@@ -2679,6 +2667,7 @@ message ThreadData {
 message ApplicationData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -2714,6 +2703,7 @@ message ApplicationData {
 message ComputerData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -2757,6 +2747,7 @@ message ComputerData {
 message FileData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -2804,6 +2795,7 @@ message FileData {
 message ScalerData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -2843,6 +2835,7 @@ message ScalerData {
 message SecretData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -2877,6 +2870,7 @@ message SecretData {
 message StoreData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -2914,6 +2908,7 @@ message StoreData {
 message StreamData {
   ObjectType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 5;
   optional NodeReferenceData package_ptr = 9;
@@ -3245,7 +3240,6 @@ message PlanData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  PlanTerminationMode on_terminate = 41;
   PlanFailureMode on_failure = 42;
   optional NodeReferenceData implemented_by_ptr = 43;
   PlanStatus status = 80;

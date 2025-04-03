@@ -176,9 +176,7 @@ class DatabasePlugin(HostPlugin[Database | Field]):
         # patch context optimistically
         self.context.custom_tables_by_database.update(new_tables_by_database)
         self.context.databases_by_id.update(touched_databases_by_id)
-        logger.debug(
-            "database.migrate", host=self, connector=connector, migration_ops=migration_ops
-        )
+        logger.info("database.migrate", host=self, connector=connector, migration_ops=migration_ops)
 
     @override
     async def post_commit(self, session: Session, commit: Commit[Database | Field]) -> None:

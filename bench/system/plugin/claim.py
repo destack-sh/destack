@@ -1,8 +1,21 @@
 from typing import override
 
-from bench.language import Claim, ClaimStatus, NodeMode, NodeType, Resource, bittuple
-from bench.language.core.node import IsInstantiable
+import structlog
+from opentelemetry import trace
+
+from bench.language import (
+    Claim,
+    ClaimStatus,
+    IsInstantiable,
+    NodeMode,
+    NodeType,
+    Resource,
+    bittuple,
+)
 from bench.system.host import Commit, DeferredHostPlugin
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 class ClaimPlugin(DeferredHostPlugin[Claim]):
@@ -45,6 +58,12 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                         target._supergraph = parent._supergraph
                         target.claimed_by = claim
                         claim.target = target
+                        logger.info(
+                            "claim.provision",
+                            claim=claim,
+                            target=target,
+                            target_template=target_template,
+                        )
 
                     # open the claim
                     claim.status = ClaimStatus.OPEN
