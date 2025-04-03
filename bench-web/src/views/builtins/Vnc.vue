@@ -95,7 +95,7 @@ function onDisconnect() {
 /* Handle credentials required event */
 function onCredentialsRequired() {
   emit("credentialsRequired", rfb.value as RFB | null);
-  const password = props.rfbOptions?.credentials?.password;
+  const password = props.rfbOptions?.credentials?.password ?? "bench";
   if (!password) {
     throw new Error("no password for VNC");
   }

@@ -2,9 +2,7 @@ import random
 from pathlib import Path
 from typing import TYPE_CHECKING, assert_never, cast, override
 
-import docker
-import docker.models
-import docker.models.containers
+import aiodocker
 import regex
 import structlog
 from kubernetes_asyncio import client as k8
@@ -160,22 +158,18 @@ class ComputerProvisioner(Provisioner[Computer, Computer]):
 class DockerComputerProvisioner(ComputerProvisioner):
     """Provision Computers as containers in a Docker installation."""
 
-    # NOTE :DevX: use async docker api (instead of blocking sync)?
-
     watch_types = bittuple(NodeType.COMPUTER)
     provision_type = NodeType.COMPUTER
 
     def __init__(self, host: "HostService", bench: Bench):
         super().__init__(host, bench)
-        self._docker_client = docker.from_env()
+        self._docker_client = aiodocker.Docker()
 
     @override
     async def _do_start(self) -> None:
         computers = await self._get_resources()
-        containers: list[docker.models.containers.Container] = self._docker_client.containers.list(
-            all=True
-        )
-        containers_by_id = {cast(str, c.id): c for c in containers}
+        containers = await self._docker_client.containers.list(all=True)
+        containers_by_id = {c.id: c for c in containers}
         async with self.host.session(commit=True):
             for computer in computers:
                 if computer.external_id is None:
@@ -198,17 +192,18 @@ class DockerComputerProvisioner(ComputerProvisioner):
         computer_id_prefix = str(resource.id).split("-")[0]
         external_name = f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-{resource.type.name.lower()}-computer-{computer_id_prefix}"
         image = _get_computer_image(resource)
-        container = self._docker_client.containers.run(
-            image,
-            environment=env_vars,
-            detach=True,
-            name=external_name,
-            volumes=[f"{_get_bench_dir()}:/bench:ro"],  # mount our local code directly
-            ports={
-                "5432/tcp": ("0.0.0.0", grpc_port),
-                "6080/tcp": ("0.0.0.0", vnc_port),
+        config = {
+            "Image": image,
+            "Env": [f"{key}={value}" for key, value in env_vars.items()],
+            "HostConfig": {
+                "Binds": [f"{_get_bench_dir()}:/bench:ro"],
+                "PortBindings": {
+                    "5432/tcp": [{"HostIp": "0.0.0.0", "HostPort": str(grpc_port)}],
+                    "6080/tcp": [{"HostIp": "0.0.0.0", "HostPort": str(vnc_port)}],
+                },
             },
-        )
+        }
+        container = await self._docker_client.containers.run(config, name=external_name)
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
@@ -224,9 +219,10 @@ class DockerComputerProvisioner(ComputerProvisioner):
     async def _do_decommission(self, resource: Computer):
         # remove container with same external_id if exists
         assert resource.external_id is not None, f"{resource!r} has no external id"
-        container = self._docker_client.containers.get(resource.external_id)
+        container = await self._docker_client.containers.get(resource.external_id)
         if container is not None:
-            container.remove(force=True)
+            await container.stop()
+            await container.delete()
         async with self.host.session(commit=True):
             resource.status = ResourceStatus.OFFLINE
 
