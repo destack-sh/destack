@@ -76,6 +76,7 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
             if claim.mode < NodeMode.TEMPLATE
             and claim.target_ptr is not None
             and claim.target_ptr.node_type.is_resource
+            and claim.status.is_active
         ]
         if decommissioned_claims:
             async with self.host.session(commit=True) as session:
@@ -84,6 +85,7 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                     target = claim.target
                     if target is None:
                         target = await claim.target_ptr.get()
-                    if isinstance(target, Resource):
+                    claim.status = ClaimStatus.CLOSED
+                    if isinstance(target, Resource) and target.status.is_extant:
                         target.decommission()
                         logger.info("claim.decommission", claim=claim, target=target)

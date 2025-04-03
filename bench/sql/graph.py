@@ -157,7 +157,7 @@ CASCADING_EDIT_TYPES: bittuple[EditType] = bittuple(
     EditType.ERASE,
 )
 CASCADING_PARENT_NODE_TYPES = HAS_CHILD_NODE_TYPES
-CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES
+CASCADING_CHILD_NODE_TYPES = NODE_TYPES - RUNTIME_NODE_TYPES - bittuple(NodeType.MESSAGE)
 
 
 @dataclass(slots=True)
@@ -1406,12 +1406,16 @@ async def _pg_edit_cascade(
         extra_filter = get_default_query_filter()
 
     # select cascaded nodes from graph
+    cascaded_descendant_types = (
+        DESCENDANT_NODE_TYPES_IN_STORE[node_type] & CASCADING_CHILD_NODE_TYPES
+    )
+    if not cascaded_descendant_types.bits.any():
+        return []
     _, cascaded_nodes_by_root_id = await _pg_graph_walk_down(
         cur=cur,
         ctx=ctx,
         roots=root_nodes,
-        # only descend to node types in the same store
-        descendant_types=DESCENDANT_NODE_TYPES_IN_STORE[node_type] & CASCADING_CHILD_NODE_TYPES,
+        descendant_types=cascaded_descendant_types,
         extra_filter=extra_filter,
     )
 
