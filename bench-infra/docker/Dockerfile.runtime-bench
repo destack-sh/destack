@@ -26,9 +26,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# create bench-system user
-RUN useradd -ms /bin/bash bench-system \
-    && echo "bench-system ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# create bench-runtime user
+RUN useradd -ms /bin/bash bench-runtime \
+    && echo "bench-runtime ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # uv
 ADD https://astral.sh/uv/install.sh /uv-installer.sh
@@ -38,24 +38,24 @@ ENV PATH="/usr/local/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
 # install requirements
-COPY bench/requirements/system.txt /home/bench-system/requirements.txt
-WORKDIR /home/bench-system
+COPY bench/requirements/runtime.txt /home/bench-runtime/requirements.txt
+WORKDIR /home/bench-runtime
 RUN uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
-COPY --chown=bench-system:bench-system bench/ /home/bench-system/bench/
-COPY --chown=bench-system:bench-system bench.py /home/bench-system/
-COPY --chown=bench-system:bench-system pyproject.toml /home/bench-system/
-COPY --chown=bench-system:bench-system version /home/bench-system/
+COPY --chown=bench-runtime:bench-runtime bench/ /home/bench-runtime/bench/
 # prune unnecessary files
-RUN rm -rf /home/bench-system/bench/test
-# prune tests
-RUN find /home/bench-system/bench/ -type f -name 'test_*.py' -delete
+RUN rm -rf /home/bench-runtime/bench/system /home/bench-runtime/bench/test
+RUN find /home/bench-runtime/bench/ -type f -name 'test_*.py' -delete
+
+COPY --chown=bench-runtime:bench-runtime bench.py /home/bench-runtime/
+COPY --chown=bench-runtime:bench-runtime pyproject.toml /home/bench-runtime/
+COPY --chown=bench-runtime:bench-runtime version /home/bench-runtime/
 
 # startup script
 RUN cat <<'EOF' > /start.sh
 #!/bin/sh
-su bench-system -s /bin/bash -m -c "python3 /home/bench-system/bench.py serve supervisor 0.0.0.0 5432"
+su bench-runtime -s /bin/bash -m -c "python3 /home/bench-runtime/bench.py serve runtime 0.0.0.0 5432"
 EOF
 RUN chmod +x /start.sh
 
@@ -67,4 +67,4 @@ ENV VERSION=$VERSION
 EXPOSE 5432
 EXPOSE 80
 
-CMD ["/start.sh"]
+CMD ["/start.sh"] 
