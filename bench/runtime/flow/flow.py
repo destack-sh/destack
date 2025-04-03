@@ -45,7 +45,7 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.model.chat import get_chat_model_runner_cls
+from bench.runtime.model import get_chat_model_runner_cls, make_flow_plan_prompt
 
 from .action import ActionRunner
 from .link import LinkRunner
@@ -353,9 +353,9 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
     async def _plan(self, from_run: Run):
         """Plan the execution of this Flow."""
         # nocheckin: implement planning at FlowRunner level
-        from bench.runtime.model import make_flow_plan_prompt
-
         # build prompt
+        action = from_run.action
+        assert action is not None, f"{from_run!r} has no Action"
         prompt = make_flow_plan_prompt(flow=self.node, from_run=from_run, context=self.tracked)
         model_developer = ModelDeveloper.OPENAI
         model_type = ModelType.OPENAI_GPT4_0
@@ -364,7 +364,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         )
         model_runner = model_runner_cls(
             runtime=self.runtime,
-            node=self.node,
+            node=action,
             model_type=model_type,
             options=self.options,
             inputs=self.inputs,
@@ -436,4 +436,3 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 runnable = run.action or run.link
                 assert runnable is not None, f"{run!r} has no runnable"
                 self._start(runnable, inputs=run.inputs, incoming=())
-

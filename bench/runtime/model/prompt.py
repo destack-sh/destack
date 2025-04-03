@@ -6,8 +6,10 @@ from bench.language import (
     Action,
     ActionType,
     Aliasing,
+    BuiltinEnum,
     CustomObject,
     File,
+    Flow,
     IsRuntime,
     Node,
     Plan,
@@ -16,7 +18,6 @@ from bench.language import (
     Span,
     SpanType,
 )
-from bench.language.core import BuiltinEnum
 
 if TYPE_CHECKING:
     pass
@@ -218,20 +219,22 @@ class Prompt:
 
     def __init__(
         self,
-        action: Action,
+        flow: Flow,
+        from_run: Run,
         context: "IsRuntime",
         aliasing: Aliasing,
         renderer: Renderer,
         items: list[PromptPart],
     ):
-        self.action = action
+        self.flow = flow
+        self.from_run = from_run
         self.context = context
         self.aliasing = aliasing
         self.renderer = renderer
         self.items = items
 
     def __str__(self) -> str:
-        return f"action={self.action!r}, items={len(self.items)}"
+        return f"flow={self.flow!r}, from_run={self.from_run!r}, items={len(self.items)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"

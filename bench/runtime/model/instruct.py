@@ -1,5 +1,3 @@
-from more_itertools import first
-
 from bench.language import (
     ENUM_CLASS_BY_TYPE,
     NODE_TYPES,
@@ -28,7 +26,6 @@ from bench.language import (
     RunType,
     _is_setup_complete,
 )
-from bench.runtime.core import Runner
 
 from .prompt import (
     Prompt,
@@ -36,10 +33,8 @@ from .prompt import (
     PromptFile,
     PromptNodes,
     PromptPart,
-    PromptPlan,
     PromptRegion,
     PromptRun,
-    PromptRunAttempt,
     PromptText,
     prompt_region,
 )
@@ -273,10 +268,8 @@ LINK_TYPE_ENUM_PROMPT = render_builtin_enum(LinkType, compact=False)
 def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> "Prompt":
     """Build a Prompt to plan Flow execution."""
 
-    from .example import get_examples
+    from .example import EXAMPLES
 
-    # TODO :Cleanup! :Architecture: Prompt building and rendering is a mess
-    # (separating Aliasing, Projection and Renderer feels verbose.. but I don't have a better idea)
     aliasing = Aliasing()
     projection = Projection(supergraph=flow._supergraph, options=ProjectOptions())
     renderer = Renderer(
@@ -289,12 +282,10 @@ def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> 
 
     run_items: list[PromptPart] = []
     seen_runs: set[Run] = set()
-    run_ancestors = tuple(runner.ancestors)
+    run_ancestors = tuple(from_run.ancestors)
     for i, ancestor in enumerate(reversed(run_ancestors)):
-        if ancestor.tracked_run is None:
-            continue
         offset = len(run_ancestors) - i
-        run_part = PromptRun(title=None, weight=10, node=ancestor.tracked_run)
+        run_part = PromptRun(title=None, weight=10, node=ancestor)
         run_region = prompt_region(
             run_part,
             title=f"Ancestor Run -{offset}",
@@ -302,11 +293,11 @@ def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> 
             weight=10,
         )
         run_items.append(run_region)
-        projection.collect_node(ancestor.tracked_run, depth=offset)
+        projection.collect_node(ancestor, depth=offset)
 
     # collect all incoming Runs up to the root (with decreasing weight)
     max_depth = 3  # :Tunable
-    current_incoming: list[Run] = run.incoming
+    current_incoming: list[Run] = from_run.incoming
     next_incoming: list[Run] = []
     all_incoming: list[Run] = []
     while current_incoming and len(all_incoming) < max_depth:
@@ -331,30 +322,15 @@ def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> 
         )
         run_items.append(run_region)
         projection.collect_node(r, depth=offset)
-    # plan
-    if (plan := runner.plan) is not None:
-        plan_part = PromptPlan(title="Current Run Plan", weight=10, plan=plan, run=run)
-        plan_region = prompt_region(plan_part, title="Run Plan", weight=10)
-        run_items.append(plan_region)
-    # attempts
-    if len(attempts := runner.attempts) > 1:
-        for i, attempt in enumerate(attempts):
-            if attempt.status.is_active:
-                continue  # ignore active attempts
-            attempt_part = PromptRunAttempt(title=None, weight=1, attempt=attempt)
-            attempt_region = prompt_region(attempt_part, title=f"Attempt {i}", weight=10)
-            run_items.append(attempt_region)
+
     # current run
-    run_part = PromptRun(title=None, weight=10, node=run)
+    run_part = PromptRun(title=None, weight=10, node=from_run)
     run_region = prompt_region(run_part, title="Current Run", weight=10)
     run_items.append(run_region)
 
     # flow
     projection.collect_node(flow, depth=1)
     # repeat flow resources/inputs
-    flow_run = first((r for r in runner.ancestors if isinstance(r, FlowRunner)), None)
-    assert flow_run is not None, f"missing flow {flow!r} for {runner!r}"
-
     #
     # general context (relative to all the other stuff)
     #
@@ -379,16 +355,13 @@ self: Action
 session: Session
 bench: Bench
 run: Run
-resources: CustomObject
-inputs: CustomObject
-outputs: CustomObject
 """,
             ),
             title="Context resources (available inline)",
             weight=1,
         ),
     ]
-    general_examples_parts = get_examples(action, runner)
+    general_examples_parts = EXAMPLES
 
     #
     # bench context :Tunable
@@ -440,7 +413,7 @@ outputs: CustomObject
         ),
         PromptRegion(
             title="Context",
-            weight=3,
+            weight=2,
             text="Other stuff from the involved Benches",
             content=context_parts,
         ),
@@ -450,26 +423,20 @@ outputs: CustomObject
             weight=5,
             content=run_items,
         ),
-        PromptRegion(
-            title="Action",
-            text="The current Action to complete",
-            weight=10,
-            content=action_parts,
-        ),
         PromptBreak(title=None),
         PromptText(
             title=None,
             text="""\
 IT'S YOUR TURN: 
-Complete the Action as specified in your Bench Python shell.
-Valid inline Python; super concise; minimal comments;
- avoid reproducing values you can reference; think more than you code.
+Plan the Flow as specified in the Python shell.
+Inline Python; concise; minimal comments; reference variables as needed; think before you code.
 """,
         ),
         PromptBreak(title=None),
     ]
     prompt = Prompt(
-        action=action,
+        flow=flow,
+        from_run=from_run,
         context=context,
         aliasing=aliasing,
         renderer=renderer,
