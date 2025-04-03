@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.03.1"
+VERSION = "2025.04.03.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -401,7 +401,6 @@ class EnumType(BuiltinEnum):
     SPAN_TYPE = 22002
     PLAN_TYPE = 22003
     PLAN_STATUS = 22004
-    PLAN_FAILURE_MODE = 22006
     TASK_TYPE = 22010
     TASK_STATUS = 22011
     SESSION_STATUS = 22020
@@ -442,7 +441,6 @@ class EnumType(BuiltinEnum):
     ACTION_TYPE = 22350
     PORT_SIDE = 22352
     LINK_TYPE = 22353
-    LINK_TRIGGER = 22354
     FLOW_TYPE = 22360
 
     # views (22400-22449)

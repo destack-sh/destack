@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional, Union, assert_never
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
@@ -13,7 +13,6 @@ from bench.language.core import (
     IsType,
     NodeType,
     PackageNode,
-    RunStatus,
     RunType,
     StructType,
     enum_,
@@ -47,19 +46,14 @@ class PortSide(BuiltinEnum):
 
 @enum_(EnumType.LINK_TYPE)
 class LinkType(BuiltinEnum):
-    DECIDE = 10, "Decide", "Determine when and how to call", "far fa-shuffle"
-    REQUIRE = 20, "Require", "Determine how to call", "fas fa-arrow-right-long"
+    MANUAL = 10, "Manual", "Manually triggered", "fas fa-link"
+    DECIDE = 20, "Decide", "Determine when and how to call", "far fa-shuffle"
+    REQUIRE = 30, "Require", "Determine how to call", "fas fa-arrow-right-long"
     # MESSAGE? WAIT? STREAM?
 
 
-@enum_(EnumType.LINK_TRIGGER)
-class LinkTrigger(BuiltinEnum):
-    ON_COMPLETED = 1, "On completed", "If the action succeeds", "fas fa-check"
-    ON_FAILED = 2, "On failed", "If the action fails", "fas fa-xmark"
-    ON_TERMINATED = 3, "On terminated", "Always, success or failure", "fas fa-check-double"
-
-
 SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
+    LinkType.MANUAL: "-!>",
     LinkType.DECIDE: "-*>",
     LinkType.REQUIRE: "-=>",
 }
@@ -98,16 +92,9 @@ class Link(
         39, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
-    # trigger
-    trigger: LinkTrigger = p_regular(40, default=LinkTrigger.ON_COMPLETED)
-
     # modulation
     delay: Optional[timedelta] = p_regular(50, default=None)
 
-    # flags
-    is_manual: bool = p_regular(
-        60, default=False, description="Whether to link this automatically."
-    )
     # is_automap? (dynamically generate inputs?)
     # is_streaming: bool = p_regular(80, default=False)
 
@@ -155,17 +142,6 @@ class Link(
     @property
     def output_type(self) -> "IsType | None":
         return None  # Links don't have outputs (?)
-
-    def is_triggered_by(self, status: RunStatus):
-        """Whether this Link is triggered by the given status."""
-        if self.trigger == LinkTrigger.ON_COMPLETED:
-            return status == RunStatus.COMPLETED
-        elif self.trigger == LinkTrigger.ON_FAILED:
-            return status == RunStatus.FAILED
-        elif self.trigger == LinkTrigger.ON_TERMINATED:
-            return status.is_terminal
-        else:
-            assert_never(self.trigger)
 
     @staticmethod
     def new(type: LinkType, name: str, **kwargs) -> "Link":

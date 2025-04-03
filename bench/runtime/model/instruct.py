@@ -7,12 +7,9 @@ from bench.language import (
     Aliasing,
     BuiltinEnum,
     BuiltinObject,
-    File,
     Flow,
-    IsRuntime,
     Node,
     PackageNode,
-    Page,
     Projection,
     ProjectOptions,
     ReferenceKind,
@@ -20,15 +17,12 @@ from bench.language import (
     RenderOptions,
     Resource,
     Run,
-    RunType,
     _is_setup_complete,
 )
 
 from .prompt import (
     Prompt,
     PromptBreak,
-    PromptFile,
-    PromptNodes,
     PromptPart,
     PromptRegion,
     PromptRun,
@@ -259,8 +253,8 @@ RESOURCE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(Resource)
 PACKAGE_NODE_HIERARCHY_PROMPT = render_builtin_hierarchy(PackageNode)
 
 
-def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> "Prompt":
-    """Build a Prompt to plan Flow execution."""
+def make_flow_plan_prompt(flow: Flow, run: "Run") -> "Prompt":
+    """Build a Prompt to plan a Flow."""
 
     from .example import EXAMPLES
 
@@ -275,50 +269,9 @@ def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> 
     #
 
     run_items: list[PromptPart] = []
-    seen_runs: set[Run] = set()
-    run_ancestors = tuple(from_run.ancestors)
-    for i, ancestor in enumerate(reversed(run_ancestors)):
-        offset = len(run_ancestors) - i
-        run_part = PromptRun(title=None, weight=10, node=ancestor)
-        run_region = prompt_region(
-            run_part,
-            title=f"Ancestor Run -{offset}",
-            text="A parent Run that this Run is part of.",
-            weight=10,
-        )
-        run_items.append(run_region)
-        projection.collect_node(ancestor, depth=offset)
-
-    # collect all incoming Runs up to the root (with decreasing weight)
-    max_depth = 3  # :Tunable
-    current_incoming: list[Run] = from_run.incoming
-    next_incoming: list[Run] = []
-    all_incoming: list[Run] = []
-    while current_incoming and len(all_incoming) < max_depth:
-        for r in current_incoming:
-            if r in seen_runs:
-                continue
-            if r.type != RunType.LINK:  # skip links
-                all_incoming.append(r)
-            seen_runs.add(r)
-            next_incoming.extend(r.incoming)
-        current_incoming = next_incoming
-        next_incoming = []
-    for i, r in enumerate(reversed(all_incoming)):
-        offset = len(all_incoming) - i
-        weight = max(1, max_depth - offset)
-        run_part = PromptRun(title=None, weight=1, node=r)
-        run_region = prompt_region(
-            run_part,
-            title=f"Incoming Run ({offset} ago)",
-            text="A previous Run of connected Action in this Flow.",
-            weight=weight,
-        )
-        run_items.append(run_region)
-        projection.collect_node(r, depth=offset)
 
     # current run
-    run_part = PromptRun(title=None, weight=10, node=from_run)
+    run_part = PromptRun(title=None, weight=10, node=run)
     run_region = prompt_region(run_part, title="Current Run", weight=10)
     run_items.append(run_region)
 
@@ -340,35 +293,10 @@ def make_flow_plan_prompt(flow: Flow, from_run: "Run", context: "IsRuntime") -> 
     general_examples_parts = EXAMPLES
 
     #
-    # bench context :Tunable
+    # bench context
     #
 
-    # NOTE: organize context (source & other nodes)
     context_parts: list[PromptPart] = []
-    # source
-    source_pages: set[Page] = set()
-    # containing pages
-    source_pages.difference_update(source_pages)  # remove pages
-    for page in source_pages:
-        projection.collect_node(page, depth=10)
-        context_parts.append(PromptNodes(title=None, weight=1, nodes=[page, *page.blocks]))
-    # other
-    max_depth = 1  # :Tunable
-    for depth in sorted(projection.nodes_by_depth.keys()):
-        if depth > max_depth:
-            break  # skip deep nodes
-        remote_nodes: list[Node] = []
-        weight = max_depth - depth
-        for node in projection.nodes_by_depth[depth]:
-            if isinstance(node, Resource):
-                if isinstance(node, File):
-                    context_parts.append(PromptFile(title=None, file=node, weight=weight))
-                else:
-                    remote_nodes.append(node)
-            elif node.metatype.is_state:
-                remote_nodes.append(node)
-        if remote_nodes:
-            context_parts.append(PromptNodes(title=None, weight=1, nodes=remote_nodes))
 
     #
     # assemble
@@ -412,8 +340,7 @@ Inline Python; concise; minimal comments; reference variables as needed; think b
     ]
     prompt = Prompt(
         flow=flow,
-        from_run=from_run,
-        context=context,
+        run=run,
         aliasing=aliasing,
         renderer=renderer,
         items=prompt_items,

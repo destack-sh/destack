@@ -182,7 +182,6 @@ class Action(
         *,
         parent: Union["Flow", "Kit", "Action", None] = None,
         options: "RunOptions | None" = None,
-        is_manual: bool = False,
     ) -> "Link":
         """Connects a target Action to this Action."""
         from bench.language import Flow, Link
@@ -207,7 +206,6 @@ class Action(
             target=target,
             parent=parent,
             options=options,
-            is_manual=is_manual,
         )
         parent.links.append(link)
         return link

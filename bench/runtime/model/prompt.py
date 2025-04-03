@@ -10,9 +10,7 @@ from bench.language import (
     CustomObject,
     File,
     Flow,
-    IsRuntime,
     Node,
-    Plan,
     Renderer,
     Run,
     Span,
@@ -171,22 +169,6 @@ class PromptRunAttempt(PromptCompound):
 
 
 @dataclass
-class PromptPlan(PromptCompound):
-    """A Plan. Expands to Plan resources, inputs and outputs."""
-
-    plan: Plan
-    run: Run
-
-    @override
-    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
-        plan_code = prompt.renderer.render_statement(self.plan, format=True)
-        return [
-            PromptText(title=self.title, text=f"You are at Task {self.run.task} of this Plan"),
-            PromptCode(title=None, code=plan_code),
-        ]
-
-
-@dataclass
 class PromptNodes(PromptCompound):
     """A source node. Expands to references."""
 
@@ -220,21 +202,19 @@ class Prompt:
     def __init__(
         self,
         flow: Flow,
-        from_run: Run,
-        context: "IsRuntime",
+        run: Run,
         aliasing: Aliasing,
         renderer: Renderer,
         items: list[PromptPart],
     ):
         self.flow = flow
-        self.from_run = from_run
-        self.context = context
+        self.run = run
         self.aliasing = aliasing
         self.renderer = renderer
         self.items = items
 
     def __str__(self) -> str:
-        return f"flow={self.flow!r}, from_run={self.from_run!r}, items={len(self.items)}"
+        return f"flow={self.flow!r}, items={len(self.items)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
