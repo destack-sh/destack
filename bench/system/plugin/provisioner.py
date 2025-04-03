@@ -46,7 +46,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             provision_cls.where(
                 provision_cls.get_property("bench").eq(self.bench)
                 & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
-                & provision_cls.get_property("status").neq(ResourceStatus.OFFLINE)
+                & provision_cls.get_property("status").lt(ResourceStatus.OFFLINE)
             )
             .include_ancestors()
             .select_all()
@@ -64,13 +64,17 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         # auto migrate resources to current version
         for resource in resources:
             # provision/update/decommission
-            if resource.target_status.is_extant:
-                if resource.status.is_extant:
-                    await self.update(resource)
-                else:
-                    await self.provision(resource)
-            elif resource.status.is_extant:
-                await self.decommission(resource)
+            try:
+                if resource.target_status.is_extant:
+                    if resource.status.is_extant:
+                        await self.update(resource)
+                    else:
+                        await self.provision(resource)
+                elif resource.status.is_extant:
+                    await self.decommission(resource)
+            except Exception:
+                # suppress error, already logged, continue
+                continue
 
         # then start watching in host plugin
         #  (starting watch after above is important because there is no lock between this and post_commit_deferred,
@@ -112,7 +116,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
         """Provision the Resource."""
         try:
             async with self._lock:
-                if resource.status.is_extant:
+                if not resource.status.is_pre:
                     return  # already provisioned (while waiting)
                 with tracer.start_as_current_span(
                     f"{self.slug}.provision", attributes={"resource": str(resource)}
@@ -133,6 +137,9 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 exc_info=True,
                 span="current",
             )
+            self.host.on_error(e)
+            async with self.host.session(commit=True):
+                resource.status = ResourceStatus.FAILED
             raise
 
     @abc.abstractmethod
@@ -161,6 +168,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 exc_info=True,
                 span="current",
             )
+            self.host.on_error(e)
             raise
 
     async def _do_update(self, resource: PT): ...
@@ -191,6 +199,9 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 exc_info=True,
                 span="current",
             )
+            self.host.on_error(e)
+            async with self.host.session(commit=True):
+                resource.status = ResourceStatus.FAILED
             raise
 
     @abc.abstractmethod

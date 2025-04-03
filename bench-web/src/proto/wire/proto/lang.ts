@@ -10582,6 +10582,14 @@ export enum ResourceStatus {
      */
     PENDING = 1,
     /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_CREATING = 2;
+     */
+    CREATING = 2,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_RETRYING = 3;
+     */
+    RETRYING = 3,
+    /**
      * @generated from protobuf enum value: RESOURCE_STATUS_AVAILABLE = 10;
      */
     AVAILABLE = 10,
@@ -10600,7 +10608,11 @@ export enum ResourceStatus {
     /**
      * @generated from protobuf enum value: RESOURCE_STATUS_OFFLINE = 30;
      */
-    OFFLINE = 30
+    OFFLINE = 30,
+    /**
+     * @generated from protobuf enum value: RESOURCE_STATUS_FAILED = 31;
+     */
+    FAILED = 31
 }
 /**
  * @generated from protobuf enum symbolx.bench.ScalerType
@@ -37609,12 +37621,15 @@ export const RegionAreaOptionInfo: Partial<Record<RegionArea, EnumOptionInfo>> =
 }
 
 export const ResourceStatusOptionInfo: Partial<Record<ResourceStatus, EnumOptionInfo>> = {
-  [ResourceStatus.PENDING]: { id: 1, name: 'PENDING', text: 'Defined and awaiting activation', title: 'Pending', color: ColorType.BLUE, icon: 'fas fa-hourglass-start' },
+  [ResourceStatus.PENDING]: { id: 1, name: 'PENDING', text: 'Waiting for provisioning', title: 'Pending', color: ColorType.BLUE, icon: 'fas fa-hourglass-start' },
+  [ResourceStatus.CREATING]: { id: 2, name: 'CREATING', text: 'Actively provisioning', title: 'Creating', color: ColorType.BLUE, icon: 'fas fa-hourglass-start' },
+  [ResourceStatus.RETRYING]: { id: 3, name: 'RETRYING', text: 'Retrying provisioning', title: 'Retrying', color: ColorType.YELLOW, icon: 'fas fa-exclamation-triangle' },
   [ResourceStatus.AVAILABLE]: { id: 10, name: 'AVAILABLE', text: 'Operational and available', title: 'Available', color: ColorType.GREEN, icon: 'fas fa-check-circle' },
   [ResourceStatus.SLEEPING]: { id: 11, name: 'SLEEPING', text: 'Available but not running', title: 'Sleeping', color: ColorType.BLUE, icon: 'fas fa-moon' },
   [ResourceStatus.UNAVAILABLE]: { id: 15, name: 'UNAVAILABLE', text: 'Unavailable or not responding', title: 'Unavailable', color: ColorType.RED, icon: 'fas fa-plug-circle-xmark' },
   [ResourceStatus.IMPAIRED]: { id: 16, name: 'IMPAIRED', text: 'Operational but experiencing issues', title: 'Impaired', color: ColorType.YELLOW, icon: 'fas fa-exclamation-triangle' },
   [ResourceStatus.OFFLINE]: { id: 30, name: 'OFFLINE', text: 'Decommissioned and unavailable', title: 'Offline', color: ColorType.GRAY, icon: 'fas fa-circle-dot' },
+  [ResourceStatus.FAILED]: { id: 31, name: 'FAILED', text: 'Failed to provision', title: 'Failed', color: ColorType.RED, icon: 'fas fa-exclamation-triangle' },
 }
 
 export const ComputerTypeOptionInfo: Partial<Record<ComputerType, EnumOptionInfo>> = {

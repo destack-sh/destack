@@ -1,6 +1,6 @@
 from abc import ABC
 from asyncio import Queue
-from typing import Any, ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
+from typing import ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
 from uuid import UUID
 
 import structlog
@@ -350,13 +350,14 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             next_run = self._start(next_action, incoming=(runner.tracked_run,))
         return TickLinkResult(new_runs=(next_run,), is_handled=True)
 
-    async def _plan(self, from_run: Run):
+    async def _plan(self, from_runner: ActionRunner):
         """Plan the execution of this Flow."""
         # nocheckin: implement planning at FlowRunner level
         # build prompt
-        action = from_run.action
-        assert action is not None, f"{from_run!r} has no Action"
-        prompt = make_flow_plan_prompt(flow=self.node, from_run=from_run, context=self.tracked)
+        run = from_runner.tracked_run
+        assert run is not None, f"{from_runner!r} must be tracked"
+        action = from_runner.node
+        prompt = make_flow_plan_prompt(flow=self.node, from_run=run, context=self.tracked)
         model_developer = ModelDeveloper.OPENAI
         model_type = ModelType.OPENAI_GPT4_0
         model_runner_cls = get_chat_model_runner_cls(
@@ -370,7 +371,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             inputs=self.inputs,
             outputs=self.outputs or self.output_type,
             prompt=prompt,
-            parent=cast(Runner[Any], self),
+            parent=cast(Runner[Runnable], from_runner),
             run=SpanType.FLOW_PLAN,
         )
         await self.runtime.run_runner(model_runner)

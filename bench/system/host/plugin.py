@@ -162,8 +162,8 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
 
     @override
     async def post_commit(self, session: Session, commit: Commit) -> None:
+        # queue commit if relevant
         if self.filter_commit(commit):
-            # queue commit
             self._commit_queue.put_nowait(commit)
 
         # patch nodes we're currently committing
@@ -193,7 +193,6 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
                 await self.post_commit_deferred(commit)
             except Exception as e:
                 # suppress errors and keep going
-                logger.exception("deferred.commit.error", owner=self, commit=commit, exc_info=e)
                 self.host.on_error(e)
             finally:
                 self._processing_commit = None

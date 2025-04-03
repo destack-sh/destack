@@ -60,7 +60,7 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
                     provision_cls.get_property("bench").eq(self.bench)
                     & provision_cls.get_property("scaler").is_not_none()
                     & provision_cls.get_property("mode").lt(NodeMode.TEMPLATE)
-                    & provision_cls.get_property("status").neq(ResourceStatus.OFFLINE)
+                    & provision_cls.get_property("status").lt(ResourceStatus.OFFLINE)
                 )
                 .include_ancestors()
                 .select_all()
