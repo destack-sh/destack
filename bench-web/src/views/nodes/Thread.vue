@@ -70,7 +70,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       v-bind="state.getChildState('chat')"
     >
       <!-- Beginning -->
-      <template v-slot:beginning>
+      <template v-slot:beginning="{ node }">
         <!-- Title -->
         <NodeReference
           v-if="node"
@@ -85,7 +85,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           @click.stop.prevent="nameRef?.focusIdentifier('right')"
         />
         <!-- Beginning -->
-        <div class="mt-1.5 px-0.5 text-base text-gray-400">
+        <div v-if="node" class="mt-1.5 px-0.5 text-base text-gray-400">
           <span>
             This is the beginning of this
             {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???"

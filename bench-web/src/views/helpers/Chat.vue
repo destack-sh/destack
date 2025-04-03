@@ -586,11 +586,11 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 
         <!-- Empty Chat -->
         <div v-if="!isEnabled && messageViews.length == 0" class="mx-5">
-          <slot name="empty" />
+          <slot name="empty" :node="node" />
         </div>
         <!-- Beginning of Chat -->
         <div v-else-if="isAtStart && $slots.beginning != null" class="mx-5 mb-2">
-          <slot name="beginning" />
+          <slot name="beginning" :node="node" />
         </div>
 
         <!-- Message -->
@@ -611,6 +611,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             isSelected,
             isReplyingTo,
           } in messageViews"
+          v-if="node != null"
           :key="message.id"
           class="group/message mx-5 max-w-full"
           :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
