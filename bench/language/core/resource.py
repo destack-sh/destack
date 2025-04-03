@@ -15,7 +15,7 @@ from .const import (
 )
 from .node import InlineNode, Node, NodeReference, node_component_
 from .property import p_internal, p_node_parent, p_system
-from .trait import IsClaimable, IsModal, IsNamed, IsOwnable, IsTemplatable
+from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
 
 if TYPE_CHECKING:
     from bench.language import Channel, Package, Page, Region, Scaler, Thread
@@ -45,7 +45,7 @@ class ResourceStatus(BuiltinEnum):
 
 @node_component_()
 class Resource[NodeDataT: AnyNodeData](
-    IsModal, IsTemplatable, IsOwnable, IsNamed, IsClaimable, InlineNode[NodeDataT]
+    IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, InlineNode[NodeDataT]
 ):
     """
     A Resource in a Bench.

@@ -168,6 +168,8 @@ class IsTemplatable(BuiltinObject):
         Creates a new instance of this Node.
         Similar to Node.clone, but sets the original Nodes as the template source.
         """
+        from .node import Node
+
         assert isinstance(self, Node), f"{self!r} must be a Node"
         assert isinstance(self, IsModal), f"{self!r} must be modal"
 

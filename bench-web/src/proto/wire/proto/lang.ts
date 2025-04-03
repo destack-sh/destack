@@ -2446,6 +2446,10 @@ export interface ApplicationData {
      */
     id: string;
     /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -2578,6 +2582,10 @@ export interface ComputerData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -2743,6 +2751,10 @@ export interface FileData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -2925,6 +2937,10 @@ export interface ScalerData {
      */
     id: string;
     /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -3074,6 +3090,10 @@ export interface SecretData {
      */
     id: string;
     /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
@@ -3202,6 +3222,10 @@ export interface StoreData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -3343,6 +3367,10 @@ export interface StreamData {
      * @generated from protobuf field: string id = 2;
      */
     id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
@@ -4583,10 +4611,6 @@ export interface PlanData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.PlanTerminationMode on_terminate = 41;
-     */
-    onTerminate: PlanTerminationMode;
     /**
      * @generated from protobuf field: symbolx.bench.PlanFailureMode on_failure = 42;
      */
@@ -7942,10 +7966,6 @@ export enum EnumType {
      */
     PLAN_STATUS = 22004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PLAN_TERMINATION_MODE = 22005;
-     */
-    PLAN_TERMINATION_MODE = 22005,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_PLAN_FAILURE_MODE = 22006;
      */
     PLAN_FAILURE_MODE = 22006,
@@ -9705,10 +9725,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PLAN_STATUS = 22004;
      */
     PLAN_STATUS = 22004,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PLAN_TERMINATION_MODE = 22005;
-     */
-    PLAN_TERMINATION_MODE = 22005,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PLAN_FAILURE_MODE = 22006;
      */
@@ -12456,21 +12472,13 @@ export enum PlanType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PLAN_TYPE_CUSTOM = 10;
+     * @generated from protobuf enum value: PLAN_TYPE_GENERAL = 10;
      */
-    CUSTOM = 10,
+    GENERAL = 10,
     /**
-     * @generated from protobuf enum value: PLAN_TYPE_SERIAL = 20;
+     * @generated from protobuf enum value: PLAN_TYPE_FLOW = 20;
      */
-    SERIAL = 20,
-    /**
-     * @generated from protobuf enum value: PLAN_TYPE_PARALLEL = 30;
-     */
-    PARALLEL = 30,
-    /**
-     * @generated from protobuf enum value: PLAN_TYPE_QUEUE = 40;
-     */
-    QUEUE = 40
+    FLOW = 20
 }
 /**
  * @generated from protobuf enum symbolx.bench.PlanStatus
@@ -12506,23 +12514,6 @@ export enum PlanStatus {
     COMPLETED = 33
 }
 /**
- * @generated from protobuf enum symbolx.bench.PlanTerminationMode
- */
-export enum PlanTerminationMode {
-    /**
-     * @generated from protobuf enum value: PLAN_TERMINATION_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PLAN_TERMINATION_MODE_PASS = 10;
-     */
-    PASS = 10,
-    /**
-     * @generated from protobuf enum value: PLAN_TERMINATION_MODE_RETURN = 20;
-     */
-    RETURN = 20
-}
-/**
  * @generated from protobuf enum symbolx.bench.PlanFailureMode
  */
 export enum PlanFailureMode {
@@ -12552,21 +12543,13 @@ export enum TaskType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: TASK_TYPE_CUSTOM = 10;
+     * @generated from protobuf enum value: TASK_TYPE_GENERAL = 10;
      */
-    CUSTOM = 10,
-    /**
-     * @generated from protobuf enum value: TASK_TYPE_SCHEDULED = 20;
-     */
-    SCHEDULED = 20,
+    GENERAL = 10,
     /**
      * @generated from protobuf enum value: TASK_TYPE_RUN = 30;
      */
-    RUN = 30,
-    /**
-     * @generated from protobuf enum value: TASK_TYPE_INTERRUPTION = 40;
-     */
-    INTERRUPTION = 40
+    RUN = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.TaskStatus
@@ -21083,6 +21066,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         super("symbolx.bench.ApplicationData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21119,6 +21103,7 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.region = 0;
@@ -21137,6 +21122,9 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -21246,6 +21234,9 @@ class ApplicationData$Type extends MessageType$<ApplicationData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -21352,6 +21343,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         super("symbolx.bench.ComputerData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21396,6 +21388,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.region = 0;
@@ -21419,6 +21412,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -21552,6 +21548,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -21682,6 +21681,7 @@ class FileData$Type extends MessageType$<FileData> {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21730,6 +21730,7 @@ class FileData$Type extends MessageType$<FileData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.region = 0;
@@ -21751,6 +21752,9 @@ class FileData$Type extends MessageType$<FileData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -21896,6 +21900,9 @@ class FileData$Type extends MessageType$<FileData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -22038,6 +22045,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         super("symbolx.bench.ScalerData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22078,6 +22086,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.region = 0;
@@ -22101,6 +22110,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -22222,6 +22234,9 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -22340,6 +22355,7 @@ class SecretData$Type extends MessageType$<SecretData> {
         super("symbolx.bench.SecretData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22375,6 +22391,7 @@ class SecretData$Type extends MessageType$<SecretData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.region = 0;
         message.status = 0;
@@ -22392,6 +22409,9 @@ class SecretData$Type extends MessageType$<SecretData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -22498,6 +22518,9 @@ class SecretData$Type extends MessageType$<SecretData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -22601,6 +22624,7 @@ class StoreData$Type extends MessageType$<StoreData> {
         super("symbolx.bench.StoreData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22639,6 +22663,7 @@ class StoreData$Type extends MessageType$<StoreData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.region = 0;
@@ -22658,6 +22683,9 @@ class StoreData$Type extends MessageType$<StoreData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -22773,6 +22801,9 @@ class StoreData$Type extends MessageType$<StoreData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -22885,6 +22916,7 @@ class StreamData$Type extends MessageType$<StreamData> {
         super("symbolx.bench.StreamData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 5, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22919,6 +22951,7 @@ class StreamData$Type extends MessageType$<StreamData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = "";
+        message.ck = "";
         message.mode = 0;
         message.type = 0;
         message.region = 0;
@@ -22937,6 +22970,9 @@ class StreamData$Type extends MessageType$<StreamData> {
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
@@ -23040,6 +23076,9 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
@@ -25352,7 +25391,6 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "on_terminate", kind: "enum", T: () => ["symbolx.bench.PlanTerminationMode", PlanTerminationMode, "PLAN_TERMINATION_MODE_"] },
             { no: 42, name: "on_failure", kind: "enum", T: () => ["symbolx.bench.PlanFailureMode", PlanFailureMode, "PLAN_FAILURE_MODE_"] },
             { no: 43, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.PlanStatus", PlanStatus, "PLAN_STATUS_"] },
@@ -25380,7 +25418,6 @@ class PlanData$Type extends MessageType$<PlanData> {
         message.ck = "";
         message.mode = 0;
         message.type = 0;
-        message.onTerminate = 0;
         message.onFailure = 0;
         message.status = 0;
         if (value !== undefined)
@@ -25457,9 +25494,6 @@ class PlanData$Type extends MessageType$<PlanData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* symbolx.bench.PlanTerminationMode on_terminate */ 41:
-                    message.onTerminate = reader.int32();
                     break;
                 case /* symbolx.bench.PlanFailureMode on_failure */ 42:
                     message.onFailure = reader.int32();
@@ -25593,9 +25627,6 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PlanTerminationMode on_terminate = 41; */
-        if (message.onTerminate !== 0)
-            writer.tag(41, WireType.Varint).int32(message.onTerminate);
         /* symbolx.bench.PlanFailureMode on_failure = 42; */
         if (message.onFailure !== 0)
             writer.tag(42, WireType.Varint).int32(message.onFailure);
@@ -32112,7 +32143,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE],
   [NodeType.PAGE]: [NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.PAGE, NodeType.BLOCK],
-  [NodeType.CHOICE]: [NodeType.PAGE],
+  [NodeType.CHOICE]: [NodeType.DATABASE, NodeType.PAGE],
   [NodeType.CLASS]: [NodeType.PAGE],
   [NodeType.FIELD]: [NodeType.DATABASE, NodeType.CLASS, NodeType.AGENT, NodeType.FLOW, NodeType.ACTION],
   [NodeType.OPTION]: [NodeType.CHOICE],
@@ -32175,7 +32206,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.LINK]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.KIT]: [NodeType.CLAIM, NodeType.ACTION, NodeType.SKIP, NodeType.EMPTY],
-  [NodeType.DATABASE]: [NodeType.RECORD, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.FILE],
+  [NodeType.DATABASE]: [NodeType.RECORD, NodeType.CHOICE, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.FILE],
   [NodeType.CHANNEL]: [NodeType.THREAD, NodeType.AGENT, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.SCALER, NodeType.COMPUTER, NodeType.INVITE, NodeType.FILE, NodeType.STORE],
   [NodeType.THREAD]: [NodeType.TEAM, NodeType.THREAD, NodeType.CLAIM, NodeType.AGENT, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.SCALER, NodeType.COMPUTER, NodeType.INVITE, NodeType.PLAN, NodeType.FILE, NodeType.STORE, NodeType.RUN, NodeType.APPLICATION],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32218,10 +32249,10 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DEPENDENCY]: [NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.PAGE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.BLOCK]: [NodeType.BENCH, NodeType.PACKAGE, NodeType.PAGE, NodeType.BLOCK],
-  [NodeType.CHOICE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
+  [NodeType.CHOICE]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.DATABASE, NodeType.PAGE],
   [NodeType.CLASS]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.FIELD]: [NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.PAGE, NodeType.DATABASE, NodeType.CLASS, NodeType.FLOW, NodeType.ACTION, NodeType.CHANNEL],
-  [NodeType.OPTION]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE, NodeType.CHOICE],
+  [NodeType.OPTION]: [NodeType.BENCH, NodeType.DATABASE, NodeType.CHOICE, NodeType.PACKAGE, NodeType.PAGE],
   [NodeType.TAG]: [NodeType.PACKAGE, NodeType.BENCH, NodeType.PAGE],
   [NodeType.FLOW]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.PAGE],
   [NodeType.ACTION]: [NodeType.BENCH, NodeType.KIT, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.FLOW, NodeType.ACTION, NodeType.PAGE],
@@ -32281,7 +32312,7 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.LINK]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TRIGGER]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.KIT]: [NodeType.CLAIM, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER],
-  [NodeType.DATABASE]: [NodeType.RECORD, NodeType.FILE, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.DATABASE]: [NodeType.RECORD, NodeType.CHOICE, NodeType.FILE, NodeType.FIELD, NodeType.OPTION, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.CHANNEL]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.LOG, NodeType.FILE, NodeType.FIELD, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
   [NodeType.THREAD]: [NodeType.INTERRUPTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.MESSAGE, NodeType.FILE, NodeType.FIELD, NodeType.COMPUTER, NodeType.FLOW, NodeType.ACTION, NodeType.LINK, NodeType.TRIGGER, NodeType.APPLICATION, NodeType.SCALER, NodeType.PLAN, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.RUN, NodeType.SPAN],
   [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32587,7 +32618,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.PLAN_TYPE]: PlanType,
   [EnumType.PLAN_STATUS]: PlanStatus,
-  [EnumType.PLAN_TERMINATION_MODE]: PlanTerminationMode,
   [EnumType.PLAN_FAILURE_MODE]: PlanFailureMode,
   [EnumType.TASK_TYPE]: TaskType,
   [EnumType.TASK_STATUS]: TaskStatus,
@@ -32950,7 +32980,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.PLAN_TYPE]: PlanType,
   [EnumType.PLAN_STATUS]: PlanStatus,
-  [EnumType.PLAN_TERMINATION_MODE]: PlanTerminationMode,
   [EnumType.PLAN_FAILURE_MODE]: PlanFailureMode,
   [EnumType.TASK_TYPE]: TaskType,
   [EnumType.TASK_STATUS]: TaskStatus,
@@ -33130,6 +33159,7 @@ export enum ClientProperty {
 export enum ScalerProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -33169,6 +33199,7 @@ export enum ScalerProperty {
 export enum StoreProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -33206,6 +33237,7 @@ export enum StoreProperty {
 export enum ComputerProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -33249,6 +33281,7 @@ export enum ComputerProperty {
 export enum ApplicationProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -33284,6 +33317,7 @@ export enum ApplicationProperty {
 export enum FileProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -33331,6 +33365,7 @@ export enum FileProperty {
 export enum StreamProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -33364,6 +33399,7 @@ export enum StreamProperty {
 export enum SecretProperty {
   metatype = 1,
   id = 2,
+  ck = 3,
   parentPtr = 4,
   benchPtr = 5,
   packagePtr = 9,
@@ -34227,7 +34263,6 @@ export enum PlanProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  onTerminate = 41,
   onFailure = 42,
   implementedByPtr = 43,
   status = 80,
@@ -35480,6 +35515,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
 export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCALER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ScalerProperty.id]: { id: 2, name: 'id', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SCALER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SCALER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ScalerProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.SCALER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35518,6 +35554,7 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
 export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STORE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StoreProperty.id]: { id: 2, name: 'id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.ck]: { id: 3, name: 'ck', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STORE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.STORE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.STORE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35546,7 +35583,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35554,6 +35591,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
 export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ComputerProperty.id]: { id: 2, name: 'id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.ck]: { id: 3, name: 'ck', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.COMPUTER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.COMPUTER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ComputerProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.COMPUTER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35582,7 +35620,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.02.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -35596,6 +35634,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
 export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
   [ApplicationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.APPLICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ApplicationProperty.id]: { id: 2, name: 'id', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [ApplicationProperty.ck]: { id: 3, name: 'ck', component: ObjectType.APPLICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ApplicationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.APPLICATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE, NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
   [ApplicationProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.APPLICATION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ApplicationProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.APPLICATION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35630,6 +35669,7 @@ export const ApplicationDataInfo: Record<ApplicationProperty, PropertyInfo> = {
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.DATABASE, NodeType.CHANNEL, NodeType.THREAD, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35676,6 +35716,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
 export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STREAM, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StreamProperty.id]: { id: 2, name: 'id', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.ck]: { id: 3, name: 'ck', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STREAM, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.STREAM, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.STREAM, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35708,6 +35749,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
 export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SecretProperty.id]: { id: 2, name: 'id', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -35825,7 +35867,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
 export const ChoiceDataInfo: Record<ChoiceProperty, PropertyInfo> = {
   [ChoiceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHOICE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChoiceProperty.id]: { id: 2, name: 'id', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [ChoiceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ChoiceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PAGE, NodeType.DATABASE], referenceStruct: StructType.NODE_REFERENCE },
   [ChoiceProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ChoiceProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.CHOICE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ChoiceProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.CHOICE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -36541,7 +36583,6 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PlanProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.onTerminate]: { id: 41, name: 'on_terminate', component: ObjectType.PLAN, enumType: EnumType.PLAN_TERMINATION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.onFailure]: { id: 42, name: 'on_failure', component: ObjectType.PLAN, enumType: EnumType.PLAN_FAILURE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.implementedByPtr]: { id: 43, name: 'implemented_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PLAN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -37740,10 +37781,8 @@ export const SpanTypeOptionInfo: Partial<Record<SpanType, EnumOptionInfo>> = {
 }
 
 export const PlanTypeOptionInfo: Partial<Record<PlanType, EnumOptionInfo>> = {
-  [PlanType.CUSTOM]: { id: 10, name: 'CUSTOM', text: 'Execute in a custom order', title: 'Custom', icon: 'fas fa-list' },
-  [PlanType.SERIAL]: { id: 20, name: 'SERIAL', text: 'Execute Tasks one after another', title: 'Serial', icon: 'fas fa-list-ol' },
-  [PlanType.PARALLEL]: { id: 30, name: 'PARALLEL', text: 'Execute Tasks in at the same time', title: 'Parallel', icon: 'fas fa-list-ul' },
-  [PlanType.QUEUE]: { id: 40, name: 'QUEUE', text: 'Execute Tasks in a queue', title: 'Queue', icon: 'fas fa-list-check' },
+  [PlanType.GENERAL]: { id: 10, name: 'GENERAL', text: 'Define general Tasks to do', title: 'Generic', icon: 'fas fa-list' },
+  [PlanType.FLOW]: { id: 20, name: 'FLOW', text: 'Sequence Tasks in a Flow', title: 'Flow', icon: 'fas fa-list-ol' },
 }
 
 export const PlanStatusOptionInfo: Partial<Record<PlanStatus, EnumOptionInfo>> = {
@@ -37755,11 +37794,6 @@ export const PlanStatusOptionInfo: Partial<Record<PlanStatus, EnumOptionInfo>> =
   [PlanStatus.COMPLETED]: { id: 33, name: 'COMPLETED', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
 }
 
-export const PlanTerminationModeOptionInfo: Partial<Record<PlanTerminationMode, EnumOptionInfo>> = {
-  [PlanTerminationMode.PASS]: { id: 10, name: 'PASS', text: 'Complete the Plan', title: 'Complete' },
-  [PlanTerminationMode.RETURN]: { id: 20, name: 'RETURN', text: 'Return to caller (for more planning)', title: 'Return' },
-}
-
 export const PlanFailureModeOptionInfo: Partial<Record<PlanFailureMode, EnumOptionInfo>> = {
   [PlanFailureMode.FAIL]: { id: 10, name: 'FAIL', text: 'Fail the Plan', title: 'Fail' },
   [PlanFailureMode.END]: { id: 20, name: 'END', text: 'Complete the Plan', title: 'Complete' },
@@ -37767,10 +37801,8 @@ export const PlanFailureModeOptionInfo: Partial<Record<PlanFailureMode, EnumOpti
 }
 
 export const TaskTypeOptionInfo: Partial<Record<TaskType, EnumOptionInfo>> = {
-  [TaskType.CUSTOM]: { id: 10, name: 'CUSTOM', text: 'Describe a general purpose task', title: 'Generic', icon: 'far fa-square-check' },
-  [TaskType.SCHEDULED]: { id: 20, name: 'SCHEDULED', text: 'Schedule a task', title: 'Scheduled', icon: 'fas fa-calendar-days' },
+  [TaskType.GENERAL]: { id: 10, name: 'GENERAL', text: 'Describe a general purpose task', title: 'General', icon: 'far fa-square-check' },
   [TaskType.RUN]: { id: 30, name: 'RUN', text: 'Run a specific Node', title: 'Run', icon: 'fas fa-play' },
-  [TaskType.INTERRUPTION]: { id: 40, name: 'INTERRUPTION', text: 'Handle an Interruption', title: 'Interruption', icon: 'fas fa-hand' },
 }
 
 export const TaskStatusOptionInfo: Partial<Record<TaskStatus, EnumOptionInfo>> = {
@@ -38005,7 +38037,6 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.SPAN_TYPE]: SpanTypeOptionInfo,
   [EnumType.PLAN_TYPE]: PlanTypeOptionInfo,
   [EnumType.PLAN_STATUS]: PlanStatusOptionInfo,
-  [EnumType.PLAN_TERMINATION_MODE]: PlanTerminationModeOptionInfo,
   [EnumType.PLAN_FAILURE_MODE]: PlanFailureModeOptionInfo,
   [EnumType.TASK_TYPE]: TaskTypeOptionInfo,
   [EnumType.TASK_STATUS]: TaskStatusOptionInfo,
