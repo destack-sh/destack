@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Mapping, override
 
 import google.generativeai as genai
+import structlog
+from opentelemetry import trace
 
 from bench.language import Code, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import NotSupportedError
@@ -10,18 +12,22 @@ from bench.utils.utils import get_from_env
 from .chat import ChatModelRunner, strip_code_completion
 from .prompt import (
     AudioPiece,
-    BasicPiece,
     BreakPiece,
     CodePiece,
     ImagePiece,
+    LeafPiece,
     Prompt,
     SeparatorPiece,
     TextPiece,
+    compile_prompt,
 )
 
 if TYPE_CHECKING:
     pass
 
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 genai.configure(api_key=get_from_env("GEMINI_API_KEY", description="Gemini API key"))
 
@@ -45,7 +51,9 @@ class GeminiChatModelRunner(ChatModelRunner):
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces: list[BasicPiece] = prompt.compile(tokenizer=tokenizer, max_tokens=max_tokens)
+        pieces: list[LeafPiece] = compile_prompt(
+            prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens
+        )
 
         # download media
         files_to_download = [

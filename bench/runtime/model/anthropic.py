@@ -1,6 +1,10 @@
 from typing import TYPE_CHECKING, Mapping, Union, override
 
 import anthropic
+import structlog
+from anthropic import NOT_GIVEN
+from anthropic import types as anthropic_types
+from opentelemetry import trace
 
 from bench.language import Code, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import NotSupportedError
@@ -10,21 +14,23 @@ from bench.utils.utils import get_from_env
 from .chat import ChatModelRunner, strip_code_completion
 from .prompt import (
     AudioPiece,
-    BasicPiece,
     BreakPiece,
     CodePiece,
     ImagePiece,
+    LeafPiece,
     Prompt,
     SeparatorPiece,
     TextPiece,
+    compile_prompt,
 )
 
 if TYPE_CHECKING:
     pass
 
 
-from anthropic import NOT_GIVEN
-from anthropic import types as anthropic_types
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
 
 anthropic_client = anthropic.AsyncClient(
     api_key=get_from_env("ANTHROPIC_API_KEY", description="Anthropic API key")
@@ -49,7 +55,9 @@ class AnthropicChatModelRunner(ChatModelRunner):
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces: list[BasicPiece] = prompt.compile(tokenizer=tokenizer, max_tokens=max_tokens)
+        pieces: list[LeafPiece] = compile_prompt(
+            prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens
+        )
 
         # download media
         files_to_download = [
