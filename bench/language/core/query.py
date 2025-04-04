@@ -20,7 +20,7 @@ from opentelemetry import trace
 
 from bench.language.registry import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
 from bench.pb2 import AnyNodeData
-from bench.utils.func import stable_hash
+from bench.utils.func import hash_stable
 
 from .const import (
     AggregationType,
@@ -135,7 +135,7 @@ class SelectOptions(Struct):
     def _stable_hash(self) -> int:
         # NOTE: we override stable_hash to ensure SelectOptions hash differs per field identities
         #  (otherwise when we cache per query and the field identity changes, we wouldn't re-query)
-        return stable_hash(
+        return hash_stable(
             self.select_all_properties,
             tuple(r._stable_hash() for r in self.include_properties_ptr),
             tuple(r._stable_hash() for r in self.exclude_properties_ptr),
@@ -311,7 +311,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             return f"<{self._node_type.bench_name}Query {self}>"
 
     def _stable_hash(self):
-        return stable_hash(
+        return hash_stable(
             # root
             self._type,
             self._node_type,

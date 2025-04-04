@@ -47,7 +47,7 @@ from bench.language import (
 from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
 
-from .prompt import Prompt, PromptCode, PromptCompound, PromptPart, PromptRegion
+from .prompt import CompoundPiece, Prompt, piece_
 
 # ruff: noqa: F401,B018
 # pyright: reportUnusedExpression=false
@@ -59,8 +59,8 @@ tracer = trace.get_tracer(__name__)
 assert _is_setup_complete(), "import this file after import is complete"
 
 
-@dataclass
-class PromptExample(PromptCompound):
+@piece_()
+class ExamplePiece(CompoundPiece):
     """An example of a prompt."""
 
     text: str
@@ -119,7 +119,7 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
 
 
 EXAMPLE_BENCH, EXAMPLE_PACKAGE, EXAMPLE_SESSION, EXAMPLE_USER = _make_example_bench()
-EXAMPLES: list[PromptExample] = []
+EXAMPLES: list[ExamplePiece] = []
 
 
 def _get_function_body(func) -> str:
@@ -204,7 +204,7 @@ def example_(title: str, weight: int = 1):
             response_code = format_code(response_code)
 
             # example
-            example = PromptExample(
+            example = ExamplePiece(
                 title=title, text=text, request=request, response=response_code, weight=weight
             )
             EXAMPLES.append(example)

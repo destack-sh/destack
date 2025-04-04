@@ -1,22 +1,24 @@
-from typing import Mapping, Sequence, override
+from typing import Mapping, override
 
 import openai
 from openai.types import chat as openai_chat_types
 
-from bench.language import Code, ModelType, RunOptions
-from bench.language.compute.file import FileType, download_file_batch
-from bench.runtime.core import NotSupportedError
+from bench.language import Code, ModelType, RunOptions, download_file_batch
+from bench.runtime.core import IncapableError, NotSupportedError
+from bench.runtime.model.token import TiktokenTokenizer
+from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
 from .prompt import (
+    AudioPiece,
+    BasicPiece,
+    BreakPiece,
+    CodePiece,
+    ImagePiece,
     Prompt,
-    PromptBreak,
-    PromptCode,
-    PromptComponent,
-    PromptFile,
-    PromptSeparator,
-    PromptText,
+    SeparatorPiece,
+    TextPiece,
 )
 
 openai_client = openai.AsyncClient(
@@ -33,9 +35,10 @@ OPENAI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
 OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 
 
-class OpenaiChatModelRunner(ChatModelRunner):
+class OpenAIChatModelRunner(ChatModelRunner):
     """Compile a Prompt into OpenAI chat messages."""
 
+    BREAK = "\n\n"
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
@@ -44,63 +47,56 @@ class OpenaiChatModelRunner(ChatModelRunner):
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
+        tokenizer = TiktokenTokenizer()
+        max_tokens = 20_000
+        pieces: list[BasicPiece] = prompt.compile(tokenizer=tokenizer, max_tokens=max_tokens)
+
         # download media
         files_to_download = [
-            part.file
-            for part in parts
-            if isinstance(part, PromptFile)
-            if part.file._cached_content is None
+            piece.file
+            for piece in pieces
+            if isinstance(piece, (ImagePiece, AudioPiece))
+            if piece.file._cached_content is None
         ]
         if files_to_download:
             await download_file_batch(files_to_download, include_content=True, session=self.session)
 
-        # compile
+        # render
         content: list[openai_chat_types.ChatCompletionContentPartParam] = []
-        text_parts: list[str] = []
+        text_pieces: list[str] = []
 
         def _flush_text() -> None:
-            if text_parts:
-                content.append({"type": "text", "text": "\n".join(text_parts)})
-                text_parts.clear()
+            if text_pieces:
+                content.append({"type": "text", "text": "\n".join(text_pieces)})
+                text_pieces.clear()
 
-        for part in parts:
-            if isinstance(part, PromptBreak):
-                text_parts.append("\n\n")
-            elif isinstance(part, PromptSeparator):
-                text_parts.append(self.SEPARATOR)
-                if part.title:
-                    text_parts.append(f"# {part.title}")
-                    if part.text:
-                        text_parts.append(f"# {part.text}")
-                    text_parts.append(self.SEPARATOR)
-            elif isinstance(part, PromptText):
-                # prepend every text line
-                text = "\n".join([f"# {line}" for line in part.text.splitlines()])
-                text = f"# {part.title}\n{text}" if part.title else text
-                text_parts.append(text)
-            elif isinstance(part, PromptCode):
-                text = f"# {part.title}\n{part.code}" if part.title else part.code
-                text_parts.append(text)
-            elif isinstance(part, PromptFile):
+        for piece in pieces:
+            if isinstance(piece, BreakPiece):
+                text_pieces.append(self.BREAK)
+            elif isinstance(piece, SeparatorPiece):
+                text_pieces.append(self.SEPARATOR)
+            elif isinstance(piece, TextPiece):
+                text = "\n".join([f"# {line}" for line in piece.text.splitlines()])
+                text_pieces.append(text)
+            elif isinstance(piece, CodePiece):
+                text_pieces.append(piece.code)
+            elif isinstance(piece, ImagePiece):
                 _flush_text()
-                if part.file.type == FileType.IMAGE:
-                    if part.file.external_url is not None:
-                        content.append(
-                            {"type": "image_url", "image_url": {"url": part.file.external_url}}
-                        )
-                    else:
-                        content.append(
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{part.file.content_b64}"
-                                },
-                            }
-                        )
+                if piece.file.external_url is not None:
+                    content.append(
+                        {"type": "image_url", "image_url": {"url": piece.file.external_url}}
+                    )
                 else:
-                    raise NotSupportedError(f"file {part.file!r} not supported yet")
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{piece.file.content_b64}"
+                            },
+                        }
+                    )
             else:
-                raise RuntimeError(f"unexpected part {part!r}")
+                raise IncapableError(f"unexpected piece {piece!r}")
 
         _flush_text()
 
@@ -112,9 +108,8 @@ class OpenaiChatModelRunner(ChatModelRunner):
         completion = await openai_client.chat.completions.create(
             messages=messages,
             model=model_id,
-            temperature=prompt.temperature,
-            max_tokens=prompt.max_tokens,
-            user=user_id,
+            max_tokens=max_tokens,
+            user=hash_stable_hex(self.runtime.bench.id.int),
         )
         completion_text = completion.choices[0].message.content
         if completion_text:

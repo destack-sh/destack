@@ -16,7 +16,7 @@ from uuid import UUID
 
 from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
-from bench.utils.func import parse_py_annotation, stable_hash
+from bench.utils.func import parse_py_annotation, hash_stable
 from bench.utils.utils import frozendict
 
 from .const import (
@@ -213,7 +213,7 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
     def _stable_hash(self):
         """Hash the Property identity."""
-        return stable_hash((self.component.__name__, self.id, self.reference_type))
+        return hash_stable((self.component.__name__, self.id, self.reference_type))
 
     __hash__ = _stable_hash  # type: ignore
 
