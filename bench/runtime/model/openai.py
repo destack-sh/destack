@@ -1,7 +1,9 @@
 from typing import Mapping, override
 
 import openai
+import structlog
 from openai.types import chat as openai_chat_types
+from opentelemetry import trace
 
 from bench.language import Code, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import IncapableError, NotSupportedError
@@ -12,14 +14,18 @@ from bench.utils.utils import get_from_env
 from .chat import ChatModelRunner, strip_code_completion
 from .prompt import (
     AudioPiece,
-    BasicPiece,
     BreakPiece,
     CodePiece,
     ImagePiece,
+    LeafPiece,
     Prompt,
     SeparatorPiece,
     TextPiece,
+    compile_prompt,
 )
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 openai_client = openai.AsyncClient(
     api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
@@ -49,7 +55,9 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces: list[BasicPiece] = prompt.compile(tokenizer=tokenizer, max_tokens=max_tokens)
+        pieces: list[LeafPiece] = compile_prompt(
+            prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens
+        )
 
         # download media
         files_to_download = [
