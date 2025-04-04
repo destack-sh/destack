@@ -32,6 +32,7 @@ from bench.language import (
     UserStatus,
     _is_setup_complete,
     text,
+    text_line,
 )
 from bench.utils.oracle import REAL_ORACLE
 
@@ -163,10 +164,43 @@ def example_(example_type: ExampleType, title: str):
     return decorator
 
 
-@example_(ExampleType.SNIPPET, title="Reply to a Message")
-def example_reply_to_message(Thread1: Thread, Message1: Message):  # noqa: N803
-    Reply1 = Message.new(text=text("yeah, I'll get right on that"), reply_to=Message1)
+@example_(ExampleType.SNIPPET, title="Reply to a Message directly")
+def example_reply_to_message_1(Thread1: Thread, Message1: Message):  # noqa: N803
+    # reply to specific message
+    Reply1 = Message.new(text=text("yeah, I'll get right on this"), reply_to=Message1)
     Thread1.append(Reply1)
+
+
+@example_(ExampleType.SNIPPET, title="Reply to a Message indirectly")
+def example_reply_to_message_2(Thread1: Thread, Message1: Message):  # noqa: N803
+    # continue conversation
+    Reply1 = Message.new(
+        text=text("The distance from Earth to the moon is **about 384,400 km** (238,855 miles)."),
+    )
+    Thread1.append(Reply1)
+
+
+@example_(ExampleType.SNIPPET, title="Reply to a Message with code")
+def example_reply_to_message_3(Thread1: Thread, Message1: Message):  # noqa: N803
+    # reply to specific message
+    Reply1 = Message.new(
+        text=text("""
+A simple Hello World in Rust would look like this:
+
+```
+fn main() {
+    println!("Hello, world!");
+}
+```
+"""),
+    )
+    Thread1.append(Reply1)
+
+
+@example_(ExampleType.SNIPPET, title="Title the Thread")
+def example_title_thread(Thread1: Thread):  # noqa: N803
+    # thread title is missing or no longer appropriate
+    Thread1.title = text_line("The Solar System")
 
 
 ...  # nocheckin: examples

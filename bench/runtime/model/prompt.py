@@ -1,12 +1,11 @@
 import math
-from typing import TYPE_CHECKING, Generator, Sequence
+from typing import TYPE_CHECKING
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import (
     Aliasing,
-    Node,
     Projection,
     ProjectOptions,
     Renderer,
@@ -14,7 +13,6 @@ from bench.language import (
     Runnable,
     _is_setup_complete,
 )
-
 from bench.runtime.model.piece import (
     BreakPiece,
     CompoundPiece,
@@ -28,7 +26,7 @@ from bench.runtime.model.piece import (
 from bench.runtime.model.token import Tokenizer
 
 if TYPE_CHECKING:
-    from bench.runtime.flow import FlowRunner
+    pass
 
 
 logger = structlog.get_logger(__name__)
@@ -77,8 +75,8 @@ class Prompt:
     def header(self, text: str, priority: int = 1) -> None:
         self.pieces.append(HeaderPiece(text=text, priority=priority))
 
-    def region(self, text: str, *pieces: Piece, priority: int = 1) -> None:
-        self.pieces.append(RegionPiece(text=text, pieces=pieces, priority=priority))
+    def region(self, title: str, text: str | None, *pieces: Piece, priority: int = 1) -> None:
+        self.pieces.append(RegionPiece(title=title, text=text, pieces=pieces, priority=priority))
 
     def break_(self) -> None:
         self.pieces.append(BreakPiece())

@@ -104,6 +104,14 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         _flush_text()
 
+        # nocheckin
+        # print messages
+        for message in content:
+            if message["type"] == "text":
+                print(message["text"])
+            elif message["type"] == "image_url":
+                print(message["image_url"]["url"])
+
         # generate
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
             {"role": "developer", "content": prompt.system_prompt},

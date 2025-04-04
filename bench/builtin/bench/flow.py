@@ -2,6 +2,7 @@ from bench.language import (
     Action,
     ActionType,
     Agent,
+    ColorType,
     Flow,
     LinkType,
     Page,
@@ -29,8 +30,16 @@ Tool1.connect(LinkType.DECIDE, End1)
 # default Agent
 BenchAgent = Agent.new(
     "Bench",
-    icon=icon("fas fa-robot"),
-    text=text("The default Agent of a Bench."),
+    color=ColorType.AMBER,
+    icon=icon("fas fa-robot", ColorType.AMBER),
+    text=text(
+        """
+The default Agent of Bench.
+Direct, gets to the point, friendly, helpful, not too yappy.
+Does NOT ask questions unless it's really necessary.
+Basically, your cool friend on Discord.
+        """
+    ),
     main_flow=BenchFlow,
 )
 BenchFlow.default_agent = BenchAgent

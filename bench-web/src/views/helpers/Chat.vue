@@ -10,6 +10,7 @@ import {
   Alignment,
   AnyNodeData,
   ChannelData,
+  ColorType,
   ExpressionData,
   ExpressionType,
   FileData,
@@ -34,6 +35,7 @@ import { user } from "@/system/user";
 import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";
 import { useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
+import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
@@ -216,6 +218,7 @@ type MessageView = {
   filesPtr: NodeReferenceData[];
   author: EditSubject | null;
   authorIcon: IconData | null;
+  authorColor: ColorType | null;
   authorName: string | null;
   replyTo: MessageView | null;
   isEmpty: boolean;
@@ -236,6 +239,7 @@ const messageViews = computed(() => {
     const author = authorPtr != null ? (authorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
     const authorIcon = author != null ? (getNodeIcon(author) ?? null) : null;
     const authorName = author != null ? (getNodeTitle(author) ?? null) : null;
+    const authorColor = author != null ? (getNodeColor(author) ?? null) : null;
     let isNewGroup;
     let isNewDate;
     if (i == 0) {
@@ -261,6 +265,7 @@ const messageViews = computed(() => {
       filesPtr,
       author,
       authorIcon,
+      authorColor,
       authorName,
       isEmpty,
       isNewGroup,
@@ -603,6 +608,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             replyTo,
             authorIcon,
             authorName,
+            authorColor,
             isEmpty,
             isEdited,
             isNewGroup,
@@ -675,6 +681,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 class="mr-1 cursor-pointer text-gray-700"
                 size="medium"
                 v-bind="authorIcon"
+                :force-color="authorColor ?? undefined"
                 @click="author && canvas.goToNode(author)"
               />
               <div v-else-if="isNewGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />

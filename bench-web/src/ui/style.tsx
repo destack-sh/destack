@@ -131,6 +131,8 @@ export function getNodeColor(node: AnyNodeData): ColorType | undefined {
     if (ActionTypeOptionInfo[node.type] != null) {
       return ActionTypeOptionInfo[node.type]!.color!;
     }
+  } else if (isNode(node, NodeType.AGENT)) {
+    return node.color;
   }
 
   if (NodeTypeOptionInfo[node.metatype as unknown as NodeType] != null) {

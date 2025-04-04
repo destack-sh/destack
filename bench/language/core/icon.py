@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
+from .color import ColorIn, to_color
 from .const import BuiltinEnum, EnumType, StructType, enum_
 from .property import p_internal
 from .struct import Struct, struct_
@@ -38,20 +39,21 @@ class Icon(Struct):
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
 
     @staticmethod
-    def new(icon: "IconIn") -> "Icon":
-        return to_icon(icon)
+    def new(icon: "IconIn", color: ColorIn | None = None) -> "Icon":
+        return to_icon(icon, color)
 
 
 IconIn = Icon | str
 
 
-def to_icon(icon: IconIn) -> Icon:
+def to_icon(icon: IconIn, color: ColorIn | None = None) -> Icon:
     """Turn something that could be an Icon into an Icon."""
     if isinstance(icon, str):
+        color = to_color(color) if color else None
         if icon.startswith("fa"):
-            return Icon(type=IconType.FONT_AWESOME, fa_name=icon)
+            return Icon(type=IconType.FONT_AWESOME, fa_name=icon, color=color)
         else:
-            return Icon(type=IconType.EMOJI, emoji=icon)
+            return Icon(type=IconType.EMOJI, emoji=icon, color=color)
     else:
         return icon
 

@@ -155,7 +155,8 @@ class HeaderPiece(CompoundPiece):
 
 @piece_()
 class RegionPiece(CompoundPiece):
-    text: str = raise_if_none()
+    title: str = raise_if_none()
+    text: str | None = None
     pieces: Sequence[Piece] = raise_if_none()
     omit_piece: Piece | None = None
 
@@ -165,7 +166,9 @@ class RegionPiece(CompoundPiece):
     ) -> Generator[Piece, int, None]:
         yield BreakPiece()
         yield SeparatorPiece()
-        yield TextPiece(text=self.text)
+        yield TextPiece(text=self.title)
+        if self.text is not None:
+            yield TextPiece(text=self.text)
         yield SeparatorPiece()
         for piece in self.pieces:
             remaining_tokens = yield piece
@@ -208,7 +211,7 @@ class ThreadPiece(NodePiece):
         messages.sort(key=lambda m: m.created_at)
         if self.max_messages is not None:
             messages = messages[-self.max_messages :]
-        for i, message in enumerate(reversed(messages)):
+        for i, message in enumerate(messages):
             remaining_tokens = yield MessagePiece(node=message, priority=i)
 
 
@@ -229,4 +232,9 @@ class FlowPiece(NodePiece):
 
 @piece_(NodeType.PLAN)
 class PlanPiece(NodePiece):
+    pass
+
+
+@piece_(NodeType.AGENT)
+class AgentPiece(NodePiece):
     pass

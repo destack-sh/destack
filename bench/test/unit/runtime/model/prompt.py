@@ -14,10 +14,11 @@ def test_prompt_compile(session: Session):
     prompt.text("4" * 30, priority=4)
     prompt.region(
         "nested",
+        None,
         TextPiece(text="5" * 10, priority=1),
         TextPiece(text="6" * 10, priority=6),
         RegionPiece(
-            text="nested inner",
+            title="nested inner",
             pieces=[
                 TextPiece(text="7" * 10, priority=7),
                 TextPiece(text="8" * 10, priority=8),
