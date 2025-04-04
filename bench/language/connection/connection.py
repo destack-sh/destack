@@ -406,11 +406,16 @@ class GetConnection[ConnectorT: Connector, T: Node](
             new_edits = update.edits
         if not new_edits:
             return None
+        # NOTE: we ignore missing nodes in GetConnection/SearchConnection updates as filter edits
+        #  is imperfect (we don't know if the edit was already applied to this connection's graph)
 
         # apply
         if result_data is not None:
             edit_data_graph(
-                result_data.graph, update.edits, include_removed=self.query.include_removed
+                result_data.graph,
+                update.edits,
+                include_removed=self.query.include_removed,
+                ignore_missing=True,
             )
         if result is not None:
             if unpack_update:
@@ -440,6 +445,7 @@ class GetConnection[ConnectorT: Connector, T: Node](
                     edits=new_edits,
                     include_removed=self.query.include_removed,
                     validate=False,
+                    ignore_missing=True,
                 )
 
                 # collect post-edit nodes (for add/update)
@@ -516,16 +522,6 @@ class SearchConnection[ConnectorT: Connector, T: Node](
         # :ConnectionUpdateOrdering
         assert result_data is not None, f"{self!r} does not work without packed result"
 
-        # filter edits
-        if self.session._origin:
-            new_edits = [
-                edit
-                for edit in update.edits
-                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
-            ]
-        else:
-            new_edits = update.edits
-
         # apply other added/removed nodes
         for node_data in update.added_nodes:
             result_data.graph.add(node_data)
@@ -536,14 +532,14 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             ), f"missing node for update: {wiring.describe_node_ptr(node_ptr)}"
             result_data.graph.remove(node_data)
 
-        if result is not None:  
+        if result is not None:
             # and update unpacked result
             added: dict[UUID, Node] = {}
             updated: dict[UUID, Node] = {}
             removed: dict[UUID, Node] = {}
 
             # collect pre-edit nodes (for remove)
-            for edit in new_edits:
+            for edit in update.edits:
                 if edit.type in (
                     EditType.ARCHIVE,
                     EditType.UNARCHIVE,
@@ -576,18 +572,22 @@ class SearchConnection[ConnectorT: Connector, T: Node](
 
             # apply edits
             edit_data_graph(
-                result_data.graph, update.edits, include_removed=self.query.include_removed
+                result_data.graph,
+                update.edits,
+                include_removed=self.query.include_removed,
+                ignore_missing=True,
             )
             edit_graph(
                 graph=result.graph,
                 supergraph=self.session._supergraph,
-                edits=new_edits,
+                edits=update.edits,
                 include_removed=self.query.include_removed,
                 validate=False,
+                ignore_missing=True,
             )
 
             # collect post-edit nodes (for add/update)
-            for edit in new_edits:
+            for edit in update.edits:
                 if edit.type in (EditType.CREATE, EditType.UPDATE, EditType.MOVE):
                     node = result.graph.get(UUID(edit.node_ptr.id))
                     assert node is not None, f"missing node for edit: {wiring.describe_edit(edit)}"
