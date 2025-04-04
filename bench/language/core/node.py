@@ -1040,7 +1040,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 if type(title) is str and title:
                     return to_code_name(title)
                 else:
-                    return cast("TextLine", title).to_plain()
+                    return to_code_name(cast("TextLine", title).to_plain())
         return None
 
     @property

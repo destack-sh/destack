@@ -12,17 +12,15 @@ from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
-from .prompt import (
+from .piece import (
     AudioPiece,
     BreakPiece,
     CodePiece,
     ImagePiece,
-    LeafPiece,
-    Prompt,
     SeparatorPiece,
     TextPiece,
-    compile_prompt,
 )
+from .prompt import Prompt, compile_prompt
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -54,10 +52,8 @@ class OpenAIChatModelRunner(ChatModelRunner):
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
         tokenizer = TiktokenTokenizer()
-        max_tokens = 20_000
-        pieces: list[LeafPiece] = compile_prompt(
-            prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens
-        )
+        max_tokens = 16_384
+        pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
 
         # download media
         files_to_download = [

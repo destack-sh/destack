@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 
 import cachetools
 
@@ -9,10 +10,17 @@ from bench.language import (
     UNSET,
     BuiltinEnum,
     BuiltinObject,
+    Flow,
     Node,
     ReferenceKind,
     _is_setup_complete,
 )
+
+from .piece import PagePiece, PlanPiece, ThreadPiece
+from .prompt import Prompt
+
+if TYPE_CHECKING:
+    from bench.runtime.flow import FlowRunner
 
 assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
@@ -229,3 +237,42 @@ def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
                 parts.append(f" - {o.name}")
         enum_str = "\n".join(parts)
     return enum_str
+
+
+def make_flow_plan_prompt(flow: Flow, runner: "FlowRunner[Flow]") -> Prompt:
+    """Build a Prompt to plan a Flow."""
+
+    from bench.runtime.model.example import EXAMPLES
+
+    run = runner.tracked_run
+    assert run is not None, f"{runner!r} must be tracked"
+
+    thread = runner.thread
+    prompt = Prompt(flow, system_prompt=SYSTEM_PROMPT)
+
+    # system
+    ...
+
+    # examples
+    prompt.region("Examples", *EXAMPLES, priority=1)
+
+    # flow
+    ...
+
+    # page / context (files, resources, etc)
+    if (page := thread.thread.main_page) is not None:
+        prompt.region("Thread's Main Page", PagePiece(node=page), priority=10)
+
+    # thread
+    prompt.region("Thread", ThreadPiece(thread=thread, node=thread.thread), priority=20)
+
+    # plan
+    if (plan := run.manual_plan) is not None:
+        prompt.region("Manual Plan", PlanPiece(node=plan), priority=20)
+    if (plan := run.run_plan) is not None:
+        prompt.region("Run Plan", PlanPiece(node=plan), priority=20)
+
+    # run
+    ...
+
+    return prompt

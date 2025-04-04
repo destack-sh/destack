@@ -12,17 +12,15 @@ from bench.runtime.model.token import TiktokenTokenizer
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
-from .prompt import (
+from .piece import (
     AudioPiece,
     BreakPiece,
     CodePiece,
     ImagePiece,
-    LeafPiece,
-    Prompt,
     SeparatorPiece,
     TextPiece,
-    compile_prompt,
 )
+from .prompt import Prompt, compile_prompt
 
 if TYPE_CHECKING:
     pass
@@ -55,7 +53,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces: list[LeafPiece] = compile_prompt(
+        pieces, _ = compile_prompt(
             prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens
         )
 

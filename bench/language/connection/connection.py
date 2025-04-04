@@ -536,7 +536,8 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             ), f"missing node for update: {wiring.describe_node_ptr(node_ptr)}"
             result_data.graph.remove(node_data)
 
-        if result is not None:  # and update unpacked result
+        if result is not None:  
+            # and update unpacked result
             added: dict[UUID, Node] = {}
             updated: dict[UUID, Node] = {}
             removed: dict[UUID, Node] = {}
@@ -598,20 +599,20 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             # update 'roots' list
             result_data.roots_ptr = update.roots_ptr
             new_roots_data: list[AnyNodeData] = []
-            for root_ptr in result_data.roots_ptr:
-                root = result_data.graph.get(cast(str, root_ptr.id))
+            for root_ptr_data in result_data.roots_ptr:
+                root = result_data.graph.get(cast(str, root_ptr_data.id))
                 assert (
                     root is not None
-                ), f"missing root for update: {wiring.describe_node_ptr(root_ptr)}"
+                ), f"missing root data for update: {wiring.describe_node_ptr(root_ptr_data)}"
                 new_roots_data.append(root)
             result_data.roots = new_roots_data
-
             new_roots: list[Node] = []
-            for root_data in result_data.roots_ptr:
-                root = result.graph.get(UUID(root_data.id))
+            for root_ptr_data in result_data.roots_ptr:
+                root_id = UUID(root_ptr_data.id)
+                root = result.graph.get(root_id)
                 assert (
                     root is not None
-                ), f"missing root for update: {wiring.describe_node_ptr(root_data)}"
+                ), f"missing root for update: {wiring.describe_node_ptr(root_ptr_data)}"
                 new_roots.append(root)
             result.roots = new_roots
 
@@ -626,11 +627,11 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             # update roots list
             result_data.roots_ptr = update.roots_ptr
             new_roots_data: list[AnyNodeData] = []
-            for root_ptr in result_data.roots_ptr:
-                root = result_data.graph.get(cast(str, root_ptr.id))
+            for root_ptr_data in result_data.roots_ptr:
+                root = result_data.graph.get(cast(str, root_ptr_data.id))
                 assert (
                     root is not None
-                ), f"missing root for update: {wiring.describe_node_ptr(root_ptr)}"
+                ), f"missing root for update: {wiring.describe_node_ptr(root_ptr_data)}"
                 new_roots_data.append(root)
             result_data.roots = new_roots_data
 

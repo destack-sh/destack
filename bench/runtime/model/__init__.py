@@ -1,10 +1,10 @@
 from .anthropic import AnthropicChatModelRunner
 from .chat import ChatModelRunner, get_chat_model_runner_cls
 from .gemini import GeminiChatModelRunner
+from .instruct import SYSTEM_PROMPT, make_flow_plan_prompt
 from .model import ModelRunner
 from .openai import OpenAIChatModelRunner
-from .prompt import (
-    SYSTEM_PROMPT,
+from .piece import (
     AudioPiece,
     BasicPiece,
     BreakPiece,
@@ -19,14 +19,12 @@ from .prompt import (
     PagePiece,
     Piece,
     PlanPiece,
-    Prompt,
     RegionPiece,
     SeparatorPiece,
     TextPiece,
     ThreadPiece,
-    compile_prompt,
-    make_flow_plan_prompt,
 )
+from .prompt import Prompt, compile_prompt
 from .token import StupidTokenizer, TiktokenTokenizer, Tokenizer
 
 __all__ = [

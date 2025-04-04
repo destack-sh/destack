@@ -1,9 +1,9 @@
 import ast
 import inspect
 import textwrap
-from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, NamedTuple, Sequence, override
+from enum import StrEnum
+from typing import Generator, override
 from uuid import UUID
 
 import pytz
@@ -15,39 +15,37 @@ from bench.language import (
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
     REGION,
-    Action,
-    ActionType,
-    Aliasing,
     Bench,
     BenchStatus,
-    Choice,
-    Field,
-    Node,
+    Message,
     NodeGraph,
     NodeReference,
     NodeSuperGraph,
     NodeType,
     NullEngine,
-    Option,
     Package,
     PackageType,
-    Plan,
     Region,
-    Renderer,
-    RenderOptions,
-    Runnable,
     Session,
+    Thread,
     User,
     UserStatus,
     _is_setup_complete,
-    coerce_custom_object_scalar,
-    format_code,
     text,
 )
-from bench.runtime.core import Runner
 from bench.utils.oracle import REAL_ORACLE
 
-from .prompt import CompoundPiece, Prompt, piece_
+from .piece import (
+    CodePiece,
+    CompoundPiece,
+    Piece,
+    SeparatorPiece,
+    TextPiece,
+    piece_,
+    raise_if_none,
+)
+from .prompt import Prompt
+from .token import Tokenizer
 
 # ruff: noqa: F401,B018
 # pyright: reportUnusedExpression=false
@@ -59,16 +57,30 @@ tracer = trace.get_tracer(__name__)
 assert _is_setup_complete(), "import this file after import is complete"
 
 
+class ExampleType(StrEnum):
+    SNIPPET = "Snippet"
+    RESPONSE = "Response"
+
+
 @piece_()
 class ExamplePiece(CompoundPiece):
-    """An example of a prompt."""
+    type: ExampleType = raise_if_none()
+    title: str = raise_if_none()
+    code: str = raise_if_none()
 
-    text: str
-    request: str
-    response: str
+    @override
+    def compile(
+        self, prompt: Prompt, tokenizer: Tokenizer, remaining_tokens: int
+    ) -> Generator[Piece, int, None]:
+        yield SeparatorPiece()
+        yield TextPiece(text=f"{self.type.value} Example: {self.title}")
+        yield SeparatorPiece()
+        _ = yield CodePiece(code=self.code)
+        yield SeparatorPiece()
 
 
 def _make_example_bench() -> tuple[Bench, Package, Session, User]:
+    """Create the Bench/Package/... used for examples."""
     bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(name="Global", root_ptr=bench_ptr)
     graph = NodeGraph(scope=EMPTY_SCOPE_DATA, node_types=NODE_TYPES, supergraph=supergraph)
@@ -141,86 +153,20 @@ def _get_function_body(func) -> str:
     return textwrap.dedent("".join(body_lines))
 
 
-class ExampleIn(NamedTuple):
-    nodes: Sequence[Node]
-    response: "ExampleResponseIn"
-
-
-class ExampleResponseIn(NamedTuple):
-    node: Runnable
-    code: str | None = None
-    outputs: dict[str, Any] | None = None
-    plans: list[Plan] | None = None
-    comment: str | None = None
-
-
-def example_(title: str, weight: int = 1):
-    """Register an example."""
-
-    def decorator(func: Callable[[Package], ExampleIn]):
-        text = func.__doc__
-        assert text, f"example {func!r} has no docstring"
-
-        # request
-        raw_source = _get_function_body(func)
-        if "# ---" in raw_source:
-            request = raw_source.split("# ---")[0]
-        else:
-            request = raw_source.split("return")[0]
-
-        # response
-        token = ACTIVE_SESSION.set(EXAMPLE_SESSION)
-        try:
-            example_in = func(EXAMPLE_PACKAGE)
-            response_in = example_in.response
-
-            # outputs
-            output_type = response_in.node.output_type
-            assert output_type is not None, f"example {func!r} has no output type"
-            outputs = coerce_custom_object_scalar(
-                response_in.outputs, typ=output_type, supergraph=EXAMPLE_PACKAGE._supergraph
-            )
-            renderer = Renderer(options=RenderOptions(scope=EXAMPLE_PACKAGE, aliasing=Aliasing()))
-            outputs_code = renderer.render_custom_object(outputs, implicit_partials=True)
-
-            # plans
-            if response_in.plans:
-                plans_code = []
-                for i, plan in enumerate(response_in.plans):
-                    plans_code.append(f"next_plan{i + 1} = {renderer.render_object(plan)}")
-                plans_code.append(
-                    f"run.plans.extend({', '.join(f'next_plan{i + 1}' for i in range(len(response_in.plans)))})"
-                )
-                plans_code = "\n".join(plans_code)
-            else:
-                plans_code = None
-
-            # response code
-            response_code = response_in.code or f"return {outputs_code}"
-            if plans_code:
-                response_code = f"{plans_code}\n{response_code}"
-            if response_in.comment:
-                response_code = f"# {response_in.comment}\n{response_code}"
-            response_code = format_code(response_code)
-
-            # example
-            example = ExamplePiece(
-                title=title, text=text, request=request, response=response_code, weight=weight
-            )
-            EXAMPLES.append(example)
-            logger.trace("example.generate", title=title)
-        except Exception as e:
-            logger.exception("example.generate.error", title=title, exc_info=e)
-            raise
-        finally:
-            ACTIVE_SESSION.reset(token)
+def example_(example_type: ExampleType, title: str):
+    def decorator(func):
+        code = _get_function_body(func).strip()
+        example = ExamplePiece(type=example_type, title=title, code=code)
+        EXAMPLES.append(example)
+        return func
 
     return decorator
 
 
-#
-# Examples
-#
+@example_(ExampleType.SNIPPET, title="Reply to a Message")
+def example_reply_to_message(Thread1: Thread, Message1: Message):  # noqa: N803
+    Reply1 = Message.new(text=text("yeah, I'll get right on that"), reply_to=Message1)
+    Thread1.append(Reply1)
 
 
 ...  # nocheckin: examples

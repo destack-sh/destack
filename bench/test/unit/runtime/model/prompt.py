@@ -31,6 +31,6 @@ def test_prompt_compile(session: Session):
     # compile
     tokenizer = StupidTokenizer()
     pieces, used_tokens = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=200)
-    print(used_tokens)
+    print(used_tokens)  # noqa: T201
     for piece in pieces:
-        print(piece)
+        print(piece)  # noqa: T201
