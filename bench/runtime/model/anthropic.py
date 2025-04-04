@@ -4,15 +4,15 @@ import anthropic
 
 from bench.language import Code, FileType, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import NotSupportedError
+from bench.runtime.model.instruct import SYSTEM_PROMPT
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
-from .instruct import get_system_prompt
 from .prompt import (
     Prompt,
     PromptBreak,
     PromptCode,
-    PromptElement,
+    PromptComponent,
     PromptFile,
     PromptSeparator,
     PromptText,
@@ -41,13 +41,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def generate(
-        self,
-        prompt: Prompt,
-        parts: Sequence[PromptElement],
-        user_id: str,
-        options: RunOptions,
-    ) -> Code:
+    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
         model_id = ANTHROPIC_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
@@ -121,7 +115,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
             system=[
                 {
                     "type": "text",
-                    "text": get_system_prompt(prompt),
+                    "text": prompt.system_prompt,
                     "cache_control": {"type": "ephemeral"},
                 }
             ],

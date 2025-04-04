@@ -1,10 +1,8 @@
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, ClassVar, Sequence
+from abc import ABC
+from typing import TYPE_CHECKING, ClassVar
 
 from bench.language import CustomObject, IsType, ModelType, Runnable, RunOptions, RunType
 from bench.runtime.core import RunIn, Runner, Runtime
-
-from .prompt import Prompt, PromptElement
 
 if TYPE_CHECKING:
     pass
@@ -39,8 +37,3 @@ class ModelRunner[R: Runnable = Runnable](Runner[R], ABC):
             run=run,
         )
         self.model_type = model_type
-
-    @abstractmethod
-    async def build(self, prompt: Prompt, budget: float) -> Sequence[PromptElement]:
-        """Compile the Prompt into a list of basic prompt parts."""
-        ...

@@ -163,8 +163,6 @@ googleapis-common-protos==1.66.0
     #   opentelemetry-exporter-otlp-proto-grpc
 googlemaps==4.10.0
     # via -r bench/requirements/runtime.in
-greenlet==3.1.1
-    # via playwright
 grpcio==1.67.1
     # via
     #   -r bench/requirements/runtime.in
@@ -344,8 +342,6 @@ pillow==11.0.0
     #   python-pptx
 platformdirs==4.3.6
     # via black
-playwright==1.49.1
-    # via -r bench/requirements/runtime.in
 pluggy==1.5.0
     # via pytest
 ply==3.11
@@ -411,8 +407,6 @@ pydantic-core==2.23.4
     # via pydantic
 pydub==0.25.1
     # via -r bench/requirements/runtime.in
-pyee==12.0.0
-    # via playwright
 pygithub==2.5.0
     # via -r bench/requirements/runtime.in
 pygments==2.18.0
@@ -465,6 +459,7 @@ regex==2024.11.6
     #   -r bench/requirements/base.in
     #   dateparser
     #   nltk
+    #   tiktoken
 requests==2.32.3
     # via
     #   -r bench/requirements/runtime.in
@@ -480,6 +475,7 @@ requests==2.32.3
     #   requests-futures
     #   requests-oauthlib
     #   sherlock-project
+    #   tiktoken
 requests-futures==1.0.1
     # via sherlock-project
 requests-oauthlib==2.0.0
@@ -535,6 +531,8 @@ sympy==1.13.3
     # via onnxruntime
 tabulate==0.9.0
     # via magika
+tiktoken==0.9.0
+    # via -r bench/requirements/runtime.in
 tqdm==4.67.0
     # via
     #   -r bench/requirements/runtime.in
@@ -562,7 +560,6 @@ typing-extensions==4.12.2
     #   pyairtable
     #   pydantic
     #   pydantic-core
-    #   pyee
     #   pygithub
     #   python-docx
     #   python-pptx

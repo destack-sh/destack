@@ -7,12 +7,11 @@ from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
-from .instruct import get_system_prompt
 from .prompt import (
     Prompt,
     PromptBreak,
     PromptCode,
-    PromptElement,
+    PromptComponent,
     PromptFile,
     PromptSeparator,
     PromptText,
@@ -37,13 +36,7 @@ class GeminiChatModelRunner(ChatModelRunner):
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def generate(
-        self,
-        prompt: Prompt,
-        parts: Sequence[PromptElement],
-        user_id: str,
-        options: RunOptions,
-    ) -> Code:
+    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
         model_id = GEMINI_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
@@ -103,7 +96,7 @@ class GeminiChatModelRunner(ChatModelRunner):
         # NOTE :Performance: maybe re-use genai.GenerativeModel instance?
         #  (but we may need different system prompts for different runs)
         temperature = options.text_options.temperature if options.text_options else 0.1
-        model = genai.GenerativeModel(model_id, system_instruction=get_system_prompt(prompt))
+        model = genai.GenerativeModel(model_id, system_instruction=prompt.system_prompt)
         completion = await model.generate_content_async(
             {"role": "user", "parts": content_parts},
             generation_config=genai.GenerationConfig(temperature=temperature),

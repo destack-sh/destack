@@ -1,24 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Sequence, cast, final, override
+from typing import TYPE_CHECKING, cast, final, override
 
 import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language import (
-    Code,
-    CustomObject,
-    IsType,
-    ModelDeveloper,
-    ModelType,
-    Runnable,
-    RunOptions,
-    SpanType,
-)
+from bench.language import Code, ModelDeveloper, ModelType, Runnable, RunOptions, SpanType
 from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
 
 from .model import ModelRunner
-from .prompt import Prompt, PromptCompound, PromptElement, PromptPart
+from .prompt import Prompt
 
 if TYPE_CHECKING:
     pass
@@ -41,8 +32,6 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         run: RunIn,
         prompt: Prompt,
         parent: Runner | None = None,
-        inputs: CustomObject | None = None,
-        outputs: IsType | CustomObject | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -50,44 +39,14 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
             model_type=model_type,
             options=options,
             parent=parent,
-            inputs=inputs,
-            outputs=outputs,
             run=run,
         )
         self.model_type = model_type
         self.prompt = prompt
         self.code: Code | None = None
 
-    @override
-    async def build(self, prompt: Prompt, budget: float) -> Sequence[PromptElement]:
-        # expand (recursively, depth-first)
-        async def expand(part: PromptPart) -> list[PromptElement]:
-            elements: list[PromptElement] = []
-            if isinstance(part, PromptCompound):
-                parts = await part.expand(prompt)
-                for part in parts:
-                    elements.extend(await expand(part))
-            else:
-                elements.append(cast(PromptElement, part))
-            return elements
-
-        elements: list[PromptElement] = []
-        for part in prompt.items:
-            elements.extend(await expand(part))
-
-        # shrink/grow to budget (if needed)
-        # TODO :Incomplete!: budget/weight for Prompts
-
-        return elements
-
     @abstractmethod
-    async def generate(
-        self,
-        prompt: Prompt,
-        parts: Sequence[PromptElement],
-        user_id: str,
-        options: RunOptions,
-    ) -> Code:
+    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
         """Generate code with some model from the result."""
         ...
 
@@ -98,16 +57,8 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
 
         assert self.output_type is not None, f"{self!r} has no output type"
 
-        # build prompt
-        parts = await self.build(self.prompt, 1000)
-
         # run model to generate code as response
-        code = await self.generate(
-            prompt=self.prompt,
-            parts=parts,
-            user_id=str(self.session.bench_id),
-            options=ATTEMPT_ONCE,
-        )
+        code = await self.generate(prompt=self.prompt, options=ATTEMPT_ONCE)
         self.code = code
 
         # run code to parse outputs

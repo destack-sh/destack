@@ -408,9 +408,7 @@ platformdirs==4.3.6
     #   black
     #   virtualenv
 playwright==1.49.1
-    # via
-    #   -r bench/requirements/dev.in
-    #   -r bench/requirements/runtime.in
+    # via -r bench/requirements/dev.in
 pluggy==1.5.0
     # via pytest
 ply==3.11
@@ -581,6 +579,7 @@ regex==2024.11.6
     #   -r bench/requirements/base.in
     #   dateparser
     #   nltk
+    #   tiktoken
 requests==2.32.3
     # via
     #   -r bench/requirements/runtime.in
@@ -596,6 +595,7 @@ requests==2.32.3
     #   requests-futures
     #   requests-oauthlib
     #   sherlock-project
+    #   tiktoken
 requests-futures==1.0.1
     # via sherlock-project
 requests-oauthlib==2.0.0
@@ -662,6 +662,8 @@ tabulate==0.9.0
     # via magika
 tach==0.18.0
     # via -r bench/requirements/dev.in
+tiktoken==0.9.0
+    # via -r bench/requirements/runtime.in
 tomli==2.2.1
     # via tach
 tomli-w==1.1.0

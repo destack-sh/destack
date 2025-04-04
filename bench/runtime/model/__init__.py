@@ -1,14 +1,14 @@
 from .anthropic import AnthropicChatModelRunner
 from .chat import ChatModelRunner, get_chat_model_runner_cls
 from .gemini import GeminiChatModelRunner
-from .instruct import SYSTEM_PROMPT, make_flow_plan_prompt
 from .model import ModelRunner
 from .openai import OpenaiChatModelRunner
 from .prompt import (
+    SYSTEM_PROMPT,
     Prompt,
     PromptBreak,
     PromptCode,
-    PromptElement,
+    PromptComponent,
     PromptFile,
     PromptNodes,
     PromptPart,
@@ -16,7 +16,7 @@ from .prompt import (
     PromptRun,
     PromptSeparator,
     PromptText,
-    prompt_region,
+    make_flow_plan_prompt,
 )
 
 __all__ = [
@@ -29,7 +29,7 @@ __all__ = [
     "Prompt",
     "PromptBreak",
     "PromptCode",
-    "PromptElement",
+    "PromptComponent",
     "PromptFile",
     "PromptNodes",
     "PromptPart",
@@ -39,5 +39,4 @@ __all__ = [
     "PromptText",
     "get_chat_model_runner_cls",
     "make_flow_plan_prompt",
-    "prompt_region",
 ]
