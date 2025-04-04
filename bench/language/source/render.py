@@ -432,7 +432,7 @@ def _deconstruct_builtin_object(
     for prop in cls.__properties__.values():
         if (
             prop.id is None
-            or prop.id < 30
+            or (prop.id < 30 and prop.name != "created_by")
             or prop.reference_source
             or prop.is_value_packed
             or prop.name == "order_key"

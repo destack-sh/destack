@@ -16,7 +16,7 @@ from bench.language import (
     _is_setup_complete,
 )
 
-from .piece import PagePiece, PlanPiece, ThreadPiece
+from .piece import AgentPiece, PagePiece, PlanPiece, ThreadPiece
 from .prompt import Prompt
 
 if TYPE_CHECKING:
@@ -101,6 +101,8 @@ Threads have Memberships, any member MAY create Messages.
 Threads have a catalog of Claims/Resources.
 You SHOULD use Messages to communicate with Users and other Agents as needed.
 You MAY include Nodes (like Files, Databases, Records, ...) in Messages as appropriate.
+You SHOULD NOT set Message.reply_to if it's obvious what you're referring to.
+You SHOULD title the Thread as needed.
 
 # Runtime
 The Runtime is the orchestration layer for Bench with your Python shell.
@@ -114,14 +116,15 @@ You MUST use Python to express your response.
  (you MAY embed other languages like Bash or Markdown within Python as appropriate.)
 You MUST use your inherent reasoning/language/vision capabilities.
  (You MUST NOT use ML libraries or code for AI stuff.)
-You SHOULD prefer built-in Actions; just pick the most relevant tool.
-Actions MAY `return` their final outputs (inline, at the end).
+You SHOULD prefer built-in Actions; just pick the most relevant one.
+You SHOULD NOT include separators, long comments or any methods in your response.
 
 # Tone and Language
 The general vibe is this is like a casual workplace Discord or Slack server with friends.
 The default tone for user-facing messaging is friendly, cordial and helpful.
  (code is not user-facing, so code SHOULD be concise and use English.)
 You SHOULD aim to match the user's tone and language; try to stay friendly, match your Agent/Roles/etc.
+ (You SHOULD match their level of formality, capitlisation, punctuation, etc. unless otherwise specified.)
 You SHOULD NOT sound artificial, robotic or overly cheery, just be 'natural'.
 
 # Policy
@@ -254,25 +257,60 @@ def make_flow_plan_prompt(flow: Flow, runner: "FlowRunner[Flow]") -> Prompt:
     ...
 
     # examples
-    prompt.region("Examples", *EXAMPLES, priority=1)
+    prompt.region(
+        "Examples",
+        "General examples (contents are unrelated)",
+        *EXAMPLES,
+        priority=1,
+    )
 
     # flow
     ...
 
     # page / context (files, resources, etc)
     if (page := thread.thread.main_page) is not None:
-        prompt.region("Thread's Main Page", PagePiece(node=page), priority=10)
+        prompt.region(
+            "Thread's Main Page",
+            "The current Page you're on",
+            PagePiece(node=page),
+            priority=10,
+        )
 
     # thread
-    prompt.region("Thread", ThreadPiece(thread=thread, node=thread.thread), priority=20)
+    prompt.region(
+        "Thread",
+        "The Thread you're in",
+        ThreadPiece(thread=thread, node=thread.thread),
+        priority=20,
+    )
 
     # plan
     if (plan := run.manual_plan) is not None:
-        prompt.region("Manual Plan", PlanPiece(node=plan), priority=20)
+        prompt.region(
+            "Manual Plan",
+            "The current Manual Plan you're on",
+            PlanPiece(node=plan),
+            priority=20,
+        )
     if (plan := run.run_plan) is not None:
-        prompt.region("Run Plan", PlanPiece(node=plan), priority=20)
+        prompt.region(
+            "Run Plan",
+            "The current Run Plan you're on",
+            PlanPiece(node=plan),
+            priority=20,
+        )
 
     # run
     ...
+
+    # agent
+    agent = run.agent
+    assert agent is not None, f"{run!r} must have an Agent"
+    prompt.region(
+        "Agent",
+        "The Agent you're representing",
+        AgentPiece(node=agent),
+        priority=30,
+    )
 
     return prompt

@@ -106,10 +106,10 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   let colorHex;
   if (props.forceColor == "inherit") {
     colorHex = undefined;
-  } else if (props.color != null) {
-    colorHex = getColorHex(props.color, props.shade);
   } else if (props.forceColor != null) {
     colorHex = getColorHex(props.forceColor, props.shade);
+  } else if (props.color != null) {
+    colorHex = getColorHex(props.color, props.shade);
   } else if (props.fallbackColor != null) {
     colorHex = getColorHex(props.fallbackColor, props.shade);
   } else {
@@ -127,7 +127,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     else return <span style={{ color: colorHex }}>???</span>;
   }
 };
-IconInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor"];
+IconInline.props = ["emoji", "faName", "vscName", "color", "forceColor", "fallbackColor", "shade", "ignoreColor"];
 
 /** Inline functional Avatar component */
 export const AvatarInline: FunctionalComponent<
@@ -136,10 +136,10 @@ export const AvatarInline: FunctionalComponent<
   let backgroundColorHex;
   if (props.forceColor == "inherit") {
     backgroundColorHex = undefined;
-  } else if (props.color != null) {
-    backgroundColorHex = getColorHex(props.color, props.shade);
   } else if (props.forceColor != null) {
     backgroundColorHex = getColorHex(props.forceColor, props.shade);
+  } else if (props.color != null) {
+    backgroundColorHex = getColorHex(props.color, props.shade);
   } else if (props.fallbackColor != null) {
     backgroundColorHex = getColorHex(props.fallbackColor, props.shade);
   } else {
@@ -208,7 +208,17 @@ export const AvatarInline: FunctionalComponent<
     }
   }
 };
-AvatarInline.props = ["emoji", "faName", "vscName", "color", "fallbackColor", "shade", "ignoreColor", "size"];
+AvatarInline.props = [
+  "emoji",
+  "faName",
+  "vscName",
+  "color",
+  "forceColor",
+  "fallbackColor",
+  "shade",
+  "ignoreColor",
+  "size",
+];
 
 export function getIconMetadata(icon: IconData): FontAwesomeIcon | EmojiIcon | undefined {
   if (icon.type == IconType.FONT_AWESOME) {
