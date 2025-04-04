@@ -1,33 +1,31 @@
-import dataclasses
 import math
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator, Sequence, dataclass_transform, override
+from typing import TYPE_CHECKING, Generator, Sequence
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import (
     Aliasing,
-    File,
-    FileType,
-    Flow,
-    Message,
     Node,
-    NodeType,
-    Page,
-    Plan,
     Projection,
     ProjectOptions,
     Renderer,
     RenderOptions,
     Runnable,
-    Thread,
     _is_setup_complete,
 )
-from bench.runtime.core import ThreadHandle
 
-from .instruct import SYSTEM_PROMPT
-from .token import Tokenizer
+from bench.runtime.model.piece import (
+    BreakPiece,
+    CompoundPiece,
+    HeaderPiece,
+    LeafPiece,
+    Piece,
+    RegionPiece,
+    SeparatorPiece,
+    TextPiece,
+)
+from bench.runtime.model.token import Tokenizer
 
 if TYPE_CHECKING:
     from bench.runtime.flow import FlowRunner
@@ -38,219 +36,6 @@ tracer = trace.get_tracer(__name__)
 
 
 assert _is_setup_complete(), "NOTE: import this file after import is complete"
-
-
-def raise_if_none():
-    _field = dataclasses.field()
-
-    def _raise():
-        raise ValueError(f"{_field.name} must be set")
-
-    _field.default_factory = _raise
-    return _field
-
-
-#
-# Basic Pieces
-#
-
-# Registry of piece classes by node type
-_piece_by_node_type = {}
-
-
-@dataclass_transform(kw_only_default=True)
-def piece_(node_type: NodeType | None = None):
-    """
-    Decorator for creating piece dataclasses with slots.
-    If node_type is provided, registers the piece class in _piece_by_node_type.
-    """
-
-    def wrap(cls: type[Piece]) -> type[Piece]:
-        piece_cls = dataclasses.dataclass(slots=True)(cls)
-        if node_type is not None:
-            _piece_by_node_type[node_type] = piece_cls
-        return piece_cls
-
-    return wrap
-
-
-@dataclasses.dataclass(slots=True)
-class Piece(ABC):
-    priority: int = 1
-
-
-@piece_()
-class LeafPiece(Piece):
-    """A Piece that is a single value (a leaf)."""
-
-    @abstractmethod
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        raise NotImplementedError(f"{self!r} does not implement estimate_tokens")
-
-
-@piece_()
-class BreakPiece(LeafPiece):
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        return 1
-
-
-@piece_()
-class SeparatorPiece(LeafPiece):
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        return 1
-
-
-@piece_()
-class TextPiece(LeafPiece):
-    text: str = raise_if_none()
-
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        return tokenizer.estimate_string_tokens(self.text)
-
-
-@piece_()
-class CodePiece(LeafPiece):
-    code: str = raise_if_none()
-
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        return tokenizer.estimate_string_tokens(self.code)
-
-
-@piece_()
-class ImagePiece(LeafPiece):
-    file: File = raise_if_none()
-
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        assert self.file.type == FileType.IMAGE
-        return tokenizer.estimate_image_tokens(self.file)
-
-
-@piece_()
-class AudioPiece(LeafPiece):
-    file: File = raise_if_none()
-
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        assert self.file.type == FileType.AUDIO
-        return tokenizer.estimate_audio_tokens(self.file)
-
-
-BasicPiece = BreakPiece | SeparatorPiece | TextPiece | CodePiece | ImagePiece | AudioPiece
-
-
-#
-# Compound Pieces
-#
-
-
-@piece_()
-class CompoundPiece(Piece, ABC):
-    # absolute token limit within this piece
-    token_limit: int | None = None
-
-    @abstractmethod
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
-        """Compile the CompoundPiece into other Pieces (basic or compound, must be non-recursive)."""
-        raise NotImplementedError(f"{self!r} does not implement compile")
-
-
-@piece_()
-class HeaderPiece(CompoundPiece):
-    text: str = raise_if_none()
-
-    @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
-        yield SeparatorPiece()
-        yield TextPiece(text=self.text)
-        yield SeparatorPiece()
-
-
-@piece_()
-class RegionPiece(CompoundPiece):
-    text: str = raise_if_none()
-    pieces: Sequence[Piece] = raise_if_none()
-    omit_piece: Piece | None = None
-
-    @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
-        yield SeparatorPiece()
-        yield TextPiece(text=self.text)
-        yield SeparatorPiece()
-        for piece in self.pieces:
-            remaining_tokens = yield piece
-            if remaining_tokens < 10:
-                if self.omit_piece is not None:
-                    yield self.omit_piece
-                break
-        yield SeparatorPiece()
-
-
-@piece_()
-class NodePiece[N: Node = Node](CompoundPiece):
-    """Render a Node directly."""
-
-    node: N = raise_if_none()
-
-    @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
-        rendered_node = prompt.renderer.render_builtin_object(self.node)
-        remaining_tokens = yield TextPiece(text=rendered_node)
-
-
-@piece_(NodeType.THREAD)
-class ThreadPiece(NodePiece[Thread]):
-    """Render a Thread with its messages."""
-
-    thread: ThreadHandle = raise_if_none()
-    max_messages: int | None = None
-
-    @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
-        remaining_tokens = yield NodePiece(node=self.thread.thread)
-        remaining_tokens = yield BreakPiece()
-        messages = list(self.thread.messages)
-        messages.sort(key=lambda m: m.created_at)
-        if self.max_messages is not None:
-            messages = messages[-self.max_messages :]
-        for i, message in enumerate(reversed(messages)):
-            remaining_tokens = yield MessagePiece(node=message, priority=i)
-            if remaining_tokens < 100:
-                yield TextPiece(text=f"({len(messages) - i} more messages omitted)")
-
-
-@piece_(NodeType.MESSAGE)
-class MessagePiece(NodePiece[Message]):
-    pass
-
-
-@piece_(NodeType.PAGE)
-class PagePiece(NodePiece[Page]):
-    pass
-
-
-@piece_(NodeType.FLOW)
-class FlowPiece(NodePiece[Flow]):
-    pass
-
-
-@piece_(NodeType.PLAN)
-class PlanPiece(NodePiece[Plan]):
-    pass
 
 
 #
@@ -305,12 +90,18 @@ class Prompt:
         self.pieces.append(TextPiece(text=text, priority=priority))
 
 
+#
+# Compile
+#
+
+
 @tracer.start_as_current_span("prompt.compile")
 def compile_prompt(
     prompt: Prompt, tokenizer: Tokenizer, max_tokens: int
 ) -> tuple[list["LeafPiece"], int]:
     """
     Compile the prompt into a flat list of LeafPiece objects within the token budget.
+    TODO :Performance :Robustness!: compile_prompt seems inefficient and quite suboptimal
 
     There are two passes:
 
@@ -327,10 +118,7 @@ def compile_prompt(
       - For compound pieces, compile their children and run selection/flattening on them.
     """
 
-    # BLOCK_SIZE is the grouping factor; each block represents BLOCK_SIZE tokens.
-    BLOCK_SIZE = 10
-
-    _token_cache = {}
+    _token_cache: dict[tuple[int, int], int] = {}
 
     def _estimate_token_count(piece: "Piece", capacity: int) -> int:
         """
@@ -462,45 +250,3 @@ def compile_prompt(
     top_sel, _ = _select_pieces(prompt.pieces, max_tokens)
     final_leaves, used_tokens = _flatten_pieces(prompt.pieces, max_tokens, top_sel)
     return final_leaves, used_tokens
-
-
-#
-# Prompt Builders
-#
-
-
-def make_flow_plan_prompt(flow: Flow, runner: "FlowRunner[Flow]") -> "Prompt":
-    """Build a Prompt to plan a Flow."""
-
-    run = runner.tracked_run
-    assert run is not None, f"{runner!r} must be tracked"
-
-    thread = runner.thread.thread
-    prompt = Prompt(flow, system_prompt=SYSTEM_PROMPT)
-
-    # system
-    ...
-
-    # examples
-    ...
-
-    # flow
-    ...
-
-    # page / context (files, resources, etc)
-    if (page := thread.main_page) is not None:
-        prompt.region("Thread's Main Page", PagePiece(node=page))
-
-    # thread
-    prompt.region("Thread", ThreadPiece(node=thread))
-
-    # plan
-    if (plan := run.manual_plan) is not None:
-        prompt.region("Manual Plan", PlanPiece(node=plan))
-    if (plan := run.run_plan) is not None:
-        prompt.region("Run Plan", PlanPiece(node=plan))
-
-    # run
-    ...
-
-    return prompt

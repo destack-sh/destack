@@ -112,9 +112,9 @@ class Aliasing:
 
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
-        if isinstance(obj, Node) and getattr(obj, "code_name"):
+        if isinstance(obj, Node) and (code_name := getattr(obj, "code_name", None)):
             # proper given name
-            alias = getattr(obj, "code_name")
+            alias = code_name
             if not regex.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
                 alias = f"{obj.metatype.bench_name}_{alias}"
             has_given_name = True

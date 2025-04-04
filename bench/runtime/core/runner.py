@@ -196,7 +196,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         # resources/inputs/outputs
         self.inputs: CustomObject | None = inputs
         self.input_type = node.input_type
-        assert self.input_type is None or self.inputs is not None, f"{self!r} has no inputs"
         if isinstance(outputs, IsType):
             self.outputs: CustomObject | None = None
             self.output_type = outputs or node.output_type
