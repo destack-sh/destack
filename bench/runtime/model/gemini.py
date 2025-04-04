@@ -1,20 +1,22 @@
-from typing import TYPE_CHECKING, Mapping, Sequence, override
+from typing import TYPE_CHECKING, Mapping, override
 
 import google.generativeai as genai
 
-from bench.language import Code, FileType, ModelType, RunOptions, download_file_batch
+from bench.language import Code, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import NotSupportedError
+from bench.runtime.model.token import TiktokenTokenizer
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
 from .prompt import (
+    AudioPiece,
+    BasicPiece,
+    BreakPiece,
+    CodePiece,
+    ImagePiece,
     Prompt,
-    PromptBreak,
-    PromptCode,
-    PromptComponent,
-    PromptFile,
-    PromptSeparator,
-    PromptText,
+    SeparatorPiece,
+    TextPiece,
 )
 
 if TYPE_CHECKING:
@@ -41,12 +43,16 @@ class GeminiChatModelRunner(ChatModelRunner):
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
+        tokenizer = TiktokenTokenizer()
+        max_tokens = 20_000
+        pieces: list[BasicPiece] = prompt.compile(tokenizer=tokenizer, max_tokens=max_tokens)
+
         # download media
         files_to_download = [
-            part.file
-            for part in parts
-            if isinstance(part, PromptFile)
-            if part.file._cached_content is None
+            piece.file
+            for piece in pieces
+            if isinstance(piece, (ImagePiece, AudioPiece))
+            if piece.file._cached_content is None
         ]
         if files_to_download:
             await download_file_batch(files_to_download, include_content=True, session=self.session)
@@ -60,35 +66,24 @@ class GeminiChatModelRunner(ChatModelRunner):
                 content_parts.append("\n".join(text_parts))
                 text_parts.clear()
 
-        for part in parts:
-            if isinstance(part, PromptBreak):
+        for piece in pieces:
+            if isinstance(piece, BreakPiece):
                 text_parts.append("\n\n")
-            elif isinstance(part, PromptSeparator):
+            elif isinstance(piece, SeparatorPiece):
                 text_parts.append(self.SEPARATOR)
-                if part.title:
-                    text_parts.append(f"# {part.title}")
-                    if part.text:
-                        text_parts.append(f"# {part.text}")
-                    text_parts.append(self.SEPARATOR)
-            elif isinstance(part, PromptText):
-                # prepend every text line
-                text = "\n".join([f"# {line}" for line in part.text.splitlines()])
-                text = f"# {part.title}\n{text}" if part.title else text
+            elif isinstance(piece, TextPiece):
+                text = "\n".join([f"# {line}" for line in piece.text.splitlines()])
                 text_parts.append(text)
-            elif isinstance(part, PromptCode):
-                text = f"# {part.title}\n{part.code}" if part.title else part.code
-                text_parts.append(text)
-            elif isinstance(part, PromptFile):
+            elif isinstance(piece, CodePiece):
+                text_parts.append(piece.code)
+            elif isinstance(piece, ImagePiece):
                 _flush_text()
-                if part.file.type == FileType.IMAGE:
-                    mime_type = part.file.mime_type
-                    if not mime_type:
-                        raise NotSupportedError(f"file {part.file!r} not supported yet")
-                    content_parts.append({"mime_type": mime_type, "data": part.file.content})
-                else:
-                    raise NotSupportedError(f"file {part.file!r} not supported yet")
+                mime_type = piece.file.mime_type
+                if not mime_type:
+                    raise NotSupportedError(f"file {piece.file!r} not supported yet")
+                content_parts.append({"mime_type": mime_type, "data": piece.file.content})
             else:
-                raise RuntimeError(f"unexpected part {part!r}")
+                raise RuntimeError(f"unexpected piece {piece!r}")
 
         _flush_text()
 

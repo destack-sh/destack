@@ -103,10 +103,10 @@ def get_chat_model_runner_cls(
     model_developer: ModelDeveloper, model_type: ModelType
 ) -> type[ChatModelRunner]:
     """Get the ChatModelRunner class for the given model type."""
-    from bench.runtime.model import AnthropicChatModelRunner, OpenaiChatModelRunner
+    from bench.runtime.model import AnthropicChatModelRunner, OpenAIChatModelRunner
 
     if model_developer == ModelDeveloper.OPENAI:
-        return OpenaiChatModelRunner
+        return OpenAIChatModelRunner
     elif model_developer == ModelDeveloper.ANTHROPIC:
         return AnthropicChatModelRunner
     else:

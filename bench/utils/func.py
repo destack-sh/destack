@@ -77,7 +77,7 @@ def is_close(num_a: float | Any, num_b: float | Any, tol: float) -> bool:
     )
 
 
-def stable_hash(*args) -> int:
+def hash_stable(*args) -> int:
     """
     Hashes a tuple of arguments deterministically into an int64.
     """
@@ -98,6 +98,10 @@ def stable_hash(*args) -> int:
         update_hash(arg)
 
     return int(hasher.hexdigest(), 16) % (1 << 63)
+
+
+def hash_stable_hex(*args) -> str:
+    return f"{hash_stable(*args):x}"
 
 
 def try_to_uuid(id: UUID | str) -> UUID | str:

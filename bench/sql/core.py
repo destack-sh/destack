@@ -10,7 +10,7 @@ from more_itertools import first
 from psycopg.types.json import Jsonb
 
 from bench.language import ConditionalType, IndexIn, PrimitiveType, SortType
-from bench.utils.func import stable_hash
+from bench.utils.func import hash_stable
 
 if TYPE_CHECKING:
     from bench.language import Database, Field
@@ -133,7 +133,7 @@ class Object:
             for field_name in self.FLAT_DATA_FIELDS
             if getattr(self, field_name) is not None
         )
-        return stable_hash(*values)
+        return hash_stable(*values)
 
     def diff_flat(self, other: "TableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
@@ -172,7 +172,7 @@ class Extension(Object):
         return f"<Extension {self}>"
 
     def __hash__(self):
-        return stable_hash(self.kind, self.name)
+        return hash_stable(self.kind, self.name)
 
     def __eq__(self, other):
         return isinstance(other, Extension) and self.name == other.name
@@ -536,7 +536,7 @@ class Table(TableObject):
         return f"<Table {self}>"
 
     def __hash__(self):
-        return stable_hash(self.kind, self.name, self.columns, self.indexes, self.constraints)
+        return hash_stable(self.kind, self.name, self.columns, self.indexes, self.constraints)
 
     @property
     def table(self) -> "Table":

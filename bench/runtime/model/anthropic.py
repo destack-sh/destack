@@ -1,21 +1,22 @@
-from typing import TYPE_CHECKING, Mapping, Sequence, Union, override
+from typing import TYPE_CHECKING, Mapping, Union, override
 
 import anthropic
 
-from bench.language import Code, FileType, ModelType, RunOptions, download_file_batch
+from bench.language import Code, ModelType, RunOptions, download_file_batch
 from bench.runtime.core import NotSupportedError
-from bench.runtime.model.instruct import SYSTEM_PROMPT
+from bench.runtime.model.token import TiktokenTokenizer
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
 from .prompt import (
+    AudioPiece,
+    BasicPiece,
+    BreakPiece,
+    CodePiece,
+    ImagePiece,
     Prompt,
-    PromptBreak,
-    PromptCode,
-    PromptComponent,
-    PromptFile,
-    PromptSeparator,
-    PromptText,
+    SeparatorPiece,
+    TextPiece,
 )
 
 if TYPE_CHECKING:
@@ -46,70 +47,63 @@ class AnthropicChatModelRunner(ChatModelRunner):
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
+        tokenizer = TiktokenTokenizer()
+        max_tokens = 20_000
+        pieces: list[BasicPiece] = prompt.compile(tokenizer=tokenizer, max_tokens=max_tokens)
+
         # download media
         files_to_download = [
-            part.file
-            for part in parts
-            if isinstance(part, PromptFile)
-            if part.file._cached_content is None
+            piece.file
+            for piece in pieces
+            if isinstance(piece, (ImagePiece, AudioPiece))
+            if piece.file._cached_content is None
         ]
         if files_to_download:
             await download_file_batch(files_to_download, include_content=True, session=self.session)
 
         # compile
-        content_parts: list[
+        content_pieces: list[
             Union[anthropic_types.TextBlockParam, anthropic_types.ImageBlockParam]
         ] = []
-        text_parts: list[str] = []
+        text_pieces: list[str] = []
 
         def _flush_text() -> None:
-            if text_parts:
-                content_parts.append({"type": "text", "text": "\n".join(text_parts)})
-                text_parts.clear()
+            if text_pieces:
+                content_pieces.append({"type": "text", "text": "\n".join(text_pieces)})
+                text_pieces.clear()
 
-        for part in parts:
-            if isinstance(part, PromptBreak):
-                text_parts.append("\n\n")
-            elif isinstance(part, PromptSeparator):
-                text_parts.append(self.SEPARATOR)
-                if part.title:
-                    text_parts.append(f"# {part.title}")
-                    if part.text:
-                        text_parts.append(f"# {part.text}")
-                    text_parts.append(self.SEPARATOR)
-            elif isinstance(part, PromptText):
-                # prepend every text line
-                text = "\n".join([f"# {line}" for line in part.text.splitlines()])
-                text = f"# {part.title}\n{text}" if part.title else text
-                text_parts.append(text)
-            elif isinstance(part, PromptCode):
-                text = f"# {part.title}\n{part.code}" if part.title else part.code
-                text_parts.append(text)
-            elif isinstance(part, PromptFile):
+        for piece in pieces:
+            if isinstance(piece, BreakPiece):
+                text_pieces.append("\n\n")
+            elif isinstance(piece, SeparatorPiece):
+                text_pieces.append(self.SEPARATOR)
+            elif isinstance(piece, TextPiece):
+                text = "\n".join([f"# {line}" for line in piece.text.splitlines()])
+                text_pieces.append(text)
+            elif isinstance(piece, CodePiece):
+                text_pieces.append(piece.code)
+            elif isinstance(piece, ImagePiece):
                 _flush_text()
-                if part.file.type == FileType.IMAGE:
-                    mime_type = part.file.mime_type
-                    if mime_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
-                        raise NotSupportedError(f"unsupported image mime type {mime_type!r}")
-                    content_parts.append(
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": mime_type,
-                                "data": part.file.content_b64,
-                            },
-                        }
-                    )
-                else:
-                    raise NotSupportedError(f"file {part.file!r} not supported yet")
+                mime_type = piece.file.mime_type
+                if mime_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                    raise NotSupportedError(f"unsupported image mime type {mime_type!r}")
+                content_pieces.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": piece.file.content_b64,
+                        },
+                    }
+                )
             else:
-                raise RuntimeError(f"unexpected part {part!r}")
+                raise NotSupportedError(f"unexpected piece {piece!r}")
 
         _flush_text()
 
         # generate
-        messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_parts}]
+        messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_pieces}]
         temperature = options.text_options.temperature if options.text_options else None
         completion = await anthropic_client.messages.create(
             system=[

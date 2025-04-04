@@ -302,9 +302,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     async def _plan(self):
         """Plan the execution of this Flow."""
-        run = self.tracked_run
-        assert run is not None, f"{self!r} must be tracked"
-        prompt = make_flow_plan_prompt(flow=self.node, run=run)
+        prompt = make_flow_plan_prompt(flow=self.node, runner=cast(FlowRunner[Flow], self))
         model_developer = ModelDeveloper.OPENAI
         model_type = ModelType.OPENAI_GPT4_0
         model_runner_cls = get_chat_model_runner_cls(

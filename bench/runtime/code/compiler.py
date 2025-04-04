@@ -19,7 +19,7 @@ from opentelemetry import trace
 from bench.language import Code, CodeType, new_struct_id
 from bench.runtime.code.context import BUILTIN_GLOBALS
 from bench.runtime.core import CodeInvalidError
-from bench.utils.func import stable_hash
+from bench.utils.func import hash_stable
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
 #  see https://github.com/marimo-team/marimo/blob/fec7d780488ab1478984468598d00d283e8c1c9d/marimo/_ast/visitor.py
@@ -695,7 +695,7 @@ def compile_code(
     """
     if not isinstance(code, str):
         code = code.to_string()
-    code_id = stable_hash(code).to_bytes(8, "big").hex()
+    code_id = hash_stable(code).to_bytes(8, "big").hex()
 
     # desugar code
     code, transformation = desugar_code(code)

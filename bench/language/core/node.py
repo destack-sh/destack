@@ -39,7 +39,7 @@ from bench.language.registry import (
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.env import IS_DEV
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import dualmethod, stable_hash
+from bench.utils.func import dualmethod, hash_stable
 from bench.utils.string import Casing, to_casing, to_code_name
 from bench.utils.utils import frozendict
 
@@ -755,7 +755,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def _stable_hash(self):
         """Hash the Node's identity."""
-        return stable_hash((self.metatype, self.id))
+        return hash_stable((self.metatype, self.id))
 
     # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore

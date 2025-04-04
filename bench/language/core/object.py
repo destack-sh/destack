@@ -36,7 +36,7 @@ from bench.language.registry import (
 )
 from bench.pb2 import AnyObjectData, AnyStructData, GraphScopeData, lang_pb2
 from bench.pb2.lang_pb2 import EditOperationData
-from bench.utils.func import dualmethod, stable_hash
+from bench.utils.func import dualmethod, hash_stable
 from bench.utils.utils import frozendict
 
 from .const import (
@@ -915,7 +915,7 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                     content_props.append(prop_value._stable_hash())
                 else:
                     content_props.append(prop_value)
-        return stable_hash(content_props)
+        return hash_stable(content_props)
 
     def _patch_from(self, other: Self):
         """Patches this Node *in place* from another Node."""
