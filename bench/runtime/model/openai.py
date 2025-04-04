@@ -9,12 +9,11 @@ from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
-from .instruct import get_system_prompt
 from .prompt import (
     Prompt,
     PromptBreak,
     PromptCode,
-    PromptElement,
+    PromptComponent,
     PromptFile,
     PromptSeparator,
     PromptText,
@@ -40,13 +39,7 @@ class OpenaiChatModelRunner(ChatModelRunner):
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def generate(
-        self,
-        prompt: Prompt,
-        parts: Sequence[PromptElement],
-        user_id: str,
-        options: RunOptions,
-    ) -> Code:
+    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
         model_id = OPENAI_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
@@ -113,14 +106,14 @@ class OpenaiChatModelRunner(ChatModelRunner):
 
         # generate
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-            {"role": "developer", "content": get_system_prompt(prompt)},
+            {"role": "developer", "content": prompt.system_prompt},
             {"role": "user", "content": content},
         ]
-        temperature = options.text_options.temperature if options.text_options else 0.1
         completion = await openai_client.chat.completions.create(
             messages=messages,
             model=model_id,
-            temperature=temperature,
+            temperature=prompt.temperature,
+            max_tokens=prompt.max_tokens,
             user=user_id,
         )
         completion_text = completion.choices[0].message.content

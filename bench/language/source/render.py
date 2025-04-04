@@ -83,7 +83,7 @@ class RenderOptions:
     node_types: Collection[NodeType] = NODE_TYPES_SET
     inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
     use_code_paths: bool = True
-    implicit_partials: bool = False
+    implicit_partials: bool = True
     # formatting
     statement_separator: str = "\n"
     format: bool = True

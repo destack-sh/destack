@@ -315,13 +315,12 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             node=self.node,
             model_type=model_type,
             options=self.options,
-            inputs=self.inputs,
-            outputs=self.outputs or self.output_type,
             prompt=prompt,
             parent=cast(Runner[Runnable], self),
             run=SpanType.FLOW_PLAN,
         )
         try:
+            self._active_planning_runner = model_runner
             await self.runtime.run_runner(model_runner)
         finally:
             self._active_planning_runner = None
@@ -331,9 +330,10 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         """Run this Flow until it stops."""
         run = self.tracked_run
         assert run is not None, f"{self!r} must be tracked"
-        self._stop_result = None  # clear
+        is_manual = all(link.type == LinkType.MANUAL for link in self.node.links)
 
         # start / resume
+        self._stop_result = None  # clear
         runs = run.runs.tolist()
         if not runs:
             # start from scratch
@@ -350,7 +350,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 if run.status < RunStatus.RUNNING or run.status.is_interrupted:
                     self._resume(run)
 
-        # stop immediately if no progress is possible
+        # stop immediately if nothing to do
         self._try_stop()
 
         # tick on events until stop
@@ -361,11 +361,13 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 await self._process_event(event)
 
                 # create or update plan
+                # nocheckin: cancel current planning if there's a new event
                 if (
-                    run.run_plan is None or run.run_plan.status.is_terminal
-                ) and not self._is_stopping:
-                    # await self._plan()
-                    pass  # nocheckin
+                    (run.run_plan is None or run.run_plan.status.is_terminal)
+                    and not self._is_stopping
+                    and not is_manual
+                ):
+                    await self._plan()
 
                 # stop if no more events
                 if self._events.empty():

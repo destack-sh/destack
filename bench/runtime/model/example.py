@@ -67,20 +67,6 @@ class PromptExample(PromptCompound):
     request: str
     response: str
 
-    @override
-    async def expand(self, prompt: "Prompt") -> Sequence[PromptPart]:
-        return (
-            PromptRegion(
-                title=f"Example: {self.title}",
-                weight=1,
-                text=self.text,
-                content=[
-                    PromptCode(title="Request", code=self.request),
-                    PromptCode(title="Response", code=self.response),
-                ],
-            ),
-        )
-
 
 def _make_example_bench() -> tuple[Bench, Package, Session, User]:
     bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
@@ -171,12 +157,7 @@ class ExampleResponseIn(NamedTuple):
 def example_(title: str, weight: int = 1):
     """Register an example."""
 
-    def decorator(
-        func: Callable[
-            [Package],
-            ExampleIn,
-        ],
-    ):
+    def decorator(func: Callable[[Package], ExampleIn]):
         text = func.__doc__
         assert text, f"example {func!r} has no docstring"
 
