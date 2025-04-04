@@ -755,6 +755,7 @@ def edit_graph(
     *,
     include_removed: bool,
     validate: bool,
+    ignore_missing: bool = False,
 ) -> None:
     """Applies the edits to the graph (in place!)."""
     trace.get_current_span().set_attribute("edits", len(edits))
@@ -790,16 +791,22 @@ def edit_graph(
             not include_removed and (edit_type == EditType.ARCHIVE or edit_type == EditType.DELETE)
         ):
             node = graph.get(node_id)
-            assert (
-                node is not None
-            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for remove: {wiring.describe_edit(edit)}"
+            if node is None:
+                if not ignore_missing:
+                    raise LookupError(
+                        f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for remove: {wiring.describe_edit(edit)}"
+                    )
+                continue
             graph.remove(node)
         else:
             # some update
             node = graph.get(node_id)
-            assert (
-                node is not None
-            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for update: {wiring.describe_edit(edit)}"
+            if node is None:
+                if not ignore_missing:
+                    raise LookupError(
+                        f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for update: {wiring.describe_edit(edit)}"
+                    )
+                continue
 
             # apply edit operations
             for op in edit.operations:
@@ -833,6 +840,7 @@ def edit_data_graph(
     *,
     include_removed: bool,
     is_prepass: bool = False,
+    ignore_missing: bool = False,
 ) -> list[EditData] | None:
     """
     Applies the edits to the data graph (edited nodes are copied before update).
@@ -901,16 +909,22 @@ def edit_data_graph(
         ) and not is_prepass:
             # remove
             node = graph.get(node_id)
-            assert (
-                node is not None
-            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for {wiring.describe_edit(edit)}"
+            if node is None:
+                if not ignore_missing:
+                    raise LookupError(
+                        f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for {wiring.describe_edit(edit)}"
+                    )
+                continue
             graph.remove(node)
         else:
             # update
             node = graph.get(node_id)
-            assert (
-                node is not None
-            ), f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for {wiring.describe_edit(edit)}"
+            if node is None:
+                if not ignore_missing:
+                    raise LookupError(
+                        f"missing node {wiring.describe_node_ptr(edit.node_ptr)} for {wiring.describe_edit(edit)}"
+                    )
+                continue
             node = wiring.copy_struct(node)
 
             # prepass: make vignette with old data
