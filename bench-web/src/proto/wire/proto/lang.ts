@@ -99,9 +99,9 @@ export interface CodeData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.CodeLanguage language = 32;
+     * @generated from protobuf field: optional string language = 32;
      */
-    language?: CodeLanguage;
+    language?: string;
     /**
      * @generated from protobuf field: optional string content = 40;
      */
@@ -159,80 +159,10 @@ export interface TextSpanData {
      * @generated from protobuf field: optional bool is_code = 64;
      */
     isCode?: boolean;
-}
-/**
- * @generated from protobuf message symbolx.bench.TextTableData
- */
-export interface TextTableData {
     /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     * @generated from protobuf field: optional string language = 70;
      */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.TextLineData lines = 33;
-     */
-    lines: TextLineData[];
-    /**
-     * @generated from protobuf field: bool has_row_header = 40;
-     */
-    hasRowHeader: boolean;
-    /**
-     * @generated from protobuf field: bool has_column_header = 41;
-     */
-    hasColumnHeader: boolean;
-}
-/**
- * @generated from protobuf message symbolx.bench.TextCellData
- */
-export interface TextCellData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.TextSpanData spans = 33;
-     */
-    spans: TextSpanData[];
-    /**
-     * @generated from protobuf field: int32 colspan = 40;
-     */
-    colspan: number;
-    /**
-     * @generated from protobuf field: int32 rowspan = 41;
-     */
-    rowspan: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Alignment alignment = 42;
-     */
-    alignment?: Alignment;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorType color = 50;
-     */
-    color?: ColorType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ColorType background_color = 51;
-     */
-    backgroundColor?: ColorType;
-    /**
-     * @generated from protobuf field: optional bool is_bold = 60;
-     */
-    isBold?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_italic = 61;
-     */
-    isItalic?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_strikethrough = 62;
-     */
-    isStrikethrough?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_underline = 63;
-     */
-    isUnderline?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_code = 64;
-     */
-    isCode?: boolean;
+    language?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextLineData
@@ -255,14 +185,6 @@ export interface TextLineData {
      */
     content?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextTableData table = 35;
-     */
-    table?: TextTableData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.TextCellData cells = 36;
-     */
-    cells: TextCellData[];
-    /**
      * @generated from protobuf field: optional symbolx.bench.ColorType color = 50;
      */
     color?: ColorType;
@@ -290,6 +212,10 @@ export interface TextLineData {
      * @generated from protobuf field: optional bool is_code = 64;
      */
     isCode?: boolean;
+    /**
+     * @generated from protobuf field: optional string language = 70;
+     */
+    language?: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.TextData
@@ -8062,10 +7988,6 @@ export enum EnumType {
      */
     CODE_TYPE = 22300,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_LANGUAGE = 22301;
-     */
-    CODE_LANGUAGE = 22301,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_ACTION_TYPE = 22350;
      */
     ACTION_TYPE = 22350,
@@ -8488,14 +8410,6 @@ export enum StructType {
      */
     TEXT_SPAN = 12002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_TABLE = 12003;
-     */
-    TEXT_TABLE = 12003,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_CELL = 12004;
-     */
-    TEXT_CELL = 12004,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_CODE = 12100;
      */
     CODE = 12100,
@@ -8909,14 +8823,6 @@ export enum ObjectType {
      */
     TEXT_SPAN = 12002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_TABLE = 12003;
-     */
-    TEXT_TABLE = 12003,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_CELL = 12004;
-     */
-    TEXT_CELL = 12004,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_CODE = 12100;
      */
     CODE = 12100,
@@ -9329,14 +9235,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 12002;
      */
     TEXT_SPAN = 12002,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_TABLE = 12003;
-     */
-    TEXT_TABLE = 12003,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_CELL = 12004;
-     */
-    TEXT_CELL = 12004,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CODE = 12100;
      */
@@ -9813,10 +9711,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 22300;
      */
     CODE_TYPE = 22300,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_LANGUAGE = 22301;
-     */
-    CODE_LANGUAGE = 22301,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ACTION_TYPE = 22350;
      */
@@ -11498,14 +11392,6 @@ export enum BlockType {
      */
     DIVIDER = 10040,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_TABLE = 10050;
-     */
-    TABLE = 10050,
-    /**
-     * @generated from protobuf enum value: BLOCK_TYPE_TABLE_ROW = 10051;
-     */
-    TABLE_ROW = 10051,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_CODE = 10060;
      */
     CODE = 10060
@@ -11693,14 +11579,6 @@ export enum TextLineType {
      * @generated from protobuf enum value: TEXT_LINE_TYPE_DIVIDER = 40;
      */
     DIVIDER = 40,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_TABLE = 50;
-     */
-    TABLE = 50,
-    /**
-     * @generated from protobuf enum value: TEXT_LINE_TYPE_TABLE_ROW = 51;
-     */
-    TABLE_ROW = 51,
     /**
      * @generated from protobuf enum value: TEXT_LINE_TYPE_CODE = 60;
      */
@@ -12419,9 +12297,9 @@ export enum SpanType {
      */
     CODE = 10,
     /**
-     * @generated from protobuf enum value: SPAN_TYPE_FLOW_PLAN = 100;
+     * @generated from protobuf enum value: SPAN_TYPE_FLOW_THINK = 100;
      */
-    FLOW_PLAN = 100,
+    FLOW_THINK = 100,
     /**
      * @generated from protobuf enum value: SPAN_TYPE_MODEL_PREPARE = 300;
      */
@@ -13255,21 +13133,6 @@ export enum CodeType {
      * @generated from protobuf enum value: CODE_TYPE_FUNCTION = 3;
      */
     FUNCTION = 3
-}
-/**
- * The language of Code.
- *
- * @generated from protobuf enum symbolx.bench.CodeLanguage
- */
-export enum CodeLanguage {
-    /**
-     * @generated from protobuf enum value: CODE_LANGUAGE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CODE_LANGUAGE_PYTHON = 10;
-     */
-    PYTHON = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.ActionType
@@ -14779,7 +14642,7 @@ class CodeData$Type extends MessageType$<CodeData> {
     constructor() {
         super("symbolx.bench.CodeData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 32, name: "language", kind: "enum", opt: true, T: () => ["symbolx.bench.CodeLanguage", CodeLanguage, "CODE_LANGUAGE_"] },
+            { no: 32, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -14798,8 +14661,8 @@ class CodeData$Type extends MessageType$<CodeData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbolx.bench.CodeLanguage language */ 32:
-                    message.language = reader.int32();
+                case /* optional string language */ 32:
+                    message.language = reader.string();
                     break;
                 case /* optional string content */ 40:
                     message.content = reader.string();
@@ -14819,9 +14682,9 @@ class CodeData$Type extends MessageType$<CodeData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.CodeLanguage language = 32; */
+        /* optional string language = 32; */
         if (message.language !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.language);
+            writer.tag(32, WireType.LengthDelimited).string(message.language);
         /* optional string content = 40; */
         if (message.content !== undefined)
             writer.tag(40, WireType.LengthDelimited).string(message.content);
@@ -14850,7 +14713,8 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<TextSpanData>): TextSpanData {
@@ -14902,6 +14766,9 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
                 case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
                     break;
+                case /* optional string language */ 70:
+                    message.language = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14950,6 +14817,9 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         /* optional bool is_code = 64; */
         if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
+        /* optional string language = 70; */
+        if (message.language !== undefined)
+            writer.tag(70, WireType.LengthDelimited).string(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14961,204 +14831,6 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
  */
 export const TextSpanData = new TextSpanData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TextTableData$Type extends MessageType$<TextTableData> {
-    constructor() {
-        super("symbolx.bench.TextTableData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 33, name: "lines", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextLineData },
-            { no: 40, name: "has_row_header", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 41, name: "has_column_header", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<TextTableData>): TextTableData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.lines = [];
-        message.hasRowHeader = false;
-        message.hasColumnHeader = false;
-        if (value !== undefined)
-            reflectionMergePartial<TextTableData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextTableData): TextTableData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.TextLineData lines */ 33:
-                    message.lines.push(TextLineData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* bool has_row_header */ 40:
-                    message.hasRowHeader = reader.bool();
-                    break;
-                case /* bool has_column_header */ 41:
-                    message.hasColumnHeader = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TextTableData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.TextLineData lines = 33; */
-        for (let i = 0; i < message.lines.length; i++)
-            TextLineData.internalBinaryWrite(message.lines[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* bool has_row_header = 40; */
-        if (message.hasRowHeader !== false)
-            writer.tag(40, WireType.Varint).bool(message.hasRowHeader);
-        /* bool has_column_header = 41; */
-        if (message.hasColumnHeader !== false)
-            writer.tag(41, WireType.Varint).bool(message.hasColumnHeader);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TextTableData
- */
-export const TextTableData = new TextTableData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TextCellData$Type extends MessageType$<TextCellData> {
-    constructor() {
-        super("symbolx.bench.TextCellData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
-            { no: 40, name: "colspan", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "rowspan", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 42, name: "alignment", kind: "enum", opt: true, T: () => ["symbolx.bench.Alignment", Alignment, "ALIGNMENT_"] },
-            { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
-        ]);
-    }
-    create(value?: PartialMessage<TextCellData>): TextCellData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.spans = [];
-        message.colspan = 0;
-        message.rowspan = 0;
-        if (value !== undefined)
-            reflectionMergePartial<TextCellData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextCellData): TextCellData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.TextSpanData spans */ 33:
-                    message.spans.push(TextSpanData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* int32 colspan */ 40:
-                    message.colspan = reader.int32();
-                    break;
-                case /* int32 rowspan */ 41:
-                    message.rowspan = reader.int32();
-                    break;
-                case /* optional symbolx.bench.Alignment alignment */ 42:
-                    message.alignment = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ColorType color */ 50:
-                    message.color = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ColorType background_color */ 51:
-                    message.backgroundColor = reader.int32();
-                    break;
-                case /* optional bool is_bold */ 60:
-                    message.isBold = reader.bool();
-                    break;
-                case /* optional bool is_italic */ 61:
-                    message.isItalic = reader.bool();
-                    break;
-                case /* optional bool is_strikethrough */ 62:
-                    message.isStrikethrough = reader.bool();
-                    break;
-                case /* optional bool is_underline */ 63:
-                    message.isUnderline = reader.bool();
-                    break;
-                case /* optional bool is_code */ 64:
-                    message.isCode = reader.bool();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TextCellData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* repeated symbolx.bench.TextSpanData spans = 33; */
-        for (let i = 0; i < message.spans.length; i++)
-            TextSpanData.internalBinaryWrite(message.spans[i], writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* int32 colspan = 40; */
-        if (message.colspan !== 0)
-            writer.tag(40, WireType.Varint).int32(message.colspan);
-        /* int32 rowspan = 41; */
-        if (message.rowspan !== 0)
-            writer.tag(41, WireType.Varint).int32(message.rowspan);
-        /* optional symbolx.bench.Alignment alignment = 42; */
-        if (message.alignment !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.alignment);
-        /* optional symbolx.bench.ColorType color = 50; */
-        if (message.color !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.color);
-        /* optional symbolx.bench.ColorType background_color = 51; */
-        if (message.backgroundColor !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.backgroundColor);
-        /* optional bool is_bold = 60; */
-        if (message.isBold !== undefined)
-            writer.tag(60, WireType.Varint).bool(message.isBold);
-        /* optional bool is_italic = 61; */
-        if (message.isItalic !== undefined)
-            writer.tag(61, WireType.Varint).bool(message.isItalic);
-        /* optional bool is_strikethrough = 62; */
-        if (message.isStrikethrough !== undefined)
-            writer.tag(62, WireType.Varint).bool(message.isStrikethrough);
-        /* optional bool is_underline = 63; */
-        if (message.isUnderline !== undefined)
-            writer.tag(63, WireType.Varint).bool(message.isUnderline);
-        /* optional bool is_code = 64; */
-        if (message.isCode !== undefined)
-            writer.tag(64, WireType.Varint).bool(message.isCode);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TextCellData
- */
-export const TextCellData = new TextCellData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class TextLineData$Type extends MessageType$<TextLineData> {
     constructor() {
         super("symbolx.bench.TextLineData", [
@@ -15166,15 +14838,14 @@ class TextLineData$Type extends MessageType$<TextLineData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TextLineType", TextLineType, "TEXT_LINE_TYPE_"] },
             { no: 33, name: "spans", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextSpanData },
             { no: 34, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 35, name: "table", kind: "message", T: () => TextTableData },
-            { no: 36, name: "cells", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => TextCellData },
             { no: 50, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 51, name: "background_color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 60, name: "is_bold", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 61, name: "is_italic", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<TextLineData>): TextLineData {
@@ -15182,7 +14853,6 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         message.metatype = 0;
         message.type = 0;
         message.spans = [];
-        message.cells = [];
         if (value !== undefined)
             reflectionMergePartial<TextLineData>(this, message, value);
         return message;
@@ -15204,12 +14874,6 @@ class TextLineData$Type extends MessageType$<TextLineData> {
                 case /* optional string content */ 34:
                     message.content = reader.string();
                     break;
-                case /* optional symbolx.bench.TextTableData table */ 35:
-                    message.table = TextTableData.internalBinaryRead(reader, reader.uint32(), options, message.table);
-                    break;
-                case /* repeated symbolx.bench.TextCellData cells */ 36:
-                    message.cells.push(TextCellData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
                 case /* optional symbolx.bench.ColorType color */ 50:
                     message.color = reader.int32();
                     break;
@@ -15230,6 +14894,9 @@ class TextLineData$Type extends MessageType$<TextLineData> {
                     break;
                 case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
+                    break;
+                case /* optional string language */ 70:
+                    message.language = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15255,12 +14922,6 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         /* optional string content = 34; */
         if (message.content !== undefined)
             writer.tag(34, WireType.LengthDelimited).string(message.content);
-        /* optional symbolx.bench.TextTableData table = 35; */
-        if (message.table)
-            TextTableData.internalBinaryWrite(message.table, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.TextCellData cells = 36; */
-        for (let i = 0; i < message.cells.length; i++)
-            TextCellData.internalBinaryWrite(message.cells[i], writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ColorType color = 50; */
         if (message.color !== undefined)
             writer.tag(50, WireType.Varint).int32(message.color);
@@ -15282,6 +14943,9 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         /* optional bool is_code = 64; */
         if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
+        /* optional string language = 70; */
+        if (message.language !== undefined)
+            writer.tag(70, WireType.LengthDelimited).string(message.language);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32034,9 +31698,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | ViewData | SpaceData | RecordData | SkipData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | TextTableData | TextCellData | CodeData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | PathData | PathElementData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ValueData | ComputedValueData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof ComputerData | typeof ApplicationData | typeof FileData | typeof StreamData | typeof SecretData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof KitData | typeof DatabaseData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TeamData | typeof MembershipData | typeof InviteData | typeof RoleData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof ClaimData | typeof ViewData | typeof SpaceData | typeof RecordData | typeof SkipData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TextTableData | typeof TextCellData | typeof CodeData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | SecretData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | ViewData | SpaceData | RecordData
 export type ResourceNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | SecretData
 export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | DatabaseData
@@ -32337,8 +32001,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
   [ObjectType.TEXT_SPAN]: TextSpanData,
-  [ObjectType.TEXT_TABLE]: TextTableData,
-  [ObjectType.TEXT_CELL]: TextCellData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.PATH]: PathData,
   [ObjectType.PATH_ELEMENT]: PathElementData,
@@ -32443,8 +32105,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.TextData"]: ObjectType.TEXT,
   ["symbolx.bench.TextLineData"]: ObjectType.TEXT_LINE,
   ["symbolx.bench.TextSpanData"]: ObjectType.TEXT_SPAN,
-  ["symbolx.bench.TextTableData"]: ObjectType.TEXT_TABLE,
-  ["symbolx.bench.TextCellData"]: ObjectType.TEXT_CELL,
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
   ["symbolx.bench.PathData"]: ObjectType.PATH,
   ["symbolx.bench.PathElementData"]: ObjectType.PATH_ELEMENT,
@@ -32568,7 +32228,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MODEL_FAMILY]: ModelFamily,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.CODE_TYPE]: CodeType,
-  [EnumType.CODE_LANGUAGE]: CodeLanguage,
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.LINK_TYPE]: LinkType,
@@ -32626,8 +32285,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.TEXT]: TextData,
   [StructType.TEXT_LINE]: TextLineData,
   [StructType.TEXT_SPAN]: TextSpanData,
-  [StructType.TEXT_TABLE]: TextTableData,
-  [StructType.TEXT_CELL]: TextCellData,
   [StructType.CODE]: CodeData,
   [StructType.PATH]: PathData,
   [StructType.PATH_ELEMENT]: PathElementData,
@@ -32803,8 +32460,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.TEXT]: TextData,
   [ObjectType.TEXT_LINE]: TextLineData,
   [ObjectType.TEXT_SPAN]: TextSpanData,
-  [ObjectType.TEXT_TABLE]: TextTableData,
-  [ObjectType.TEXT_CELL]: TextCellData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.PATH]: PathData,
   [ObjectType.PATH_ELEMENT]: PathElementData,
@@ -32928,7 +32583,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MODEL_FAMILY]: ModelFamily,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.CODE_TYPE]: CodeType,
-  [EnumType.CODE_LANGUAGE]: CodeLanguage,
   [EnumType.ACTION_TYPE]: ActionType,
   [EnumType.PORT_SIDE]: PortSide,
   [EnumType.LINK_TYPE]: LinkType,
@@ -34714,8 +34368,6 @@ export enum TextLineProperty {
   type = 30,
   spans = 33,
   content = 34,
-  table = 35,
-  cells = 36,
   color = 50,
   backgroundColor = 51,
   isBold = 60,
@@ -34723,6 +34375,7 @@ export enum TextLineProperty {
   isStrikethrough = 62,
   isUnderline = 63,
   isCode = 64,
+  language = 70,
 }
 
 export enum TextSpanProperty {
@@ -34738,28 +34391,7 @@ export enum TextSpanProperty {
   isStrikethrough = 62,
   isUnderline = 63,
   isCode = 64,
-}
-
-export enum TextTableProperty {
-  metatype = 1,
-  lines = 33,
-  hasRowHeader = 40,
-  hasColumnHeader = 41,
-}
-
-export enum TextCellProperty {
-  metatype = 1,
-  spans = 33,
-  colspan = 40,
-  rowspan = 41,
-  alignment = 42,
-  color = 50,
-  backgroundColor = 51,
-  isBold = 60,
-  isItalic = 61,
-  isStrikethrough = 62,
-  isUnderline = 63,
-  isCode = 64,
+  language = 70,
 }
 
 export enum CodeProperty {
@@ -34987,11 +34619,11 @@ export enum RectangleConstraintProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TextTableProperty | typeof TextCellProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof SecretProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof LinkProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof PathProperty | typeof PathElementProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -35069,8 +34701,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
   [ObjectType.TEXT_SPAN]: TextSpanProperty,
-  [ObjectType.TEXT_TABLE]: TextTableProperty,
-  [ObjectType.TEXT_CELL]: TextCellProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.PATH]: PathProperty,
   [ObjectType.PATH_ELEMENT]: PathElementProperty,
@@ -35175,8 +34805,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.TEXT]: TextProperty,
   [ObjectType.TEXT_LINE]: TextLineProperty,
   [ObjectType.TEXT_SPAN]: TextSpanProperty,
-  [ObjectType.TEXT_TABLE]: TextTableProperty,
-  [ObjectType.TEXT_CELL]: TextCellProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.PATH]: PathProperty,
   [ObjectType.PATH_ELEMENT]: PathElementProperty,
@@ -36991,8 +36619,6 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.type]: { id: 30, name: 'type', component: ObjectType.TEXT_LINE, enumType: EnumType.TEXT_LINE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.spans]: { id: 33, name: 'spans', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_SPAN },
   [TextLineProperty.content]: { id: 34, name: 'content', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TextLineProperty.table]: { id: 35, name: 'table', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_TABLE },
-  [TextLineProperty.cells]: { id: 36, name: 'cells', component: ObjectType.TEXT_LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_CELL },
   [TextLineProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_LINE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.backgroundColor]: { id: 51, name: 'background_color', component: ObjectType.TEXT_LINE, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
@@ -37000,6 +36626,7 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.language]: { id: 70, name: 'language', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37014,30 +36641,11 @@ export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-}
-export const TextTableDataInfo: Record<TextTableProperty, PropertyInfo> = {
-  [TextTableProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_TABLE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextTableProperty.lines]: { id: 33, name: 'lines', component: ObjectType.TEXT_TABLE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [TextTableProperty.hasRowHeader]: { id: 40, name: 'has_row_header', component: ObjectType.TEXT_TABLE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextTableProperty.hasColumnHeader]: { id: 41, name: 'has_column_header', component: ObjectType.TEXT_TABLE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const TextCellDataInfo: Record<TextCellProperty, PropertyInfo> = {
-  [TextCellProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_CELL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextCellProperty.spans]: { id: 33, name: 'spans', component: ObjectType.TEXT_CELL, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_SPAN },
-  [TextCellProperty.colspan]: { id: 40, name: 'colspan', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.rowspan]: { id: 41, name: 'rowspan', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.alignment]: { id: 42, name: 'alignment', component: ObjectType.TEXT_CELL, enumType: EnumType.ALIGNMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_CELL, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.backgroundColor]: { id: 51, name: 'background_color', component: ObjectType.TEXT_CELL, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
-  [TextCellProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_CELL, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.language]: { id: 70, name: 'language', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [CodeProperty.language]: { id: 32, name: 'language', component: ObjectType.CODE, enumType: EnumType.CODE_LANGUAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [CodeProperty.language]: { id: 32, name: 'language', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [CodeProperty.content]: { id: 40, name: 'content', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
@@ -37306,8 +36914,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.TEXT]: TextDataInfo,
   [ObjectType.TEXT_LINE]: TextLineDataInfo,
   [ObjectType.TEXT_SPAN]: TextSpanDataInfo,
-  [ObjectType.TEXT_TABLE]: TextTableDataInfo,
-  [ObjectType.TEXT_CELL]: TextCellDataInfo,
   [ObjectType.CODE]: CodeDataInfo,
   [ObjectType.PATH]: PathDataInfo,
   [ObjectType.PATH_ELEMENT]: PathElementDataInfo,
@@ -37624,8 +37230,6 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.LIST_UNORDERED]: { id: 10030, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
   [BlockType.LIST_ORDERED]: { id: 10031, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
   [BlockType.DIVIDER]: { id: 10040, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
-  [BlockType.TABLE]: { id: 10050, name: 'TABLE', text: 'Table of data', title: 'Table', icon: 'fas fa-table' },
-  [BlockType.TABLE_ROW]: { id: 10051, name: 'TABLE_ROW', text: 'Row of a table', title: 'Table row', icon: 'fas fa-table-rows' },
   [BlockType.CODE]: { id: 10060, name: 'CODE', text: 'Code block', title: 'Code block', icon: 'fas fa-code' },
 }
 
@@ -37640,8 +37244,6 @@ export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo
   [TextLineType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
   [TextLineType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
   [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
-  [TextLineType.TABLE]: { id: 50, name: 'TABLE', text: 'Table', title: 'Table', icon: 'fas fa-table' },
-  [TextLineType.TABLE_ROW]: { id: 51, name: 'TABLE_ROW', text: 'Table row', title: 'Table row', icon: 'fas fa-table-rows' },
   [TextLineType.CODE]: { id: 60, name: 'CODE', text: 'Code block', title: 'Code block', icon: 'fas fa-code' },
 }
 
@@ -37689,7 +37291,7 @@ export const SpanTypeOptionInfo: Partial<Record<SpanType, EnumOptionInfo>> = {
   [SpanType.WAIT]: { id: 2, name: 'WAIT', icon: 'fas fa-hourglass-end' },
   [SpanType.ACQUIRE]: { id: 3, name: 'ACQUIRE', icon: 'fas fa-toolbox' },
   [SpanType.CODE]: { id: 10, name: 'CODE', icon: 'fas fa-code' },
-  [SpanType.FLOW_PLAN]: { id: 100, name: 'FLOW_PLAN', icon: 'fas fa-hexagon-nodes' },
+  [SpanType.FLOW_THINK]: { id: 100, name: 'FLOW_THINK', icon: 'fas fa-hexagon-nodes' },
   [SpanType.MODEL_PREPARE]: { id: 300, name: 'MODEL_PREPARE', icon: 'fas fa-hexagon-nodes' },
   [SpanType.MODEL_GENERATE]: { id: 310, name: 'MODEL_GENERATE', icon: 'fas fa-hexagon-nodes' },
   [SpanType.MODEL_PARSE]: { id: 320, name: 'MODEL_PARSE', icon: 'fas fa-hexagon-nodes' },

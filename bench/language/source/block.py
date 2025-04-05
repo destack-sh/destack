@@ -77,9 +77,6 @@ class BlockType(BuiltinEnum):
     LIST_ORDERED = 10031, "Numbered list", "Numbered list", "fas fa-list-ol"
     # presentation
     DIVIDER = 10040, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
-    # table
-    TABLE = 10050, "Table", "Table of data", "fas fa-table"
-    TABLE_ROW = 10051, "Table row", "Row of a table", "fas fa-table-rows"
     # code
     CODE = 10060, "Code block", "Code block", "fas fa-code"
 

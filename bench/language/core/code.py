@@ -28,20 +28,11 @@ class CodeType(BuiltinEnum):
     FUNCTION = 3  # Python functions
 
 
-@enum_(EnumType.CODE_LANGUAGE)
-class CodeLanguage(BuiltinEnum):
-    """
-    The language of Code.
-    """
-
-    PYTHON = 10
-
-
 @struct_(StructType.CODE)
 class Code(Struct):
     """Code in some language."""
 
-    language: Optional[CodeLanguage] = p_regular(32, require=False)
+    language: Optional[str] = p_regular(32, require=False)
     content: Optional[str] = p_regular(40, require=False)
 
     def __content_str__(self) -> str:
@@ -60,7 +51,7 @@ class Code(Struct):
         return self.content or ""
 
     @staticmethod
-    def from_string(s: str, *, language: Optional[CodeLanguage] = None) -> "Code":
+    def from_string(s: str, *, language: Optional[str] = None) -> "Code":
         if not s:
             return Code.empty()
         s = textwrap.dedent(s)

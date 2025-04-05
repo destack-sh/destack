@@ -573,7 +573,11 @@ export function mapLineToPmNode(line: LineInterface): PmNode {
   } else if (line.text.type === TextLineType.CALLOUT) {
     return PM_SCHEMA.node("lineCallout", attrs, spans);
   } else if (line.text.type === TextLineType.CODE) {
-    return PM_SCHEMA.node("lineCode", attrs, spans);
+    return PM_SCHEMA.node(
+      "lineCode",
+      attrs,
+      (line.text.content ?? "").length > 0 ? PM_SCHEMA.text(line.text.content!) : undefined,
+    );
   } else {
     throw new Error(`unexpected line type: ${line.text.type}`);
   }
@@ -583,6 +587,12 @@ export function mapLineToPmNode(line: LineInterface): PmNode {
 export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
   if (lineNode.type.name === "block") {
     return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
+  } else if (lineNode.type.name === "lineCode") {
+    return {
+      type: "text",
+      text: { metatype: ObjectType.TEXT_LINE, type: TextLineType.CODE, spans: [], content: lineNode.textContent },
+      blockPtr: lineNode.attrs.blockPtr,
+    };
   }
 
   const spans: TextSpanData[] = [];
@@ -592,12 +602,7 @@ export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
     if (span) spans.push(span);
   }
 
-  const text: TextLineData = {
-    metatype: ObjectType.TEXT_LINE,
-    type: lineNode.attrs.type,
-    spans,
-    cells: [],
-  };
+  const text: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans };
   return { type: "text", text, blockPtr: lineNode.attrs.blockPtr };
 }
 

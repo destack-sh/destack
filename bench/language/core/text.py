@@ -12,7 +12,7 @@ from .property import p_regular
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Alignment, ColorType
+    from bench.language import ColorType
     from bench.language.source.render import Aliasing, AliasingIn
 
 
@@ -25,6 +25,7 @@ class TextOptionsBase(BuiltinObject):
     is_strikethrough: Optional[bool] = p_regular(62, default=None)
     is_underline: Optional[bool] = p_regular(63, default=None)
     is_code: Optional[bool] = p_regular(64, default=None)
+    language: Optional[str] = p_regular(70, default=None)
 
     def _to_option_kwargs(self):
         kwargs = {}
@@ -53,8 +54,7 @@ class TextLineType(BuiltinEnum):  # :TextLineType
     # divider
     DIVIDER = 40, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
     # table
-    TABLE = 50, "Table", "Table", "fas fa-table"
-    TABLE_ROW = 51, "Table row", "Table row", "fas fa-table-rows"
+    # ...
     # code
     CODE = 60, "Code block", "Code block", "fas fa-code"
     # reference
@@ -118,27 +118,6 @@ class TextSpan(TextOptionsBase, Struct):
         )
 
 
-@struct_(StructType.TEXT_TABLE)
-class TextTable(Struct):
-    """
-    A TextTable is a list of TextCells.
-    """
-
-    lines: List["TextLine"] = p_regular(33, array=True, struct=StructType.TEXT_LINE)
-    has_row_header: bool = p_regular(40, default=False)
-    has_column_header: bool = p_regular(41, default=False)
-
-
-@struct_(StructType.TEXT_CELL)
-class TextCell(TextOptionsBase, Struct):
-    """A cell of Text in a TextTable"""
-
-    spans: List[TextSpan] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
-    colspan: int = p_regular(40, default=1)
-    rowspan: int = p_regular(41, default=1)
-    alignment: Optional["Alignment"] = p_regular(42, default=None)
-
-
 @struct_(StructType.TEXT_LINE)
 class TextLine(TextOptionsBase, Struct):
     """
@@ -148,8 +127,6 @@ class TextLine(TextOptionsBase, Struct):
     type: TextLineType = p_regular(30, default=TextLineType.PARAGRAPH)
     spans: List[TextSpan] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
     content: Optional[str] = p_regular(34, default=None)
-    table: Optional[TextTable] = p_regular(35, default=None, struct=StructType.TEXT_TABLE)
-    cells: list[TextCell] = p_regular(36, array=True, struct=StructType.TEXT_CELL)
 
     def __content_str__(self) -> str:
         return text_line_to_markdown(self)
@@ -161,22 +138,10 @@ class TextLine(TextOptionsBase, Struct):
             for span in self.spans:
                 if (content := span.content) and item in content:
                     return True
-            if self.table:
-                for row in self.table.lines:
-                    for cell in row.cells:
-                        for span in cell.spans:
-                            if (content := span.content) and item in content:
-                                return True
         elif isinstance(item, Node):
             for span in self.spans:
                 if span.node_ck is not None and span.node_ck == item.ck:
                     return True
-            if self.table:
-                for row in self.table.lines:
-                    for cell in row.cells:
-                        for span in cell.spans:
-                            if span.node_ck is not None and span.node_ck == item.ck:
-                                return True
         else:
             assert_never(item)
         return False
@@ -507,18 +472,6 @@ def _span_format_key(span: TextSpan) -> tuple:
     )
 
 
-def _is_table_start(lines: list[str], idx: int) -> bool:
-    """
-    Check if the current line is the start of a table.
-    """
-    if "|" not in lines[idx]:
-        return False
-    if idx + 1 >= len(lines):
-        return False
-    sep = lines[idx + 1].strip()
-    return regex.search(r"^\s*\|?( *:?-+:? *\|)+ *:?-*:?\|?\s*$", sep) is not None
-
-
 def markdown_line_to_line(line: str, aliasing: "Aliasing | None" = None) -> TextLine:
     """
     Parse a markdown line into a TextLine.
@@ -579,72 +532,30 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
     Parse a code line.
     """
     i = start + 1
+
+    # language
+    language = None
+    opening_line = lines[start].strip()
+    language_match = regex.match(r"^```([a-zA-Z0-9+#.]+)?", opening_line)
+    if language_match and language_match.group(1):
+        language = language_match.group(1).strip()
+
+    # code
     code_lines = []
     while i < len(lines) and not lines[i].startswith("```"):
         code_lines.append(lines[i])
         i += 1
-    i += 1  # skip closing ```
     content = "\n".join(code_lines)
-    return TextLine(type=TextLineType.CODE, content=content), i
+    i += 1  # skip closing ```
 
-
-def _parse_table(
-    lines: list[str], start: int, aliasing: "Aliasing | None" = None
-) -> tuple[TextLine, int]:
-    """
-    Parse a markdown table.
-    """
-    from bench.language import Alignment
-
-    header_line = lines[start].strip()
-    sep_line = lines[start + 1].strip()
-    # separator
-    sep_cells = [cell.strip() for cell in sep_line.strip("|").split("|")]
-    alignments: list[Alignment | None] = []
-    for cell in sep_cells:
-        if cell.startswith(":") and cell.endswith(":"):
-            alignments.append(Alignment.MIDDLE)
-        elif cell.startswith(":"):
-            alignments.append(Alignment.START)
-        elif cell.endswith(":"):
-            alignments.append(Alignment.END)
-        else:
-            alignments.append(None)
-    # header
-    header_cells = [cell.strip() for cell in header_line.strip("|").split("|")]
-    header_objs: list[TextCell] = []
-    for j, txt in enumerate(header_cells):
-        spans = _parse_inline(txt, aliasing)
-        alignment = alignments[j] if j < len(alignments) else None
-        header_objs.append(TextCell(spans=spans, alignment=alignment))
-    # body
-    body_rows: list[TextLine] = []
-    i = start + 2
-    while i < len(lines) and "|" in lines[i]:
-        row_text = lines[i].strip()
-        row_cells_text = [cell.strip() for cell in row_text.strip("|").split("|")]
-        if len(row_cells_text) < len(alignments):
-            row_cells_text += [""] * (len(alignments) - len(row_cells_text))
-        row_cells: list[TextCell] = []
-        for j, txt in enumerate(row_cells_text):
-            spans = _parse_inline(txt, aliasing)
-            alignment = alignments[j] if j < len(alignments) else None
-            row_cells.append(TextCell(spans=spans, alignment=alignment))
-        body_rows.append(TextLine(type=TextLineType.TABLE_ROW, cells=row_cells))
-        i += 1
-    table = TextTable(
-        lines=[TextLine(type=TextLineType.TABLE_ROW, cells=header_objs), *body_rows],
-        has_row_header=True,
-        has_column_header=False,
-    )
-    return TextLine(type=TextLineType.TABLE, table=table), i
+    return TextLine(type=TextLineType.CODE, content=content, language=language), i
 
 
 def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Text:
     """
     Parse markdown as Text.
     """
-    from bench.language.source import Aliasing
+    from bench.language import Aliasing
 
     if not markdown:
         return Text.empty()
@@ -661,9 +572,6 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
             continue
         if line.startswith("```"):
             tl, i = _parse_code(lines_str, i)
-            lines.append(tl)
-        elif _is_table_start(lines_str, i):
-            tl, i = _parse_table(lines_str, i, aliasing)
             lines.append(tl)
         else:
             tl = markdown_line_to_line(line, aliasing)
@@ -805,38 +713,6 @@ def _render_inline(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None
     return "".join(parts)
 
 
-def _render_table(table: TextTable) -> str:
-    """
-    Render a TextTable as markdown.
-    """
-    from bench.language import Alignment
-
-    if not table.lines:
-        return ""
-    header_line = table.lines[0]
-    if not header_line.cells:
-        return ""
-    header_md = "| " + " | ".join(_render_inline(cell.spans) for cell in header_line.cells) + " |"
-    sep_parts = []
-    for cell in header_line.cells:
-        if cell.alignment == Alignment.START:
-            sep_parts.append(":---")
-        elif cell.alignment == Alignment.END:
-            sep_parts.append("---:")
-        elif cell.alignment == Alignment.MIDDLE:
-            sep_parts.append(":---:")
-        else:
-            sep_parts.append("---")
-    sep_md = "| " + " | ".join(sep_parts) + " |"
-    rows_md = [header_md, sep_md]
-    for row in table.lines[1:]:
-        if not row.cells:
-            continue
-        row_md = "| " + " | ".join(_render_inline(cell.spans) for cell in row.cells) + " |"
-        rows_md.append(row_md)
-    return "\n".join(rows_md)
-
-
 def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) -> str:
     """
     Render a single TextLine as markdown.
@@ -848,9 +724,10 @@ def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) 
     if line.type == TextLineType.DIVIDER:
         return "---"
     elif line.type == TextLineType.CODE:
-        return "```\n" + (line.content or "") + "\n```"
-    elif line.type == TextLineType.TABLE and line.table:
-        return _render_table(line.table)
+        if line.language:
+            return f"```{line.language}\n" + (line.content or "") + "\n```"
+        else:
+            return "```\n" + (line.content or "") + "\n```"
     else:
         prefix = ""
         if line.type == TextLineType.HEADING_1:

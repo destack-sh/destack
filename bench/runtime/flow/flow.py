@@ -300,8 +300,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             next_run = self._start(next_action)
         return TickLinkResult(new_runs=(next_run,), is_handled=True)
 
-    async def _plan(self):
-        """Plan the execution of this Flow."""
+    async def _think(self):
+        """Prepare the next actions in this Flow (if any)."""
         prompt = make_flow_plan_prompt(flow=self.node, runner=cast(FlowRunner[Flow], self))
         model_developer = ModelDeveloper.OPENAI
         model_type = ModelType.OPENAI_GPT4_0
@@ -315,7 +315,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             options=self.options,
             prompt=prompt,
             parent=cast(Runner[Runnable], self),
-            run=SpanType.FLOW_PLAN,
+            run=SpanType.FLOW_THINK,
         )
         try:
             self._active_planning_runner = model_runner
@@ -358,14 +358,14 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 event = await self._events.get()
                 await self._process_event(event)
 
-                # create or update plan
+                # plan next actions
                 # nocheckin: cancel current planning if there's a new event
                 if (
                     (run.run_plan is None or run.run_plan.status.is_terminal)
                     and not self._is_stopping
                     and not is_manual
                 ):
-                    await self._plan()
+                    await self._think()
 
                 # stop if no more events
                 if self._events.empty():

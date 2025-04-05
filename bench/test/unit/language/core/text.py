@@ -114,13 +114,14 @@ they [yellow]can be *nested, like ~~deeply~~ nested* _and_ ~~combined~~[/yellow]
 
 def test_text_code_block():
     md = """\
-```python
+```
 print('hello')
 line2
 ```
 """
     text = markdown_to_text(md)
     line = text.lines[0]
+    assert line.language is None
     assert line.type == TextLineType.CODE
     assert "print('hello')" in (line.content or "")
     md_out = text_to_markdown(text)
@@ -128,21 +129,29 @@ line2
     assert "print('hello')" in md_out
 
 
-def test_text_table():
+def test_text_code_block_language():
     md = """\
-| Product | Price | Stock | Description |
-| --- | ---: | :---: | :--- |
-| iPhone 13 | $999.99 | 50 | Latest model with A15 chip |
-| AirPods Pro | $249.99 | 100 | Active *noise* cancellation |
-| MacBook Air | $1299.99 | 25 | M1 chip, 13" display |
-    """.strip()
+A FizzBuzz implementation in Rust:
+```rust
+fn main() {
+    for i in 1..=100 {
+        if i % 15 == 0 {
+            println!("FizzBuzz");
+        } else if i % 3 == 0 {
+            println!("Fizz");
+        } else if i % 5 == 0 {
+            println!("Buzz");
+        } else {
+            println!("{}", i);
+        }
+    }
+}
+```"""
     text = markdown_to_text(md)
-    table_line = text.lines[0]
-    assert table_line.type == TextLineType.TABLE
-    table = table_line.table
-    assert table is not None
-    md_out = text_to_markdown(text)
-    assert md_out == md
+    line = text.lines[1]
+    assert line.language == "rust"
+    assert line.type == TextLineType.CODE
+    assert text_to_markdown(text) == md
 
 
 @pytest.mark.parametrize(
@@ -165,11 +174,6 @@ def complex_function():
     result = [x for x in range(10) if x % 2 == 0]
     print(f"Even numbers: {result}")
 ```""",
-        """\
-| Language | Paradigm | Year | Creator | Color |
-| --- | ---: | :---: | :--- | --- |
-| Python | Multi-paradigm | 1991 | Guido `van` *Rossum* | [blue]blue[/blue] |
-| Rust | Systems | 2010 | Graydon Hoare | [red]red[/red] |""",
         """\
 This text has **multiple** *different* ~~formatting~~ <u>styles</u>
 And **spans multiple** lines with *consistent* formatting""",

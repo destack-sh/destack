@@ -82,4 +82,5 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                         agent=member,
                     )
                     runs.append(run)
-            logger.info("message_trigger_plugin.trigger", message=message, runs=runs)
+            if runs:
+                logger.info("message_trigger_plugin.trigger", message=message, runs=runs)

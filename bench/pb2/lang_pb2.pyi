@@ -114,7 +114,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_MODEL_FAMILY: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_CODE_LANGUAGE: _ClassVar[EnumType]
     ENUM_TYPE_ACTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PORT_SIDE: _ClassVar[EnumType]
     ENUM_TYPE_LINK_TYPE: _ClassVar[EnumType]
@@ -224,8 +223,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_TEXT: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_TABLE: _ClassVar[StructType]
-    STRUCT_TYPE_TEXT_CELL: _ClassVar[StructType]
     STRUCT_TYPE_CODE: _ClassVar[StructType]
     STRUCT_TYPE_PATH: _ClassVar[StructType]
     STRUCT_TYPE_PATH_ELEMENT: _ClassVar[StructType]
@@ -331,8 +328,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_TEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
-    OBJECT_TYPE_TEXT_TABLE: _ClassVar[ObjectType]
-    OBJECT_TYPE_TEXT_CELL: _ClassVar[ObjectType]
     OBJECT_TYPE_CODE: _ClassVar[ObjectType]
     OBJECT_TYPE_PATH: _ClassVar[ObjectType]
     OBJECT_TYPE_PATH_ELEMENT: _ClassVar[ObjectType]
@@ -438,8 +433,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TEXT: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_LINE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_TABLE: _ClassVar[BenchType]
-    BENCH_TYPE_TEXT_CELL: _ClassVar[BenchType]
     BENCH_TYPE_CODE: _ClassVar[BenchType]
     BENCH_TYPE_PATH: _ClassVar[BenchType]
     BENCH_TYPE_PATH_ELEMENT: _ClassVar[BenchType]
@@ -559,7 +552,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_MODEL_FAMILY: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
     BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_CODE_LANGUAGE: _ClassVar[BenchType]
     BENCH_TYPE_ACTION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PORT_SIDE: _ClassVar[BenchType]
     BENCH_TYPE_LINK_TYPE: _ClassVar[BenchType]
@@ -1036,8 +1028,6 @@ class BlockType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCK_TYPE_LIST_UNORDERED: _ClassVar[BlockType]
     BLOCK_TYPE_LIST_ORDERED: _ClassVar[BlockType]
     BLOCK_TYPE_DIVIDER: _ClassVar[BlockType]
-    BLOCK_TYPE_TABLE: _ClassVar[BlockType]
-    BLOCK_TYPE_TABLE_ROW: _ClassVar[BlockType]
     BLOCK_TYPE_CODE: _ClassVar[BlockType]
 
 class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1091,8 +1081,6 @@ class TextLineType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TEXT_LINE_TYPE_LIST_UNORDERED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_LIST_ORDERED: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_DIVIDER: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_TABLE: _ClassVar[TextLineType]
-    TEXT_LINE_TYPE_TABLE_ROW: _ClassVar[TextLineType]
     TEXT_LINE_TYPE_CODE: _ClassVar[TextLineType]
 
 class TextSpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -1302,7 +1290,7 @@ class SpanType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SPAN_TYPE_WAIT: _ClassVar[SpanType]
     SPAN_TYPE_ACQUIRE: _ClassVar[SpanType]
     SPAN_TYPE_CODE: _ClassVar[SpanType]
-    SPAN_TYPE_FLOW_PLAN: _ClassVar[SpanType]
+    SPAN_TYPE_FLOW_THINK: _ClassVar[SpanType]
     SPAN_TYPE_MODEL_PREPARE: _ClassVar[SpanType]
     SPAN_TYPE_MODEL_GENERATE: _ClassVar[SpanType]
     SPAN_TYPE_MODEL_PARSE: _ClassVar[SpanType]
@@ -1559,11 +1547,6 @@ class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CODE_TYPE_SNIPPET: _ClassVar[CodeType]
     CODE_TYPE_SCRIPT: _ClassVar[CodeType]
     CODE_TYPE_FUNCTION: _ClassVar[CodeType]
-
-class CodeLanguage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    CODE_LANGUAGE_UNSPECIFIED: _ClassVar[CodeLanguage]
-    CODE_LANGUAGE_PYTHON: _ClassVar[CodeLanguage]
 
 class ActionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2023,7 +2006,6 @@ ENUM_TYPE_MODEL_TYPE: EnumType
 ENUM_TYPE_MODEL_FAMILY: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_CODE_TYPE: EnumType
-ENUM_TYPE_CODE_LANGUAGE: EnumType
 ENUM_TYPE_ACTION_TYPE: EnumType
 ENUM_TYPE_PORT_SIDE: EnumType
 ENUM_TYPE_LINK_TYPE: EnumType
@@ -2127,8 +2109,6 @@ STRUCT_TYPE_SCHEDULE: StructType
 STRUCT_TYPE_TEXT: StructType
 STRUCT_TYPE_TEXT_LINE: StructType
 STRUCT_TYPE_TEXT_SPAN: StructType
-STRUCT_TYPE_TEXT_TABLE: StructType
-STRUCT_TYPE_TEXT_CELL: StructType
 STRUCT_TYPE_CODE: StructType
 STRUCT_TYPE_PATH: StructType
 STRUCT_TYPE_PATH_ELEMENT: StructType
@@ -2231,8 +2211,6 @@ OBJECT_TYPE_SCHEDULE: ObjectType
 OBJECT_TYPE_TEXT: ObjectType
 OBJECT_TYPE_TEXT_LINE: ObjectType
 OBJECT_TYPE_TEXT_SPAN: ObjectType
-OBJECT_TYPE_TEXT_TABLE: ObjectType
-OBJECT_TYPE_TEXT_CELL: ObjectType
 OBJECT_TYPE_CODE: ObjectType
 OBJECT_TYPE_PATH: ObjectType
 OBJECT_TYPE_PATH_ELEMENT: ObjectType
@@ -2335,8 +2313,6 @@ BENCH_TYPE_SCHEDULE: BenchType
 BENCH_TYPE_TEXT: BenchType
 BENCH_TYPE_TEXT_LINE: BenchType
 BENCH_TYPE_TEXT_SPAN: BenchType
-BENCH_TYPE_TEXT_TABLE: BenchType
-BENCH_TYPE_TEXT_CELL: BenchType
 BENCH_TYPE_CODE: BenchType
 BENCH_TYPE_PATH: BenchType
 BENCH_TYPE_PATH_ELEMENT: BenchType
@@ -2456,7 +2432,6 @@ BENCH_TYPE_MODEL_TYPE: BenchType
 BENCH_TYPE_MODEL_FAMILY: BenchType
 BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_CODE_TYPE: BenchType
-BENCH_TYPE_CODE_LANGUAGE: BenchType
 BENCH_TYPE_ACTION_TYPE: BenchType
 BENCH_TYPE_PORT_SIDE: BenchType
 BENCH_TYPE_LINK_TYPE: BenchType
@@ -2822,8 +2797,6 @@ BLOCK_TYPE_QUOTE: BlockType
 BLOCK_TYPE_LIST_UNORDERED: BlockType
 BLOCK_TYPE_LIST_ORDERED: BlockType
 BLOCK_TYPE_DIVIDER: BlockType
-BLOCK_TYPE_TABLE: BlockType
-BLOCK_TYPE_TABLE_ROW: BlockType
 BLOCK_TYPE_CODE: BlockType
 DAY_UNSPECIFIED: Day
 DAY_MONDAY: Day
@@ -2865,8 +2838,6 @@ TEXT_LINE_TYPE_QUOTE: TextLineType
 TEXT_LINE_TYPE_LIST_UNORDERED: TextLineType
 TEXT_LINE_TYPE_LIST_ORDERED: TextLineType
 TEXT_LINE_TYPE_DIVIDER: TextLineType
-TEXT_LINE_TYPE_TABLE: TextLineType
-TEXT_LINE_TYPE_TABLE_ROW: TextLineType
 TEXT_LINE_TYPE_CODE: TextLineType
 TEXT_SPAN_TYPE_UNSPECIFIED: TextSpanType
 TEXT_SPAN_TYPE_TEXT: TextSpanType
@@ -3025,7 +2996,7 @@ SPAN_TYPE_ATTEMPT: SpanType
 SPAN_TYPE_WAIT: SpanType
 SPAN_TYPE_ACQUIRE: SpanType
 SPAN_TYPE_CODE: SpanType
-SPAN_TYPE_FLOW_PLAN: SpanType
+SPAN_TYPE_FLOW_THINK: SpanType
 SPAN_TYPE_MODEL_PREPARE: SpanType
 SPAN_TYPE_MODEL_GENERATE: SpanType
 SPAN_TYPE_MODEL_PARSE: SpanType
@@ -3198,8 +3169,6 @@ CODE_TYPE_UNSPECIFIED: CodeType
 CODE_TYPE_SNIPPET: CodeType
 CODE_TYPE_SCRIPT: CodeType
 CODE_TYPE_FUNCTION: CodeType
-CODE_LANGUAGE_UNSPECIFIED: CodeLanguage
-CODE_LANGUAGE_PYTHON: CodeLanguage
 ACTION_TYPE_UNSPECIFIED: ActionType
 ACTION_TYPE_START: ActionType
 ACTION_TYPE_END: ActionType
@@ -3526,12 +3495,12 @@ class CodeData(_message.Message):
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
-    language: CodeLanguage
+    language: str
     content: str
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., language: _Optional[_Union[CodeLanguage, str]] = ..., content: _Optional[str] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., language: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
 
 class TextSpanData(_message.Message):
-    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+    __slots__ = ("metatype", "type", "content", "node_ptr", "url", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code", "language")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
@@ -3544,6 +3513,7 @@ class TextSpanData(_message.Message):
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
     IS_CODE_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: TextSpanType
     content: str
@@ -3556,56 +3526,15 @@ class TextSpanData(_message.Message):
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
-
-class TextTableData(_message.Message):
-    __slots__ = ("metatype", "lines", "has_row_header", "has_column_header")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    LINES_FIELD_NUMBER: _ClassVar[int]
-    HAS_ROW_HEADER_FIELD_NUMBER: _ClassVar[int]
-    HAS_COLUMN_HEADER_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    lines: _containers.RepeatedCompositeFieldContainer[TextLineData]
-    has_row_header: bool
-    has_column_header: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., lines: _Optional[_Iterable[_Union[TextLineData, _Mapping]]] = ..., has_row_header: bool = ..., has_column_header: bool = ...) -> None: ...
-
-class TextCellData(_message.Message):
-    __slots__ = ("metatype", "spans", "colspan", "rowspan", "alignment", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    SPANS_FIELD_NUMBER: _ClassVar[int]
-    COLSPAN_FIELD_NUMBER: _ClassVar[int]
-    ROWSPAN_FIELD_NUMBER: _ClassVar[int]
-    ALIGNMENT_FIELD_NUMBER: _ClassVar[int]
-    COLOR_FIELD_NUMBER: _ClassVar[int]
-    BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
-    IS_BOLD_FIELD_NUMBER: _ClassVar[int]
-    IS_ITALIC_FIELD_NUMBER: _ClassVar[int]
-    IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
-    IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
-    IS_CODE_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
-    colspan: int
-    rowspan: int
-    alignment: Alignment
-    color: ColorType
-    background_color: ColorType
-    is_bold: bool
-    is_italic: bool
-    is_strikethrough: bool
-    is_underline: bool
-    is_code: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., colspan: _Optional[int] = ..., rowspan: _Optional[int] = ..., alignment: _Optional[_Union[Alignment, str]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
+    language: str
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextSpanType, str]] = ..., content: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., url: _Optional[str] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ..., language: _Optional[str] = ...) -> None: ...
 
 class TextLineData(_message.Message):
-    __slots__ = ("metatype", "type", "spans", "content", "table", "cells", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+    __slots__ = ("metatype", "type", "spans", "content", "color", "background_color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code", "language")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     SPANS_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
-    TABLE_FIELD_NUMBER: _ClassVar[int]
-    CELLS_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     BACKGROUND_COLOR_FIELD_NUMBER: _ClassVar[int]
     IS_BOLD_FIELD_NUMBER: _ClassVar[int]
@@ -3613,12 +3542,11 @@ class TextLineData(_message.Message):
     IS_STRIKETHROUGH_FIELD_NUMBER: _ClassVar[int]
     IS_UNDERLINE_FIELD_NUMBER: _ClassVar[int]
     IS_CODE_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: TextLineType
     spans: _containers.RepeatedCompositeFieldContainer[TextSpanData]
     content: str
-    table: TextTableData
-    cells: _containers.RepeatedCompositeFieldContainer[TextCellData]
     color: ColorType
     background_color: ColorType
     is_bold: bool
@@ -3626,7 +3554,8 @@ class TextLineData(_message.Message):
     is_strikethrough: bool
     is_underline: bool
     is_code: bool
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., table: _Optional[_Union[TextTableData, _Mapping]] = ..., cells: _Optional[_Iterable[_Union[TextCellData, _Mapping]]] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ...) -> None: ...
+    language: str
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[TextLineType, str]] = ..., spans: _Optional[_Iterable[_Union[TextSpanData, _Mapping]]] = ..., content: _Optional[str] = ..., color: _Optional[_Union[ColorType, str]] = ..., background_color: _Optional[_Union[ColorType, str]] = ..., is_bold: bool = ..., is_italic: bool = ..., is_strikethrough: bool = ..., is_underline: bool = ..., is_code: bool = ..., language: _Optional[str] = ...) -> None: ...
 
 class TextData(_message.Message):
     __slots__ = ("metatype", "lines")
