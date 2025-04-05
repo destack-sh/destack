@@ -223,6 +223,7 @@ class ThreadPiece(NodePiece):
 @piece_(NodeType.MESSAGE)
 class MessagePiece(NodePiece):
     pass
+    # nocheckin: file
 
 
 @piece_(NodeType.PAGE)

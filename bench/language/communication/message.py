@@ -233,6 +233,7 @@ class Message(
         platform: MessagePlatform = MessagePlatform.BENCH,
         scope: Optional["InlineNode"] = None,
         reply_to: Optional["Message"] = None,
+        nodes: list["Node"] | None = None,
     ) -> "Message":
         message = Message(
             type=MessageType.REGULAR,
@@ -241,6 +242,8 @@ class Message(
             text=text,
             reply_to=reply_to,
         )
+        if nodes is not None:
+            message.nodes = nodes
         if scope is not None:
             message.scope = scope
         return message

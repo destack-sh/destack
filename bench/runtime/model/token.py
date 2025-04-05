@@ -35,4 +35,5 @@ class StupidTokenizer(Tokenizer):
         return 1000
 
 
-TiktokenTokenizer = StupidTokenizer  # nocheckin
+# TODO :Performance: implement TiktokenTokenizer
+TiktokenTokenizer = StupidTokenizer
