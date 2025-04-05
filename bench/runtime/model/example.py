@@ -15,8 +15,10 @@ from bench.language import (
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
     REGION,
+    Agent,
     Bench,
     BenchStatus,
+    File,
     Message,
     NodeGraph,
     NodeReference,
@@ -33,6 +35,7 @@ from bench.language import (
     _is_setup_complete,
     text,
     text_line,
+    to_icon,
 )
 from bench.utils.oracle import REAL_ORACLE
 
@@ -48,7 +51,7 @@ from .piece import (
 from .prompt import Prompt
 from .token import Tokenizer
 
-# ruff: noqa: F401,B018
+# ruff: noqa: F401,B018,N803
 # pyright: reportUnusedExpression=false
 
 logger = structlog.get_logger(__name__)
@@ -164,16 +167,17 @@ def example_(example_type: ExampleType, title: str):
 
 
 @example_(ExampleType.SNIPPET, title="Reply to a Message directly")
-def example_reply_to_message_1(Thread1: Thread, Message1: Message):  # noqa: N803
+def example_reply_to_message_1(Thread1: Thread, Message1: Message):
     # reply to specific message
     Reply1 = Message.new(text=text("yeah, I'll get right on this"), reply_to=Message1)
     Thread1.append(Reply1)
 
 
 @example_(ExampleType.SNIPPET, title="Reply to a Message indirectly, title is missing")
-def example_reply_to_message_2(Thread1: Thread, Message1: Message):  # noqa: N803
+def example_reply_to_message_2(Thread1: Thread, Message1: Message):
     # continue conversation
     Thread1.title = text_line("The Solar System")  # title was missing
+    Thread1.icon = to_icon("☀️")  # there's an appropriate icon we could use
     Reply1 = Message.new(
         text=text("The distance from Earth to the moon is **about 384,400 km** (238,855 miles)."),
     )
@@ -181,8 +185,10 @@ def example_reply_to_message_2(Thread1: Thread, Message1: Message):  # noqa: N80
 
 
 @example_(ExampleType.SNIPPET, title="Reply to a Message with code")
-def example_reply_to_message_3(Thread1: Thread, Message1: Message):  # noqa: N803
+def example_reply_to_message_3(Thread1: Thread, Message1: Message):
     # reply to specific message
+    Thread1.title = text_line("Rust Basics")
+    Thread1.icon = to_icon("🦀")
     Reply1 = Message.new(
         text=text("""\
 A simple Hello World in Rust would look like this:
@@ -193,5 +199,32 @@ fn main() {
 }
 ```
 """),
+    )
+    Thread1.append(Reply1)
+
+
+@example_(ExampleType.SNIPPET, title="Don't do anything if not needed")
+def example_reply_to_message_4(Thread1: Thread, Message1: Message):
+    # ignore, isn't related to me and wasn't asked
+    pass
+
+
+@example_(ExampleType.SNIPPET, title="Mention specific things")
+def example_mention_specific_things(
+    Thread1: Thread,
+    Agent7: Agent,
+    User2: User,
+    File1: File,
+):
+    # tag the relevant agent, and mention the specific file
+    Reply1 = Message.new(
+        text=text(
+            """\
+yup [@Agent2], please look at the file I was talking about: [@File1]
+(cc [@User2])
+""",
+            {"Agent2": Agent7, "File1": File1, "User2": User2},
+        ),
+        nodes=[File1],  # the main content nodes only
     )
     Thread1.append(Reply1)

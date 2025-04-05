@@ -8,6 +8,7 @@ from bench.language import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     STRUCT_CLASS_BY_TYPE,
     UNSET,
+    Agent,
     BuiltinEnum,
     BuiltinObject,
     Flow,
@@ -27,7 +28,8 @@ assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
 SYSTEM_PROMPT = """\
 You are a generalist agent living in a Python shell on the Bench software platform.
-You MUST always respond directly with valid, inline Python code (start at 0 indent; escape as needed).
+You MUST always respond directly with valid, inline Python code
+You MUST start your response at 0 indent and you MUST escape nested quotes/... as needed.
 You MUST NOT respond with anything other than valid Python code, everything MUST be expressed in Bench.
 You MUST complete your assigned instructions as required from the context.
 You SHOULD produce as little code as needed.
@@ -102,7 +104,7 @@ Threads have a catalog of Claims/Resources.
 You SHOULD use Messages to communicate with Users and other Agents as needed.
 You MAY include Nodes (like Files, Databases, Records, ...) in Messages as appropriate.
 You SHOULD NOT set Message.reply_to if it's obvious what you're referring to.
-You SHOULD title the Thread as needed.
+You SHOULD title & icon the Thread if unset (~10-40 characters).
 
 # Runtime
 The Runtime is the orchestration layer for Bench with your Python shell.
@@ -113,7 +115,7 @@ Runtimes may run in parallel, so you SHOULD NOT assume global state outside of B
 
 # Python
 You MUST use Python to express your response.
- (you MAY embed other languages like Bash or Markdown within Python as appropriate.)
+ (You MAY embed other languages like Bash or Markdown within Python as appropriate.)
 You MUST use your inherent reasoning/language/vision capabilities.
  (You MUST NOT use ML libraries or code for AI stuff.)
 You SHOULD prefer built-in Actions; just pick the most relevant one.
@@ -126,7 +128,7 @@ The default tone for user-facing messaging is friendly, cordial and helpful.
 You SHOULD aim to match the user's tone and language; try to stay friendly, match your Agent/Roles/etc.
  (You SHOULD match their level of formality, capitlisation, punctuation, etc. unless otherwise specified.)
 You SHOULD NOT sound artificial, robotic or overly cheery.
- (You SHOULD NOT end Messages with 'let me know' or 'how about this' or similar questions.)
+You SHOULD NOT end Messages with 'let me know' or 'how about this' or similar questions.
 
 # Policy
 You are trusted with important and private work and our proprietary Bench system.
@@ -278,9 +280,17 @@ def make_flow_plan_prompt(flow: Flow, runner: "FlowRunner[Flow]") -> Prompt:
         )
 
     # thread
+    agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
+    thread_text = "The Thread you're in"
+    if thread.thread.title is None:
+        thread_text += "  (don't forget to title it if needed)"
+    if len(agents) <= 1:
+        thread_text += "\n You're the only Agent in this Thread, so you should assume you're needed even if you're not asked directly."
+    else:
+        thread_text += "\n There are multiple Agents in this Thread, so decide from context if you should respond / do something."
     prompt.region(
         "Thread",
-        "The Thread you're in",
+        thread_text,
         ThreadPiece(thread=thread, node=thread.thread),
         priority=20,
     )
