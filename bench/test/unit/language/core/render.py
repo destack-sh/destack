@@ -5,15 +5,14 @@ import textwrap
 from typing import Any, Callable, Mapping, assert_never, cast
 from uuid import UUID
 
+import pytest
+
 from bench.language import (
     Action,
     ActionType,
     Aliasing,
-    Application,
-    ApplicationType,
     BuiltinObject,
     Choice,
-    Claim,
     Class,
     ComputedValue,
     ComputedValueMode,
@@ -21,6 +20,7 @@ from bench.language import (
     Field,
     Flow,
     LinkType,
+    Message,
     Node,
     NodeMode,
     NodeReference,
@@ -34,10 +34,12 @@ from bench.language import (
     Run,
     Session,
     Trigger,
+    code,
     constraint,
     format_code,
     path,
     render_expression,
+    text,
     text_line,
     to_type,
 )
@@ -163,21 +165,51 @@ def test_render_bad_names(session: Session, package: Package):
     }
 
 
+# NOTE :Broken: the multi-line string tests don't work well because of :BadCodeFormatting
+#  (we should be using ruff to format the code but it doesn't have a python API yet)
+
+
+@pytest.mark.skip(reason=":BadCodeFormatting")
+@_render_test
+def test_render_text(session: Session, package: Package):
+    """Text should be rendered inline :BadCodeFormatting."""
+    Text1 = text("Hello, world!")
+    Text2 = text("Hey, we can do `code` and **bold**!")
+    Text3 = text("""\
+This is a multi-line text.
+We can also include **Markdown** inside multiline text.
+""")
+    Message1 = Message.new(
+        text=text("""\
+Yeah, this is a long answer.
+                                     
+# Heading 1
+## Heading 2
+...
+""")
+    )
+    return {"Text1": Text1, "Text2": Text2, "Text3": Text3, "Message1": Message1}
+
+
+@pytest.mark.skip(reason=":BadCodeFormatting")
+@_render_test
+def test_render_code(session: Session, package: Package):
+    """Code should be rendered inline :BadCodeFormatting."""
+    Code1 = code("print('Hello, world!')")
+    Code2 = code("""\
+def hello_world():
+    print("Hello, world!")
+""")
+    return {"Code1": Code1, "Code2": Code2}
+
+
 @_render_test
 def test_render_node_mode(session: Session, package: Package):
     """Node mode should be rendered inline."""
     Page1 = Page.new(text_line("Page1"))
     Page2 = Page.new(text_line("Page2"), mode=NodeMode.ARCHIVE)
     Page3 = Page.new(text_line("Page3"), mode=NodeMode.TEST)
-    Browser1 = Application.new(ApplicationType.CHROME_BROWSER, "Browser1", mode=NodeMode.TEMPLATE)
-    Flow1 = Flow.new("Flow1", claims=[Claim.exclusive("Claim1", Browser1, mode=NodeMode.TEMPLATE)])
-    return {
-        "Page1": Page1,
-        "Page2": Page2,
-        "Page3": Page3,
-        "Browser1": Browser1,
-        "Flow1": Flow1,
-    }
+    return {"Page1": Page1, "Page2": Page2, "Page3": Page3}
 
 
 @_render_test
@@ -207,7 +239,7 @@ def test_render_path(session: Session, package: Package):
 
 
 @_render_test
-def test_render_choice_block(session: Session, package: Package):
+def test_render_choice(session: Session, package: Package):
     """Options should be rendered inline."""
     ShapeType = Choice.new(
         "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
@@ -216,7 +248,7 @@ def test_render_choice_block(session: Session, package: Package):
 
 
 @_render_test
-def test_render_message_block(session: Session, package: Package):
+def test_render_class(session: Session, package: Package):
     """Message types should be rendered inline."""
     ShapeType = Choice.new(
         "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")

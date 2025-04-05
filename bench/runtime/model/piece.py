@@ -159,6 +159,7 @@ class RegionPiece(CompoundPiece):
     text: str | None = None
     pieces: Sequence[Piece] = raise_if_none()
     omit_piece: Piece | None = None
+    insert_breaks: bool = True
 
     @override
     def compile(
@@ -170,12 +171,16 @@ class RegionPiece(CompoundPiece):
         if self.text is not None:
             yield TextPiece(text=self.text)
         yield SeparatorPiece()
-        for piece in self.pieces:
+        if self.insert_breaks:
+            yield BreakPiece()
+        for i, piece in enumerate(self.pieces):
             remaining_tokens = yield piece
             if remaining_tokens < 10:
                 if self.omit_piece is not None:
                     yield self.omit_piece
                 break
+            if self.insert_breaks:
+                yield BreakPiece()
         yield SeparatorPiece()
         yield BreakPiece()
 

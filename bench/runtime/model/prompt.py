@@ -75,8 +75,23 @@ class Prompt:
     def header(self, text: str, priority: int = 1) -> None:
         self.pieces.append(HeaderPiece(text=text, priority=priority))
 
-    def region(self, title: str, text: str | None, *pieces: Piece, priority: int = 1) -> None:
-        self.pieces.append(RegionPiece(title=title, text=text, pieces=pieces, priority=priority))
+    def region(
+        self,
+        title: str,
+        text: str | None,
+        *pieces: Piece,
+        priority: int = 1,
+        insert_breaks: bool = True,
+    ) -> None:
+        self.pieces.append(
+            RegionPiece(
+                title=title,
+                text=text,
+                pieces=pieces,
+                priority=priority,
+                insert_breaks=insert_breaks,
+            )
+        )
 
     def break_(self) -> None:
         self.pieces.append(BreakPiece())

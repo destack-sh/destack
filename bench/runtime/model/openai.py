@@ -42,7 +42,7 @@ OPENAI_DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
 class OpenAIChatModelRunner(ChatModelRunner):
     """Compile a Prompt into OpenAI chat messages."""
 
-    BREAK = "\n\n"
+    BREAK = "\n"
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
@@ -126,4 +126,4 @@ class OpenAIChatModelRunner(ChatModelRunner):
         completion_text = completion.choices[0].message.content
         if completion_text:
             completion_text = strip_code_completion(completion_text)
-        return Code.from_string(completion_text or "pass")
+        return Code.from_string(completion_text or "pass", language="python")

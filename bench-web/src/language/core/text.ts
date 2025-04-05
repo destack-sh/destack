@@ -51,7 +51,7 @@ export function trimText(text: TextData): TextData {
 }
 
 /** Gets up to maxLines lines of text joined together. */
-export function renderText(text: TextData, maxLines: number | null = null): string | undefined {
+export function renderText(text: TextData, maxLines: number | null = null, join: string = " "): string | undefined {
   const lines: string[] = [];
   for (const line of text.lines) {
     if (line.content != null) {
@@ -61,7 +61,7 @@ export function renderText(text: TextData, maxLines: number | null = null): stri
       if (maxLines != null && lines.length >= maxLines) break;
     }
   }
-  const line = lines.join(" ");
+  const line = lines.join(join);
   if (line.length == 0) return undefined;
   return line;
 }
