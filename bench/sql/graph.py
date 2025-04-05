@@ -10,7 +10,6 @@ from typing import (
     Sequence,
     assert_never,
     cast,
-    override,
 )
 from uuid import UUID
 
@@ -101,7 +100,6 @@ from bench.utils.time import timedelta_from_isoformat
 from bench.utils.uuidt import UUIDT
 
 from . import schema
-from .client import GLOBAL_PG_CRYPTO_KEY
 from .core import (
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
@@ -166,18 +164,6 @@ class BenchSqlContext(SqlContext):
 
     bench: Bench
 
-    @override
-    def get_crypto_key(self, obj: Table | Column) -> str | None:
-        table = obj.table
-        node_type = BUILTIN_NODE_BY_TABLE_NAME.get(table.name)
-        if node_type is None:
-            return None
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
-        if node_cls.__is_in_package__:
-            return self.bench.encryption_key
-        else:
-            return GLOBAL_PG_CRYPTO_KEY
-
 
 #
 # Mapping
@@ -214,12 +200,12 @@ def map_builtin_object_to_table(
         if not prop.is_stored:
             continue
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
+        assert not prop.is_encrypted, f"encryption not supported: {prop!r}"  # :EncryptedSecrets
         column = Column(
             name=prop.name,
             type=prop.primitive_type,
             is_array=prop.is_list,
             is_nullable=not prop.is_required,
-            is_encrypted=prop.is_encrypted,
             is_primary_key=prop.name == "id",
             is_unique=prop.is_unique,
         )

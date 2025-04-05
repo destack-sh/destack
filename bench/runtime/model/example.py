@@ -100,7 +100,6 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
             name="Example",
             slug="example",
             region=REGION,
-            encryption_key="lol",
             status=BenchStatus.ACTIVATED,
             created_at=now,
             updated_at=now,

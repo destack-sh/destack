@@ -19,6 +19,7 @@ from .core import (
     Table,
 )
 from .engine import (
+    NullContext,
     RowIn,
     SqlAlreadyExistsError,
     SqlConnectionError,
@@ -27,7 +28,6 @@ from .engine import (
     SqlNotExistsError,
     SqlUndefinedObjectError,
     SqlViolationError,
-    StaticContext,
     pg_delete,
     pg_insert,
     pg_select,
@@ -121,6 +121,7 @@ __all__ = [
     "MigrationFile",
     "MigrationOp",
     "MigrationOpType",
+    "NullContext",
     "Object",
     "ObjectKind",
     "PostgresColumnType",
@@ -135,7 +136,6 @@ __all__ = [
     "SqlNotExistsError",
     "SqlUndefinedObjectError",
     "SqlViolationError",
-    "StaticContext",
     "Table",
     "_build_sql_schema",
     "add_migration_to_fs",

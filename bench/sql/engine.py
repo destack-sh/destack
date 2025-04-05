@@ -9,7 +9,6 @@ from typing import (
     Mapping,
     Sequence,
     cast,
-    override,
 )
 from uuid import UUID
 
@@ -19,13 +18,11 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import EMPTY_DICT, TRACING, BenchError, Database, NodeType, PrimitiveType
+from bench.language import TRACING, BenchError, Database, NodeType, PrimitiveType
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 
-from .client import GLOBAL_PG_CRYPTO_KEY
 from .core import (
-    PG_CAST_PRIMITIVE_TYPE,
     Column,
     PostgresConditionalOp,
     PostgresJoinOp,
@@ -41,21 +38,13 @@ tracer = trace.get_tracer(__name__)
 
 
 class SqlContext:
-    def get_crypto_key(self, obj: "Table | Column") -> str | None:
-        return GLOBAL_PG_CRYPTO_KEY
-
     def get_custom_table(self, database: "UUID | Database") -> tuple[Table, Database]:
         raise NotImplementedError("context does not support custom tables")
 
 
 @dataclass(slots=True)
-class StaticContext(SqlContext):
-    crypto_key: str | None = None
-
-    @override
-    def get_crypto_key(self, obj: "Table | Column") -> str | None:
-        """Gets the crypto key for the given table."""
-        return self.crypto_key
+class NullContext(SqlContext):
+    pass
 
 
 def _trace_pg_span[F: Callable](func: F) -> F:
@@ -289,51 +278,10 @@ async def _pg_executemany(
 
 
 def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
-    if column.is_encrypted:
-        # convert and decrypt
-        assert not column.is_array, f"cannot encrypt array column: {column!r}"
-        if not isinstance(value, sql.Composable) and column._unencrypted_type == PrimitiveType.JSON:
-            value = Jsonb(value)  # adapt json
-        # first to bytea
-        if column._unencrypted_type == PrimitiveType.BYTES:
-            value = sqlstr("{}::bytea").format(value)
-        elif column._unencrypted_type in (PrimitiveType.STRING, PrimitiveType.JSON):
-            value = sqlstr("convert_to({}::text, 'UTF8')").format(value)
-        else:
-            pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
-            value = sqlstr("{}::{}::text::bytea").format(value, sqlstr(pg_cast))
-        # then encrypt
-        value = sqlstr("pgp_sym_encrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-            sql_node_to_sql(value)
-        )
-
     return value
 
 
 def _pg_wrap_read_column(ctx: SqlContext, column: Column, value: SqlNode) -> SqlNode:
-    if column.is_encrypted:
-        # decrypt and convert
-        assert not column.is_array, f"cannot encrypt array column: {column!r}"
-        original = value
-        # first decrypt with
-        value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-            sql_node_to_sql(value), sql.Literal(ctx.get_crypto_key(column))
-        )
-        # then convert from bytea to the correct type
-        if column._unencrypted_type == PrimitiveType.BYTES:
-            value = sqlstr("{}::bytea").format(value)
-        else:
-            pg_cast = PG_CAST_PRIMITIVE_TYPE[cast(PrimitiveType, column._unencrypted_type)]
-            value = sqlstr("convert_from({}::bytea, 'UTF8')::text::{}").format(
-                value, sqlstr(pg_cast)
-            )
-        # and bail if original value is null
-        value = sqlstr("(CASE WHEN {} IS NULL THEN NULL ELSE {} END)").format(
-            sql_node_to_sql(original), value
-        )
-        # and label column
-        value = sqlstr("{} as {}").format(value, sqlident(column.name))
-
     return value
 
 
@@ -346,7 +294,7 @@ def _pg_adapt_row(table: Table, row: Mapping[str, Any]) -> Mapping[str, Any]:
         value = row.get(column.name)
         if value is None:
             pass
-        elif column.underlying_type == PrimitiveType.JSON:
+        elif column.type == PrimitiveType.JSON:
             value = [Jsonb(v) for v in value] if column.is_array else Jsonb(value)
         wrapped[column.name] = value
     return wrapped
@@ -416,8 +364,6 @@ async def pg_select(
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.select", table=table, cur=cur, query=query_str, span="current")
-    if any(c.is_encrypted for c in columns):
-        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": ctx.get_crypto_key(table)}
     try:
         await _pg_execute(cur, statement, params)
         rows = await cur.fetchall()
@@ -504,13 +450,10 @@ async def pg_insert(
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.insert", table=table, cur=cur, query=query_str, span="current")
 
-    is_encrypted = any(c.is_encrypted for c in table.columns)
     columns = table.columns
     templated_values = []
     for row in rows:
         row = {**row}
-        if is_encrypted:
-            row["PG_CRYPTO_KEY"] = ctx.get_crypto_key(table)
         for column in columns:
             if column.name not in row:
                 row[column.name] = None  # ensure all columns are set
@@ -570,12 +513,7 @@ async def pg_upsert(
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace("postgres.upsert", table=table, cur=cur, query=query_str, span="current")
 
-    if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple(
-            {**row, "PG_CRYPTO_KEY": ctx.get_crypto_key(table)} for row in rows
-        )
-    else:
-        templated_values = rows
+    templated_values = rows
     try:
         await _pg_executemany(cur, statement, templated_values)
     except psycopg.errors.Error as e:
@@ -612,10 +550,7 @@ async def pg_update_static(
     trace.get_current_span().set_attribute("sql_query", query)
     logger.trace("postgres.update_constant", table=table, cur=cur, query=query)
 
-    if any(c.is_encrypted for c in table.columns):
-        template_values = {**static_value, "PG_CRYPTO_KEY": ctx.get_crypto_key(table)}
-    else:
-        template_values = static_value
+    template_values = static_value
     try:
         await _pg_execute(cur, statement, template_values)
     except psycopg.errors.Error as e:
@@ -675,16 +610,12 @@ async def pg_update_variable(
         rows=len(dynamic_values),
     )
 
-    is_any_encrypted = any(c.is_encrypted for c in table.columns)
-    pg_crypto_key = ctx.get_crypto_key(table)
     templated_values: list[RowIn] = []
     for row in dynamic_values:
         pk = row.get(table._primary_key.name)
         if not pk:
             raise ValueError(f"missing primary key {table._primary_key!r} in row {row!r}")
         templated_value = {**row, "pk": pk}
-        if is_any_encrypted:
-            templated_value["PG_CRYPTO_KEY"] = pg_crypto_key
         for column in dynamic_columns:
             row_has_column = column.name in row
             templated_value[f"__{column.name}_set"] = row_has_column

@@ -49,6 +49,20 @@ services:
       - '6379:6379'
     command: redis-server --appendonly yes --requirepass bench
 
+  vault:
+    image: hashicorp/vault:latest
+    restart: on-failure
+    ports:
+      - '8200:8200'
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: 'bench-dev-token'
+      VAULT_DEV_LISTEN_ADDRESS: '0.0.0.0:8200'
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault_data:/vault/data
+    command: server -dev
+
   envoy:
     image: envoyproxy/envoy:v1.28-latest
     restart: on-failure
@@ -75,3 +89,4 @@ volumes:
   postgres_data:
   minio_data:
   redis_data:
+  vault_data:

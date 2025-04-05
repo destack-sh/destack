@@ -18,13 +18,13 @@ from bench.language import (
     NodeType,
     User,
 )
-from bench.utils.env import IS_DEV
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-PASSWORD_MIN_LENGTH = 8  # characters
+PASSWORD_MIN_LENGTH = 4 if IS_TEST else 8  # characters
 PASSWORD_MAX_LENGTH = 128  # characters
 SALT_LENGTH = 16  # bytes
 SCRYPT_N = 2**15  # iterations count
@@ -40,7 +40,7 @@ def hash_password(password: str, salt: bytes) -> bytes:
     from hashlib import scrypt
 
     assert len(salt) == SALT_LENGTH, f"invalid salt length: {len(salt)} != {SALT_LENGTH}"
-    if PASSWORD_MIN_LENGTH < len(password) > PASSWORD_MAX_LENGTH:
+    if not (PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH):
         raise ValueError(
             f"password length ({len(password)}) is not in [{PASSWORD_MIN_LENGTH}, {PASSWORD_MAX_LENGTH}]"
         )

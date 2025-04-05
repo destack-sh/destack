@@ -18,16 +18,14 @@ if TYPE_CHECKING:
 @dataclass
 class StoreInfo:
     pg_url: str
-    pg_crypto_key: str
 
     def render(self) -> str:
-        return f"{self.pg_url}|{self.pg_crypto_key}"
+        return self.pg_url
 
     @staticmethod
     def parse(region_url: str) -> "StoreInfo":
-        """Parses a region URL like 'postgresql://user:pass@host/db|crypto_key'."""
-        pg_url, crypto_key = region_url.split("|", maxsplit=1)
-        return StoreInfo(pg_url=pg_url, pg_crypto_key=crypto_key)
+        """Parses a region URL like 'postgresql://user:pass@host/db'."""
+        return StoreInfo(pg_url=region_url)
 
 
 class StoreMap:
@@ -68,7 +66,7 @@ class StoreMap:
             from bench.system.core import make_system_store
 
             store_info = self.get_info(region)
-            store = make_system_store(region, store_info.pg_url, store_info.pg_crypto_key)
+            store = make_system_store(region, store_info.pg_url)
             self._store_by_region[region] = store
         return store
 
@@ -76,8 +74,8 @@ class StoreMap:
 def store_map_from_string(region_map_str: str) -> "StoreMap":
     """
     Parses a region map string like:
-        '*=postgresql://user:pass@host/db|crypto_key'
-        'ZURICH=postgresql://user:pass@host/db|key;FRANKFURT=postgresql://user:pass@host/db|key'
+        '*=postgresql://user:pass@host/db'
+        'ZURICH=postgresql://user:pass@host/db;FRANKFURT=postgresql://user:pass@host/db'
     """
     store_map = {}
     for mapping_str in region_map_str.split(";"):

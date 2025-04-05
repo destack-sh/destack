@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.05.0"
+VERSION = "2025.04.05.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -553,7 +553,6 @@ class NodeType(BuiltinEnum):
     # data
     FILE = 2200, None, None, "fas fa-file"
     STREAM = 2210, None, None, "fas fa-stream"
-    SECRET = 2220, None, None, "fas fa-key"
     # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
 
     # finance

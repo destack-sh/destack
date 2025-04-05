@@ -20,7 +20,6 @@ from .file import (
     upload_file_batch,
 )
 from .scaler import Scaler, ScalerStrategy, ScalerType
-from .secret import Secret
 from .store import Store
 from .stream import Stream
 
@@ -44,7 +43,6 @@ __all__ = [
     "Scaler",
     "ScalerStrategy",
     "ScalerType",
-    "Secret",
     "Store",
     "Stream",
     "detect_file_format",

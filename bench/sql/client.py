@@ -20,8 +20,7 @@ tracer = trace.get_tracer(__name__)
 #  (what we're doing should be fine according to docs _and_ according to the warning)
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 
-GLOBAL_PG = get_from_env("GLOBAL_PG", description="Global Postgres connection string")
-GLOBAL_PR_URL, GLOBAL_PG_CRYPTO_KEY = GLOBAL_PG.split("|", maxsplit=1)
+GLOBAL_PG_URL = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
 PG_MAX_IDLE_TIMEOUT = get_from_env(
     "PG_MAX_IDLE_TIMEOUT",
     typ=int,

@@ -123,10 +123,7 @@ async def shell(
         session.parent = bench_node  # patch in bench for pg context
         session._default_scope = GraphScope(bench_id=bench_node.id)._to_data()
         main_package = await (
-            Package.include_ancestors(Bench)
-            .include_descendants(*SOURCE_NODE_TYPES)
-            .select_all()
-            .deselect(Bench.encryption_key)
+            Package.include_ancestors(Bench).include_descendants(*SOURCE_NODE_TYPES).select_all()
         ).get(bench_node.main_package_ptr, mode="both")
         # reload User in session
         session.user = await User.get(id=user_node.id)
