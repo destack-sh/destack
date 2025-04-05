@@ -171,9 +171,10 @@ def example_reply_to_message_1(Thread1: Thread, Message1: Message):  # noqa: N80
     Thread1.append(Reply1)
 
 
-@example_(ExampleType.SNIPPET, title="Reply to a Message indirectly")
+@example_(ExampleType.SNIPPET, title="Reply to a Message indirectly, title is missing")
 def example_reply_to_message_2(Thread1: Thread, Message1: Message):  # noqa: N803
     # continue conversation
+    Thread1.title = text_line("The Solar System")  # title was missing
     Reply1 = Message.new(
         text=text("The distance from Earth to the moon is **about 384,400 km** (238,855 miles)."),
     )
@@ -184,7 +185,7 @@ def example_reply_to_message_2(Thread1: Thread, Message1: Message):  # noqa: N80
 def example_reply_to_message_3(Thread1: Thread, Message1: Message):  # noqa: N803
     # reply to specific message
     Reply1 = Message.new(
-        text=text("""
+        text=text("""\
 A simple Hello World in Rust would look like this:
 
 ```rust
@@ -195,12 +196,3 @@ fn main() {
 """),
     )
     Thread1.append(Reply1)
-
-
-@example_(ExampleType.SNIPPET, title="Title the Thread")
-def example_title_thread(Thread1: Thread):  # noqa: N803
-    # thread title is missing or no longer appropriate
-    Thread1.title = text_line("The Solar System")
-
-
-...  # nocheckin: examples

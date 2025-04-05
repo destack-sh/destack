@@ -1041,14 +1041,22 @@ class TextLineRenderer(BuiltinObjectRenderer[TextLine]):
 class TextRenderer(BuiltinObjectRenderer[Text]):
     @override
     def render(self, renderer: "Renderer", obj: Text) -> str:
-        return f"text({text_to_markdown(obj, renderer.aliasing)!r})"
+        rendered_string = text_to_markdown(obj, renderer.aliasing)
+        if "\n" in rendered_string:
+            return f'text("""\\\n{rendered_string}\n""")'
+        else:
+            return f"text({rendered_string!r})"
 
 
 @_renderer(StructType.CODE)
 class CodeRenderer(BuiltinObjectRenderer[Code]):
     @override
     def render(self, renderer: "Renderer", obj: Code) -> str:
-        return f"code({obj.to_string()!r})"
+        rendered_string = obj.to_string()
+        if "\n" in rendered_string:
+            return f'code("""\\\n{rendered_string}\n""")'
+        else:
+            return f"code({rendered_string!r})"
 
 
 @_renderer(StructType.ICON)

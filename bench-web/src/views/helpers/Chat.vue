@@ -499,7 +499,7 @@ const commands: Partial<CommandMapKit<"chat">> = {
       for (const message of messages) {
         const text = message.text;
         if (text != null) {
-          textParts.push(renderText(text) ?? "");
+          textParts.push(renderText(text, null, "\n") ?? "");
         }
       }
       navigator.clipboard.writeText(textParts.join("\n"));

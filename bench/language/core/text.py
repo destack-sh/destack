@@ -1,3 +1,4 @@
+import textwrap
 from typing import TYPE_CHECKING, Any, List, Mapping, Optional, Sequence, assert_never
 from uuid import UUID
 
@@ -562,6 +563,7 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
     if isinstance(aliasing, Mapping):
         aliasing = Aliasing.new(aliasing)
 
+    markdown = textwrap.dedent(markdown)
     lines_str = markdown.splitlines()
     lines: list[TextLine] = []
     i = 0
