@@ -4,7 +4,7 @@ import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { type CommandKit, type CommandMapKit } from "@/ui/command";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
-import { LineBlockView, SpanNodeView, VueComponentView } from "@/ui/prosemirror/view";
+import { LineBlockView, SpanNodeView, VueComponentView, CodeLineView } from "@/ui/prosemirror/view";
 import {
   LineInterface,
   mapLineToPmNode,
@@ -41,7 +41,7 @@ import {
   TextSelection,
 } from "prosemirror-state";
 import { liftTarget } from "prosemirror-transform";
-import { EditorView } from "prosemirror-view";
+import { EditorView, NodeViewConstructor } from "prosemirror-view";
 import {
   ComponentInternalInstance,
   computed,
@@ -96,7 +96,7 @@ export function autoWrap(tr: PmTransaction) {
   }
 
   // wrap each group in its appropriate container
-  //  (in reverse order so that later changes don’t affect earlier positions)
+  //  (in reverse order so that later changes don't affect earlier positions)
   for (let g = groups.length - 1; g >= 0; g--) {
     const group = groups[g];
     const $start = tr.doc.resolve(group.start);
@@ -751,44 +751,48 @@ export function useTextEditor(options: {
     if (!options.suppressDrop) {
       plugins.push(dropCursor({ width: 2, color: "#fbbf24" }));
     }
+    const nodeViews: Record<string, NodeViewConstructor> = {
+      spanMention: (node, view, getPos) =>
+        new SpanNodeView({
+          component: NodeReference,
+          parentComponent: options.parentComponent,
+          node,
+          view,
+          getPos,
+        }),
+      spanSpecialInput: (node, view, getPos) =>
+        new VueComponentView({
+          style: "inline",
+          component: TextSpecialInput,
+          parentComponent: options.parentComponent,
+          props: {
+            type: node.attrs.type,
+            node,
+            view,
+            getPos,
+            pageContext: options.pageContext,
+          },
+          node,
+          view,
+          getPos,
+        }),
+      block: (node, view, getPos) =>
+        new LineBlockView({
+          component: Block,
+          parentComponent: options.parentComponent,
+          node,
+          view,
+          getPos,
+          navigate,
+        }),
+    }
+    if (!toValue(isInput)) {
+      nodeViews.lineCode = (node, view, getPos) => new CodeLineView(node, view, getPos);
+    }
     const view = new EditorView(textRef.value, {
       state: makeEditorState(lines.value),
       editable: () => toValue(isInput),
-      nodeViews: {
-        spanMention: (node, view, getPos) =>
-          new SpanNodeView({
-            component: NodeReference,
-            parentComponent: options.parentComponent,
-            node,
-            view,
-            getPos,
-          }),
-        spanSpecialInput: (node, view, getPos) =>
-          new VueComponentView({
-            style: "inline",
-            component: TextSpecialInput,
-            parentComponent: options.parentComponent,
-            props: {
-              type: node.attrs.type,
-              node,
-              view,
-              getPos,
-              pageContext: options.pageContext,
-            },
-            node,
-            view,
-            getPos,
-          }),
-        block: (node, view, getPos) =>
-          new LineBlockView({
-            component: Block,
-            parentComponent: options.parentComponent,
-            node,
-            view,
-            getPos,
-            navigate,
-          }),
-      },
+      nodeViews,
       plugins,
       dispatchTransaction(tx) {
         if (view == null) throw new Error("view not mounted");

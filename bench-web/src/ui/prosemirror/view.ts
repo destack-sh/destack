@@ -37,6 +37,7 @@ import {
   toValue,
   VNode,
 } from "vue";
+import hljs from "highlight.js";
 
 const PROSEMIRROR_NODE_KEY = "__pmNode";
 
@@ -283,6 +284,105 @@ export class LineBlockView extends VueComponentView {
   destroy(): void {
     this.lineHandleDom.remove();
     super.destroy();
+  }
+}
+
+/**
+ * CodeLineView is our custom READONLY view for Code lines.
+ */
+export class CodeLineView implements PmNodeView {
+  dom: HTMLElement;
+  metaDom: HTMLElement;
+  codeDom: HTMLElement | null;
+  node: PmNode;
+  view: EditorView;
+  getPos: () => number | undefined;
+  language: string | null;
+
+  constructor(node: PmNode, view: EditorView, getPos: () => number | undefined) {
+    this.node = node;
+    this.view = view;
+    this.getPos = getPos;
+    this.language = node.attrs.language;
+
+    // outer DOM element
+    this.dom = document.createElement("code");
+    this.dom.classList.add("line", "flex", "flex-col", "relative");
+    if (this.language) {
+      this.dom.classList.add(`language-${this.language}`);
+    }
+
+    // meta row
+    this.metaDom = document.createElement("div");
+    this.metaDom.classList.add(
+      "flex",
+      "flex-row",
+      "justify-between",
+      "w-full",
+      "border-b",
+      "select-none",
+      "pb-1.5",
+      "mb-2",
+    );
+    const languageDom = document.createElement("span");
+    languageDom.classList.add("text-gray-400", "text-xs", "font-mono");
+    languageDom.textContent = this.language ?? "code";
+    this.metaDom.appendChild(languageDom);
+    // meta controls
+    const controlDom = document.createElement("div");
+    controlDom.classList.add("flex", "flex-row", "gap-1");
+    const copyButton = document.createElement("button");
+    copyButton.classList.add(
+      "text-gray-400",
+      "transition-colors",
+      "duration-150",
+      "text-xs",
+      "font-mono",
+      "hover:text-gray-700",
+    );
+    copyButton.addEventListener("click", () => {
+      navigator.clipboard.writeText(node.textContent);
+    });
+    const copyIcon = document.createElement("i");
+    copyIcon.classList.add("fas", "fa-copy");
+    copyButton.appendChild(copyIcon);
+    controlDom.appendChild(copyButton);
+    this.metaDom.appendChild(controlDom);
+    this.dom.appendChild(this.metaDom);
+
+    // main text content
+    if ((node.textContent?.trim() ?? "").length > 0) {
+      this.codeDom = document.createElement("pre");
+      this.codeDom.textContent = node.textContent;
+      this.dom.appendChild(this.codeDom);
+    } else {
+      const placeholderDom = document.createElement("div");
+      placeholderDom.classList.add("text-gray-400", "font-mono");
+      placeholderDom.textContent = " ";
+      this.dom.appendChild(placeholderDom);
+      this.codeDom = null;
+    }
+
+    // apply highlighting after the element is added to the DOM
+    this.updateHighlighting();
+  }
+
+  update(node: PmNode) {
+    this.node = node;
+    if (node.type !== this.node.type) {
+      return false;
+    }
+
+    // update highlighting
+    this.updateHighlighting();
+
+    return true;
+  }
+
+  updateHighlighting() {
+    if (this.codeDom != null) {
+      hljs.highlightElement(this.codeDom);
+    }
   }
 }
 

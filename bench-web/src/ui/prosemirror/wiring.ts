@@ -556,7 +556,7 @@ export function mapLineToPmNode(line: LineInterface): PmNode {
     const pmSpan = mapSpanToPmNode(span);
     if (pmSpan) spans.push(pmSpan);
   }
-  const attrs = { type: line.text.type, blockPtr: line.blockPtr };
+  const attrs: Record<string, any> = { type: line.text.type, blockPtr: line.blockPtr };
 
   if (line.text.type === TextLineType.LIST_ORDERED || line.text.type === TextLineType.LIST_UNORDERED) {
     const isOrdered = line.text.type === TextLineType.LIST_ORDERED;
@@ -573,6 +573,7 @@ export function mapLineToPmNode(line: LineInterface): PmNode {
   } else if (line.text.type === TextLineType.CALLOUT) {
     return PM_SCHEMA.node("lineCallout", attrs, spans);
   } else if (line.text.type === TextLineType.CODE) {
+    attrs.language = line.text.language;
     return PM_SCHEMA.node(
       "lineCode",
       attrs,
@@ -590,7 +591,13 @@ export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
   } else if (lineNode.type.name === "lineCode") {
     return {
       type: "text",
-      text: { metatype: ObjectType.TEXT_LINE, type: TextLineType.CODE, spans: [], content: lineNode.textContent },
+      text: {
+        metatype: ObjectType.TEXT_LINE,
+        type: TextLineType.CODE,
+        spans: [],
+        content: lineNode.textContent,
+        language: lineNode.attrs.language,
+      },
       blockPtr: lineNode.attrs.blockPtr,
     };
   }

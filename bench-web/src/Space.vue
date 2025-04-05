@@ -311,11 +311,14 @@ mark {
 .pm-text hr {
   @apply my-3 border-gray-200 focus:outline-none focus:ring-0;
 }
-.pm-text code.line {
-  @apply my-2 block w-full rounded bg-gray-100 px-2.5 py-2 text-sm;
+.pm-text.pm-base > * > code.line {
+  @apply my-2.5 block w-full rounded border border-gray-200 bg-gray-100 px-3 py-3 text-sm;
 }
-.pm-text.pm-compact code.line {
-  @apply my-1.5 px-2.5 py-1.5;
+.pm-text.pm-compact > * > code.line {
+  @apply my-1.5 rounded border border-gray-200 px-3 py-2.5;
+}
+.pm-text .hljs {
+  @apply bg-transparent;
 }
 
 /** Line handles */
