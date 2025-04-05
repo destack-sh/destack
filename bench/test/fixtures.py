@@ -57,9 +57,8 @@ tracer = trace.get_tracer(__name__)
 def make_global_store(name: str):
     """Creates a global store for testing.."""
 
-    pg = get_from_env("GLOBAL_PG", description="Global Postgres connection string")
-    pg_url, pg_crypto_key = pg.split("|", maxsplit=1)
-    pg_url_parsed = urlparse(pg_url)
+    pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
+    pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
@@ -69,7 +68,6 @@ def make_global_store(name: str):
         name="System",
         slug="system",
         region=Region.ZURICH,
-        encryption_key=pg_crypto_key,
         _supergraph=supergraph,
         status=BenchStatus.ACTIVATED,
         created_at=BEGINNING_OF_TIME,
@@ -102,9 +100,8 @@ def make_regional_store(name: str):
     """Creates a regional store for testing."""
 
     assert len(name) < 64, f"name must be less than 64 characters: {name!r}"
-    pg = get_from_env("GLOBAL_PG", description="Regional Postgres connection string")
-    pg_url, pg_crypto_key = pg.split("|", maxsplit=1)
-    pg_url_parsed = urlparse(pg_url)
+    pg = get_from_env("GLOBAL_PG_URL", description="Regional Postgres connection string")
+    pg_url_parsed = urlparse(pg)
     pg_url = pg_url_parsed._replace(path=f"/{name}").geturl()
 
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
@@ -114,7 +111,6 @@ def make_regional_store(name: str):
         name="System",
         slug="system",
         region=Region.ZURICH,
-        encryption_key=pg_crypto_key,
         _supergraph=supergraph,
         status=BenchStatus.ACTIVATED,
         created_at=BEGINNING_OF_TIME,

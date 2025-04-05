@@ -107,7 +107,7 @@ class Object:
                 # we want to reproduce the original type, not the encrypted type
                 #  (we sneakily change the type in __post_init__)
                 assert isinstance(self, Column)
-                value = self._unencrypted_type or self.type
+                value = self.type
             else:
                 value = getattr(self, field.name)
             if value == field.default:
@@ -261,27 +261,16 @@ class Column(TableObject):
     on_delete: CascadeAction | None = None
     is_unique: bool = False  # handled via constraints
     is_nullable: bool = False
-    is_encrypted: bool = False  # encrypted columns are always stored as bytes
     length: int | None = None
     precision: int | None = None
     scale: int | None = None
     default: str | None = None
     _field: Union["Field", None] = None
     _table: Union["Table", None] = None  # type: ignore
-    _unencrypted_type: PrimitiveType | None = None  # for encrypted columns
-
-    def __post_init__(self):
-        if self.is_encrypted:  # sneakily change the type
-            self._unencrypted_type = self.type
-            self.type = PrimitiveType.BYTES
 
     def clone(self) -> "Self":
         """Deep copy this Column without the Table / Field reference."""
         return dataclasses.replace(self, _table=None, _field=None)
-
-    @property
-    def underlying_type(self):
-        return self._unencrypted_type or self.type
 
     def __flags_str__(self):
         parts = []
@@ -293,8 +282,6 @@ class Column(TableObject):
             parts.append("U")
         if not self.is_nullable:
             parts.append("!")
-        if self.is_encrypted:
-            parts.append("E")
         if self.is_array:
             parts.append("[]")
         return "".join(parts)
@@ -306,7 +293,6 @@ class Column(TableObject):
                 "is_array",
                 "is_unique",
                 "is_nullable",
-                "is_encrypted",
                 "default",
                 "is_primary_key",
                 "is_foreign_key_to",
@@ -317,7 +303,7 @@ class Column(TableObject):
         table_name = self._table.name if self._table else None
         if args_str:
             args_str = ", " + args_str
-        return f"{table_name or '<detached>'}.{self.name} ({self.underlying_type.bench_name}{args_str}))"
+        return f"{table_name or '<detached>'}.{self.name} ({self.type.bench_name}{args_str})"
 
     def __repr__(self):
         return f"<Column {self}>"

@@ -15,14 +15,12 @@ from bench.language.core import (
     StructType,
     enum_,
     node_,
-    p_kernel,
     p_node_children,
     p_node_parent,
     p_regular,
     p_system,
 )
 from bench.pb2 import BenchData
-from bench.utils.func import generate_encryption_key
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -65,14 +63,7 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     )
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     region: "Region" = p_system(37, require=True, default=REGION, default_sql=None)
-    encryption_key: str = p_kernel(
-        38,
-        require=True,
-        encrypt=True,
-        defer=True,
-        sensitive=True,
-        default_factory=lambda: generate_encryption_key(32),
-    )
+    # TODO :Security: Bench.encryption_key (DEK) :EncryptedSecrets
 
     # status
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)

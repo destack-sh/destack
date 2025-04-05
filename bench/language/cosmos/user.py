@@ -65,12 +65,8 @@ class User(IsSubject, Node[UserData]):
     email: str | None = p_system(
         50, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
     )
-    password_salt: Optional[bytes] = p_kernel(
-        51, default=None, defer=True, encrypt=True, sensitive=True
-    )
-    password_hash: Optional[bytes] = p_kernel(
-        52, default=None, defer=True, encrypt=True, sensitive=True
-    )
+    password_salt: Optional[bytes] = p_kernel(51, default=None, defer=True, sensitive=True)
+    password_hash: Optional[bytes] = p_kernel(52, default=None, defer=True, sensitive=True)
     # challenges?
     # password_reset_token, email_confirmation_token, ...
 

@@ -33,7 +33,7 @@ from bench.utils.utils import get_from_env
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 
-def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
+def make_system_store(region: Region, pg_url: str) -> Store:
     system_bench_ptr = NodeReference(node_type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
     supergraph = NodeSuperGraph(name="Global", root_ptr=system_bench_ptr)
     system_bench_stub = Bench(
@@ -42,7 +42,6 @@ def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
         slug="system",
         region=region,
         status=BenchStatus.ACTIVATED,
-        encryption_key=pg_crypto_key,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
@@ -72,9 +71,9 @@ def make_system_store(region: Region, pg_url: str, pg_crypto_key: str) -> Store:
 @cachetools.cached(cache={})
 def global_store_from_env() -> Store:
     """Get the default global store configured in the environment"""
-    pg = get_from_env("GLOBAL_PG", description="Global Postgres connection string")
-    pg_url, pg_crypto_key = pg.split("|", maxsplit=1)
-    return make_system_store(REGION, pg_url, pg_crypto_key)
+    pg = get_from_env("GLOBAL_PG_URL", description="Global Postgres connection string")
+    pg_url = pg.split("|", maxsplit=1)[0]
+    return make_system_store(REGION, pg_url)
 
 
 def regional_store_from_env(region: Region = REGION) -> Store:

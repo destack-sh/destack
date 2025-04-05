@@ -28,9 +28,9 @@ from bench.language import (
 from bench.sql import (
     GLOBAL_EXTENSIONS,
     Column,
+    NullContext,
     RowIn,
     Schema,
-    StaticContext,
     Table,
     force_create_schema,
     pg_connection,
@@ -42,7 +42,6 @@ from bench.sql import (
     pg_upsert,
 )
 from bench.sql.engine import _pg_adapt_row, _pg_adapt_rows
-from bench.utils.func import generate_encryption_key
 
 #
 # Simple SQL engine only tests
@@ -73,26 +72,8 @@ REGULAR_TABLE = Table(
         *(Column(f"regular_{t.name.lower()}_a", t, is_array=True) for t in TEST_PRIMITIVE_TYPES),
     ),
 )
-MINI_ENCRYPTED_TABLE = Table(
-    "_test_mini_encrypted_table",
-    columns=(
-        Column("id", PrimitiveType.INT32, is_primary_key=True),
-        Column("secret", PrimitiveType.STRING, is_encrypted=True),
-        Column("secret_n", PrimitiveType.STRING, is_encrypted=True, is_nullable=True),
-    ),
-)
-ENCRYPTED_TABLE = Table(
-    "_test_encrypted_table",
-    columns=(
-        Column("id", PrimitiveType.INT32, is_primary_key=True),
-        *(Column(f"secret_{t.name.lower()}", t, is_encrypted=True) for t in TEST_PRIMITIVE_TYPES),
-        *(
-            Column(f"secret_{t.name.lower()}_n", t, is_encrypted=True, is_nullable=True)
-            for t in TEST_PRIMITIVE_TYPES
-        ),
-    ),
-)
-TEST_TABLES = (MINI_REGULAR_TABLE, REGULAR_TABLE, MINI_ENCRYPTED_TABLE, ENCRYPTED_TABLE)
+
+TEST_TABLES = (MINI_REGULAR_TABLE, REGULAR_TABLE)
 TEST_SCHEMA = Schema(extensions=GLOBAL_EXTENSIONS, tables=TEST_TABLES)
 
 # NOTE :Test: convert sql test values to hypothesis strategies?
@@ -120,7 +101,7 @@ async def test_cur(blank_store: Store):
 @pytest.mark.parametrize("table", TEST_TABLES, ids=lambda t: t.name)
 async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     random.seed(42)
-    ctx = StaticContext(crypto_key=random.randbytes(32).hex())
+    ctx = NullContext()
 
     def _generate_row(id: int) -> Mapping[str, Any]:
         row: dict[str, Any] = {"id": id}
@@ -130,11 +111,9 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
             elif column.is_nullable and random.random() < 0.5:
                 row[column.name] = None
             elif column.is_array:
-                row[column.name] = [
-                    COLUMN_VALUE_GENERATORS[column.underlying_type]() for _ in range(0, 3)
-                ]
+                row[column.name] = [COLUMN_VALUE_GENERATORS[column.type]() for _ in range(0, 3)]
             else:
-                row[column.name] = COLUMN_VALUE_GENERATORS[column.underlying_type]()
+                row[column.name] = COLUMN_VALUE_GENERATORS[column.type]()
         return row
 
     # insert
@@ -175,7 +154,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
 
     # update with fixed values
     static_value = {
-        column.name: COLUMN_VALUE_GENERATORS[column.underlying_type]()
+        column.name: COLUMN_VALUE_GENERATORS[column.type]()
         for i, column in enumerate(table.columns)
         if not column.is_primary_key and not column.is_array and i % 2 == 0
     }
@@ -311,7 +290,6 @@ async def test_crud_node_pointers(omni_session: Session):
             slug="test",
             name="test_b",
             region=Region.ZURICH,
-            encryption_key=generate_encryption_key(32),
         )
         session._create(bench)
         await session.flush()
