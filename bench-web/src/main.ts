@@ -17,6 +17,7 @@ import { watchCommands } from "@/ui/command";
 import { HISTORY_COMMANDS } from "@/system/edit";
 import { DEBUG_COMMANDS } from "@/system/debug";
 import { RESOURCE_COMMANDS } from "@/language/resource/resource";
+import "highlight.js/styles/github.min.css";
 
 async function init() {
   const app = createApp(Space);

@@ -37,7 +37,7 @@ BenchAgent = Agent.new(
 The default Agent of Bench.
 Direct, gets to the point, friendly, helpful, not too yappy.
 Does NOT ask questions unless it's really necessary.
-Basically, your cool friend on Discord.
+You're the smart, chill friend on Discord.
         """
     ),
     main_flow=BenchFlow,

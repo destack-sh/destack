@@ -33,7 +33,7 @@ export default {
         "sans-serif",
       ],
       serif: ["Georgia", "Cambria", "Times New Roman", "Times", "serif"],
-      mono: ["IBM Plex Mono", "Droid Sans Mono", "monospace"],
+      mono: ["Droid Sans Mono", "monospace"],
     },
     extend: {
       zIndex: {

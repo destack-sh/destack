@@ -145,12 +145,15 @@ export const PM_SCHEMA = new PmSchema({
     lineCode: {
       group: "line",
       content: "text*",
-      attrs: { blockPtr: { default: null }, type: { default: TextLineType.CODE } },
+      attrs: { blockPtr: { default: null }, type: { default: TextLineType.CODE }, language: { default: null } },
       code: true,
       toDOM(node) {
+        if (node.attrs.language) {
+          return toLineDom(node, ["code", { class: `line language-${node.attrs.language}` }, 0]);
+        }
         return toLineDom(node, LINE_CODE_DOM);
       },
-      parseDOM: [{ tag: "code.line", attrs: { type: TextLineType.CODE } }],
+      parseDOM: [{ tag: "code.line", attrs: { type: TextLineType.CODE, language: { default: null } } }],
     },
     // span
     text: {
