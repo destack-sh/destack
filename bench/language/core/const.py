@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.03.2"
+VERSION = "2025.04.05.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -435,7 +435,6 @@ class EnumType(BuiltinEnum):
 
     # code (22300-22349)
     CODE_TYPE = 22300
-    CODE_LANGUAGE = 22301
 
     # flow (22350-22399)
     ACTION_TYPE = 22350
@@ -850,8 +849,6 @@ class StructType(BuiltinEnum):
     TEXT = 12000, None, None, "fas fa-text"
     TEXT_LINE = 12001
     TEXT_SPAN = 12002
-    TEXT_TABLE = 12003
-    TEXT_CELL = 12004
 
     # code (12100-12199)
     CODE = 12100, None, None, "fas fa-code"
@@ -1481,7 +1478,7 @@ class SpanType(BuiltinEnum):
     ACQUIRE = 3, None, None, "fas fa-toolbox"
     CODE = 10, None, None, "fas fa-code"
     # flow
-    FLOW_PLAN = 100, None, None, "fas fa-hexagon-nodes"
+    FLOW_THINK = 100, None, None, "fas fa-hexagon-nodes"
     # action
     # ...
     # application (action)

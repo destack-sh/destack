@@ -187,7 +187,7 @@ def example_reply_to_message_3(Thread1: Thread, Message1: Message):  # noqa: N80
         text=text("""
 A simple Hello World in Rust would look like this:
 
-```
+```rust
 fn main() {
     println!("Hello, world!");
 }
