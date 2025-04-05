@@ -190,7 +190,7 @@ defineExpose<ViewExpose>({ self, id, commands});
           {{ field.name }}
         </span>
         <span v-if="fields.length == 0" class="truncate text-gray-400">
-          {{ (action.text != null ? renderText(action.text) : null) ?? ActionTypeOptionInfo[action.type]?.text }}
+          {{ (action.text != null ? renderText(action.text, 3) : null) ?? ActionTypeOptionInfo[action.type]?.text }}
         </span>
       </div>
       <!-- Tools/Tags -->
