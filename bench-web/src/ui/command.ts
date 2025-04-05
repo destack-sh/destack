@@ -106,6 +106,7 @@ export const COMMAND_BUILTIN_IDS = [
   "flow.edit.createAction",
   "flow.edit.splitLink",
   // chat
+  "chat.message.copy",
   "chat.message.reply",
   "chat.message.forward",
   "chat.message.edit",
@@ -600,7 +601,11 @@ export const RESOURCE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
   // "resource.status.suspend", // (not supported yet)
   "resource.status.decommission",
 ];
-export const MESSAGE_CONTEXT_COMMANDS: CommandBuiltinId[] = ["chat.message.reply", "chat.message.edit"];
+export const MESSAGE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
+  "chat.message.copy",
+  "chat.message.reply",
+  "chat.message.edit",
+];
 
 export const CONTEXT_COMMANDS_BY_TYPE: Partial<Record<NodeType, CommandBuiltinId[]>> = {
   [NodeType.BLOCK]: BLOCK_CONTEXT_COMMANDS,
@@ -724,6 +729,11 @@ declareCommands<"text">({
 //
 
 declareCommands<"chat">({
+  "chat.message.copy": {
+    title: "Copy",
+    text: "Copy the Message",
+    icon: "fas fa-copy",
+  },
   "chat.message.reply": {
     title: "Reply",
     text: "Reply to the Message",

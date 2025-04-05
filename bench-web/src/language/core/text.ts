@@ -51,12 +51,14 @@ export function trimText(text: TextData): TextData {
 }
 
 /** Gets up to maxLines lines of text joined together. */
-export function renderText(text: TextData, maxLines: number = 3): string | undefined {
+export function renderText(text: TextData, maxLines: number | null = null): string | undefined {
   const lines: string[] = [];
   for (const line of text.lines) {
-    if (line.spans.some((span) => span.content != null)) {
+    if (line.content != null) {
+      lines.push(line.content);
+    } else if (line.spans.some((span) => span.content != null)) {
       lines.push(line.spans.map((span) => span.content).join(""));
-      if (lines.length >= maxLines) break;
+      if (maxLines != null && lines.length >= maxLines) break;
     }
   }
   const line = lines.join(" ");

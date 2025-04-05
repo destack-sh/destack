@@ -366,6 +366,7 @@ function submitEdit() {
   if (isTextEmpty(text) && draftNodesPtr.value.length == 0) return; // don't create empty messages
   const { connection } = supergraph.getLinkOrError(toNodeRef(message));
   connection.tx.update(message, { text });
+  stopEditing();
 }
 
 // draft
@@ -490,6 +491,20 @@ useEventListener(inputContainerRef, "paste", (event) => {
 
 // commands
 const commands: Partial<CommandMapKit<"chat">> = {
+  "chat.message.copy": {
+    command: (command, ctx) => {
+      const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);
+      // just copy the text?
+      const textParts: string[] = [];
+      for (const message of messages) {
+        const text = message.text;
+        if (text != null) {
+          textParts.push(renderText(text) ?? "");
+        }
+      }
+      navigator.clipboard.writeText(textParts.join("\n"));
+    },
+  },
   "chat.message.reply": {
     command: (command, ctx) => {
       const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);
@@ -653,7 +668,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               class="ml-1 min-w-0 flex-1 truncate text-xs text-gray-400"
               :style="{ maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px' }"
             >
-              {{ renderText(replyTo.message.text) }}
+              {{ renderText(replyTo.message.text, 3) }}
             </span>
           </div>
 
@@ -833,7 +848,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px',
           }"
         >
-          {{ renderText(replyTo.message.text) }}
+          {{ renderText(replyTo.message.text, 3) }}
         </span>
         <!-- Clear -->
         <button class="ml-auto rounded-full px-1 text-gray-700 hover:text-gray-900" @click="stopReplying()">

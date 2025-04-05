@@ -52,7 +52,7 @@ defineExpose<ViewExpose>({ self, id });
     </div>
 
     <!-- TODO :Incomplete: show/control? actual Claim status somehow -->
-    <NodeReference :node-ptr="targetPtr" :tx="() => connection.tx" :hide-icon="!isMinimal" size="sm" />
+    <NodeReference :node-ptr="targetPtr" :tx="() => connection.tx" is-light :hide-icon="!isMinimal" size="sm" />
   </div>
   <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="connection" />
 </template>
