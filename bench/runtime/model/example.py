@@ -51,7 +51,7 @@ from .piece import (
 from .prompt import Prompt
 from .token import Tokenizer
 
-# ruff: noqa: F401,B018,N803
+# ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false
 
 logger = structlog.get_logger(__name__)
@@ -247,3 +247,18 @@ Note that the text near the borders are not legible.
         ),
     )
     Thread1.append(Reply1)
+
+
+@example_(ExampleType.SNIPPET, title="Always include code block language")
+def example_always_include_code_block_language():
+    # should always try to include the language
+    text1 = text("""\
+Sure, here's how you make lists in markdown:
+```markdown
+- Item 1
+- Item 2
+```
+Looks like this:
+- Item 1
+- Item 2
+""")

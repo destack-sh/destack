@@ -466,6 +466,9 @@ function removeFiles(files: (FileData | NodeReferenceData)[]) {
   );
 }
 
+// view
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
 // drop
 const dropZone = useSingleDropZone({
   container: containerRef,
@@ -863,10 +866,23 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <!-- Side -->
           <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 8 + 'px' }">
             <!-- Add extra -->
+            <!-- NOTE :Incomplete: support adding other Nodes to Chat instead of just Files -->
+            <input
+              ref="fileInputRef"
+              type="file"
+              class="hidden"
+              @change="
+                (e) => {
+                  const files = Array.from((e.target as HTMLInputElement).files!);
+                  addFiles(files);
+                  (e.target as HTMLInputElement).value = ''; // clear value
+                }
+              "
+            />
             <button
               v-tooltip="{ small: true, title: 'Add Context' }"
               class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
-              @click.stop
+              @click.stop="fileInputRef?.click()"
             >
               <i class="fas fa-plus" />
             </button>
