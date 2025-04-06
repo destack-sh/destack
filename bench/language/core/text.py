@@ -575,6 +575,17 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
         if line.startswith("```"):
             tl, i = _parse_code(lines_str, i)
             lines.append(tl)
+        elif line.lstrip().startswith("> "):
+            # join multi-line quote blocks
+            quote_content = []
+            while i < len(lines_str) and lines_str[i].lstrip().startswith("> "):
+                # extract content after the '> ' prefix
+                content = lines_str[i].lstrip()[2:]
+                quote_content.append(content)
+                i += 1
+            combined_content = "\n".join(quote_content)
+            spans = _parse_inline(combined_content, aliasing)
+            lines.append(TextLine(type=TextLineType.QUOTE, spans=spans))
         else:
             tl = markdown_line_to_line(line, aliasing)
             lines.append(tl)
@@ -749,6 +760,13 @@ def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) 
         elif line.type == TextLineType.LIST_ORDERED:
             prefix = "1. "
         content = _render_inline(line.spans, aliasing)
+
+        # emit multi-line quotes by adding "> " prefix to each line
+        if line.type == TextLineType.QUOTE and "\n" in content:
+            lines = content.split("\n")
+            content = "\n".join(f"{prefix}{line}" for line in lines)
+            prefix = ""
+
         if line.color:
             content = f"[{_render_color(line.color)}]{content}[/{_render_color(line.color)}]"
         return prefix + content
