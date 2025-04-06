@@ -531,7 +531,7 @@ class NodeType(BuiltinEnum):
     #
 
     # cosmos
-    BENCH = 1, "Bench", None, "fas fa-volleyball"
+    BENCH = 1, "Bench", None, "fas fa-shapes"
     HANDLE = 2, None, None, "fas fa-at"
     USER = 10, None, None, "fas fa-user"
     ORGANIZATION = 20, None, None, "fas fa-building"

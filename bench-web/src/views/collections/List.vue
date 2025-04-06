@@ -2,20 +2,21 @@
 import { isBenchNodeType, toCamelName } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
-import { AnyNodeData, ExpressionType, NodeType, RecordProperty, ViewData, ViewType } from "@/proto/wire";
+import { AnyNodeData, ExpressionType, NodeType, RecordProperty, TextLineType, ViewData, ViewType } from "@/proto/wire";
 import { EMPTY_SCOPE, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { CONTEXT_COMMANDS_BY_TYPE, getCommand, isCommandEnabled } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
+import { getNodeIcon, IconInline } from "@/ui/icon";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
+import Title from "@/views/builtins/Title.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
-const ITEM_HEIGHT = 28;
+const ITEM_HEIGHT = 30;
 
 const props = defineProps<
   {
@@ -74,7 +75,7 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
         v-for="node in roots"
         :ref="(ref?: any) => (ref != null ? (itemRefs[node.id] = ref) : delete itemRefs[node.id])"
         :key="node.id"
-        class="group/node relative mx-1.5 flex flex-row items-center px-2.5 transition-colors duration-150 hover:cursor-pointer"
+        class="group/node relative mx-1.5 flex max-w-full flex-row items-center px-2.5 transition-colors duration-150 hover:cursor-pointer"
         :class="[
           canvas.isSelected(node)
             ? 'bg-orange-400/20'
@@ -97,10 +98,26 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
           v-bind="getNodeIcon(node)"
           class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
         />
-        <span v-if="getNodeTitle(node) != null" class="max-w-full select-none truncate">{{ getNodeTitle(node) }}</span>
-        <span v-else class="max-w-full select-none truncate text-gray-400">
-          {{ toCamelName(NodeType, node.metatype) }}
-        </span>
+        <!-- Name -->
+        <span
+          v-if="(node as any).name != null && (node as any).name != ''"
+          class="max-w-full select-none truncate"
+          v-html="(node as any).name"
+        />
+        <Title
+          v-else-if="(node as any).title != null"
+          :model-value="(node as any).title"
+          :force-line-type="TextLineType.PARAGRAPH"
+          class="max-w-full select-none truncate"
+          truncate
+          is-small
+          :placeholder="toCamelName(NodeType, node.metatype)"
+        />
+        <span
+          v-else
+          class="max-w-full select-none truncate text-gray-400"
+          v-html="toCamelName(NodeType, node.metatype)"
+        />
         <!-- Metadata -->
         <NodeMetadata class="ml-1.5" size="sm" :node="node" />
         <!-- Commands -->
