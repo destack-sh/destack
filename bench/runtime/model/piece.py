@@ -18,6 +18,7 @@ from bench.language import (
     Thread,
     _is_setup_complete,
 )
+from bench.language.runtime.span import Span
 from bench.runtime.core import ThreadHandle
 
 from .token import Tokenizer
@@ -40,6 +41,8 @@ def raise_if_none():
     _field.default_factory = _raise
     return _field
 
+
+# NOTE :Architecture: Pieces and Renderer seem quite related?
 
 #
 # Basic Pieces
@@ -185,8 +188,8 @@ class RegionPiece(CompoundPiece):
         yield SeparatorPiece()
         if self.insert_breaks:
             yield BreakPiece()
-        for i, piece in enumerate(self.pieces):
-            remaining_tokens = yield piece
+        for piece in self.pieces:
+            yield piece
             if remaining_tokens < 10:
                 if self.omit_piece is not None:
                     yield self.omit_piece
@@ -222,14 +225,14 @@ class ThreadPiece(NodePiece[Thread]):
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        remaining_tokens = yield NodePiece(node=self.thread.thread)
-        remaining_tokens = yield BreakPiece()
+        yield NodePiece(node=self.thread.thread)
+        yield BreakPiece()
         messages = list(self.thread.messages)
         messages.sort(key=lambda m: m.created_at)
         if self.max_messages is not None:
             messages = messages[-self.max_messages :]
         for i, message in enumerate(messages):
-            remaining_tokens = yield MessagePiece(node=message, priority=i)
+            yield MessagePiece(node=message, priority=i)
 
 
 @piece_(NodeType.MESSAGE)
@@ -266,3 +269,15 @@ class PlanPiece(NodePiece[Plan]):
 @piece_(NodeType.AGENT)
 class AgentPiece(NodePiece[Agent]):
     pass
+
+
+@piece_
+class AttemptPiece(NodePiece[Span]):
+    @override
+    def compile(
+        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
+    ) -> Generator[Piece, int, None]:
+        yield SeparatorPiece()
+        rendered_node = prompt.renderer.render_statement(self.node, format=True)
+        yield CodePiece(code=rendered_node)
+        yield SeparatorPiece()
