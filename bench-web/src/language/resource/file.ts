@@ -126,6 +126,7 @@ export async function extractFile(
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
+    ck: identity.ck,
     parentPtr: toNodeRef(parent),
     packagePtr: toNodeRef(pkg),
     benchPtr: toNodeRef(bench),
@@ -232,6 +233,7 @@ async function doUploadFiles(
     } catch (e) {
       upload.status.value = FileStatus.FAILED;
       upload.completion.reject(e);
+      log.warn("file.upload.error", upload, e);
     }
   }
 
@@ -240,7 +242,13 @@ async function doUploadFiles(
   const host = getCachedHostClient(scope);
   let handles: UploadFilesResponse_UploadHandle[] = [];
   try {
-    const { response } = await host.uploadFiles({ scope, files: uploads.map((u) => u.file.value!) });
+    const files: FileData[] = [];
+    for (const upload of uploads) {
+      if (upload.file.value != null) {
+        files.push(upload.file.value);
+      }
+    }
+    const { response } = await host.uploadFiles({ scope, files });
     handles = response.handles;
   } catch (e) {
     log.error("file.uploads.error", uploads, e);
@@ -300,7 +308,8 @@ export function uploadFiles(
   },
 ): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
-    const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: options.bench.id });
+    const fileId: string = newNodeId();
+    const fileIdentity = nodeReference(NodeType.FILE, fileId, { ck: fileId, benchId: options.bench.id });
     const upload: FileUpload = {
       status: shallowRef(FileStatus.PENDING),
       isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
@@ -315,7 +324,7 @@ export function uploadFiles(
       completion: new AsyncEvent(),
       compress: options.compress,
     };
-    uploadsByFileId.value[fileIdentity.id!] = upload;
+    uploadsByFileId.value[fileId] = upload;
     triggerRef(uploadsByFileId);
 
     // immediately cache upload as download

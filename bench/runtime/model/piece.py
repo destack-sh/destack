@@ -5,7 +5,19 @@ from typing import TYPE_CHECKING, Generator, Sequence, dataclass_transform, over
 import structlog
 from opentelemetry import trace
 
-from bench.language import File, FileType, Node, NodeType, _is_setup_complete
+from bench.language import (
+    Agent,
+    File,
+    FileType,
+    Flow,
+    Message,
+    Node,
+    NodeType,
+    Page,
+    Plan,
+    Thread,
+    _is_setup_complete,
+)
 from bench.runtime.core import ThreadHandle
 
 from .token import Tokenizer
@@ -186,10 +198,10 @@ class RegionPiece(CompoundPiece):
 
 
 @piece_()
-class NodePiece(CompoundPiece):
+class NodePiece[N: Node](CompoundPiece):
     """Render a Node directly."""
 
-    node: Node = raise_if_none()
+    node: N = raise_if_none()
 
     @override
     def compile(
@@ -200,7 +212,7 @@ class NodePiece(CompoundPiece):
 
 
 @piece_(NodeType.THREAD)
-class ThreadPiece(NodePiece):
+class ThreadPiece(NodePiece[Thread]):
     """Render a Thread with its messages."""
 
     thread: ThreadHandle = raise_if_none()
@@ -221,26 +233,36 @@ class ThreadPiece(NodePiece):
 
 
 @piece_(NodeType.MESSAGE)
-class MessagePiece(NodePiece):
-    pass
-    # nocheckin: file
+class MessagePiece(NodePiece[Message]):
+    @override
+    def compile(
+        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
+    ) -> Generator[Piece, int, None]:
+        rendered_node = prompt.renderer.render_statement(self.node, format=True)
+        yield CodePiece(code=rendered_node)
+        for node in self.node.nodes:
+            if isinstance(node, File):
+                if node.type == FileType.IMAGE:
+                    yield ImagePiece(file=node)
+                elif node.type == FileType.AUDIO:
+                    yield AudioPiece(file=node)
 
 
 @piece_(NodeType.PAGE)
-class PagePiece(NodePiece):
+class PagePiece(NodePiece[Page]):
     pass
 
 
 @piece_(NodeType.FLOW)
-class FlowPiece(NodePiece):
+class FlowPiece(NodePiece[Flow]):
     pass
 
 
 @piece_(NodeType.PLAN)
-class PlanPiece(NodePiece):
+class PlanPiece(NodePiece[Plan]):
     pass
 
 
 @piece_(NodeType.AGENT)
-class AgentPiece(NodePiece):
+class AgentPiece(NodePiece[Agent]):
     pass
