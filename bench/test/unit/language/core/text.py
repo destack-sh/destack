@@ -154,6 +154,48 @@ fn main() {
     assert text_to_markdown(text) == md
 
 
+def test_text_multi_line_quote():
+    md = """\
+> This is a multi-line
+> quote block that should
+> be treated as one block"""
+    text = markdown_to_text(md)
+
+    # verify we have a single TextLine of type QUOTE
+    assert len(text.lines) == 1
+    assert text.lines[0].type == TextLineType.QUOTE
+
+    # check the content contains all lines
+    content = text.lines[0].spans[0].content or ""
+    assert "This is a multi-line" in content
+    assert "quote block that should" in content
+    assert "be treated as one block" in content
+
+    # check rendering
+    md_out = text_to_markdown(text)
+    assert md_out == md
+
+
+def test_text_multi_line_quote_with_formatting():
+    md = """\
+> This quote has **bold** text
+> and *italic* spanning
+> multiple lines"""
+    text = markdown_to_text(md)
+
+    # verify we have a single quote block
+    assert len(text.lines) == 1
+    assert text.lines[0].type == TextLineType.QUOTE
+
+    # verify formatting is preserved
+    assert any(span.is_bold for span in text.lines[0].spans if span.type == TextSpanType.TEXT)
+    assert any(span.is_italic for span in text.lines[0].spans if span.type == TextSpanType.TEXT)
+
+    # check rendering
+    md_out = text_to_markdown(text)
+    assert md_out == md
+
+
 @pytest.mark.parametrize(
     "md",
     [
@@ -177,6 +219,11 @@ def complex_function():
         """\
 This text has **multiple** *different* ~~formatting~~ <u>styles</u>
 And **spans multiple** lines with *consistent* formatting""",
+        """\
+> This is a multi-line quote
+> with some **bold** and *italic* text
+> that spans several lines
+> to test the quote block handling""",
     ],
 )
 def test_text_roundtrip(md):
