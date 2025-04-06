@@ -28,7 +28,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { CURRENT_BENCH_SCOPE, benchPtr, packagePtr } from "@/system/client";
+import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
@@ -40,7 +40,6 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
 import RootHeader from "@/views/builtins/RootHeader.vue";
-import Title from "@/views/builtins/Title.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
