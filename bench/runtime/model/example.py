@@ -139,21 +139,23 @@ EXAMPLES: list[ExamplePiece] = []
 
 def _get_function_body(func) -> str:
     """Extract the body of a function as a nicely formatted string."""
+    # get source
     lines, _ = inspect.getsourcelines(func)
     src = "".join(lines)
     mod = ast.parse(src)
     func_node = mod.body[0]
-    body_nodes = func_node.body  # type: ignore
-    if (
-        body_nodes
-        and isinstance(body_nodes[0], ast.Expr)  # type: ignore
-        and isinstance(body_nodes[0].value, ast.Constant)  # type: ignore
-        and isinstance(body_nodes[0].value.value, str)  # type: ignore
-    ):
-        body_nodes = body_nodes[1:]  # type: ignore
-    first_stmt_lineno = body_nodes[0].lineno
-    body_lines = lines[first_stmt_lineno - 1 :]
-    return textwrap.dedent("".join(body_lines))
+    body_lines = lines[func_node.lineno :]
+    # dedent
+    first_line = body_lines[0]
+    indent = len(first_line) - len(first_line.lstrip())
+    trimmed_lines = []
+    for line in body_lines:
+        if line.strip():
+            trimmed_lines.append(line[min(indent, len(line) - len(line.lstrip())) :])
+        else:
+            trimmed_lines.append(line)
+    inner_code = "".join(trimmed_lines)
+    return inner_code
 
 
 def example_(example_type: ExampleType, title: str):
@@ -226,5 +228,22 @@ yup [@Agent2], please look at the file I was talking about: [@File1]
             {"Agent2": Agent7, "File1": File1, "User2": User2},
         ),
         nodes=[File1],  # the main content nodes only
+    )
+    Thread1.append(Reply1)
+
+
+@example_(ExampleType.SNIPPET, title="Use quotes as needed")
+def example_use_quotes_as_needed(Thread1: Thread, File1: File):
+    Reply1 = Message.new(
+        text=text(
+            """\
+Here's the text from [@File1]:
+> Total amount: $100.00
+> Date: 2021-01-01
+> Description: 79kg of rice
+Note that the text near the borders are not legible. 
+""",
+            {"File1": File1},
+        ),
     )
     Thread1.append(Reply1)
