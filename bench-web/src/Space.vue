@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { renderTextLine } from "@/language/core/text";
-import { IconData, NodeType, Orientation, ViewType } from "@/proto/wire";
+import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/command";
-import { getNodeIcon, IconInline } from "@/ui/icon";
+import { getNodeIcon } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
@@ -21,7 +21,7 @@ import RunOverlay from "@/views/overlays/RunOverlay.vue";
 import ToastOverlay from "@/views/overlays/ToastOverlay.vue";
 import TooltipOverlay from "@/views/overlays/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const spaceRef = ref<HTMLElement | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
@@ -58,7 +58,7 @@ watch(
   () => {
     const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
     const nodeTitle = inspectedNodeTitle.value;
-    browserTitle.value = nodeTitle ? `${nodeTitle} | @${benchPostfix}` : `@${benchPostfix}`;
+    browserTitle.value = nodeTitle ? `${nodeTitle} · @${benchPostfix}` : `@${benchPostfix}`;
   },
   { immediate: true },
 );

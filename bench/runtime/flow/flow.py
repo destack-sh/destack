@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC
 from asyncio import Queue
 from typing import ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
@@ -32,6 +33,7 @@ from bench.language import (
     TriggerType,
     coerce_custom_object_scalar,
 )
+from bench.language.runtime.span import Span
 from bench.runtime.core import (
     Interrupted,
     RetryableError,
@@ -44,7 +46,8 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.model import ModelRunner, get_chat_model_runner_cls, make_flow_plan_prompt
+from bench.runtime.model import ModelRunner, get_chat_model_runner_cls, make_flow_think_prompt
+from bench.utils.tenacity import RetryOptions
 
 from .action import ActionRunner
 from .link import LinkRunner
@@ -52,9 +55,7 @@ from .link import LinkRunner
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-#
-# Flow
-#
+THINK_RETRY_OPTIONS = RetryOptions(max_attempts=5, retry_interval=0.2)
 
 
 class TickActionResult(NamedTuple):
@@ -300,28 +301,63 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             next_run = self._start(next_action)
         return TickLinkResult(new_runs=(next_run,), is_handled=True)
 
+    @tracer.start_as_current_span("flow.think")
     async def _think(self):
         """Prepare the next actions in this Flow (if any)."""
-        prompt = make_flow_plan_prompt(flow=self.node, runner=cast(FlowRunner[Flow], self))
-        model_developer = ModelDeveloper.OPENAI
-        model_type = ModelType.OPENAI_GPT4_0
-        model_runner_cls = get_chat_model_runner_cls(
-            model_developer=model_developer, model_type=model_type
-        )
-        model_runner = model_runner_cls(
-            runtime=self.runtime,
-            node=self.node,
-            model_type=model_type,
-            options=self.options,
-            prompt=prompt,
-            parent=cast(Runner[Runnable], self),
-            run=SpanType.FLOW_THINK,
-        )
-        try:
-            self._active_planning_runner = model_runner
-            await self.runtime.run_runner(model_runner)
-        finally:
-            self._active_planning_runner = None
+        attempts: list[Span] = []
+        retry = THINK_RETRY_OPTIONS.new(oracle=self.runtime.oracle)
+        while retry.should_retry:
+            retry.on_attempt()
+            prompt = make_flow_think_prompt(
+                flow=self.node, runner=cast(FlowRunner[Flow], self), previous_attempts=attempts
+            )
+            model_developer = ModelDeveloper.OPENAI
+            model_type = ModelType.OPENAI_GPT4_0
+            model_runner_cls = get_chat_model_runner_cls(
+                model_developer=model_developer, model_type=model_type
+            )
+            model_runner = model_runner_cls(
+                runtime=self.runtime,
+                node=self.node,
+                model_type=model_type,
+                options=self.options,
+                prompt=prompt,
+                parent=cast(Runner[Runnable], self),
+                run=SpanType.FLOW_THINK,
+            )
+            attempt = model_runner.tracked_span
+            assert attempt is not None, f"{model_runner!r} has no Span"
+            attempts.append(attempt)
+            try:
+                self._active_planning_runner = model_runner
+                await self.runtime.run_runner(model_runner)
+                logger.debug(
+                    "flow.think", flow=self.node, runner=self, attempt=attempt, span="current"
+                )
+                retry.on_success()
+                return  # success
+            except asyncio.CancelledError:
+                logger.debug(
+                    "flow.think.aborted",
+                    flow=self.node,
+                    runner=self,
+                    attempt=attempt,
+                    span="current",
+                )
+                raise
+            except BaseException as e:
+                logger.debug(
+                    "flow.think.error",
+                    flow=self.node,
+                    runner=self,
+                    attempt=attempt,
+                    span="current",
+                    exc_info=e,
+                )
+                if not retry.on_error(e):
+                    raise
+            finally:
+                self._active_planning_runner = None
 
     @override
     async def run(self) -> None:

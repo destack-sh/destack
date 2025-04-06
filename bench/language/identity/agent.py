@@ -152,6 +152,7 @@ class Agent(
 
     # status [80-90]
     status: AgentStatus = p_regular(80, default=AgentStatus.CREATED)
+    # nocheckin: track Agent (instance) status
 
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)

@@ -1,7 +1,7 @@
 from .anthropic import AnthropicChatModelRunner
 from .chat import ChatModelRunner, get_chat_model_runner_cls
 from .gemini import GeminiChatModelRunner
-from .instruct import SYSTEM_PROMPT, make_flow_plan_prompt
+from .instruct import SYSTEM_PROMPT, make_flow_think_prompt
 from .model import ModelRunner
 from .openai import OpenAIChatModelRunner
 from .piece import (
@@ -58,5 +58,5 @@ __all__ = [
     "Tokenizer",
     "compile_prompt",
     "get_chat_model_runner_cls",
-    "make_flow_plan_prompt",
+    "make_flow_think_prompt",
 ]

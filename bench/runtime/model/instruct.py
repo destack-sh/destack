@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import cachetools
 
@@ -14,10 +14,11 @@ from bench.language import (
     Flow,
     Node,
     ReferenceKind,
+    Span,
     _is_setup_complete,
 )
 
-from .piece import AgentPiece, PagePiece, PlanPiece, ThreadPiece
+from .piece import AgentPiece, AttemptPiece, PagePiece, PlanPiece, ThreadPiece
 from .prompt import Prompt
 
 if TYPE_CHECKING:
@@ -117,7 +118,7 @@ Runtimes may run in parallel, so you SHOULD NOT assume global state outside of B
 You MUST use Python to express your response.
  (You MAY embed other languages like Bash or Markdown within Python as appropriate.)
 You MUST use your inherent reasoning/language/vision capabilities.
- (You MUST NOT use ML libraries or code for AI stuff.)
+You MUST NOT use ML libraries or code for AI stuff (NEVER pytorch, tesseract, ...).
 You SHOULD prefer built-in Actions; just pick the most relevant one.
 You SHOULD NOT include separators, long comments or any methods in your response.
 
@@ -245,8 +246,10 @@ def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
     return enum_str
 
 
-def make_flow_plan_prompt(flow: Flow, runner: "FlowRunner[Flow]") -> Prompt:
-    """Build a Prompt to plan a Flow."""
+def make_flow_think_prompt(
+    flow: Flow, runner: "FlowRunner[Flow]", previous_attempts: Sequence[Span]
+) -> Prompt:
+    """Build a Prompt to think about Flow execution."""
 
     from bench.runtime.model.example import EXAMPLES
 
@@ -313,6 +316,13 @@ def make_flow_plan_prompt(flow: Flow, runner: "FlowRunner[Flow]") -> Prompt:
 
     # run
     ...
+    if previous_attempts:
+        prompt.region(
+            "Previous Attempts",
+            f"You already tried this {len(previous_attempts)} times, so reflect on the instructions, the results before you try again.",
+            *[AttemptPiece(node=a) for a in previous_attempts],
+            priority=30,
+        )
 
     # agent
     agent = run.agent

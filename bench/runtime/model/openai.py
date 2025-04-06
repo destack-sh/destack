@@ -110,7 +110,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
             if message["type"] == "text":
                 print(message["text"])
             elif message["type"] == "image_url":
-                print(message["image_url"]["url"])
+                print(message["image_url"]["url"][:200])
 
         # generate
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
