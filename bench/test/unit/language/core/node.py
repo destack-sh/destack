@@ -212,7 +212,7 @@ async def test_add_detached_subtree(simulation: Simulation, runtime: RuntimeLamb
 
 
 @simulated_runtime()
-async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+async def test_clone(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone a Node subtree."""
     choice = Choice.new("Letter")
     for i in range(0, 26):
@@ -231,7 +231,7 @@ async def test_clone_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkl
 
 
 @simulated_runtime()
-async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+async def test_clone_with_cross_references(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Clone consistency test with references."""
     choice = Choice.new("Letter", options=[Option.new("A"), Option.new("B")])
     flow = Flow.new("Flow")
@@ -273,7 +273,7 @@ async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaW
 
 
 @simulated_runtime()
-async def test_instance_subtree(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+async def test_instance(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Instance a subtree."""
     choice = Choice.new("Letter")
     for i in range(0, 26):
@@ -291,6 +291,48 @@ async def test_instance_subtree(simulation: Simulation, runtime: RuntimeLambdaWo
         assert option_instance.ck == option.ck
         assert option_instance.template_id == option.id
         assert option.equals(option_instance)
+    await runtime.commit()
+
+
+@simulated_runtime()
+async def test_instance_with_cross_references(
+    simulation: Simulation, runtime: RuntimeLambdaWorkload
+):
+    """Instance a subtree with cross references."""
+    choice = Choice.new("Letter", options=[Option.new("A"), Option.new("B")])
+    flow = Flow.new("Flow")
+    action = Action.new(
+        ActionType.CODE,
+        "Action",
+        fields=[Field.input("Text", Text), Field.output("Choice", choice)],
+    )
+    flow.append(action)
+    database = Database.new("Database", fields=[Field.member("Text", Text)])
+    page = runtime.page()
+    _ = page.append(choice)
+    _ = page.append(flow)
+    _ = page.append(database)
+    await runtime.commit()
+
+    # references should be consistent within new subtree
+    page_instance = page.instance()
+    flow_instance = page_instance.blocks.Flow.get_inline_node_as(Flow)
+    assert flow_instance is not None
+    assert flow_instance is not flow
+    assert flow_instance.template is flow
+    choice_instance = page_instance.blocks.Letter.get_inline_node_as(Choice)
+    assert choice_instance is not None
+    assert choice_instance is not choice
+    assert choice_instance.template is choice
+    action_instance = flow_instance.actions.Action
+    assert action_instance is not None
+    assert action_instance is not action
+    assert action_instance.template is action
+    assert action_instance.fields.Choice.base_type == choice_instance
+    database_instance = page_instance.blocks.Database.get_inline_node_as(Database)
+    assert database_instance is not None
+    assert database_instance is not database
+    assert database_instance.template is database
     await runtime.commit()
 
 

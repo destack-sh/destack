@@ -489,14 +489,9 @@ class NodeSuperGraph:
             # check only graphs that have the node type
             graphs = self._graphs_by_node_type.get(ptr.node_type, ())
             for graph in graphs:
-                if ptr.id is not None:
-                    node = graph.get(ptr.id)
-                    if node is not None:
-                        return node
-                if ptr.ck is not None and ptr.ck != ptr.id:
-                    node = graph.get(ptr.ck)
-                    if node is not None:
-                        return node
+                node = graph.get(ptr.id)
+                if node is not None:
+                    return node
             return None
 
     def get_or_error(self, ptr: "UUID | NodeReference") -> "Node":

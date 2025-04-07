@@ -7,7 +7,7 @@ from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.uuidt import UUIDT
 
-from .const import RESOURCE_NODE_TYPES, NodeMode, NodeType, StructType, bittuple
+from .const import RESOURCE_NODE_TYPES, NodeMode, NodeType, ReferenceKind, StructType, bittuple
 from .list import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
@@ -161,14 +161,15 @@ class IsTemplatable(BuiltinObject):
         self,
         recursive: bool = True,
         detach: bool = True,
-        map: bool | dict[UUID, "Node"] = True,
-        _is_definition_counterpart: bool = False,
+        _map: bool | dict[UUID, "Node"] = True,
+        _is_nested: bool = False,
         **kwargs: Any,
     ) -> Self:
         """
         Creates a new instance of this Node.
         Similar to Node.clone, but sets the original Nodes as the template source.
         """
+
         from .node import Node
 
         assert isinstance(self, Node), f"{self!r} must be a Node"
@@ -184,27 +185,49 @@ class IsTemplatable(BuiltinObject):
         instance_kwargs["template"] = self
         instance = self.__class__(**instance_kwargs)
 
+        # remember new identities
+        if _map is True:
+            _map = {self.id: instance}
+        elif _map is not False:
+            _map[self.id] = instance
+
+        # NOTE: we don't instance definitions/inline nodes together (that seems meaningless?)
+
         # instance children and append to self
         if recursive:
             for child_type in CHILD_NODE_TYPES[self.metatype]:
                 for child in self._graph.iter_descendants(self, child_type):
-                    if isinstance(child, IsInstantiable):
+                    if isinstance(child, IsTemplatable):
                         # instance child
-                        child_clone = child.instance(recursive=True, detach=True, map=map)
+                        child_clone = child.instance(
+                            recursive=True,
+                            detach=True,
+                            _map=_map,
+                            _is_nested=True,
+                        )
                         attach_node(child_clone, instance, instance._graph)  # re-attach
-                        if type(map) is dict:
-                            map[child.id] = child_clone
                     else:
                         # clone if not instantiable
-                        child_clone = child.clone(reset=True, recursive=True, detach=True, map=map)
+                        child_clone = child.clone(
+                            reset=True,
+                            recursive=True,
+                            detach=True,
+                            _map=_map,
+                            _is_nested=True,
+                        )
                         attach_node(child_clone, instance, instance._graph)  # re-attach
-                        if type(map) is dict:
-                            map[child.id] = child_clone
 
         # map new identities
-        if type(map) is dict:
-            for node in map.values():
-                node.replace_references(map)
+        if not _is_nested and type(_map) is dict:
+            for node in _map.values():
+                node.replace_references(
+                    _map,
+                    exclude=(
+                        ReferenceKind.NODE_PARENT,
+                        ReferenceKind.NODE_CHILDREN,
+                        ReferenceKind.NODE_TEMPLATE,
+                    ),
+                )
 
         # append to our parent to re-attach
         parent = self.parent
@@ -212,7 +235,6 @@ class IsTemplatable(BuiltinObject):
             instance.parent_ptr = None
         elif parent:
             parent.append(instance)
-
         return instance
 
 

@@ -785,7 +785,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # map new identities (at root)
         if not _is_nested and type(_map) is dict:
             for node in _map.values():
-                node.replace_references(_map)
+                node.replace_references(
+                    _map,
+                    exclude=(ReferenceKind.NODE_PARENT, ReferenceKind.NODE_CHILDREN),
+                )
 
         # append to our parent to re-attach
         parent = self.parent
