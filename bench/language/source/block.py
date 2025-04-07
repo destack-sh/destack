@@ -217,7 +217,8 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
         ):
             node.restore(_now=_now)
 
-    def node_as[T: InlineNode](self, node_cls: _type[T]) -> T:
+    def get_inline_node_as[T: InlineNode](self, node_cls: _type[T]) -> T:
+        """Get the Inline Node as a specific type (error if wrong type)."""
         if not isinstance((node := self.node), node_cls):
             raise TypeError(f"{self!r} has no {node_cls.__name__} (node={node!r})")
         return node  # type: ignore

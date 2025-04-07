@@ -111,7 +111,7 @@ def attach_node[N: "Node"](
                     parent._session._create(n)
             parent._session._track_many(*moved)
 
-    # move and definition together
+    # move inline node and its definition together
     if move:
         from bench.language import Block, InlineNode
 

@@ -241,20 +241,34 @@ async def test_clone_consistency(simulation: Simulation, runtime: RuntimeLambdaW
         fields=[Field.input("Text", Text), Field.output("Choice", choice)],
     )
     flow.append(action)
-    page1 = runtime.page()
-    page1.append(choice)
-    page1.append(flow)
+    database = Database.new("Database", fields=[Field.member("Text", Text)])
+    page = runtime.page()
+    choice_block = page.append(choice)
+    flow_block = page.append(flow)
+    _ = page.append(database)
     await runtime.commit()
 
+    # cloning an inline node should be consistent with its definition counterpart
+    choice_block_clone = choice_block.clone()
+    assert choice_block_clone.node is not choice
+    assert choice_block_clone.get_inline_node_as(Choice).definition is choice_block_clone
+    # other way around
+    flow_clone = flow.clone()
+    assert flow_clone.definition is not None
+    assert flow_clone.definition is not flow_block
+    assert flow_clone.definition.get_inline_node_as(Flow) is flow_clone
+
     # references should be consistent within new subtree
-    page_clone = page1.clone()
-    flow_clone = page_clone.blocks.Flow.node_as(Flow)
+    page_clone = page.clone()
+    flow_clone = page_clone.blocks.Flow.get_inline_node_as(Flow)
     assert flow_clone is not None
-    choice_clone = page_clone.blocks.Letter.node_as(Choice)
+    choice_clone = page_clone.blocks.Letter.get_inline_node_as(Choice)
     assert choice_clone is not None
     action_clone = flow_clone.actions.Action
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
+    database_clone = page_clone.blocks.Database.get_inline_node_as(Database)
+    assert database_clone is not None
     await runtime.commit()
 
 

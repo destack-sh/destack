@@ -710,9 +710,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         reset: bool = True,
         recursive: bool = True,
         detach: bool = False,
-        map: bool | dict[UUID, "Node"] = True,
+        _map: bool | dict[UUID, "Node"] = True,
+        _ignore_definition: bool = False,
+        _is_nested: bool = False,
         **kwargs,
     ) -> Self:
+        from bench.language import Block
+
         # clone self
         copy_kwargs = self._clone_kwargs(reset=reset)
         copy_kwargs.update(kwargs)
@@ -725,21 +729,63 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             )
         clone = self.__class__(**copy_kwargs, _is_new=True)
 
+        # remember new identities
+        if _map is True:
+            _map = {self.id: clone}
+        elif _map is not False:
+            _map[self.id] = clone
+
+        # clone blocks/definitions together
+        if not _ignore_definition:
+            clone_parent = clone.parent
+            if clone_parent is None and not detach:
+                clone_parent = self.parent
+            if isinstance(self, Block):
+                if isinstance(node := self.node, InlineNode) and node.definition_id == self.id:
+                    assert clone_parent is not None, f"cannot clone detached {self!r}"
+                    cloned_node = node.clone(
+                        reset=reset,
+                        recursive=True,
+                        detach=True,
+                        _map=_map,
+                        _is_nested=True,
+                        _ignore_definition=True,
+                    )
+                    cast(Block, clone).node_ptr = cloned_node.to_ref()
+                    cloned_node.definition_ptr = clone.to_ref()
+                    attach_node(cloned_node, clone_parent, clone_parent._graph, create=False)
+            elif isinstance(self, InlineNode) and (definition := self.definition) is not None:
+                assert clone_parent is not None, f"cannot clone detached {self!r}"
+                cloned_node = definition.clone(
+                    reset=reset,
+                    recursive=True,
+                    detach=True,
+                    _map=_map,
+                    _is_nested=True,
+                    _ignore_definition=True,
+                )
+                cast(InlineNode, clone).definition_ptr = cloned_node.to_ref()
+                cloned_node.node_ptr = clone.to_ref()
+                attach_node(cloned_node, clone_parent, clone_parent._graph, create=False)
+
         # clone children and append to self (recursive)
-        if map is True:
-            map = {self.id: clone}
         if recursive:
             for child_type in CHILD_NODE_TYPES[self.metatype]:
                 for child in self._graph.iter_descendants(self, child_type):
-                    child_clone = child.clone(reset=reset, recursive=True, detach=True, map=map)
+                    child_clone = child.clone(
+                        reset=reset,
+                        recursive=True,
+                        detach=True,
+                        _map=_map,
+                        _is_nested=True,
+                        _ignore_definition=True,  # we're the parent, so we clone both
+                    )
                     attach_node(child_clone, clone, clone._graph, create=False)  # re-attach
-                    if type(map) is dict:
-                        map[child.id] = child_clone
 
-        # map new identities
-        if type(map) is dict:
-            for node in map.values():
-                node.replace_references(map)
+        # map new identities (at root)
+        if not _is_nested and type(_map) is dict:
+            for node in _map.values():
+                node.replace_references(_map)
 
         # append to our parent to re-attach
         parent = self.parent
