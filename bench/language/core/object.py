@@ -1074,13 +1074,14 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
         copy_kwargs.update(kwargs)
         return self.__class__(**copy_kwargs)
 
-    def replace_references(self, new_node_by_id: Mapping[UUID, "Node"]):
+    def replace_references(
+        self,
+        new_node_by_id: Mapping[UUID, "Node"],
+        exclude: Collection[ReferenceKind],
+    ):
         """Replaces Node references with new Nodes. Missing Nodes are kept as is."""
         for prop in self.__node_reference_properties__.values():
-            if (
-                prop.reference_kind == ReferenceKind.NODE_PARENT
-                or prop.reference_kind == ReferenceKind.NODE_CHILDREN
-            ):
+            if prop.reference_kind in exclude:
                 continue
             prop_value = getattr(self, prop.name)
             if not prop.is_list:
