@@ -477,7 +477,7 @@ export function cloneNode<T extends AnyNodeData>(
         cloneNode(tx, graph, source, {
           includeChildren: true,
           now,
-          set: { parentPtr: newNode.parentPtr },
+          set: { parentPtr: newNode.parentPtr, definitionPtr: toNodeRef(newNode) },
           _isNested: true,
           _isDefinitionCounterpart: true,
           _keepOrder: true,

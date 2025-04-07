@@ -162,6 +162,7 @@ class IsTemplatable(BuiltinObject):
         recursive: bool = True,
         detach: bool = True,
         map: bool | dict[UUID, "Node"] = True,
+        _is_definition_counterpart: bool = False,
         **kwargs: Any,
     ) -> Self:
         """
