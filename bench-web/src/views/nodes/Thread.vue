@@ -53,6 +53,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 <template>
   <div>
     <!-- Root header -->
+    <!-- NOTE :Incomplete: call/videochat with Thread? -->
     <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="graph" />
 
     <!-- Chat -->
