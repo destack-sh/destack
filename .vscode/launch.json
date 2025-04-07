@@ -30,6 +30,15 @@
     },
     // general configs
     {
+      "name": "bench.user.setpassword",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/bench.py",
+      "args": ["user", "setpassword", "florian", "florian"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    },
+    {
       "name": "bench.build",
       "type": "debugpy",
       "request": "launch",
