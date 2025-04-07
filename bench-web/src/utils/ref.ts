@@ -44,21 +44,35 @@ export function mapRef<T, U>(ref: Ref<T>, map: (value: T) => U, reverseMap: (val
  * Traverses objects and arrays recursively.
  */
 export function deepValueEquals(a: any, b: any): boolean {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  if (typeof a != "object" || typeof b != "object") return false;
-  if (Array.isArray(a) != Array.isArray(b)) return false;
-  if (Array.isArray(a)) {
-    if (a.length != b.length) return false;
+  if (a === b) {
+    return true;
+  } else if (a == null || b == null) {
+    return false;
+  } else if (typeof a != "object" || typeof b != "object") {
+    return false;
+  } else if (Array.isArray(a) != Array.isArray(b)) {
+    return false;
+  } else if (Array.isArray(a)) {
+    if (a.length != b.length) {
+      return false;
+    }
     for (let i = 0; i < a.length; i++) {
-      if (!deepValueEquals(a[i], b[i])) return false;
+      if (!deepValueEquals(a[i], b[i])) {
+        return false;
+      }
     }
   } else {
     const aKeys = Object.keys(a);
     const bKeys = Object.keys(b);
-    if (aKeys.length != bKeys.length) return false;
     for (const key of aKeys) {
-      if (!deepValueEquals(a[key], b[key])) return false;
+      if (!deepValueEquals(a[key], b[key])) {
+        return false;
+      }
+    }
+    for (const key of bKeys) {
+      if (!aKeys.includes(key) && b[key] !== undefined) {
+        return false;
+      }
     }
   }
   return true;
