@@ -36970,7 +36970,7 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.CHANNEL]: { id: 5500, name: 'CHANNEL', icon: 'fas fa-hashtag' },
   [BlockType.THREAD]: { id: 5510, name: 'THREAD', icon: 'fas fa-reel' },
   [BlockType.VIEW]: { id: 7000, name: 'VIEW', icon: 'fas fa-window-frame' },
-  [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Line of rich Text', title: 'Paragraph', icon: 'fas fa-align-left' },
+  [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },
   [BlockType.HEADING_1]: { id: 10010, name: 'HEADING_1', text: 'Very big heading', title: 'Heading 1', icon: 'fas fa-heading' },
   [BlockType.HEADING_2]: { id: 10011, name: 'HEADING_2', text: 'Big heading', title: 'Heading 2', icon: 'fas fa-heading' },
   [BlockType.HEADING_3]: { id: 10012, name: 'HEADING_3', text: 'Medium heading', title: 'Heading 3', icon: 'fas fa-heading' },
@@ -36980,7 +36980,7 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.LIST_UNORDERED]: { id: 10030, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
   [BlockType.LIST_ORDERED]: { id: 10031, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
   [BlockType.DIVIDER]: { id: 10040, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
-  [BlockType.CODE]: { id: 10060, name: 'CODE', text: 'Code block', title: 'Code block', icon: 'fas fa-code' },
+  [BlockType.CODE]: { id: 10060, name: 'CODE', text: 'Code', title: 'Code', icon: 'fas fa-code' },
 }
 
 export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo>> = {
@@ -36994,7 +36994,7 @@ export const TextLineTypeOptionInfo: Partial<Record<TextLineType, EnumOptionInfo
   [TextLineType.LIST_UNORDERED]: { id: 30, name: 'LIST_UNORDERED', text: 'Unorderd list', title: 'Unorderd list', icon: 'fas fa-list-ul' },
   [TextLineType.LIST_ORDERED]: { id: 31, name: 'LIST_ORDERED', text: 'Numbered list', title: 'Numbered list', icon: 'fas fa-list-ol' },
   [TextLineType.DIVIDER]: { id: 40, name: 'DIVIDER', text: 'Horizontal line', title: 'Horizontal line', icon: 'fas fa-horizontal-rule' },
-  [TextLineType.CODE]: { id: 60, name: 'CODE', text: 'Code block', title: 'Code block', icon: 'fas fa-code' },
+  [TextLineType.CODE]: { id: 60, name: 'CODE', text: 'Code', title: 'Code', icon: 'fas fa-code' },
 }
 
 export const TextSpanTypeOptionInfo: Partial<Record<TextSpanType, EnumOptionInfo>> = {

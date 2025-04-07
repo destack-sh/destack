@@ -57,7 +57,7 @@ class TextLineType(BuiltinEnum):  # :TextLineType
     # table
     # ...
     # code
-    CODE = 60, "Code block", "Code block", "fas fa-code"
+    CODE = 60, "Code", "Code", "fas fa-code"
     # reference
     # LINK, EMBED, ...
 

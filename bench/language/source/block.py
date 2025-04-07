@@ -63,22 +63,22 @@ class BlockType(BuiltinEnum):
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes
-    PARAGRAPH = 10001, "Paragraph", "Line of rich Text", "fas fa-align-left"
+    PARAGRAPH = 10001
     # heading
-    HEADING_1 = 10010, "Heading 1", "Very big heading", "fas fa-heading"
-    HEADING_2 = 10011, "Heading 2", "Big heading", "fas fa-heading"
-    HEADING_3 = 10012, "Heading 3", "Medium heading", "fas fa-heading"
-    HEADING_4 = 10013, "Heading 4", "Small heading", "fas fa-heading"
+    HEADING_1 = 10010
+    HEADING_2 = 10011
+    HEADING_3 = 10012
+    HEADING_4 = 10013
     # callout
-    CALLOUT = 10020, "Callout", "Callout", "fas fa-circle-exclamation"
-    QUOTE = 10021, "Quote", "Quote", "fas fa-quote-left"
+    CALLOUT = 10020
+    QUOTE = 10021
     # list
-    LIST_UNORDERED = 10030, "Unorderd list", "Unorderd list", "fas fa-list-ul"
-    LIST_ORDERED = 10031, "Numbered list", "Numbered list", "fas fa-list-ol"
+    LIST_UNORDERED = 10030
+    LIST_ORDERED = 10031
     # presentation
-    DIVIDER = 10040, "Horizontal line", "Horizontal line", "fas fa-horizontal-rule"
+    DIVIDER = 10040
     # code
-    CODE = 10060, "Code block", "Code block", "fas fa-code"
+    CODE = 10060
 
     # layout?
     # ROW
@@ -92,6 +92,12 @@ for block_type in BlockType:
         block_type.color = node_type.color
         block_type.icon = node_type.icon
         block_type.text = node_type.text
+    else:
+        text_line_type = TextLineType(block_type.id - 10000)
+        block_type.title = text_line_type.title
+        block_type.color = text_line_type.color
+        block_type.icon = text_line_type.icon
+        block_type.text = text_line_type.text
 
 
 BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
