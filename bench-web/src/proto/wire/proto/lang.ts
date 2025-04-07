@@ -36503,7 +36503,7 @@ export type EnumOptionInfo = {
 }
 
 export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
-  [NodeType.BENCH]: { id: 1, name: 'BENCH', title: 'Bench', icon: 'fas fa-shapes' },
+  [NodeType.BENCH]: { id: 1, name: 'BENCH', title: 'Bench', icon: 'fas fa-layer-group' },
   [NodeType.HANDLE]: { id: 2, name: 'HANDLE', icon: 'fas fa-at' },
   [NodeType.USER]: { id: 10, name: 'USER', icon: 'fas fa-user' },
   [NodeType.ORGANIZATION]: { id: 20, name: 'ORGANIZATION', icon: 'fas fa-building' },
