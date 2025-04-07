@@ -16,7 +16,7 @@ from uuid import UUID
 
 from bench.language.registry import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
-from bench.utils.func import parse_py_annotation, hash_stable
+from bench.utils.func import hash_stable, parse_py_annotation
 from bench.utils.utils import frozendict
 
 from .const import (

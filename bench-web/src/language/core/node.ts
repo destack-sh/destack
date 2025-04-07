@@ -592,6 +592,10 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
   return clonedNodes;
 }
 
+export function instanceNode(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData) {
+  throw new Error("nocheckin: instanceNode/instanceNodes/...");
+}
+
 /**
  * Moves the given node around.
  * Except for 'up'/'down' requires a target as reference.

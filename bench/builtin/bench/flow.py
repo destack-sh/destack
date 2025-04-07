@@ -31,7 +31,7 @@ Tool1.connect(LinkType.DECIDE, End1)
 BenchAgent = Agent.new(
     "Bench",
     color=ColorType.AMBER,
-    icon=icon("fas fa-shapes", ColorType.AMBER),
+    icon=icon("fas fa-layer-group", ColorType.AMBER),
     text=text(
         """
 The default Agent of Bench.
