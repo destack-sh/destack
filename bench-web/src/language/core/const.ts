@@ -2,7 +2,6 @@ import {
   ActionType,
   Anchor,
   BlockType,
-  EditType,
   EmptyProperty,
   EnumType,
   INLINE_NODE_TYPES,
@@ -23,7 +22,6 @@ import {
   SOURCE_NODE_TYPES,
   SourceNodeData,
   StructType,
-  TaskStatus,
   TypeBaseNodeData,
   ViewDataInfo,
   ViewProperty,
@@ -194,10 +192,6 @@ export const INTERRUPTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.YIELDED, Ru
 export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, ...INTERRUPTED_RUN_STATUSES];
 export const BAD_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED];
 
-// task
-export const ACTIVE_TASK_STATUSES = [TaskStatus.RUNNING, TaskStatus.WAITING, TaskStatus.REVIEWING];
-export const TERMINAL_TASK_STATUSES = [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED];
-
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.HISTORY, ViewType.SPLIT]);
@@ -342,7 +336,7 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
-export const EXPOSED_ACTION_TYPES = [ActionType.START, ActionType.END, ActionType.TOOL, ActionType.DO]
+export const EXPOSED_ACTION_TYPES = [ActionType.START, ActionType.END, ActionType.TOOL, ActionType.DO];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,

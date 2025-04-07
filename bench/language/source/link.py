@@ -94,14 +94,11 @@ class Link(
 
     # modulation
     delay: Optional[timedelta] = p_regular(50, default=None)
-
+    color: Optional["Color"] = p_regular(
+        60, default=None, require=False, array=False, struct=StructType.COLOR
+    )
     # is_automap? (dynamically generate inputs?)
     # is_streaming: bool = p_regular(80, default=False)
-
-    # flow
-    color: Optional["Color"] = p_regular(
-        80, default=None, require=False, array=False, struct=StructType.COLOR
-    )
 
     def __content_str__(self) -> str:
         sign = SIGN_BY_LINK_TYPE.get(self.type, "???")

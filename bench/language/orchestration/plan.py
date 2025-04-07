@@ -3,18 +3,18 @@ from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
-    ColorType,
     EnumType,
     InlineNode,
     IsClaimable,
     IsInstantiable,
     IsModal,
     IsOwnable,
-    IsRuntimeControllable,
     IsTimed,
     IsTitled,
+    IsTracked,
     LocalNodeList,
     NodeType,
+    RunStatus,
     TextLineIn,
     enum_,
     p_internal,
@@ -38,33 +38,12 @@ class PlanType(BuiltinEnum):
     RUN = 20, "Run", "Sequence Tasks in a Run", "fas fa-list-ol"
 
 
-@enum_(EnumType.PLAN_STATUS)
-class PlanStatus(BuiltinEnum):
-    # pre
-    CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
-    # active
-    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.BLUE
-    # terminal
-    CANCELLED = 30, None, None, "fas fa-circle-xmark", ColorType.RED
-    ABORTED = 31, None, None, "fas fa-skull", ColorType.RED
-    FAILED = 32, None, None, "fas fa-circle-exclamation", ColorType.RED
-    COMPLETED = 33, None, None, "fas fa-circle-check", ColorType.GREEN
-
-    @property
-    def is_active(self) -> bool:
-        return self >= 10 and self < 20
-
-    @property
-    def is_terminal(self) -> bool:
-        return self >= 30
-
-
 @timed_node_(NodeType.PLAN)
 class Plan(
     IsTimed,
     IsOwnable,
     IsClaimable,
-    IsRuntimeControllable,
+    IsTracked,
     IsModal,
     IsInstantiable,
     IsTitled,
@@ -85,25 +64,24 @@ class Plan(
         implemented_by_id: Optional[UUID] = None
 
     # status [80-90]
-    status: PlanStatus = p_regular(80, default=PlanStatus.CREATED)
 
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
 
     def start(self) -> None:
-        self.status = PlanStatus.RUNNING
+        self.status = RunStatus.RUNNING
         self.started_at = self.active_session._oracle.utc()
 
     def complete(self) -> None:
-        self.status = PlanStatus.COMPLETED
+        self.status = RunStatus.COMPLETED
         self.terminated_at = self.active_session._oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
 
     def fail(self, error: "Error | None") -> None:
         self.error = error
-        self.status = PlanStatus.FAILED
+        self.status = RunStatus.FAILED
         self.terminated_at = self.active_session._oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at

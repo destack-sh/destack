@@ -49,6 +49,7 @@ from bench.language import (
     SUBNODE_CLASSES,
     TEMPLATABLE_NODE_TYPES,
     TIMED_NODE_TYPES,
+    TRACKED_NODE_TYPES,
     TYPE_BASE_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
@@ -794,6 +795,7 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("SOURCE_NODE_TYPES", SOURCE_NODE_TYPES),
         ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
         ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
+        ("TRACKED_NODE_TYPES", TRACKED_NODE_TYPES),
         ("USER_NODE_TYPES", USER_NODE_TYPES),
     ):
         node_types_str_parts.append(f"export const {name}: NodeType[] = [")
@@ -822,7 +824,7 @@ export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_
 export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 export type ClaimableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES)}
 export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES)}
-
+export type TrackedNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TRACKED_NODE_TYPES)}
 // Node types
 {node_types_str}
 

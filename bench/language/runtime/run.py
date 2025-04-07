@@ -11,9 +11,9 @@ from bench.language.core import (
     FieldType,
     IsBased,
     IsModal,
-    IsRuntimeControllable,
     IsTimed,
     IsTitled,
+    IsTracked,
     LocalNodeList,
     NodeType,
     PackageNode,
@@ -144,7 +144,7 @@ class RunOptions(Struct):
 @timed_node_(NodeType.RUN)
 class Run(
     IsTimed,
-    IsRuntimeControllable,
+    IsTracked,
     IsModal,
     IsBased,
     IsTitled,
