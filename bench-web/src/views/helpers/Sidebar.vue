@@ -99,7 +99,7 @@ defineExpose<ViewExpose>({ self });
           role="button"
           class="mr-1 w-5 text-center"
         />
-        <span v-if="bench" class="truncate font-medium">{{ bench.slug }}</span>
+        <span v-if="bench" class="truncate font-medium">{{ bench.name }}</span>
         <span v-else class="italic"> Bench </span>
       </div>
       <!-- Quick/Global commands -->

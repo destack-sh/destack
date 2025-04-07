@@ -56,9 +56,9 @@ const browserTitle = useTitle();
 watch(
   [bench, inspectedNode],
   () => {
-    const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
+    const benchPostfix = bench.value == null ? "Bench" : bench.value?.name;
     const nodeTitle = inspectedNodeTitle.value;
-    browserTitle.value = nodeTitle ? `${nodeTitle} · @${benchPostfix}` : `@${benchPostfix}`;
+    browserTitle.value = nodeTitle ? `${nodeTitle} · ${benchPostfix}` : `${benchPostfix}`;
   },
   { immediate: true },
 );

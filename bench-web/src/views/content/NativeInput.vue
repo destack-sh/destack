@@ -157,7 +157,7 @@ defineExpose<ViewExpose & { select: () => void }>({
     ]"
   >
     <!-- Input -->
-    <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S500" class="mr-0.5 w-5" />
+    <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S400" class="mr-0.5 w-5" />
     <!-- Current value -->
     <template v-if="!valueType?.isList">
       <!-- Scalar -->

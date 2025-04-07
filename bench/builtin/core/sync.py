@@ -8,6 +8,7 @@ from bench.language import (
     Block,
     IsInstantiable,
     IsTemplatable,
+    Membership,
     Node,
     NodeGraph,
     NodeReference,
@@ -18,10 +19,9 @@ from bench.language import (
 def get_stable_builtin_path(node: Node) -> str:
     """Get a deterministic absolute path for a Node."""
 
-    # assemble path (like in Path.render)
+    # assemble path
     path_parts: list[str] = []
     current = node
-    # (stop at Package for id stability)
     while current is not None and not isinstance(current, Package):
         path_key = current._ident
         if path_key is None:
@@ -31,6 +31,11 @@ def get_stable_builtin_path(node: Node) -> str:
                 inline_ident = inline_node._ident
                 assert inline_ident is not None, f"inline node {inline_node!r} has no ident"
                 path_key = f"Block[{inline_ident}]"
+            elif isinstance(current, Membership):
+                member = current.member
+                member_ident = member._ident
+                assert member_ident is not None, f"member {member!r} has no ident"
+                path_key = f"Membership[{member_ident}]"
             else:
                 raise ValueError(f"node {current!r} has no ident")
 
@@ -121,7 +126,7 @@ def sync_node(
             recursive=recursive,
             reset=False,
             detach=True,
-            map=False,
+            _map=False,
         )
         if reference.parent_ptr is None:
             target_parent = parent

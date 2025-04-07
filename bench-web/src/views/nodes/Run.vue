@@ -109,12 +109,12 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
         class="group/banner mx-5 mb-2 flex flex-row items-center rounded border px-2.5 py-1.5 transition-colors duration-150"
         :style="{
           backgroundColor: getRunColorHex(run.status, ColorShade.S100),
-          borderColor: getRunColorHex(run.status, ColorShade.S500),
+          borderColor: getRunColorHex(run.status, ColorShade.S400),
         }"
       >
         <IconInline
           v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
-          :style="{ color: getRunColorHex(run.status, ColorShade.S500) }"
+          :style="{ color: getRunColorHex(run.status, ColorShade.S400) }"
           :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
         />
         <div class="ml-1.5">
