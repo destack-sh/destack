@@ -14,11 +14,12 @@ from bench.language import (
 from .bench import (
     ActionKit,
     ActionPage,
+    AgentPage,
     BenchAgent,
     BenchFlow,
     ComputerKit,
     ComputerPage,
-    FlowPage,
+    ThreadPage,
     UbuntuComputerTemplate,
 )
 from .core import assign_builtin_ids, get_stable_builtin_path, sync_node
@@ -29,7 +30,7 @@ BuiltinPackage = Package(
     slug=BENCH_BENCH_PACKAGE_SLUG,
     _is_new=True,
 )
-BuiltinPackage.extend(ActionPage, FlowPage, ComputerPage)
+BuiltinPackage.extend(ActionPage, AgentPage, ComputerPage, ThreadPage)
 
 # finalize
 supergraph = NodeSuperGraph(
@@ -46,12 +47,12 @@ assign_builtin_ids(BuiltinPackage._graph, ignore=(BuiltinPackage,))
 __all__ = [
     "ActionKit",
     "ActionPage",
+    "AgentPage",
     "BenchAgent",
     "BenchFlow",
     "BuiltinPackage",
     "ComputerKit",
     "ComputerPage",
-    "FlowPage",
     "UbuntuComputerTemplate",
     "assign_builtin_ids",
     "get_stable_builtin_path",

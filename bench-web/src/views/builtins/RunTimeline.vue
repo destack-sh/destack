@@ -131,8 +131,8 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
     const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = !isNode(run, NodeType.SPAN)
-      ? getColorHex(RunStatusOptionInfo[run.status]!.color!, ColorShade.S500)!
-      : getColorHex(ColorType.SUCCESS, ColorShade.S500)!;
+      ? getColorHex(RunStatusOptionInfo[run.status]!.color!, ColorShade.S400)!
+      : getColorHex(ColorType.SUCCESS, ColorShade.S400)!;
     let icon: IconData;
     let name: string = "???";
     if (isNode(run, NodeType.RUN)) {

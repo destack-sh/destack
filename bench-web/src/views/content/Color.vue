@@ -73,7 +73,7 @@ defineExpose<ViewExpose>({ self, id, focus });
     <!-- Dropdown -->
     <!-- Current Value -->
     <template v-if="modelValue != null">
-      <i class="fas fa-circle-small w-5 text-center" :style="{ color: getColorHex(modelValue, ColorShade.S500) }" />
+      <i class="fas fa-circle-small w-5 text-center" :style="{ color: getColorHex(modelValue, ColorShade.S400) }" />
       <div class="ml-1.5">{{ getColorTitle(modelValue) ?? "???" }}</div>
     </template>
     <template v-else>
@@ -111,7 +111,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       @keydown.left.stop.prevent="focus('left')"
       @keydown.right.stop.prevent="focus('right')"
     >
-      <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S500) }" />
+      <i class="fas fa-circle" :style="{ color: getColorHex(color, ColorShade.S400) }" />
     </button>
   </div>
 </template>

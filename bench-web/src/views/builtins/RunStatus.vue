@@ -25,7 +25,7 @@ const props = defineProps<{
         />
         <span
           class="relative inline-flex h-[8px] w-[8px] rounded-full transition-colors duration-150"
-          :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S500) }"
+          :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
         />
       </span>
       <span

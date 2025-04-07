@@ -21,6 +21,8 @@ export function createThread(
   }
   const thread = tx.create({ metatype: NodeType.THREAD, ...options.thread });
 
+  // nocheckin: instance agents (here?)
+
   // add members
   for (const member of options.members) {
     if (member == "bench") {

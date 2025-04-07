@@ -74,7 +74,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           fillState != 'empty'
             ? isManual
               ? getColorHex(ColorType.GRAY, ColorShade.S700)
-              : getTaskColorHex(task.status, ColorShade.S500)
+              : getTaskColorHex(task.status, ColorShade.S400)
             : undefined,
       }"
       @click="toggleTaskStatus(connection.tx, task)"
@@ -85,8 +85,8 @@ defineExpose<ViewExpose>({ self, id, focus });
           backgroundColor:
             fillState != 'empty'
               ? isManual
-                ? getColorHex(ColorType.GRAY, ColorShade.S500)
-                : getTaskColorHex(task.status, ColorShade.S500)
+                ? getColorHex(ColorType.GRAY, ColorShade.S400)
+                : getTaskColorHex(task.status, ColorShade.S400)
               : undefined,
           clipPath: fillState == 'full' ? undefined : 'inset(0 0 50% 0)',
         }"

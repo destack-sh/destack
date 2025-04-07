@@ -258,6 +258,7 @@ Sure, here's how you make lists in markdown:
 - Item 1
 - Item 2
 ```
+---
 Looks like this:
 - Item 1
 - Item 2

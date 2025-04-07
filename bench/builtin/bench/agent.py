@@ -13,7 +13,9 @@ from bench.language import (
 )
 
 # default Flow
-BenchFlow = Flow.new("Flow", icon=icon("fas fa-robot"), text=text("The default agentive Flow."))
+BenchFlow = Flow.new(
+    "Bench Flow", icon=icon("fas fa-robot"), text=text("The default agentive Flow.")
+)
 Start1 = Action.new(
     ActionType.START,
     "Start",
@@ -29,20 +31,21 @@ Tool1.connect(LinkType.DECIDE, End1)
 
 # default Agent
 BenchAgent = Agent.new(
-    "Bench",
-    color=ColorType.AMBER,
-    icon=icon("fas fa-layer-group", ColorType.AMBER),
+    "Bench Agent",
+    color=ColorType.YELLOW,
+    icon=icon("fas fa-layer-group", ColorType.YELLOW),
     text=text(
         """
-The default Agent of Bench.
-Direct, gets to the point, friendly, helpful, not too yappy.
-Does NOT ask questions unless it's really necessary.
-You're the smart, chill friend on Discord.
+You are the default Agent in Bench -- you represent the Bench system.
+You are the smart, chill friend to DM with who thinks ahead, but never pushes or patronizes.
+You SHOULD be direct and get to the point. Do not yap or meander.
+ (Say what you need to say, don't lead into it.) 
+You SHOULD NOT ask questions unless obviously required, let others lead the conversation.
         """
     ),
     main_flow=BenchFlow,
 )
 BenchFlow.default_agent = BenchAgent
 
-FlowPage = Page.new("Flow")
-FlowPage.extend(BenchFlow, BenchAgent)
+AgentPage = Page.new("Agent")
+AgentPage.extend(BenchFlow, BenchAgent)

@@ -183,7 +183,7 @@ export const AvatarInline: FunctionalComponent<
     }
     return (
       <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
-        <i class={`${props.faName} text-white`} />
+        <i class={`${props.faName} text-gray-900`} />
       </div>
     );
   } else if (props.emoji) {

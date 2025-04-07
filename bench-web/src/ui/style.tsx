@@ -84,9 +84,9 @@ export function getRandomColorType(options?: { except?: ColorType[] }): ColorTyp
 
 export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): string | undefined {
   if (typeof color == "number") {
-    return COLOR_HEX_BY_TYPE[color]?.[COLOR_SHADE_INDEX[shade ?? ColorShade.S500]];
+    return COLOR_HEX_BY_TYPE[color]?.[COLOR_SHADE_INDEX[shade ?? ColorShade.S400]];
   } else if (color.type != null) {
-    return COLOR_HEX_BY_TYPE[color.type]?.[COLOR_SHADE_INDEX[shade ?? color.shade ?? ColorShade.S500]];
+    return COLOR_HEX_BY_TYPE[color.type]?.[COLOR_SHADE_INDEX[shade ?? color.shade ?? ColorShade.S400]];
   } else if (color.hex != null) {
     return color.hex;
   } else {
