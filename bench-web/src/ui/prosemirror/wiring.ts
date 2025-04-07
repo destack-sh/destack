@@ -589,15 +589,18 @@ export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
   if (lineNode.type.name === "block") {
     return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
   } else if (lineNode.type.name === "lineCode") {
+    const text: TextLineData = {
+      metatype: ObjectType.TEXT_LINE,
+      type: TextLineType.CODE,
+      spans: [],
+      content: lineNode.textContent,
+    };
+    if (lineNode.attrs.language) {
+      text.language = lineNode.attrs.language;
+    }
     return {
       type: "text",
-      text: {
-        metatype: ObjectType.TEXT_LINE,
-        type: TextLineType.CODE,
-        spans: [],
-        content: lineNode.textContent,
-        language: lineNode.attrs.language,
-      },
+      text,
       blockPtr: lineNode.attrs.blockPtr,
     };
   }

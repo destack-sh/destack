@@ -927,6 +927,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 ref="inputRef"
                 is-input
                 is-minimal
+                class="pr-1.5"
                 placeholder="Message..."
                 suppress-enter
                 suppress-drop
