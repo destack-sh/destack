@@ -2,10 +2,9 @@
 import { IconData } from "@/proto/wire";
 import { Command, CommandBuiltinId, getCommand } from "@/ui/command";
 import { IconInline, makeIcon } from "@/ui/icon";
-import { hasTextMark, setTextMark } from "@/ui/prosemirror/editor";
+import { hasTextMark, markFormatCommand, setTextMark } from "@/ui/prosemirror/editor";
 import { TextMarkType } from "@/ui/prosemirror/schema";
 import { type TooltipProps } from "@/ui/prosemirror/view";
-import { TooltipInfo } from "@/ui/tooltip";
 
 const props = defineProps<TooltipProps>();
 
@@ -17,26 +16,24 @@ type FormatCommand = {
   toggle: () => void;
 };
 
-function markFormatCommand(mark: TextMarkType, commandId: CommandBuiltinId, icon: string): FormatCommand {
+function makeCommand(mark: TextMarkType, commandId: CommandBuiltinId, icon: string): FormatCommand {
   const command = getCommand(commandId);
-  const formatCommand: FormatCommand = {
+  const pmCommand = markFormatCommand(mark, () => props.view, () => true);
+  return {
     id: mark,
     icon: makeIcon(icon),
-    command: command,
-    isChecked: () => hasTextMark(props.view.state, props.view.state.selection, mark) !== false,
-    toggle: () => {
-      setTextMark(props.view.state, props.view.state.selection, mark, "toggle", props.view.dispatch);
-    },
+    command,
+    isChecked: () => pmCommand.isChecked(),
+    toggle: () => pmCommand.command() ,
   };
-  return formatCommand;
 }
 
 const formatCommands: FormatCommand[] = [
-  markFormatCommand("bold", "text.format.bold", "fas fa-bold"),
-  markFormatCommand("italic", "text.format.italic", "fas fa-italic"),
-  markFormatCommand("underline", "text.format.underline", "fas fa-underline"),
-  markFormatCommand("strikethrough", "text.format.strikethrough", "fas fa-strikethrough"),
-  markFormatCommand("code", "text.format.code", "fas fa-code"),
+  makeCommand("bold", "text.format.bold", "fas fa-bold"),
+  makeCommand("italic", "text.format.italic", "fas fa-italic"),
+  makeCommand("underline", "text.format.underline", "fas fa-underline"),
+  makeCommand("strikethrough", "text.format.strikethrough", "fas fa-strikethrough"),
+  makeCommand("code", "text.format.code", "fas fa-code"),
 ];
 </script>
 <template>

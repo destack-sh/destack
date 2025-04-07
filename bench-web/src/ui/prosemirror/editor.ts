@@ -661,6 +661,73 @@ export function setTextSpanType(
   throw new Error("TODO :Incomplete: setTextSpanType not yet supported");
 }
 
+/** Gets our custom ProseMirror format command */
+export function markFormatCommand(
+  mark: TextMarkType,
+  getView: () => EditorView | null,
+  isEnabled: () => boolean,
+) {
+  return {
+    isEnabled: () => {
+      const view = getView();
+      if (view == null) return false;
+      return isEnabled();
+    },
+    isChecked: () => {
+      const view = getView();
+      if (view == null) return false;
+      return hasTextMark(view.state, view.state.selection, mark) !== false;
+    },
+    command: () => {
+      const view = getView();
+      if (view == null) throw new Error("view not mounted");
+
+      if (mark == "code") {
+        const { state } = view;
+        const { selection } = state;
+
+        // if we have a multi-line selection, convert to a code block
+        if (selection instanceof TextSelection && !selection.empty) {
+          const { $from, $to } = selection;
+          const fromBlock = $from.blockRange();
+          const toBlock = $to.blockRange();
+
+          // multi-block selection or selection containing multiple lines
+          if (
+            (fromBlock && toBlock && fromBlock.start !== toBlock.start) ||
+            state.doc.textBetween($from.pos, $to.pos, "\n").includes("\n")
+          ) {
+            const tr = state.tr;
+            const selectedText = state.doc.textBetween($from.pos, $to.pos, "\n");
+            const $start = state.doc.resolve($from.start($from.depth));
+            const parentAttrs = $start.parent.attrs;
+
+            // replace the selection with a code block
+            const codeBlock = PM_SCHEMA.node(
+              "lineCode",
+              {
+                type: TextLineType.CODE,
+                blockPtr: parentAttrs.blockPtr,
+              },
+              state.schema.text(selectedText),
+            );
+            tr.replaceWith($from.start($from.depth), $to.end($to.depth), codeBlock);
+            const newPos = $from.start($from.depth) + codeBlock.nodeSize - 1;
+            tr.setSelection(TextSelection.create(tr.doc, newPos));
+            view.dispatch(tr);
+            return true;
+          }
+        }
+
+        // otherwise, just toggle the code mark
+        commands.toggleMark(state.schema.marks.code)(state, view.dispatch);
+        return true;
+      }
+      setTextMark(view.state, view.state.selection, mark, "toggle", view.dispatch);
+    },
+  };
+}
+
 /**
  * Install a Text editor on a DOM element.
  */
@@ -785,7 +852,7 @@ export function useTextEditor(options: {
           getPos,
           navigate,
         }),
-    }
+    };
     if (!toValue(isInput)) {
       nodeViews.lineCode = (node, view, getPos) => new CodeLineView(node, view, getPos);
     }
@@ -863,26 +930,34 @@ export function useTextEditor(options: {
     prevText = lines.value;
   });
 
-  // formatting
-  function markFormatAction(mark: TextMarkType): CommandKit {
-    return {
-      isEnabled: () => toValue(isInput),
-      isChecked: () => view != null && hasTextMark(view.state, view.state.selection, mark) !== false,
-      command: () => {
-        if (view == null) throw new Error("view not mounted");
-        setTextMark(view.state, view.state.selection, mark, "toggle", view.dispatch);
-      },
-    };
-  }
-
   // actions
   const actions: CommandMapKit<"text"> & Partial<CommandMapKit<"space">> = {
     // text
-    "text.format.bold": markFormatAction("bold"),
-    "text.format.italic": markFormatAction("italic"),
-    "text.format.strikethrough": markFormatAction("strikethrough"),
-    "text.format.underline": markFormatAction("underline"),
-    "text.format.code": markFormatAction("code"),
+    "text.format.bold": markFormatCommand(
+      "bold",
+      () => view,
+      () => toValue(isInput),
+    ),
+    "text.format.italic": markFormatCommand(
+      "italic",
+      () => view,
+      () => toValue(isInput),
+    ),
+    "text.format.strikethrough": markFormatCommand(
+      "strikethrough",
+      () => view,
+      () => toValue(isInput),
+    ),
+    "text.format.underline": markFormatCommand(
+      "underline",
+      () => view,
+      () => toValue(isInput),
+    ),
+    "text.format.code": markFormatCommand(
+      "code",
+      () => view,
+      () => toValue(isInput),
+    ),
     // space
     "space.edit.delete": {
       command: (command, ctx) => {
