@@ -53,9 +53,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces, _ = compile_prompt(
-            prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens
-        )
+        pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
 
         # download media
         files_to_download = [

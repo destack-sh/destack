@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.05.2"
+VERSION = "2025.04.07.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -400,9 +400,7 @@ class EnumType(BuiltinEnum):
     RUN_TYPE = 22001
     SPAN_TYPE = 22002
     PLAN_TYPE = 22003
-    PLAN_STATUS = 22004
     TASK_TYPE = 22010
-    TASK_STATUS = 22011
     SESSION_STATUS = 22020
     CACHE_MODE = 22040
     LOG_TYPE = 22060
@@ -413,7 +411,6 @@ class EnumType(BuiltinEnum):
     SCHEDULE_FREQUENCY = 22041
     CLAIM_TYPE = 22050
     CLAIM_STATUS = 22051
-    AGENT_STATUS = 22061
 
     # error (22100-22149)
     ERROR_KIND = 22100
@@ -1499,10 +1496,11 @@ class ErrorKind(BuiltinEnum):
 class RunStatus(BuiltinEnum):
     # pre
     CREATED = 1, "Created", "Created but not yet assigned", "fas fa-clock", ColorType.GRAY
-    SCHEDULED = 2, "Scheduled", "Scheduled to run sometime", "fas fa-clock", ColorType.GRAY
-    QUEUED = 3, "Queued", "Queued to run soon", "fas fa-hourglass", ColorType.GRAY
+    ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock", ColorType.GRAY
+    SCHEDULED = 4, "Scheduled", "Scheduled for sometime", "fas fa-clock", ColorType.GRAY
+    QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-hourglass", ColorType.GRAY
     # active
-    RUNNING = 10, "Running", "Executing right now", "fas fa-circle-notch", ColorType.BLUE
+    RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch", ColorType.BLUE
     # interrupted
     PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
     YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK

@@ -10,8 +10,6 @@ import {
   ObjectType,
   RunStatus,
   RunStatusOptionInfo,
-  TaskStatus,
-  TaskStatusOptionInfo,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -96,12 +94,6 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
 
 export function getRunColorHex(status: RunStatus, shade?: ColorShade): string | undefined {
   const color = RunStatusOptionInfo[status]?.color;
-  if (color == null) return undefined;
-  return getColorHex(color, shade);
-}
-
-export function getTaskColorHex(status: TaskStatus, shade?: ColorShade): string | undefined {
-  const color = TaskStatusOptionInfo[status]?.color;
   if (color == null) return undefined;
   return getColorHex(color, shade);
 }

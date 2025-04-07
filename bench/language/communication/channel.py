@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
@@ -9,11 +8,11 @@ from bench.language.core import (
     IsJoinable,
     IsModal,
     IsNamed,
+    IsTracked,
     LocalNodeList,
     NodeType,
     RemoteNodeList,
     enum_,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -34,7 +33,7 @@ class ChannelStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.CHANNEL)
-class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
+class Channel(IsInstantiable, IsTracked, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
     """
@@ -51,9 +50,7 @@ class Channel(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelDa
         61, require=False, array=False, references=NodeType.PLAN, same_bench=True
     )
 
-    # status
-    status: ChannelStatus = p_internal(50, default=ChannelStatus.OPEN)
-    closed_at: Optional[datetime] = p_internal(55, default=None)
+    # status [80-90]
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList

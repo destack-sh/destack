@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
@@ -14,6 +13,7 @@ from bench.language.core import (
     IsRuntime,
     IsTimed,
     IsTitled,
+    IsTracked,
     LocalNodeList,
     Node,
     NodeReference,
@@ -24,7 +24,6 @@ from bench.language.core import (
     TextIn,
     TextLineIn,
     enum_,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -62,6 +61,7 @@ class ThreadStatus(BuiltinEnum):
 class Thread(
     IsTimed,
     IsOwnable,
+    IsTracked,
     IsJoinable,
     IsTitled,
     IsModal,
@@ -93,10 +93,6 @@ class Thread(
         scope_ptr: Optional[NodeReference] = None
         scope_id: Optional[UUID] = None
 
-    # status
-    status: ThreadStatus = p_internal(50, default=ThreadStatus.OPEN)
-    closed_at: Optional[datetime] = p_internal(55, default=None)
-
     # content
     main_page: Optional["Page"] = p_regular(
         60,
@@ -121,6 +117,9 @@ class Thread(
         main_plan_ptr: Optional[NodeReference] = None
         main_plan_id: Optional[UUID] = None
         main_plan_ck: Optional[UUID] = None
+
+    # status [80-90]
+    # ...
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList

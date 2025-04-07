@@ -5,7 +5,6 @@ from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
-    ColorType,
     CustomObject,
     EnumType,
     FieldType,
@@ -14,12 +13,13 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsOwnable,
-    IsRuntimeControllable,
     IsTimed,
     IsTitled,
+    IsTracked,
     IsType,
     NodeList,
     NodeType,
+    RunStatus,
     StructType,
     Text,
     TextLineIn,
@@ -59,29 +59,12 @@ class TaskType(BuiltinEnum):
     RUN = 20, "Run", "Run a specific Node", "fas fa-play"
 
 
-@enum_(EnumType.TASK_STATUS)
-class TaskStatus(BuiltinEnum):
-    # pre
-    CREATED = 1, None, None, "fas fa-clock", ColorType.GRAY
-    ASSIGNED = 3, None, None, "far fa-rhombus", ColorType.GRAY
-    # active
-    RUNNING = 10, None, None, "fas fa-circle-notch", ColorType.BLUE
-    # waiting
-    WAITING = 22, None, None, "fas fa-circle-pause", ColorType.PINK
-    REVIEWING = 23, None, None, "fas fa-circle-pause", ColorType.PINK
-    # terminal
-    CANCELLED = 30, None, None, "fas fa-circle-xmark", ColorType.RED
-    ABORTED = 31, None, None, "fas fa-skull", ColorType.RED
-    FAILED = 32, None, None, "fas fa-circle-exclamation", ColorType.RED
-    COMPLETED = 33, None, None, "fas fa-circle-check", ColorType.GREEN
-
-
 @timed_node_(NodeType.TASK)
 class Task(
     IsTimed,
     IsOwnable,
     IsClaimable,
-    IsRuntimeControllable,
+    IsTracked,
     IsModal,
     IsTitled,
     IsInstantiable,
@@ -153,17 +136,16 @@ class Task(
         nodes_id: Optional[UUID] = None
 
     # status [80-90]
-    status: TaskStatus = p_regular(80, default=TaskStatus.CREATED)
 
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
     def start(self) -> None:
-        self.status = TaskStatus.RUNNING
+        self.status = RunStatus.RUNNING
         self.started_at = self.active_session._oracle.utc()
 
     def complete(self) -> None:
-        self.status = TaskStatus.COMPLETED
+        self.status = RunStatus.COMPLETED
         self.terminated_at = self.active_session._oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
@@ -173,7 +155,7 @@ class Task(
 
     def fail(self, error: "Error | None" = None) -> None:
         self.error = error
-        self.status = TaskStatus.FAILED
+        self.status = RunStatus.FAILED
 
     @cached_property
     def value_type(self) -> Optional["IsType"]:

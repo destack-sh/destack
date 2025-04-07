@@ -7,7 +7,15 @@ from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, NodeReferenceData
 from bench.utils.uuidt import UUIDT
 
-from .const import RESOURCE_NODE_TYPES, NodeMode, NodeType, ReferenceKind, StructType, bittuple
+from .const import (
+    RESOURCE_NODE_TYPES,
+    NodeMode,
+    NodeType,
+    ReferenceKind,
+    RunStatus,
+    StructType,
+    bittuple,
+)
 from .list import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
@@ -139,6 +147,17 @@ SUBJECT_NODE_TYPES = bittuple(
 
 Runnable = Union["Flow", "Action", "Link"]
 RUNNABLE_NODE_TYPES = bittuple(NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
+
+
+Tracked = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run"]
+TRACKED_NODE_TYPES = bittuple(
+    NodeType.CHANNEL,
+    NodeType.THREAD,
+    NodeType.AGENT,
+    NodeType.PLAN,
+    NodeType.RUN,
+    NodeType.TASK,
+)
 
 FieldBaseNode = Union["Agent", "Flow", "Action", "Class", "Database"]
 FIELD_BASE_NODE_TYPES = bittuple(
@@ -400,13 +419,6 @@ class IsTitled(BuiltinObject):
 
 
 @object_()
-class IsRunnable(BuiltinObject):
-    """A Node that can be run."""
-
-    pass
-
-
-@object_()
 class IsTypeBase(BuiltinObject):
     """A Node that can be a Type base."""
 
@@ -472,10 +484,10 @@ class IsRuntime(BuiltinObject):
 
 
 @object_()
-class IsRuntimeControllable(IsRuntime):
-    """A Node that can be 'controlled' (paused, resumed, stopped, etc.) at runtime."""
+class IsTracked(IsRuntime):
+    """A Node that can be tracked somehow."""
 
-    # status: 80 ...
+    status: RunStatus = p_internal(80, default=RunStatus.CREATED)
     duration: Optional[timedelta] = p_internal(
         81,
         default=None,
@@ -516,3 +528,10 @@ class IsRuntimeControllable(IsRuntime):
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
+
+
+@object_()
+class IsRunnable(BuiltinObject):
+    """A Node that can be run (at runtime with a Run)."""
+
+    pass

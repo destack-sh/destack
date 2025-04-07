@@ -3,10 +3,8 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
-    BuiltinEnum,
     ColorType,
     CustomObject,
-    EnumType,
     FieldType,
     InlineNode,
     IsClaimable,
@@ -15,16 +13,15 @@ from bench.language.core import (
     IsModal,
     IsNamed,
     IsOwnable,
-    IsRuntimeControllable,
     IsSubject,
     IsTimed,
+    IsTracked,
     IsType,
     LocalNodeList,
     NodeReference,
     NodeType,
     StructType,
     TypeKind,
-    enum_,
     node_,
     p_node_children,
     p_node_parent,
@@ -50,32 +47,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.AGENT_STATUS)
-class AgentStatus(BuiltinEnum):
-    # pre
-    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-clock", ColorType.GRAY
-    SCHEDULED = 2, "Scheduled", "Scheduled to run sometime", "fas fa-clock", ColorType.GRAY
-    QUEUED = 3, "Queued", "Queued to run soon", "fas fa-hourglass", ColorType.GRAY
-    # active
-    RUNNING = 10, "Running", "Executing right now", "fas fa-circle-notch", ColorType.BLUE
-    # interrupted
-    PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
-    YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK
-    WAITING = 22, "Waiting", "Waiting for a condition", "fas fa-circle-pause", ColorType.PINK
-    # terminal
-    CANCELLED = 30, "Cancelled", "Cancelled manually", "fas fa-circle-xmark", ColorType.GRAY
-    ABORTED = 31, "Aborted", "Aborted due to an error", "fas fa-skull", ColorType.GRAY
-    FAILED = 32, "Failed", "Failed due to an error", "fas fa-circle-exclamation", ColorType.RED
-    COMPLETED = 33, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
-    SKIPPED = (
-        34,
-        "Skipped",
-        "Skipped due to a condition",
-        "fas fa-circle-exclamation",
-        ColorType.GRAY,
-    )
-
-
 @node_(NodeType.AGENT)
 class Agent(
     IsTimed,
@@ -84,7 +55,7 @@ class Agent(
     IsClaimable,
     IsModal,
     IsFieldBase,
-    IsRuntimeControllable,
+    IsTracked,
     IsSubject,
     IsNamed,
     InlineNode[AgentData],
@@ -151,8 +122,7 @@ class Agent(
         implemented_by_id: Optional[UUID] = None
 
     # status [80-90]
-    status: AgentStatus = p_regular(80, default=AgentStatus.CREATED)
-    # nocheckin: track Agent (instance) status (and show it in the UI)
+    # nocheckin: track Thread & Agent (instance) status (and show it in the UI)
 
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
