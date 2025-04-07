@@ -1,5 +1,5 @@
 import { supergraph } from "@/globals";
-import { INLINE_NODE_TYPES, isInlineNode, toCamelName } from "@/language/core/const";
+import { isInlineNode, toCamelName } from "@/language/core/const";
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -17,6 +17,7 @@ import {
   BlockData,
   BlockType,
   FieldType,
+  INLINE_NODE_TYPES,
   InlineNodeData,
   NodeReferenceData,
   NodeType,

@@ -34,8 +34,11 @@ if TYPE_CHECKING:
         Interruption,
         Kit,
         Link,
+        Log,
+        Message,
         Node,
         NodeReference,
+        Notification,
         Organization,
         Package,
         Page,
@@ -43,8 +46,10 @@ if TYPE_CHECKING:
         Plan,
         Record,
         Resource,
+        Run,
         Session,
         Space,
+        Span,
         Task,
         Team,
         TextLine,
@@ -146,6 +151,31 @@ FIELD_BASE_NODE_TYPES = bittuple(
 
 TypeBaseNode = Union[FieldBaseNode, "Choice"]
 TYPE_BASE_NODE_TYPES = bittuple(*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
+
+Timed = Union[
+    "Message",
+    "Notification",
+    "Thread",
+    "Agent",
+    "Plan",
+    "Task",
+    "Interruption",
+    "Log",
+    "Run",
+    "Span",
+]
+TIMED_NODE_TYPES = bittuple(
+    NodeType.MESSAGE,
+    NodeType.NOTIFICATION,
+    NodeType.THREAD,
+    NodeType.AGENT,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.INTERRUPTION,
+    NodeType.LOG,
+    NodeType.RUN,
+    NodeType.SPAN,
+)
 
 
 @object_()

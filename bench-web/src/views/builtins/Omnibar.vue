@@ -1,6 +1,5 @@
 <script lang="tsx" setup>
-import { INLINE_NODE_TYPES } from "@/language/core/const";
-import { ObjectType, Orientation } from "@/proto/wire";
+import { INLINE_NODE_TYPES, ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
 import { benchGraph, canvas, hasLocalPkg } from "@/system/space";
 import { OMNIBAR_MODES, addCommand, fireCommand, type CommandBuiltinId, type OmnibarMode } from "@/ui/command";

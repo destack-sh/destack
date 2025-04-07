@@ -13,28 +13,46 @@ import typer
 
 from bench.language import (
     ANCESTOR_NODE_TYPES,
+    BASED_NODE_TYPES,
+    BENCH_NODE_TYPES,
     CHILD_NODE_TYPES,
     CLAIMABLE_NODE_TYPES,
+    COMMUNICATION_NODE_TYPES,
+    COSMOS_NODE_TYPES,
     DESCENDANT_NODE_TYPES,
     ENUM_CLASS_BY_TYPE,
     ENUM_TYPES,
     FIELD_BASE_NODE_TYPES,
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
+    GLOBAL_NODE_TYPES,
+    INLINE_NODE_TYPES,
+    INSTANTIABLE_NODE_TYPES,
     JOINABLE_NODE_TYPES,
+    LOCAL_NODE_TYPES,
     NODE_CLASS_BY_TYPE,
     NODE_CLASSES,
     NODE_TYPES,
     OWNABLE_NODE_TYPES,
+    PACKAGE_NODE_TYPES,
     PARENT_NODE_TYPES,
+    PUBLIC_NODE_TYPES,
+    REGIONAL_NODE_TYPES,
+    RESOURCE_NODE_TYPES,
+    ROOT_NODE_TYPES,
+    RUNTIME_NODE_TYPES,
+    SOURCE_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_CLASSES,
     STRUCT_TYPES,
     SUBJECT_NODE_TYPES,
     SUBNODE_CLASSES,
+    TEMPLATABLE_NODE_TYPES,
+    TIMED_NODE_TYPES,
     TYPE_BASE_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
+    USER_NODE_TYPES,
     VERSION,
     BenchNode,
     EnumType,
@@ -756,6 +774,34 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
 }}
 """
 
+    # node types
+    node_types_str_parts: list[str] = []
+    for name, node_types in (
+        ("BASED_NODE_TYPES", BASED_NODE_TYPES),
+        ("BENCH_NODE_TYPES", BENCH_NODE_TYPES),
+        ("COMMUNICATION_NODE_TYPES", COMMUNICATION_NODE_TYPES),
+        ("COSMOS_NODE_TYPES", COSMOS_NODE_TYPES),
+        ("GLOBAL_NODE_TYPES", GLOBAL_NODE_TYPES),
+        ("INLINE_NODE_TYPES", INLINE_NODE_TYPES),
+        ("INSTANTIABLE_NODE_TYPES", INSTANTIABLE_NODE_TYPES),
+        ("LOCAL_NODE_TYPES", LOCAL_NODE_TYPES),
+        ("PACKAGE_NODE_TYPES", PACKAGE_NODE_TYPES),
+        ("PUBLIC_NODE_TYPES", PUBLIC_NODE_TYPES),
+        ("REGIONAL_NODE_TYPES", REGIONAL_NODE_TYPES),
+        ("RESOURCE_NODE_TYPES", RESOURCE_NODE_TYPES),
+        ("ROOT_NODE_TYPES", ROOT_NODE_TYPES),
+        ("RUNTIME_NODE_TYPES", RUNTIME_NODE_TYPES),
+        ("SOURCE_NODE_TYPES", SOURCE_NODE_TYPES),
+        ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
+        ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
+        ("USER_NODE_TYPES", USER_NODE_TYPES),
+    ):
+        node_types_str_parts.append(f"export const {name}: NodeType[] = [")
+        for node_type in node_types:
+            node_types_str_parts.append(f"  NodeType.{node_type.name},")
+        node_types_str_parts.append("];")
+    node_types_str = "\n".join(node_types_str_parts)
+
     patch_postfix_code = f"""
 //
 // Extra utility types
@@ -776,6 +822,9 @@ export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_
 export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 export type ClaimableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES)}
 export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES)}
+
+// Node types
+{node_types_str}
 
 // Ancestry maps
 {ancestry_maps_str}

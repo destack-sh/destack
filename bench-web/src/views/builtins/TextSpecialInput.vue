@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { canvas } from "@/globals";
-import { INLINE_NODE_TYPES } from "@/language/core/const";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { newChangeId } from "@/language/runtime/transaction";
 import { createInlineNode } from "@/language/source/block";

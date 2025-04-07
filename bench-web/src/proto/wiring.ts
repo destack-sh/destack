@@ -1,5 +1,6 @@
-import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/core/const";
+import { getBaseFromNode, toCamelName } from "@/language/core/const";
 import {
+  BASED_NODE_TYPES,
   EditData,
   EditOperationType,
   EditType,

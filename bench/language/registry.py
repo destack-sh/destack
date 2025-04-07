@@ -71,6 +71,7 @@ def _complete_bench_setup():
         BuiltinObject,
         CustomObject,
         InlineNode,
+        IsBased,
         IsClaimable,
         IsFieldBase,
         IsInstantiable,
@@ -79,6 +80,7 @@ def _complete_bench_setup():
         IsRunnable,
         IsSubject,
         IsTemplatable,
+        IsTimed,
         IsTypeBase,
         Node,
         Struct,
@@ -251,6 +253,7 @@ def _complete_bench_setup():
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
             (IsInstantiable, const.INSTANTIABLE_NODE_TYPES.tuple),
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
+            (IsBased, const.BASED_NODE_TYPES.tuple),
             (IsJoinable, trait.JOINABLE_NODE_TYPES.tuple),
             (IsClaimable, trait.CLAIMABLE_NODE_TYPES.tuple),
             (IsSubject, trait.SUBJECT_NODE_TYPES.tuple),
@@ -258,6 +261,7 @@ def _complete_bench_setup():
             (IsRunnable, trait.RUNNABLE_NODE_TYPES.tuple),
             (IsFieldBase, trait.FIELD_BASE_NODE_TYPES.tuple),
             (IsTypeBase, trait.TYPE_BASE_NODE_TYPES.tuple),
+            (IsTimed, trait.TIMED_NODE_TYPES.tuple),
         ]:
             actual_node_types = [
                 cast(Node, n).metatype

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { INLINE_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import {
   FileStatus,
   getFileAcceptFromConstraint,
