@@ -1,3 +1,4 @@
+import base64
 import datetime
 import struct
 from collections import defaultdict
@@ -537,6 +538,8 @@ def _pack_builtin_object_value_prop_scalar(prop: Property, value: Any) -> SqlPri
     """Packs the JSON-value-packed value of a BuiltinObject for storage in Postgres."""
     if prop.is_struct:
         return Jsonb(value)
+    elif prop.primitive_type == PrimitiveType.BYTES:
+        return base64.b64decode(value)
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
