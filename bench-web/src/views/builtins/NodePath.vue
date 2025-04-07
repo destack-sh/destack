@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import { INLINE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import type { NodeReferenceData } from "@/proto/wire";
-import { NodeType } from "@/proto/wire";
+import { INLINE_NODE_TYPES, NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
 import NodeReference from "@/views/builtins/NodeReference.vue";

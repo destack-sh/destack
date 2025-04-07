@@ -1,7 +1,6 @@
 import { canvas, supergraph } from "@/globals";
-import { COSMOS_NODE_TYPES, RESOURCE_NODE_TYPES, ROOT_NODE_TYPES, RUNTIME_NODE_TYPES } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { NodeType, NodeTypeMapping, NodeTypeOptionInfo, type AnyNodeData, type IconData } from "@/proto/wire";
+import { COSMOS_NODE_TYPES, NodeType, NodeTypeMapping, NodeTypeOptionInfo, RESOURCE_NODE_TYPES, RUNTIME_NODE_TYPES, ROOT_NODE_TYPES, type AnyNodeData, type IconData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import type { ConnectionBase } from "@/system/connection";
@@ -563,6 +562,7 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,
   NodeType.PACKAGE,
   NodeType.LINK,
+  NodeType.THREAD,
   NodeType.MESSAGE,
   ...RUNTIME_NODE_TYPES,
   ...RESOURCE_NODE_TYPES,

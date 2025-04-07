@@ -3,9 +3,9 @@
  */
 
 import { supergraph } from "@/globals";
-import { isInlineNode, TIMED_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { isInlineNode, toCamelName } from "@/language/core/const";
 import { getNextSibling, isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
-import { getOrderKey, updateOrder } from "@/language/core/order";
+import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
 import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime/transaction";
 import { createBlock, unwrapBlockDefinition } from "@/language/source/block";
@@ -26,6 +26,8 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
   StructType,
+  TEMPLATABLE_NODE_TYPES,
+  TIMED_NODE_TYPES,
   Timestamp,
   type AnyNodeData,
   type AnyStructData,
@@ -526,7 +528,7 @@ export function cloneNode<T extends AnyNodeData>(
   return newNode;
 }
 
-/** Updates the given map with the new node references. */
+/** Create clones and adds them to the map. */
 export function _createClones(
   tx: Transaction,
   graph: ReadNodeGraph,
@@ -592,8 +594,141 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
   return clonedNodes;
 }
 
-export function instanceNode(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData) {
-  throw new Error("nocheckin: instanceNode/instanceNodes/...");
+/**
+ *
+ * Creates a new instance of this Node.
+ * Similar to clone, but sets the original Nodes as the template source.
+ */
+export function instanceNode<T extends AnyNodeData>(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  oldNode: T,
+  options: {
+    after?: AnyNodeData;
+    before?: AnyNodeData;
+    includeChildren?: boolean;
+    now?: Timestamp;
+    set?: Partial<T>;
+    _isNested?: boolean;
+    _oldNodeByOldId?: Record<string, AnyNodeData>;
+    _newNodeByOldId?: Record<string, AnyNodeData>;
+  } = {
+    includeChildren: true,
+  },
+): T {
+  // ensure instance is bundled into a change
+  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Create Instance" } });
+
+  // clone this node as the instance base
+  const now = options?.now ?? Timestamp.now();
+  const newNode = _cloneNode(oldNode, now);
+  if (options?.set) Object.assign(newNode, options.set);
+
+  // set template pointer to the original node
+  if ("templatePtr" in newNode) {
+    (newNode as any).templatePtr = toNodeRef(oldNode);
+    // Set templatedEpoch if the property exists
+    if ("templatedEpoch" in newNode) {
+      (newNode as any).templatedEpoch = now;
+    }
+  }
+
+  // remember new identity
+  const newNodeByOldId = options?._newNodeByOldId != null ? options._newNodeByOldId : {};
+  const oldNodeByOldId = options?._oldNodeByOldId != null ? options._oldNodeByOldId : {};
+  newNodeByOldId[oldNode.id!] = newNode;
+  oldNodeByOldId[oldNode.id!] = oldNode;
+
+  // instance all children (recursively)
+  if (options?.includeChildren) {
+    const instancePtr = toNodeRef(newNode);
+    const children = graph.getChildren(oldNode);
+    for (const child of children) {
+      if (TEMPLATABLE_NODE_TYPES.includes(child.metatype as unknown as NodeType)) {
+        instanceNode(tx, graph, child, {
+          includeChildren: true,
+          now,
+          set: { parentPtr: instancePtr },
+          _isNested: true,
+          _oldNodeByOldId: oldNodeByOldId,
+          _newNodeByOldId: newNodeByOldId,
+        });
+      } else {
+        cloneNode(tx, graph, child, {
+          includeChildren: true,
+          now,
+          set: { parentPtr: instancePtr },
+          _isNested: true,
+          _oldNodeByOldId: oldNodeByOldId,
+          _newNodeByOldId: newNodeByOldId,
+        });
+      }
+    }
+  }
+
+  // perform instance in one go
+  if (!options?._isNested) {
+    _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
+  }
+
+  return newNode;
+}
+
+/** Instances the given nodes (preserving their order) and returns the new nodes. */
+export function instanceNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNodeGraph, nodes: T[]) {
+  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Create Instances" } });
+
+  // get the root nodes
+  nodes = getRootNodes(nodes);
+  const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr?.id!);
+
+  // instance them (maintaining relative position)
+  const instancedNodes: AnyNodeData[] = [];
+  const instancedNodesByParentId: Record<string, AnyNodeData[]> = {};
+  const oldNodeByOldId: Record<string, AnyNodeData> = {};
+  const newNodeByOldId: Record<string, AnyNodeData> = {};
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    const parentId = node.parentPtr?.id!;
+    // if we already have the parent instanced, go after its last child, otherwise go after the parent
+    let after;
+    if (instancedNodesByParentId[parentId] != null) {
+      after = instancedNodesByParentId[parentId]?.at(-1);
+    } else {
+      after = nodesByParentId[parentId]?.at(-1);
+    }
+    const lastChild = nodesByParentId[parentId]?.at(-1);
+    const before = lastChild != null ? getNextSibling(graph, lastChild) : null;
+
+    // check if node is templatable, otherwise fall back to cloning
+    const instance = TEMPLATABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType)
+      ? instanceNode(tx, graph, node, {
+          after,
+          before: before ?? undefined,
+          includeChildren: true,
+          _isNested: true,
+          _oldNodeByOldId: oldNodeByOldId,
+          _newNodeByOldId: newNodeByOldId,
+        })
+      : cloneNode(tx, graph, node, {
+          after,
+          before: before ?? undefined,
+          includeChildren: true,
+          _isNested: true,
+          _oldNodeByOldId: oldNodeByOldId,
+          _newNodeByOldId: newNodeByOldId,
+        });
+
+    instancedNodes.push(instance);
+    if (instancedNodesByParentId[parentId] == null) instancedNodesByParentId[parentId] = [];
+    instancedNodesByParentId[parentId]?.push(instance);
+  }
+
+  // actually create instances
+  _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
+
+  return instancedNodes;
 }
 
 /**

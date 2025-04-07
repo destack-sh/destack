@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { INLINE_NODE_TYPES, RESOURCE_NODE_TYPES, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
 import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
 import { newChangeId } from "@/language/runtime/transaction";
@@ -7,9 +7,11 @@ import { createBlock } from "@/language/source/block";
 import {
   BlockType,
   CHILD_NODE_TYPES,
+  INLINE_NODE_TYPES,
   NodeReferenceData,
   NodeType,
   Orientation,
+  RESOURCE_NODE_TYPES,
   TextLineType,
   TreeViewPreset,
   ViewData,

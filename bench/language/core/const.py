@@ -681,7 +681,6 @@ class NodeArea(BuiltinEnum):
     LOCAL = 3
 
 
-# :NodeTypes
 NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 
@@ -702,7 +701,6 @@ def _get_node_types(
 
 
 COSMOS_NODE_TYPES = _get_node_types(None, 100)
-
 GLOBAL_NODE_TYPES = _get_node_types(None, 2000)
 REGIONAL_NODE_TYPES = _get_node_types(2000, 8000)
 LOCAL_NODE_TYPES = _get_node_types(8000, None)
@@ -716,14 +714,11 @@ NODE_TYPES_BY_AREA = {
     NodeArea.REGIONAL: REGIONAL_NODE_TYPES,
     NodeArea.LOCAL: LOCAL_NODE_TYPES,
 }
-
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
-
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)
-BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
 PACKAGE_NODE_TYPES = _get_node_types(5000, 900, NodeType.SKIP, NodeType.EMPTY)
 BENCH_NODE_TYPES = _get_node_types(
     2000,
@@ -737,9 +732,9 @@ BENCH_NODE_TYPES = _get_node_types(
 )
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
-
 # NOTE: these traits should also be in trait.py but we need the constants in property.py
 #  (which also depends on trait.py, and we can't have a circular dependency)
+BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
 INLINE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     NodeType.CHOICE,

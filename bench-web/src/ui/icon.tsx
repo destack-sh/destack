@@ -1,11 +1,12 @@
 import _AVAILABLE_EMOJI_ICONS from "@/assets/emoji-icons.json";
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { supergraph } from "@/globals";
-import { BASED_NODE_TYPES, getBaseFromNode } from "@/language/core/const";
+import { getBaseFromNode } from "@/language/core/const";
 import { renderTextLine } from "@/language/core/text";
 import type { TypeIdentity } from "@/language/core/type";
 import {
   ActionType,
+  BASED_NODE_TYPES,
   BenchType,
   BlockType,
   BlockTypeOptionInfo,

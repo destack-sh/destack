@@ -26,8 +26,8 @@ export const SYSTEM_SYSTEM_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, SYSTEM_
 });
 export const SYSTEM_SCOPE = makeScope(SYSTEM_SYSTEM_PACKAGE_PTR);
 
-// :Builtins
-export const BENCH_BUILTIN_AGENT_ID = "9269e60d-1a58-5366-907b-cf8390a2116a";
-export const BENCH_BUILTIN_AGENT_PTR = nodeReference(NodeType.AGENT, BENCH_BUILTIN_AGENT_ID, {
+// specific :Builtins
+export const BENCH_BENCH_AGENT_ID = "9269e60d-1a58-5366-907b-cf8390a2116a";
+export const BENCH_BENCH_AGENT_PTR = nodeReference(NodeType.AGENT, BENCH_BENCH_AGENT_ID, {
   benchId: BENCH_ID,
 });

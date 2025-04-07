@@ -5,6 +5,7 @@ import {
   EditType,
   EmptyProperty,
   EnumType,
+  INLINE_NODE_TYPES,
   InlineNodeData,
   ModelType,
   NodeMode,
@@ -16,8 +17,10 @@ import {
   PropertyInfo,
   PropertyReferenceData,
   Region,
+  RESOURCE_NODE_TYPES,
   ResourceNodeData,
   RunStatus,
+  SOURCE_NODE_TYPES,
   SourceNodeData,
   StructType,
   TaskStatus,
@@ -148,43 +151,7 @@ export function isNodeActive(node: AnyNodeData): boolean {
   }
 }
 
-// node types :NodeTypes
-export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
-export const BASED_NODE_TYPES = [
-  // :HasBase
-  NodeType.RECORD,
-  NodeType.MESSAGE,
-  NodeType.RUN,
-];
-export const COSMOS_NODE_TYPES = NODE_TYPES.filter((nodeType) => nodeType < 100);
-export const SOURCE_NODE_TYPES = NODE_TYPES.filter(isSourceNodeType);
-export const STATE_NODE_TYPES = NODE_TYPES.filter(isStateNodeType);
-export const RUNTIME_NODE_TYPES = NODE_TYPES.filter(isRuntimeNodeType);
-export const TIMED_NODE_TYPES = [NodeType.MESSAGE, NodeType.SESSION, NodeType.RUN, NodeType.INTERRUPTION, NodeType.LOG];
-export const RESOURCE_NODE_TYPES = NODE_TYPES.filter(isResourceNodeType);
-export const GLOBAL_NODE_TYPES = NODE_TYPES.filter(isGlobalNodeType);
-export const REGIONAL_NODE_TYPES = NODE_TYPES.filter(isRegionalNodeType);
-export const LOCAL_NODE_TYPES = NODE_TYPES.filter(isLocalNodeType);
-export const PUBLIC_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
-export const USER_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE];
-export const INLINE_NODE_TYPES = [
-  ...RESOURCE_NODE_TYPES,
-  NodeType.CHANNEL,
-  NodeType.PAGE,
-  NodeType.CLASS,
-  NodeType.CHOICE,
-  NodeType.DATABASE,
-  NodeType.FLOW,
-  NodeType.KIT,
-  NodeType.VIEW,
-  NodeType.TAG,
-  NodeType.TASK,
-  NodeType.PLAN,
-  NodeType.ROLE,
-  NodeType.AGENT,
-  NodeType.TEAM,
-];
-INLINE_NODE_TYPES.sort();
+// node types
 export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE, NodeType.STREAM];
 export const LOADED_PACKAGE_NODE_TYPES = [
   ...SOURCE_NODE_TYPES,
@@ -208,7 +175,6 @@ export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES]
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.KIT, BlockType.FLOW, BlockType.DATABASE];
 export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
-export const NODE_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt < BlockType.PARAGRAPH);
 
 // action
 export const ACTION_TYPES = Object.values(ActionType).filter((v) => typeof v == "number" && v > 0) as ActionType[];
