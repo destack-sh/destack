@@ -552,8 +552,6 @@ function _doCreateClones(
   }
 }
 
-// nocheckin: retain mode for clone/instance?
-
 /** Clones the given nodes (preserving their order) and returns the new nodes. */
 export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNodeGraph, nodes: T[]) {
   if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Duplicate" } });
