@@ -3,7 +3,7 @@ import { NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import InlineHeader from "@/views/builtins/InlineHeader.vue";
+import InlineHeader from "@/views/builtin/InlineHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, ref, toRef } from "vue";
 

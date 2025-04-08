@@ -5,8 +5,8 @@ import { Alignment, ChannelData, NodeType, Orientation, RectangleData, ViewData 
 import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchGraph, canvas } from "@/system/space";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import NodeReference from "@/views/builtins/NodeReference.vue";
-import RootHeader from "@/views/builtins/RootHeader.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
+import RootHeader from "@/views/builtin/RootHeader.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Chat from "@/views/helpers/Chat.vue";
 import { computed, Ref, ref, toRef } from "vue";

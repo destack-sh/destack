@@ -47,6 +47,7 @@ const props = defineProps<
     isRoot?: boolean;
     isPopover?: boolean;
     isLightbox?: boolean;
+    isIcon?: boolean;
     parent?: AnyNodeData;
   } & Partial<
     Pick<
@@ -100,7 +101,7 @@ async function onFileSelected(files: File[]) {
       pkg: pkg.value,
       parent: (props.parent as PageData | DatabaseData | undefined) ?? pkg.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
-      compress: true,
+      compress: props.isIcon ? 'icon' : true,
     });
     await upload.value.completion.wait();
     if (upload.value.file.value == null) throw new Error("missing file in upload");
@@ -246,7 +247,7 @@ defineExpose<ViewExpose>({
           ? 'border-gray-400 text-gray-700 outline outline-2 outline-gray-400'
           : 'border-gray-200 text-gray-400 hover:border-gray-200',
       ]"
-      @click.stop="fileInputRef!.click()"
+      @click.stop="fileInputRef?.click?.()"
     >
       <span
         class="select-none transition-colors duration-75"

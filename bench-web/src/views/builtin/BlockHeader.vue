@@ -4,7 +4,7 @@ import { CANVAS_BLOCK_TYPES } from "@/language/core/const";
 import { BlockType, InlineNodeData, NodeReferenceData } from "@/proto/wire";
 import { PreparedNodeConnection } from "@/system/connection";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits, ViewExpose } from "@/views/common";
 import { computed, ref, Ref } from "vue";
 

@@ -10,7 +10,7 @@ import { startDraggingIfAllowed, useMultiDropZone, useSplitDropZone, type SplitA
 import { getNodeIcon, getNodeTitle, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
-import Empty from "@/views/builtins/Empty.vue";
+import Empty from "@/views/builtin/Empty.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";

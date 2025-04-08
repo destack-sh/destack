@@ -47,7 +47,7 @@ class Computer(IsSubject, Resource[ComputerData]):
     version: str = p_system(60, default=VERSION, default_sql=None)
     external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
-    # Computer.grpc_url/vnc_url should maybe be :EncryptedSecrets
+    # Computer.grpc_url/vnc_url should maybe be :RealSecrets
     grpc_url: Optional[str] = p_kernel(65, require=False, default=None, sensitive=True)
     vnc_url: Optional[str] = p_kernel(66, require=False, default=None, sensitive=True)
     client: Optional["Client"] = p_system(

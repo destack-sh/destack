@@ -7,7 +7,7 @@ import { canvas } from "@/system/space";
 import { CommandMapKit } from "@/ui/command";
 import { LINK_WIDTH, pathToSvg, useFlowContext } from "@/ui/flow";
 import { getColorHex, getRunColorHex } from "@/ui/style";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
 

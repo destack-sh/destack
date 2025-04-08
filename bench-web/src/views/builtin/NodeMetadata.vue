@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isNodeActive, isProcessableNode, isResourceNode, toCamelName } from "@/language/core/const";
+import { isNodeActive, isNodeInstance, isProcessableNode, isResourceNode, toCamelName } from "@/language/core/const";
 import {
   AnyNodeData,
   ColorShade,
@@ -8,6 +8,7 @@ import {
   NodeType,
   ResourceStatusOptionInfo,
   ProcessStatusOptionInfo,
+  ObjectType,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex } from "@/ui/style";
@@ -58,7 +59,7 @@ const textClass = computed(() => [
     </span>
     <!-- Run metadata -->
     <span
-      v-if="isProcessableNode(node)"
+      v-if="isProcessableNode(node) && (node.metatype != ObjectType.AGENT || isNodeInstance(node))"
       class="w-5 text-center"
       :class="[iconClass, ProcessStatusOptionInfo[node.status]!.icon!]"
       :style="{ color: getColorHex(ProcessStatusOptionInfo[node.status]!.color!) }"

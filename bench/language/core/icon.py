@@ -1,12 +1,12 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from .color import ColorIn, to_color
-from .const import BuiltinEnum, EnumType, StructType, enum_
+from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
 from .property import p_internal
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
-    from bench.language import Color
+    from bench.language import Color, File
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -21,7 +21,7 @@ class IconType(BuiltinEnum):
     EMOJI = 1
     FONT_AWESOME = 3
     VS_CODE = 4
-    # FILE?
+    FILE = 10
 
 
 @struct_(StructType.ICON)
@@ -35,6 +35,7 @@ class Icon(Struct):
     emoji: Optional[str] = p_internal(31, require=False)
     fa_name: Optional[str] = p_internal(33, require=False)
     vsc_name: Optional[str] = p_internal(34, require=False)
+    file: Optional["File"] = p_internal(35, require=False, references=NodeType.FILE)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
 
@@ -43,17 +44,19 @@ class Icon(Struct):
         return to_icon(icon, color)
 
 
-IconIn = Icon | str
+IconIn = Union[Icon, "File", str]
 
 
 def to_icon(icon: IconIn, color: ColorIn | None = None) -> Icon:
     """Turn something that could be an Icon into an Icon."""
+    color = to_color(color) if color else None
     if isinstance(icon, str):
-        color = to_color(color) if color else None
         if icon.startswith("fa"):
             return Icon(type=IconType.FONT_AWESOME, fa_name=icon, color=color)
         else:
             return Icon(type=IconType.EMOJI, emoji=icon, color=color)
+    elif isinstance(icon, File):
+        return Icon(type=IconType.FILE, file=icon, color=color)
     else:
         return icon
 
@@ -63,6 +66,9 @@ def reverse_icon(icon: Icon) -> IconIn:
     if icon.type == IconType.FONT_AWESOME:
         assert icon.fa_name, f"no fa_name for {icon!r}"
         return icon.fa_name
+    elif icon.type == IconType.FILE:
+        assert icon.file, f"no file for {icon!r}"
+        return icon.file
     elif icon.type == IconType.EMOJI:
         assert icon.emoji, f"no emoji for {icon!r}"
         return icon.emoji

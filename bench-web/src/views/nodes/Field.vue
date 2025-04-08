@@ -4,8 +4,8 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import Inaccessible from "@/views/builtin/Inaccessible.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, nextTick, ref, toRef } from "vue";
 

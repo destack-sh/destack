@@ -2,7 +2,7 @@
 import { InlineNodeData, NodeReferenceData, Orientation } from "@/proto/wire";
 import { PreparedNodeConnection } from "@/system/connection";
 import { PopoverInfoIn } from "@/ui/popover";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { FocusAnchor, ViewEmits, ViewExpose } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import { ref, Ref } from "vue";

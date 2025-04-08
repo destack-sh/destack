@@ -18,7 +18,7 @@ import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { startDraggingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { pushPopover } from "@/ui/popover";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, ref, toRef } from "vue";

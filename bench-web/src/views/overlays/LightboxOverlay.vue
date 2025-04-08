@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { clearLightbox, lightbox, LightboxInfo } from "@/ui/popover";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, useMagicKeys } from "@vueuse/core";
 import { ref, Ref } from "vue";
@@ -40,7 +40,7 @@ const bodySize = useElementSize(bodyRef);
   >
     <div
       v-if="lightbox != null"
-      class="fixed left-0 top-0 z-50 flex h-screen w-screen flex-col items-center justify-center bg-gray-700/80 px-12 backdrop-blur-sm"
+      class="fixed left-0 top-0 z-80 flex h-screen w-screen flex-col items-center justify-center bg-gray-700/80 px-12 backdrop-blur-sm"
       data-outside-view="true"
       @click.stop.prevent="() => clearLightbox()"
       @keydown.esc="() => clearLightbox()"

@@ -5,8 +5,8 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { getNodeIcon, IconInline } from "@/ui/icon";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import Inaccessible from "@/views/builtin/Inaccessible.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, toRef } from "vue";
 

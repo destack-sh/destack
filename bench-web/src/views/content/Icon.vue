@@ -1,19 +1,23 @@
 <script lang="ts" setup>
+import { makeType, makeTypeConstraint } from "@/language/core/type";
 import {
+  BenchType,
   ColorData,
   ColorShade,
   ColorType,
+  FileType,
   IconData,
   IconType,
   NodeReferenceData,
   NodeType,
   Orientation,
+  TypeKind,
   ViewData,
   ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import { getIconMetadata, IconInline } from "@/ui/icon";
+import { getIconMetadata, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { EMOJI_ICON_INDEX, FONT_AWESOME_ICON_INDEX, SearchIndex, useIndexSearch, type IconItem } from "@/ui/search";
@@ -21,6 +25,7 @@ import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import File from "@/views/content/File.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const DEFAULT_WIDTH = 380;
@@ -173,6 +178,10 @@ defineExpose<ViewExpose>({ self, id, focus });
               type: IconType.FONT_AWESOME,
               title: 'Icon',
             },
+            {
+              type: IconType.FILE,
+              title: 'File',
+            },
           ]"
           :key="type"
           class="rounded px-1.5 py-0.5 font-medium transition-colors duration-150 enabled:hover:bg-gray-100"
@@ -197,8 +206,11 @@ defineExpose<ViewExpose>({ self, id, focus });
           ref="queryRef"
           v-model="query"
           type="text"
-          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-          :placeholder="`Search ${iconType == IconType.EMOJI ? 'Emojis' : 'Icons'}...`"
+          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0 disabled:cursor-default"
+          :disabled="iconType == IconType.FILE"
+          :placeholder="
+            iconType == IconType.FILE ? undefined : `Search ${iconType == IconType.EMOJI ? 'Emojis' : 'Icons'}...`
+          "
           @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
           @keydown.up.stop.prevent="focus('up')"
           @keydown.down.stop.prevent="focus('down')"
@@ -207,7 +219,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         />
         <!-- Color -->
         <button
-          v-if="iconType != IconType.EMOJI"
+          v-if="iconType != IconType.EMOJI && iconType != IconType.FILE"
           v-tooltip="{ title: 'Change color', small: true }"
           v-menu="
             (): PopoverInfoIn => ({
@@ -227,8 +239,40 @@ defineExpose<ViewExpose>({ self, id, focus });
         </button>
       </div>
     </div>
-    <!-- Body -->
+    <!-- File -->
+    <div v-if="iconType == IconType.FILE" :style="{ width: DEFAULT_WIDTH + 'px', height: MAX_HEIGHT + 'px' }">
+      <div class="p-2">
+        <File
+          id="file"
+          class="w-full"
+          :style="{ height: MAX_HEIGHT - 2 * 8 + 'px' }"
+          :size="{ width: DEFAULT_WIDTH, height: MAX_HEIGHT - 2 * 8 }"
+          is-inline
+          is-input
+          is-icon
+          :value-type="
+            makeType({
+              kind: TypeKind.NODE,
+              benchType: BenchType.FILE,
+              constraint: makeTypeConstraint({ nodeSubtypes: [FileType.IMAGE] }),
+            })
+          "
+          :model-value="modelValue?.filePtr"
+          @update:model-value="
+            (filePtr) => {
+              if (filePtr != null) {
+                apply(makeIcon({ filePtr, color: color ?? undefined }));
+              } else {
+                apply(undefined);
+              }
+            }
+          "
+        />
+      </div>
+    </div>
+    <!-- Search Results -->
     <Scroll
+      v-else
       id="body"
       size-is-dynamic
       :size="{ width: DEFAULT_WIDTH, height: MAX_HEIGHT }"
@@ -236,7 +280,6 @@ defineExpose<ViewExpose>({ self, id, focus });
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
     >
-      <!-- Results -->
       <ul
         v-if="results.length > 0"
         class="grid grid-cols-10 gap-x-1 gap-y-1 px-2 py-2 text-center"

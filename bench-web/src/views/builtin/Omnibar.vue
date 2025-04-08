@@ -18,7 +18,7 @@ import {
 import { Shortcut } from "@/ui/tooltip";
 import { nowOrNextTick } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
-import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
+import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 

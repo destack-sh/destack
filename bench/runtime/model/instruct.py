@@ -104,7 +104,7 @@ Threads have Memberships, any member MAY create Messages.
 Threads have a catalog of Claims/Resources.
 You SHOULD use Messages to communicate with Users and other Agents as needed.
 You MAY include Nodes (like Files, Databases, Records, ...) in Messages as appropriate.
-You SHOULD NOT set Message.reply_to if it's obvious what you're referring to.
+You SHOULD ONLY set Message.reply_to if it's ambiguous what you're referring to (rare).
 You SHOULD title & icon the Thread if unset (~10-40 characters, e.g., "Oil and Gas Business" or "History of Opium").
 You SHOULD NOT reply to yourself.
 

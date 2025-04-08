@@ -1,7 +1,7 @@
 import { toCamelName } from "@/language/core/const";
 import { makeNode } from "@/language/core/node";
 import { type Transaction } from "@/language/core/transaction";
-import { getCachedHostClient } from "@/proto/services";
+import { getCachedHostClient, getHostClient } from "@/proto/services";
 import {
   BenchData,
   ChannelData,
@@ -29,7 +29,7 @@ import {
 } from "@/proto/wire";
 import { isNode, isNodeOrRef, makeScope, newNodeId, nodeReference, toNodeRef } from "@/proto/wiring";
 import { makeIcon } from "@/ui/icon";
-import { AsyncEvent, groupByScalar } from "@/utils/functools";
+import { AsyncEvent, groupByList, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
 import { DateTime } from "luxon";
@@ -38,10 +38,6 @@ import { computed, markRaw, onBeforeUnmount, shallowRef, toRef, triggerRef, watc
 export const FILE_DOWNLOAD_URL_EXPIRY = 3600; // 1 hour :FileUrlExpiry
 export const FILE_DOWNLOAD_REFRESH_LOOKAHEAD = FILE_DOWNLOAD_URL_EXPIRY / 10; // refresh this much before expiry
 export const FILE_CACHE_EXPIRY = FILE_DOWNLOAD_URL_EXPIRY / 10; // after no longer used, remove from cache
-export const FILE_IMAGE_MAX_WIDTH = 3840;
-export const FILE_IMAGE_MAX_HEIGHT = 2160;
-export const FILE_IMAGE_COMPRESSION_QUALITY = 0.85;
-export const FILE_IMAGE_COMPRESSION_MAX_SIZE = 10 * 1024 * 1024; // 1 MB
 
 export const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE];
 export const INLINABLE_FILE_TYPES = [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO];
@@ -72,7 +68,7 @@ export type FileUpload = {
   getUrl: Ref<string | null>;
   progress: Ref<number>; // [0.0, 100.0]
   completion: AsyncEvent;
-  compress: boolean;
+  compress: boolean | "icon";
 };
 
 const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({});
@@ -86,13 +82,13 @@ export async function extractFile(
   bench: BenchData,
   pkg: PackageData,
   parent: PackageData | PageData | ChannelData | ThreadData,
-  compress: boolean,
+  compress: boolean | "icon",
 ): Promise<FileData> {
   // compress
   let processedContent = content;
   if (compress && content.type.startsWith("image/")) {
     try {
-      processedContent = await compressFileImage(content);
+      processedContent = await compressFileImage(content, compress == "icon" ? "icon" : "image");
       log.trace(
         "file.compress",
         content.name,
@@ -304,7 +300,7 @@ export function uploadFiles(
     parent: PackageData | PageData | ChannelData | ThreadData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
-    compress: boolean;
+    compress: boolean | "icon";
   },
 ): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
@@ -361,7 +357,7 @@ export function uploadFile(
     parent: PackageData | PageData | ChannelData | ThreadData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
-    compress: boolean;
+    compress: boolean | "icon";
   },
 ): FileUpload {
   const upload = uploadFiles(txFactory, [content], options)[0];
@@ -513,21 +509,24 @@ export function downloadFile(file: NodeReferenceData | FileData, options?: { inc
 async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
   log.trace("file.download", downloads);
 
-  // get get URLs
-  const scope = makeScope({ benchId: downloads[0].nodePtr.benchId });
-  const host = getCachedHostClient(scope);
-  let handles: DownloadFilesResponse_DownloadHandle[] = [];
-  try {
-    const { response } = await host.downloadFiles({ scope, files: downloads.map((d) => d.nodePtr) });
-    handles = response.handles;
-  } catch (e) {
-    log.error("file.download.error", downloads, e);
-    for (const download of downloads) {
-      download.status.value = FileStatus.FAILED;
-      download.completion.resolve();
+  // get getURLs
+  const downloadsByBenchId: Record<string, FileDownload[]> = groupByList(downloads, (d) => d.nodePtr.benchId!);
+  const downloadPromises = Object.entries(downloadsByBenchId).map(async ([benchId, downloadsForBench]) => {
+    try {
+      const scope = makeScope({ benchId });
+      const host = await getHostClient({ id: benchId });
+      const { response } = await host.downloadFiles({ scope, files: downloadsForBench.map((d) => d.nodePtr) });
+      return response.handles;
+    } catch (e) {
+      log.error("file.download.error", downloadsForBench, e);
+      for (const download of downloadsForBench) {
+        download.status.value = FileStatus.FAILED;
+        download.completion.resolve();
+      }
+      return [];
     }
-    return;
-  }
+  });
+  const handles = (await Promise.all(downloadPromises)).flat();
   const handlesById = groupByScalar(handles, (h) => h.file!.id);
 
   // download from get URLs (if content is included)
@@ -548,7 +547,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     if (download.includesContent) {
       try {
         download.status.value = FileStatus.TRANSFERRING;
-        download.content.value = await doDownloadFile(download.getUrl.value, download.file.value);
+        download.content.value = await doDownloadFileContent(download.getUrl.value, download.file.value);
         download.status.value = FileStatus.COMPLETED;
       } catch (e) {
         download.status.value = FileStatus.FAILED;
@@ -563,7 +562,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
 }
 
 /** Actually download file content from the given URL. */
-async function doDownloadFile(getUrl: string, file: FileData): Promise<File> {
+async function doDownloadFileContent(getUrl: string, file: FileData): Promise<File> {
   const response = await fetch(getUrl);
   if (!response.ok) {
     throw new Error(`failed to download file from ${getUrl}: ${response.status} ${response.statusText}`);
@@ -676,25 +675,56 @@ export async function prefetchFile(file: FileData): Promise<void> {
 // File utilities
 //
 
+export const FILE_IMAGE_MAX_WIDTH = 3840;
+export const FILE_IMAGE_MAX_HEIGHT = 2160;
+export const FILE_IMAGE_COMPRESSION_QUALITY = 0.85;
+export const FILE_IMAGE_COMPRESSION_MAX_SIZE = 10 * 1024 * 1024; // 1 MB
+export const FILE_IMAGE_COMPRESSED_FORMAT = "image/jpeg";
+
+export const FILE_ICON_MAX_WIDTH = 256;
+export const FILE_ICON_MAX_HEIGHT = 256;
+export const FILE_ICON_COMPRESSION_QUALITY = 0.9;
+export const FILE_ICON_COMPRESSION_MAX_SIZE = 100 * 1024; // 100 KB
+export const FILE_ICON_COMPRESSED_FORMAT = "image/png";
+
 /** Compress an image file to reduce its size */
-async function compressFileImage(file: File): Promise<File> {
+async function compressFileImage(file: File, profile: "icon" | "image"): Promise<File> {
+  // settings
+  const maxWidth = profile === "icon" ? FILE_ICON_MAX_WIDTH : FILE_IMAGE_MAX_WIDTH;
+  const maxHeight = profile === "icon" ? FILE_ICON_MAX_HEIGHT : FILE_IMAGE_MAX_HEIGHT;
+  const compressionQuality = profile === "icon" ? FILE_ICON_COMPRESSION_QUALITY : FILE_IMAGE_COMPRESSION_QUALITY;
+  const maxSize = profile === "icon" ? FILE_ICON_COMPRESSION_MAX_SIZE : FILE_IMAGE_COMPRESSION_MAX_SIZE;
+  const format = profile === "icon" ? FILE_ICON_COMPRESSED_FORMAT : FILE_IMAGE_COMPRESSED_FORMAT;
+  
   return new Promise((resolve, reject) => {
+    // already small enough
+    if (file.size <= maxSize) {
+      resolve(file);
+      return;
+    }
+    
     const img = new Image();
     img.src = URL.createObjectURL(file);
 
     img.onload = () => {
       URL.revokeObjectURL(img.src);
 
+      // already within limits
+      if (img.width <= maxWidth && img.height <= maxHeight && file.size <= maxSize) {
+        resolve(file);
+        return;
+      }
+
       // calculate new dimensions while maintaining aspect ratio
       let width = img.width;
       let height = img.height;
-      if (width > FILE_IMAGE_MAX_WIDTH) {
-        height = Math.round(height * (FILE_IMAGE_MAX_WIDTH / width));
-        width = FILE_IMAGE_MAX_WIDTH;
+      if (width > maxWidth) {
+        height = Math.round(height * (maxWidth / width));
+        width = maxWidth;
       }
-      if (height > FILE_IMAGE_MAX_HEIGHT) {
-        width = Math.round(width * (FILE_IMAGE_MAX_HEIGHT / height));
-        height = FILE_IMAGE_MAX_HEIGHT;
+      if (height > maxHeight) {
+        width = Math.round(width * (maxHeight / height));
+        height = maxHeight;
       }
 
       // create canvas and draw resized image
@@ -719,11 +749,11 @@ async function compressFileImage(file: File): Promise<File> {
 
             const compressedFile = new File([blob], file.name, {
               ...file,
-              type: "image/jpeg",
+              type: format,
               lastModified: Date.now(),
             });
 
-            if (compressedFile.size > FILE_IMAGE_COMPRESSION_MAX_SIZE && quality > 0.5) {
+            if (compressedFile.size > maxSize && quality > 0.5) {
               // try again with lower quality
               doCompress(quality - 0.1);
             } else {
@@ -732,13 +762,13 @@ async function compressFileImage(file: File): Promise<File> {
               log.trace("file.compress", file, compressedFile);
             }
           },
-          "image/jpeg",
+          format,
           quality,
         );
       };
 
       // start with configured quality
-      doCompress(FILE_IMAGE_COMPRESSION_QUALITY);
+      doCompress(compressionQuality);
     };
 
     img.onerror = () => {
