@@ -247,7 +247,7 @@ defineExpose({
         class="w-5 text-center text-gray-400"
         v-bind="makeIcon(NodeTypeOptionInfo[nodePtr?.nodeType!]?.icon ?? 'fas fa-exclamation-triangle')"
       />
-      <span class="ml-1 text-gray-400">[not found]</span>
+      <span class="ml-1 text-gray-400">[missing]</span>
     </template>
   </div>
 </template>

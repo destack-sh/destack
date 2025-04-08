@@ -3,13 +3,12 @@ import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { createMembership } from "@/language/source/membership";
 import {
   ActionData,
-  NodeMode,
   NodeReferenceData,
   NodeType,
   Orientation,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";

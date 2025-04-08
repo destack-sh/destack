@@ -104,7 +104,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         _flush_text()
 
-        # nocheckin
+        # nocheckin: remove? print?
         # print messages
         for message in content:
             if message["type"] == "text":

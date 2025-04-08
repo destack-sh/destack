@@ -467,7 +467,7 @@ function mapSpanToPmNode(span: TextSpanData): PmNode | null {
   } else if (span.type === TextSpanType.HARD_BREAK) {
     node = PM_SCHEMA.node("spanHardBreak", {});
   } else if (span.type === TextSpanType.MENTION) {
-    node = PM_SCHEMA.node("spanMention", { type: span.type, nodePtr: span.nodePtr });
+    node = PM_SCHEMA.node("spanMention", { type: span.type, nodePtr: span.nodePtr ?? {} });
   } else if (span.type === TextSpanType.LINK) {
     const content = span.content ?? span.url;
     if (content == null || content.length === 0) {

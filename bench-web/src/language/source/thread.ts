@@ -45,11 +45,6 @@ export function createThread(
       assertNever(member);
     }
 
-    // instance agents
-    if (isNode(memberNode, NodeType.AGENT) && !isNodeInstance(memberNode)) {
-      memberNode = instanceNode(tx, graph, memberNode, { parent: thread });
-    }
-
     // membership
     createMembership(tx, graph, {
       membership: {
