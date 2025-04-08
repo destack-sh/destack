@@ -222,7 +222,7 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.FLOAT32]: ViewType.NUMBER,
   [PrimitiveType.FLOAT64]: ViewType.NUMBER,
   [PrimitiveType.BOOLEAN]: ViewType.TOGGLE,
-  [PrimitiveType.JSON]: ViewType.JSON,
+  // [PrimitiveType.JSON]: ViewType.JSON,
   [PrimitiveType.DATETIME]: ViewType.DATETIME,
   [PrimitiveType.DATE]: ViewType.DATETIME,
   [PrimitiveType.TIME]: ViewType.DATETIME,

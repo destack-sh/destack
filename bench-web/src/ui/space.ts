@@ -1354,10 +1354,10 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
     },
     {
       type: ViewType.CONTEXT,
-      name: "Context",
+      name: "Alternate",
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.RECTANGLE, width: 600 }),
-      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600, maxWidth: 900 }),
+      constraint: makeStruct({ metatype: StructType.RECTANGLE_CONSTRAINT, minWidth: 600 }),
     },
   ]);
   return { primary: layout.viewsByName["Main"] };

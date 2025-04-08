@@ -1,18 +1,7 @@
 <script lang="ts" setup>
-import { makeExpression } from "@/language/core/expression";
-import { packSubnode } from "@/language/core/node";
-import {
-  ExpressionType,
-  NodeType,
-  NodeTypeOptionInfo,
-  Orientation,
-  ThreadProperty,
-  ThreadStatus,
-  TreeViewPreset,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
-import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
+import { packSubnode, useSubnodeProperty } from "@/language/core/node";
+import { NodeType, NodeTypeOptionInfo, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, benchConnection, canvas, hasLocalBench, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { CommandBuiltinId, fireCommand, fireCommandById, getCommand } from "@/ui/command";
@@ -21,12 +10,12 @@ import { AvatarInline, getNodeIcon, IconInline, makeIcon } from "@/ui/icon";
 import { menuItemFromCommand, PopoverInfoIn } from "@/ui/popover";
 import { Shortcut } from "@/ui/tooltip";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import List from "@/views/collections/List.vue";
-import Tree from "@/views/collections/Tree.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
+import PackageTree from "@/views/helpers/PackageTree.vue";
+import ThreadList from "@/views/helpers/ThreadList.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
@@ -52,8 +41,12 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
-
-const children = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
+const expandedPackageNodesPtr = useSubnodeProperty(
+  NodeType.VIEW,
+  ViewType.SIDEBAR,
+  toRef(props, "subnodePacked"),
+  "expandedPackageNodesPtr",
+);
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
@@ -122,9 +115,10 @@ defineExpose<ViewExpose>({ self });
           {{ command.title }}
         </span>
         <span class="ml-auto">
+          <!-- Shortcut -->
           <Shortcut
             v-if="command.shortcuts?.length ?? 0 > 0"
-            class="text-gray-400 transition-colors duration-150 group-hover/button:text-gray-900"
+            class="text-gray-400 opacity-0 transition-colors duration-150 group-hover/button:opacity-100"
             :shortcut="command.shortcuts![0]"
           />
         </span>
@@ -155,13 +149,18 @@ defineExpose<ViewExpose>({ self });
         >
           <span class="font-medium">Pages</span>
         </div>
-        <Tree
+        <PackageTree
           id="package"
           class=""
           :node-ptr="props.nodePtr"
-          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.TREE, { preset: TreeViewPreset.PACKAGE })"
-          size-is-dynamic
-          v-bind="state.getChildState('scroll.package')"
+          :expanded-nodes-ptr="expandedPackageNodesPtr"
+          @update:expanded-nodes-ptr="
+            state.update({
+              subnodePacked: packSubnode(NodeType.VIEW, ViewType.SIDEBAR, {
+                expandedPackageNodesPtr: $event,
+              }),
+            })
+          "
         />
         <!-- Threads -->
         <!-- ... -->
@@ -173,10 +172,7 @@ defineExpose<ViewExpose>({ self });
         >
           <span class="font-medium">Threads</span>
         </div>
-        <List
-          id="threads"
-          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.LIST, { queryNodeType: NodeType.THREAD })"
-        />
+        <ThreadList id="threads" />
       </div>
 
       <!-- Selection overlay -->

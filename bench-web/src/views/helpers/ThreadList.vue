@@ -1,9 +1,15 @@
 <script lang="ts" setup>
-import { isBenchNodeType, toCamelName } from "@/language/core/const";
+import { toCamelName } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
-import { useSubnodeProperty } from "@/language/core/node";
-import { AnyNodeData, ExpressionType, NodeType, RecordProperty, TextLineType, ViewData, ViewType } from "@/proto/wire";
-import { EMPTY_SCOPE, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  AnyNodeData,
+  ExpressionType,
+  NodeType,
+  TextLineType,
+  ThreadProperty,
+  ViewData
+} from "@/proto/wire";
+import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -17,38 +23,28 @@ import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
 const ITEM_HEIGHT = 30;
+const DEFAULT_SORT = makeExpression({
+  type: ExpressionType.DESCENDING,
+  propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.createdAt),
+});
+const NODE_COMMANDS = CONTEXT_COMMANDS_BY_TYPE[NodeType.THREAD]?.map(getCommand);
 
 const props = defineProps<
   {
     self?: TypedNodeReferenceData<NodeType.VIEW>;
-    id: string;
   } & Partial<Pick<ViewData, "subnodePacked">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
-const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
-
-// filter
-const nodeType = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "subnodePacked"), "queryNodeType");
-const filter = useSubnodeProperty(NodeType.VIEW, ViewType.LIST, toRef(props, "subnodePacked"), "filter");
-const nodeCommands = computed(() =>
-  nodeType.value != null ? CONTEXT_COMMANDS_BY_TYPE[nodeType.value]?.map(getCommand) : [],
-);
 
 // search
-const DEFAULT_SORT = makeExpression({
-  type: ExpressionType.DESCENDING,
-  propertyPtr: propertyReference(NodeType.RECORD, RecordProperty.createdAt),
-});
 const { connection, graph, page, roots, isConnecting, isStale } = useSearchConnection(
   { name: "list", live: true },
   computed(() => ({
-    nodeType: nodeType.value!,
-    scope: nodeType.value != null && isBenchNodeType(nodeType.value) ? CURRENT_BENCH_SCOPE.value : EMPTY_SCOPE,
+    nodeType: NodeType.THREAD,
+    scope: CURRENT_BENCH_SCOPE.value,
     sort: [DEFAULT_SORT],
-    filter: filter.value,
-    isEnabled: nodeType.value != null,
+    isEnabled: true,
     first: 20,
   })),
 );
@@ -60,9 +56,8 @@ const itemRefs = ref<Record<string, HTMLElement>>({});
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
-defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeData[]> }>({
+defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: Ref<AnyNodeData[]> }>({
   self,
-  id,
   total,
   roots,
 });
@@ -100,13 +95,7 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
           class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
         />
         <!-- Name -->
-        <span
-          v-if="(node as any).name != null && (node as any).name != ''"
-          class="max-w-full select-none truncate"
-          v-html="(node as any).name"
-        />
         <Title
-          v-else-if="(node as any).title != null"
           :model-value="(node as any).title"
           :force-line-type="TextLineType.PARAGRAPH"
           class="max-w-full select-none truncate"
@@ -114,17 +103,12 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
           is-small
           :placeholder="toCamelName(NodeType, node.metatype)"
         />
-        <span
-          v-else
-          class="max-w-full select-none truncate text-gray-400"
-          v-html="toCamelName(NodeType, node.metatype)"
-        />
-        <!-- Metadata -->
-        <NodeMetadata class="ml-1.5" size="sm" :node="node" />
-        <!-- Commands -->
+        <!-- Meta -->
         <div class="ml-auto flex flex-row gap-x-1">
+          <!-- Metadata -->
+          <NodeMetadata class="ml-1.5" size="sm" :node="node" />
           <button
-            v-for="command of nodeCommands?.filter((c) => isCommandEnabled(c, { nodes: [node] }))"
+            v-for="command of NODE_COMMANDS?.filter((c) => isCommandEnabled(c, { nodes: [node] }))"
             :key="command.id"
             v-tooltip="{ small: true, text: command.title, group: 'list.item' }"
             aria-hidden
@@ -148,7 +132,7 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
           <i class="fas fa-spinner-third animate-spin text-gray-400" />
         </span>
         <!-- Empty -->
-        <span v-else class="text-gray-400">No {{ toCamelName(NodeType, nodeType) }}s</span>
+        <span v-else class="text-gray-400">No Threads</span>
       </div>
 
       <!-- Selection overlay -->

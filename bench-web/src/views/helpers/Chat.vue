@@ -609,11 +609,19 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </Transition>
 
         <!-- Empty Chat -->
-        <div v-if="!isEnabled && messageViews.length == 0" class="mx-[60px]">
+        <div
+          v-if="!isEnabled && messageViews.length == 0"
+          class=""
+          :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
+        >
           <slot name="empty" :node="node" />
         </div>
         <!-- Beginning of Chat -->
-        <div v-else-if="isAtStart && $slots.beginning != null" class="mx-[60px] mb-2">
+        <div
+          v-else-if="isAtStart && $slots.beginning != null"
+          class="mb-2"
+          :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
+        >
           <slot name="beginning" :node="node" />
         </div>
 
@@ -756,6 +764,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)"
                 :id="'text-' + message.id"
                 placeholder="Empty message"
+                class="-mt-[1px]"
                 is-minimal
                 :model-value="message.text"
               />

@@ -57,8 +57,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // presentation
 
   // collections
-  [ViewType.TREE]: () => import("@/views/collections/Tree.vue"),
-  [ViewType.LIST]: () => import("@/views/collections/List.vue"),
 
   //
   // Style
