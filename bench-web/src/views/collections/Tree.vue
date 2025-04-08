@@ -273,9 +273,10 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           :ref="(ref?: any) => (ref != null ? (expandedNodesRefs[node.id] = ref) : delete expandedNodesRefs[node.id])"
           :key="node.id"
           data-contextmenu-items="space.navigate.open"
+          :data-node-type="node.metatype"
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
-          :data-node-type="node.metatype"
+          :data-node-bench-id="(node as any).benchPtr?.id"
           class="group/node relative mx-2 flex max-w-full flex-row items-center rounded border transition-colors duration-150 hover:cursor-pointer"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
