@@ -723,7 +723,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                   class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
                   @click="author && canvas.goToNode(author)"
                 >
-                  {{ authorName ?? "[not found]" }}
+                  {{ authorName ?? "[missing]" }}
                 </span>
                 <!-- Timestamp -->
                 <span class="ml-1.5 text-xs text-gray-400">

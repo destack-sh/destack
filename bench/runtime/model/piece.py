@@ -285,7 +285,8 @@ class AgentPiece(NodePiece[Agent]):
     ) -> Generator[Piece, int, None]:
         rendered_node = prompt.renderer.render_statement(self.node, format=True)
         if prompt.subject.id == self.node.id:
-            rendered_node = f"# THIS IS WHO YOU ARE\n{rendered_node}"
+            self_alias = prompt.renderer.aliasing.get_or_add(self.node)
+            rendered_node = f"# THIS IS WHO YOU ARE: {self_alias}\n{rendered_node}"
         yield CodePiece(code=rendered_node)
 
 

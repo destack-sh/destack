@@ -1,6 +1,10 @@
+import { supergraph } from "@/globals";
+import { isNodeInstance, isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { Transaction } from "@/language/runtime/transaction";
+import { instanceNode } from "@/language/core/node";
+import { newChangeId, Transaction } from "@/language/runtime/transaction";
 import { MembershipData, NodeType } from "@/proto/wire";
+import { describeNode, isNode } from "@/proto/wiring";
 
 /** Create a Membership */
 export function createMembership(
@@ -8,6 +12,21 @@ export function createMembership(
   graph: ReadNodeGraph,
   options: { membership: Partial<MembershipData> },
 ): MembershipData {
+  if (tx.change?.key == null) {
+    tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
+  }
+
+  const parent = supergraph.getOrError(options.membership.parentPtr!);
+  let member = supergraph.get(options.membership.memberPtr!);
+  if (!isSubjectNode(member)) {
+    throw new Error(`non-subject node: ${describeNode(member ?? options.membership.memberPtr!)}`);
+  }
+
+  // instance agents if not already instanced
+  if (isNode(member, NodeType.AGENT) && !isNodeInstance(member)) {
+    member = instanceNode(tx, graph, member, { parent });
+  }
+
   const siblings = graph.getChildren(options.membership.parentPtr!, NodeType.MEMBERSHIP);
   const membership = tx.create({ metatype: NodeType.MEMBERSHIP, ...options.membership });
   return membership;
