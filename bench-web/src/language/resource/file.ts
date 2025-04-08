@@ -472,8 +472,14 @@ export function downloadFiles(
   files: (NodeReferenceData | FileData)[],
   options?: { includeContent?: boolean | ((file: FileData | NodeReferenceData) => boolean) },
 ): FileDownload[] {
-  const downloads = files.map((file) => {
-    const download: FileDownload = {
+  const downloads: FileDownload[] = [];
+  for (const file of files) {
+    if (downloadsByFileId.value[file.id!]) {
+      // already downloading
+      downloads.push(downloadsByFileId.value[file.id!]);
+      continue;
+    }
+    let download: FileDownload = {
       status: shallowRef(FileStatus.PENDING),
       isActive: computed(
         () => download.status.value != FileStatus.COMPLETED && download.status.value != FileStatus.FAILED,
@@ -492,15 +498,20 @@ export function downloadFiles(
           : (options?.includeContent ?? false),
       referenceCount: shallowRef(0),
     };
+    download = markRaw(download);
     cacheDownload(download);
-    return markRaw(download);
-  });
-  pendingDownloads.push(...downloads); // add to pending
+    pendingDownloads.push(download);
+    downloads.push(download);
+  }
   return downloads;
 }
 
 /** Download a single file from the Host. Returns as soon as the download starts. */
 export function downloadFile(file: NodeReferenceData | FileData, options?: { includeContent?: boolean }): FileDownload {
+  if (downloadsByFileId.value[file.id!]) {
+    // already downloading
+    return downloadsByFileId.value[file.id!];
+  }
   const download = downloadFiles([file], options)[0];
   return download;
 }
@@ -576,6 +587,21 @@ type SomeFile = FileData | NodeReferenceData;
 /** Gets the existing download for the given file. */
 export function getCachedFileDownload(file: SomeFile): FileDownload | null {
   return downloadsByFileId.value[file.id!];
+}
+
+/**
+ * Gets or silently requests a download for the given file.
+ * Does not touch the reference count and doesn't need any hooks.
+ * Useful for heavy duty components like IconInline.
+ * */
+export function getSilentFileDownload(file: SomeFile): FileDownload | null {
+  const download = getCachedFileDownload(file);
+  if (download != null) {
+    download.lastUsedAt.value = DateTime.now();
+  } else {
+    downloadFile(file, { includeContent: false });
+  }
+  return download;
 }
 
 /** Gets or creates a download for the given file as a ref. */
@@ -695,14 +721,14 @@ async function compressFileImage(file: File, profile: "icon" | "image"): Promise
   const compressionQuality = profile === "icon" ? FILE_ICON_COMPRESSION_QUALITY : FILE_IMAGE_COMPRESSION_QUALITY;
   const maxSize = profile === "icon" ? FILE_ICON_COMPRESSION_MAX_SIZE : FILE_IMAGE_COMPRESSION_MAX_SIZE;
   const format = profile === "icon" ? FILE_ICON_COMPRESSED_FORMAT : FILE_IMAGE_COMPRESSED_FORMAT;
-  
+
   return new Promise((resolve, reject) => {
     // already small enough
     if (file.size <= maxSize) {
       resolve(file);
       return;
     }
-    
+
     const img = new Image();
     img.src = URL.createObjectURL(file);
 

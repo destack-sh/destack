@@ -201,7 +201,7 @@ defineExpose<ViewExpose>({ self });
             placement: 'top-left',
           })
         "
-        class="mx-2 flex flex-row items-center rounded py-1 pl-2.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
+        class="mx-2 flex flex-row items-center rounded py-1 pl-1.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
         @click="user == null && fireCommandById('user.security.login')"
       >
         <AvatarInline
