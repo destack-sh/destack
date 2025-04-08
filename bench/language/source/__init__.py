@@ -13,9 +13,11 @@ from .package import Package, PackageType
 from .page import Page
 from .project import Projection, ProjectOptions
 from .render import (
+    ACTIVE_ALIASING,
     Aliasing,
     Renderer,
     RenderOptions,
+    get_active_aliasing,
     render,
     render_expression,
     render_expressions,
@@ -27,6 +29,7 @@ from .tag import Tag
 from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
 
 __all__ = [
+    "ACTIVE_ALIASING",
     "BLOCK_TYPES",
     "NODE_BLOCK_TYPES",
     "TEXT_BLOCK_TYPES",
@@ -60,6 +63,7 @@ __all__ = [
     "TriggerEffect",
     "TriggerStatus",
     "TriggerType",
+    "get_active_aliasing",
     "render",
     "render_expression",
     "render_expressions",

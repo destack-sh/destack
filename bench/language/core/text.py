@@ -361,6 +361,8 @@ def _parse_inline_raw(
                 node = aliasing.resolve(identifier)
                 if isinstance(node, Node):
                     mention_span.node = node
+                else:
+                    mention_span.node_ptr = node
             spans.append(mention_span)
             continue
         # opening marker: could be a citation, link, or a color marker
@@ -477,8 +479,13 @@ def markdown_line_to_line(line: str, aliasing: "Aliasing | None" = None) -> Text
     """
     Parse a markdown line into a TextLine.
     """
-    from bench.language import ColorType
+    from bench.language import ColorType, get_active_aliasing
 
+    # aliasing
+    if aliasing is None:
+        aliasing = get_active_aliasing()
+
+    # parse
     line_color = None
     stripped = line.strip()
     m = regex.match(r"^\[([a-zA-Z]+)\](.*)\[\/\1\]\s*$", stripped)
@@ -556,13 +563,19 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
     """
     Parse markdown as Text.
     """
-    from bench.language import Aliasing
+    from bench.language import Aliasing, get_active_aliasing
 
+    # bail if nothing to parse
     if not markdown:
         return Text.empty()
+
+    # aliasing
+    if aliasing is None:
+        aliasing = get_active_aliasing()
     if isinstance(aliasing, Mapping):
         aliasing = Aliasing.new(aliasing)
 
+    # parse
     markdown = textwrap.dedent(markdown)
     lines_str = markdown.splitlines()
     lines: list[TextLine] = []
@@ -730,10 +743,17 @@ def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) 
     """
     Render a single TextLine as markdown.
     """
+    from bench.language import get_active_aliasing
+
+    # aliasing
+    if aliasing is None:
+        aliasing = get_active_aliasing()
     if aliasing is not None and isinstance(aliasing, Mapping):
         from bench.language.source import Aliasing
 
         aliasing = Aliasing.new(aliasing)
+
+    # render
     if line.type == TextLineType.DIVIDER:
         return "---"
     elif line.type == TextLineType.CODE:
@@ -784,6 +804,7 @@ TextLineIn = TextLine | str
 
 
 def text(text: TextIn, aliasing: "AliasingIn | None" = None) -> Text:
+    """Parse markdown as Text."""
     if isinstance(text, str):
         return markdown_to_text(text, aliasing=aliasing)
     else:
@@ -791,6 +812,7 @@ def text(text: TextIn, aliasing: "AliasingIn | None" = None) -> Text:
 
 
 def text_line(text: TextLineIn, aliasing: "AliasingIn | None" = None) -> TextLine:
+    """Parse markdown as TextLine."""
     if isinstance(text, str):
         if isinstance(aliasing, Mapping):
             aliasing = Aliasing.new(aliasing)

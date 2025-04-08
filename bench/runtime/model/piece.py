@@ -210,7 +210,7 @@ class NodePiece[N: Node](CompoundPiece):
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        rendered_node = prompt.renderer.render_statement(self.node, format=True)
+        rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         yield CodePiece(code=rendered_node)
 
 
@@ -283,7 +283,7 @@ class AgentPiece(NodePiece[Agent]):
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        rendered_node = prompt.renderer.render_statement(self.node, format=True)
+        rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         if prompt.subject.id == self.node.id:
             self_alias = prompt.renderer.aliasing.get_or_add(self.node)
             rendered_node = f"# THIS IS WHO YOU ARE: {self_alias}\n{rendered_node}"

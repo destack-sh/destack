@@ -225,7 +225,6 @@ def example_mention_specific_things(
 yup [@Agent2], please look at the file I was talking about: [@File1]
 (cc [@User2])
 """,
-            {"Agent2": Agent7, "File1": File1, "User2": User2},
         ),
         nodes=[File1],  # the main content nodes only
     )
@@ -243,7 +242,6 @@ Here's the text from [@File1]:
 > Description: 79kg of rice
 Note that the text near the borders are not legible. 
 """,
-            {"File1": File1},
         ),
     )
     Thread1.append(Reply1)

@@ -28,7 +28,8 @@ export function emptyTextLine(type: TextLineType = TextLineType.PARAGRAPH): Text
 export function isTextLineEmpty(line: TextLineData): boolean {
   return (
     line.type == TextLineType.PARAGRAPH &&
-    (line.spans.length == 0 || line.spans.every((span) => span.content == null || span.content == ""))
+    (line.spans.length == 0 ||
+      line.spans.every((span) => (span.content == null || span.content == "") && span.nodePtr == null))
   );
 }
 
