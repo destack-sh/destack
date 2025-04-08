@@ -1,4 +1,5 @@
 import base64
+import contextvars
 import dataclasses
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
@@ -107,6 +108,13 @@ class Aliasing:
     def __repr__(self) -> str:
         return f"<Aliasing {self}>"
 
+    def clone(self) -> "Aliasing":
+        """Clone the current aliasing registry."""
+        aliasing = Aliasing()
+        aliasing._alias_by_node_id = self._alias_by_node_id.copy()
+        aliasing._node_by_alias = self._node_by_alias.copy()
+        return aliasing
+
     def add(self, obj: Node | NodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
         from bench.runtime.code.context import CODE_GLOBALS, PYTHON_KEYWORDS
@@ -188,6 +196,15 @@ class Aliasing:
             aliasing._alias_by_node_id[cast(UUID, node.id)] = alias
             aliasing._node_by_alias[alias] = node
         return aliasing
+
+
+ACTIVE_ALIASING: contextvars.ContextVar[Aliasing | None] = contextvars.ContextVar(
+    "active_aliasing", default=None
+)
+
+
+def get_active_aliasing() -> Aliasing | None:
+    return ACTIVE_ALIASING.get()
 
 
 AliasingIn = Aliasing | Mapping[str, Node | NodeReference]

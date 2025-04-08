@@ -49,7 +49,7 @@ import {
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { toaster } from "@/ui/toast";
-import { IS_DEV } from "@/utils/globals";
+import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
@@ -976,7 +976,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
         log.error("transaction.commit.error.unrecoverable", { scope: this.scope, error });
         toaster.error({
           title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
-          text: `Saving changes failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
+          text: `Saving failed: ${IS_DEVELOPER_MODE.value ? (error as Error).message : (error as RpcError).code}`,
         });
         this.reset();
 

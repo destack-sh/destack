@@ -8,6 +8,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    ACTIVE_ALIASING,
     IS_IN_USER_CODE,
     Agent,
     Aliasing,
@@ -72,6 +73,10 @@ class CodeRunner(Runner, ABC):
         )
         self.code = code
         self.aliasing = aliasing
+        if self.node not in self.aliasing:
+            # ensure the node is aliased for convenience (mostly for testing)
+            self.aliasing = self.aliasing.clone()
+            self.aliasing.add(self.node)
         self.combined_glbls: dict[str, Any] = {
             **self.runtime.combined_glbls,
             **(self.aliasing._node_by_alias if self.aliasing else {}),
@@ -108,10 +113,16 @@ class CodeRunner(Runner, ABC):
         return compiled
 
     @contextmanager
-    def _capture_logs(self):
-        """Capture logs into this run."""
+    def _enter(self):
+        """Enter the context for running the code."""
         with capture_logs(self.log_sink):
-            yield self.log_sink
+            aliasing_token = ACTIVE_ALIASING.set(self.aliasing)
+            in_user_code_token = IS_IN_USER_CODE.set(True)
+            try:
+                yield self.log_sink
+            finally:
+                IS_IN_USER_CODE.reset(in_user_code_token)
+                ACTIVE_ALIASING.reset(aliasing_token)
 
     @tracer.start_as_current_span("code.prepare_context")
     def _prepare_glbls(self) -> dict[str, Any]:
@@ -194,7 +205,7 @@ class CodeScriptRunner(CodeRunner):
         glbls = self._prepare_glbls()
 
         # run
-        with self._capture_logs(), tracer.start_as_current_span("code.run.script") as span:
+        with self._enter(), tracer.start_as_current_span("code.run.script") as span:
             span.set_attribute("code", compiled.code)
             if compiled.is_coroutine:
                 coro = eval(compiled.body_co, glbls)
@@ -230,9 +241,8 @@ class CodeFunctionRunner(CodeRunner):
         # run
         exec(compiled.body_co, glbls)  # shouldn't error
         func = glbls[compiled.function_name]
-        with self._capture_logs(), tracer.start_as_current_span("code.run.function") as span:
+        with self._enter(), tracer.start_as_current_span("code.run.function") as span:
             span.set_attribute("code", compiled.code)
-            token = IS_IN_USER_CODE.set(True)
             try:
                 if compiled.is_coroutine:
                     outputs_raw = await func()
@@ -267,6 +277,4 @@ class CodeFunctionRunner(CodeRunner):
                     exc_info=e,
                 )
                 raise
-            finally:
-                IS_IN_USER_CODE.reset(token)
         self.outputs = self._coerce_outputs(outputs_raw)

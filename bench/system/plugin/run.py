@@ -117,9 +117,8 @@ class RunPlugin(HostPlugin[Run]):
         for computer in candidate_computers:
             try:
                 assert computer.grpc_url, f"missing GRPC URL for {computer!r}"
-                runtime = RuntimeClient(
-                    await self.network.get_channel(computer.grpc_url, source_id=self.host.id)
-                )
+                channel = await self.network.get_channel(computer.grpc_url, source_id=self.host.id)
+                runtime = RuntimeClient(channel)
                 assert run.thread_ptr, f"missing thread for run {run!r}"
                 # should be batched and routed per Thread :RunRouting
                 request = RunRequest(
@@ -129,10 +128,12 @@ class RunPlugin(HostPlugin[Run]):
                     run_ptrs=[run._to_ref_data()],
                 )
                 _ = await runtime.run(request)
-                log.info("run_plugin.run", computer=computer, span="current")
+                log.info("run_plugin.run", computer=computer, channel=channel, span="current")
                 return  # success
             except Exception as e:
-                log.error("run_plugin.run.error", computer=computer, error=e)
+                log.error(
+                    "run_plugin.run.error", computer=computer, grpc_url=computer.grpc_url, error=e
+                )
                 op.retry.on_error(e)
                 continue
 
