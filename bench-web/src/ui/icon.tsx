@@ -4,7 +4,7 @@ import { supergraph } from "@/globals";
 import { getBaseFromNode } from "@/language/core/const";
 import { renderTextLine } from "@/language/core/text";
 import type { TypeIdentity } from "@/language/core/type";
-import { getCachedFileDownload } from "@/language/resource/file";
+import { getCachedFileDownload, getSilentFileDownload } from "@/language/resource/file";
 import {
   ActionType,
   BASED_NODE_TYPES,
@@ -124,14 +124,17 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else if (props.filePtr) {
     // file
-    const download = getCachedFileDownload(props.filePtr);
+    const download = getSilentFileDownload(props.filePtr);
     if (download?.getUrl.value != null) {
       return <img src={download.getUrl.value} class="rounded-full" />;
+    } else {
+      // downloading (skeleton)
+      return <span class="animate-pulse w-5 h-5 rounded-full bg-gray-200" />;
     }
   }
 
   // invalid icon
-  return <span class="fas fa-xmark text-red-400 border border-red-400 rounded-sm" />;
+  return <span class="fas fa-xmark rounded-sm border border-red-400 text-red-400" />;
 };
 IconInline.props = [
   "emoji",
@@ -213,9 +216,12 @@ export const AvatarInline: FunctionalComponent<
     );
   } else if (props.filePtr) {
     // file
-    const download = getCachedFileDownload(props.filePtr);
+    const download = getSilentFileDownload(props.filePtr);
     if (download?.getUrl.value != null) {
       return <img src={download.getUrl.value} class={baseClasses + " rounded-full"} />;
+    } else {
+      // downloading (skeleton)
+      return <div class={baseClasses + " animate-pulse rounded-full bg-gray-200"} />;
     }
   }
 
