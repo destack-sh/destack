@@ -227,7 +227,7 @@ class IsTemplatable(BuiltinObject):
         # instance self
         instance_kwargs = self._clone_kwargs(reset=True)
         if self.mode == NodeMode.TEMPLATE:
-            instance_kwargs["mode"] = NodeMode.MAIN
+            instance_kwargs["mode"] = self.active_session.mode
         else:
             instance_kwargs["mode"] = self.mode
         instance_kwargs.update(kwargs)
