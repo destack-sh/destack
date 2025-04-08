@@ -19,7 +19,7 @@ import {
   newChangeId,
   TransactionOptions,
   type Transaction,
-} from "@/language/runtime/transaction";
+} from "@/language/core/transaction";
 import { createChannel } from "@/language/source/channel";
 import { createPage } from "@/language/source/page";
 import { createThread } from "@/language/source/thread";

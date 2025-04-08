@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/core/const";
 import { renderText } from "@/language/core/text";
 import { NAME_TYPE } from "@/language/core/type";
-import { isRunActive } from "@/language/runtime/run";
+import { isProcessActive } from "@/language/runtime/process";
 import {
   ActionType,
   ActionTypeOptionInfo,
@@ -24,7 +24,7 @@ import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
 import { getNodeColorHex, getRunColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
-import RunStatus from "@/views/builtins/RunStatus.vue";
+import ProcessStatus from "@/views/builtins/ProcessStatus.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -87,11 +87,11 @@ defineExpose<ViewExpose>({ self, id, commands});
       isSelected ? 'border-gray-400 bg-orange-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
-      lastRun != null && isRunActive(lastRun) ? '' : 'outline-transparent',
+      lastRun != null && isProcessActive(lastRun) ? '' : 'outline-transparent',
     ]"
     :style="{
       borderColor: lastRun != null ? getRunColorHex(lastRun.status) : '',
-      outlineColor: lastRun != null && isRunActive(lastRun) ? getRunColorHex(lastRun.status) : '',
+      outlineColor: lastRun != null && isProcessActive(lastRun) ? getRunColorHex(lastRun.status) : '',
     }"
     aria-role="button"
     @mouseup="(e) => flowCtx?.endDragging(e, { kind: 'action', action: action! })"
@@ -164,7 +164,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <div class="ml-auto flex flex-row pl-2 pr-1.5">
           <!-- Run status -->
           <button v-if="lastRun != null" class="rounded hover:bg-gray-100" aria-hidden>
-            <RunStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
+            <ProcessStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
           </button>
         </div>
       </div>

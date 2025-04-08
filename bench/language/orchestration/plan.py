@@ -9,12 +9,12 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsOwnable,
+    IsProcessable,
     IsTimed,
     IsTitled,
-    IsTracked,
     LocalNodeList,
     NodeType,
-    RunStatus,
+    ProcessStatus,
     TextLineIn,
     enum_,
     p_internal,
@@ -43,7 +43,7 @@ class Plan(
     IsTimed,
     IsOwnable,
     IsClaimable,
-    IsTracked,
+    IsProcessable,
     IsModal,
     IsInstantiable,
     IsTitled,
@@ -70,18 +70,18 @@ class Plan(
     tasks: LocalNodeList["Task"] = p_node_children(NodeType.TASK)
 
     def start(self) -> None:
-        self.status = RunStatus.RUNNING
+        self.status = ProcessStatus.RUNNING
         self.started_at = self.active_session._oracle.utc()
 
     def complete(self) -> None:
-        self.status = RunStatus.COMPLETED
+        self.status = ProcessStatus.COMPLETED
         self.terminated_at = self.active_session._oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
 
     def fail(self, error: "Error | None") -> None:
         self.error = error
-        self.status = RunStatus.FAILED
+        self.status = ProcessStatus.FAILED
         self.terminated_at = self.active_session._oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at

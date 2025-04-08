@@ -4,7 +4,7 @@ import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { isTextLineEmpty, STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
 import { uploadFile } from "@/language/resource/file";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { createBlock } from "@/language/source/block";
 import {
   BlockData,
@@ -45,7 +45,7 @@ import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, 
 
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
-const MIN_GUTTER_WIDTH = 64;
+const MIN_GUTTER_WIDTH = 60;
 const MIN_FOOTER_PADDING = 200;
 
 const props = defineProps<

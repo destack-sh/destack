@@ -1,7 +1,7 @@
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
-import { newChangeId, Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/core/transaction";
 import { ChannelData, NodeReferenceData, NodeType, ObjectType, PackageData, PageData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 import { generateOrderKey } from "@/utils/fractional";

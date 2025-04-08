@@ -11,9 +11,9 @@ from bench.language import (
     LinkType,
     NodeMode,
     PathElementType,
+    ProcessStatus,
     Run,
     RunOptions,
-    RunStatus,
     Trigger,
     code,
 )
@@ -227,7 +227,7 @@ async def test_run_flow_invalid_computed_target(
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, inputs={"Input": 1})
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime()
@@ -356,7 +356,7 @@ else:
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, inputs={"Attempts": 6})
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime()
@@ -411,7 +411,7 @@ async def test_run_flow_force_invalid_output(
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
@@ -437,7 +437,7 @@ async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: Run
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
@@ -453,7 +453,7 @@ async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWork
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.tracked_run and len(runner.tracked_run.runs) == 3
 
 
@@ -470,7 +470,7 @@ async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWork
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run, _ = create_run(Flow1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    run, _ = create_run(Flow1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
     await runtime.session.commit()
     run_task = asyncio.create_task(runtime.run_in_runtime(run, return_error=True))
     # kill after 0.5s
@@ -478,8 +478,8 @@ async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWork
     runtime.runtime.stop_run(run)
     runner = await run_task
     # flow should be aborted
-    assert runner.status == RunStatus.ABORTED
+    assert runner.status == ProcessStatus.ABORTED
     assert runner.tracked_run
     assert runner.tracked_run.duration and runner.tracked_run.duration.total_seconds() < 1
     # inner code action should also be aborted
-    assert runner.runners[2].node == Code1 and runner.runners[2].status == RunStatus.ABORTED
+    assert runner.runners[2].node == Code1 and runner.runners[2].status == ProcessStatus.ABORTED

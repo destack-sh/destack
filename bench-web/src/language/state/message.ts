@@ -1,7 +1,7 @@
 import { getBaseFromNodeReference } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
-import { Transaction } from "@/language/runtime/transaction";
+import { Transaction } from "@/language/core/transaction";
 import { MessageData, MessageStatus, NodeReferenceData, NodeType } from "@/proto/wire";
 
 /** Create a Message. */

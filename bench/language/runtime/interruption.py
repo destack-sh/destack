@@ -13,8 +13,8 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     PackageNode,
+    ProcessStatus,
     Runnable,
-    RunStatus,
     Struct,
     StructType,
     enum_,
@@ -122,13 +122,13 @@ class InterruptionType(BuiltinEnum):
     WAIT = 30, "Wait", "Wait for a Trigger", "fas fa-hourglass-end"
 
 
-RUN_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, RunStatus] = {
-    InterruptionType.PAUSE: RunStatus.PAUSED,
-    InterruptionType.YIELD: RunStatus.YIELDED,
-    InterruptionType.WAIT: RunStatus.WAITING,
+PROCESS_STATUS_BY_INTERRUPTION_TYPE: dict[InterruptionType, ProcessStatus] = {
+    InterruptionType.PAUSE: ProcessStatus.PAUSED,
+    InterruptionType.YIELD: ProcessStatus.YIELDED,
+    InterruptionType.WAIT: ProcessStatus.WAITING,
 }
-INTERRUPTION_TYPE_BY_RUN_STATUS: dict[RunStatus, InterruptionType] = {
-    v: k for k, v in RUN_STATUS_BY_INTERRUPTION_TYPE.items()
+INTERRUPTION_TYPE_BY_PROCESS_STATUS: dict[ProcessStatus, InterruptionType] = {
+    v: k for k, v in PROCESS_STATUS_BY_INTERRUPTION_TYPE.items()
 }
 
 

@@ -4,7 +4,7 @@ import "./assets/index.css";
 import {
   resetTransactionBuffers,
   startTransactionRotation as startTransactionBuffers,
-} from "@/language/runtime/transaction";
+} from "@/language/core/transaction";
 import { sendRemoteKeepAlives } from "@/system/connection";
 import { keytrap } from "@/ui/keymap";
 import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";

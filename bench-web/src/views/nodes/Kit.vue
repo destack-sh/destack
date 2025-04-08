@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { makeNodeName, packSubnode } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import {
   ActionData,
   ActionType,

@@ -71,7 +71,7 @@ enum EnumType {
   ENUM_TYPE_PATH_ELEMENT_TYPE = 21260;
   ENUM_TYPE_PATH_RUN_SELECTOR = 21261;
   ENUM_TYPE_SELECTION_TYPE = 21265;
-  ENUM_TYPE_RUN_STATUS = 22000;
+  ENUM_TYPE_PROCESS_STATUS = 22000;
   ENUM_TYPE_RUN_TYPE = 22001;
   ENUM_TYPE_SPAN_TYPE = 22002;
   ENUM_TYPE_PLAN_TYPE = 22003;
@@ -503,7 +503,7 @@ enum BenchType {
   BENCH_TYPE_PATH_ELEMENT_TYPE = 21260;
   BENCH_TYPE_PATH_RUN_SELECTOR = 21261;
   BENCH_TYPE_SELECTION_TYPE = 21265;
-  BENCH_TYPE_RUN_STATUS = 22000;
+  BENCH_TYPE_PROCESS_STATUS = 22000;
   BENCH_TYPE_RUN_TYPE = 22001;
   BENCH_TYPE_SPAN_TYPE = 22002;
   BENCH_TYPE_PLAN_TYPE = 22003;
@@ -1259,21 +1259,21 @@ enum SelectionType {
   SELECTION_TYPE_COMBINATION = 10;
 }
 
-enum RunStatus {
-  RUN_STATUS_UNSPECIFIED = 0;
-  RUN_STATUS_CREATED = 1;
-  RUN_STATUS_ASSIGNED = 2;
-  RUN_STATUS_SCHEDULED = 4;
-  RUN_STATUS_QUEUED = 5;
-  RUN_STATUS_RUNNING = 10;
-  RUN_STATUS_PAUSED = 20;
-  RUN_STATUS_YIELDED = 21;
-  RUN_STATUS_WAITING = 22;
-  RUN_STATUS_CANCELLED = 30;
-  RUN_STATUS_ABORTED = 31;
-  RUN_STATUS_FAILED = 32;
-  RUN_STATUS_COMPLETED = 33;
-  RUN_STATUS_SKIPPED = 34;
+enum ProcessStatus {
+  PROCESS_STATUS_UNSPECIFIED = 0;
+  PROCESS_STATUS_CREATED = 1;
+  PROCESS_STATUS_ASSIGNED = 2;
+  PROCESS_STATUS_SCHEDULED = 4;
+  PROCESS_STATUS_QUEUED = 5;
+  PROCESS_STATUS_RUNNING = 10;
+  PROCESS_STATUS_PAUSED = 20;
+  PROCESS_STATUS_YIELDED = 21;
+  PROCESS_STATUS_WAITING = 22;
+  PROCESS_STATUS_CANCELLED = 30;
+  PROCESS_STATUS_ABORTED = 31;
+  PROCESS_STATUS_FAILED = 32;
+  PROCESS_STATUS_COMPLETED = 33;
+  PROCESS_STATUS_SKIPPED = 34;
 }
 
 enum RunType {
@@ -2435,7 +2435,7 @@ message ChannelData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData main_page_ptr = 60;
   optional NodeReferenceData main_plan_ptr = 61;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
   optional google.protobuf.Timestamp started_at = 83;
@@ -2566,7 +2566,7 @@ message ThreadData {
   optional NodeReferenceData main_page_ptr = 60;
   optional NodeReferenceData main_plan_ptr = 61;
   optional TextData text = 65;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
   optional google.protobuf.Timestamp started_at = 83;
@@ -2968,7 +2968,7 @@ message AgentData {
   optional NodeReferenceData implemented_by_ptr = 56;
   optional TextData text = 57;
   optional ColorType color = 58;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
   optional google.protobuf.Timestamp started_at = 83;
@@ -3125,7 +3125,7 @@ message PlanData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData implemented_by_ptr = 43;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
   optional google.protobuf.Timestamp started_at = 83;
@@ -3175,7 +3175,7 @@ message TaskData {
   optional NodeReferenceData clazz_ptr = 70;
   optional google.protobuf.Value value_packed = 71;
   repeated NodeReferenceData nodes_ptr = 72;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
   optional google.protobuf.Timestamp started_at = 83;
@@ -3288,7 +3288,7 @@ message RunData {
   optional NodeReferenceData manual_task_ptr = 77;
   optional NodeReferenceData run_plan_ptr = 78;
   optional NodeReferenceData run_task_ptr = 79;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional google.protobuf.Timestamp scheduled_at = 82;
   optional google.protobuf.Timestamp started_at = 83;
@@ -3361,13 +3361,17 @@ message SpanData {
   optional NodeReferenceData manual_task_ptr = 77;
   optional NodeReferenceData run_plan_ptr = 78;
   optional NodeReferenceData run_task_ptr = 79;
-  RunStatus status = 80;
+  ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp started_at = 82;
-  optional google.protobuf.Timestamp terminated_at = 83;
-  optional google.protobuf.Timestamp interrupted_at = 84;
-  optional NodeReferenceData interruption_ptr = 85;
-  optional ErrorData error = 86;
+  optional google.protobuf.Timestamp scheduled_at = 82;
+  optional google.protobuf.Timestamp started_at = 83;
+  optional google.protobuf.Timestamp stopped_at = 84;
+  optional google.protobuf.Timestamp interrupted_at = 85;
+  optional google.protobuf.Timestamp paused_at = 86;
+  optional google.protobuf.Timestamp resumed_at = 87;
+  optional google.protobuf.Timestamp terminated_at = 88;
+  optional ErrorData error = 89;
+  optional NodeReferenceData interruption_ptr = 90;
   optional NodeReferenceData session_ptr = 91;
   optional NodeReferenceData client_ptr = 93;
   optional NodeReferenceData computer_ptr = 94;

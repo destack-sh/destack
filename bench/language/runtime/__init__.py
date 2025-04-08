@@ -1,8 +1,8 @@
 from .context import Context, EditContext, IsRun
 from .error import Error, ErrorType
 from .interruption import (
-    INTERRUPTION_TYPE_BY_RUN_STATUS,
-    RUN_STATUS_BY_INTERRUPTION_TYPE,
+    INTERRUPTION_TYPE_BY_PROCESS_STATUS,
+    PROCESS_STATUS_BY_INTERRUPTION_TYPE,
     Breakpoint,
     BreakpointAction,
     BreakpointScope,
@@ -37,8 +37,8 @@ from .transaction import (
 )
 
 __all__ = [
-    "INTERRUPTION_TYPE_BY_RUN_STATUS",
-    "RUN_STATUS_BY_INTERRUPTION_TYPE",
+    "INTERRUPTION_TYPE_BY_PROCESS_STATUS",
+    "PROCESS_STATUS_BY_INTERRUPTION_TYPE",
     "AudioOptions",
     "Breakpoint",
     "BreakpointAction",

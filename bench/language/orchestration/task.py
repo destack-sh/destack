@@ -13,13 +13,13 @@ from bench.language.core import (
     IsInstantiable,
     IsModal,
     IsOwnable,
+    IsProcessable,
     IsTimed,
     IsTitled,
-    IsTracked,
     IsType,
     NodeList,
     NodeType,
-    RunStatus,
+    ProcessStatus,
     StructType,
     Text,
     TextLineIn,
@@ -64,7 +64,7 @@ class Task(
     IsTimed,
     IsOwnable,
     IsClaimable,
-    IsTracked,
+    IsProcessable,
     IsModal,
     IsTitled,
     IsInstantiable,
@@ -141,11 +141,11 @@ class Task(
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
 
     def start(self) -> None:
-        self.status = RunStatus.RUNNING
+        self.status = ProcessStatus.RUNNING
         self.started_at = self.active_session._oracle.utc()
 
     def complete(self) -> None:
-        self.status = RunStatus.COMPLETED
+        self.status = ProcessStatus.COMPLETED
         self.terminated_at = self.active_session._oracle.utc()
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
@@ -155,7 +155,7 @@ class Task(
 
     def fail(self, error: "Error | None" = None) -> None:
         self.error = error
-        self.status = RunStatus.FAILED
+        self.status = ProcessStatus.FAILED
 
     @cached_property
     def value_type(self) -> Optional["IsType"]:

@@ -18,7 +18,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import Prompt, compile_prompt
+from .prompt import LOG_PROMPTS, Prompt, compile_prompt, log_prompt
 
 if TYPE_CHECKING:
     pass
@@ -50,6 +50,8 @@ class GeminiChatModelRunner(ChatModelRunner):
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
         pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
+        if LOG_PROMPTS:
+            log_prompt(prompt, pieces)
 
         # download media
         files_to_download = [

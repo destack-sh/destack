@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.07.0"
+VERSION = "2025.04.08.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -396,7 +396,7 @@ class EnumType(BuiltinEnum):
     #
 
     # runtime core (22000-22100)
-    RUN_STATUS = 22000
+    PROCESS_STATUS = 22000
     RUN_TYPE = 22001
     SPAN_TYPE = 22002
     PLAN_TYPE = 22003
@@ -1492,8 +1492,8 @@ class ErrorKind(BuiltinEnum):
     RUNTIME = 5
 
 
-@enum_(EnumType.RUN_STATUS)
-class RunStatus(BuiltinEnum):
+@enum_(EnumType.PROCESS_STATUS)
+class ProcessStatus(BuiltinEnum):
     # pre
     CREATED = 1, "Created", "Created but not yet assigned", "fas fa-clock", ColorType.GRAY
     ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock", ColorType.GRAY
@@ -1535,9 +1535,9 @@ class RunStatus(BuiltinEnum):
         return self >= 30
 
 
-INTERRUPTED_RUN_STATUSES = bittuple(*(s for s in RunStatus if s.is_interrupted))
-ACTIVE_RUN_STATUSES = bittuple(*(s for s in RunStatus if s.is_active))
-TERMINAL_RUN_STATUSES = bittuple(*(s for s in RunStatus if s.is_terminal))
+INTERRUPTED_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_interrupted))
+ACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_active))
+TERMINAL_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_terminal))
 
 
 @enum_(EnumType.SESSION_STATUS)

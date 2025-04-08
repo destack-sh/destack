@@ -2,7 +2,7 @@
 import { autoloader, canvas, supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
 import { NAME_TYPE, TITLE_TYPE } from "@/language/core/type";
-import { Transaction } from "@/language/runtime/transaction";
+import { Transaction } from "@/language/core/transaction";
 import {
   AnyNodeData,
   NodeReferenceData,
@@ -40,6 +40,7 @@ const props = defineProps<{
   isMinimal?: boolean;
   isNested?: boolean;
   hideIcon?: boolean;
+  hideMetadata?: boolean;
   orientation?: Orientation;
   maxWidth?: number;
 }>();
@@ -216,7 +217,7 @@ defineExpose({
       </span>
       <!-- Metadata -->
       <NodeMetadata
-        v-if="!isMinimal"
+        v-if="!isMinimal && !hideMetadata"
         class="ml-1 flex-shrink-0"
         :size="size"
         :node="node"

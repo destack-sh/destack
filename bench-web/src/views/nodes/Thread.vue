@@ -81,6 +81,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           size="title"
           :node="node"
           is-input
+          hide-metadata
           :tx="() => connection!.tx"
           @navigate="(direction) => emit('navigate', direction)"
           @click.stop.prevent="nameRef?.focusIdentifier('right')"

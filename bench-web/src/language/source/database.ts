@@ -1,7 +1,7 @@
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
-import { newChangeId, Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/core/transaction";
 import { BenchType, DatabaseData, FieldType, NodeType, ObjectType, TypeData, TypeKind } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 

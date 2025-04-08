@@ -36,10 +36,12 @@ from bench.language import (
     OWNABLE_NODE_TYPES,
     PACKAGE_NODE_TYPES,
     PARENT_NODE_TYPES,
+    PROCESSABLE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     RESOURCE_NODE_TYPES,
     ROOT_NODE_TYPES,
+    RUNNABLE_NODE_TYPES,
     RUNTIME_NODE_TYPES,
     SOURCE_NODE_TYPES,
     STRUCT_CLASS_BY_TYPE,
@@ -49,7 +51,6 @@ from bench.language import (
     SUBNODE_CLASSES,
     TEMPLATABLE_NODE_TYPES,
     TIMED_NODE_TYPES,
-    TRACKED_NODE_TYPES,
     TYPE_BASE_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
     UNSET,
@@ -786,20 +787,22 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("INLINE_NODE_TYPES", INLINE_NODE_TYPES),
         ("INSTANTIABLE_NODE_TYPES", INSTANTIABLE_NODE_TYPES),
         ("LOCAL_NODE_TYPES", LOCAL_NODE_TYPES),
-        ("PACKAGE_NODE_TYPES", PACKAGE_NODE_TYPES),
         ("PUBLIC_NODE_TYPES", PUBLIC_NODE_TYPES),
         ("REGIONAL_NODE_TYPES", REGIONAL_NODE_TYPES),
         ("RESOURCE_NODE_TYPES", RESOURCE_NODE_TYPES),
         ("ROOT_NODE_TYPES", ROOT_NODE_TYPES),
         ("RUNTIME_NODE_TYPES", RUNTIME_NODE_TYPES),
+        ("RUNNABLE_NODE_TYPES", RUNNABLE_NODE_TYPES),
         ("SOURCE_NODE_TYPES", SOURCE_NODE_TYPES),
         ("SUBJECT_NODE_TYPES", SUBJECT_NODE_TYPES),
         ("JOINABLE_NODE_TYPES", JOINABLE_NODE_TYPES),
         ("CLAIMABLE_NODE_TYPES", CLAIMABLE_NODE_TYPES),
         ("OWNABLE_NODE_TYPES", OWNABLE_NODE_TYPES),
-        ("TRACKED_NODE_TYPES", TRACKED_NODE_TYPES),
+        ("PACKAGE_NODE_TYPES", PACKAGE_NODE_TYPES),
+        ("PROCESSABLE_NODE_TYPES", PROCESSABLE_NODE_TYPES),
         ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
         ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
+        ("TYPE_BASE_NODE_TYPES", TYPE_BASE_NODE_TYPES),
         ("USER_NODE_TYPES", USER_NODE_TYPES),
     ):
         node_types_str_parts.append(f"export const {name}: NodeType[] = [")
@@ -819,16 +822,18 @@ export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 export type BenchNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode))}
-export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
-export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source)}
-export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode))}
-export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
-export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
-export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
-export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 export type ClaimableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES)}
+export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
+export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode))}
+export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES)}
-export type TrackedNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TRACKED_NODE_TYPES)}
+export type ProcessableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in PROCESSABLE_NODE_TYPES)}
+export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
+export type RunnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in RUNNABLE_NODE_TYPES)}
+export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source)}
+export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}
+export type TypeBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES)}
+
 // Node types
 {node_types_str}
 

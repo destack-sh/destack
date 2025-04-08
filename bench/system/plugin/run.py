@@ -17,9 +17,9 @@ from bench.language import (
     ErrorType,
     NodeMode,
     NodeType,
+    ProcessStatus,
     ResourceStatus,
     Run,
-    RunStatus,
     Session,
     Text,
     bittuple,
@@ -80,7 +80,7 @@ class RunPlugin(HostPlugin[Run]):
     async def post_commit(self, session: Session, commit: Commit[Run]) -> None:
         for run in commit.added:
             # start new scheduled runs
-            if run.status <= RunStatus.SCHEDULED and run.parent_type != NodeType.RUN:
+            if run.status <= ProcessStatus.SCHEDULED and run.parent_type != NodeType.RUN:
                 self._queue_run(run)
         for run in commit.updated:
             # resume active runs (at root)
@@ -147,7 +147,7 @@ class RunPlugin(HostPlugin[Run]):
                 text=Text.from_markdown("Could not reach any available Computer."),
             )
             async with self.host.session(commit=True):  # :StaleNodes
-                run.status = RunStatus.ABORTED if run.started_at else RunStatus.CANCELLED
+                run.status = ProcessStatus.ABORTED if run.started_at else ProcessStatus.CANCELLED
                 run.terminated_at = self.host.oracle.utc()
                 if run.started_at is not None:
                     run.duration = run.terminated_at - run.started_at

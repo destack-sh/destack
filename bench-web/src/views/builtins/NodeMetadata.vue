@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isNodeActive, isResourceNode, toCamelName } from "@/language/core/const";
+import { isNodeActive, isProcessableNode, isResourceNode, toCamelName } from "@/language/core/const";
 import {
   AnyNodeData,
   ColorShade,
@@ -7,7 +7,7 @@ import {
   NodeModeOptionInfo,
   NodeType,
   ResourceStatusOptionInfo,
-  RunStatusOptionInfo
+  ProcessStatusOptionInfo,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex } from "@/ui/style";
@@ -34,6 +34,17 @@ const textClass = computed(() => [
 </script>
 <template>
   <div>
+    <!-- Node mode -->
+    <span
+      v-if="'mode' in node && node.mode != NodeMode.MAIN"
+      class="ml-1 mr-1 rounded-sm border px-1 py-0.5 text-xs text-gray-900"
+      :style="{
+        backgroundColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S200),
+        borderColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S300),
+      }"
+    >
+      {{ toCamelName(NodeMode, node.mode) }}
+    </span>
     <!-- Resource metadata -->
     <span
       v-if="isResourceNode(node) && isNodeActive(node)"
@@ -47,21 +58,10 @@ const textClass = computed(() => [
     </span>
     <!-- Run metadata -->
     <span
-      v-if="isNode(node, NodeType.RUN)"
+      v-if="isProcessableNode(node)"
       class="w-5 text-center"
-      :class="[iconClass, RunStatusOptionInfo[node.status]!.icon!]"
-      :style="{ color: getColorHex(RunStatusOptionInfo[node.status]!.color!) }"
+      :class="[iconClass, ProcessStatusOptionInfo[node.status]!.icon!]"
+      :style="{ color: getColorHex(ProcessStatusOptionInfo[node.status]!.color!) }"
     />
-    <!-- Node mode, ... -->
-    <span
-      v-if="'mode' in node && node.mode != NodeMode.MAIN"
-      class="ml-1 rounded-sm border px-1 py-0.5 text-xs text-gray-900"
-      :style="{
-        backgroundColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S200),
-        borderColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S300),
-      }"
-    >
-      {{ toCamelName(NodeMode, node.mode) }}
-    </span>
   </div>
 </template>

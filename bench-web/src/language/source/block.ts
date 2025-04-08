@@ -5,7 +5,7 @@ import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
 import { createAgent } from "@/language/runtime/agent";
 import { createTask } from "@/language/runtime/task";
-import { newChangeId, type Transaction } from "@/language/runtime/transaction";
+import { newChangeId, type Transaction } from "@/language/core/transaction";
 import { choiceToType, createChoice } from "@/language/source/choice";
 import { classToType, createClass } from "@/language/source/class";
 import { createDatabase, databaseToType } from "@/language/source/database";

@@ -42,10 +42,10 @@ from bench.language import (
     NodeMode,
     NodeType,
     Package,
+    ProcessStatus,
     Run,
     Runnable,
     RunOptions,
-    RunStatus,
     RunType,
     Session,
     Span,
@@ -185,7 +185,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
     ) -> None:
         self.runtime = runtime
         self.node = node
-        self.status = RunStatus.QUEUED
+        self.status = ProcessStatus.QUEUED
         self.options = options
         self.parent = parent or runtime.active_runner
         self.runners: list[Runner] = []
@@ -571,7 +571,7 @@ def create_run(
     inputs: Any | None = None,
     options: RunOptions | None = None,
     mode: NodeMode | None = None,
-    status: RunStatus | None = None,
+    status: ProcessStatus | None = None,
     thread: "Thread | None" = None,
     message: "Message | None" = None,
     trigger: "Trigger | None" = None,
@@ -666,7 +666,7 @@ def create_run(
         message=message,
         trigger=trigger,
         agent=agent,
-        status=status or RunStatus.CREATED,
+        status=status or ProcessStatus.CREATED,
         _graph=graph,
         _skip_validate_self=True,
     )

@@ -1,5 +1,5 @@
 import { isResourceNode } from "@/language/core/const";
-import { newChangeId, Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/core/transaction";
 import { ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
 import { Command, CommandContext, getNodesForCommand, provideCommands } from "@/ui/command";
 

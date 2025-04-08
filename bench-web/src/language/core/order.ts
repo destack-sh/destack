@@ -1,4 +1,4 @@
-import type { Transaction } from "@/language/runtime/transaction";
+import type { Transaction } from "@/language/core/transaction";
 import type { AnyNodeData } from "@/proto/wire";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
 

@@ -2,7 +2,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, override
 
-from bench.language import NodeMode, Run, Runnable, RunOptions, RunStatus
+from bench.language import NodeMode, ProcessStatus, Run, Runnable, RunOptions
 from bench.runtime import MemoryCache, Runner, Runtime, create_run
 from bench.test.simulation.core import Simulation
 
@@ -47,7 +47,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
                 mode=mode,
                 parent=self.main_package,
                 session=self.session,
-                status=RunStatus.QUEUED,
+                status=ProcessStatus.QUEUED,
             )
             await self.session.commit()
         runner = await self.runtime.run(run, _return_error=return_error)

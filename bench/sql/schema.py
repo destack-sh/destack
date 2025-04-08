@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.07.0"
+VERSION = "2025.04.08.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1588,13 +1588,17 @@ SPAN_TABLE = Table(
         Column("manual_task_ck", PrimitiveType.UUID, is_nullable=True),
         Column("run_plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("run_task_id", PrimitiveType.UUID, is_nullable=True),
-        Column("status", PrimitiveType.INT16, default="4"),
+        Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
+        Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("stopped_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("interrupted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
+        Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("resumed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
+        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
