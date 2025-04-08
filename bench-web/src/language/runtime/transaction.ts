@@ -1204,6 +1204,14 @@ async function commitTransactionBuffers() {
   await Promise.all(commitPromises);
 }
 
+/** Resets all transaction buffers. */
+export function resetTransactionBuffers() {
+  globalTxBuffer.reset();
+  for (const tx of Object.values(txBuffersByBenchId.value)) {
+    tx.reset();
+  }
+}
+
 let _setupTransactionManagement = false;
 /** Start automatic transaction rotation. */
 export function startTransactionRotation() {

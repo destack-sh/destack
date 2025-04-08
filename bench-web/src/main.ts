@@ -1,7 +1,10 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
 
-import { startTransactionRotation as startTransactionBuffers } from "@/language/runtime/transaction";
+import {
+  resetTransactionBuffers,
+  startTransactionRotation as startTransactionBuffers,
+} from "@/language/runtime/transaction";
 import { sendRemoteKeepAlives } from "@/system/connection";
 import { keytrap } from "@/ui/keymap";
 import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
@@ -18,6 +21,12 @@ import { HISTORY_COMMANDS } from "@/system/edit";
 import { DEBUG_COMMANDS } from "@/system/debug";
 import { RESOURCE_COMMANDS } from "@/language/resource/resource";
 import "highlight.js/styles/github.min.css";
+
+function onUnhandledError(err: unknown) {
+  log.error("error.internal", err);
+  toaster.error({ title: "Internal client error", text: (err as any).message });
+  resetTransactionBuffers();
+}
 
 async function init() {
   const app = createApp(Space);
@@ -46,13 +55,8 @@ async function init() {
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
   // setup vue stuff
-  if (IS_DEV) {
-    app.config.performance = true;
-  }
-  app.config.errorHandler = (err, instance, info) => {
-    log.error("error.internal", err, info);
-    toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
-  };
+  app.config.errorHandler = (err, instance, info) => onUnhandledError(err);
+  window.onerror = (err) => onUnhandledError(err);
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
   app.directive("menu", MENU_DIRECTIVE);
   app.directive("hovermenu", HOVER_MENU_DIRECTIVE);
