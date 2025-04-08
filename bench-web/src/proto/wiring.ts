@@ -146,6 +146,7 @@ export function newNodeId(): string {
   return v4();
 }
 
+/** Whether the value is a node of the given type */
 export function isNode<T extends NodeType = NodeType>(
   value: any | null | undefined,
   type?: T,
@@ -155,6 +156,7 @@ export function isNode<T extends NodeType = NodeType>(
   else return NodeType[value.metatype] != null;
 }
 
+/** Whether the value is a struct of the given type */
 export function isStruct<T extends StructType = StructType>(
   value: any | null | undefined,
   type?: T,
@@ -164,6 +166,7 @@ export function isStruct<T extends StructType = StructType>(
   else return StructType[value.metatype] != null;
 }
 
+/** Creates a node reference */
 export function nodeReference<T extends NodeType>(
   nodeType: T,
   id: string,

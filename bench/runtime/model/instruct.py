@@ -106,6 +106,7 @@ You SHOULD use Messages to communicate with Users and other Agents as needed.
 You MAY include Nodes (like Files, Databases, Records, ...) in Messages as appropriate.
 You SHOULD NOT set Message.reply_to if it's obvious what you're referring to.
 You SHOULD title & icon the Thread if unset (~10-40 characters).
+You SHOULD NOT reply to yourself.
 
 # Runtime
 The Runtime is the orchestration layer for Bench with your Python shell.
@@ -253,11 +254,14 @@ def make_flow_think_prompt(
 
     from bench.runtime.model.example import EXAMPLES
 
+    # context
     run = runner.tracked_run
     assert run is not None, f"{runner!r} must be tracked"
-
+    agent = run.agent
+    assert agent is not None, f"{run!r} must have an Agent"
     thread = runner.thread
-    prompt = Prompt(flow, system_prompt=SYSTEM_PROMPT)
+
+    prompt = Prompt(subject=agent, session=runner.session, node=flow, system_prompt=SYSTEM_PROMPT)
 
     # system
     ...
@@ -325,11 +329,9 @@ def make_flow_think_prompt(
         )
 
     # agent
-    agent = run.agent
-    assert agent is not None, f"{run!r} must have an Agent"
     prompt.region(
-        "Agent",
-        "The Agent you're representing",
+        "Agent (you)",
+        "This is the Agent you're representing",
         AgentPiece(node=agent),
         priority=30,
     )

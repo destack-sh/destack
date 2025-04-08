@@ -249,7 +249,10 @@ class MessagePiece(NodePiece[Message]):
             created_by_alias = prompt.renderer.aliasing.get_or_add(created_by_ptr)
         else:
             created_by_alias = "<system>"
-        rendered_node = f"# from {created_by_alias}\n{rendered_node}"
+        ago = prompt.now - self.node.created_at
+        rendered_node = (
+            f"# from {created_by_alias} ({round(ago.total_seconds())}s ago)\n{rendered_node}"
+        )
         yield CodePiece(code=rendered_node)
         for node in self.node.nodes:
             if isinstance(node, File):
@@ -276,16 +279,16 @@ class PlanPiece(NodePiece[Plan]):
 
 @piece_(NodeType.AGENT)
 class AgentPiece(NodePiece[Agent]):
-    pass
-
-
-@piece_
-class AttemptPiece(NodePiece[Span]):
     @override
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        yield SeparatorPiece()
         rendered_node = prompt.renderer.render_statement(self.node, format=True)
+        if prompt.subject.id == self.node.id:
+            rendered_node = f"# THIS IS WHO YOU ARE\n{rendered_node}"
         yield CodePiece(code=rendered_node)
-        yield SeparatorPiece()
+
+
+@piece_
+class AttemptPiece(NodePiece[Span]):
+    pass

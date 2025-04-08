@@ -1,13 +1,16 @@
-from bench.language import Flow, Session
+from bench.language import Agent, Flow, Session
 from bench.runtime.model import Prompt, RegionPiece, StupidTokenizer, TextPiece, compile_prompt
 
 
 def test_prompt_compile(session: Session):
     # setup
     flow = Flow.new("Flow")
+    agent = Agent.new("Agent")
 
     # prompt
-    prompt = Prompt(node=flow, system_prompt="You are a helpful assistant.")
+    prompt = Prompt(
+        subject=agent, session=session, node=flow, system_prompt="You are a helpful assistant."
+    )
     prompt.text("1" * 100)
     prompt.text("2" * 100, priority=2)
     prompt.text("3" * 30, priority=10)

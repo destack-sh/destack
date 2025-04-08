@@ -2,6 +2,7 @@ import { makeScope, nodeReference } from "@/proto/wiring";
 import { NodeType } from "@/proto/wire";
 
 // builtin benches :Builtins
+// bench
 export const BENCH_SLUG = "bench";
 export const BENCH_ID = "11111111-1111-1111-1111-000000000000";
 export const BENCH_PTR = nodeReference(NodeType.BENCH, BENCH_ID, {
@@ -13,7 +14,7 @@ export const BENCH_BENCH_PACKAGE_PTR = nodeReference(NodeType.PACKAGE, BENCH_BEN
   benchId: BENCH_ID,
 });
 export const BENCH_SCOPE = makeScope(BENCH_PTR);
-
+// system
 export const SYSTEM_SLUG = "system";
 export const SYSTEM_ID = "22222222-2222-2222-2222-000000000000";
 export const SYSTEM_PTR = nodeReference(NodeType.BENCH, SYSTEM_ID, {

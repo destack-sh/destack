@@ -228,6 +228,8 @@ class IsTemplatable(BuiltinObject):
         instance_kwargs = self._clone_kwargs(reset=True)
         if self.mode == NodeMode.TEMPLATE:
             instance_kwargs["mode"] = NodeMode.MAIN
+        else:
+            instance_kwargs["mode"] = self.mode
         instance_kwargs.update(kwargs)
         if isinstance(self, IsInstantiable):
             instance_kwargs["ck"] = self.ck

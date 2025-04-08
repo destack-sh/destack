@@ -41,7 +41,7 @@ class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
     @override
     def __content_str__(self) -> str:
         if (member := self.member) is not None:
-            return f"{member.absolute_path}"
+            return f"{member.metatype.name}, {member.absolute_path}"
         else:
             return f"{self.member_ptr}"
 

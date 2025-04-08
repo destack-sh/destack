@@ -687,7 +687,7 @@ class HostService(GraphServiceBase, HostBase):
                             span="current",
                         )
             await self._session.commit()
-        logger.debug(
+        logger.info(
             "host.post_commit",
             host=self,
             added=commit.added,

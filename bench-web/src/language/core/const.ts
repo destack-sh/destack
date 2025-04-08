@@ -160,6 +160,11 @@ export function isNodeActive(node: AnyNodeData): boolean {
   }
 }
 
+/** Whether the node is an instance of a template */
+export function isNodeInstance(node: AnyNodeData): boolean {
+  return "templatePtr" in node && "ck" in node && node.templatePtr != null && node.id != node.ck;
+}
+
 // node types
 export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE, NodeType.STREAM];
 export const LOADED_PACKAGE_NODE_TYPES = [
