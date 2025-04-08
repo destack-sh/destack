@@ -1,16 +1,18 @@
 <script lang="ts" setup>
+import { isJoinableNode } from "@/language/core/const";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { createMembership } from "@/language/source/membership";
 import {
   ActionData,
+  JoinableNodeData,
   NodeReferenceData,
   NodeType,
   Orientation,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
@@ -96,10 +98,11 @@ defineExpose<ViewExpose>({ self, id, commands });
               onApply: (value?: NodeReferenceData) => {
                 if (value == null) return;
                 if (memberships.find((m) => m.memberPtr?.id == value.id)) return;
+                if (!isJoinableNode(base)) throw new Error(`cannot join ${describeNode(base!)}`);
                 createMembership(connection.tx, graph, {
+                  parent: base,
                   membership: {
                     packagePtr: (base as ActionData)?.packagePtr,
-                    parentPtr: basePtr,
                     memberPtr: value,
                   },
                 });

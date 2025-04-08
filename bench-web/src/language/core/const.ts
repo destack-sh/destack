@@ -6,6 +6,8 @@ import {
   EnumType,
   INLINE_NODE_TYPES,
   InlineNodeData,
+  JOINABLE_NODE_TYPES,
+  JoinableNodeData,
   ModelType,
   NodeMode,
   NodeReferenceData,
@@ -76,6 +78,10 @@ export function isSubjectNodeType(nodeType: NodeType): boolean {
   return SUBJECT_NODE_TYPES.includes(nodeType);
 }
 
+export function isJoinableNodeType(nodeType: NodeType): boolean {
+  return JOINABLE_NODE_TYPES.includes(nodeType);
+}
+
 export function isSourceNode(node: any): node is SourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSourceNodeType(node.metatype as unknown as NodeType);
@@ -84,6 +90,11 @@ export function isSourceNode(node: any): node is SourceNodeData {
 export function isSubjectNode(node: any): node is SubjectNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSubjectNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isJoinableNode(node: any): node is JoinableNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isJoinableNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isInlineNode(node: any): node is InlineNodeData {
