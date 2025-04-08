@@ -721,6 +721,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         # clone self
         copy_kwargs = self._clone_kwargs(reset=reset)
+        if isinstance(self, IsModal):
+            copy_kwargs["mode"] = self.mode  # keep mode
         copy_kwargs.update(kwargs)
         if detach and not reset:
             # put the node in a new graph to isolate (because same ids)

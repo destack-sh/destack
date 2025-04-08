@@ -13,6 +13,7 @@ import {
   BlockData,
   ENUM_BY_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
+  NodeMode,
   NodeReferenceData,
   NodeSubtypeMapping,
   NodeType,
@@ -622,6 +623,13 @@ export function instanceNode<T extends AnyNodeData>(
   // clone this node as the instance base
   const now = options?.now ?? Timestamp.now();
   const instancedNode = _cloneNode(oldNode, now);
+  if ("mode" in oldNode && "mode" in instancedNode) {
+    if (oldNode.mode == NodeMode.TEMPLATE) {
+      instancedNode.mode = NodeMode.MAIN;
+    } else {
+      instancedNode.mode = oldNode.mode;
+    }
+  }
   // NOTE :Robustness: instancing nodes somewhere is really a move, so we also have to update ancestors :BadMoveAncestors
   instancedNode.parentPtr = toNodeRef(options.parent);
   if ("benchPtr" in instancedNode) {
