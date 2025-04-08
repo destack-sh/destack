@@ -1,8 +1,6 @@
 import { supergraph } from "@/globals";
-import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
-import { isNodeInstance, isSubjectNode } from "@/language/core/const";
+import { isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { instanceNode } from "@/language/core/node";
 import { newChangeId, Transaction } from "@/language/runtime/transaction";
 import { createMembership } from "@/language/source/membership";
 import { NodeReferenceData, NodeType, SubjectNodeData, ThreadData } from "@/proto/wire";
@@ -47,6 +45,7 @@ export function createThread(
 
     // membership
     createMembership(tx, graph, {
+      parent: thread,
       membership: {
         parentPtr: toNodeRef(thread),
         packagePtr: thread.packagePtr,
