@@ -115,7 +115,6 @@ enum EnumType {
   ENUM_TYPE_ORIENTATION = 22409;
   ENUM_TYPE_ALIGNMENT = 22410;
   ENUM_TYPE_USER_WIZARD_STAGE = 22411;
-  ENUM_TYPE_TREE_VIEW_PRESET = 22412;
   ENUM_TYPE_BUTTON_VARIANT = 22415;
   ENUM_TYPE_PICKER_VARIANT = 22416;
   ENUM_TYPE_USER_STATUS = 22450;
@@ -547,7 +546,6 @@ enum BenchType {
   BENCH_TYPE_ORIENTATION = 22409;
   BENCH_TYPE_ALIGNMENT = 22410;
   BENCH_TYPE_USER_WIZARD_STAGE = 22411;
-  BENCH_TYPE_TREE_VIEW_PRESET = 22412;
   BENCH_TYPE_BUTTON_VARIANT = 22415;
   BENCH_TYPE_PICKER_VARIANT = 22416;
   BENCH_TYPE_USER_STATUS = 22450;
@@ -1579,9 +1577,6 @@ enum ViewType {
   VIEW_TYPE_CHAT = 20202;
   VIEW_TYPE_SIDEBAR = 20205;
   VIEW_TYPE_CONTEXT = 20206;
-  VIEW_TYPE_ACTIVITY = 20207;
-  VIEW_TYPE_CATALOG = 20208;
-  VIEW_TYPE_INBOX = 20209;
   VIEW_TYPE_WINDOW = 30001;
   VIEW_TYPE_TAB = 30002;
   VIEW_TYPE_HISTORY = 30003;
@@ -1589,28 +1584,12 @@ enum ViewType {
   VIEW_TYPE_STACK = 30006;
   VIEW_TYPE_DRAWER = 30007;
   VIEW_TYPE_SCROLL = 30008;
-  VIEW_TYPE_SECTION = 30100;
-  VIEW_TYPE_DIVIDER = 30200;
-  VIEW_TYPE_LIST = 30300;
-  VIEW_TYPE_TABLE = 30301;
-  VIEW_TYPE_TREE = 30302;
-  VIEW_TYPE_FEED = 30303;
-  VIEW_TYPE_GALLERY = 30304;
-  VIEW_TYPE_BOARD = 30305;
-  VIEW_TYPE_BREADCRUMB = 31001;
-  VIEW_TYPE_PROGRESS = 31002;
-  VIEW_TYPE_AVATAR = 31003;
-  VIEW_TYPE_BADGE = 31004;
-  VIEW_TYPE_SHAPE = 31100;
-  VIEW_TYPE_CHART = 31200;
   VIEW_TYPE_BUTTON = 32001;
-  VIEW_TYPE_MULTI_BUTTON = 32002;
   VIEW_TYPE_NUMBER = 35001;
   VIEW_TYPE_SLIDER = 35002;
   VIEW_TYPE_STRING = 35101;
   VIEW_TYPE_TEXT = 35102;
   VIEW_TYPE_CODE = 35103;
-  VIEW_TYPE_JSON = 35104;
   VIEW_TYPE_TOGGLE = 35201;
   VIEW_TYPE_PICKER = 35202;
   VIEW_TYPE_COLOR = 35203;
@@ -1781,12 +1760,6 @@ enum UserWizardViewStage {
   USER_WIZARD_VIEW_STAGE_UNSPECIFIED = 0;
   USER_WIZARD_VIEW_STAGE_SIGN_UP = 1;
   USER_WIZARD_VIEW_STAGE_LOG_IN = 2;
-}
-
-enum TreeViewPreset {
-  TREE_VIEW_PRESET_UNSPECIFIED = 0;
-  TREE_VIEW_PRESET_PACKAGE = 1;
-  TREE_VIEW_PRESET_OUTLINE = 3;
 }
 
 enum ButtonVariant {
@@ -3851,23 +3824,12 @@ message ChatViewData {
 }
 
 // A View is a graphical interface in a Bench.
-message ListViewData {
-  optional NodeType query_node_type = 100;
-  optional ExpressionData filter = 101;
-  repeated ExpressionData sort = 102;
+message SidebarViewData {
+  repeated NodeReferenceData expanded_package_nodes_ptr = 100;
 }
 
 // A View is a graphical interface in a Bench.
-message TreeViewData {
-  optional TreeViewPreset preset = 100;
-  repeated NodeReferenceData expanded_nodes_ptr = 101;
-  repeated NodeReferenceData collapsed_nodes_ptr = 102;
-}
-
-// A View is a graphical interface in a Bench.
-message FeedViewData {
-  optional NodeType query_node_type = 100;
-  optional ExpressionData filter = 101;
+message ContextViewData {
 }
 
 // A View is a graphical interface in a Bench.

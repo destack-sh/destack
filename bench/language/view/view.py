@@ -30,7 +30,7 @@ from bench.language.core import (
 from bench.pb2 import ViewData
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Message, Page, Space, Text, Type
+    from bench.language import Message, Page, Space, Text, Type
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,6 +42,7 @@ class ViewType(BuiltinEnum):
     #
     # Intrinsics (0-30000)
     #
+
     # nodes (0-10000)
     COMPUTER = 2100
     PAGE = 5020
@@ -76,9 +77,9 @@ class ViewType(BuiltinEnum):
     CHAT = 20202, None, None, "fas fa-message"
     SIDEBAR = 20205, None, None, "fas fa-object-group"
     CONTEXT = 20206, None, None, "fas fa-question"
-    ACTIVITY = 20207, None, None, "fas fa-list-timeline"
-    CATALOG = 20208, None, None, "fas fa-th-large"
-    INBOX = 20209, None, None, "fas fa-inbox"
+    # ACTIVITY = 20207, None, None, "fas fa-list-timeline"
+    # CATALOG = 20208, None, None, "fas fa-th-large"
+    # INBOX = 20209, None, None, "fas fa-inbox"
 
     #
     # Organization (30000-31000)
@@ -95,19 +96,19 @@ class ViewType(BuiltinEnum):
     # SPLIT_DRAWER, GRID
 
     # groups (30100-30200)
-    SECTION = 30100, "Section", "Sectioned view", "fas fa-xmark-lines"
+    # SECTION = 30100, "Section", "Sectioned view", "fas fa-xmark-lines"
     # GROUP, FORM, ...
 
     # presentation (30200-30300)
-    DIVIDER = 30200, "Divider", "Divider view", "fas fa-horizontal-rule"
+    # DIVIDER = 30200, "Divider", "Divider view", "fas fa-horizontal-rule"
 
     # collections (30300-30400)
-    LIST = 30300, "List", "List view", "fas fa-list"
-    TABLE = 30301, "Table", "Table view", "fas fa-table"
-    TREE = 30302, "Tree", "Tree view", "fas fa-list-tree"
-    FEED = 30303, "Feed", "Feed view", "fas fa-list-timeline"
-    GALLERY = 30304, "Gallery", "Gallery view", "fas fa-th-large"
-    BOARD = 30305, "Board", "Board view", "fas fa-columns"
+    # LIST = 30300, "List", "List view", "fas fa-list"
+    # TABLE = 30301, "Table", "Table view", "fas fa-table"
+    # TREE = 30302, "Tree", "Tree view", "fas fa-list-tree"
+    # FEED = 30303, "Feed", "Feed view", "fas fa-list-timeline"
+    # GALLERY = 30304, "Gallery", "Gallery view", "fas fa-th-large"
+    # BOARD = 30305, "Board", "Board view", "fas fa-columns"
     # ROW, COLUMN, ...?
     # CALENDAR, MAP, ...?
 
@@ -116,15 +117,15 @@ class ViewType(BuiltinEnum):
     #
 
     # navigation (31000-31100)
-    BREADCRUMB = 31001, "Breadcrumb", "Breadcrumb view", "fas fa-ellipsis-h"
-    PROGRESS = 31002, "Progress", "Progress view", "fas fa-spinner"
-    AVATAR = 31003, "Avatar", "Avatar view", "fas fa-user-circle"
-    BADGE = 31004, "Badge", "Badge view", "fas fa-badge"
+    # BREADCRUMB = 31001, "Breadcrumb", "Breadcrumb view", "fas fa-ellipsis-h"
+    # PROGRESS = 31002, "Progress", "Progress view", "fas fa-spinner"
+    # AVATAR = 31003, "Avatar", "Avatar view", "fas fa-user-circle"
+    # BADGE = 31004, "Badge", "Badge view", "fas fa-badge"
     # illustration (31100-31200)
-    SHAPE = 31100, "Shape", "Shape view", "fas fa-shapes"
+    # SHAPE = 31100, "Shape", "Shape view", "fas fa-shapes"
 
     # graphing (31200-31300)
-    CHART = 31200, "Chart", "Chart view", "fas fa-chart-pie"
+    # CHART = 31200, "Chart", "Chart view", "fas fa-chart-pie"
 
     #
     # Action (32000-33000)
@@ -132,7 +133,7 @@ class ViewType(BuiltinEnum):
 
     # controls (32000-32100)
     BUTTON = 32001, "Button", "Button view", "fas fa-hand-pointer"
-    MULTI_BUTTON = 32002, "Multi button", "Multi button view", "fas fa-hand-pointer"
+    # MULTI_BUTTON = 32002, "Multi button", "Multi button view", "fas fa-hand-pointer"
 
     #
     # Content (35000-)
@@ -146,7 +147,7 @@ class ViewType(BuiltinEnum):
     STRING = 35101, "String", "String view", "fas fa-font-case"
     TEXT = 35102, "Text", "Text view", "fas fa-text"
     CODE = 35103, "Code", "Code view", "fas fa-code"
-    JSON = 35104, "JSON", "JSON view", "fas fa-brackets-curly"
+    # JSON = 35104, "JSON", "JSON view", "fas fa-brackets-curly"
 
     # selection (35200-35300)
     TOGGLE = 35201, "Toggle", "Toggle view", "fas fa-square-check"
@@ -553,43 +554,22 @@ class ChatView(View):
         draft_reply_to_ptr: Optional["NodeReference"] = None
 
 
+@subnode_(ViewType.SIDEBAR)
+class SidebarView(View):
+    expanded_package_nodes: list["Node"] = p_regular(
+        100, require=False, array=True, references="any"
+    )
+
+
+@subnode_(ViewType.CONTEXT)
+class ContextView(View): ...
+
+
 #
 # Organization (40000-41000)
 #
 
 # collections (40300-40400)
-
-
-@subnode_(ViewType.LIST)
-class ListView(View):
-    query_node_type: NodeType | None = p_regular(100, require=False)
-    filter: "Expression | None" = p_regular(
-        101, default=None, require=False, struct=StructType.EXPRESSION
-    )
-    sort: list["Expression"] = p_regular(
-        102, require=False, struct=StructType.EXPRESSION, array=True
-    )
-
-
-@enum_(EnumType.TREE_VIEW_PRESET)
-class TreeViewPreset(BuiltinEnum):
-    PACKAGE = 1
-    OUTLINE = 3
-
-
-@subnode_(ViewType.TREE)
-class TreeView(View):
-    preset: Optional[TreeViewPreset] = p_regular(100, default=None, require=False)
-    expanded_nodes: list[Node] = p_regular(101, require=False, array=True, references="any")
-    collapsed_nodes: list[Node] = p_regular(102, require=False, array=True, references="any")
-
-
-@subnode_(ViewType.FEED)
-class FeedView(View):
-    query_node_type: NodeType | None = p_regular(100, require=False)
-    filter: "Expression | None" = p_regular(
-        101, default=None, require=False, struct=StructType.EXPRESSION
-    )
 
 
 #

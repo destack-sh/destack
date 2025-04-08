@@ -7191,55 +7191,20 @@ export interface ChatViewData {
 /**
  * A View is a graphical interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.ListViewData
+ * @generated from protobuf message symbolx.bench.SidebarViewData
  */
-export interface ListViewData {
+export interface SidebarViewData {
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType query_node_type = 100;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData expanded_package_nodes_ptr = 100;
      */
-    queryNodeType?: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 101;
-     */
-    filter?: ExpressionData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 102;
-     */
-    sort: ExpressionData[];
+    expandedPackageNodesPtr: NodeReferenceData[];
 }
 /**
  * A View is a graphical interface in a Bench.
  *
- * @generated from protobuf message symbolx.bench.TreeViewData
+ * @generated from protobuf message symbolx.bench.ContextViewData
  */
-export interface TreeViewData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TreeViewPreset preset = 100;
-     */
-    preset?: TreeViewPreset;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 101;
-     */
-    expandedNodesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 102;
-     */
-    collapsedNodesPtr: NodeReferenceData[];
-}
-/**
- * A View is a graphical interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.FeedViewData
- */
-export interface FeedViewData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeType query_node_type = 100;
-     */
-    queryNodeType?: NodeType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 101;
-     */
-    filter?: ExpressionData;
+export interface ContextViewData {
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -8008,10 +7973,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 22411;
      */
     USER_WIZARD_STAGE = 22411,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 22412;
-     */
-    TREE_VIEW_PRESET = 22412,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_BUTTON_VARIANT = 22415;
      */
@@ -9708,10 +9669,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 22411;
      */
     USER_WIZARD_STAGE = 22411,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 22412;
-     */
-    TREE_VIEW_PRESET = 22412,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_BUTTON_VARIANT = 22415;
      */
@@ -13166,18 +13123,6 @@ export enum ViewType {
      */
     CONTEXT = 20206,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ACTIVITY = 20207;
-     */
-    ACTIVITY = 20207,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_CATALOG = 20208;
-     */
-    CATALOG = 20208,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_INBOX = 20209;
-     */
-    INBOX = 20209,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_WINDOW = 30001;
      */
     WINDOW = 30001,
@@ -13206,69 +13151,9 @@ export enum ViewType {
      */
     SCROLL = 30008,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SECTION = 30100;
-     */
-    SECTION = 30100,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 30200;
-     */
-    DIVIDER = 30200,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIST = 30300;
-     */
-    LIST = 30300,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 30301;
-     */
-    TABLE = 30301,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_TREE = 30302;
-     */
-    TREE = 30302,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_FEED = 30303;
-     */
-    FEED = 30303,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_GALLERY = 30304;
-     */
-    GALLERY = 30304,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_BOARD = 30305;
-     */
-    BOARD = 30305,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_BREADCRUMB = 31001;
-     */
-    BREADCRUMB = 31001,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 31002;
-     */
-    PROGRESS = 31002,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 31003;
-     */
-    AVATAR = 31003,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 31004;
-     */
-    BADGE = 31004,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 31100;
-     */
-    SHAPE = 31100,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHART = 31200;
-     */
-    CHART = 31200,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 32001;
      */
     BUTTON = 32001,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 32002;
-     */
-    MULTI_BUTTON = 32002,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 35001;
      */
@@ -13289,10 +13174,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_CODE = 35103;
      */
     CODE = 35103,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 35104;
-     */
-    JSON = 35104,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 35201;
      */
@@ -13889,23 +13770,6 @@ export enum UserWizardViewStage {
      * @generated from protobuf enum value: USER_WIZARD_VIEW_STAGE_LOG_IN = 2;
      */
     LOG_IN = 2
-}
-/**
- * @generated from protobuf enum symbolx.bench.TreeViewPreset
- */
-export enum TreeViewPreset {
-    /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_PACKAGE = 1;
-     */
-    PACKAGE = 1,
-    /**
-     * @generated from protobuf enum value: TREE_VIEW_PRESET_OUTLINE = 3;
-     */
-    OUTLINE = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.ButtonVariant
@@ -30522,34 +30386,26 @@ class ChatViewData$Type extends MessageType$<ChatViewData> {
  */
 export const ChatViewData = new ChatViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ListViewData$Type extends MessageType$<ListViewData> {
+class SidebarViewData$Type extends MessageType$<SidebarViewData> {
     constructor() {
-        super("symbolx.bench.ListViewData", [
-            { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 102, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData }
+        super("symbolx.bench.SidebarViewData", [
+            { no: 100, name: "expanded_package_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
-    create(value?: PartialMessage<ListViewData>): ListViewData {
+    create(value?: PartialMessage<SidebarViewData>): SidebarViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.sort = [];
+        message.expandedPackageNodesPtr = [];
         if (value !== undefined)
-            reflectionMergePartial<ListViewData>(this, message, value);
+            reflectionMergePartial<SidebarViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ListViewData): ListViewData {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SidebarViewData): SidebarViewData {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType query_node_type */ 100:
-                    message.queryNodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 101:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 102:
-                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData expanded_package_nodes_ptr */ 100:
+                    message.expandedPackageNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -30562,16 +30418,10 @@ class ListViewData$Type extends MessageType$<ListViewData> {
         }
         return message;
     }
-    internalBinaryWrite(message: ListViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType query_node_type = 100; */
-        if (message.queryNodeType !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.queryNodeType);
-        /* optional symbolx.bench.ExpressionData filter = 101; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 102; */
-        for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: SidebarViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.NodeReferenceData expanded_package_nodes_ptr = 100; */
+        for (let i = 0; i < message.expandedPackageNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.expandedPackageNodesPtr[i], writer.tag(100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30579,61 +30429,24 @@ class ListViewData$Type extends MessageType$<ListViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.ListViewData
+ * @generated MessageType for protobuf message symbolx.bench.SidebarViewData
  */
-export const ListViewData = new ListViewData$Type();
+export const SidebarViewData = new SidebarViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class TreeViewData$Type extends MessageType$<TreeViewData> {
+class ContextViewData$Type extends MessageType$<ContextViewData> {
     constructor() {
-        super("symbolx.bench.TreeViewData", [
-            { no: 100, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] },
-            { no: 101, name: "expanded_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 102, name: "collapsed_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
-        ]);
+        super("symbolx.bench.ContextViewData", []);
     }
-    create(value?: PartialMessage<TreeViewData>): TreeViewData {
+    create(value?: PartialMessage<ContextViewData>): ContextViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.expandedNodesPtr = [];
-        message.collapsedNodesPtr = [];
         if (value !== undefined)
-            reflectionMergePartial<TreeViewData>(this, message, value);
+            reflectionMergePartial<ContextViewData>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TreeViewData): TreeViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.TreeViewPreset preset */ 100:
-                    message.preset = reader.int32();
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr */ 101:
-                    message.expandedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr */ 102:
-                    message.collapsedNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ContextViewData): ContextViewData {
+        return target ?? this.create();
     }
-    internalBinaryWrite(message: TreeViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.TreeViewPreset preset = 100; */
-        if (message.preset !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.preset);
-        /* repeated symbolx.bench.NodeReferenceData expanded_nodes_ptr = 101; */
-        for (let i = 0; i < message.expandedNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.expandedNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData collapsed_nodes_ptr = 102; */
-        for (let i = 0; i < message.collapsedNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.collapsedNodesPtr[i], writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: ContextViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30641,62 +30454,9 @@ class TreeViewData$Type extends MessageType$<TreeViewData> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.TreeViewData
+ * @generated MessageType for protobuf message symbolx.bench.ContextViewData
  */
-export const TreeViewData = new TreeViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class FeedViewData$Type extends MessageType$<FeedViewData> {
-    constructor() {
-        super("symbolx.bench.FeedViewData", [
-            { no: 100, name: "query_node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 101, name: "filter", kind: "message", T: () => ExpressionData }
-        ]);
-    }
-    create(value?: PartialMessage<FeedViewData>): FeedViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        if (value !== undefined)
-            reflectionMergePartial<FeedViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FeedViewData): FeedViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.NodeType query_node_type */ 100:
-                    message.queryNodeType = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ExpressionData filter */ 101:
-                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: FeedViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.NodeType query_node_type = 100; */
-        if (message.queryNodeType !== undefined)
-            writer.tag(100, WireType.Varint).int32(message.queryNodeType);
-        /* optional symbolx.bench.ExpressionData filter = 101; */
-        if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.FeedViewData
- */
-export const FeedViewData = new FeedViewData$Type();
+export const ContextViewData = new ContextViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ButtonViewData$Type extends MessageType$<ButtonViewData> {
     constructor() {
@@ -32301,7 +32061,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ORIENTATION]: Orientation,
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
-  [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
   [EnumType.BUTTON_VARIANT]: ButtonVariant,
   [EnumType.PICKER_VARIANT]: PickerVariant,
   [EnumType.USER_STATUS]: UserStatus,
@@ -32423,15 +32182,14 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.EMPTY]: EmptyData,
 }
 
-export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | ListViewData | TreeViewData | FeedViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
+export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | SidebarViewData | ContextViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
   [ViewType.RUN]: RunViewData,
   [ViewType.OBJECT]: ObjectViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
   [ViewType.CHAT]: ChatViewData,
-  [ViewType.LIST]: ListViewData,
-  [ViewType.TREE]: TreeViewData,
-  [ViewType.FEED]: FeedViewData,
+  [ViewType.SIDEBAR]: SidebarViewData,
+  [ViewType.CONTEXT]: ContextViewData,
   [ViewType.BUTTON]: ButtonViewData,
   [ViewType.PICKER]: PickerViewData,
   [ViewType.DATETIME]: DatetimeViewData,
@@ -32651,7 +32409,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ORIENTATION]: Orientation,
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
-  [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
   [EnumType.BUTTON_VARIANT]: ButtonVariant,
   [EnumType.PICKER_VARIANT]: PickerVariant,
   [EnumType.USER_STATUS]: UserStatus,
@@ -34126,21 +33883,12 @@ export enum ChatViewProperty {
   draftReplyToPtr = 102,
 }
 
-export enum ListViewProperty {
-  queryNodeType = 100,
-  filter = 101,
-  sort = 102,
+export enum SidebarViewProperty {
+  expandedPackageNodesPtr = 100,
 }
 
-export enum TreeViewProperty {
-  preset = 100,
-  expandedNodesPtr = 101,
-  collapsedNodesPtr = 102,
-}
+export enum ContextViewProperty {
 
-export enum FeedViewProperty {
-  queryNodeType = 100,
-  filter = 101,
 }
 
 export enum ButtonViewProperty {
@@ -34918,9 +34666,8 @@ export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
   [ViewType.OBJECT]: ObjectViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
   [ViewType.CHAT]: ChatViewProperty,
-  [ViewType.LIST]: ListViewProperty,
-  [ViewType.TREE]: TreeViewProperty,
-  [ViewType.FEED]: FeedViewProperty,
+  [ViewType.SIDEBAR]: SidebarViewProperty,
+  [ViewType.CONTEXT]: ContextViewProperty,
   [ViewType.BUTTON]: ButtonViewProperty,
   [ViewType.PICKER]: PickerViewProperty,
   [ViewType.DATETIME]: DatetimeViewProperty,
@@ -36397,19 +36144,11 @@ export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
   [ChatViewProperty.draftNodesPtr]: { id: 101, name: 'draft_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ChatViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
-export const ListViewDataInfo: Record<ListViewProperty, PropertyInfo> = {
-  [ListViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 30300, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ListViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 30300, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [ListViewProperty.sort]: { id: 102, name: 'sort', component: ObjectType.VIEW, componentSubtype: 30300, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+export const SidebarViewDataInfo: Record<SidebarViewProperty, PropertyInfo> = {
+  [SidebarViewProperty.expandedPackageNodesPtr]: { id: 100, name: 'expanded_package_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20205, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
-export const TreeViewDataInfo: Record<TreeViewProperty, PropertyInfo> = {
-  [TreeViewProperty.preset]: { id: 100, name: 'preset', component: ObjectType.VIEW, componentSubtype: 30302, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TreeViewProperty.expandedNodesPtr]: { id: 101, name: 'expanded_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TreeViewProperty.collapsedNodesPtr]: { id: 102, name: 'collapsed_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 30302, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-}
-export const FeedViewDataInfo: Record<FeedViewProperty, PropertyInfo> = {
-  [FeedViewProperty.queryNodeType]: { id: 100, name: 'query_node_type', component: ObjectType.VIEW, componentSubtype: 30303, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FeedViewProperty.filter]: { id: 101, name: 'filter', component: ObjectType.VIEW, componentSubtype: 30303, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+export const ContextViewDataInfo: Record<ContextViewProperty, PropertyInfo> = {
+
 }
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
   [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 32001, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -37007,9 +36746,8 @@ export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, Prope
   [ViewType.OBJECT]: ObjectViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
   [ViewType.CHAT]: ChatViewDataInfo,
-  [ViewType.LIST]: ListViewDataInfo,
-  [ViewType.TREE]: TreeViewDataInfo,
-  [ViewType.FEED]: FeedViewDataInfo,
+  [ViewType.SIDEBAR]: SidebarViewDataInfo,
+  [ViewType.CONTEXT]: ContextViewDataInfo,
   [ViewType.BUTTON]: ButtonViewDataInfo,
   [ViewType.PICKER]: PickerViewDataInfo,
   [ViewType.DATETIME]: DatetimeViewDataInfo,
@@ -37467,9 +37205,6 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.CHAT]: { id: 20202, name: 'CHAT', icon: 'fas fa-message' },
   [ViewType.SIDEBAR]: { id: 20205, name: 'SIDEBAR', icon: 'fas fa-object-group' },
   [ViewType.CONTEXT]: { id: 20206, name: 'CONTEXT', icon: 'fas fa-question' },
-  [ViewType.ACTIVITY]: { id: 20207, name: 'ACTIVITY', icon: 'fas fa-list-timeline' },
-  [ViewType.CATALOG]: { id: 20208, name: 'CATALOG', icon: 'fas fa-th-large' },
-  [ViewType.INBOX]: { id: 20209, name: 'INBOX', icon: 'fas fa-inbox' },
   [ViewType.WINDOW]: { id: 30001, name: 'WINDOW', text: 'Full window', title: 'Window', icon: 'fas fa-window' },
   [ViewType.TAB]: { id: 30002, name: 'TAB', text: 'Tabbed interface', title: 'Tab', icon: 'fas fa-sidebar' },
   [ViewType.HISTORY]: { id: 30003, name: 'HISTORY', text: 'History of views', title: 'History', icon: 'fas fa-clock-rotate-left' },
@@ -37477,28 +37212,12 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.STACK]: { id: 30006, name: 'STACK', text: 'Stacked views', title: 'Stack', icon: 'fas fa-layer-group' },
   [ViewType.DRAWER]: { id: 30007, name: 'DRAWER', text: 'Drawer view', title: 'Drawer', icon: 'fas fa-square-minus' },
   [ViewType.SCROLL]: { id: 30008, name: 'SCROLL', text: 'Scrollable view', title: 'Scroll', icon: 'fas fa-arrows-alt-v' },
-  [ViewType.SECTION]: { id: 30100, name: 'SECTION', text: 'Sectioned view', title: 'Section', icon: 'fas fa-xmark-lines' },
-  [ViewType.DIVIDER]: { id: 30200, name: 'DIVIDER', text: 'Divider view', title: 'Divider', icon: 'fas fa-horizontal-rule' },
-  [ViewType.LIST]: { id: 30300, name: 'LIST', text: 'List view', title: 'List', icon: 'fas fa-list' },
-  [ViewType.TABLE]: { id: 30301, name: 'TABLE', text: 'Table view', title: 'Table', icon: 'fas fa-table' },
-  [ViewType.TREE]: { id: 30302, name: 'TREE', text: 'Tree view', title: 'Tree', icon: 'fas fa-list-tree' },
-  [ViewType.FEED]: { id: 30303, name: 'FEED', text: 'Feed view', title: 'Feed', icon: 'fas fa-list-timeline' },
-  [ViewType.GALLERY]: { id: 30304, name: 'GALLERY', text: 'Gallery view', title: 'Gallery', icon: 'fas fa-th-large' },
-  [ViewType.BOARD]: { id: 30305, name: 'BOARD', text: 'Board view', title: 'Board', icon: 'fas fa-columns' },
-  [ViewType.BREADCRUMB]: { id: 31001, name: 'BREADCRUMB', text: 'Breadcrumb view', title: 'Breadcrumb', icon: 'fas fa-ellipsis-h' },
-  [ViewType.PROGRESS]: { id: 31002, name: 'PROGRESS', text: 'Progress view', title: 'Progress', icon: 'fas fa-spinner' },
-  [ViewType.AVATAR]: { id: 31003, name: 'AVATAR', text: 'Avatar view', title: 'Avatar', icon: 'fas fa-user-circle' },
-  [ViewType.BADGE]: { id: 31004, name: 'BADGE', text: 'Badge view', title: 'Badge', icon: 'fas fa-badge' },
-  [ViewType.SHAPE]: { id: 31100, name: 'SHAPE', text: 'Shape view', title: 'Shape', icon: 'fas fa-shapes' },
-  [ViewType.CHART]: { id: 31200, name: 'CHART', text: 'Chart view', title: 'Chart', icon: 'fas fa-chart-pie' },
   [ViewType.BUTTON]: { id: 32001, name: 'BUTTON', text: 'Button view', title: 'Button', icon: 'fas fa-hand-pointer' },
-  [ViewType.MULTI_BUTTON]: { id: 32002, name: 'MULTI_BUTTON', text: 'Multi button view', title: 'Multi button', icon: 'fas fa-hand-pointer' },
   [ViewType.NUMBER]: { id: 35001, name: 'NUMBER', text: 'Number view', title: 'Number', icon: 'fas fa-hashtag' },
   [ViewType.SLIDER]: { id: 35002, name: 'SLIDER', text: 'Slider view', title: 'Slider', icon: 'fas fa-slider' },
   [ViewType.STRING]: { id: 35101, name: 'STRING', text: 'String view', title: 'String', icon: 'fas fa-font-case' },
   [ViewType.TEXT]: { id: 35102, name: 'TEXT', text: 'Text view', title: 'Text', icon: 'fas fa-text' },
   [ViewType.CODE]: { id: 35103, name: 'CODE', text: 'Code view', title: 'Code', icon: 'fas fa-code' },
-  [ViewType.JSON]: { id: 35104, name: 'JSON', text: 'JSON view', title: 'JSON', icon: 'fas fa-brackets-curly' },
   [ViewType.TOGGLE]: { id: 35201, name: 'TOGGLE', text: 'Toggle view', title: 'Toggle', icon: 'fas fa-square-check' },
   [ViewType.PICKER]: { id: 35202, name: 'PICKER', text: 'Picker view', title: 'Picker', icon: 'fas fa-caret-circle-down' },
   [ViewType.COLOR]: { id: 35203, name: 'COLOR', text: 'Color view', title: 'Color', icon: 'fas fa-palette' },

@@ -1,11 +1,9 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
-import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
+import { cloneNode, moveNode } from "@/language/core/node";
 import { newChangeId } from "@/language/core/transaction";
-import { createBlock } from "@/language/source/block";
 import {
-  BlockType,
   CHILD_NODE_TYPES,
   INLINE_NODE_TYPES,
   NodeReferenceData,
@@ -13,9 +11,7 @@ import {
   Orientation,
   RESOURCE_NODE_TYPES,
   TextLineType,
-  TreeViewPreset,
   ViewData,
-  ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
@@ -32,11 +28,11 @@ import {
 } from "@/ui/drag";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
-import { VIEW_DEFAULT_HEADER_HEIGHT, makeSelection } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
 import Title from "@/views/builtin/Title.vue";
-import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
+import { type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
@@ -45,74 +41,41 @@ import { computed, ref, toRef, type Ref } from "vue";
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 30;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const NODE_TYPES = INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n));
 
 const props = defineProps<
   {
-    self?: TypedNodeReferenceData<NodeType.VIEW>;
-    id: string;
+    expandedNodesPtr?: Array<NodeReferenceData>;
   } & Pick<ViewData, "icon" | "nodePtr" | "size" | "focus" | "selection" | "subnodePacked">
 >();
+const emit = defineEmits<{ "update:expandedNodesPtr": [Array<NodeReferenceData>] }>();
 
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const containerSize = useElementSize(containerRef);
 const listRef: Ref<HTMLElement | null> = ref(null);
 const query: Ref<string> = ref("");
 const queryRef: Ref<HTMLInputElement | null> = ref(null);
-const emit = defineEmits<ViewEmits>();
-const self = toRef(props, "self");
-const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
 
-const preset = useSubnodeProperty(NodeType.VIEW, ViewType.TREE, toRef(props, "subnodePacked"), "preset");
-const nodeTypes = computed(() => {
-  if (preset.value == TreeViewPreset.PACKAGE) {
-    // only inline nodes without resources since that would include all Package resources
-    //  (we may actually want resource nodes *inside* Pages, not the Package?)
-    return INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n));
-  } else {
-    return [];
-  }
-});
-const rootPtr = computedValue(() => {
-  if (props.nodePtr != null) {
-    return props.nodePtr;
-  } else if (preset.value == TreeViewPreset.PACKAGE) {
-    return packagePtr.value;
-  } else {
-    return null;
-  }
-});
-const focusPtr = computedValue(() => {
-  if (preset.value == TreeViewPreset.PACKAGE) {
-    return packagePtr.value;
-  } else {
-    return null;
-  }
-});
-
+const nodeTypes = computed(() => NODE_TYPES);
+const rootPtr = computedValue(() => props.nodePtr ?? packagePtr.value);
+const focusPtr = computedValue(() => packagePtr.value);
 const { graph, connection } = useAutoConnection(rootPtr);
 
 //
 // Visible subtree
 //
 
-const expandedNodesPtr = useSubnodeProperty(
-  NodeType.VIEW,
-  ViewType.TREE,
-  toRef(props, "subnodePacked"),
-  "expandedNodesPtr",
-);
 function isExpanded(node: AnyNodeData | NodeReferenceData) {
-  return expandedNodesPtr.value?.some((ref) => ref.id == node.id);
+  return props.expandedNodesPtr?.some((ptr) => ptr.id == node.id) ?? false;
 }
 function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
-  const newExpandedNodesPtr = isExpanded(node)
-    ? expandedNodesPtr.value?.filter((ref) => ref.id != node.id)
-    : [...(expandedNodesPtr.value ?? []), toNodeRef(node as NodeReferenceData)];
-  state.update(
-    { metatype: NodeType.VIEW, type: ViewType.TREE, subnode: { expandedNodesPtr: newExpandedNodesPtr } },
-    { debounce: "long" },
-  );
+  let expandedNodesPtr: Array<NodeReferenceData> = props.expandedNodesPtr ?? [];
+  if (expandedNodesPtr.some((ptr) => ptr.id == node.id)) {
+    expandedNodesPtr = expandedNodesPtr.filter((ptr) => ptr.id != node.id);
+  } else {
+    expandedNodesPtr.push(toNodeRef(node));
+  }
+  emit("update:expandedNodesPtr", expandedNodesPtr);
 }
 
 function includes(node: AnyNodeData) {
@@ -128,7 +91,7 @@ const { items: expandedItems } = walkDescendantsRef({
   isExpanded,
   includes,
   includesChildren,
-  watchSource: () => [props.focus, expandedNodesPtr.value],
+  watchSource: () => [props.focus, props.expandedNodesPtr],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
@@ -168,20 +131,10 @@ function focus(anchor?: "next" | "previous" | number | FocusAnchor | NodeReferen
   } else if (typeof anchor == "number") {
     toFocus = expandedItems.value[anchor];
   }
-  if (toFocus != null) doFocus(toFocus.node);
-  else queryRef.value?.focus();
-}
-
-function doFocus(node: AnyNodeData | NodeReferenceData) {
-  if (focusedNode.value?.id != node.id) {
-    state.update({ focus: makeSelection([node]) }, { debounce: "tick" });
-  }
-  queryRef.value?.focus();
-  expandedNodesRefs.value[node.id!]?.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 function fire(node: AnyNodeData) {
-  canvas.goToNode(node, { skipSelf: preset.value == TreeViewPreset.OUTLINE });
+  canvas.goToNode(node);
 }
 
 // dragging
@@ -235,13 +188,13 @@ const commands: Partial<CommandMapKit<"space">> = {
   // navigate
   "space.navigate.open": (action, ctx) => {
     if (ctx.nodes?.[0] == null) return false;
-    canvas.goToNode(ctx.nodes[0], { skipSelf: preset.value == TreeViewPreset.OUTLINE });
+    canvas.goToNode(ctx.nodes[0]);
   },
   // select
   "space.select.all": () => canvas.select(expandedItems.value.map((item) => item.node)),
 };
 
-defineExpose<ViewExpose>({ self, id, commands, focus });
+defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
 </script>
 <template>
   <div

@@ -127,7 +127,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_ORIENTATION: _ClassVar[EnumType]
     ENUM_TYPE_ALIGNMENT: _ClassVar[EnumType]
     ENUM_TYPE_USER_WIZARD_STAGE: _ClassVar[EnumType]
-    ENUM_TYPE_TREE_VIEW_PRESET: _ClassVar[EnumType]
     ENUM_TYPE_BUTTON_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_PICKER_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
@@ -559,7 +558,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ORIENTATION: _ClassVar[BenchType]
     BENCH_TYPE_ALIGNMENT: _ClassVar[BenchType]
     BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
-    BENCH_TYPE_TREE_VIEW_PRESET: _ClassVar[BenchType]
     BENCH_TYPE_BUTTON_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_PICKER_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
@@ -1568,9 +1566,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_CHAT: _ClassVar[ViewType]
     VIEW_TYPE_SIDEBAR: _ClassVar[ViewType]
     VIEW_TYPE_CONTEXT: _ClassVar[ViewType]
-    VIEW_TYPE_ACTIVITY: _ClassVar[ViewType]
-    VIEW_TYPE_CATALOG: _ClassVar[ViewType]
-    VIEW_TYPE_INBOX: _ClassVar[ViewType]
     VIEW_TYPE_WINDOW: _ClassVar[ViewType]
     VIEW_TYPE_TAB: _ClassVar[ViewType]
     VIEW_TYPE_HISTORY: _ClassVar[ViewType]
@@ -1578,28 +1573,12 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_STACK: _ClassVar[ViewType]
     VIEW_TYPE_DRAWER: _ClassVar[ViewType]
     VIEW_TYPE_SCROLL: _ClassVar[ViewType]
-    VIEW_TYPE_SECTION: _ClassVar[ViewType]
-    VIEW_TYPE_DIVIDER: _ClassVar[ViewType]
-    VIEW_TYPE_LIST: _ClassVar[ViewType]
-    VIEW_TYPE_TABLE: _ClassVar[ViewType]
-    VIEW_TYPE_TREE: _ClassVar[ViewType]
-    VIEW_TYPE_FEED: _ClassVar[ViewType]
-    VIEW_TYPE_GALLERY: _ClassVar[ViewType]
-    VIEW_TYPE_BOARD: _ClassVar[ViewType]
-    VIEW_TYPE_BREADCRUMB: _ClassVar[ViewType]
-    VIEW_TYPE_PROGRESS: _ClassVar[ViewType]
-    VIEW_TYPE_AVATAR: _ClassVar[ViewType]
-    VIEW_TYPE_BADGE: _ClassVar[ViewType]
-    VIEW_TYPE_SHAPE: _ClassVar[ViewType]
-    VIEW_TYPE_CHART: _ClassVar[ViewType]
     VIEW_TYPE_BUTTON: _ClassVar[ViewType]
-    VIEW_TYPE_MULTI_BUTTON: _ClassVar[ViewType]
     VIEW_TYPE_NUMBER: _ClassVar[ViewType]
     VIEW_TYPE_SLIDER: _ClassVar[ViewType]
     VIEW_TYPE_STRING: _ClassVar[ViewType]
     VIEW_TYPE_TEXT: _ClassVar[ViewType]
     VIEW_TYPE_CODE: _ClassVar[ViewType]
-    VIEW_TYPE_JSON: _ClassVar[ViewType]
     VIEW_TYPE_TOGGLE: _ClassVar[ViewType]
     VIEW_TYPE_PICKER: _ClassVar[ViewType]
     VIEW_TYPE_COLOR: _ClassVar[ViewType]
@@ -1763,12 +1742,6 @@ class UserWizardViewStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     USER_WIZARD_VIEW_STAGE_UNSPECIFIED: _ClassVar[UserWizardViewStage]
     USER_WIZARD_VIEW_STAGE_SIGN_UP: _ClassVar[UserWizardViewStage]
     USER_WIZARD_VIEW_STAGE_LOG_IN: _ClassVar[UserWizardViewStage]
-
-class TreeViewPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    TREE_VIEW_PRESET_UNSPECIFIED: _ClassVar[TreeViewPreset]
-    TREE_VIEW_PRESET_PACKAGE: _ClassVar[TreeViewPreset]
-    TREE_VIEW_PRESET_OUTLINE: _ClassVar[TreeViewPreset]
 
 class ButtonVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1973,7 +1946,6 @@ ENUM_TYPE_ANCHOR: EnumType
 ENUM_TYPE_ORIENTATION: EnumType
 ENUM_TYPE_ALIGNMENT: EnumType
 ENUM_TYPE_USER_WIZARD_STAGE: EnumType
-ENUM_TYPE_TREE_VIEW_PRESET: EnumType
 ENUM_TYPE_BUTTON_VARIANT: EnumType
 ENUM_TYPE_PICKER_VARIANT: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
@@ -2393,7 +2365,6 @@ BENCH_TYPE_ANCHOR: BenchType
 BENCH_TYPE_ORIENTATION: BenchType
 BENCH_TYPE_ALIGNMENT: BenchType
 BENCH_TYPE_USER_WIZARD_STAGE: BenchType
-BENCH_TYPE_TREE_VIEW_PRESET: BenchType
 BENCH_TYPE_BUTTON_VARIANT: BenchType
 BENCH_TYPE_PICKER_VARIANT: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
@@ -3135,9 +3106,6 @@ VIEW_TYPE_CREATE: ViewType
 VIEW_TYPE_CHAT: ViewType
 VIEW_TYPE_SIDEBAR: ViewType
 VIEW_TYPE_CONTEXT: ViewType
-VIEW_TYPE_ACTIVITY: ViewType
-VIEW_TYPE_CATALOG: ViewType
-VIEW_TYPE_INBOX: ViewType
 VIEW_TYPE_WINDOW: ViewType
 VIEW_TYPE_TAB: ViewType
 VIEW_TYPE_HISTORY: ViewType
@@ -3145,28 +3113,12 @@ VIEW_TYPE_SPLIT: ViewType
 VIEW_TYPE_STACK: ViewType
 VIEW_TYPE_DRAWER: ViewType
 VIEW_TYPE_SCROLL: ViewType
-VIEW_TYPE_SECTION: ViewType
-VIEW_TYPE_DIVIDER: ViewType
-VIEW_TYPE_LIST: ViewType
-VIEW_TYPE_TABLE: ViewType
-VIEW_TYPE_TREE: ViewType
-VIEW_TYPE_FEED: ViewType
-VIEW_TYPE_GALLERY: ViewType
-VIEW_TYPE_BOARD: ViewType
-VIEW_TYPE_BREADCRUMB: ViewType
-VIEW_TYPE_PROGRESS: ViewType
-VIEW_TYPE_AVATAR: ViewType
-VIEW_TYPE_BADGE: ViewType
-VIEW_TYPE_SHAPE: ViewType
-VIEW_TYPE_CHART: ViewType
 VIEW_TYPE_BUTTON: ViewType
-VIEW_TYPE_MULTI_BUTTON: ViewType
 VIEW_TYPE_NUMBER: ViewType
 VIEW_TYPE_SLIDER: ViewType
 VIEW_TYPE_STRING: ViewType
 VIEW_TYPE_TEXT: ViewType
 VIEW_TYPE_CODE: ViewType
-VIEW_TYPE_JSON: ViewType
 VIEW_TYPE_TOGGLE: ViewType
 VIEW_TYPE_PICKER: ViewType
 VIEW_TYPE_COLOR: ViewType
@@ -3300,9 +3252,6 @@ ALIGNMENT_SPACE_BETWEEN: Alignment
 USER_WIZARD_VIEW_STAGE_UNSPECIFIED: UserWizardViewStage
 USER_WIZARD_VIEW_STAGE_SIGN_UP: UserWizardViewStage
 USER_WIZARD_VIEW_STAGE_LOG_IN: UserWizardViewStage
-TREE_VIEW_PRESET_UNSPECIFIED: TreeViewPreset
-TREE_VIEW_PRESET_PACKAGE: TreeViewPreset
-TREE_VIEW_PRESET_OUTLINE: TreeViewPreset
 BUTTON_VARIANT_UNSPECIFIED: ButtonVariant
 BUTTON_VARIANT_PRIMARY: ButtonVariant
 BUTTON_VARIANT_SECONDARY: ButtonVariant
@@ -7104,33 +7053,15 @@ class ChatViewData(_message.Message):
     draft_reply_to_ptr: NodeReferenceData
     def __init__(self, draft_text: _Optional[_Union[TextData, _Mapping]] = ..., draft_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., draft_reply_to_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
-class ListViewData(_message.Message):
-    __slots__ = ("query_node_type", "filter", "sort")
-    QUERY_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    query_node_type: NodeType
-    filter: ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[ExpressionData]
-    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[ExpressionData, _Mapping]]] = ...) -> None: ...
+class SidebarViewData(_message.Message):
+    __slots__ = ("expanded_package_nodes_ptr",)
+    EXPANDED_PACKAGE_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
+    expanded_package_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
+    def __init__(self, expanded_package_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
-class TreeViewData(_message.Message):
-    __slots__ = ("preset", "expanded_nodes_ptr", "collapsed_nodes_ptr")
-    PRESET_FIELD_NUMBER: _ClassVar[int]
-    EXPANDED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    COLLAPSED_NODES_PTR_FIELD_NUMBER: _ClassVar[int]
-    preset: TreeViewPreset
-    expanded_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    collapsed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[NodeReferenceData]
-    def __init__(self, preset: _Optional[_Union[TreeViewPreset, str]] = ..., expanded_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ..., collapsed_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
-
-class FeedViewData(_message.Message):
-    __slots__ = ("query_node_type", "filter")
-    QUERY_NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    query_node_type: NodeType
-    filter: ExpressionData
-    def __init__(self, query_node_type: _Optional[_Union[NodeType, str]] = ..., filter: _Optional[_Union[ExpressionData, _Mapping]] = ...) -> None: ...
+class ContextViewData(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
 
 class ButtonViewData(_message.Message):
     __slots__ = ("variant",)
