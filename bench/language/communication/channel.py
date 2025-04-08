@@ -8,7 +8,7 @@ from bench.language.core import (
     IsJoinable,
     IsModal,
     IsNamed,
-    IsTracked,
+    IsProcessable,
     LocalNodeList,
     NodeType,
     RemoteNodeList,
@@ -33,7 +33,7 @@ class ChannelStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.CHANNEL)
-class Channel(IsInstantiable, IsTracked, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
+class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
     """

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { canvas } from "@/globals";
-import { getRunDurationString, isRunActive } from "@/language/runtime/run";
-import { RunStatusOptionInfo } from "@/proto/wire";
+import { getProcessDurationString, isProcessActive } from "@/language/runtime/process";
+import { ProcessStatusOptionInfo } from "@/proto/wire";
 import { CLEAR_RUN_COMMAND, getRunCommands, runtime } from "@/runtime/runtime";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
@@ -39,13 +39,13 @@ const commands = computed(() => {
         <div class="absolute left-5 flex flex-row items-center gap-x-2">
           <!-- Status -->
           <IconInline
-            v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
-            :class="[isRunActive(run) ? 'animate-spin' : '']"
+            v-bind="makeIcon(ProcessStatusOptionInfo[run.status]!.icon!)"
+            :class="[isProcessActive(run) ? 'animate-spin' : '']"
             :style="{ color: getRunColorHex(run.status) }"
             class="text-base"
           />
           <!-- Duration -->
-          <span class="text-base text-gray-900">{{ getRunDurationString(run, { minUnit: "s" }) }}</span>
+          <span class="text-base text-gray-900">{{ getProcessDurationString(run, { minUnit: "s" }) }}</span>
         </div>
         <!-- Run -->
         <div class="absolute left-1/2 flex -translate-x-1/2 flex-row items-center gap-x-1">

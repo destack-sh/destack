@@ -1,17 +1,10 @@
-import { ACTIVE_RUN_STATUSES, getBaseFromNode } from "@/language/core/const";
+import { ACTIVE_PROCESS_STATUSES, getBaseFromNode, isRunnableNode } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import { timesortNode } from "@/language/core/order";
-import {
-  getRunType,
-  isRunActive,
-  isRunnable,
-  isRunPaused,
-  RunnableNode,
-  RunnableNodeType,
-} from "@/language/runtime/run";
-import { newChangeId, type Transaction } from "@/language/runtime/transaction";
+import { getRunType, isProcessActive, isProcessPaused } from "@/language/runtime/process";
+import { newChangeId, type Transaction } from "@/language/core/transaction";
 import { actionToType } from "@/language/source/action";
 import { flowToType } from "@/language/source/flow";
 import {
@@ -31,9 +24,10 @@ import {
   RunOptionsData,
   RunProperty,
   SpanData,
-  RunStatus,
+  ProcessStatus,
   Timestamp,
   type RunData,
+  RunnableNodeData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -57,20 +51,20 @@ let treeId = 0;
 export class RunTree {
   id: number = treeId++;
   runGraph: ReadNodeGraph;
-  runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
+  runPtr: Ref<NodeReferenceData | null | undefined>;
   runRef: Ref<RunData | null>;
   runsRef: Ref<(RunData | SpanData)[]>;
-  runBasePtr: Ref<TypedNodeReferenceData<RunnableNodeType> | null>;
-  runBaseRef: Ref<RunnableNode | null>;
+  runBasePtr: Ref<NodeReferenceData | null>;
+  runBaseRef: Ref<RunnableNodeData | null>;
   runConnection: Connection<"get", NodeType.RUN>;
   runsByBaseId: Ref<Record<string, RunData[]>>;
-  basesPtrs: Ref<TypedNodeReferenceData<RunnableNodeType>[]>;
-  basesRef: Ref<RunnableNode[]>;
-  basesByIdRef: Ref<Record<string, RunnableNode>>;
+  basesPtrs: Ref<NodeReferenceData[]>;
+  basesRef: Ref<RunnableNodeData[]>;
+  basesByIdRef: Ref<Record<string, RunnableNodeData>>;
   interruptionsRef: Ref<InterruptionData[]>;
 
-  constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
-    this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
+  constructor(graph: ReadNodeGraph, runPtr: Ref<NodeReferenceData | null>) {
+    this.runPtr = runPtr;
     const { graph: runGraph, connection: runConnection } = useGetConnection(
       { name: "runtime.run." + this.id, live: true },
       computed(() => ({
@@ -83,19 +77,16 @@ export class RunTree {
       })),
     );
     this.runGraph = runGraph;
-    this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }); // :NodeRefStability
+    this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }) as Ref<RunData | null>; // :NodeRefStability
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, {
       metatypes: [NodeType.RUN, NodeType.SPAN],
       includeSelf: true,
     });
     this.runBasePtr = computedValue(
-      () =>
-        (this.runRef.value?.linkPtr ??
-          this.runRef.value?.actionPtr ??
-          this.runRef.value?.flowPtr) as TypedNodeReferenceData<RunnableNodeType>,
+      () => this.runRef.value?.linkPtr ?? this.runRef.value?.actionPtr ?? this.runRef.value?.flowPtr ?? null,
     );
-    this.runBaseRef = graph.getRef(this.runBasePtr);
-    this.runConnection = runConnection;
+    this.runBaseRef = graph.getRef(this.runBasePtr) as Ref<RunnableNodeData | null>;
+    this.runConnection = runConnection as Connection<"get", NodeType.RUN>;
     this.runsByBaseId = computed(() => {
       const runByBaseId: Record<string, RunData[]> = {};
       for (const run of this.runsRef.value) {
@@ -115,16 +106,16 @@ export class RunTree {
       return runByBaseId;
     });
     this.basesPtrs = computed(() => {
-      const basePtrs: TypedNodeReferenceData<RunnableNodeType>[] = [];
+      const basePtrs: NodeReferenceData[] = [];
       for (const run of this.runsRef.value) {
         const base = getBaseFromNode(run);
-        if (base != null) basePtrs.push(base as TypedNodeReferenceData<RunnableNodeType>);
+        if (base != null) basePtrs.push(base);
       }
       return basePtrs;
     });
-    this.basesRef = graph.getManyRef(this.basesPtrs);
+    this.basesRef = graph.getManyRef(this.basesPtrs) as Ref<RunnableNodeData[]>;
     this.basesByIdRef = computed(() => {
-      const basesById: Record<string, RunnableNode> = {};
+      const basesById: Record<string, RunnableNodeData> = {};
       for (const base of this.basesRef.value) {
         basesById[base.id] = base;
       }
@@ -207,7 +198,7 @@ export class Runtime {
             makeExpression({
               type: ExpressionType.IN,
               propertyPtr: propertyReference(ObjectType.RUN, RunProperty.status),
-              value: ACTIVE_RUN_STATUSES,
+              value: ACTIVE_PROCESS_STATUSES,
             }),
           ],
         }),
@@ -238,7 +229,7 @@ export class Runtime {
 
   /** Creates a new Run. */
   start(
-    runnable: RunnableNode,
+    runnable: RunnableNodeData,
     options?: {
       focus?: boolean;
       options?: RunOptionsData;
@@ -263,7 +254,7 @@ export class Runtime {
     const basePtr = getBaseFromNode(run);
     if (basePtr == null) throw new Error(`no base for ${describeNode(run)}`);
     const node = supergraph.get(basePtr);
-    if (!isRunnable(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
+    if (!isRunnableNode(node)) throw new Error(`no node for base ${describeNode(basePtr)} of ${describeNode(run)}`);
     this.start(node, {
       focus: true,
       benchPtr: run.benchPtr,
@@ -275,7 +266,7 @@ export class Runtime {
 
   /** Pause a Run. */
   pause(run: RunData, options?: { tx?: Transaction }) {
-    if (!isRunActive(run)) return;
+    if (!isProcessActive(run)) return;
     log.trace("runtime.pause", run);
     const tx = options?.tx ?? this.tx;
     tx.update(run, { pausedAt: Timestamp.now() });
@@ -283,7 +274,7 @@ export class Runtime {
 
   /** Resume a Run. */
   resume(run: RunData, options?: { tx?: Transaction }) {
-    if (run.status != RunStatus.PAUSED) return;
+    if (run.status != ProcessStatus.PAUSED) return;
     log.trace("runtime.resume", run);
     const tx = options?.tx ?? this.tx;
     tx.update(run, { resumedAt: Timestamp.now() });
@@ -291,7 +282,7 @@ export class Runtime {
 
   /** Stop a Run. */
   stop(run: RunData, options?: { tx?: Transaction }) {
-    if (!isRunActive(run)) return;
+    if (!isProcessActive(run)) return;
     log.trace("runtime.stop", run);
     const tx = options?.tx ?? this.tx;
     tx.update(run, { stoppedAt: Timestamp.now() });
@@ -324,7 +315,7 @@ export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsDat
 /** Make a new Run for some runnable node */
 export function makeRun(
   graph: ReadNodeGraph,
-  runnable: RunnableNode,
+  runnable: RunnableNodeData,
   options?: {
     resourcesPacked?: Record<string, any>;
     inputsPacked?: Record<string, any>;
@@ -360,7 +351,7 @@ export function makeRun(
     parentPtr: packagePtr,
     packagePtr,
     type: getRunType(runnable),
-    status: RunStatus.SCHEDULED,
+    status: ProcessStatus.SCHEDULED,
     mode: options?.mode ?? space.value?.mode ?? NodeMode.MAIN,
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
@@ -376,8 +367,8 @@ type RuntimeCommand = { title: string; isPrimary?: boolean; icon: IconData; comm
 /** Gets the available commands for a Run */
 export function getRunCommands(run: RunData): RuntimeCommand[] {
   const commands: RuntimeCommand[] = [];
-  if (isRunActive(run)) {
-    if (isRunPaused(run)) {
+  if (isProcessActive(run)) {
+    if (isProcessPaused(run)) {
       commands.push({
         title: "Resume",
         icon: makeIcon("fas fa-play"),
@@ -436,7 +427,7 @@ export function getInterruptCommands(interrupt: InterruptionData): RuntimeComman
   return commands;
 }
 
-export function getInputType(node: RunnableNode) {
+export function getInputType(node: RunnableNodeData) {
   if (isNode(node, NodeType.ACTION)) {
     return actionToType(node, "value", [FieldType.INPUT]);
   } else if (isNode(node, NodeType.FLOW)) {
@@ -446,7 +437,7 @@ export function getInputType(node: RunnableNode) {
   }
 }
 
-export function getOutputType(node: RunnableNode) {
+export function getOutputType(node: RunnableNodeData) {
   if (isNode(node, NodeType.ACTION)) {
     return actionToType(node, "value", [FieldType.OUTPUT]);
   } else if (isNode(node, NodeType.FLOW)) {
@@ -470,10 +461,11 @@ declareCommands<"runtime">({
     title: "Pause",
     text: "Pause this Run",
     isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunActive(n as RunData)),
+      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) &&
+      context?.nodes?.some((n) => isProcessActive(n as RunData)),
     command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Pause" } });
-      context?.nodes?.filter((n) => isRunActive(n as RunData)).forEach((n) => runtime.pause(n as RunData, { tx }));
+      context?.nodes?.filter((n) => isProcessActive(n as RunData)).forEach((n) => runtime.pause(n as RunData, { tx }));
     },
   },
   "runtime.run.resume": {
@@ -481,10 +473,11 @@ declareCommands<"runtime">({
     title: "Resume",
     text: "Resume this Run",
     isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunPaused(n as RunData)),
+      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) &&
+      context?.nodes?.some((n) => isProcessPaused(n as RunData)),
     command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Resume" } });
-      context?.nodes?.filter((n) => isRunPaused(n as RunData)).forEach((n) => runtime.resume(n as RunData, { tx }));
+      context?.nodes?.filter((n) => isProcessPaused(n as RunData)).forEach((n) => runtime.resume(n as RunData, { tx }));
     },
   },
   "runtime.run.kill": {
@@ -492,10 +485,11 @@ declareCommands<"runtime">({
     title: "Kill",
     text: "Kill this Run",
     isEnabled: (command, context) =>
-      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) && context?.nodes?.some((n) => isRunActive(n as RunData)),
+      context?.nodes?.every((n) => isNode(n, NodeType.RUN)) &&
+      context?.nodes?.some((n) => isProcessActive(n as RunData)),
     command: (command, context) => {
       const tx = runtime.tx.with({ change: { key: newChangeId(), title: "Kill" } });
-      context?.nodes?.filter((n) => isRunActive(n as RunData)).forEach((n) => runtime.stop(n as RunData, { tx }));
+      context?.nodes?.filter((n) => isProcessActive(n as RunData)).forEach((n) => runtime.stop(n as RunData, { tx }));
     },
   },
   // interrupt

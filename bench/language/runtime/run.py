@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Union, as
 from uuid import UUID
 
 from bench.language.core import (
-    TERMINAL_RUN_STATUSES,
+    TERMINAL_PROCESS_STATUSES,
     BuiltinEnum,
     CustomObject,
     EnumType,
@@ -11,13 +11,13 @@ from bench.language.core import (
     FieldType,
     IsBased,
     IsModal,
+    IsProcessable,
     IsTimed,
     IsTitled,
-    IsTracked,
     LocalNodeList,
     NodeType,
     PackageNode,
-    RunStatus,
+    ProcessStatus,
     RunType,
     SpanType,
     Struct,
@@ -144,7 +144,7 @@ class RunOptions(Struct):
 @timed_node_(NodeType.RUN)
 class Run(
     IsTimed,
-    IsTracked,
+    IsProcessable,
     IsModal,
     IsBased,
     IsTitled,
@@ -191,7 +191,7 @@ class Run(
     code: Optional["Code"] = p_regular(66, default=None, struct=StructType.CODE)
 
     # status [80-90]
-    status: RunStatus = p_internal(80, default=RunStatus.CREATED)
+    status: ProcessStatus = p_internal(80, default=ProcessStatus.CREATED)
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["Span"] = p_node_children(NodeType.SPAN)
@@ -280,7 +280,7 @@ class Run(
 
     @property
     def is_active(self) -> bool:
-        return self.status not in TERMINAL_RUN_STATUSES
+        return self.status not in TERMINAL_PROCESS_STATUSES
 
     @property
     def input_type(self) -> "IsType | None":
@@ -413,7 +413,7 @@ class Run(
         self.terminated_at = self._session._oracle.utc()
         if self.started_at:
             self.duration = self.terminated_at - self.started_at
-        self.status = RunStatus.ABORTED if self.status.is_active else RunStatus.CANCELLED
+        self.status = ProcessStatus.ABORTED if self.status.is_active else ProcessStatus.CANCELLED
 
         # last attempt
         if (last_attempt := self.current_attempt) is not None:
@@ -421,12 +421,12 @@ class Run(
             if last_attempt.started_at:
                 last_attempt.duration = last_attempt.terminated_at - last_attempt.started_at
             last_attempt.status = (
-                RunStatus.ABORTED if last_attempt.status.is_active else RunStatus.CANCELLED
+                ProcessStatus.ABORTED if last_attempt.status.is_active else ProcessStatus.CANCELLED
             )
 
     cancel = abort = stop
 
-    async def wait_until_status(self, *status: RunStatus, timeout: timedelta | None = None):
+    async def wait_until_status(self, *status: ProcessStatus, timeout: timedelta | None = None):
         """Wait until this Run reaches the given status."""
         await self.wait_until(lambda self: self.status in status, timeout=timeout)
 
@@ -437,14 +437,14 @@ class Run(
     @staticmethod
     async def get_run_of(
         node: "Runnable",
-        where: Optional[Expression] | Collection[RunStatus] = None,
+        where: Optional[Expression] | Collection[ProcessStatus] = None,
         timeout: timedelta | None = None,
     ) -> "Run":
         """Get the Run of a Node (waiting if necessary)."""
         from bench.language import Action, Flow, Link
 
         if where is None:
-            where = Run.get_property("status").gte(RunStatus.QUEUED)
+            where = Run.get_property("status").gte(ProcessStatus.QUEUED)
         elif isinstance(where, Collection):
             where = Run.get_property("status").in_(*where)
 

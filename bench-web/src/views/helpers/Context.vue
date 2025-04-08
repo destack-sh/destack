@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { isInlineNode, isSourceNode, toCamelName } from "@/language/core/const";
-import { isRunnable } from "@/language/runtime/run";
+import { isInlineNode, isRunnableNode, isSourceNode, toCamelName } from "@/language/core/const";
 import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewData } from "@/proto/wire";
 import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
@@ -38,7 +37,7 @@ const state = canvas.registerView(self, id);
 // node
 const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(nodePtr);
-const isNodeRunnable = computed(() => inspection.value != null && isRunnable(inspection.value));
+const isNodeRunnable = computed(() => inspection.value != null && isRunnableNode(inspection.value));
 const parentPtr = computed(() => inspection.value?.parentPtr);
 const { node: parent, connection: parentConnection } = supergraph.getLinkRef(parentPtr);
 const delegatePtr = computed(() => {

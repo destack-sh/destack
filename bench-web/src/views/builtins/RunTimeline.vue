@@ -2,15 +2,14 @@
 import { getBaseFromNode, toCamelName } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import {
-  getRunDurationMs,
-  getRunDurationString,
-  getRunStartedAtMs,
-  isRunActive,
-  isRunBad,
-  isRunInterrupted,
-  isRunTerminal,
-  RunnableNode,
-} from "@/language/runtime/run";
+  getProcessDurationMs,
+  getProcessDurationString,
+  getProcessStartedAtMs,
+  isProcessActive,
+  isProcessBad,
+  isProcessInterrupted,
+  isProcessTerminal,
+} from "@/language/runtime/process";
 import {
   ActionData,
   ActionType,
@@ -28,10 +27,11 @@ import {
   SpanData,
   SpanType,
   SpanTypeOptionInfo,
-  RunStatus,
-  RunStatusOptionInfo,
+  ProcessStatus,
+  ProcessStatusOptionInfo,
   Severity,
   ViewData,
+  RunnableNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, TypedNodeReferenceData } from "@/proto/wiring";
 import { getInputType, getOutputType, getRunCommands, runtime, RunTree } from "@/runtime/runtime";
@@ -119,19 +119,19 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
   const events: TimelineEvent[] = [];
 
   const nowMs = timestampToMs(now);
-  const rootStartedAtMs = getRunStartedAtMs(root);
-  const rootDurationMs = getRunDurationMs(root, nowMs);
+  const rootStartedAtMs = getProcessStartedAtMs(root);
+  const rootDurationMs = getProcessDurationMs(root, nowMs);
 
   function walkRun(run: RunData | SpanData, parent: TimelineSpan | null, depth: number) {
     // timing
-    const startedAtMs = getRunStartedAtMs(run);
-    const durationMs = getRunDurationMs(run, nowMs);
+    const startedAtMs = getProcessStartedAtMs(run);
+    const durationMs = getProcessDurationMs(run, nowMs);
 
     // content
     const basePtr = isNode(run, NodeType.RUN) ? getBaseFromNode(run) : null;
     const baseNode = basePtr != null ? props.graph.get(basePtr) : null;
     const color = !isNode(run, NodeType.SPAN)
-      ? getColorHex(RunStatusOptionInfo[run.status]!.color!, ColorShade.S400)!
+      ? getColorHex(ProcessStatusOptionInfo[run.status]!.color!, ColorShade.S400)!
       : getColorHex(ColorType.SUCCESS, ColorShade.S400)!;
     let icon: IconData;
     let name: string = "???";
@@ -178,9 +178,9 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
       interruption,
       offsetRelative,
       durationRelative: durationRelative,
-      isTerminal: isRunTerminal(run),
-      isBad: isRunBad(run),
-      isInterrupted: isRunInterrupted(run),
+      isTerminal: isProcessTerminal(run),
+      isBad: isProcessBad(run),
+      isInterrupted: isProcessInterrupted(run),
     };
     spans.push(span);
 
@@ -209,7 +209,11 @@ function makeTimeline(now: DateTime, root: RunData, maxDepth: number | undefined
 const now = getNow(TimeUpdateInterval.MILLISECOND);
 const timeline: Ref<Timeline> = shallowRef(EMPTY_TIMELINE);
 watchEffect(() => {
-  if (timeline.value?.root?.id != runTree.run?.id || !runTree.runs.every(isRunTerminal) || timeline.value?.hasActive) {
+  if (
+    timeline.value?.root?.id != runTree.run?.id ||
+    !runTree.runs.every(isProcessTerminal) ||
+    timeline.value?.hasActive
+  ) {
     if (runTree.run != null) {
       // NOTE :Robustness: technically, we shouldn't need to re-fetch the root node, the ref should just work :NodeRefStability
       //  (but right now, it doesn't always work and that looks really bad.. so we re-fetch the root node)
@@ -239,10 +243,10 @@ watchEffect(() => {
           >
             <!-- Icon (from Run if active) -->
             <IconInline
-              v-if="isRunActive(thing.span)"
-              v-bind="makeIcon(RunStatusOptionInfo[thing.span.status]!.icon!)"
+              v-if="isProcessActive(thing.span)"
+              v-bind="makeIcon(ProcessStatusOptionInfo[thing.span.status]!.icon!)"
               class="mr-1.5 w-5 text-center text-gray-700"
-              :class="[thing.span.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+              :class="[thing.span.status == ProcessStatus.RUNNING ? 'animate-spin' : '']"
             />
             <IconInline v-else v-bind="thing.icon" class="mr-1.5 w-5 text-center text-gray-700" />
             <!-- Name -->
@@ -250,7 +254,7 @@ watchEffect(() => {
             <!-- Icon -->
             <IconInline
               v-if="thing.isBad || thing.isInterrupted"
-              v-bind="makeIcon(RunStatusOptionInfo[thing.span.status]!.icon!)"
+              v-bind="makeIcon(ProcessStatusOptionInfo[thing.span.status]!.icon!)"
               :style="{ color: getRunColorHex(thing.span.status) }"
               class="ml-1 w-5 text-center"
             />
@@ -283,7 +287,7 @@ watchEffect(() => {
               <IconInline v-bind="command.icon" />
             </button>
             <span class="text-gray-400">
-              {{ getRunDurationString(thing.span, { minUnit: "s" }) }}
+              {{ getProcessDurationString(thing.span, { minUnit: "s" }) }}
             </span>
           </div>
         </div>
@@ -301,7 +305,7 @@ watchEffect(() => {
               v-if="thing.span.inputsPacked != null"
               :id="`object-inputs-${thing.id}`"
               class=""
-              :value-type="getInputType(thing.baseNode as RunnableNode)"
+              :value-type="getInputType(thing.baseNode as RunnableNodeData)"
               is-inline
               is-minimal
               :model-value="thing.span.inputsPacked"
@@ -310,7 +314,7 @@ watchEffect(() => {
               v-if="thing.span.outputsPacked != null"
               :id="`object-outputs-${thing.id}`"
               class=""
-              :value-type="getOutputType(thing.baseNode as RunnableNode)"
+              :value-type="getOutputType(thing.baseNode as RunnableNodeData)"
               is-inline
               :is-input="thing.interruption != null"
               is-minimal
@@ -414,13 +418,13 @@ watchEffect(() => {
         </button>
         <!-- Meta -->
         <div class="ml-auto flex-shrink-0 pl-1.5">
-          <RunStatus
+          <ProcessStatus
             v-if="isNode(span.span, NodeType.RUN)"
             :run="span.span"
             :orientation="Orientation.HORIZONTAL_REVERSED"
           />
           <div v-else class="flex flex-row items-center gap-x-1.5">
-            <!-- Poor man's RunStatus for non-Run items -->
+            <!-- Poor man's ProcessStatus for non-Run items -->
             <!-- Duration -->
             <span class="text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
             <span

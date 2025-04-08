@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { canvas } from "@/globals";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { createInlineNode } from "@/language/source/block";
 import {
   BenchType,

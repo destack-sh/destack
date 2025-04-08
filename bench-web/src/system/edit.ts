@@ -8,7 +8,7 @@ import {
   txBuffers,
   type ChangeIn,
   type TransactionBuffer,
-} from "@/language/runtime/transaction";
+} from "@/language/core/transaction";
 import {
   ChangeCategory,
   EditData,

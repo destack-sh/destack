@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isRunActive } from "@/language/runtime/run";
+import { isProcessActive } from "@/language/runtime/process";
 import { ColorShade, ColorType, LinkType, NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
@@ -69,7 +69,7 @@ defineExpose<ViewExpose>({ self, id, commands});
     <!-- Path -->
     <svg
       class="group pointer-events-none relative overflow-visible"
-      :class="lastRun != null && isRunActive(lastRun) ? 'animate-pulse' : ''"
+      :class="lastRun != null && isProcessActive(lastRun) ? 'animate-pulse' : ''"
       :style="{ color: lastRun != null ? getRunColorHex(lastRun.status) : pathColorHex }"
       data-suppress-node="self"
     >

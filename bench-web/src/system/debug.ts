@@ -1,5 +1,5 @@
 import { ToastLevel } from "@/ui/toast";
-import { getAllTransactionBuffers } from "@/language/runtime/transaction";
+import { getAllTransactionBuffers } from "@/language/core/transaction";
 import { ViewType } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { provideCommands } from "@/ui/command";

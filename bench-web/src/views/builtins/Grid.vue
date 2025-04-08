@@ -6,7 +6,7 @@ import { computed, Ref, ref, toRef } from "vue";
 import { TypedNodeReferenceData, toNodeRef } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { cloneNode, moveNode } from "@/language/core/node";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { isDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { toCamelName } from "@/language/core/const";
 

@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import structlog
 from opentelemetry import trace
@@ -15,21 +15,28 @@ from bench.language import (
     Subject,
     _is_setup_complete,
 )
-from bench.runtime.model.piece import (
+from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.utils import get_from_env
+
+from .piece import (
+    AudioPiece,
     BreakPiece,
+    CodePiece,
     CompoundPiece,
     HeaderPiece,
+    ImagePiece,
     LeafPiece,
     Piece,
     RegionPiece,
     SeparatorPiece,
     TextPiece,
 )
-from bench.runtime.model.token import Tokenizer
+from .token import Tokenizer
 
 if TYPE_CHECKING:
     pass
 
+LOG_PROMPTS = get_from_env("LOG_PROMPTS", default=IS_DEV or IS_TEST, typ=bool)
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -270,3 +277,23 @@ def compile_prompt(
     top_sel, _ = _select_pieces(prompt.pieces, max_tokens)
     final_leaves, used_tokens = _flatten_pieces(prompt.pieces, max_tokens, top_sel)
     return final_leaves, used_tokens
+
+
+def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
+    prompt_parts: list[str] = []
+    for piece in pieces:
+        if isinstance(piece, BreakPiece):
+            prompt_parts.append("\n")
+        elif isinstance(piece, SeparatorPiece):
+            prompt_parts.append("=" * 32)
+        elif isinstance(piece, TextPiece):
+            text = "\n".join([f"# {line}" for line in piece.text.splitlines()])
+            prompt_parts.append(text)
+        elif isinstance(piece, CodePiece):
+            prompt_parts.append(piece.code)
+        elif isinstance(piece, (AudioPiece, ImagePiece)):
+            prompt_parts.append(repr(piece.file))
+        else:
+            prompt_parts.append(f" ??? {piece!r} ???")
+    rendered = "\n".join(prompt_parts)
+    print(rendered)  # noqa

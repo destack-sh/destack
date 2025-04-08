@@ -8,8 +8,8 @@ from bench.language import (
     ErrorType,
     Flow,
     LinkType,
+    ProcessStatus,
     RunOptions,
-    RunStatus,
     Trigger,
     code,
 )
@@ -40,7 +40,7 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
 
     runner = await runtime.run_in_runtime(Flow1)
     assert runner.tracked_run
-    aborted_runs = [r for r in runner.tracked_run.runs if r.status == RunStatus.ABORTED]
+    aborted_runs = [r for r in runner.tracked_run.runs if r.status == ProcessStatus.ABORTED]
     assert len(aborted_runs) == 2  # the two losers should be aborted
     assert len(runner.tracked_run.runs) == 9  # all actions & links should run exactly once
 
@@ -62,7 +62,7 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
 
     # run up to yield
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.status == RunStatus.YIELDED
+    assert runner.status == ProcessStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
     assert not runner.tracked_run.terminated_at
@@ -70,7 +70,7 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
 
     # resume run (without handling Interruption)
     runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == RunStatus.YIELDED
+    assert runner.status == ProcessStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
     assert not runner.tracked_run.terminated_at
@@ -81,7 +81,7 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
 
     # resume run (after handling Interruption)
     runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
     assert runner.tracked_run
     assert len(runner.attempts) == 1
 
@@ -114,12 +114,12 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
 
     # run up to yield
     runner = await runtime.run_in_runtime(FlowOuter)
-    assert runner.status == RunStatus.YIELDED
+    assert runner.status == ProcessStatus.YIELDED
     assert runner.tracked_run
 
     # resume run (without handling Interruption)
     runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == RunStatus.YIELDED
+    assert runner.status == ProcessStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interrupted_at and runner.tracked_run.interruption
 
@@ -128,7 +128,7 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
 
     # resume run (after handling Interruption)
     runner = await runtime.run_in_runtime(runner.tracked_run)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime(system=True)
@@ -147,12 +147,12 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Flow1)
-    assert runner.status == RunStatus.YIELDED
+    assert runner.status == ProcessStatus.YIELDED
     assert runner.tracked_run
     assert runner.tracked_run.interruption
     runner.tracked_run.interruption.cancel(_trigger_runtime=False)
     runner = await runtime.run_in_runtime(runner.tracked_run, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
 
 
@@ -194,7 +194,7 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     await runtime.commit()
 
     # check that all yield points are hit in order
-    run, _ = create_run(Flow1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    run, _ = create_run(Flow1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
     await runtime.session.commit()
     runner = None
     for yield_point in (
@@ -210,14 +210,14 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     ):
         # run up to yield
         runner = await runtime.run_in_runtime(run)
-        assert runner.status == RunStatus.YIELDED
+        assert runner.status == ProcessStatus.YIELDED
         assert runner.interruption and runner.interruption.is_in(yield_point)
         assert runner.tracked_run
         run = runner.tracked_run
 
         # run up to yield again (without handling Interruption)
         runner = await runtime.run_in_runtime(run)
-        assert runner.status == RunStatus.YIELDED
+        assert runner.status == ProcessStatus.YIELDED
         assert runner.interruption and runner.interruption.is_in(yield_point)
         assert runner.tracked_run
         run = runner.tracked_run
@@ -227,7 +227,7 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
 
     # run up to completion
     runner = await runtime.run_in_runtime(run)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime(system=True)
@@ -252,7 +252,7 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
     try:
         _ = await runtime.runtime.run_runner(runner)
     except Interrupted:
-        assert runner.status == RunStatus.PAUSED
+        assert runner.status == ProcessStatus.PAUSED
     runner.tracked_run.resume(_trigger_runtime=False)
     _ = await runtime.runtime.run_runner(runner)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED

@@ -18,7 +18,7 @@ import {
   newBufferId,
   type Transaction,
   type TransactionBuffer,
-} from "@/language/runtime/transaction";
+} from "@/language/core/transaction";
 import {
   HUMANIZED_OPERATION_STATUS,
   getGraphClient,

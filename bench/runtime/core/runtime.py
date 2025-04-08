@@ -13,7 +13,7 @@ from bench.language import (
     DEFAULT_CHECK_OPTIONS,
     DEFAULT_RESOURCE_TIMEOUT,
     DEFAULT_WAIT_TIMEOUT,
-    RUN_STATUS_BY_INTERRUPTION_TYPE,
+    PROCESS_STATUS_BY_INTERRUPTION_TYPE,
     RUNTIME_NODE_TYPES,
     Action,
     Agent,
@@ -43,8 +43,8 @@ from bench.language import (
     PathElementType,
     PathError,
     PathOptions,
+    ProcessStatus,
     Run,
-    RunStatus,
     RunType,
     Session,
     SessionStatus,
@@ -414,18 +414,18 @@ class Runtime:
                         options=CheckOptions(detached_is="invalid"),
                         invalid=on_invalid_raise,
                     )
-            span.status = RunStatus.COMPLETED
+            span.status = ProcessStatus.COMPLETED
             log.trace("runtime.attempt.completed", attempt=span, span="current")
         except asyncio.CancelledError as e:
             # cancelled
-            span.status = RunStatus.ABORTED
+            span.status = ProcessStatus.ABORTED
             error = Error.from_exception(ErrorKind.RUNTIME, e)
             span.error = error
             log.debug("runtime.attempt.aborted", attempt=span, span="current")
             raise
         except Interrupted as e:
             # interrupted
-            status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
+            status = PROCESS_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
             span.status = status
             span.interrupted_at = self.oracle.utc()
             span.interruption = e.interruption
@@ -433,7 +433,7 @@ class Runtime:
             raise
         except BaseException as e:
             # error
-            span.status = RunStatus.FAILED
+            span.status = ProcessStatus.FAILED
             error = Error.from_exception(ErrorKind.RUNTIME, e)
             span.error = error
             log.debug("runtime.attempt.failed", attempt=span, exc_info=e, span="current")
@@ -512,7 +512,7 @@ class Runtime:
                 if computed_value.target_path is not None and computed_value.is_active:
                     self._apply_computed_value(runner, computed_value)
         except Exception as e:
-            runner.status = RunStatus.FAILED
+            runner.status = ProcessStatus.FAILED
             runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
             raise
 
@@ -552,7 +552,7 @@ class Runtime:
                         invalid=on_invalid_raise,
                     )
                 except ValidationError as e:
-                    runner.status = RunStatus.FAILED
+                    runner.status = ProcessStatus.FAILED
                     runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
                     raise
 
@@ -560,7 +560,7 @@ class Runtime:
     async def _run_run(self, runner: Runner):
         """Runs a Runner, retrying automatically for Runs if needed."""
         # Runner = Run, retry with attempts & breakpoints
-        runner.status = RunStatus.RUNNING
+        runner.status = ProcessStatus.RUNNING
         # recover run
         run = runner.tracked_run
         assert run is not None, f"missing tracked run for {runner!r}"
@@ -585,7 +585,9 @@ class Runtime:
             # make new attempts if we can/should
             while retry.should_retry and not (
                 last_attempt is not None
-                and (last_attempt.status == RunStatus.COMPLETED or not last_attempt.is_retryable)
+                and (
+                    last_attempt.status == ProcessStatus.COMPLETED or not last_attempt.is_retryable
+                )
             ):
                 retry.on_attempt()
                 if last_attempt is not None and last_attempt.status.is_interrupted:
@@ -596,7 +598,7 @@ class Runtime:
                     current_attempt = Span(
                         parent=run,
                         type=SpanType.ATTEMPT,
-                        status=RunStatus.RUNNING,
+                        status=ProcessStatus.RUNNING,
                         _skip_validate_self=True,
                     )
                     self.session._create(current_attempt)
@@ -611,7 +613,7 @@ class Runtime:
                     if (error := last_attempt.error) and not retry.on_error(error):
                         raise
             # give up if retry exhausted
-            if last_attempt is not None and last_attempt.status != RunStatus.COMPLETED:
+            if last_attempt is not None and last_attempt.status != ProcessStatus.COMPLETED:
                 if last_attempt.error:
                     # re-raise last error
                     raise RetryableError(title=last_attempt.error.title, error=last_attempt.error)
@@ -626,11 +628,11 @@ class Runtime:
             assert last_attempt is not None, f"missing last attempt for run {runner!r}"
             # breakpoint after
             if last_attempt.status.is_terminal:
-                if last_attempt.status == RunStatus.FAILED:
+                if last_attempt.status == ProcessStatus.FAILED:
                     runner._trap_breakpoint(
                         BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_FAILED
                     )
-                elif last_attempt.status == RunStatus.COMPLETED:
+                elif last_attempt.status == ProcessStatus.COMPLETED:
                     runner._trap_breakpoint(
                         BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_COMPLETED
                     )
@@ -644,7 +646,7 @@ class Runtime:
     async def _run_span(self, runner: Runner):
         """Runs a Span Runner."""
         # Runner = Span, attempt only once (no breakpoints)
-        runner.status = RunStatus.RUNNING
+        runner.status = ProcessStatus.RUNNING
         span = runner.tracked_span
         assert span is not None, f"missing tracked span for {runner!r}"
         active_runner_token = self._active_runner.set(runner)
@@ -673,7 +675,7 @@ class Runtime:
         # mark started
         if span.started_at is None:
             span.started_at = self.oracle.utc()
-        span.status = RunStatus.RUNNING
+        span.status = ProcessStatus.RUNNING
         self.session.stage()
 
         # actually attempt Run
@@ -685,7 +687,7 @@ class Runtime:
                 await self._run_span(runner)
             elif runner.tracked_run is not None:
                 await self._prefetch_context(runner)
-                if runner.status < RunStatus.RUNNING:
+                if runner.status < ProcessStatus.RUNNING:
                     await self._prepare_run(runner)
                 await self._run_run(runner)
             else:
@@ -697,7 +699,7 @@ class Runtime:
                 interrupted_at = (
                     last_attempt.interrupted_at if last_attempt is not None else self.oracle.utc()
                 )
-                runner.status = RUN_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
+                runner.status = PROCESS_STATUS_BY_INTERRUPTION_TYPE[e.interruption.type]
                 span.interrupted_at = interrupted_at
             else:
                 span.interrupted_at = self.oracle.utc()
@@ -742,14 +744,14 @@ class Runtime:
             if runner.status.is_interrupted:
                 assert runner.interruption is not None, f"missing interruption for {runner!r}"
                 runner.fire_event(RunnerInterruptedEvent(runner, interruption=runner.interruption))
-            elif runner.status == RunStatus.COMPLETED:
+            elif runner.status == ProcessStatus.COMPLETED:
                 runner.fire_event(RunnerCompletedEvent(runner, outputs=runner.outputs))
-            elif runner.status == RunStatus.FAILED:
+            elif runner.status == ProcessStatus.FAILED:
                 assert runner.error is not None, f"missing error for {runner!r}"
                 runner.fire_event(RunnerFailedEvent(runner, error=runner.error))
-            elif runner.status == RunStatus.ABORTED:
+            elif runner.status == ProcessStatus.ABORTED:
                 runner.fire_event(RunnerAbortedEvent(runner))
-            elif runner.status == RunStatus.CANCELLED:
+            elif runner.status == ProcessStatus.CANCELLED:
                 runner.fire_event(RunnerCancelledEvent(runner))
 
     async def _wrap_run_runner(self, runner: Runner):
@@ -769,8 +771,8 @@ class Runtime:
     def _try_mark_failed(self, run: Run, kind: ErrorKind, error: BaseException):
         """Mark a Run as failed (but ignore if we can't, perhaps because the Session is closing)."""
         try:
-            if run.status != RunStatus.FAILED:
-                run.status = RunStatus.FAILED
+            if run.status != ProcessStatus.FAILED:
+                run.status = ProcessStatus.FAILED
                 run.error = Error.from_exception(kind, error)
         except BaseException as e:
             logger.error("runtime.mark_failed.error", run=run, exc_info=e)
@@ -977,7 +979,7 @@ class Runtime:
                         flow,
                         parent=parent_node,
                         mode=run.mode,
-                        status=RunStatus.QUEUED,
+                        status=ProcessStatus.QUEUED,
                         thread=run.thread,
                         graph=parent_node._graph,
                         agent=run.agent,

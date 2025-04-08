@@ -7,8 +7,8 @@ from bench.language import (
     Field,
     Flow,
     Node,
+    ProcessStatus,
     RunOptions,
-    RunStatus,
     Text,
     TextLine,
     code,
@@ -34,7 +34,7 @@ async def test_run_code_empty(simulation: Simulation, runtime: RuntimeLambdaWork
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Code1, return_error=True)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime()
@@ -47,7 +47,7 @@ async def test_run_code_with_syntax_error(simulation: Simulation, runtime: Runti
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(InvalidCode, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error is not None and runner.error.type == ErrorType.CODE_INVALID
     assert runner.error.text and "!!invalid!!" in runner.error.text
 
@@ -70,7 +70,7 @@ return {"Output1": text1}
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Code1)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
     assert runner.outputs
     assert runner.outputs.Output1 == text("hello, [@Code1]!", aliasing={"Code1": Code1})
 
@@ -102,7 +102,7 @@ panic('panic1')
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Logs101)
-    assert runner.status == RunStatus.COMPLETED
+    assert runner.status == ProcessStatus.COMPLETED
     assert runner.logs and len(runner.logs) == 11
     for s, log in zip(
         (
@@ -144,7 +144,7 @@ print('print3')
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Logs102, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.logs and len(runner.logs) == 2
     for s, log in zip(("print1", "print2"), runner.logs):
         assert log.title == s
@@ -206,10 +206,10 @@ async def test_run_code_invalid_inputs(simulation: Simulation, runtime: RuntimeL
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run, _ = create_run(Code1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    run, _ = create_run(Code1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
     await runtime.session.commit()
     runner = await runtime.run_in_runtime(run, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert len(runner.attempts) == 0
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
     assert runner.tracked_run and runner.tracked_run.duration is not None
@@ -229,10 +229,10 @@ async def test_run_code_invalid_outputs(simulation: Simulation, runtime: Runtime
     runtime.page().append(Flow1)
     await runtime.commit()
 
-    run, _ = create_run(Code1, status=RunStatus.QUEUED, parent=runtime.main_package)
+    run, _ = create_run(Code1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
     await runtime.session.commit()
     runner = await runtime.run_in_runtime(run, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
@@ -371,7 +371,7 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
     Flow1.actions.append(Function)
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3}, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
 
 
 @simulated_runtime()
@@ -413,7 +413,7 @@ async def test_run_code_return_detached_node(
     Function.code = code("return {'Output': Block.new(BlockType.PARAGRAPH)}")
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
     # detached nested node
@@ -424,7 +424,7 @@ return {'Text': text}
 """)
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INVALID_VALUE
 
 
@@ -445,7 +445,7 @@ async def test_run_code_raise_retryable_error(
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Action1, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.RETRYABLE
     assert len(runner.attempts) == 3
 
@@ -467,6 +467,6 @@ async def test_run_code_raise_unretryable_error(
     await runtime.commit()
 
     runner = await runtime.run_in_runtime(Action1, return_error=True)
-    assert runner.status == RunStatus.FAILED
+    assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.NON_RETRYABLE
     assert len(runner.attempts) == 1

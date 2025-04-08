@@ -1,31 +1,28 @@
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
     IsModal,
-    IsRuntime,
     IsTimed,
     Node,
     NodeType,
     PackageNode,
-    RunStatus,
     Severity,
     SpanType,
     StructType,
     Text,
-    p_internal,
     p_node_ancestor,
     p_node_parent,
     p_regular,
     timed_node_,
 )
+from bench.language.core.trait import IsProcessable
 from bench.pb2 import SpanData
 
 from .context import IsRun
 
 if TYPE_CHECKING:
-    from bench.language import Code, Error, Interruption, NodeReference, Run
+    from bench.language import Code, NodeReference, Run
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -34,14 +31,13 @@ if TYPE_CHECKING:
 @timed_node_(NodeType.SPAN)
 class Span(
     IsTimed,
-    IsRuntime,
     IsModal,
     IsRun,
+    IsProcessable,
     PackageNode[SpanData],
 ):
     """
-    A Span is a sub-part of a Run that executes a smaller unit of work than a runnable Node.
-    Spans, unlike Runs, are not individually controllable.
+    A Span is a sub-part of a Run that represents a small, isolated unit of work inside a Run.
     """
 
     # meta
@@ -62,15 +58,6 @@ class Span(
     nodes: list["Node"] = p_regular(65, array=True, require=False, references="any")
 
     # status [80-90]
-    status: RunStatus = p_regular(80, default=RunStatus.SCHEDULED)
-    duration: Optional[timedelta] = p_regular(81, default=None)
-    started_at: Optional[datetime] = p_regular(82, default=None)
-    terminated_at: Optional[datetime] = p_regular(83, default=None)
-    interrupted_at: Optional[datetime] = p_regular(84, default=None)
-    interruption: Optional["Interruption"] = p_internal(
-        85, require=False, array=False, references=NodeType.INTERRUPTION, same_bench=True
-    )
-    error: Optional["Error"] = p_internal(86, require=False, array=False, struct=StructType.ERROR)
 
     @property
     def is_retryable(self) -> bool:

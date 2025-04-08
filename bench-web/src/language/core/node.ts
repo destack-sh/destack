@@ -7,7 +7,7 @@ import { isInlineNode, toCamelName } from "@/language/core/const";
 import { getNextSibling, isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
-import { DebounceLevel, newChangeId, type Transaction } from "@/language/runtime/transaction";
+import { DebounceLevel, newChangeId, type Transaction } from "@/language/core/transaction";
 import { createBlock, unwrapBlockDefinition } from "@/language/source/block";
 import {
   BlockData,

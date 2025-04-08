@@ -28,7 +28,7 @@ const props = defineProps<{
       :focus="props.focus?.nodesPtr[0]"
       :graph="graph"
     />
-    <NodeReference v-else-if="nodePtr" :node-ptr="nodePtr" size="sm" />
+    <NodeReference v-else-if="nodePtr" :node-ptr="nodePtr" hide-metadata size="sm" />
     <!-- Meta & Controls -->
     <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
       <slot name="meta" />

@@ -1,5 +1,5 @@
 import { canvas, supergraph } from "@/globals";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { NodeReferenceData, TextLineType, TextSpanType } from "@/proto/wire";
 import { type CommandKit, type CommandMapKit } from "@/ui/command";
 import { PageContext } from "@/ui/prosemirror/page";

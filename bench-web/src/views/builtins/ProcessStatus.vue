@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
-import { getRunDurationString, isRunActive, isRunInterrupted } from "@/language/runtime/run";
-import { ColorShade, Orientation, RunData, RunStatus, RunStatusOptionInfo } from "@/proto/wire";
+import { getProcessDurationString, isProcessActive, isProcessInterrupted } from "@/language/runtime/process";
+import { ColorShade, Orientation, RunData, ProcessStatus, ProcessStatusOptionInfo } from "@/proto/wire";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
 
@@ -18,7 +18,7 @@ const props = defineProps<{
   >
     <!-- Dot -->
     <template v-if="icon == 'dot'">
-      <span v-if="isRunInterrupted(run)" class="relative flex h-[8px] w-[8px]">
+      <span v-if="isProcessInterrupted(run)" class="relative flex h-[8px] w-[8px]">
         <span
           class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 transition-colors duration-150"
           :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
@@ -31,26 +31,26 @@ const props = defineProps<{
       <span
         v-else
         class="h-[8px] w-[8px] rounded-full transition-colors duration-150"
-        :class="[isRunActive(run) ? 'animate-pulse' : '']"
+        :class="[isProcessActive(run) ? 'animate-pulse' : '']"
         :style="{ backgroundColor: getRunColorHex(run.status) }"
       />
     </template>
     <template v-else-if="icon != 'hide'">
       <IconInline
-        v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
-        :class="[isRunActive(run) ? 'animate-spin' : '']"
+        v-bind="makeIcon(ProcessStatusOptionInfo[run.status]!.icon!)"
+        :class="[isProcessActive(run) ? 'animate-spin' : '']"
         :style="{ color: getRunColorHex(run.status) }"
         class=""
       />
     </template>
     <!-- Duration -->
-    <span class="text-gray-400">{{ getRunDurationString(run, { minUnit: "s" }) }}</span>
+    <span class="text-gray-400">{{ getProcessDurationString(run, { minUnit: "s" }) }}</span>
     <!-- Highlight -->
     <IconInline
-      v-if="isRunInterrupted(run)"
-      v-tooltip="{ title: toCamelName(RunStatus, run.status), small: true, group: 'run.status' }"
+      v-if="isProcessInterrupted(run)"
+      v-tooltip="{ title: toCamelName(ProcessStatus, run.status), small: true, group: 'run.status' }"
       class="text-pink-500 transition-colors duration-150"
-      v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
+      v-bind="makeIcon(ProcessStatusOptionInfo[run.status]!.icon!)"
     />
   </div>
 </template>

@@ -1,7 +1,7 @@
-import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES } from "@/language/core/const";
+import { ACTIVE_PROCESS_STATUSES, TERMINAL_PROCESS_STATUSES } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { Transaction } from "@/language/runtime/transaction";
-import { NodeType, RunStatus, TaskData } from "@/proto/wire";
+import { Transaction } from "@/language/core/transaction";
+import { NodeType, ProcessStatus, TaskData } from "@/proto/wire";
 
 /** Create a Task. */
 export function createTask(tx: Transaction, graph: ReadNodeGraph, options: { task: Partial<TaskData> }): TaskData {
@@ -12,12 +12,12 @@ export function createTask(tx: Transaction, graph: ReadNodeGraph, options: { tas
 
 /** Whether the given task is active */
 export function isTaskActive(task: TaskData): boolean {
-  return ACTIVE_RUN_STATUSES.includes(task.status);
+  return ACTIVE_PROCESS_STATUSES.includes(task.status);
 }
 
 /** Whether the given task is terminal */
 export function isTaskTerminal(task: TaskData): boolean {
-  return TERMINAL_RUN_STATUSES.includes(task.status);
+  return TERMINAL_PROCESS_STATUSES.includes(task.status);
 }
 
 /** 'Toggle' the Task status (whatever that means in its current state). */
@@ -25,10 +25,10 @@ export function toggleTaskStatus(tx: Transaction, task: TaskData): boolean {
   if (isTaskActive(task)) {
     return false;
   } else if (isTaskTerminal(task)) {
-    tx.update(task, { status: task.ownedByPtr != null ? RunStatus.CREATED : RunStatus.ASSIGNED });
+    tx.update(task, { status: task.ownedByPtr != null ? ProcessStatus.CREATED : ProcessStatus.ASSIGNED });
     return true;
   } else {
-    tx.update(task, { status: RunStatus.COMPLETED });
+    tx.update(task, { status: ProcessStatus.COMPLETED });
     return true;
   }
 }

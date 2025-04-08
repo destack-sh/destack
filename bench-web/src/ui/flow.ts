@@ -3,7 +3,7 @@ import { SINK_ACTION_TYPES, SOURCE_ACTION_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNodeName, NodeIn } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
-import { newChangeId, type Transaction, type TransactionOptions } from "@/language/runtime/transaction";
+import { newChangeId, type Transaction, type TransactionOptions } from "@/language/core/transaction";
 import {
   ActionType,
   BenchType,

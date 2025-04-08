@@ -16,7 +16,7 @@ import {
   makeEditFromSubnode,
   Transaction,
   TransactionOptions,
-} from "@/language/runtime/transaction";
+} from "@/language/core/transaction";
 import { getFieldTypeUpdate } from "@/language/source/field";
 import {
   ActionProperty,

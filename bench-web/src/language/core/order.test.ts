@@ -2,7 +2,7 @@ import { NodeType, ObjectType, ViewData } from "@/proto/wire";
 import { EMPTY_SCOPE, toNodeRef } from "@/proto/wiring";
 import { NodeGraph } from "@/language/core/graph";
 import { fabricate } from "@/language/core/graph.test";
-import { TransactionBuilder, TransactionState, editGraph } from "@/language/runtime/transaction";
+import { TransactionBuilder, TransactionState, editGraph } from "@/language/core/transaction";
 import { uuidt } from "@/utils/uuidt";
 import { describe, expect, test } from "vitest";
 import { fixOrderKeys } from "@/language/core/order";

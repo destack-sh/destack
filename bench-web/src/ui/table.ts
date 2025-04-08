@@ -5,7 +5,7 @@ import { NodeType } from "@/proto/wire";
 import { CommandMapKit, declareCommands } from "@/ui/command";
 import { useNodeListCommands } from "@/ui/list";
 import { Ref } from "vue";
-import { Transaction } from "@/language/runtime/transaction";
+import { Transaction } from "@/language/core/transaction";
 
 // table
 declareCommands<"table">({

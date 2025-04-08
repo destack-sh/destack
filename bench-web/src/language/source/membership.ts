@@ -2,7 +2,7 @@ import { supergraph } from "@/globals";
 import { isNodeInstance, isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { instanceNode } from "@/language/core/node";
-import { newChangeId, Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/core/transaction";
 import { JoinableNodeData, MembershipData, NodeType } from "@/proto/wire";
 import { describeNode, isNode } from "@/proto/wiring";
 

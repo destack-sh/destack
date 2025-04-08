@@ -2,7 +2,7 @@
 import { toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
 import { cloneNode, moveNode, useSubnodeProperty } from "@/language/core/node";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { createBlock } from "@/language/source/block";
 import {
   BlockType,

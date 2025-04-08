@@ -1,7 +1,7 @@
 import asyncio
 
 from bench.language import (
-    TERMINAL_RUN_STATUSES,
+    TERMINAL_PROCESS_STATUSES,
     Action,
     ActionType,
     Agent,
@@ -11,8 +11,8 @@ from bench.language import (
     Message,
     Node,
     Package,
+    ProcessStatus,
     Run,
-    RunStatus,
     Session,
     Thread,
     Trigger,
@@ -83,7 +83,7 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
 
     run, _ = create_run(Flow1, parent=runtime.main_package)
     await run.wait_until_terminated()
-    assert run.status == RunStatus.COMPLETED
+    assert run.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime(system=True, runtimes=True)
@@ -109,8 +109,8 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
     Thread1.messages.append(Message1)
     await runtime.commit()
 
-    Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
-    assert Run1.status == RunStatus.COMPLETED
+    Run1 = await Run.get_run_of(Flow1, where=TERMINAL_PROCESS_STATUSES)
+    assert Run1.status == ProcessStatus.COMPLETED
     assert Run1.agent == Agent1
 
 
@@ -135,9 +135,9 @@ async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWo
     run, _ = create_run(Flow1, parent=runtime.main_package)
     await runtime.commit()
     asyncio.get_event_loop().call_later(0.5, lambda: asyncio.create_task(pause_run(run)))
-    await run.wait_until_status(RunStatus.PAUSED, *TERMINAL_RUN_STATUSES)
-    assert run.status == RunStatus.PAUSED
+    await run.wait_until_status(ProcessStatus.PAUSED, *TERMINAL_PROCESS_STATUSES)
+    assert run.status == ProcessStatus.PAUSED
     run.resume()
     await runtime.commit()  # should automatically resume within runtime
     await run.wait_until_terminated()
-    assert run.status == RunStatus.COMPLETED
+    assert run.status == ProcessStatus.COMPLETED

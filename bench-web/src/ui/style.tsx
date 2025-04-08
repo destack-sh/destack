@@ -8,8 +8,8 @@ import {
   NodeType,
   NodeTypeOptionInfo,
   ObjectType,
-  RunStatus,
-  RunStatusOptionInfo,
+  ProcessStatus,
+  ProcessStatusOptionInfo,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -92,8 +92,8 @@ export function getColorHex(color: ColorType | ColorData, shade?: ColorShade): s
   }
 }
 
-export function getRunColorHex(status: RunStatus, shade?: ColorShade): string | undefined {
-  const color = RunStatusOptionInfo[status]?.color;
+export function getRunColorHex(status: ProcessStatus, shade?: ColorShade): string | undefined {
+  const color = ProcessStatusOptionInfo[status]?.color;
   if (color == null) return undefined;
   return getColorHex(color, shade);
 }

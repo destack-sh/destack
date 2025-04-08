@@ -22,10 +22,10 @@ from bench.language import (
     ModelType,
     Plan,
     PlanType,
+    ProcessStatus,
     Run,
     Runnable,
     RunOptions,
-    RunStatus,
     RunType,
     SpanType,
     Task,
@@ -381,7 +381,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             # resume from interrupted
             # NOTE :Performance: technically we only need to resume Runs with updated Interrupts?
             for run in runs:
-                if run.status < RunStatus.RUNNING or run.status.is_interrupted:
+                if run.status < ProcessStatus.RUNNING or run.status.is_interrupted:
                     self._resume(run)
 
         # stop immediately if nothing to do

@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { isSourceNode } from "@/language/core/const";
 import { makePath } from "@/language/core/path";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
-import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/runtime/run";
+import { RUN_PROPERTY_BY_FIELD_TYPE } from "@/language/runtime/process";
 import {
   BenchType,
   FieldType,

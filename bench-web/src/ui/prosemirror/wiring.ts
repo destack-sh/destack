@@ -1,6 +1,6 @@
 import { ReadNodeGraph } from "@/language/core/graph";
 import { emptyTextLine } from "@/language/core/text";
-import { newChangeId, Transaction } from "@/language/runtime/transaction";
+import { newChangeId, Transaction } from "@/language/core/transaction";
 import { createBlock } from "@/language/source/block";
 import {
   BlockData,

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { cloneNode } from "@/language/core/node";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { NodeType, NodeTypeOptionInfo, Orientation, RectangleData, ViewData, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, spaceGraph } from "@/system/space";

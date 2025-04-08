@@ -4,7 +4,7 @@ import { ChoiceData } from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName } from "@/language/core/node";
-import { Transaction } from "@/language/runtime/transaction";
+import { Transaction } from "@/language/core/transaction";
 
 /** Create a Choice. */
 export function createChoice(

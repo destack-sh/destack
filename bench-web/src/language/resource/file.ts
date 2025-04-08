@@ -1,6 +1,6 @@
 import { toCamelName } from "@/language/core/const";
 import { makeNode } from "@/language/core/node";
-import { type Transaction } from "@/language/runtime/transaction";
+import { type Transaction } from "@/language/core/transaction";
 import { getCachedHostClient } from "@/proto/services";
 import {
   BenchData,

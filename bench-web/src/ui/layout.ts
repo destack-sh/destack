@@ -1,4 +1,4 @@
-import type { Transaction } from "@/language/runtime/transaction";
+import type { Transaction } from "@/language/core/transaction";
 import { ObjectType, Orientation, RectangleData, type ViewData } from "@/proto/wire";
 import { activeSelection } from "@/ui/drag";
 import { roundToDigits } from "@/utils/functools";

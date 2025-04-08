@@ -1,17 +1,18 @@
 <script lang="ts" setup>
-import { getBaseFromNode } from "@/language/core/const";
+import { getBaseFromNode, isRunnableNode } from "@/language/core/const";
 import { useSubnodeProperty } from "@/language/core/node";
-import { isRunnable, RunnableNode, VERB_BY_RUN_STATUS } from "@/language/runtime/run";
-import { getTransactionOptionsForType } from "@/language/runtime/transaction";
+import { VERB_BY_PROCESS_STATUS } from "@/language/runtime/process";
+import { getTransactionOptionsForType } from "@/language/core/transaction";
 import {
   ColorShade,
   FieldType,
   NodeType,
   RunData,
-  RunStatus,
-  RunStatusOptionInfo,
+  ProcessStatus,
+  ProcessStatusOptionInfo,
   ViewData,
   ViewType,
+  RunnableNodeData,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { CLEAR_RUN_COMMAND, getInputType, getOutputType, runtime } from "@/runtime/runtime";
@@ -42,7 +43,7 @@ const state = canvas.registerView(self, id);
 // node
 const nodePtr = computedValue(() => props.nodePtr);
 const node = benchGraph.getRef(nodePtr);
-const nodeIsRunnable = computed(() => isRunnable(node.value));
+const nodeIsRunnable = computed(() => isRunnableNode(node.value));
 
 // run is the focused run if it contains this runnable
 const run = computed(() => {
@@ -64,11 +65,13 @@ const resourcesPacked = useSubnodeProperty(
 // schema
 const fields = benchGraph.getChildrenRef(runBasePtr, NodeType.FIELD);
 const hasOutputs = computed(() => fields.value.some((f) => f.type == FieldType.OUTPUT));
-const inputType = computed(() => (runBase.value != null ? getInputType(runBase.value as RunnableNode) : undefined));
-const outputType = computed(() => (runBase.value != null ? getOutputType(runBase.value as RunnableNode) : undefined));
+const inputType = computed(() => (runBase.value != null ? getInputType(runBase.value as RunnableNodeData) : undefined));
+const outputType = computed(() =>
+  runBase.value != null ? getOutputType(runBase.value as RunnableNodeData) : undefined,
+);
 
 function start() {
-  if (node.value == null || !isRunnable(node.value)) return;
+  if (node.value == null || !isRunnableNode(node.value)) return;
   const run = runtime.start(node.value, {
     resourcesPacked: resourcesPacked.value as any,
     inputsPacked: inputsPacked.value as any,
@@ -113,12 +116,12 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
         }"
       >
         <IconInline
-          v-bind="makeIcon(RunStatusOptionInfo[run.status]!.icon!)"
+          v-bind="makeIcon(ProcessStatusOptionInfo[run.status]!.icon!)"
           :style="{ color: getRunColorHex(run.status, ColorShade.S400) }"
-          :class="[run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+          :class="[run.status == ProcessStatus.RUNNING ? 'animate-spin' : '']"
         />
         <div class="ml-1.5">
-          <span class="font-medium">This Run {{ VERB_BY_RUN_STATUS[run.status] }}.</span>
+          <span class="font-medium">This Run {{ VERB_BY_PROCESS_STATUS[run.status] }}.</span>
           <span v-if="run.startedAt" class="text-gray-700"> It started {{ formatAbsoluteDate(run.startedAt) }}.</span>
         </div>
         <div class="ml-auto">

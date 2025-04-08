@@ -11,8 +11,8 @@ from .const import (
     RESOURCE_NODE_TYPES,
     NodeMode,
     NodeType,
+    ProcessStatus,
     ReferenceKind,
-    RunStatus,
     StructType,
     bittuple,
 )
@@ -149,14 +149,15 @@ Runnable = Union["Flow", "Action", "Link"]
 RUNNABLE_NODE_TYPES = bittuple(NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
 
 
-Tracked = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run"]
-TRACKED_NODE_TYPES = bittuple(
+Processable = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run", "Span"]
+PROCESSABLE_NODE_TYPES = bittuple(
     NodeType.CHANNEL,
     NodeType.THREAD,
     NodeType.AGENT,
     NodeType.PLAN,
     NodeType.RUN,
     NodeType.TASK,
+    NodeType.SPAN,
 )
 
 FieldBaseNode = Union["Agent", "Flow", "Action", "Class", "Database"]
@@ -486,10 +487,10 @@ class IsRuntime(BuiltinObject):
 
 
 @object_()
-class IsTracked(IsRuntime):
-    """A Node that can be tracked somehow."""
+class IsProcessable(IsRuntime):
+    """A Node that can be processed somehow."""
 
-    status: RunStatus = p_internal(80, default=RunStatus.CREATED)
+    status: ProcessStatus = p_internal(80, default=ProcessStatus.CREATED)
     duration: Optional[timedelta] = p_internal(
         81,
         default=None,

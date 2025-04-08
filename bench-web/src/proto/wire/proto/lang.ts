@@ -1891,9 +1891,9 @@ export interface ChannelData {
      */
     mainPlanPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
@@ -2387,9 +2387,9 @@ export interface ThreadData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
@@ -3911,9 +3911,9 @@ export interface AgentData {
      */
     color?: ColorType;
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
@@ -4497,9 +4497,9 @@ export interface PlanData {
      */
     implementedByPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
@@ -4690,9 +4690,9 @@ export interface TaskData {
      */
     nodesPtr: NodeReferenceData[];
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
@@ -5121,9 +5121,9 @@ export interface RunData {
      */
     runTaskPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
@@ -5399,33 +5399,49 @@ export interface SpanData {
      */
     runTaskPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.RunStatus status = 80;
+     * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
-    status: RunStatus;
+    status: ProcessStatus;
     /**
      * @generated from protobuf field: optional google.protobuf.Duration duration = 81;
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 82;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
      */
     startedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 83;
+     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
      */
-    terminatedAt?: Timestamp;
+    stoppedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 84;
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
      */
     interruptedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 85;
+     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
      */
-    interruptionPtr?: NodeReferenceData;
+    pausedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 86;
+     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
+     */
+    resumedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
      */
     error?: ErrorData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     */
+    interruptionPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
      */
@@ -7813,9 +7829,9 @@ export enum EnumType {
      */
     SELECTION_TYPE = 21265,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 22000;
+     * @generated from protobuf enum value: ENUM_TYPE_PROCESS_STATUS = 22000;
      */
-    RUN_STATUS = 22000,
+    PROCESS_STATUS = 22000,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_RUN_TYPE = 22001;
      */
@@ -9513,9 +9529,9 @@ export enum BenchType {
      */
     SELECTION_TYPE = 21265,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 22000;
+     * @generated from protobuf enum value: BENCH_TYPE_PROCESS_STATUS = 22000;
      */
-    RUN_STATUS = 22000,
+    PROCESS_STATUS = 22000,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_TYPE = 22001;
      */
@@ -12104,63 +12120,63 @@ export enum SelectionType {
     COMBINATION = 10
 }
 /**
- * @generated from protobuf enum symbolx.bench.RunStatus
+ * @generated from protobuf enum symbolx.bench.ProcessStatus
  */
-export enum RunStatus {
+export enum ProcessStatus {
     /**
-     * @generated from protobuf enum value: RUN_STATUS_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: PROCESS_STATUS_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_CREATED = 1;
+     * @generated from protobuf enum value: PROCESS_STATUS_CREATED = 1;
      */
     CREATED = 1,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_ASSIGNED = 2;
+     * @generated from protobuf enum value: PROCESS_STATUS_ASSIGNED = 2;
      */
     ASSIGNED = 2,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_SCHEDULED = 4;
+     * @generated from protobuf enum value: PROCESS_STATUS_SCHEDULED = 4;
      */
     SCHEDULED = 4,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_QUEUED = 5;
+     * @generated from protobuf enum value: PROCESS_STATUS_QUEUED = 5;
      */
     QUEUED = 5,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_RUNNING = 10;
+     * @generated from protobuf enum value: PROCESS_STATUS_RUNNING = 10;
      */
     RUNNING = 10,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_PAUSED = 20;
+     * @generated from protobuf enum value: PROCESS_STATUS_PAUSED = 20;
      */
     PAUSED = 20,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_YIELDED = 21;
+     * @generated from protobuf enum value: PROCESS_STATUS_YIELDED = 21;
      */
     YIELDED = 21,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_WAITING = 22;
+     * @generated from protobuf enum value: PROCESS_STATUS_WAITING = 22;
      */
     WAITING = 22,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_CANCELLED = 30;
+     * @generated from protobuf enum value: PROCESS_STATUS_CANCELLED = 30;
      */
     CANCELLED = 30,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_ABORTED = 31;
+     * @generated from protobuf enum value: PROCESS_STATUS_ABORTED = 31;
      */
     ABORTED = 31,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_FAILED = 32;
+     * @generated from protobuf enum value: PROCESS_STATUS_FAILED = 32;
      */
     FAILED = 32,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 33;
+     * @generated from protobuf enum value: PROCESS_STATUS_COMPLETED = 33;
      */
     COMPLETED = 33,
     /**
-     * @generated from protobuf enum value: RUN_STATUS_SKIPPED = 34;
+     * @generated from protobuf enum value: PROCESS_STATUS_SKIPPED = 34;
      */
     SKIPPED = 34
 }
@@ -19321,7 +19337,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "main_page_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "main_plan_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
@@ -19418,7 +19434,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
                 case /* optional symbolx.bench.NodeReferenceData main_plan_ptr */ 61:
                     message.mainPlanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainPlanPtr);
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
@@ -19541,7 +19557,7 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         /* optional symbolx.bench.NodeReferenceData main_plan_ptr = 61; */
         if (message.mainPlanPtr)
             NodeReferenceData.internalBinaryWrite(message.mainPlanPtr, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
@@ -20307,7 +20323,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 60, name: "main_page_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "main_plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 65, name: "text", kind: "message", T: () => TextData },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
@@ -20416,7 +20432,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                 case /* optional symbolx.bench.TextData text */ 65:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
@@ -20551,7 +20567,7 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional symbolx.bench.TextData text = 65; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
@@ -23397,7 +23413,7 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 56, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 57, name: "text", kind: "message", T: () => TextData },
             { no: 58, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
@@ -23518,7 +23534,7 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional symbolx.bench.ColorType color */ 58:
                     message.color = reader.int32();
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
@@ -23665,7 +23681,7 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.ColorType color = 58; */
         if (message.color !== undefined)
             writer.tag(58, WireType.Varint).int32(message.color);
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
@@ -24665,7 +24681,7 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 43, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
@@ -24769,7 +24785,7 @@ class PlanData$Type extends MessageType$<PlanData> {
                 case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 43:
                     message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
@@ -24898,7 +24914,7 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 43; */
         if (message.implementedByPtr)
             NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
@@ -24991,7 +25007,7 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 70, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "value_packed", kind: "message", T: () => Value },
             { no: 72, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
@@ -25121,7 +25137,7 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 72:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
@@ -25274,7 +25290,7 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 72; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(72, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
@@ -25848,7 +25864,7 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 77, name: "manual_task_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 78, name: "run_plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 79, name: "run_task_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
             { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
@@ -25978,7 +25994,7 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData run_task_ptr */ 79:
                     message.runTaskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runTaskPtr);
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
@@ -26134,7 +26150,7 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData run_task_ptr = 79; */
         if (message.runTaskPtr)
             NodeReferenceData.internalBinaryWrite(message.runTaskPtr, writer.tag(79, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
@@ -26416,13 +26432,17 @@ class SpanData$Type extends MessageType$<SpanData> {
             { no: 77, name: "manual_task_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 78, name: "run_plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 79, name: "run_task_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
+            { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 86, name: "error", kind: "message", T: () => ErrorData },
+            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
+            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "error", kind: "message", T: () => ErrorData },
+            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
@@ -26538,26 +26558,38 @@ class SpanData$Type extends MessageType$<SpanData> {
                 case /* optional symbolx.bench.NodeReferenceData run_task_ptr */ 79:
                     message.runTaskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runTaskPtr);
                     break;
-                case /* symbolx.bench.RunStatus status */ 80:
+                case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
                     break;
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp started_at */ 82:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 83:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
                     break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 83:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                case /* optional google.protobuf.Timestamp stopped_at */ 84:
+                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
                     break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 84:
+                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
                     message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 85:
-                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
+                case /* optional google.protobuf.Timestamp paused_at */ 86:
+                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
                     break;
-                case /* optional symbolx.bench.ErrorData error */ 86:
+                case /* optional google.protobuf.Timestamp resumed_at */ 87:
+                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 88:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional symbolx.bench.ErrorData error */ 89:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
@@ -26676,27 +26708,39 @@ class SpanData$Type extends MessageType$<SpanData> {
         /* optional symbolx.bench.NodeReferenceData run_task_ptr = 79; */
         if (message.runTaskPtr)
             NodeReferenceData.internalBinaryWrite(message.runTaskPtr, writer.tag(79, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunStatus status = 80; */
+        /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 82; */
+        /* optional google.protobuf.Timestamp scheduled_at = 82; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 83; */
         if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 83; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 84; */
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp stopped_at = 84; */
+        if (message.stoppedAt)
+            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 85; */
         if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 85; */
-        if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 86; */
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp paused_at = 86; */
+        if (message.pausedAt)
+            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp resumed_at = 87; */
+        if (message.resumedAt)
+            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 88; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ErrorData error = 89; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+        if (message.interruptionPtr)
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
         if (message.sessionPtr)
             NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
@@ -31359,16 +31403,18 @@ export type AnyStructData = ContextData | EditContextData | EditData | EditOpera
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof ComputerData | typeof ApplicationData | typeof FileData | typeof StreamData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof LinkData | typeof TriggerData | typeof KitData | typeof DatabaseData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TeamData | typeof MembershipData | typeof InviteData | typeof RoleData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof ClaimData | typeof ViewData | typeof SpaceData | typeof RecordData | typeof SkipData | typeof EmptyData
 export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof PathData | typeof PathElementData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ValueData | typeof ComputedValueData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | ViewData | SpaceData | RecordData
-export type ResourceNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData
-export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | DatabaseData
-export type InlineNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PageData | ChoiceData | ClassData | TagData | FlowData | KitData | DatabaseData | ChannelData | ThreadData | TeamData | RoleData | AgentData | PlanData | TaskData | ViewData
-export type TypeBaseNodeData = ChoiceData | ClassData | FlowData | ActionData | DatabaseData | AgentData
-export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData | AgentData
-export type SubjectNodeData = UserData | OrganizationData | ComputerData | AgentData
-export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 export type ClaimableNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PageData | FlowData | ActionData | KitData | DatabaseData | AgentData | PlanData | TaskData | ViewData | RecordData
+export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData | AgentData
+export type InlineNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PageData | ChoiceData | ClassData | TagData | FlowData | KitData | DatabaseData | ChannelData | ThreadData | TeamData | RoleData | AgentData | PlanData | TaskData | ViewData
+export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 export type OwnableNodeData = BenchData | ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PackageData | PageData | FlowData | KitData | DatabaseData | ThreadData | AgentData | PlanData | TaskData | ClaimData | ViewData | SpaceData | RecordData
-export type TrackedNodeData = ChannelData | ThreadData | AgentData | RunData | PlanData | TaskData
+export type ProcessableNodeData = ChannelData | ThreadData | AgentData | RunData | SpanData | PlanData | TaskData
+export type ResourceNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData
+export type RunnableNodeData = FlowData | ActionData | LinkData
+export type SourceNodeData = PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | LinkData | TriggerData | KitData | DatabaseData
+export type SubjectNodeData = UserData | OrganizationData | ComputerData | AgentData
+export type TypeBaseNodeData = ChoiceData | ClassData | FlowData | ActionData | DatabaseData | AgentData
+
 // Node types
 export const BASED_NODE_TYPES: NodeType[] = [
   NodeType.RECORD,
@@ -31491,10 +31537,6 @@ export const LOCAL_NODE_TYPES: NodeType[] = [
   NodeType.SKIP,
   NodeType.EMPTY,
 ];
-export const PACKAGE_NODE_TYPES: NodeType[] = [
-  NodeType.SKIP,
-  NodeType.EMPTY,
-];
 export const PUBLIC_NODE_TYPES: NodeType[] = [
   NodeType.USER,
   NodeType.ORGANIZATION,
@@ -31561,6 +31603,11 @@ export const RUNTIME_NODE_TYPES: NodeType[] = [
   NodeType.SPAN,
   NodeType.INTERRUPTION,
   NodeType.LOG,
+];
+export const RUNNABLE_NODE_TYPES: NodeType[] = [
+  NodeType.FLOW,
+  NodeType.ACTION,
+  NodeType.LINK,
 ];
 export const SOURCE_NODE_TYPES: NodeType[] = [
   NodeType.PACKAGE,
@@ -31631,13 +31678,18 @@ export const OWNABLE_NODE_TYPES: NodeType[] = [
   NodeType.AGENT,
   NodeType.RECORD,
 ];
-export const TRACKED_NODE_TYPES: NodeType[] = [
+export const PACKAGE_NODE_TYPES: NodeType[] = [
+  NodeType.SKIP,
+  NodeType.EMPTY,
+];
+export const PROCESSABLE_NODE_TYPES: NodeType[] = [
   NodeType.CHANNEL,
   NodeType.THREAD,
   NodeType.AGENT,
   NodeType.PLAN,
   NodeType.RUN,
   NodeType.TASK,
+  NodeType.SPAN,
 ];
 export const TEMPLATABLE_NODE_TYPES: NodeType[] = [
   NodeType.PACKAGE,
@@ -31695,6 +31747,14 @@ export const TIMED_NODE_TYPES: NodeType[] = [
   NodeType.LOG,
   NodeType.RUN,
   NodeType.SPAN,
+];
+export const TYPE_BASE_NODE_TYPES: NodeType[] = [
+  NodeType.AGENT,
+  NodeType.FLOW,
+  NodeType.ACTION,
+  NodeType.CLASS,
+  NodeType.DATABASE,
+  NodeType.CHOICE,
 ];
 export const USER_NODE_TYPES: NodeType[] = [
   NodeType.USER,
@@ -32182,7 +32242,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.PATH_ELEMENT_TYPE]: PathElementType,
   [EnumType.PATH_RUN_SELECTOR]: PathRunSelector,
   [EnumType.SELECTION_TYPE]: SelectionType,
-  [EnumType.RUN_STATUS]: RunStatus,
+  [EnumType.PROCESS_STATUS]: ProcessStatus,
   [EnumType.RUN_TYPE]: RunType,
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.PLAN_TYPE]: PlanType,
@@ -32532,7 +32592,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.PATH_ELEMENT_TYPE]: PathElementType,
   [EnumType.PATH_RUN_SELECTOR]: PathRunSelector,
   [EnumType.SELECTION_TYPE]: SelectionType,
-  [EnumType.RUN_STATUS]: RunStatus,
+  [EnumType.PROCESS_STATUS]: ProcessStatus,
   [EnumType.RUN_TYPE]: RunType,
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.PLAN_TYPE]: PlanType,
@@ -33703,11 +33763,15 @@ export enum SpanProperty {
   runTaskPtr = 79,
   status = 80,
   duration = 81,
-  startedAt = 82,
-  terminatedAt = 83,
-  interruptedAt = 84,
-  interruptionPtr = 85,
-  error = 86,
+  scheduledAt = 82,
+  startedAt = 83,
+  stoppedAt = 84,
+  interruptedAt = 85,
+  pausedAt = 86,
+  resumedAt = 87,
+  terminatedAt = 88,
+  error = 89,
+  interruptionPtr = 90,
   sessionPtr = 91,
   clientPtr = 93,
   computerPtr = 94,
@@ -35634,7 +35698,7 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.mainPagePtr]: { id: 60, name: 'main_page_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.mainPlanPtr]: { id: 61, name: 'main_plan_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.status]: { id: 80, name: 'status', component: ObjectType.CHANNEL, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.status]: { id: 80, name: 'status', component: ObjectType.CHANNEL, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.duration]: { id: 81, name: 'duration', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35677,7 +35741,7 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.mainPagePtr]: { id: 60, name: 'main_page_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.mainPlanPtr]: { id: 61, name: 'main_plan_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.text]: { id: 65, name: 'text', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ThreadProperty.status]: { id: 80, name: 'status', component: ObjectType.THREAD, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.status]: { id: 80, name: 'status', component: ObjectType.THREAD, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.duration]: { id: 81, name: 'duration', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35861,7 +35925,7 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.implementedByPtr]: { id: 56, name: 'implemented_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.text]: { id: 57, name: 'text', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [AgentProperty.color]: { id: 58, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35934,7 +35998,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.manualTaskPtr]: { id: 77, name: 'manual_task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.runPlanPtr]: { id: 78, name: 'run_plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.runTaskPtr]: { id: 79, name: 'run_task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.status]: { id: 80, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.status]: { id: 80, name: 'status', component: ObjectType.RUN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 81, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35982,13 +36046,17 @@ export const SpanDataInfo: Record<SpanProperty, PropertyInfo> = {
   [SpanProperty.manualTaskPtr]: { id: 77, name: 'manual_task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.runPlanPtr]: { id: 78, name: 'run_plan_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.runTaskPtr]: { id: 79, name: 'run_task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.status]: { id: 80, name: 'status', component: ObjectType.SPAN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 4, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.startedAt]: { id: 82, name: 'started_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.terminatedAt]: { id: 83, name: 'terminated_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.interruptedAt]: { id: 84, name: 'interrupted_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.interruptionPtr]: { id: 85, name: 'interruption_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.error]: { id: 86, name: 'error', component: ObjectType.SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [SpanProperty.status]: { id: 80, name: 'status', component: ObjectType.SPAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.error]: { id: 89, name: 'error', component: ObjectType.SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [SpanProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
@@ -36079,7 +36147,7 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PlanProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.implementedByPtr]: { id: 43, name: 'implemented_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36128,7 +36196,7 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.clazzPtr]: { id: 70, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.valuePacked]: { id: 71, name: 'value_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TaskProperty.nodesPtr]: { id: 72, name: 'nodes_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.duration]: { id: 81, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -37219,20 +37287,20 @@ export const PathElementTypeOptionInfo: Partial<Record<PathElementType, EnumOpti
   [PathElementType.RUN]: { id: 31, name: 'RUN', title: 'A Run of the Node' },
 }
 
-export const RunStatusOptionInfo: Partial<Record<RunStatus, EnumOptionInfo>> = {
-  [RunStatus.CREATED]: { id: 1, name: 'CREATED', text: 'Created but not yet assigned', title: 'Created', color: ColorType.GRAY, icon: 'fas fa-clock' },
-  [RunStatus.ASSIGNED]: { id: 2, name: 'ASSIGNED', text: 'Assigned to someone', title: 'Assigned', color: ColorType.GRAY, icon: 'fas fa-clock' },
-  [RunStatus.SCHEDULED]: { id: 4, name: 'SCHEDULED', text: 'Scheduled for sometime', title: 'Scheduled', color: ColorType.GRAY, icon: 'fas fa-clock' },
-  [RunStatus.QUEUED]: { id: 5, name: 'QUEUED', text: 'Queued to happen soon', title: 'Queued', color: ColorType.GRAY, icon: 'fas fa-hourglass' },
-  [RunStatus.RUNNING]: { id: 10, name: 'RUNNING', text: 'Actively running', title: 'Running', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
-  [RunStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused manually', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
-  [RunStatus.YIELDED]: { id: 21, name: 'YIELDED', text: 'Yielded to someone', title: 'Yielded', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
-  [RunStatus.WAITING]: { id: 22, name: 'WAITING', text: 'Waiting for a condition', title: 'Waiting', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
-  [RunStatus.CANCELLED]: { id: 30, name: 'CANCELLED', text: 'Cancelled manually', title: 'Cancelled', color: ColorType.GRAY, icon: 'fas fa-circle-xmark' },
-  [RunStatus.ABORTED]: { id: 31, name: 'ABORTED', text: 'Aborted due to an error', title: 'Aborted', color: ColorType.GRAY, icon: 'fas fa-skull' },
-  [RunStatus.FAILED]: { id: 32, name: 'FAILED', text: 'Failed due to an error', title: 'Failed', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
-  [RunStatus.COMPLETED]: { id: 33, name: 'COMPLETED', text: 'Completed successfully', title: 'Completed', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
-  [RunStatus.SKIPPED]: { id: 34, name: 'SKIPPED', text: 'Skipped due to a condition', title: 'Skipped', color: ColorType.GRAY, icon: 'fas fa-circle-exclamation' },
+export const ProcessStatusOptionInfo: Partial<Record<ProcessStatus, EnumOptionInfo>> = {
+  [ProcessStatus.CREATED]: { id: 1, name: 'CREATED', text: 'Created but not yet assigned', title: 'Created', color: ColorType.GRAY, icon: 'fas fa-clock' },
+  [ProcessStatus.ASSIGNED]: { id: 2, name: 'ASSIGNED', text: 'Assigned to someone', title: 'Assigned', color: ColorType.GRAY, icon: 'fas fa-clock' },
+  [ProcessStatus.SCHEDULED]: { id: 4, name: 'SCHEDULED', text: 'Scheduled for sometime', title: 'Scheduled', color: ColorType.GRAY, icon: 'fas fa-clock' },
+  [ProcessStatus.QUEUED]: { id: 5, name: 'QUEUED', text: 'Queued to happen soon', title: 'Queued', color: ColorType.GRAY, icon: 'fas fa-hourglass' },
+  [ProcessStatus.RUNNING]: { id: 10, name: 'RUNNING', text: 'Actively running', title: 'Running', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
+  [ProcessStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused manually', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
+  [ProcessStatus.YIELDED]: { id: 21, name: 'YIELDED', text: 'Yielded to someone', title: 'Yielded', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
+  [ProcessStatus.WAITING]: { id: 22, name: 'WAITING', text: 'Waiting for a condition', title: 'Waiting', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
+  [ProcessStatus.CANCELLED]: { id: 30, name: 'CANCELLED', text: 'Cancelled manually', title: 'Cancelled', color: ColorType.GRAY, icon: 'fas fa-circle-xmark' },
+  [ProcessStatus.ABORTED]: { id: 31, name: 'ABORTED', text: 'Aborted due to an error', title: 'Aborted', color: ColorType.GRAY, icon: 'fas fa-skull' },
+  [ProcessStatus.FAILED]: { id: 32, name: 'FAILED', text: 'Failed due to an error', title: 'Failed', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
+  [ProcessStatus.COMPLETED]: { id: 33, name: 'COMPLETED', text: 'Completed successfully', title: 'Completed', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
+  [ProcessStatus.SKIPPED]: { id: 34, name: 'SKIPPED', text: 'Skipped due to a condition', title: 'Skipped', color: ColorType.GRAY, icon: 'fas fa-circle-exclamation' },
 }
 
 export const SpanTypeOptionInfo: Partial<Record<SpanType, EnumOptionInfo>> = {
@@ -37454,7 +37522,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.TEXT_LINE_TYPE]: TextLineTypeOptionInfo,
   [EnumType.TEXT_SPAN_TYPE]: TextSpanTypeOptionInfo,
   [EnumType.PATH_ELEMENT_TYPE]: PathElementTypeOptionInfo,
-  [EnumType.RUN_STATUS]: RunStatusOptionInfo,
+  [EnumType.PROCESS_STATUS]: ProcessStatusOptionInfo,
   [EnumType.SPAN_TYPE]: SpanTypeOptionInfo,
   [EnumType.PLAN_TYPE]: PlanTypeOptionInfo,
   [EnumType.TASK_TYPE]: TaskTypeOptionInfo,

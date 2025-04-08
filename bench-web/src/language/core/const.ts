@@ -14,23 +14,28 @@ import {
   NodeType,
   ObjectType,
   PrimitiveType,
+  PROCESSABLE_NODE_TYPES,
+  ProcessableNodeData,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
   PropertyReferenceData,
   Region,
   RESOURCE_NODE_TYPES,
   ResourceNodeData,
-  RunStatus,
+  ProcessStatus,
   SOURCE_NODE_TYPES,
   SourceNodeData,
   StructType,
   SUBJECT_NODE_TYPES,
   SubjectNodeData,
+  TYPE_BASE_NODE_TYPES,
   TypeBaseNodeData,
   ViewDataInfo,
   ViewProperty,
   ViewType,
   type AnyNodeData,
+  RunnableNodeData,
+  RUNNABLE_NODE_TYPES,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -82,6 +87,14 @@ export function isJoinableNodeType(nodeType: NodeType): boolean {
   return JOINABLE_NODE_TYPES.includes(nodeType);
 }
 
+export function isProcessableNodeType(nodeType: NodeType): boolean {
+  return PROCESSABLE_NODE_TYPES.includes(nodeType);
+}
+
+export function isRunnableNodeType(nodeType: NodeType): boolean {
+  return RUNNABLE_NODE_TYPES.includes(nodeType);
+}
+
 export function isSourceNode(node: any): node is SourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSourceNodeType(node.metatype as unknown as NodeType);
@@ -107,12 +120,14 @@ export function isTypeBaseNode(node: any): node is TypeBaseNodeData {
   else return isTypeBaseNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isStateNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 5500 && nodeType < 6000;
+export function isProcessableNode(node: any): node is ProcessableNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isProcessableNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isRuntimeNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 6000 && nodeType < 6500;
+export function isRunnableNode(node: any): node is RunnableNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isRunnableNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isResourceNodeType(nodeType: any): boolean {
@@ -192,9 +207,7 @@ export const LOADED_PACKAGE_NODE_TYPES = [
   NodeType.VIEW,
 ];
 
-export const RUNNABLE_NODE_TYPES = [NodeType.FLOW, NodeType.ACTION, NodeType.LINK];
 export const TYPE_NODE_TYPES = [NodeType.AGENT, NodeType.CLASS, NodeType.CHOICE, NodeType.DATABASE];
-export const TYPE_BASE_NODE_TYPES = [...RUNNABLE_NODE_TYPES, ...TYPE_NODE_TYPES];
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
@@ -208,16 +221,16 @@ export const SOURCE_ACTION_TYPES = [ActionType.START];
 export const SINK_ACTION_TYPES = [ActionType.END];
 
 // run
-export const TERMINAL_RUN_STATUSES = [
-  RunStatus.CANCELLED,
-  RunStatus.ABORTED,
-  RunStatus.FAILED,
-  RunStatus.COMPLETED,
-  RunStatus.SKIPPED,
+export const TERMINAL_PROCESS_STATUSES = [
+  ProcessStatus.CANCELLED,
+  ProcessStatus.ABORTED,
+  ProcessStatus.FAILED,
+  ProcessStatus.COMPLETED,
+  ProcessStatus.SKIPPED,
 ];
-export const INTERRUPTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.YIELDED, RunStatus.WAITING];
-export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, ...INTERRUPTED_RUN_STATUSES];
-export const BAD_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED];
+export const INTERRUPTED_PROCESS_STATUSES = [ProcessStatus.PAUSED, ProcessStatus.YIELDED, ProcessStatus.WAITING];
+export const ACTIVE_PROCESS_STATUSES = [ProcessStatus.RUNNING, ProcessStatus.PAUSED, ...INTERRUPTED_PROCESS_STATUSES];
+export const BAD_PROCESS_STATUSES = [ProcessStatus.CANCELLED, ProcessStatus.ABORTED, ProcessStatus.FAILED];
 
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];

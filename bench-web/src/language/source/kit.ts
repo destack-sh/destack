@@ -1,6 +1,6 @@
 import { ReadNodeGraph } from "@/language/core/graph";
 import { generateNodeName } from "@/language/core/node";
-import { Transaction } from "@/language/runtime/transaction";
+import { Transaction } from "@/language/core/transaction";
 import { KitData, NodeType, ObjectType } from "@/proto/wire";
 
 /** Create an Kit. */

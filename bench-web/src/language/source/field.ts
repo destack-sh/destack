@@ -1,9 +1,9 @@
-import { isInlineNode, RUNNABLE_NODE_TYPES, TYPE_NODE_TYPES } from "@/language/core/const";
+import { isInlineNode, TYPE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { cloneNode, moveNode } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
 import { getTypeName, nodeToType, TypeIdentity } from "@/language/core/type";
-import { newChangeId, type Transaction } from "@/language/runtime/transaction";
+import { newChangeId, type Transaction } from "@/language/core/transaction";
 import {
   ActionData,
   BenchType,
@@ -12,6 +12,7 @@ import {
   InlineNodeData,
   NodeReferenceData,
   NodeType,
+  RUNNABLE_NODE_TYPES,
   TypeKind,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";

@@ -4,7 +4,7 @@ import { EditSubject, makeAndConditional, makeExpression } from "@/language/core
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
-import { newChangeId } from "@/language/runtime/transaction";
+import { newChangeId } from "@/language/core/transaction";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
@@ -55,6 +55,7 @@ const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MESSAGE_HEIGHT_MIN = 28;
 const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 52;
+const GUTTER_WIDTH = 30;
 
 const props = defineProps<
   {
@@ -593,7 +594,8 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               v-for="i in LOADING_SKELETON_COUNT"
               ref="topPlaceholderRef"
               :key="i"
-              class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
+              class="mb-2 mt-3 flex animate-pulse flex-row"
+              :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
             >
               <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
                 <div class="h-8 w-8 rounded-full bg-gray-100"></div>
@@ -607,11 +609,11 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </Transition>
 
         <!-- Empty Chat -->
-        <div v-if="!isEnabled && messageViews.length == 0" class="mx-5">
+        <div v-if="!isEnabled && messageViews.length == 0" class="mx-[60px]">
           <slot name="empty" :node="node" />
         </div>
         <!-- Beginning of Chat -->
-        <div v-else-if="isAtStart && $slots.beginning != null" class="mx-5 mb-2">
+        <div v-else-if="isAtStart && $slots.beginning != null" class="mx-[60px] mb-2">
           <slot name="beginning" :node="node" />
         </div>
 
@@ -636,8 +638,9 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           } in messageViews"
           v-if="node != null"
           :key="message.id"
-          class="group/message mx-5 max-w-full"
+          class="group/message max-w-full"
           :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
+          :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
           :data-node-type="message.metatype"
           :data-node-id="message.id"
           :data-node-ck="(message as any).ck"
@@ -835,7 +838,11 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     </Scroll>
 
     <!-- Input -->
-    <div ref="inputContainerRef" class="mx-5" @mousedown="inputRef?.focus?.('right')">
+    <div
+      ref="inputContainerRef"
+      :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
+      @mousedown="inputRef?.focus?.('right')"
+    >
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -955,8 +962,8 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           </div>
         </div>
       </div>
-      <!-- Spacing -->
-      <div class="h-2" />
+      <!-- Active -->
+      <div class="h-[12px]" />
     </div>
   </div>
 </template>

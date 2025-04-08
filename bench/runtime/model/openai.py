@@ -20,7 +20,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import Prompt, compile_prompt
+from .prompt import LOG_PROMPTS, Prompt, compile_prompt, log_prompt
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -54,6 +54,8 @@ class OpenAIChatModelRunner(ChatModelRunner):
         tokenizer = TiktokenTokenizer()
         max_tokens = 16_384
         pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
+        if LOG_PROMPTS:
+            log_prompt(prompt, pieces)
 
         # download media
         files_to_download = [
@@ -103,14 +105,6 @@ class OpenAIChatModelRunner(ChatModelRunner):
                 raise IncapableError(f"unexpected piece {piece!r}")
 
         _flush_text()
-
-        # nocheckin: remove? print?
-        # print messages
-        for message in content:
-            if message["type"] == "text":
-                print(message["text"])
-            elif message["type"] == "image_url":
-                print(message["image_url"]["url"][:200])
 
         # generate
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
