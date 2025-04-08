@@ -740,6 +740,12 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 break
         else:
             return
+        if ptr.node_type == NodeType.BENCH:
+            ptr.bench_id = ptr.id
+        elif node.metatype == NodeType.BENCH:
+            ptr.bench_id = node.id
+        elif (bench_id := row.get("bench_id")) is not None:
+            ptr.bench_id = str(bench_id)  # type: ignore
 
         # additional pointer metadata
         for meta_type, meta_prop in prop.reference_stored_metas.items():
@@ -756,12 +762,6 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             setattr(ptr, meta_key, extra_value)
         if not ptr.ck:
             ptr.ck = ptr.id
-        if ptr.node_type == NodeType.BENCH:
-            ptr.bench_id = ptr.id
-        elif node.metatype == NodeType.BENCH:
-            ptr.bench_id = node.id
-        elif (bench_id := row.get("bench_id")) is not None:
-            ptr.bench_id = str(bench_id)  # type: ignore
         getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
 
 
@@ -835,7 +835,7 @@ def _pg_unpack_node_data_row(
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
         obj_data = cast(
             AnyNodeData, proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype))
-        )  # type: ignore
+        )
 
         # wired properties
         for name, prop in node_cls.__wired_properties__.items():

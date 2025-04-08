@@ -47,7 +47,7 @@ export function createThread(
 
     // instance agents
     if (isNode(memberNode, NodeType.AGENT) && memberNode.templatePtr == null) {
-      memberNode = instanceNode(tx, graph, memberNode);
+      memberNode = instanceNode(tx, graph, memberNode); 
     }
 
     // membership
