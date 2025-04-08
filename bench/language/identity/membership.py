@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, override
 from uuid import UUID
 
 from bench.language.core import (
@@ -37,6 +37,13 @@ class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
     if TYPE_CHECKING:
         member_ptr: NodeReference | None = None
         member_id: UUID | None = None
+
+    @override
+    def __content_str__(self) -> str:
+        if (member := self.member) is not None:
+            return f"{member.absolute_path}"
+        else:
+            return f"{self.member_ptr}"
 
     @staticmethod
     def new(member: Subject, parent: Joinable | None = None, **kwargs) -> "Membership":

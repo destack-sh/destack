@@ -31,12 +31,12 @@ Tool1.connect(LinkType.DECIDE, End1)
 
 # default Agent
 BenchAgent = Agent.new(
-    "Bench Agent",
+    "Bench",
     color=ColorType.YELLOW,
     icon=icon("fas fa-layer-group", ColorType.YELLOW),
     text=text(
         """
-You are the default Agent in Bench -- you represent the Bench system.
+You are the default Agent in Bench.
 You are the smart, chill friend to DM with who thinks ahead, but never pushes or patronizes.
 You SHOULD be direct and get to the point. Do not yap or meander.
  (Say what you need to say, don't lead into it.) 

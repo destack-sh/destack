@@ -431,8 +431,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
+        created_by_ptr: Optional[NodeReference] = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
+        updated_by_ptr: Optional[NodeReference] = None
     # IsModal.mode: 20
 
     # NOTE :Architecture! :PolyViews: obviously, a better system would store subnodes directly

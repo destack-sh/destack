@@ -175,16 +175,7 @@ defineExpose<ViewExpose>({ self });
         </div>
         <List
           id="threads"
-          :subnode-packed="
-            packSubnode(NodeType.VIEW, ViewType.LIST, {
-              queryNodeType: NodeType.THREAD,
-              filter: makeExpression({
-                type: ExpressionType.IN,
-                propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.status),
-                value: [ThreadStatus.OPEN],
-              }),
-            })
-          "
+          :subnode-packed="packSubnode(NodeType.VIEW, ViewType.LIST, { queryNodeType: NodeType.THREAD })"
         />
       </div>
 

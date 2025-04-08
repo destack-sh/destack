@@ -54,6 +54,7 @@ from bench.language.core import (
     text_line_to_markdown,
     text_to_markdown,
 )
+from bench.language.core.const import ReferenceKind
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -112,14 +113,18 @@ class Aliasing:
 
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
-        if isinstance(obj, Node) and (code_name := getattr(obj, "code_name", None)):
-            # proper given name
-            alias = code_name
-            if not regex.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
-                alias = f"{obj.metatype.bench_name}_{alias}"
-            has_given_name = True
+        if isinstance(obj, Node):
+            if code_name := getattr(obj, "code_name", None):
+                # proper given name (should be valid python identifier)
+                alias = code_name
+                if not regex.match(r"^[a-zA-Z_]\w+$", alias):
+                    alias = f"{obj.metatype.bench_name}_{alias}"
+                has_given_name = True
+            else:
+                alias = obj.metatype.bench_name
+                has_given_name = False
         else:
-            alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
+            alias = obj.node_type.bench_name
             has_given_name = False
         if (
             alias in self._node_by_alias
@@ -134,7 +139,7 @@ class Aliasing:
                 count = 1
             else:
                 count = int(count.group())
-            while alias in self._node_by_alias or alias in CODE_GLOBALS:
+            while alias in self._node_by_alias or alias in CODE_GLOBALS or alias in PYTHON_KEYWORDS:
                 count += 1
                 alias = regex.sub(r"\d+$", str(count + 1), alias)
         self._alias_by_node_id[cast(UUID, obj.id)] = alias
@@ -390,32 +395,35 @@ class Renderer:
                 return f"{parent_alias}.{parent_child_prop.name}"
         return None
 
-    def render_statement(self, *nodes: Node, format: bool = False) -> str:
+    def render_statement(self, *nodes: Node, append: bool = True, format: bool = False) -> str:
         """Renders the given objects to a Python block that defines those objects."""
         # render
         rendered_objs: list[str] = []
         current_children: list[str] = []
         for i, node in enumerate(nodes):
-            rendered = self.render_object(node)
+            rendered = self.render_builtin_object(node)
             node_alias = self.aliasing.get_or_add(node)
             assert node_alias is not None, f"no alias for {node!r}"
             rendered_objs.append(f"{node_alias} = {rendered}")
 
             # append to parent
-            parent_key = self._get_parent_child_key(node)
-            next_parent_key = (
-                self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
-            )
-            if parent_key is not None:
-                if node.metatype == NodeType.LINK:
-                    continue  # implicitly added into parent (see LinkRenderer)
-                current_children.append(node_alias)
-                if parent_key != next_parent_key:
-                    if len(current_children) > 1:
-                        rendered_objs.append(f"{parent_key}.extend({', '.join(current_children)})")
-                    else:
-                        rendered_objs.append(f"{parent_key}.append({node_alias})")
-                    current_children = []
+            if append:
+                parent_key = self._get_parent_child_key(node)
+                next_parent_key = (
+                    self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
+                )
+                if parent_key is not None:
+                    if node.metatype == NodeType.LINK:
+                        continue  # implicitly added into parent (see LinkRenderer)
+                    current_children.append(node_alias)
+                    if parent_key != next_parent_key:
+                        if len(current_children) > 1:
+                            rendered_objs.append(
+                                f"{parent_key}.extend({', '.join(current_children)})"
+                            )
+                        else:
+                            rendered_objs.append(f"{parent_key}.append({node_alias})")
+                        current_children = []
         rendered = self.options.statement_separator.join(rendered_objs)
         if format:
             rendered = format_code(rendered)
@@ -434,6 +442,8 @@ def _deconstruct_builtin_object(
             prop.id is None
             or (prop.id < 30 and prop.name != "created_by")
             or prop.reference_source
+            or prop.reference_kind == ReferenceKind.NODE_ANCESTOR
+            or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
             or prop.is_value_packed
             or prop.name == "order_key"
         ):

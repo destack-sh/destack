@@ -1,4 +1,5 @@
 import { canvas, supergraph } from "@/globals";
+import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
 import { getBaseFromNode, HELPER_VIEW_TYPES, isInlineNode, ROOT_VIEW_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/core/graph";
 import {
@@ -1719,7 +1720,7 @@ declareCommands<"space">({
           parentPtr: toNodeRef(pkg.value!),
           packagePtr: toNodeRef(pkg.value!),
         },
-        members: ["bench", "user"],
+        members: [BENCH_BENCH_AGENT_PTR, "user"],
       });
       canvas.goToNode(thread);
     },
