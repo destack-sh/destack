@@ -98,6 +98,8 @@ defineExpose<ViewExpose>({ self, id, commands});
         class="pointer-events-auto cursor-pointer"
         :data-node-type="link.metatype"
         :data-node-id="link.id"
+        :data-node-ck="(link as any).ck"
+        :data-node-bench-id="(link as any).benchPtr?.id"
         data-suppress-drag="select"
         :d="pathToSvg(path)"
       />

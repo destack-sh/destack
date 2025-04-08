@@ -375,6 +375,7 @@ watchEffect(() => {
       :data-node-type="span.baseNode?.metatype"
       :data-node-id="span.baseNode?.id"
       :data-node-ck="(span.baseNode as any)?.ck"
+      :data-node-bench-id="(span.baseNode as any).benchPtr?.id"
     >
       <!-- Tree  -->
       <div

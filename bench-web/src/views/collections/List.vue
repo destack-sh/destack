@@ -83,9 +83,10 @@ defineExpose<ViewExpose & { total: Ref<number | undefined>; roots: Ref<AnyNodeDa
               ? 'bg-gray-100'
               : 'hover:bg-gray-100',
         ]"
+        :data-node-type="node.metatype"
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"
-        :data-node-type="node.metatype"
+        :data-node-bench-id="(node as any).benchPtr?.id"
         :style="{
           height: ITEM_HEIGHT + 'px',
         }"

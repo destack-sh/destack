@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { ReadNodeGraph } from "@/language/core/graph";
-import type { NodeReferenceData } from "@/proto/wire";
+import type { NodeReferenceData, PackageData, PageData } from "@/proto/wire";
 import { INLINE_NODE_TYPES, NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
@@ -40,6 +40,7 @@ const selfIndex = computed(() => path.value.findIndex((node) => node.id == props
         :data-node-id="node.id"
         :data-node-ck="(node as any).ck"
         :data-node-type="node.metatype"
+        :data-node-bench-id="(node as PackageData).benchPtr?.id"
         :draggable="true"
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, node)"

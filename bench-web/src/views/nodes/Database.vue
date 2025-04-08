@@ -865,8 +865,8 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           :key="record.id"
           class="group/row flex flex-row border-gray-200"
           :data-node-id="record.id"
-          :data-node-ck="record.id"
           :data-node-type="record.metatype"
+          :data-node-bench-id="record.benchPtr?.id"
         >
           <!-- Row commands -->
           <div

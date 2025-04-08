@@ -37,6 +37,7 @@ function toLineDom(node: PmNode, spec: readonly [string, ...any[]]): DOMOutputSp
     attrs["data-node-id"] = node.attrs.blockPtr.id;
     attrs["data-node-ck"] = node.attrs.blockPtr.ck;
     attrs["data-node-type"] = node.attrs.blockPtr.nodeType;
+    attrs["data-node-bench-id"] = node.attrs.blockPtr.benchId;
   }
   attrs["data-suppress-drag"] = "select"; // we don't want node selection within text lines
   return [tag, attrs, ...rest];

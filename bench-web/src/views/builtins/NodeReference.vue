@@ -128,6 +128,7 @@ defineExpose({
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
+    :data-node-bench-id="(node as any).benchPtr?.id"
     aria-role="button"
     data-contextmenu-items="space.navigate.open"
     data-suppress-node="self"
