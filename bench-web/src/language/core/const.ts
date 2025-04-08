@@ -22,6 +22,8 @@ import {
   SOURCE_NODE_TYPES,
   SourceNodeData,
   StructType,
+  SUBJECT_NODE_TYPES,
+  SubjectNodeData,
   TypeBaseNodeData,
   ViewDataInfo,
   ViewProperty,
@@ -70,9 +72,18 @@ export function isTypeBaseNodeType(nodeType: NodeType): boolean {
   return TYPE_BASE_NODE_TYPES.includes(nodeType);
 }
 
+export function isSubjectNodeType(nodeType: NodeType): boolean {
+  return SUBJECT_NODE_TYPES.includes(nodeType);
+}
+
 export function isSourceNode(node: any): node is SourceNodeData {
   if (node == null || typeof node != "object") return false;
   else return isSourceNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isSubjectNode(node: any): node is SubjectNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isSubjectNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isInlineNode(node: any): node is InlineNodeData {

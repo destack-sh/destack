@@ -31579,6 +31579,66 @@ export const SOURCE_NODE_TYPES: NodeType[] = [
   NodeType.KIT,
   NodeType.DATABASE,
 ];
+export const SUBJECT_NODE_TYPES: NodeType[] = [
+  NodeType.USER,
+  NodeType.ORGANIZATION,
+  NodeType.COMPUTER,
+  NodeType.AGENT,
+];
+export const JOINABLE_NODE_TYPES: NodeType[] = [
+  NodeType.PACKAGE,
+  NodeType.TEAM,
+  NodeType.CHANNEL,
+  NodeType.THREAD,
+];
+export const CLAIMABLE_NODE_TYPES: NodeType[] = [
+  NodeType.SCALER,
+  NodeType.STORE,
+  NodeType.COMPUTER,
+  NodeType.APPLICATION,
+  NodeType.FILE,
+  NodeType.STREAM,
+  NodeType.PAGE,
+  NodeType.FLOW,
+  NodeType.ACTION,
+  NodeType.KIT,
+  NodeType.VIEW,
+  NodeType.DATABASE,
+  NodeType.PLAN,
+  NodeType.TASK,
+  NodeType.AGENT,
+  NodeType.RECORD,
+];
+export const OWNABLE_NODE_TYPES: NodeType[] = [
+  NodeType.BENCH,
+  NodeType.SCALER,
+  NodeType.STORE,
+  NodeType.COMPUTER,
+  NodeType.APPLICATION,
+  NodeType.FILE,
+  NodeType.STREAM,
+  NodeType.PACKAGE,
+  NodeType.SPACE,
+  NodeType.PAGE,
+  NodeType.FLOW,
+  NodeType.KIT,
+  NodeType.VIEW,
+  NodeType.DATABASE,
+  NodeType.THREAD,
+  NodeType.PLAN,
+  NodeType.TASK,
+  NodeType.CLAIM,
+  NodeType.AGENT,
+  NodeType.RECORD,
+];
+export const TRACKED_NODE_TYPES: NodeType[] = [
+  NodeType.CHANNEL,
+  NodeType.THREAD,
+  NodeType.AGENT,
+  NodeType.PLAN,
+  NodeType.RUN,
+  NodeType.TASK,
+];
 export const TEMPLATABLE_NODE_TYPES: NodeType[] = [
   NodeType.PACKAGE,
   NodeType.DEPENDENCY,
@@ -31635,14 +31695,6 @@ export const TIMED_NODE_TYPES: NodeType[] = [
   NodeType.LOG,
   NodeType.RUN,
   NodeType.SPAN,
-];
-export const TRACKED_NODE_TYPES: NodeType[] = [
-  NodeType.CHANNEL,
-  NodeType.THREAD,
-  NodeType.AGENT,
-  NodeType.PLAN,
-  NodeType.RUN,
-  NodeType.TASK,
 ];
 export const USER_NODE_TYPES: NodeType[] = [
   NodeType.USER,
