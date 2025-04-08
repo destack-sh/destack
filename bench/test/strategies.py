@@ -1,5 +1,5 @@
 from string import ascii_lowercase
-from typing import Any, assert_never, cast
+from typing import Any, cast
 
 import hypothesis
 import more_itertools
@@ -400,12 +400,8 @@ def icons(draw: st.DrawFn):
     kind = draw(st.sampled_from(list(IconType)))
     if kind == IconType.EMOJI:
         return Icon.new("😀")
-    elif kind == IconType.FONT_AWESOME:
-        return Icon.new("fas fa-circle-dot")
-    elif kind == IconType.VS_CODE:
-        return Icon(type=IconType.VS_CODE, fa_name="file_type_ada")
     else:
-        assert_never(kind)
+        return Icon.new("fas fa-circle-dot")
 
 
 @cacheable

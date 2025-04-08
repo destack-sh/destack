@@ -32,4 +32,4 @@ class Store(Resource[StoreData]):
     external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
     sql_url: Optional[str] = p_kernel(
         64, require=False, default=None, defer=True, sensitive=True
-    )  # Store.sql_url should probably be :EncryptedSecrets
+    )  # Store.sql_url should probably be :RealSecrets

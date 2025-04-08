@@ -20,8 +20,8 @@ import { NODE_REF_CONTEXT_KEY } from "@/ui/space";
 import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
-import NodeMetadata from "@/views/builtins/NodeMetadata.vue";
-import Title from "@/views/builtins/Title.vue";
+import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
+import Title from "@/views/builtin/Title.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -125,7 +125,7 @@ defineExpose({
   <div
     v-if="node != null"
     class=""
-    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-baseline']]"
+    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"

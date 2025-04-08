@@ -102,6 +102,10 @@ class Runtime:
     """
     The runtime for executing Runs. A Runtime is tied exclusively to one Session.
     A Run is exclusively owned by one Runtime at a time (but may be transferred between Runtimes).
+    NOTE :Architecture!: at some point, the bench language & Runtime will be a custom language
+     If just for performance, it makes a lot of sense to implement Bench like Godot with GDScript.
+      i.e. we could have Bench be a subset of Python with a Rust-based runtime to actually execute everything.
+     Could still support Python in some places, but the core stuff - the orchestration - must blaze.
     """
 
     def __init__(

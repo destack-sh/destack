@@ -201,7 +201,7 @@ def map_builtin_object_to_table(
         if not prop.is_stored:
             continue
         assert prop.primitive_type is not None, f"no primitive type for {prop!r}"
-        assert not prop.is_encrypted, f"encryption not supported: {prop!r}"  # :EncryptedSecrets
+        assert not prop.is_encrypted, f"encryption not supported: {prop!r}"  # :RealSecrets
         column = Column(
             name=prop.name,
             type=prop.primitive_type,

@@ -4,6 +4,7 @@ import { supergraph } from "@/globals";
 import { getBaseFromNode } from "@/language/core/const";
 import { renderTextLine } from "@/language/core/text";
 import type { TypeIdentity } from "@/language/core/type";
+import { getCachedFileDownload } from "@/language/resource/file";
 import {
   ActionType,
   BASED_NODE_TYPES,
@@ -32,7 +33,6 @@ import {
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
-import { IS_DEV, IS_DEVELOPER_MODE } from "@/utils/globals";
 import type { FunctionalComponent } from "vue";
 
 /**
@@ -95,7 +95,7 @@ export const AVAILABLE_EMOJI_ICONS: EmojiIcon[] = _AVAILABLE_EMOJI_ICONS;
 export const AVAILABLE_ICONS_BY_ID: Record<string, FontAwesomeIcon | EmojiIcon> = Object.fromEntries(
   [...AVAILABLE_FA_ICONS, ...AVAILABLE_EMOJI_ICONS].map((i) => [i.id, i]),
 );
-type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName"> & {
+type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName" | "filePtr"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
@@ -122,13 +122,28 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else if (props.emoji) {
     // emoji
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
-  } else {
-    // invalid icon
-    if (IS_DEV || IS_DEVELOPER_MODE.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
-    else return <span style={{ color: colorHex }}>???</span>;
+  } else if (props.filePtr) {
+    // file
+    const download = getCachedFileDownload(props.filePtr);
+    if (download?.getUrl.value != null) {
+      return <img src={download.getUrl.value} class="rounded-full" />;
+    }
   }
+
+  // invalid icon
+  return <span class="fas fa-xmark text-red-400 border border-red-400 rounded-sm" />;
 };
-IconInline.props = ["emoji", "faName", "vscName", "color", "forceColor", "fallbackColor", "shade", "ignoreColor"];
+IconInline.props = [
+  "emoji",
+  "faName",
+  "vscName",
+  "filePtr",
+  "color",
+  "forceColor",
+  "fallbackColor",
+  "shade",
+  "ignoreColor",
+];
 
 /** Inline functional Avatar component */
 export const AvatarInline: FunctionalComponent<
@@ -150,9 +165,9 @@ export const AvatarInline: FunctionalComponent<
   let sizeClasses;
   if (props.size === "medium") {
     if (props.faName) {
-      sizeClasses = "w-9 h-9 text-lg";
+      sizeClasses = "w-10 h-10 text-lg";
     } else {
-      sizeClasses = "w-9 h-9 text-xl";
+      sizeClasses = "w-10 h-10 text-xl";
     }
   } else if (props.size === "large") {
     if (props.faName) {
@@ -196,23 +211,26 @@ export const AvatarInline: FunctionalComponent<
         {props.emoji}
       </div>
     );
-  } else {
-    // invalid icon
-    if (IS_DEV || IS_DEVELOPER_MODE.value) {
-      return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
-    } else {
-      return (
-        <div class={baseClasses} style={{ backgroundColor: backgroundColorHex }}>
-          <span class="text-white">???</span>
-        </div>
-      );
+  } else if (props.filePtr) {
+    // file
+    const download = getCachedFileDownload(props.filePtr);
+    if (download?.getUrl.value != null) {
+      return <img src={download.getUrl.value} class={baseClasses + " rounded-full"} />;
     }
   }
+
+  // invalid icon
+  return (
+    <div class={baseClasses + " border border-red-400"}>
+      <span class="fas fa-xmark text-red-400" />
+    </div>
+  );
 };
 AvatarInline.props = [
   "emoji",
   "faName",
   "vscName",
+  "filePtr",
   "color",
   "forceColor",
   "fallbackColor",
@@ -238,7 +256,7 @@ export function newIconId(): number {
 }
 
 type ColorIn = ColorData | ColorType;
-type IconIn = string | (Pick<IconData, "emoji" | "faName"> & { color?: ColorIn });
+type IconIn = string | (Pick<IconData, "emoji" | "faName" | "filePtr"> & { color?: ColorIn });
 const ICON_BY_STRING: Record<string, IconData> = {};
 
 export function makeIcon(icon: IconIn): IconData {
@@ -259,6 +277,8 @@ export function makeIcon(icon: IconIn): IconData {
     type = IconType.EMOJI;
   } else if (icon.faName) {
     type = IconType.FONT_AWESOME;
+  } else if (icon.filePtr) {
+    type = IconType.FILE;
   } else {
     throw new Error(`unexpected icon ${icon}`);
   }

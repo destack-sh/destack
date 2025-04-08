@@ -41,7 +41,7 @@ import { getColorHex, getRunColorHex } from "@/ui/style";
 import { assertNever } from "@/utils/functools";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { formatDuration, getNow, timestampToMs, TimeUpdateInterval } from "@/utils/time";
-import Error from "@/views/builtins/Error.vue";
+import Error from "@/views/builtin/Error.vue";
 import Code from "@/views/content/Code.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import { useElementSize } from "@vueuse/core";

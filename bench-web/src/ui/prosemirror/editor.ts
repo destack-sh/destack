@@ -14,8 +14,8 @@ import {
 } from "@/ui/prosemirror/wiring";
 import { deleteSelection } from "@/ui/space";
 import { deepValueEquals } from "@/utils/ref";
-import NodeReference from "@/views/builtins/NodeReference.vue";
-import TextSpecialInput from "@/views/builtins/TextSpecialInput.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
+import TextSpecialInput from "@/views/builtin/TextSpecialInput.vue";
 import { FocusAnchor, NavigationDirection } from "@/views/common";
 import Block from "@/views/nodes/Block.vue";
 import { whenever } from "@vueuse/core";

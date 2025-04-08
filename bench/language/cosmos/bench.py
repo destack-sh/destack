@@ -63,7 +63,7 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     )
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     region: "Region" = p_system(37, require=True, default=REGION, default_sql=None)
-    # TODO :Security: Bench.encryption_key (DEK) :EncryptedSecrets
+    # TODO :Security: Bench.encryption_key (DEK) or put it into a Vault (Bench.main_vault) :RealSecrets
 
     # status
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)

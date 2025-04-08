@@ -5,7 +5,7 @@ import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
 import { ScrollbarWidth } from "@/ui/layout";
 import { GEOLOCATION } from "@/utils/geolocation";
-import Popover from "@/views/builtins/Popover.vue";
+import Popover from "@/views/builtin/Popover.vue";
 import Scroll from "@/views/containers/Scroll.vue";
 import { ref, type Ref } from "vue";
 

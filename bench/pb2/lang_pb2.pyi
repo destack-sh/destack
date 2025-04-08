@@ -931,6 +931,7 @@ class IconType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ICON_TYPE_EMOJI: _ClassVar[IconType]
     ICON_TYPE_FONT_AWESOME: _ClassVar[IconType]
     ICON_TYPE_VS_CODE: _ClassVar[IconType]
+    ICON_TYPE_FILE: _ClassVar[IconType]
 
 class StreamType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2671,6 +2672,7 @@ ICON_TYPE_UNSPECIFIED: IconType
 ICON_TYPE_EMOJI: IconType
 ICON_TYPE_FONT_AWESOME: IconType
 ICON_TYPE_VS_CODE: IconType
+ICON_TYPE_FILE: IconType
 STREAM_TYPE_UNSPECIFIED: StreamType
 STREAM_TYPE_TEXT: StreamType
 STREAM_TYPE_CODE: StreamType
@@ -3733,20 +3735,22 @@ class ComputedValueData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., kind: _Optional[_Union[ComputedValueKind, str]] = ..., name: _Optional[str] = ..., mode: _Optional[_Union[ComputedValueMode, str]] = ..., target_path: _Optional[_Union[PathData, _Mapping]] = ..., source_path: _Optional[_Union[PathData, _Mapping]] = ..., source_expression: _Optional[_Union[ExpressionData, _Mapping]] = ..., source_code: _Optional[_Union[CodeData, _Mapping]] = ..., is_active: bool = ...) -> None: ...
 
 class IconData(_message.Message):
-    __slots__ = ("metatype", "type", "emoji", "fa_name", "vsc_name", "color")
+    __slots__ = ("metatype", "type", "emoji", "fa_name", "vsc_name", "file_ptr", "color")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     EMOJI_FIELD_NUMBER: _ClassVar[int]
     FA_NAME_FIELD_NUMBER: _ClassVar[int]
     VSC_NAME_FIELD_NUMBER: _ClassVar[int]
+    FILE_PTR_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     type: IconType
     emoji: str
     fa_name: str
     vsc_name: str
+    file_ptr: NodeReferenceData
     color: ColorData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[IconType, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[IconType, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., file_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class SelectOptionsData(_message.Message):
     __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")

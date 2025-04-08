@@ -5,7 +5,7 @@ import { ProcessStatusOptionInfo } from "@/proto/wire";
 import { CLEAR_RUN_COMMAND, getRunCommands, runtime } from "@/runtime/runtime";
 import { IconInline, makeIcon } from "@/ui/icon";
 import { getRunColorHex } from "@/ui/style";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { computed } from "vue";
 
 const runTree = runtime.focusedRunTree;

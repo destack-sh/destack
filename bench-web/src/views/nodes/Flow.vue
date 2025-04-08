@@ -35,9 +35,9 @@ import {
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import InlineHeader from "@/views/builtins/InlineHeader.vue";
-import NodeReference from "@/views/builtins/NodeReference.vue";
+import Inaccessible from "@/views/builtin/Inaccessible.vue";
+import InlineHeader from "@/views/builtin/InlineHeader.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import Link from "@/views/nodes/Link.vue";
