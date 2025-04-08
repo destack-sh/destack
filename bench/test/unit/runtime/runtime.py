@@ -111,6 +111,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
 
     Run1 = await Run.get_run_of(Flow1, where=TERMINAL_RUN_STATUSES)
     assert Run1.status == RunStatus.COMPLETED
+    assert Run1.agent == Agent1
 
 
 @simulated_runtime(system=True, runtimes=True)

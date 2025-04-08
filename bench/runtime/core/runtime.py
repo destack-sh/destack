@@ -980,6 +980,7 @@ class Runtime:
                         status=RunStatus.QUEUED,
                         thread=run.thread,
                         graph=parent_node._graph,
+                        agent=run.agent,
                     )
                     run.move(to=outer_run)
                     self.session.stage(runtime=True)

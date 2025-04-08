@@ -113,6 +113,8 @@ type ConnectionMetadata = {
   options: Partial<ConnectionOptions>;
   /** Condensed printable current params for debugging. */
   paramsPretty?: Ref<Record<string, any>>;
+  /** Whether this is read-only (no edits) */
+  isReadOnly?: boolean;
 };
 
 // get connection

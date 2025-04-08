@@ -537,7 +537,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         self.logger.info(
             f"{self.name}.commit",
             subject=subject,
-            request_edits=len(request.edits),
+            edits=len(request.edits),
             epoch=self._local_epoch,
             span="current",
         )

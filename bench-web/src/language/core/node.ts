@@ -355,7 +355,6 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   if ("packagePtr" in node) (clone as any).packagePtr = node.packagePtr;
   if ("benchPtr" in node) (clone as any).benchPtr = node.benchPtr;
   if ("templatePtr" in node) (clone as any).templatePtr = node.templatePtr;
-  if ("templatedEpoch" in node) (clone as any).templatedEpoch = node.templatedEpoch;
   clone.createdAt = now;
   clone.updatedAt = now;
   clone.archivedAt = undefined;
@@ -425,49 +424,51 @@ export function cloneNode<T extends AnyNodeData>(
 
   // clone this node
   const now = options?.now ?? Timestamp.now();
-  const newNode = _cloneNode(oldNode, now);
-  if (options?.set) Object.assign(newNode, options.set);
+  const clonedNode = _cloneNode(oldNode, now);
+  if (options?.set) {
+    Object.assign(clonedNode, options.set);
+  }
 
   // update derived properties
   if (!options?.keepProperties) {
     // name
-    if ("name" in newNode && !options?._isNested) {
+    if ("name" in clonedNode && !options?._isNested) {
       // update name
-      if (isGeneratedNodeName(oldNode.metatype as unknown as NodeType, (newNode as any).name)) {
+      if (isGeneratedNodeName(oldNode.metatype as unknown as NodeType, (clonedNode as any).name)) {
         // bump generated node name
         const siblings = graph.getChildren(oldNode.parentPtr!, oldNode.metatype as unknown as NodeType);
-        newNode.name = generateNodeName(oldNode, siblings);
+        clonedNode.name = generateNodeName(oldNode, siblings);
       } else {
         // bump digit at end (or add 2) if already exists
-        const seq = (newNode as any).name.match(/\d+$/);
+        const seq = (clonedNode as any).name.match(/\d+$/);
         if (seq != null) {
           const num = parseInt(seq[0]);
-          newNode.name = newNode.name!.replace(/\d+$/, (num + 1).toString());
+          clonedNode.name = clonedNode.name!.replace(/\d+$/, (num + 1).toString());
         } else {
-          newNode.name += "2";
+          clonedNode.name += "2";
         }
       }
     }
     // order
-    if ("orderKey" in newNode) {
+    if ("orderKey" in clonedNode) {
       const after = options?.after ?? oldNode;
       const before = options?.before ?? getNextSibling(graph, oldNode);
       const orderKey = generateOrderKey(
         (after as any).orderKey,
         (after as any)?.orderKey == (before as any)?.orderKey ? null : (before as any)?.orderKey,
       );
-      newNode.orderKey = orderKey;
+      clonedNode.orderKey = orderKey;
     }
     // position
-    if (isNode(newNode, NodeType.ACTION)) {
-      newNode.position = addVector2(newNode.position, { x: 0, y: FLOW_GRID_STEP * 6 });
+    if (isNode(clonedNode, NodeType.ACTION)) {
+      clonedNode.position = addVector2(clonedNode.position, { x: 0, y: FLOW_GRID_STEP * 6 });
     }
   }
 
   // remember new identity
   const newNodeByOldId = options?._newNodeByOldId != null ? options._newNodeByOldId : {};
   const oldNodeByOldId = options?._oldNodeByOldId != null ? options._oldNodeByOldId : {};
-  newNodeByOldId[oldNode.id!] = newNode;
+  newNodeByOldId[oldNode.id!] = clonedNode;
   oldNodeByOldId[oldNode.id!] = oldNode;
 
   // clone blocks/definitions together
@@ -479,7 +480,7 @@ export function cloneNode<T extends AnyNodeData>(
         cloneNode(tx, graph, source, {
           includeChildren: true,
           now,
-          set: { parentPtr: newNode.parentPtr, definitionPtr: toNodeRef(newNode) },
+          set: { parentPtr: clonedNode.parentPtr, definitionPtr: toNodeRef(clonedNode) },
           _isNested: true,
           _isDefinitionCounterpart: true,
           _keepOrder: true,
@@ -493,7 +494,7 @@ export function cloneNode<T extends AnyNodeData>(
       cloneNode(tx, graph, block, {
         includeChildren: true,
         now,
-        set: { nodePtr: toNodeRef(newNode) },
+        set: { nodePtr: toNodeRef(clonedNode) },
         _isNested: true,
         _isDefinitionCounterpart: true,
         _keepOrder: true,
@@ -505,7 +506,7 @@ export function cloneNode<T extends AnyNodeData>(
 
   // clone all children (recursively)
   if (options?.includeChildren) {
-    const clonePtr = toNodeRef(newNode);
+    const clonePtr = toNodeRef(clonedNode);
     const children = graph.getChildren(oldNode);
     for (const child of children) {
       cloneNode(tx, graph, child, {
@@ -522,14 +523,14 @@ export function cloneNode<T extends AnyNodeData>(
 
   // perform clone in one go
   if (!options?._isNested) {
-    _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
+    _doCreateClones(tx, graph, oldNodeByOldId, newNodeByOldId);
   }
 
-  return newNode;
+  return clonedNode;
 }
 
 /** Create clones and adds them to the map. */
-export function _createClones(
+function _doCreateClones(
   tx: Transaction,
   graph: ReadNodeGraph,
   oldNodeByOldId: Record<string, AnyNodeData>,
@@ -549,6 +550,8 @@ export function _createClones(
     tx.create(newNode);
   }
 }
+
+// nocheckin: retain mode for clone/instance?
 
 /** Clones the given nodes (preserving their order) and returns the new nodes. */
 export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNodeGraph, nodes: T[]) {
@@ -589,7 +592,7 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
   }
 
   // actually clone
-  _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
+  _doCreateClones(tx, graph, oldNodeByOldId, newNodeByOldId);
 
   return clonedNodes;
 }
@@ -597,55 +600,59 @@ export function cloneNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNo
 /**
  *
  * Creates a new instance of this Node.
- * Similar to clone, but sets the original Nodes as the template source.
+ * Similar to clone, but sets the original Nodes as the template source and usually happens with a new parent.
  */
 export function instanceNode<T extends AnyNodeData>(
   tx: Transaction,
   graph: ReadNodeGraph,
   oldNode: T,
   options: {
-    after?: AnyNodeData;
-    before?: AnyNodeData;
+    parent: AnyNodeData;
     includeChildren?: boolean;
     now?: Timestamp;
     set?: Partial<T>;
     _isNested?: boolean;
     _oldNodeByOldId?: Record<string, AnyNodeData>;
     _newNodeByOldId?: Record<string, AnyNodeData>;
-  } = {
-    includeChildren: true,
   },
 ): T {
   // ensure instance is bundled into a change
-  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Create Instance" } });
+  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Instance" } });
 
   // clone this node as the instance base
   const now = options?.now ?? Timestamp.now();
-  const newNode = _cloneNode(oldNode, now);
-  if (options?.set) Object.assign(newNode, options.set);
+  const instancedNode = _cloneNode(oldNode, now);
+  // NOTE :Robustness: instancing nodes somewhere is really a move, so we also have to update ancestors :BadMoveAncestors
+  instancedNode.parentPtr = toNodeRef(options.parent);
+  if ("benchPtr" in instancedNode) {
+    instancedNode.benchPtr = (options.parent as any).benchPtr;
+  }
+  if ("packagePtr" in instancedNode) {
+    instancedNode.packagePtr = (options.parent as any).packagePtr;
+  }
+  if (options?.set) {
+    Object.assign(instancedNode, options.set);
+  }
 
   // set template pointer to the original node
-  if ("templatePtr" in newNode) {
-    (newNode as any).templatePtr = toNodeRef(oldNode);
-    // Set templatedEpoch if the property exists
-    if ("templatedEpoch" in newNode) {
-      (newNode as any).templatedEpoch = now;
-    }
+  if (TEMPLATABLE_NODE_TYPES.includes(oldNode.metatype as unknown as NodeType)) {
+    (instancedNode as any).templatePtr = toNodeRef(oldNode);
   }
 
   // remember new identity
   const newNodeByOldId = options?._newNodeByOldId != null ? options._newNodeByOldId : {};
   const oldNodeByOldId = options?._oldNodeByOldId != null ? options._oldNodeByOldId : {};
-  newNodeByOldId[oldNode.id!] = newNode;
+  newNodeByOldId[oldNode.id!] = instancedNode;
   oldNodeByOldId[oldNode.id!] = oldNode;
 
   // instance all children (recursively)
   if (options?.includeChildren) {
-    const instancePtr = toNodeRef(newNode);
+    const instancePtr = toNodeRef(instancedNode);
     const children = graph.getChildren(oldNode);
     for (const child of children) {
       if (TEMPLATABLE_NODE_TYPES.includes(child.metatype as unknown as NodeType)) {
         instanceNode(tx, graph, child, {
+          parent: instancedNode,
           includeChildren: true,
           now,
           set: { parentPtr: instancePtr },
@@ -668,67 +675,10 @@ export function instanceNode<T extends AnyNodeData>(
 
   // perform instance in one go
   if (!options?._isNested) {
-    _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
+    _doCreateClones(tx, graph, oldNodeByOldId, newNodeByOldId);
   }
 
-  return newNode;
-}
-
-/** Instances the given nodes (preserving their order) and returns the new nodes. */
-export function instanceNodes<T extends AnyNodeData>(tx: Transaction, graph: ReadNodeGraph, nodes: T[]) {
-  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Create Instances" } });
-
-  // get the root nodes
-  nodes = getRootNodes(nodes);
-  const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr?.id!);
-
-  // instance them (maintaining relative position)
-  const instancedNodes: AnyNodeData[] = [];
-  const instancedNodesByParentId: Record<string, AnyNodeData[]> = {};
-  const oldNodeByOldId: Record<string, AnyNodeData> = {};
-  const newNodeByOldId: Record<string, AnyNodeData> = {};
-
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    const parentId = node.parentPtr?.id!;
-    // if we already have the parent instanced, go after its last child, otherwise go after the parent
-    let after;
-    if (instancedNodesByParentId[parentId] != null) {
-      after = instancedNodesByParentId[parentId]?.at(-1);
-    } else {
-      after = nodesByParentId[parentId]?.at(-1);
-    }
-    const lastChild = nodesByParentId[parentId]?.at(-1);
-    const before = lastChild != null ? getNextSibling(graph, lastChild) : null;
-
-    // check if node is templatable, otherwise fall back to cloning
-    const instance = TEMPLATABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType)
-      ? instanceNode(tx, graph, node, {
-          after,
-          before: before ?? undefined,
-          includeChildren: true,
-          _isNested: true,
-          _oldNodeByOldId: oldNodeByOldId,
-          _newNodeByOldId: newNodeByOldId,
-        })
-      : cloneNode(tx, graph, node, {
-          after,
-          before: before ?? undefined,
-          includeChildren: true,
-          _isNested: true,
-          _oldNodeByOldId: oldNodeByOldId,
-          _newNodeByOldId: newNodeByOldId,
-        });
-
-    instancedNodes.push(instance);
-    if (instancedNodesByParentId[parentId] == null) instancedNodesByParentId[parentId] = [];
-    instancedNodesByParentId[parentId]?.push(instance);
-  }
-
-  // actually create instances
-  _createClones(tx, graph, oldNodeByOldId, newNodeByOldId);
-
-  return instancedNodes;
+  return instancedNode;
 }
 
 /**

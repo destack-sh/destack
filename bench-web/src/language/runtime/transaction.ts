@@ -1,4 +1,5 @@
 import { supergraph } from "@/globals";
+import { BENCH_ID, SYSTEM_ID } from "@/language/core/builtin";
 import { isInlineNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/core/graph";
 import { makeNode, NodeIn } from "@/language/core/node";
@@ -262,16 +263,12 @@ export class TransactionBuilder implements Transaction {
     return makeScope({ benchId, packageIds: packageId != null ? [packageId] : this.scope.packageIds });
   }
 
-  checkInScope(node: AnyNodeData) {
+  checkEdit(node: AnyNodeData) {
+    if ("benchPtr" in node && (node.benchPtr?.id == BENCH_ID || node.benchPtr?.id == SYSTEM_ID)) {
+      throw new Error(`cannot edit in builtin bench: ${describeNode(node)}`);
+    }
     if (this.scope.benchId != null && (!("benchPtr" in node) || node.benchPtr?.id != this.scope.benchId)) {
       throw new Error(`node from other bench: ${describeNode(node)} != ${this.scope.benchId}`);
-    }
-    if (
-      this.scope.packageIds != null &&
-      this.scope.packageIds.length > 0 &&
-      (!("packagePtr" in node) || !this.scope.packageIds.includes(node.packagePtr?.id ?? ""))
-    ) {
-      throw new Error(`node from other package: ${describeNode(node)} != ${this.scope.packageIds}`);
     }
   }
 
@@ -288,7 +285,7 @@ export class TransactionBuilder implements Transaction {
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
-    this.checkInScope(node);
+    this.checkEdit(node);
 
     // make edit & notify
     const subjectPtr = toValue(this.subject);
@@ -364,7 +361,7 @@ export class TransactionBuilder implements Transaction {
     update: Partial<T> | EditOperationData[],
     options?: TransactionOptions,
   ) {
-    this.checkInScope(node);
+    this.checkEdit(node);
 
     // convert update to operations
     let operations: EditOperationData[];
@@ -425,6 +422,7 @@ export class TransactionBuilder implements Transaction {
     update: Partial<T> & { parentPtr: NodeReferenceData },
     options?: TransactionOptions,
   ) {
+    // NOTE :Robustness: like in backend we should update computed ancestors on move :BadMoveAncestors
     this._doUpdate(EditType.MOVE, node, update, options);
   }
 

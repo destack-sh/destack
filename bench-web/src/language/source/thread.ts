@@ -1,6 +1,6 @@
 import { supergraph } from "@/globals";
 import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
-import { isSubjectNode } from "@/language/core/const";
+import { isNodeInstance, isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { instanceNode } from "@/language/core/node";
 import { newChangeId, Transaction } from "@/language/runtime/transaction";
@@ -46,8 +46,8 @@ export function createThread(
     }
 
     // instance agents
-    if (isNode(memberNode, NodeType.AGENT) && memberNode.templatePtr == null) {
-      memberNode = instanceNode(tx, graph, memberNode); 
+    if (isNode(memberNode, NodeType.AGENT) && !isNodeInstance(memberNode)) {
+      memberNode = instanceNode(tx, graph, memberNode, { parent: thread });
     }
 
     // membership

@@ -11,6 +11,8 @@ from bench.language import (
     Renderer,
     RenderOptions,
     Runnable,
+    Session,
+    Subject,
     _is_setup_complete,
 )
 from bench.runtime.model.piece import (
@@ -44,6 +46,8 @@ assert _is_setup_complete(), "NOTE: import this file after import is complete"
 class Prompt:
     def __init__(
         self,
+        subject: Subject,
+        session: Session,
         node: Runnable,
         *,
         system_prompt: str,
@@ -52,6 +56,9 @@ class Prompt:
         renderer: Renderer | None = None,
         components: list["Piece"] | None = None,
     ):
+        self.subject = subject
+        self.session = session
+        self.now = session._oracle.utc()
         self.node = node
         self.aliasing = aliasing or Aliasing()
         self.projection = projection or Projection(

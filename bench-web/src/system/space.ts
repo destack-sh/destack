@@ -48,7 +48,7 @@ benchConnection.onError((e) => {
 
 // dependencies (hard-coded to just the builtin bench for now)
 export const { graph: builtinGraph, connection: builtinConnection } = useGetConnection(
-  { name: "dependency.bench.builtin", live: true },
+  { name: "bench.builtin", live: true, isReadOnly: true },
   computed(() => ({
     scope: BENCH_SCOPE,
     roots: [BENCH_PTR],
