@@ -7,6 +7,7 @@ import { NodeReferenceData, NodeType, SubjectNodeData, ThreadData, Timestamp } f
 import { describeNode, isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { user } from "@/system/user";
 import { assertNever } from "@/utils/functools";
+import ProcessStatus from "@/views/builtin/ProcessStatus.vue";
 
 /** Create a Thread. */
 export function createThread(
@@ -21,8 +22,11 @@ export function createThread(
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
-  const activeAt = options.thread.activeAt ?? Timestamp.now();
-  const thread = tx.create({ metatype: NodeType.THREAD, ...options.thread, activeAt });
+  const now = Timestamp.now();
+  const startedAt = options.thread.startedAt ?? now;
+  const activeAt = options.thread.activeAt ?? now;
+  const status = options.thread.status ?? ProcessStatus.IDLE;
+  const thread = tx.create({ metatype: NodeType.THREAD, ...options.thread, startedAt, activeAt, status });
 
   // add members
   for (const member of options.members) {

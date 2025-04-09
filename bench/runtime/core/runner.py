@@ -627,7 +627,15 @@ def create_run(
         )
         if mode is None:
             mode = session.active_mode
-        thread = Thread(parent=parent, mode=mode, _graph=graph)
+        now = session._oracle.utc()
+        thread = Thread(
+            parent=parent,
+            mode=mode,
+            _graph=graph,
+            started_at=now,
+            active_at=now,
+            status=ProcessStatus.IDLE,
+        )
         session._create(thread)
         parent = thread
     elif isinstance(parent, Thread):

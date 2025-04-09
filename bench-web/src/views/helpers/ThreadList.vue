@@ -1,10 +1,20 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
+import {
+  ACTIVE_PROCESS_STATUSES,
+  INTERRUPTED_PROCESS_STATUSES,
+  isProcessableNode,
+  PRE_PROCESS_STATUSES,
+  toCamelName,
+} from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
+import { isProcessActive } from "@/language/runtime/process";
 import {
   AnyNodeData,
+  ColorShade,
   ExpressionType,
   NodeType,
+  ProcessStatus,
+  ProcessStatusOptionInfo,
   TextLineType,
   ThreadData,
   ThreadProperty,
@@ -17,6 +27,7 @@ import { canvas } from "@/system/space";
 import { CONTEXT_COMMANDS_BY_TYPE, fireCommandById, getCommand, isCommandEnabled } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
+import { getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval } from "@/utils/time";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
@@ -268,17 +279,19 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             <!-- Meta -->
             <div class="ml-auto flex flex-row gap-x-1">
               <!-- Metadata -->
-              <NodeMetadata class="ml-1.5" size="sm" :node="thread" />
-              <button
-                v-for="command of NODE_COMMANDS?.filter((c) => isCommandEnabled(c, { nodes: [thread] }))"
-                :key="command.id"
-                v-tooltip="{ small: true, text: command.title, group: 'list.item' }"
-                aria-hidden
-                class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
-                @click.stop="(e) => command.command?.(command, { event: e, nodes: [thread] })"
+              <!-- Run metadata -->
+              <span
+                class="fas fa-circle-small relative w-5 text-center transition-colors duration-150"
+                :class="[
+                  ACTIVE_PROCESS_STATUSES.includes(thread.status) ||
+                  INTERRUPTED_PROCESS_STATUSES.includes(thread.status)
+                    ? 'opacity-100'
+                    : 'opacity-0',
+                ]"
+                :style="{ color: getColorHex(ProcessStatusOptionInfo[thread.status]!.color!, ColorShade.S500) }"
               >
-                <IconInline v-bind="command.icon" />
-              </button>
+                <span v-if="isProcessActive(thread)" class="fas fa-circle-small absolute inset-0 animate-ping" />
+              </span>
             </div>
           </li>
         </ul>

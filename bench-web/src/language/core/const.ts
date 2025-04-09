@@ -251,7 +251,14 @@ export const TERMINAL_PROCESS_STATUSES = [
   ProcessStatus.SKIPPED,
 ];
 export const INTERRUPTED_PROCESS_STATUSES = [ProcessStatus.PAUSED, ProcessStatus.YIELDED, ProcessStatus.WAITING];
-export const ACTIVE_PROCESS_STATUSES = [ProcessStatus.RUNNING, ProcessStatus.PAUSED, ...INTERRUPTED_PROCESS_STATUSES];
+export const PRE_PROCESS_STATUSES = [
+  ProcessStatus.CREATED,
+  ProcessStatus.ASSIGNED,
+  ProcessStatus.SCHEDULED,
+  ProcessStatus.QUEUED,
+];
+export const ACTIVE_PROCESS_STATUSES = [ProcessStatus.RUNNING, ProcessStatus.FAILING];
+export const INACTIVE_PROCESS_STATUSES = [ProcessStatus.IDLE];
 export const BAD_PROCESS_STATUSES = [ProcessStatus.CANCELLED, ProcessStatus.ABORTED, ProcessStatus.FAILED];
 
 // view

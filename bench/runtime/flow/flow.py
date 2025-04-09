@@ -55,7 +55,9 @@ from .link import LinkRunner
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-THINK_RETRY_OPTIONS = RetryOptions(max_attempts=5, retry_interval=0.2)
+THINK_RETRY_OPTIONS = RetryOptions(
+    max_attempts=10, retry_interval=0.2, backoff=1.5, max_retry_interval=10
+)
 
 
 class TickActionResult(NamedTuple):

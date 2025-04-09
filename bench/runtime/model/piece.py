@@ -290,6 +290,6 @@ class AgentPiece(NodePiece[Agent]):
         yield CodePiece(code=rendered_node)
 
 
-@piece_
+@piece_()
 class AttemptPiece(NodePiece[Span]):
     pass

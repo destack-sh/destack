@@ -1257,9 +1257,11 @@ class ProcessStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROCESS_STATUS_SCHEDULED: _ClassVar[ProcessStatus]
     PROCESS_STATUS_QUEUED: _ClassVar[ProcessStatus]
     PROCESS_STATUS_RUNNING: _ClassVar[ProcessStatus]
+    PROCESS_STATUS_FAILING: _ClassVar[ProcessStatus]
     PROCESS_STATUS_PAUSED: _ClassVar[ProcessStatus]
     PROCESS_STATUS_YIELDED: _ClassVar[ProcessStatus]
     PROCESS_STATUS_WAITING: _ClassVar[ProcessStatus]
+    PROCESS_STATUS_IDLE: _ClassVar[ProcessStatus]
     PROCESS_STATUS_CANCELLED: _ClassVar[ProcessStatus]
     PROCESS_STATUS_ABORTED: _ClassVar[ProcessStatus]
     PROCESS_STATUS_FAILED: _ClassVar[ProcessStatus]
@@ -2896,9 +2898,11 @@ PROCESS_STATUS_ASSIGNED: ProcessStatus
 PROCESS_STATUS_SCHEDULED: ProcessStatus
 PROCESS_STATUS_QUEUED: ProcessStatus
 PROCESS_STATUS_RUNNING: ProcessStatus
+PROCESS_STATUS_FAILING: ProcessStatus
 PROCESS_STATUS_PAUSED: ProcessStatus
 PROCESS_STATUS_YIELDED: ProcessStatus
 PROCESS_STATUS_WAITING: ProcessStatus
+PROCESS_STATUS_IDLE: ProcessStatus
 PROCESS_STATUS_CANCELLED: ProcessStatus
 PROCESS_STATUS_ABORTED: ProcessStatus
 PROCESS_STATUS_FAILED: ProcessStatus
