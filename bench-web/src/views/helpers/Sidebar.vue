@@ -107,73 +107,67 @@ defineExpose<ViewExpose>({ self });
     >
       <div
         ref="bodyRef"
-        class="flex flex-col"
+        class="flex flex-col gap-y-2"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
         }"
       >
         <!-- Quick/Global commands -->
-        <button
-          v-for="command in (
-            [
-              'space.omnibar.bench',
-              'space.omnibar.commands',
-              'space.create.page',
-              'space.create.thread',
-            ] as CommandBuiltinId[]
-          ).map(getCommand)"
-          :key="command.id"
-          class="group/button mx-2 flex flex-row items-center truncate rounded border border-transparent px-2 py-[4px] transition-colors duration-150 hover:bg-gray-100"
-          :style="{}"
-          @click="fireCommand(command)"
-        >
-          <IconInline class="mr-1 w-5 text-center" v-bind="command.icon" />
-          <span class="">
-            {{ command.title }}
-          </span>
-          <span class="ml-auto">
-            <!-- Shortcut -->
-            <Shortcut
-              v-if="command.shortcuts?.length ?? 0 > 0"
-              class="text-gray-400 opacity-0 transition-colors duration-150 group-hover/button:opacity-100"
-              :shortcut="command.shortcuts![0]"
-            />
-          </span>
-        </button>
+        <div class="flex flex-col">
+          <button
+            v-for="command in (
+              [
+                'space.omnibar.bench',
+                'space.omnibar.commands',
+                'space.create.page',
+                'space.create.thread',
+              ] as CommandBuiltinId[]
+            ).map(getCommand)"
+            :key="command.id"
+            class="group/button mx-2 flex flex-row items-center truncate rounded border border-transparent px-2 py-[4px] transition-colors duration-150 hover:bg-gray-100"
+            :style="{}"
+            @click="fireCommand(command)"
+          >
+            <IconInline class="mr-1 w-5 text-center" v-bind="command.icon" />
+            <span class="">
+              {{ command.title }}
+            </span>
+            <span class="ml-auto">
+              <!-- Shortcut -->
+              <Shortcut
+                v-if="command.shortcuts?.length ?? 0 > 0"
+                class="text-gray-400 opacity-0 transition-colors duration-150 group-hover/button:opacity-100"
+                :shortcut="command.shortcuts![0]"
+              />
+            </span>
+          </button>
+        </div>
 
         <!-- Package -->
-        <div
-          class="group/header mx-4 flex flex-row items-center"
-          :style="{
-            height: `${HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-medium">Pages</span>
+        <div>
+          <div class="group/header mx-4 my-1 flex flex-row items-center py-0.5">
+            <span class="font-medium">Pages</span>
+          </div>
+          <PackageTree
+            id="package"
+            class=""
+            :node-ptr="props.nodePtr"
+            :expanded-nodes-ptr="expandedPackageNodesPtr"
+            @update:expanded-nodes-ptr="
+              state.update({
+                subnodePacked: packSubnode(NodeType.VIEW, ViewType.SIDEBAR, {
+                  expandedPackageNodesPtr: $event,
+                }),
+              })
+            "
+          />
         </div>
-        <PackageTree
-          id="package"
-          class=""
-          :node-ptr="props.nodePtr"
-          :expanded-nodes-ptr="expandedPackageNodesPtr"
-          @update:expanded-nodes-ptr="
-            state.update({
-              subnodePacked: packSubnode(NodeType.VIEW, ViewType.SIDEBAR, {
-                expandedPackageNodesPtr: $event,
-              }),
-            })
-          "
-        />
+
         <!-- Threads -->
-        <div
-          class="group/header mx-4 flex flex-row items-center"
-          :style="{
-            height: `${HEADER_HEIGHT}px`,
-          }"
-        >
-          <span class="font-medium">Threads</span>
+        <div>
+          <ThreadList id="threads" />
         </div>
-        <ThreadList id="threads" />
       </div>
 
       <!-- Selection overlay -->
