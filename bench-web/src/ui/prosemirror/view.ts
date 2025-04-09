@@ -696,12 +696,17 @@ const DEFAULT_PLACEHOLDER_CONFIG: PlaceholderConfig = {
  * ProseMirror placeholder plugin.
  */
 export function usePlaceholderPlugin(
-  config: Partial<PlaceholderConfig> & { showIfUnfocused?: boolean; showIfEmpty?: string[] },
+  config: Partial<PlaceholderConfig> & {
+    showIfUnfocused?: boolean;
+    showAtBeginningOnly?: boolean;
+    showIfEmpty?: string[];
+  },
 ) {
   const {
     placeholderByNodeType,
     defaultPlaceholder,
     showIfUnfocused = false,
+    showAtBeginningOnly = false,
     showIfEmpty = ["lineHeading"],
   } = {
     ...DEFAULT_PLACEHOLDER_CONFIG,
@@ -720,9 +725,10 @@ export function usePlaceholderPlugin(
   }
 
   /** Get placeholder text for a node if it should have one */
-  function getPlaceholderFor(node: PmNode, isSelected: boolean): string | null {
-    const shouldShow = isSelected || showIfEmpty.includes(node.type.name);
-    if (!shouldShow) return null;
+  function getPlaceholderMaybe(node: PmNode, isSelected: boolean): string | null {
+    if (!isSelected && !showIfEmpty.includes(node.type.name)) {
+      return null;
+    }
 
     // only show for empty textblocks
     if (!node.isTextblock || node.textContent !== "") return null;
@@ -747,7 +753,7 @@ export function usePlaceholderPlugin(
     // add decorations for nodes that should have placeholders
     state.doc.descendants((node, pos) => {
       const isSelected = node === selectedParent && state.selection.empty;
-      const placeholderText = getPlaceholderFor(node, isSelected);
+      const placeholderText = getPlaceholderMaybe(node, isSelected);
 
       if (placeholderText) {
         const deco = Decoration.widget(
@@ -769,6 +775,10 @@ export function usePlaceholderPlugin(
     key: PLACEHOLDER_PLUGIN_KEY,
     props: {
       decorations(state) {
+        if (showAtBeginningOnly && state.doc.textContent.trim() !== "") {
+          // don't show placeholders if the document is not fully empty
+          return DecorationSet.create(state.doc, []);
+        }
         return getPlaceholderDecorations(state);
       },
     },

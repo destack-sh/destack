@@ -37,7 +37,14 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 
 // search
-const { connection, graph, page, roots, isConnecting, isStale } = useSearchConnection(
+const {
+  connection,
+  graph,
+  page,
+  roots: threads,
+  isConnecting,
+  isStale,
+} = useSearchConnection(
   { name: "list", live: true },
   computed(() => ({
     nodeType: NodeType.THREAD,
@@ -58,7 +65,7 @@ const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: s
 defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: Ref<AnyNodeData[]> }>({
   self,
   total,
-  roots,
+  roots: threads,
 });
 </script>
 <template>
@@ -66,53 +73,53 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
     <!-- List -->
     <ul class="relative flex flex-col">
       <li
-        v-for="node in roots"
-        :ref="(ref?: any) => (ref != null ? (itemRefs[node.id] = ref) : delete itemRefs[node.id])"
-        :key="node.id"
+        v-for="thread in threads"
+        :ref="(ref?: any) => (ref != null ? (itemRefs[thread.id] = ref) : delete itemRefs[thread.id])"
+        :key="thread.id"
         class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded px-2.5 transition-colors duration-150 hover:cursor-pointer"
         :class="[
-          canvas.isSelected(node)
+          canvas.isSelected(thread)
             ? 'bg-orange-400/20'
-            : canvas.isHighlighted(node)
+            : canvas.isHighlighted(thread)
               ? 'bg-gray-100'
               : 'hover:bg-gray-100',
         ]"
-        :data-node-type="node.metatype"
-        :data-node-id="node.id"
-        :data-node-ck="(node as any).ck"
-        :data-node-bench-id="(node as any).benchPtr?.id"
+        :data-node-type="thread.metatype"
+        :data-node-id="thread.id"
+        :data-node-ck="(thread as any).ck"
+        :data-node-bench-id="(thread as any).benchPtr?.id"
         :style="{
           height: ITEM_HEIGHT + 'px',
         }"
         data-suppress-drag="select"
         role="button"
-        @click.stop="canvas.goToNode(node)"
+        @click.stop="canvas.goToNode(thread)"
       >
         <!-- Icon -->
         <IconInline
-          v-bind="getNodeIcon(node)"
+          v-bind="getNodeIcon(thread)"
           class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
         />
         <!-- Name -->
         <Title
-          :model-value="(node as any).title"
+          :model-value="thread.title"
           :force-line-type="TextLineType.PARAGRAPH"
           class="max-w-full select-none truncate"
           truncate
           is-small
-          :placeholder="toCamelName(NodeType, node.metatype)"
+          :placeholder="toCamelName(NodeType, thread.metatype)"
         />
         <!-- Meta -->
         <div class="ml-auto flex flex-row gap-x-1">
           <!-- Metadata -->
-          <NodeMetadata class="ml-1.5" size="sm" :node="node" />
+          <NodeMetadata class="ml-1.5" size="sm" :node="thread" />
           <button
-            v-for="command of NODE_COMMANDS?.filter((c) => isCommandEnabled(c, { nodes: [node] }))"
+            v-for="command of NODE_COMMANDS?.filter((c) => isCommandEnabled(c, { nodes: [thread] }))"
             :key="command.id"
             v-tooltip="{ small: true, text: command.title, group: 'list.item' }"
             aria-hidden
             class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
-            @click.stop="(e) => command.command?.(command, { event: e, nodes: [node] })"
+            @click.stop="(e) => command.command?.(command, { event: e, nodes: [thread] })"
           >
             <IconInline v-bind="command.icon" />
           </button>
@@ -126,12 +133,8 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
           height: ITEM_HEIGHT + 'px',
         }"
       >
-        <!-- Loading -->
-        <span v-if="isConnecting" class="">
-          <i class="fas fa-spinner-third animate-spin text-gray-400" />
-        </span>
         <!-- Empty -->
-        <span v-else class="text-gray-400">No Threads</span>
+        <span v-if="!isConnecting" class="text-gray-400">No Threads</span>
       </div>
 
       <!-- Selection overlay -->
