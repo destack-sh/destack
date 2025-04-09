@@ -9,6 +9,9 @@ import { toaster } from "@/ui/toast";
 import { generateRandomName } from "@/utils/naming";
 import { toCasing } from "@/utils/string";
 import { canvas } from "@/globals";
+import { computed } from "vue";
+import { IS_DEV } from "@/utils/globals";
+import { user } from "@/system/user";
 
 // debug commands
 export const DEBUG_COMMANDS = provideCommands<"debug">({
@@ -18,6 +21,7 @@ export const DEBUG_COMMANDS = provideCommands<"debug">({
     icon: "fas fa-binary",
     title: "Developer Mode",
     text: "Developer Mode enables some advanced and some weird features.",
+    isEnabled: computed(() => IS_DEV || user.value?.isStaff),
     isChecked: isDeveloperMode,
     command: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
