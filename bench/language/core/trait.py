@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Self, Union
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional, Self, Union, cast
 from uuid import UUID
 
 from bench.language.registry import CHILD_NODE_TYPES
@@ -296,6 +296,10 @@ class IsInstantiable(IsTemplatable):
 
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
+    @property
+    def is_instance(self) -> bool:
+        return self.ck != cast("Node", self).id
+
 
 @object_()
 class IsSubject(BuiltinObject):
@@ -538,10 +542,10 @@ class IsProcessable(IsRuntime):
     def inherit_status(self, other: "IsProcessable") -> None:
         """Inherit the status of another Node."""
         for prop in IsProcessable.__declared_properties__.values():
-            self_value = self._do_get(prop.name)
-            other_value = other._do_get(prop.name)
+            self_value = getattr(self, prop.name)
+            other_value = getattr(other, prop.name)
             if self_value != other_value:
-                self._do_set(prop.name, other_value)
+                setattr(self, prop.name, other_value)
 
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""

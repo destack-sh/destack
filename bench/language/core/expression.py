@@ -651,7 +651,7 @@ def evaluate_sort(sorts: Sequence[Expression], a: Node | AnyNodeData, b: Node | 
         else:
             continue  # invalid sort
 
-        if a_value == b_value:
+        if a_value == b_value or a_value is None or b_value is None:
             continue
         if typ is not None and typ.primitive_type is not None:
             cmp = -1 if a_value < b_value else 1

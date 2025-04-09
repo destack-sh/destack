@@ -171,6 +171,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             inputs=inputs,
             parent=cast(Runner[Runnable], self),
             run="track",
+            agent=self.agent,
         )
         assert isinstance(runner, (ActionRunner, LinkRunner)), f"unexpected {runner!r}"
         runner.flow = cast(FlowRunner, self)

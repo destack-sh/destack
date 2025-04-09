@@ -798,9 +798,12 @@ class Runtime:
         span.status = ProcessStatus.RUNNING
         if runner.is_root and (agent := runner.agent) is not None:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
-            agent.implemented_by = span
+            if agent.implemented_by_id != span.id:
+                agent.implemented_by = span
             agent.inherit_status(span)
-        self.session.stage()
+            self.session.stage(include_runtime=True)
+        else:
+            self.session.stage()
 
         # actually attempt Run
         try:
@@ -960,6 +963,7 @@ class Runtime:
                         and existing_run.type == RunType.FLOW
                         and existing_run.flow_id == flow.id
                         and existing_run.agent_id == agent_id
+                        and not existing_run.status.is_terminal
                     ):
                         target_runner = existing_runner
                         assert isinstance(
@@ -983,6 +987,12 @@ class Runtime:
                         runner = self._active_runners_by_id[runner.id]
                         return runner
                     runner = target_runner
+                    logger.debug(
+                        "runtime.lift_flow.existing",
+                        runner=runner,
+                        inner_run=run,
+                        outer_run=outer_run,
+                    )
                 else:
                     # create new outer run
                     parent_node = run.parent or run.thread
@@ -1002,7 +1012,7 @@ class Runtime:
                     await self.session.commit()  # wait for Run to actually exist
                     runner, run = await self._load_runner(outer_run.to_ref())
                     logger.debug(
-                        "runtime.lift_flow", runner=runner, inner_run=run, outer_run=outer_run
+                        "runtime.lift_flow.new", runner=runner, inner_run=run, outer_run=outer_run
                     )
 
             # actually run

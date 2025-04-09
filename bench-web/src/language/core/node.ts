@@ -3,7 +3,7 @@
  */
 
 import { supergraph } from "@/globals";
-import { isInlineNode, toCamelName } from "@/language/core/const";
+import { isInlineNode, isInstantiableNode, isTemplatableNode, toCamelName } from "@/language/core/const";
 import { getNextSibling, isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
@@ -641,8 +641,11 @@ export function instanceNode<T extends AnyNodeData>(
   }
 
   // set template pointer to the original node
-  if (TEMPLATABLE_NODE_TYPES.includes(oldNode.metatype as unknown as NodeType)) {
-    (instancedNode as any).templatePtr = toNodeRef(oldNode);
+  if (isInstantiableNode(instancedNode)) {
+    instancedNode.ck = (oldNode as any).ck;
+  }
+  if (isTemplatableNode(instancedNode)) {
+    instancedNode.templatePtr = toNodeRef(oldNode);
   }
 
   // remember new identity
