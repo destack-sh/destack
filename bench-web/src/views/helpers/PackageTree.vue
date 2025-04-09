@@ -14,7 +14,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -36,12 +36,12 @@ import { type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 30;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const NODE_TYPES = INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n));
+const NODE_TYPES = INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n) && n != NodeType.THREAD);
 
 const props = defineProps<
   {

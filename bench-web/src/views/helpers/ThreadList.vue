@@ -1,20 +1,32 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
-import { AnyNodeData, ExpressionType, NodeType, TextLineType, ThreadProperty, ViewData } from "@/proto/wire";
-import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  AnyNodeData,
+  ExpressionType,
+  NodeType,
+  TextLineType,
+  ThreadData,
+  ThreadProperty,
+  ViewData,
+} from "@/proto/wire";
+import { describeNode, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { CONTEXT_COMMANDS_BY_TYPE, getCommand, isCommandEnabled } from "@/ui/command";
+import { CONTEXT_COMMANDS_BY_TYPE, fireCommandById, getCommand, isCommandEnabled } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { formatAbsoluteDate, getNow, TimeUpdateInterval } from "@/utils/time";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
 import Title from "@/views/builtin/Title.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
+import { DateTime } from "luxon";
 import { computed, Ref, ref, toRef } from "vue";
 
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ITEM_HEIGHT = 30;
 const DEFAULT_SORT = [
   makeExpression({
@@ -51,10 +63,121 @@ const {
     scope: CURRENT_BENCH_SCOPE.value,
     sort: DEFAULT_SORT,
     isEnabled: true,
-    first: 20,
+    // TODO :Performance: limit & paginate ThreadList?
   })),
 );
 const total = computed(() => page.value?.total);
+
+// organization (by time)
+type ThreadGroup = {
+  title: string;
+  threads: ThreadData[];
+  isFirst: boolean;
+  startTime: DateTime;
+  endTime: DateTime;
+};
+
+const now = getNow(TimeUpdateInterval.HOUR);
+
+// Function to get the active/updated time from a thread
+function getThreadTime(thread: ThreadData): DateTime {
+  // Use activeAt or createdAt as the time to group by
+  if (thread.activeAt) {
+    return DateTime.fromMillis(Number(thread.activeAt.seconds) * 1000 + thread.activeAt.nanos / 1000000);
+  } else {
+    if (!thread.createdAt) {
+      throw new Error(`missing createdAt for ${describeNode(thread)}`);
+    }
+    return DateTime.fromMillis(Number(thread.createdAt.seconds) * 1000 + thread.createdAt.nanos / 1000000);
+  }
+}
+
+const threadGroups = computed(() => {
+  const groups: ThreadGroup[] = [];
+  const today = now.value.startOf("day");
+  const yesterday = today.minus({ days: 1 });
+  const thisWeekStart = today.startOf("week");
+  const lastWeekStart = thisWeekStart.minus({ weeks: 1 });
+
+  // hardcoded groups
+  const todayGroup: ThreadGroup = {
+    title: "Today",
+    threads: [],
+    isFirst: true,
+    startTime: today,
+    endTime: today.endOf("day"),
+  };
+  const yesterdayGroup: ThreadGroup = {
+    title: "Yesterday",
+    threads: [],
+    isFirst: false,
+    startTime: yesterday,
+    endTime: yesterday.endOf("day"),
+  };
+  const thisWeekGroup: ThreadGroup = {
+    title: "This Week",
+    threads: [],
+    isFirst: false,
+    startTime: thisWeekStart,
+    endTime: today.minus({ days: 1 }).endOf("day"),
+  };
+  const lastWeekGroup: ThreadGroup = {
+    title: "Last Week",
+    threads: [],
+    isFirst: false,
+    startTime: lastWeekStart,
+    endTime: thisWeekStart.minus({ days: 1 }).endOf("day"),
+  };
+
+  // earlier weeks
+  const earlierWeeksByStart = new Map<string, ThreadGroup>();
+  for (const thread of threads.value) {
+    const threadTime = getThreadTime(thread);
+
+    if (threadTime >= today) {
+      todayGroup.threads.push(thread);
+    } else if (threadTime >= yesterday) {
+      yesterdayGroup.threads.push(thread);
+    } else if (threadTime >= thisWeekStart) {
+      thisWeekGroup.threads.push(thread);
+    } else if (threadTime >= lastWeekStart) {
+      lastWeekGroup.threads.push(thread);
+    } else {
+      // for earlier weeks, group by week
+      const weekStart = threadTime.startOf("week");
+      const weekEnd = weekStart.endOf("week");
+      const weekKey = weekStart.toFormat("yyyy-MM-dd");
+      if (!earlierWeeksByStart.has(weekKey)) {
+        earlierWeeksByStart.set(weekKey, {
+          isFirst: false,
+          title: `${weekStart.toFormat("LLLL d")} - ${weekEnd.toFormat("LLLL d")}`,
+          threads: [thread],
+          startTime: weekStart,
+          endTime: weekEnd,
+        });
+      } else {
+        earlierWeeksByStart.get(weekKey)!.threads.push(thread);
+      }
+    }
+  }
+
+  // assemble
+  groups.push(todayGroup);
+  if (yesterdayGroup.threads.length > 0) {
+    groups.push(yesterdayGroup);
+  }
+  if (thisWeekGroup.threads.length > 0) {
+    groups.push(thisWeekGroup);
+  }
+  if (lastWeekGroup.threads.length > 0) {
+    groups.push(lastWeekGroup);
+  }
+  const earlierWeeks = Array.from(earlierWeeksByStart.values()).sort(
+    (a, b) => b.startTime.toMillis() - a.startTime.toMillis(),
+  );
+  groups.push(...earlierWeeks);
+  return groups;
+});
 
 // interaction
 const containerRef = ref<HTMLElement | null>(null);
@@ -70,75 +193,99 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
 </script>
 <template>
   <div ref="containerRef" @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)">
-    <!-- List -->
-    <ul class="relative flex flex-col">
-      <li
-        v-for="thread in threads"
-        :ref="(ref?: any) => (ref != null ? (itemRefs[thread.id] = ref) : delete itemRefs[thread.id])"
-        :key="thread.id"
-        class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded px-2.5 transition-colors duration-150 hover:cursor-pointer"
-        :class="[
-          canvas.isSelected(thread)
-            ? 'bg-orange-400/20'
-            : canvas.isHighlighted(thread)
-              ? 'bg-gray-100'
-              : 'hover:bg-gray-100',
-        ]"
-        :data-node-type="thread.metatype"
-        :data-node-id="thread.id"
-        :data-node-ck="(thread as any).ck"
-        :data-node-bench-id="(thread as any).benchPtr?.id"
-        :style="{
-          height: ITEM_HEIGHT + 'px',
-        }"
-        data-suppress-drag="select"
-        role="button"
-        @click.stop="canvas.goToNode(thread)"
-      >
-        <!-- Icon -->
-        <IconInline
-          v-bind="getNodeIcon(thread)"
-          class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
-        />
-        <!-- Name -->
-        <Title
-          :model-value="thread.title"
-          :force-line-type="TextLineType.PARAGRAPH"
-          class="max-w-full select-none truncate"
-          truncate
-          is-small
-          :placeholder="toCamelName(NodeType, thread.metatype)"
-        />
-        <!-- Meta -->
-        <div class="ml-auto flex flex-row gap-x-1">
-          <!-- Metadata -->
-          <NodeMetadata class="ml-1.5" size="sm" :node="thread" />
+    <div class="relative flex flex-col">
+      <!-- Thread groups -->
+      <div v-for="group in threadGroups" :key="group.title" class="mb-2">
+        <!-- Group header -->
+        <div class="group/header mx-4 my-1 flex flex-row items-center py-0.5 text-sm">
+          <span class="font-medium">{{ group.title }}</span>
           <button
-            v-for="command of NODE_COMMANDS?.filter((c) => isCommandEnabled(c, { nodes: [thread] }))"
-            :key="command.id"
-            v-tooltip="{ small: true, text: command.title, group: 'list.item' }"
-            aria-hidden
-            class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
-            @click.stop="(e) => command.command?.(command, { event: e, nodes: [thread] })"
+            v-tooltip="{
+              small: true,
+              text: 'Create Thread',
+              shortcut: getCommand('space.create.thread').shortcuts?.[0],
+            }"
+            class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/header:opacity-100"
+            @click="fireCommandById('space.create.thread')"
           >
-            <IconInline v-bind="command.icon" />
+            <span class="fas fa-plus w-5 text-center" />
           </button>
         </div>
-      </li>
-      <!-- Empty -->
-      <div
-        v-if="total == 0"
-        class="mx-1.5 flex flex-row items-center px-2.5"
-        :style="{
-          height: ITEM_HEIGHT + 'px',
-        }"
-      >
-        <!-- Empty -->
-        <span v-if="!isConnecting" class="text-gray-400">No Threads</span>
+
+        <!-- Empty state for Today -->
+        <div
+          v-if="group.title === 'Today' && group.threads.length === 0"
+          class="mx-2 flex flex-row items-center rounded px-2 text-sm text-gray-400 transition-colors duration-150 hover:cursor-pointer hover:bg-gray-100"
+          role="button"
+          :style="{
+            height: `${ITEM_HEIGHT}px`,
+          }"
+          @click="fireCommandById('space.create.thread')"
+        >
+          <span class="fas fa-plus mr-1 w-5 text-center" />
+          <span>Thread</span>
+        </div>
+
+        <!-- Threads -->
+        <ul class="relative flex flex-col">
+          <li
+            v-for="thread in group.threads"
+            :ref="(ref?: any) => (ref != null ? (itemRefs[thread.id] = ref) : delete itemRefs[thread.id])"
+            :key="thread.id"
+            class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded px-2.5 transition-colors duration-150 hover:cursor-pointer"
+            :class="[
+              canvas.isSelected(thread)
+                ? 'bg-orange-400/20'
+                : canvas.isHighlighted(thread)
+                  ? 'bg-gray-100'
+                  : 'hover:bg-gray-100',
+            ]"
+            :data-node-type="thread.metatype"
+            :data-node-id="thread.id"
+            :data-node-ck="(thread as any).ck"
+            :data-node-bench-id="(thread as any).benchPtr?.id"
+            :style="{
+              height: ITEM_HEIGHT + 'px',
+            }"
+            data-suppress-drag="select"
+            role="button"
+            @click.stop="canvas.goToNode(thread)"
+          >
+            <!-- Icon -->
+            <IconInline
+              v-bind="getNodeIcon(thread)"
+              class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
+            />
+            <!-- Name -->
+            <Title
+              :model-value="(thread as any).title"
+              :force-line-type="TextLineType.PARAGRAPH"
+              class="max-w-full select-none truncate"
+              truncate
+              is-small
+              :placeholder="toCamelName(NodeType, thread.metatype)"
+            />
+            <!-- Meta -->
+            <div class="ml-auto flex flex-row gap-x-1">
+              <!-- Metadata -->
+              <NodeMetadata class="ml-1.5" size="sm" :node="thread" />
+              <button
+                v-for="command of NODE_COMMANDS?.filter((c) => isCommandEnabled(c, { nodes: [thread] }))"
+                :key="command.id"
+                v-tooltip="{ small: true, text: command.title, group: 'list.item' }"
+                aria-hidden
+                class="rounded-sm px-1 py-0.5 text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/node:opacity-100"
+                @click.stop="(e) => command.command?.(command, { event: e, nodes: [thread] })"
+              >
+                <IconInline v-bind="command.icon" />
+              </button>
+            </div>
+          </li>
+        </ul>
       </div>
 
       <!-- Selection overlay -->
       <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
-    </ul>
+    </div>
   </div>
 </template>
