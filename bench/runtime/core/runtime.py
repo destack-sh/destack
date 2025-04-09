@@ -874,7 +874,7 @@ class Runtime:
         """React to updates on a Run from outside this Runtime."""
         if run.status.is_terminal:
             return  # nothing to do anymore
-        elif run.stopped_at:
+        elif run.requested_stop_at:
             self.stop_run(run)
         elif run.should_pause:
             pass  # nothing to do (pause is trapped automatically)

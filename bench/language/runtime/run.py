@@ -190,8 +190,7 @@ class Run(
     text: Optional["Text"] = p_regular(65, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(66, default=None, struct=StructType.CODE)
 
-    # status [80-90]
-    status: ProcessStatus = p_internal(80, default=ProcessStatus.CREATED)
+    # ...IsProcessable[80-]
 
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["Span"] = p_node_children(NodeType.SPAN)
@@ -360,12 +359,12 @@ class Run(
     def pause(self):
         """Mark this Run as paused."""
         assert self._session is not None, f"{self!r} has no session"
-        self.paused_at = self._session._oracle.utc()
+        self.requested_pause_at = self._session._oracle.utc()
 
     def resume(self, _trigger_runtime: bool = True):
         """Mark this Run as resumed."""
         assert self._session is not None, f"{self!r} has no session"
-        self.resumed_at = self._session._oracle.utc()
+        self.requested_resume_at = self._session._oracle.utc()
         if (
             (runtime := self.runtime) is not None
             and self.session_id == runtime.session_id
@@ -376,32 +375,13 @@ class Run(
     def stop(self, _trigger_runtime: bool = True):
         """Mark this Run as stopped."""
         assert self._session is not None, f"{self!r} has no session"
-        self.stopped_at = self._session._oracle.utc()
+        self.requested_stop_at = self._session._oracle.utc()
         if (
             (runtime := self.runtime) is not None
             and self.session_id == runtime.session_id
             and _trigger_runtime
         ):
             runtime.stop_run(self)
-
-    @property
-    def should_stop(self) -> bool:
-        return not (self.status.is_terminal) and (self.stopped_at is not None)
-
-    @property
-    def should_pause(self) -> bool:
-        return not (self.status.is_terminal or self.stopped_at is not None) and (
-            self.paused_at is not None
-            and (self.resumed_at is None or self.paused_at > self.resumed_at)
-        )
-
-    @property
-    def should_resume(self) -> bool:
-        return not (self.status.is_terminal or self.stopped_at is not None) and (
-            self.resumed_at is not None
-            and (self.paused_at is None or self.paused_at < self.resumed_at)
-            and (self.interrupted_at is None or self.interrupted_at < self.resumed_at)
-        )
 
     def _mark_terminated(self):
         """Mark this Run as stopped."""

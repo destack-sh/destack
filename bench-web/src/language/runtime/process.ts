@@ -68,8 +68,8 @@ export function isProcessPaused(process: ProcessableNodeData): boolean {
   if (!isNode(process, NodeType.RUN)) return false;
   if (isProcessTerminal(process)) return false;
   return (
-    process.pausedAt != null &&
-    (process.resumedAt == null || compareTimestamps(process.pausedAt, process.resumedAt) > 0)
+    process.requestedPauseAt != null &&
+    (process.requestedResumeAt == null || compareTimestamps(process.requestedPauseAt, process.requestedResumeAt) > 0)
   );
 }
 

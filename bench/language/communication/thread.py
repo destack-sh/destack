@@ -118,8 +118,7 @@ class Thread(
         main_plan_id: Optional[UUID] = None
         main_plan_ck: Optional[UUID] = None
 
-    # status [80-90]
-    # ...
+    # ...IsProcessable[80-]
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList

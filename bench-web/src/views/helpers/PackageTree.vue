@@ -217,7 +217,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
       <!-- NOTE :UX: it would be neat to have hover/focused/selected nodes highlighted (everywhere) -->
       <ul
         ref="listRef"
-        class="group/list relative mb-1 flex flex-col text-gray-900"
+        class="group/list relative flex flex-col text-gray-900"
         :style="{ maxWidth: `${containerSize.width.value}px` }"
       >
         <!-- Node -->

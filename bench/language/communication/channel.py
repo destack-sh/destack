@@ -50,7 +50,7 @@ class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, Inlin
         61, require=False, array=False, references=NodeType.PLAN, same_bench=True
     )
 
-    # status [80-90]
+    # ...IsProcessable[80-]
 
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
