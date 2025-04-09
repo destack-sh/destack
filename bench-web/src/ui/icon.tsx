@@ -126,10 +126,17 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
     // file
     const download = getSilentFileDownload(props.filePtr);
     if (download?.getUrl.value != null) {
-      return <img src={download.getUrl.value} class="rounded-full" />;
+      // NOTE :Cleanup: why does it take this terrible inline-block/absolute hack to get IconInline images to align with the text?
+      return (
+        <div class="relative inline-block h-3 min-w-[1em]">
+          <img src={download.getUrl.value} class="rounded-full absolute -bottom-[2px]" />
+        </div>
+      );
     } else {
       // downloading (skeleton)
-      return <span class="animate-pulse w-5 h-5 rounded-full bg-gray-200" />;
+      return (
+        <span class="fas fa-circle animate-pulse" style={{ color: getColorHex(ColorType.GRAY, ColorShade.S200) }} />
+      );
     }
   }
 
