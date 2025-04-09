@@ -231,7 +231,7 @@ mark {
 }
 .pm-text.pm-compact .line,
 .pm-text.pm-compact .line-block.page {
-  @apply px-0 py-0;
+  @apply px-0 py-[1px];
 }
 .pm-text.pm-compact.pm-paddingless .line,
 .pm-text.pm-compact.pm-paddingless .line-block.page {

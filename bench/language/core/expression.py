@@ -479,6 +479,9 @@ def _lower_expression_value(typ: "IsType", value: Any) -> Any:
     This is related to the lower_conditional pass we do in the sql engine backend,
      but we also down the value into its data format.
     """
+    if value is None:
+        return None
+
     # auto lower collections
     if isinstance(value, Sequence) and type(value) is not str:
         return [_lower_expression_value(typ, v) for v in value]

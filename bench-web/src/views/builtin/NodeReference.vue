@@ -73,7 +73,7 @@ const iconClass = computed(() => [
   props.size == "sm" ? "text-sm w-5 mr-1" : "",
   props.size == "base" ? "text-base w-5 mr-2" : "",
   props.size == "title" ? "text-4xl w-8 mr-3.5" : "",
-  props.size == "inherit" ? "mr-[0.3em]" : "",
+  props.size == "inherit" ? "max-w-[1em] mr-[0.3em]" : "",
 ]);
 const identifierClass = computed(() => [
   props.size == "sm" ? ["text-sm", props.isLight ? "" : "font-medium"] : "",
@@ -125,7 +125,7 @@ defineExpose({
   <div
     v-if="node != null"
     class=""
-    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-center']]"
+    :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-baseline']]"
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
     :data-node-type="node.metatype"
