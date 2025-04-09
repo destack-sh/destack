@@ -135,7 +135,7 @@ class Task(
         nodes_ptr: Optional[NodeReference] = None
         nodes_id: Optional[UUID] = None
 
-    # status [80-90]
+    # ...IsProcessable[80-]
 
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     tasks: NodeList["Task"] = p_node_children(NodeType.TASK)
@@ -151,7 +151,7 @@ class Task(
             self.duration = self.terminated_at - self.started_at
 
     def stop(self) -> None:
-        self.stopped_at = self.active_session._oracle.utc()
+        self.requested_stop_at = self.active_session._oracle.utc()
 
     def fail(self, error: "Error | None" = None) -> None:
         self.error = error

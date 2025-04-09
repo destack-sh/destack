@@ -269,7 +269,7 @@ export class Runtime {
     if (!isProcessActive(run)) return;
     log.trace("runtime.pause", run);
     const tx = options?.tx ?? this.tx;
-    tx.update(run, { pausedAt: Timestamp.now() });
+    tx.update(run, { requestedPauseAt: Timestamp.now() });
   }
 
   /** Resume a Run. */
@@ -277,7 +277,7 @@ export class Runtime {
     if (run.status != ProcessStatus.PAUSED) return;
     log.trace("runtime.resume", run);
     const tx = options?.tx ?? this.tx;
-    tx.update(run, { resumedAt: Timestamp.now() });
+    tx.update(run, { requestedResumeAt: Timestamp.now() });
   }
 
   /** Stop a Run. */
@@ -285,7 +285,7 @@ export class Runtime {
     if (!isProcessActive(run)) return;
     log.trace("runtime.stop", run);
     const tx = options?.tx ?? this.tx;
-    tx.update(run, { stoppedAt: Timestamp.now() });
+    tx.update(run, { requestedStopAt: Timestamp.now() });
   }
 
   /** Complete an Interrupt */

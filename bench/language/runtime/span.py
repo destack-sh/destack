@@ -57,7 +57,7 @@ class Span(
     code: Optional["Code"] = p_regular(62, default=None, struct=StructType.CODE)
     nodes: list["Node"] = p_regular(65, array=True, require=False, references="any")
 
-    # status [80-90]
+    # ...IsProcessable[80-]
 
     @property
     def is_retryable(self) -> bool:

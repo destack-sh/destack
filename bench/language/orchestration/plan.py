@@ -63,7 +63,7 @@ class Plan(
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 
-    # status [80-90]
+    # ...IsProcessable[80-]
 
     triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)

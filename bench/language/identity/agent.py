@@ -121,7 +121,7 @@ class Agent(
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 
-    # status [80-90]
+    # ...IsProcessable[80-]
     # nocheckin: track Thread & Agent (instance) status (and show it in the UI)
 
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)

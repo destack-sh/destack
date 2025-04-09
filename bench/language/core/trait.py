@@ -457,16 +457,16 @@ class IsRuntime(BuiltinObject):
     # NOTE :Security: session context properties are p_internal (not p_system) so we can update
     #   them in all Clients. But this also means Users could mess with them if they really want to.
     session: Optional["Session"] = p_internal(
-        91, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        94, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     client: Optional["Client"] = p_internal(
-        93, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+        95, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
     computer: Optional["Computer"] = p_internal(
-        94, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
+        96, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
     )
-    user: Optional["User"] = p_internal(95, require=False, array=False, references=NodeType.USER)
-    agent: Optional["Agent"] = p_internal(96, require=False, array=False, references=NodeType.AGENT)
+    user: Optional["User"] = p_internal(97, require=False, array=False, references=NodeType.USER)
+    agent: Optional["Agent"] = p_internal(98, require=False, array=False, references=NodeType.AGENT)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
@@ -496,41 +496,73 @@ class IsProcessable(IsRuntime):
         default=None,
         description="Duration from first attempt start to last attempt termination.",
     )
-    scheduled_at: Optional[datetime] = p_internal(
-        82, default=None, description="When the Node is scheduled to start."
-    )
-    started_at: Optional[datetime] = p_internal(
-        83, default=None, description="When the Node first started."
-    )
-    stopped_at: Optional[datetime] = p_internal(
-        84, default=None, description="When the Node was requested to stop."
-    )
-    interrupted_at: Optional[datetime] = p_internal(
-        85, default=None, description="When the Node was interrupted."
-    )
-    paused_at: Optional[datetime] = p_internal(
-        86, default=None, description="When the Node was requested to pause."
-    )
-    resumed_at: Optional[datetime] = p_internal(
-        87, default=None, description="When the Node was requested to resume."
-    )
-    terminated_at: Optional[datetime] = p_internal(
-        88, default=None, description="When the Node was last terminated."
-    )
     error: Optional["Error"] = p_internal(
-        89, default=None, require=False, array=False, struct=StructType.ERROR
+        82, default=None, require=False, array=False, struct=StructType.ERROR
     )
     interruption: Optional["Interruption"] = p_internal(
-        90,
+        83,
         require=False,
         array=False,
         references=NodeType.INTERRUPTION,
         same_bench=True,
         description="The latest Interruption concerning the Node.",
     )
+    scheduled_at: Optional[datetime] = p_internal(
+        85, default=None, description="When the Node is scheduled to start."
+    )
+    started_at: Optional[datetime] = p_internal(
+        86, default=None, description="When the Node first started."
+    )
+    active_at: Optional[datetime] = p_internal(
+        87, default=None, description="When the Node was last active."
+    )
+    interrupted_at: Optional[datetime] = p_internal(
+        88, default=None, description="When the Node was interrupted."
+    )
+    terminated_at: Optional[datetime] = p_internal(
+        89, default=None, description="When the Node was last terminated."
+    )
+    requested_stop_at: Optional[datetime] = p_internal(
+        90, default=None, description="When the Node was requested to stop."
+    )
+    requested_pause_at: Optional[datetime] = p_internal(
+        91, default=None, description="When the Node was requested to pause."
+    )
+    requested_resume_at: Optional[datetime] = p_internal(
+        92, default=None, description="When the Node was requested to resume."
+    )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
+
+    def touch(self) -> None:
+        """'Touch' the Node to update the active_at timestamp."""
+        self.active_at = self.active_session._oracle.utc()
+
+    @property
+    def should_stop(self) -> bool:
+        return not (self.status.is_terminal) and (self.requested_stop_at is not None)
+
+    @property
+    def should_pause(self) -> bool:
+        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
+            self.requested_pause_at is not None
+            and (
+                self.requested_resume_at is None
+                or self.requested_pause_at > self.requested_resume_at
+            )
+        )
+
+    @property
+    def should_resume(self) -> bool:
+        return not (self.status.is_terminal or self.requested_stop_at is not None) and (
+            self.requested_resume_at is not None
+            and (
+                self.requested_pause_at is None
+                or self.requested_pause_at < self.requested_resume_at
+            )
+            and (self.interrupted_at is None or self.interrupted_at < self.requested_resume_at)
+        )
 
 
 @object_()

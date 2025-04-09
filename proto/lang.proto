@@ -2142,11 +2142,11 @@ message EditContextData {
 
 message ContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message RunTraceData {
@@ -2412,20 +2412,21 @@ message ChannelData {
   optional NodeReferenceData main_plan_ptr = 61;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message MessageData {
@@ -2543,20 +2544,21 @@ message ThreadData {
   optional TextData text = 65;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message ApplicationData {
@@ -2945,20 +2947,21 @@ message AgentData {
   optional ColorType color = 58;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message InviteData {
@@ -3069,11 +3072,11 @@ message ClaimData {
   optional google.protobuf.Timestamp terminated_at = 55;
   optional NodeReferenceData target_ptr = 60;
   optional NodeReferenceData target_template_ptr = 65;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message PlanData {
@@ -3102,20 +3105,21 @@ message PlanData {
   optional NodeReferenceData implemented_by_ptr = 43;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message TaskData {
@@ -3152,20 +3156,21 @@ message TaskData {
   repeated NodeReferenceData nodes_ptr = 72;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message InterruptionData {
@@ -3198,11 +3203,11 @@ message InterruptionData {
   optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
   optional NodeReferenceData task_ptr = 56;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message LogData {
@@ -3223,11 +3228,11 @@ message LogData {
   Severity severity = 31;
   optional string title = 32;
   optional TextData text = 33;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message RunData {
@@ -3265,20 +3270,21 @@ message RunData {
   optional NodeReferenceData run_task_ptr = 79;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message SessionData {
@@ -3298,11 +3304,11 @@ message SessionData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp opened_at = 42;
   optional google.protobuf.Timestamp closed_at = 43;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message SpanData {
@@ -3338,20 +3344,21 @@ message SpanData {
   optional NodeReferenceData run_task_ptr = 79;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
-  optional google.protobuf.Timestamp scheduled_at = 82;
-  optional google.protobuf.Timestamp started_at = 83;
-  optional google.protobuf.Timestamp stopped_at = 84;
-  optional google.protobuf.Timestamp interrupted_at = 85;
-  optional google.protobuf.Timestamp paused_at = 86;
-  optional google.protobuf.Timestamp resumed_at = 87;
-  optional google.protobuf.Timestamp terminated_at = 88;
-  optional ErrorData error = 89;
-  optional NodeReferenceData interruption_ptr = 90;
-  optional NodeReferenceData session_ptr = 91;
-  optional NodeReferenceData client_ptr = 93;
-  optional NodeReferenceData computer_ptr = 94;
-  optional NodeReferenceData user_ptr = 95;
-  optional NodeReferenceData agent_ptr = 96;
+  optional ErrorData error = 82;
+  optional NodeReferenceData interruption_ptr = 83;
+  optional google.protobuf.Timestamp scheduled_at = 85;
+  optional google.protobuf.Timestamp started_at = 86;
+  optional google.protobuf.Timestamp active_at = 87;
+  optional google.protobuf.Timestamp interrupted_at = 88;
+  optional google.protobuf.Timestamp terminated_at = 89;
+  optional google.protobuf.Timestamp requested_stop_at = 90;
+  optional google.protobuf.Timestamp requested_pause_at = 91;
+  optional google.protobuf.Timestamp requested_resume_at = 92;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
 }
 
 message ActionData {

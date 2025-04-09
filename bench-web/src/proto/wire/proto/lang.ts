@@ -1012,23 +1012,23 @@ export interface ContextData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -1903,59 +1903,63 @@ export interface ChannelData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -2399,59 +2403,63 @@ export interface ThreadData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -3923,59 +3931,63 @@ export interface AgentData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -4366,11 +4378,11 @@ export interface ClaimData {
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 53;
      */
-    pausedAt?: Timestamp;
+    requestedPauseAt?: Timestamp;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 54;
      */
-    resumedAt?: Timestamp;
+    requestedResumeAt?: Timestamp;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 55;
      */
@@ -4384,23 +4396,23 @@ export interface ClaimData {
      */
     targetTemplatePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -4509,59 +4521,63 @@ export interface PlanData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -4702,59 +4718,63 @@ export interface TaskData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -4879,23 +4899,23 @@ export interface InterruptionData {
      */
     taskPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -4972,23 +4992,23 @@ export interface LogData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -5133,59 +5153,63 @@ export interface RunData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -5258,23 +5282,23 @@ export interface SessionData {
      */
     closedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -5411,59 +5435,63 @@ export interface SpanData {
      */
     duration?: Duration;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 82;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 83;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp stopped_at = 84;
-     */
-    stoppedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 85;
-     */
-    interruptedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 86;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp resumed_at = 87;
-     */
-    resumedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 88;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 89;
+     * @generated from protobuf field: optional symbolx.bench.ErrorData error = 82;
      */
     error?: ErrorData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 90;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 83;
      */
     interruptionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 91;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 85;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 86;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 87;
+     */
+    activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp interrupted_at = 88;
+     */
+    interruptedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 89;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_stop_at = 90;
+     */
+    requestedStopAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_pause_at = 91;
+     */
+    requestedPauseAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp requested_resume_at = 92;
+     */
+    requestedResumeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData session_ptr = 94;
      */
     sessionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 93;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 95;
      */
     clientPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 94;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData computer_ptr = 96;
      */
     computerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 95;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData user_ptr = 97;
      */
     userPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 96;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData agent_ptr = 98;
      */
     agentPtr?: NodeReferenceData;
 }
@@ -16818,11 +16846,11 @@ class ContextData$Type extends MessageType$<ContextData> {
     constructor() {
         super("symbolx.bench.ContextData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ContextData>): ContextData {
@@ -16840,19 +16868,19 @@ class ContextData$Type extends MessageType$<ContextData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -16870,21 +16898,21 @@ class ContextData$Type extends MessageType$<ContextData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -19218,20 +19246,21 @@ class ChannelData$Type extends MessageType$<ChannelData> {
             { no: 61, name: "main_plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ChannelData>): ChannelData {
@@ -19319,46 +19348,49 @@ class ChannelData$Type extends MessageType$<ChannelData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -19442,48 +19474,51 @@ class ChannelData$Type extends MessageType$<ChannelData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20204,20 +20239,21 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 65, name: "text", kind: "message", T: () => TextData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ThreadData>): ThreadData {
@@ -20317,46 +20353,49 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -20452,48 +20491,51 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23294,20 +23336,21 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 58, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<AgentData>): AgentData {
@@ -23419,46 +23462,49 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -23566,48 +23612,51 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24294,11 +24343,11 @@ class ClaimData$Type extends MessageType$<ClaimData> {
             { no: 55, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 60, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 65, name: "target_template_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ClaimData>): ClaimData {
@@ -24386,10 +24435,10 @@ class ClaimData$Type extends MessageType$<ClaimData> {
                     message.openedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.openedAt);
                     break;
                 case /* optional google.protobuf.Timestamp paused_at */ 53:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
                     break;
                 case /* optional google.protobuf.Timestamp resumed_at */ 54:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
                     break;
                 case /* optional google.protobuf.Timestamp terminated_at */ 55:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
@@ -24400,19 +24449,19 @@ class ClaimData$Type extends MessageType$<ClaimData> {
                 case /* optional symbolx.bench.NodeReferenceData target_template_ptr */ 65:
                     message.targetTemplatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetTemplatePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -24494,11 +24543,11 @@ class ClaimData$Type extends MessageType$<ClaimData> {
         if (message.openedAt)
             Timestamp.internalBinaryWrite(message.openedAt, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp paused_at = 53; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp resumed_at = 54; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp terminated_at = 55; */
         if (message.terminatedAt)
             Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
@@ -24508,21 +24557,21 @@ class ClaimData$Type extends MessageType$<ClaimData> {
         /* optional symbolx.bench.NodeReferenceData target_template_ptr = 65; */
         if (message.targetTemplatePtr)
             NodeReferenceData.internalBinaryWrite(message.targetTemplatePtr, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24562,20 +24611,21 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 43, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PlanData>): PlanData {
@@ -24670,46 +24720,49 @@ class PlanData$Type extends MessageType$<PlanData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -24799,48 +24852,51 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24888,20 +24944,21 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 72, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<TaskData>): TaskData {
@@ -25022,46 +25079,49 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -25175,48 +25235,51 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25260,11 +25323,11 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 54, name: "response", kind: "enum", opt: true, T: () => ["symbolx.bench.InterruptionResponse", InterruptionResponse, "INTERRUPTION_RESPONSE_"] },
             { no: 55, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 56, name: "task_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<InterruptionData>): InterruptionData {
@@ -25370,19 +25433,19 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                 case /* optional symbolx.bench.NodeReferenceData task_ptr */ 56:
                     message.taskPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.taskPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -25484,21 +25547,21 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional symbolx.bench.NodeReferenceData task_ptr = 56; */
         if (message.taskPtr)
             NodeReferenceData.internalBinaryWrite(message.taskPtr, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25530,11 +25593,11 @@ class LogData$Type extends MessageType$<LogData> {
             { no: 31, name: "severity", kind: "enum", T: () => ["symbolx.bench.Severity", Severity, "SEVERITY_"] },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<LogData>): LogData {
@@ -25604,19 +25667,19 @@ class LogData$Type extends MessageType$<LogData> {
                 case /* optional symbolx.bench.TextData text */ 33:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -25682,21 +25745,21 @@ class LogData$Type extends MessageType$<LogData> {
         /* optional symbolx.bench.TextData text = 33; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25745,20 +25808,21 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 79, name: "run_task_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<RunData>): RunData {
@@ -25879,46 +25943,49 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -26035,48 +26102,51 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26107,11 +26177,11 @@ class SessionData$Type extends MessageType$<SessionData> {
             { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "opened_at", kind: "message", T: () => Timestamp },
             { no: 43, name: "closed_at", kind: "message", T: () => Timestamp },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SessionData>): SessionData {
@@ -26177,19 +26247,19 @@ class SessionData$Type extends MessageType$<SessionData> {
                 case /* optional google.protobuf.Timestamp closed_at */ 43:
                     message.closedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.closedAt);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -26252,21 +26322,21 @@ class SessionData$Type extends MessageType$<SessionData> {
         /* optional google.protobuf.Timestamp closed_at = 43; */
         if (message.closedAt)
             Timestamp.internalBinaryWrite(message.closedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26313,20 +26383,21 @@ class SpanData$Type extends MessageType$<SpanData> {
             { no: 79, name: "run_task_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
-            { no: 82, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 83, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 84, name: "stopped_at", kind: "message", T: () => Timestamp },
-            { no: 85, name: "interrupted_at", kind: "message", T: () => Timestamp },
-            { no: 86, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 87, name: "resumed_at", kind: "message", T: () => Timestamp },
-            { no: 88, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 89, name: "error", kind: "message", T: () => ErrorData },
-            { no: 90, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 91, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 93, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 94, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 95, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 96, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 82, name: "error", kind: "message", T: () => ErrorData },
+            { no: 83, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 85, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 86, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 87, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 88, name: "interrupted_at", kind: "message", T: () => Timestamp },
+            { no: 89, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 90, name: "requested_stop_at", kind: "message", T: () => Timestamp },
+            { no: 91, name: "requested_pause_at", kind: "message", T: () => Timestamp },
+            { no: 92, name: "requested_resume_at", kind: "message", T: () => Timestamp },
+            { no: 94, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 95, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 96, name: "computer_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 97, name: "user_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 98, name: "agent_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SpanData>): SpanData {
@@ -26443,46 +26514,49 @@ class SpanData$Type extends MessageType$<SpanData> {
                 case /* optional google.protobuf.Duration duration */ 81:
                     message.duration = Duration.internalBinaryRead(reader, reader.uint32(), options, message.duration);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 82:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 83:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp stopped_at */ 84:
-                    message.stoppedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.stoppedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp interrupted_at */ 85:
-                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 86:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp resumed_at */ 87:
-                    message.resumedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resumedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 88:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional symbolx.bench.ErrorData error */ 89:
+                case /* optional symbolx.bench.ErrorData error */ 82:
                     message.error = ErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 90:
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 83:
                     message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 91:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 85:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 86:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp active_at */ 87:
+                    message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp interrupted_at */ 88:
+                    message.interruptedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.interruptedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 89:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_stop_at */ 90:
+                    message.requestedStopAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedStopAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_pause_at */ 91:
+                    message.requestedPauseAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedPauseAt);
+                    break;
+                case /* optional google.protobuf.Timestamp requested_resume_at */ 92:
+                    message.requestedResumeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.requestedResumeAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData session_ptr */ 94:
                     message.sessionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sessionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 93:
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 95:
                     message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 94:
+                case /* optional symbolx.bench.NodeReferenceData computer_ptr */ 96:
                     message.computerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.computerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 95:
+                case /* optional symbolx.bench.NodeReferenceData user_ptr */ 97:
                     message.userPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.userPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 96:
+                case /* optional symbolx.bench.NodeReferenceData agent_ptr */ 98:
                     message.agentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.agentPtr);
                     break;
                 default:
@@ -26593,48 +26667,51 @@ class SpanData$Type extends MessageType$<SpanData> {
         /* optional google.protobuf.Duration duration = 81; */
         if (message.duration)
             Duration.internalBinaryWrite(message.duration, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 82; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp started_at = 83; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp stopped_at = 84; */
-        if (message.stoppedAt)
-            Timestamp.internalBinaryWrite(message.stoppedAt, writer.tag(84, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp interrupted_at = 85; */
-        if (message.interruptedAt)
-            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp paused_at = 86; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp resumed_at = 87; */
-        if (message.resumedAt)
-            Timestamp.internalBinaryWrite(message.resumedAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 88; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ErrorData error = 89; */
+        /* optional symbolx.bench.ErrorData error = 82; */
         if (message.error)
-            ErrorData.internalBinaryWrite(message.error, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 90; */
+            ErrorData.internalBinaryWrite(message.error, writer.tag(82, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 83; */
         if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData session_ptr = 91; */
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(83, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 85; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp started_at = 86; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(86, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 87; */
+        if (message.activeAt)
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(87, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp interrupted_at = 88; */
+        if (message.interruptedAt)
+            Timestamp.internalBinaryWrite(message.interruptedAt, writer.tag(88, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 89; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(89, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_stop_at = 90; */
+        if (message.requestedStopAt)
+            Timestamp.internalBinaryWrite(message.requestedStopAt, writer.tag(90, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_pause_at = 91; */
+        if (message.requestedPauseAt)
+            Timestamp.internalBinaryWrite(message.requestedPauseAt, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp requested_resume_at = 92; */
+        if (message.requestedResumeAt)
+            Timestamp.internalBinaryWrite(message.requestedResumeAt, writer.tag(92, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData session_ptr = 94; */
         if (message.sessionPtr)
-            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(91, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData client_ptr = 93; */
+            NodeReferenceData.internalBinaryWrite(message.sessionPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 95; */
         if (message.clientPtr)
-            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(93, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData computer_ptr = 94; */
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData computer_ptr = 96; */
         if (message.computerPtr)
-            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(94, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData user_ptr = 95; */
+            NodeReferenceData.internalBinaryWrite(message.computerPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData user_ptr = 97; */
         if (message.userPtr)
-            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(95, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData agent_ptr = 96; */
+            NodeReferenceData.internalBinaryWrite(message.userPtr, writer.tag(97, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData agent_ptr = 98; */
         if (message.agentPtr)
-            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(96, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.agentPtr, writer.tag(98, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -33176,20 +33253,21 @@ export enum ChannelProperty {
   mainPlanPtr = 61,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum ThreadProperty {
@@ -33220,20 +33298,21 @@ export enum ThreadProperty {
   text = 65,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum MessageProperty {
@@ -33411,20 +33490,21 @@ export enum AgentProperty {
   color = 58,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum SessionProperty {
@@ -33444,11 +33524,11 @@ export enum SessionProperty {
   duration = 41,
   openedAt = 42,
   closedAt = 43,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum RunProperty {
@@ -33486,20 +33566,21 @@ export enum RunProperty {
   runTaskPtr = 79,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum SpanProperty {
@@ -33535,20 +33616,21 @@ export enum SpanProperty {
   runTaskPtr = 79,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum InterruptionProperty {
@@ -33581,11 +33663,11 @@ export enum InterruptionProperty {
   response = 54,
   messagePtr = 55,
   taskPtr = 56,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum LogProperty {
@@ -33606,11 +33688,11 @@ export enum LogProperty {
   severity = 31,
   title = 32,
   text = 33,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum PlanProperty {
@@ -33639,20 +33721,21 @@ export enum PlanProperty {
   implementedByPtr = 43,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum TaskProperty {
@@ -33689,20 +33772,21 @@ export enum TaskProperty {
   nodesPtr = 72,
   status = 80,
   duration = 81,
-  scheduledAt = 82,
-  startedAt = 83,
-  stoppedAt = 84,
-  interruptedAt = 85,
-  pausedAt = 86,
-  resumedAt = 87,
-  terminatedAt = 88,
-  error = 89,
-  interruptionPtr = 90,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  error = 82,
+  interruptionPtr = 83,
+  scheduledAt = 85,
+  startedAt = 86,
+  activeAt = 87,
+  interruptedAt = 88,
+  terminatedAt = 89,
+  requestedStopAt = 90,
+  requestedPauseAt = 91,
+  requestedResumeAt = 92,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum ClaimProperty {
@@ -33728,16 +33812,16 @@ export enum ClaimProperty {
   status = 50,
   duration = 51,
   openedAt = 52,
-  pausedAt = 53,
-  resumedAt = 54,
+  requestedPauseAt = 53,
+  requestedResumeAt = 54,
   terminatedAt = 55,
   targetPtr = 60,
   targetTemplatePtr = 65,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum ViewProperty {
@@ -33909,11 +33993,11 @@ export enum IconViewProperty {
 
 export enum ContextProperty {
   metatype = 1,
-  sessionPtr = 91,
-  clientPtr = 93,
-  computerPtr = 94,
-  userPtr = 95,
-  agentPtr = 96,
+  sessionPtr = 94,
+  clientPtr = 95,
+  computerPtr = 96,
+  userPtr = 97,
+  agentPtr = 98,
 }
 
 export enum EditContextProperty {
@@ -35463,20 +35547,21 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.mainPlanPtr]: { id: 61, name: 'main_plan_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.status]: { id: 80, name: 'status', component: ObjectType.CHANNEL, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.duration]: { id: 81, name: 'duration', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChannelProperty.error]: { id: 89, name: 'error', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [ChannelProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.error]: { id: 82, name: 'error', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [ChannelProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [ChannelProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.THREAD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35506,20 +35591,21 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.text]: { id: 65, name: 'text', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ThreadProperty.status]: { id: 80, name: 'status', component: ObjectType.THREAD, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.duration]: { id: 81, name: 'duration', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ThreadProperty.error]: { id: 89, name: 'error', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [ThreadProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.error]: { id: 82, name: 'error', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [ThreadProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35690,20 +35776,21 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.color]: { id: 58, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.error]: { id: 89, name: 'error', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [AgentProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.error]: { id: 82, name: 'error', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [AgentProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35722,11 +35809,11 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.closedAt]: { id: 43, name: 'closed_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [SessionProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.SESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35763,20 +35850,21 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.runTaskPtr]: { id: 79, name: 'run_task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.status]: { id: 80, name: 'status', component: ObjectType.RUN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 81, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.error]: { id: 89, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [RunProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.error]: { id: 82, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [RunProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SpanDataInfo: Record<SpanProperty, PropertyInfo> = {
   [SpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35811,20 +35899,21 @@ export const SpanDataInfo: Record<SpanProperty, PropertyInfo> = {
   [SpanProperty.runTaskPtr]: { id: 79, name: 'run_task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.status]: { id: 80, name: 'status', component: ObjectType.SPAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpanProperty.error]: { id: 89, name: 'error', component: ObjectType.SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [SpanProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.error]: { id: 82, name: 'error', component: ObjectType.SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [SpanProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [SpanProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = {
   [InterruptionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INTERRUPTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35856,11 +35945,11 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.response]: { id: 54, name: 'response', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_RESPONSE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.messagePtr]: { id: 55, name: 'message_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.taskPtr]: { id: 56, name: 'task_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [InterruptionProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [InterruptionProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [InterruptionProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [InterruptionProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [InterruptionProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35880,11 +35969,11 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.severity]: { id: 31, name: 'severity', component: ObjectType.LOG, enumType: EnumType.SEVERITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.title]: { id: 32, name: 'title', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.text]: { id: 33, name: 'text', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [LogProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PLAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35912,20 +36001,21 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.implementedByPtr]: { id: 43, name: 'implemented_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PlanProperty.error]: { id: 89, name: 'error', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [PlanProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.error]: { id: 82, name: 'error', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [PlanProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [PlanProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TASK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35961,20 +36051,21 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.nodesPtr]: { id: 72, name: 'nodes_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.duration]: { id: 81, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.scheduledAt]: { id: 82, name: 'scheduled_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.startedAt]: { id: 83, name: 'started_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.stoppedAt]: { id: 84, name: 'stopped_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.interruptedAt]: { id: 85, name: 'interrupted_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.pausedAt]: { id: 86, name: 'paused_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.resumedAt]: { id: 87, name: 'resumed_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.terminatedAt]: { id: 88, name: 'terminated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.error]: { id: 89, name: 'error', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
-  [TaskProperty.interruptionPtr]: { id: 90, name: 'interruption_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.error]: { id: 82, name: 'error', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
+  [TaskProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.scheduledAt]: { id: 85, name: 'scheduled_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.startedAt]: { id: 86, name: 'started_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.activeAt]: { id: 87, name: 'active_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.interruptedAt]: { id: 88, name: 'interrupted_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.terminatedAt]: { id: 89, name: 'terminated_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.requestedStopAt]: { id: 90, name: 'requested_stop_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.requestedPauseAt]: { id: 91, name: 'requested_pause_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.requestedResumeAt]: { id: 92, name: 'requested_resume_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [TaskProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ClaimDataInfo: Record<ClaimProperty, PropertyInfo> = {
   [ClaimProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CLAIM, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35999,16 +36090,16 @@ export const ClaimDataInfo: Record<ClaimProperty, PropertyInfo> = {
   [ClaimProperty.status]: { id: 50, name: 'status', component: ObjectType.CLAIM, enumType: EnumType.CLAIM_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.duration]: { id: 51, name: 'duration', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.openedAt]: { id: 52, name: 'opened_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ClaimProperty.pausedAt]: { id: 53, name: 'paused_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ClaimProperty.resumedAt]: { id: 54, name: 'resumed_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.requestedPauseAt]: { id: 53, name: 'paused_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ClaimProperty.requestedResumeAt]: { id: 54, name: 'resumed_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.terminatedAt]: { id: 55, name: 'terminated_at', component: ObjectType.CLAIM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ClaimProperty.targetPtr]: { id: 60, name: 'target_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.APPLICATION, NodeType.FILE, NodeType.STREAM, NodeType.PAGE, NodeType.FLOW, NodeType.ACTION, NodeType.KIT, NodeType.VIEW, NodeType.DATABASE, NodeType.PLAN, NodeType.TASK, NodeType.AGENT, NodeType.RECORD], referenceStruct: StructType.NODE_REFERENCE },
   [ClaimProperty.targetTemplatePtr]: { id: 65, name: 'target_template_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.APPLICATION, NodeType.FILE, NodeType.STREAM, NodeType.PAGE, NodeType.FLOW, NodeType.ACTION, NodeType.KIT, NodeType.VIEW, NodeType.DATABASE, NodeType.PLAN, NodeType.TASK, NodeType.AGENT, NodeType.RECORD], referenceStruct: StructType.NODE_REFERENCE },
-  [ClaimProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [ClaimProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ClaimProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [ClaimProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [ClaimProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ClaimProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [ClaimProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ClaimProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [ClaimProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [ClaimProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.CLAIM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36164,11 +36255,11 @@ export const IconViewDataInfo: Record<IconViewProperty, PropertyInfo> = {
 }
 export const ContextDataInfo: Record<ContextProperty, PropertyInfo> = {
   [ContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ContextProperty.sessionPtr]: { id: 91, name: 'session_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.clientPtr]: { id: 93, name: 'client_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.computerPtr]: { id: 94, name: 'computer_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.userPtr]: { id: 95, name: 'user_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [ContextProperty.agentPtr]: { id: 96, name: 'agent_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.sessionPtr]: { id: 94, name: 'session_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.clientPtr]: { id: 95, name: 'client_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.computerPtr]: { id: 96, name: 'computer_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.COMPUTER], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.userPtr]: { id: 97, name: 'user_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
+  [ContextProperty.agentPtr]: { id: 98, name: 'agent_ptr', component: ObjectType.CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const EditContextDataInfo: Record<EditContextProperty, PropertyInfo> = {
   [EditContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

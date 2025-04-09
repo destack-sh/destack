@@ -1,14 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
-import {
-  AnyNodeData,
-  ExpressionType,
-  NodeType,
-  TextLineType,
-  ThreadProperty,
-  ViewData
-} from "@/proto/wire";
+import { AnyNodeData, ExpressionType, NodeType, TextLineType, ThreadProperty, ViewData } from "@/proto/wire";
 import { propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
@@ -23,10 +16,16 @@ import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
 const ITEM_HEIGHT = 30;
-const DEFAULT_SORT = makeExpression({
-  type: ExpressionType.DESCENDING,
-  propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.createdAt),
-});
+const DEFAULT_SORT = [
+  makeExpression({
+    type: ExpressionType.DESCENDING,
+    propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.activeAt),
+  }),
+  makeExpression({
+    type: ExpressionType.DESCENDING,
+    propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.createdAt),
+  }),
+];
 const NODE_COMMANDS = CONTEXT_COMMANDS_BY_TYPE[NodeType.THREAD]?.map(getCommand);
 
 const props = defineProps<
@@ -43,7 +42,7 @@ const { connection, graph, page, roots, isConnecting, isStale } = useSearchConne
   computed(() => ({
     nodeType: NodeType.THREAD,
     scope: CURRENT_BENCH_SCOPE.value,
-    sort: [DEFAULT_SORT],
+    sort: DEFAULT_SORT,
     isEnabled: true,
     first: 20,
   })),
@@ -70,7 +69,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
         v-for="node in roots"
         :ref="(ref?: any) => (ref != null ? (itemRefs[node.id] = ref) : delete itemRefs[node.id])"
         :key="node.id"
-        class="group/node relative mx-1.5 flex max-w-full flex-row items-center px-2.5 transition-colors duration-150 hover:cursor-pointer"
+        class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded px-2.5 transition-colors duration-150 hover:cursor-pointer"
         :class="[
           canvas.isSelected(node)
             ? 'bg-orange-400/20'
