@@ -36,6 +36,10 @@ import {
   type AnyNodeData,
   RunnableNodeData,
   RUNNABLE_NODE_TYPES,
+  TemplatableNodeData,
+  InstantiableNodeData,
+  TEMPLATABLE_NODE_TYPES,
+  INSTANTIABLE_NODE_TYPES,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -91,6 +95,14 @@ export function isProcessableNodeType(nodeType: NodeType): boolean {
   return PROCESSABLE_NODE_TYPES.includes(nodeType);
 }
 
+export function isTemplatableNodeType(nodeType: NodeType): boolean {
+  return TEMPLATABLE_NODE_TYPES.includes(nodeType);
+}
+
+export function isInstantiableNodeType(nodeType: NodeType): boolean {
+  return INSTANTIABLE_NODE_TYPES.includes(nodeType);
+}
+
 export function isRunnableNodeType(nodeType: NodeType): boolean {
   return RUNNABLE_NODE_TYPES.includes(nodeType);
 }
@@ -123,6 +135,16 @@ export function isTypeBaseNode(node: any): node is TypeBaseNodeData {
 export function isProcessableNode(node: any): node is ProcessableNodeData {
   if (node == null || typeof node != "object") return false;
   else return isProcessableNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isTemplatableNode(node: any): node is TemplatableNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isTemplatableNodeType(node.metatype as unknown as NodeType);
+}
+
+export function isInstantiableNode(node: any): node is InstantiableNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isInstantiableNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isRunnableNode(node: any): node is RunnableNodeData {
@@ -188,7 +210,7 @@ export function isNodeActive(node: AnyNodeData): boolean {
 
 /** Whether the node is an instance of a template */
 export function isNodeInstance(node: AnyNodeData): boolean {
-  return "templatePtr" in node && "ck" in node && node.templatePtr != null && node.id != node.ck;
+  return "ck" in node && node.templatePtr != null && node.id != node.ck;
 }
 
 // node types

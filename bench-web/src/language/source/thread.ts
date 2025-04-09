@@ -3,7 +3,7 @@ import { isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { newChangeId, Transaction } from "@/language/core/transaction";
 import { createMembership } from "@/language/source/membership";
-import { NodeReferenceData, NodeType, SubjectNodeData, ThreadData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, SubjectNodeData, ThreadData, Timestamp } from "@/proto/wire";
 import { describeNode, isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
 import { user } from "@/system/user";
 import { assertNever } from "@/utils/functools";
@@ -21,7 +21,8 @@ export function createThread(
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
-  const thread = tx.create({ metatype: NodeType.THREAD, ...options.thread });
+  const activeAt = options.thread.activeAt ?? Timestamp.now();
+  const thread = tx.create({ metatype: NodeType.THREAD, ...options.thread, activeAt });
 
   // add members
   for (const member of options.members) {

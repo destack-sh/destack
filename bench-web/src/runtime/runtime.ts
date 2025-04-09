@@ -3,7 +3,7 @@ import { makeExpression } from "@/language/core/expression";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import { timesortNode } from "@/language/core/order";
-import { getRunType, isProcessActive, isProcessPaused } from "@/language/runtime/process";
+import { isProcessActive, isProcessPaused } from "@/language/runtime/process";
 import { newChangeId, type Transaction } from "@/language/core/transaction";
 import { actionToType } from "@/language/source/action";
 import { flowToType } from "@/language/source/flow";
@@ -45,6 +45,7 @@ import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import { assertNever } from "@protobuf-ts/runtime";
 import { computed, type Ref } from "vue";
+import { getRunType } from "@/language/runtime/run";
 
 /** A reactive Run with all its descendants */
 let treeId = 0;
@@ -77,7 +78,10 @@ export class RunTree {
       })),
     );
     this.runGraph = runGraph;
-    this.runRef = runGraph.getRef(this.runPtr, { id: "runtime.run." + this.id, ignoreAncestors: false }) as Ref<RunData | null>; // :NodeRefStability
+    this.runRef = runGraph.getRef(this.runPtr, {
+      id: "runtime.run." + this.id,
+      ignoreAncestors: false,
+    }) as Ref<RunData | null>; // :NodeRefStability
     this.runsRef = runGraph.getDescendantsRef(this.runPtr, {
       metatypes: [NodeType.RUN, NodeType.SPAN],
       includeSelf: true,

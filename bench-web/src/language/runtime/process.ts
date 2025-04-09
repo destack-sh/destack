@@ -4,26 +4,9 @@ import {
   INTERRUPTED_PROCESS_STATUSES,
   TERMINAL_PROCESS_STATUSES,
 } from "@/language/core/const";
-import {
-  FieldType,
-  FlowData,
-  InterruptionData,
-  LinkData,
-  NodeType,
-  ObjectType,
-  PropertyReferenceData,
-  RunProperty,
-  SpanData,
-  ProcessStatus,
-  RunType,
-  type ActionData,
-  type RunData,
-  RUNNABLE_NODE_TYPES,
-  RunnableNodeData,
-  ProcessableNodeData,
-} from "@/proto/wire";
-import { describeNode, isNode, propertyReference } from "@/proto/wiring";
-import { assertNever } from "@/utils/functools";
+import { Transaction } from "@/language/core/transaction";
+import { NodeType, ProcessableNodeData, ProcessStatus, Timestamp } from "@/proto/wire";
+import { isNode } from "@/proto/wiring";
 import {
   compareTimestamps,
   durationToMs,
@@ -45,11 +28,6 @@ export const VERB_BY_PROCESS_STATUS: Partial<Record<ProcessStatus, string>> = {
   [ProcessStatus.WAITING]: "is waiting",
   [ProcessStatus.YIELDED]: "has yielded",
   [ProcessStatus.PAUSED]: "is paused",
-};
-
-export const RUN_PROPERTY_BY_FIELD_TYPE: Partial<Record<FieldType, PropertyReferenceData>> = {
-  [FieldType.OUTPUT]: propertyReference(ObjectType.RUN, RunProperty.outputsPacked),
-  [FieldType.INPUT]: propertyReference(ObjectType.RUN, RunProperty.inputsPacked),
 };
 
 export function isProcessActive(process: ProcessableNodeData): boolean {
@@ -81,24 +59,9 @@ export function isProcessTerminal(process: ProcessableNodeData): boolean {
   }
 }
 
-export const RUN_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, RunType>> = {
-  [NodeType.FLOW]: RunType.FLOW,
-  [NodeType.ACTION]: RunType.ACTION,
-  [NodeType.LINK]: RunType.LINK,
-};
-export const NODE_TYPE_BY_RUN_TYPE: Partial<Record<RunType, NodeType>> = {
-  [RunType.FLOW]: NodeType.FLOW,
-  [RunType.ACTION]: NodeType.ACTION,
-  [RunType.LINK]: NodeType.LINK,
-};
-
-/** Determine the type of run for some runnable object */
-export function getRunType(runnable: RunnableNodeData): RunType {
-  const runType = RUN_TYPE_BY_NODE_TYPE[runnable.metatype as unknown as keyof typeof RUN_TYPE_BY_NODE_TYPE];
-  if (runType == null) {
-    throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
-  }
-  return runType;
+/** Touch a Process to update the activeAt timestamp */
+export function touchProcess(tx: Transaction, process: ProcessableNodeData) {
+  tx.update(process, { activeAt: Timestamp.now() });
 }
 
 /** Gets the startedAt timestamp of a Run */
@@ -127,25 +90,6 @@ export function getProcessDurationString(process: ProcessableNodeData, options?:
   const now = getNow(TimeUpdateInterval.MILLISECOND).value;
   const nowMs = timestampToMs(now);
   const durationMs = getProcessDurationMs(process, nowMs);
-  if (durationMs == 0) return null;
-  return formatDuration(durationMs, options);
-}
-
-/** Gets the duration of an Interrupt */
-export function getInterruptDurationMs(interrupt: InterruptionData, nowMs: number): number {
-  const startedAtMs = timestampToMs(interrupt.createdAt!);
-  const closedAtMs = interrupt.closedAt != null ? timestampToMs(interrupt.closedAt) : nowMs;
-  return closedAtMs - startedAtMs;
-}
-
-/** Gets the duration of an Interrupt as a formatted string */
-export function getInterruptDurationString(
-  interrupt: InterruptionData,
-  options?: FormatDurationOptions,
-): string | null {
-  const now = getNow(TimeUpdateInterval.MILLISECOND).value;
-  const nowMs = timestampToMs(now);
-  const durationMs = getInterruptDurationMs(interrupt, nowMs);
   if (durationMs == 0) return null;
   return formatDuration(durationMs, options);
 }

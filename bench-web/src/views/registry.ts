@@ -33,7 +33,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // structs
   [ViewType.TYPE]: () => import("@/views/objects/Type.vue"),
   [ViewType.OBJECT]: () => import("@/views/objects/Object.vue"),
-  [ViewType.PATH]: () => import("@/views/objects/Path.vue"),
   // helpers
   [ViewType.USER_WIZARD]: () => import("@/views/helpers/UserWizard.vue"),
   [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),

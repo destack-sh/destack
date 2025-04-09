@@ -4,7 +4,7 @@ import { ReadNodeGraph } from "@/language/core/graph";
 import { instanceNode } from "@/language/core/node";
 import { newChangeId, Transaction } from "@/language/core/transaction";
 import { JoinableNodeData, MembershipData, NodeType } from "@/proto/wire";
-import { describeNode, isNode } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 
 /** Create a Membership */
 export function createMembership(
@@ -27,6 +27,6 @@ export function createMembership(
   }
 
   const siblings = graph.getChildren(options.membership.parentPtr!, NodeType.MEMBERSHIP);
-  const membership = tx.create({ metatype: NodeType.MEMBERSHIP, ...options.membership });
+  const membership = tx.create({ metatype: NodeType.MEMBERSHIP, ...options.membership, memberPtr: toNodeRef(member) });
   return membership;
 }

@@ -49,7 +49,7 @@ import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 import { isProcessableNode } from "@/language/core/const";
-import { isProcessActive } from "@/language/runtime/process";
+import { isProcessActive, touchProcess } from "@/language/runtime/process";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
@@ -402,6 +402,7 @@ function submit() {
   const messageChannelPtr = channelPtr.value ?? undefined;
   const messageThreadPtr = threadPtr.value ?? undefined;
   if (messageThreadPtr == null) throw new Error("no thread");
+  const thread = supergraph.getOrError(messageThreadPtr) as ThreadData;
 
   // create message
   createMessage(tx, benchGraph, {
@@ -417,6 +418,7 @@ function submit() {
       text,
     },
   });
+  touchProcess(tx, thread);
   stickToEnd.value = true;
   bodyScrollRef.value?.scrollToEnd();
 }
@@ -593,9 +595,9 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     >
       <!-- Messages -->
       <ul
-        class="relative mb-1 mt-2 flex flex-col focus:outline-none"
+        class="relative mb-3 mt-2 flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
-        :style="{ minHeight: bodyHeight != null ? bodyHeight - 12 + 'px' : undefined }"
+        :style="{ minHeight: bodyHeight != null ? bodyHeight - 24 + 'px' : undefined }"
       >
         <!-- Top placeholder / general loading state -->
         <Transition
@@ -867,19 +869,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
       @mousedown="inputRef?.focus?.('right')"
     >
-      <!-- Active -->
-      <div class="flex h-[26px] w-full flex-row items-center px-3 py-1 text-sm">
-        <template v-if="activeAuthors.length > 0">
-          <span class="fas fa-circle mr-1.5 animate-pulse text-blue-400" />
-          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
-            <div class="rounded-full" :class="i > 0 ? 'ml-1' : ''">
-              <span class="font-medium text-gray-900">{{ author.name }}</span>
-            </div>
-            <span v-if="i < activeAuthors.length - 1">, </span>
-          </template>
-          <span class="ml-1 text-gray-700"> {{ activeAuthors.length > 1 ? "are" : "is" }} working...</span>
-        </template>
-      </div>
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -1001,8 +990,19 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <!-- ... -->
         </div>
       </div>
-      <!-- Spacer -->
-      <div class="h-[16px]" />
+      <!-- Active -->
+      <div class="flex h-[24px] w-full flex-row items-center px-3 py-1 text-sm text-xs">
+        <template v-if="activeAuthors.length > 0">
+          <span class="fas fa-circle mr-1.5 animate-pulse text-blue-400" />
+          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
+            <div class="rounded-full" :class="i > 0 ? 'ml-1' : ''">
+              <span class="font-medium text-gray-900">{{ author.name }}</span>
+            </div>
+            <span v-if="i < activeAuthors.length - 1">, </span>
+          </template>
+          <span class="ml-1 text-gray-700"> {{ activeAuthors.length > 1 ? "are" : "is" }} working...</span>
+        </template>
+      </div>
     </div>
   </div>
 </template>

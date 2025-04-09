@@ -37,6 +37,7 @@ from bench.language import (
     Kit,
     Link,
     Log,
+    Membership,
     Message,
     Node,
     NodeGraph,
@@ -616,14 +617,8 @@ def create_run(
     if flow is None and isinstance(parent, Run):
         # inherit flow from parent if unset
         flow = parent.flow
-    if agent is None and flow is not None:
-        agent = flow.default_agent
-        if agent is None:
-            from bench.builtin import BenchAgent
 
-            agent = BenchAgent
-
-    # create root thread
+    # create thread
     if isinstance(parent, Package):
         graph = NodeGraph(
             scope=parent._graph.scope,
@@ -657,6 +652,19 @@ def create_run(
         assert_never(parent)
     if thread is None:
         raise RuntimeError(f"no Thread for {node!r}")
+
+    # create agent (and auto-instance)
+    if agent is None and flow is not None:
+        agent = flow.default_agent
+    if agent is None:
+        from bench.builtin import BenchAgent
+
+        agent = BenchAgent
+    if agent is not None and not agent.is_instance:
+        agent = agent.instance()
+        thread.agents.append(agent)
+        membership = Membership.new(agent)
+        thread.memberships.append(membership)
 
     # build run
     run = Run(
