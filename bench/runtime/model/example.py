@@ -239,14 +239,14 @@ Here's the text from [@File1]:
 > Total amount: $100.00
 > Date: 2021-01-01
 > Description: 79kg of rice
-Note that the text near the borders are not legible. 
+Note that the text near the borders is not legible. 
 """,
         ),
     )
     Thread1.append(Reply1)
 
 
-@example_(ExampleType.SNIPPET, title="Always include code block language")
+@example_(ExampleType.SNIPPET, title="Include code block language")
 def example_always_include_code_block_language():
     # should always try to include the language
     text1 = text("""\
@@ -260,3 +260,30 @@ Looks like this:
 - Item 1
 - Item 2
 """)
+
+
+@example_(ExampleType.SNIPPET, title="Split long responses")
+def example_split_long_responses(Thread1: Thread):
+    Message1 = Message.new(
+        text=text("""\
+ah okay
+""")
+    )
+    Thread1.append(Message1)
+    # this will be a long response
+    # --- FLUSH ---
+    Message2 = Message.new(
+        text=text("""\
+< ... long response part 1 ... >
+""")
+    )
+    Thread1.append(Message2)
+    # --- FLUSH ---
+    # < ... more code to do something else ... >
+    # --- FLUSH ---
+    Message3 = Message.new(
+        text=text("""\
+done
+""")
+    )
+    Thread1.append(Message3)
