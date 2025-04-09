@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.09.0"
+VERSION = "2025.04.09.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1494,10 +1494,10 @@ class ErrorKind(BuiltinEnum):
 @enum_(EnumType.PROCESS_STATUS)
 class ProcessStatus(BuiltinEnum):
     # pre
-    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-clock", ColorType.GRAY
+    CREATED = 1, "Created", "Created but not yet assigned", "fas fa-circle", ColorType.GRAY
     ASSIGNED = 2, "Assigned", "Assigned to someone", "fas fa-clock", ColorType.GRAY
     SCHEDULED = 4, "Scheduled", "Scheduled for sometime", "fas fa-clock", ColorType.GRAY
-    QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-hourglass", ColorType.GRAY
+    QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-clock", ColorType.GRAY
     # active
     RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch", ColorType.BLUE
     # interrupted

@@ -77,7 +77,7 @@ class MessageTriggerPlugin(HostPlugin[Trigger | Message]):
                         action,
                         parent=thread,
                         trigger=trigger,
-                        message=message,
+                        target=message,
                         thread=thread,
                         agent=member,
                     )

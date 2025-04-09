@@ -18,6 +18,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
+    COMMUNICATION_NODE_TYPES,
     RUNTIME_NODE_TYPES,
     Action,
     Agent,
@@ -50,11 +51,11 @@ from bench.language import (
     Session,
     Span,
     SpanType,
+    Task,
     Thread,
     Trigger,
     active_session,
 )
-from bench.language.core.const import COMMUNICATION_NODE_TYPES
 
 from .error import InterruptionCancelledError, RunImpossibleError
 from .options import BASE_RUN_OPTIONS_BY_KIND
@@ -314,12 +315,16 @@ class Runner[N: Runnable = Runnable](abc.ABC):
 
     @property
     def thread(self) -> ThreadHandle:
-        run = self.tracked_run or self.closest_tracked_run
+        run = self.tracked_run if self.tracked_run is not None else self.closest_tracked_run
         assert run is not None, f"{self!r} has no tracked Run"
         assert run.thread_ptr is not None, f"{run!r} has no Thread"
         thread = self.runtime.get_thread(run.thread_ptr.id)
         assert thread is not None, f"{run!r} has no Thread"
         return thread
+
+    @property
+    def agent(self) -> Agent | None:
+        return self.tracked.agent
 
     @property
     def is_active(self) -> bool:
@@ -573,7 +578,7 @@ def create_run(
     mode: NodeMode | None = None,
     status: ProcessStatus | None = None,
     thread: "Thread | None" = None,
-    message: "Message | None" = None,
+    target: "Message | Task | None" = None,
     trigger: "Trigger | None" = None,
     agent: "Agent | None" = None,
     session: "Session | None" = None,
@@ -663,7 +668,7 @@ def create_run(
         link=link,
         mode=mode,
         thread=thread,
-        message=message,
+        target=target,
         trigger=trigger,
         agent=agent,
         status=status or ProcessStatus.CREATED,

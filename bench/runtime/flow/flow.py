@@ -395,7 +395,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 await self._process_event(event)
 
                 # plan next actions
-                # nocheckin: cancel current planning if there's a new event
+                # nocheckin: cancel current thinking if there's a new event
                 if (
                     (run.run_plan is None or run.run_plan.status.is_terminal)
                     and not self._is_stopping

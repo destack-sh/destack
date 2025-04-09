@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.09.0"
+VERSION = "2025.04.09.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1514,8 +1514,10 @@ RUN_TABLE = Table(
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("link_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
-        Column("message_id", PrimitiveType.UUID, is_nullable=True),
-        Column("message_base_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("target_type", PrimitiveType.INT16, is_nullable=True),
+        Column("target_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("manual_plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("manual_plan_ck", PrimitiveType.UUID, is_nullable=True),
         Column("manual_task_id", PrimitiveType.UUID, is_nullable=True),
@@ -1584,8 +1586,10 @@ SPAN_TABLE = Table(
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
         Column("link_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
-        Column("message_id", PrimitiveType.UUID, is_nullable=True),
-        Column("message_base_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_id", PrimitiveType.UUID, is_nullable=True),
+        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("target_type", PrimitiveType.INT16, is_nullable=True),
+        Column("target_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("manual_plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("manual_plan_ck", PrimitiveType.UUID, is_nullable=True),
         Column("manual_task_id", PrimitiveType.UUID, is_nullable=True),

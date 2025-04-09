@@ -3263,7 +3263,7 @@ message RunData {
   optional NodeReferenceData action_ptr = 72;
   optional NodeReferenceData link_ptr = 73;
   optional NodeReferenceData trigger_ptr = 74;
-  optional NodeReferenceData message_ptr = 75;
+  optional NodeReferenceData target_ptr = 75;
   optional NodeReferenceData manual_plan_ptr = 76;
   optional NodeReferenceData manual_task_ptr = 77;
   optional NodeReferenceData run_plan_ptr = 78;
@@ -3337,7 +3337,7 @@ message SpanData {
   optional NodeReferenceData action_ptr = 72;
   optional NodeReferenceData link_ptr = 73;
   optional NodeReferenceData trigger_ptr = 74;
-  optional NodeReferenceData message_ptr = 75;
+  optional NodeReferenceData target_ptr = 75;
   optional NodeReferenceData manual_plan_ptr = 76;
   optional NodeReferenceData manual_task_ptr = 77;
   optional NodeReferenceData run_plan_ptr = 78;

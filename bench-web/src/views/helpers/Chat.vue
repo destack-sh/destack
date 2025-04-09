@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { EditSubject, makeAndConditional, makeExpression } from "@/language/core/expression";
+import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
@@ -22,6 +22,7 @@ import {
   NodeType,
   Orientation,
   RectangleData,
+  SubjectNodeData,
   TextData,
   ThreadData,
   ViewData,
@@ -47,6 +48,8 @@ import Text from "@/views/content/Text.vue";
 import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
+import { isProcessableNode } from "@/language/core/const";
+import { isProcessActive } from "@/language/runtime/process";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
@@ -193,6 +196,27 @@ watchEffect(() => {
 // Views
 //
 
+// authors
+type AuthorInfo = {
+  node: SubjectNodeData;
+  icon: IconData | null;
+  name: string | null;
+  color: ColorType | null;
+  isActive: boolean;
+};
+function getAuthorInfo(node: SubjectNodeData): AuthorInfo {
+  const icon = getNodeIcon(node) ?? null;
+  const name = getNodeTitle(node) ?? null;
+  const color = getNodeColor(node) ?? null;
+  const isActive = isProcessableNode(node) && isProcessActive(node);
+  return {
+    node,
+    icon,
+    name,
+    color,
+    isActive,
+  };
+}
 const authorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   const authorsPtrById: Record<string, NodeReferenceData> = {};
   for (const message of messages.value) {
@@ -202,24 +226,24 @@ const authorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   }
   return Object.values(authorsPtrById);
 });
-const authors = supergraph.getManyRef(authorsPtr);
-const authorsById: Ref<Record<string, EditSubject>> = computed(() =>
+const authors = supergraph.getManyRef(authorsPtr) as Ref<SubjectNodeData[]>;
+const authorsById: Ref<Record<string, AuthorInfo>> = computed(() =>
   authors.value.reduce(
     (acc, author) => {
-      acc[author.id!] = author as EditSubject;
+      acc[author.id!] = getAuthorInfo(author);
       return acc;
     },
-    {} as Record<string, EditSubject>,
+    {} as Record<string, AuthorInfo>,
   ),
 );
+const activeAuthors = computed(() => Object.values(authorsById.value).filter((a) => a.isActive));
+
+// messages
 type MessageView = {
   idx: number;
   message: MessageData;
   filesPtr: NodeReferenceData[];
-  author: EditSubject | null;
-  authorIcon: IconData | null;
-  authorColor: ColorType | null;
-  authorName: string | null;
+  author: AuthorInfo | null;
   replyTo: MessageView | null;
   isEmpty: boolean;
   isNewGroup: boolean;
@@ -236,10 +260,7 @@ const messageViews = computed(() => {
     const message = messages.value[i];
     const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
-    const author = authorPtr != null ? (authorsById.value[authorPtr.id!] ?? supergraph.get(authorPtr)) : null;
-    const authorIcon = author != null ? (getNodeIcon(author) ?? null) : null;
-    const authorName = author != null ? (getNodeTitle(author) ?? null) : null;
-    const authorColor = author != null ? (getNodeColor(author) ?? null) : null;
+    const author = authorPtr != null ? authorsById.value[authorPtr.id!] : null;
     let isNewGroup;
     let isNewDate;
     if (i == 0) {
@@ -264,9 +285,6 @@ const messageViews = computed(() => {
       message,
       filesPtr,
       author,
-      authorIcon,
-      authorColor,
-      authorName,
       isEmpty,
       isNewGroup,
       isNewDate,
@@ -304,7 +322,7 @@ const draftNodes = supergraph.getManyRef(draftNodesPtr);
 const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
 //
-// Intercommand
+// Interaction
 //
 
 const inputContainerRef = ref<HTMLInputElement | null>(null);
@@ -561,7 +579,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       </div>
     </div>
 
-    <!-- TODO :UX: autoscroll Chat more smoothly (sometimes it jumps, especially when scrolling down) -->
+    <!-- TODO :UX: autoscroll Chat more smoothly (sometimes it jumps, sometimes it doesn't stick to the bottom, ...) -->
     <!-- also see https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-anchor/Guide_to_scroll_anchoring -->
 
     <!-- Body -->
@@ -575,9 +593,9 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     >
       <!-- Messages -->
       <ul
-        class="relative mb-4 mt-2 flex flex-col focus:outline-none"
+        class="relative mb-1 mt-2 flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
-        :style="{ minHeight: bodyHeight != null ? bodyHeight - 32 + 'px' : undefined }"
+        :style="{ minHeight: bodyHeight != null ? bodyHeight - 12 + 'px' : undefined }"
       >
         <!-- Top placeholder / general loading state -->
         <Transition
@@ -633,9 +651,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             filesPtr,
             author,
             replyTo,
-            authorIcon,
-            authorName,
-            authorColor,
             isEmpty,
             isEdited,
             isNewGroup,
@@ -676,7 +691,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <!-- Spacing for side -->
             <div class="" :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" />
             <!-- Author -->
-            <span class="flex-shrink-0 text-gray-700">@{{ replyTo.authorName ?? "???" }}</span>
+            <span class="flex-shrink-0 text-gray-700">@{{ replyTo.author?.name ?? "???" }}</span>
             <!-- Preview -->
             <span
               v-if="replyTo.message.text"
@@ -707,12 +722,12 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             >
               <!-- Author for new groups -->
               <AvatarInline
-                v-if="isNewGroup && authorIcon"
+                v-if="isNewGroup && author?.icon"
                 class="mr-1 cursor-pointer text-gray-700"
                 size="medium"
-                v-bind="authorIcon"
-                :force-color="authorColor ?? undefined"
-                @click="author && canvas.goToNode(author)"
+                v-bind="author.icon"
+                :force-color="author.color ?? undefined"
+                @click="author && canvas.goToNode(author.node)"
               />
               <div v-else-if="isNewGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
               <!-- Time/edited otherwise -->
@@ -732,9 +747,9 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 <!-- Author -->
                 <span
                   class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
-                  @click="author && canvas.goToNode(author)"
+                  @click="author && canvas.goToNode(author.node)"
                 >
-                  {{ authorName ?? "[missing]" }}
+                  {{ author?.name ?? "[missing]" }}
                 </span>
                 <!-- Timestamp -->
                 <span class="ml-1.5 text-xs text-gray-400">
@@ -846,12 +861,25 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       </ul>
     </Scroll>
 
-    <!-- Input -->
+    <!-- Input box -->
     <div
       ref="inputContainerRef"
       :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
       @mousedown="inputRef?.focus?.('right')"
     >
+      <!-- Active -->
+      <div class="flex h-[26px] w-full flex-row items-center px-3 py-1 text-sm">
+        <template v-if="activeAuthors.length > 0">
+          <span class="fas fa-circle mr-1.5 animate-pulse text-blue-400" />
+          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
+            <div class="rounded-full" :class="i > 0 ? 'ml-1' : ''">
+              <span class="font-medium text-gray-900">{{ author.name }}</span>
+            </div>
+            <span v-if="i < activeAuthors.length - 1">, </span>
+          </template>
+          <span class="ml-1 text-gray-700"> {{ activeAuthors.length > 1 ? "are" : "is" }} working...</span>
+        </template>
+      </div>
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -859,7 +887,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         role="button"
       >
         <span class="text-gray-700">Replying to</span>
-        <span class="ml-1 font-medium text-gray-900">{{ replyTo.authorName ?? "???" }}</span>
+        <span class="ml-1 font-medium text-gray-900">{{ replyTo.author?.name ?? "???" }}</span>
         <!-- Preview -->
         <span
           v-if="replyTo.message.text"
@@ -875,104 +903,106 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <i class="fas fa-xmark" />
         </button>
       </div>
-      <!-- Box -->
+      <!-- Main box -->
       <div
-        class="peer relative rounded border border-gray-200 px-2 pb-2 pt-3"
+        class="relative flex flex-row rounded border border-gray-200 px-2 pb-2 pt-3"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
-        <div class="flex flex-row">
-          <!-- Side -->
-          <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 9 + 'px' }">
-            <!-- Add extra -->
-            <!-- NOTE :Incomplete: support adding other Nodes to Chat instead of just Files -->
-            <input
-              ref="fileInputRef"
-              type="file"
-              class="hidden"
-              @change="
-                (e) => {
-                  const files = Array.from((e.target as HTMLInputElement).files!);
-                  addFiles(files);
-                  (e.target as HTMLInputElement).value = ''; // clear value
+        <!-- Left -->
+        <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 9 + 'px' }">
+          <!-- Add extra -->
+          <!-- NOTE :Incomplete: support adding other Nodes to Chat instead of just Files -->
+          <input
+            ref="fileInputRef"
+            type="file"
+            class="hidden"
+            @change="
+              (e) => {
+                const files = Array.from((e.target as HTMLInputElement).files!);
+                addFiles(files);
+                (e.target as HTMLInputElement).value = ''; // clear value
+              }
+            "
+          />
+          <button
+            v-tooltip="{ small: true, title: 'Add Context' }"
+            class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
+            @click.stop="fileInputRef?.click()"
+          >
+            <i class="fas fa-plus" />
+          </button>
+        </div>
+        <!-- Main input -->
+        <div class="flex-1">
+          <!-- Extras -->
+          <div v-if="draftFiles.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2.5 gap-y-1">
+            <!-- should also be a proper :FileGallery -->
+            <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
+              <File
+                :id="'file-' + file.id"
+                is-inline
+                class="pointer-events-none"
+                :model-value="toNodeRef(file)"
+                :size="{
+                  height:
+                    size?.height != null && INLINABLE_FILE_TYPES.includes(file.type)
+                      ? Math.min(100, size.height / 3)
+                      : undefined,
+                }"
+              />
+              <!-- Remove -->
+              <button
+                class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-150 hover:bg-gray-600"
+                @click.stop="removeFiles([file])"
+              >
+                <i class="fas fa-xmark" />
+              </button>
+            </div>
+          </div>
+          <!-- Text -->
+          <Scroll
+            id="input-scroll"
+            ref="inputScrollRef"
+            :orientation="Orientation.VERTICAL"
+            size-is-dynamic
+            :size="{ height: size?.height != null ? size.height / 2 : undefined }"
+          >
+            <Text
+              id="input"
+              ref="inputRef"
+              is-input
+              is-minimal
+              class="pr-1.5"
+              placeholder="Message..."
+              suppress-enter
+              suppress-drop
+              :model-value="draftText"
+              @update:model-value="
+                (value) =>
+                  state.update(
+                    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftText: value } },
+                    { debounce: 'long' },
+                  )
+              "
+              @keydown.enter="
+                (e: KeyboardEvent) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    submit();
+                    clearDraft();
+                  }
                 }
               "
             />
-            <button
-              v-tooltip="{ small: true, title: 'Add Context' }"
-              class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
-              @click.stop="fileInputRef?.click()"
-            >
-              <i class="fas fa-plus" />
-            </button>
-          </div>
-          <!-- Input -->
-          <div class="flex-1">
-            <!-- Extras -->
-            <div v-if="draftFiles.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2.5 gap-y-1">
-              <!-- should also be a proper :FileGallery -->
-              <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
-                <File
-                  :id="'file-' + file.id"
-                  is-inline
-                  class="pointer-events-none"
-                  :model-value="toNodeRef(file)"
-                  :size="{
-                    height:
-                      size?.height != null && INLINABLE_FILE_TYPES.includes(file.type)
-                        ? Math.min(100, size.height / 3)
-                        : undefined,
-                  }"
-                />
-                <!-- Remove -->
-                <button
-                  class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-150 hover:bg-gray-600"
-                  @click.stop="removeFiles([file])"
-                >
-                  <i class="fas fa-xmark" />
-                </button>
-              </div>
-            </div>
-            <!-- Text -->
-            <Scroll
-              id="input-scroll"
-              ref="inputScrollRef"
-              :orientation="Orientation.VERTICAL"
-              size-is-dynamic
-              :size="{ height: size?.height != null ? size.height / 2 : undefined }"
-            >
-              <Text
-                id="input"
-                ref="inputRef"
-                is-input
-                is-minimal
-                class="pr-1.5"
-                placeholder="Message..."
-                suppress-enter
-                suppress-drop
-                :model-value="draftText"
-                @update:model-value="
-                  (value) =>
-                    state.update(
-                      { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftText: value } },
-                      { debounce: 'long' },
-                    )
-                "
-                @keydown.enter="
-                  (e: KeyboardEvent) => {
-                    if (!e.shiftKey) {
-                      e.preventDefault();
-                      submit();
-                      clearDraft();
-                    }
-                  }
-                "
-              />
-            </Scroll>
-          </div>
+          </Scroll>
+        </div>
+        <!-- Controls? -->
+        <div>
+          <!-- ... -->
         </div>
       </div>
-      <!-- Active -->
-      <div class="h-[12px]" />
+      <!-- Spacer -->
+      <div class="h-[16px]" />
     </div>
   </div>
 </template>
