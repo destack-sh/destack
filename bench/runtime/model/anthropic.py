@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Mapping, Union, override
+from typing import TYPE_CHECKING, Mapping, Union, cast, override
 
 import anthropic
 import structlog
@@ -6,9 +6,9 @@ from anthropic import NOT_GIVEN
 from anthropic import types as anthropic_types
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, RunOptions, download_file_batch
-from bench.runtime.core import NotSupportedError
-from bench.runtime.model.token import TiktokenTokenizer
+from bench.language import Code, ModelType, Runnable, SpanType, download_file_batch
+from bench.runtime.code import CodeFunctionRunner
+from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, Runner
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner, strip_code_completion
@@ -20,7 +20,8 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, Prompt, compile_prompt, log_prompt
+from .prompt import LOG_PROMPTS, compile_prompt, log_prompt
+from .token import TiktokenTokenizer
 
 if TYPE_CHECKING:
     pass
@@ -46,16 +47,16 @@ class AnthropicChatModelRunner(ChatModelRunner):
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
+    async def run(self) -> None:
         model_id = ANTHROPIC_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
+        pieces, _ = compile_prompt(prompt=self.prompt, tokenizer=tokenizer, max_tokens=max_tokens)
         if LOG_PROMPTS:
-            log_prompt(prompt, pieces)
+            log_prompt(self.prompt, pieces)
 
         # download media
         files_to_download = [
@@ -110,12 +111,12 @@ class AnthropicChatModelRunner(ChatModelRunner):
 
         # generate
         messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_pieces}]
-        temperature = options.text_options.temperature if options.text_options else None
+        temperature = self.options.text_options.temperature if self.options.text_options else None
         completion = await anthropic_client.messages.create(
             system=[
                 {
                     "type": "text",
-                    "text": prompt.system_prompt,
+                    "text": self.prompt.system_prompt,
                     "cache_control": {"type": "ephemeral"},
                 }
             ],
@@ -127,4 +128,18 @@ class AnthropicChatModelRunner(ChatModelRunner):
         completion_text = getattr(completion.content[0], "text", None)
         if isinstance(completion_text, str):
             completion_text = strip_code_completion(completion_text)
-        return Code.from_string(completion_text or "pass")
+
+        # run
+        code = Code.from_string(completion_text or "pass", language="python")
+        code_runner = CodeFunctionRunner(
+            runtime=self.runtime,
+            node=self.node,
+            code=code,
+            aliasing=self.prompt.aliasing,
+            options=ATTEMPT_ONCE,
+            inputs=self.inputs,
+            outputs=self.output_type,
+            parent=cast(Runner[Runnable], self),
+            run=SpanType.MODEL_PARSE,
+        )
+        await self.runtime.run_runner(code_runner)

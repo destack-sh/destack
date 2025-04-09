@@ -26,7 +26,11 @@ export function createMembership(
     member = instanceNode(tx, graph, member, { parent: options.parent });
   }
 
-  const siblings = graph.getChildren(options.membership.parentPtr!, NodeType.MEMBERSHIP);
-  const membership = tx.create({ metatype: NodeType.MEMBERSHIP, ...options.membership, memberPtr: toNodeRef(member) });
+  const membership = tx.create({
+    metatype: NodeType.MEMBERSHIP,
+    ...options.membership,
+    parentPtr: toNodeRef(options.parent),
+    memberPtr: toNodeRef(member),
+  });
   return membership;
 }

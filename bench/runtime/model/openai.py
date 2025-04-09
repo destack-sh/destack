@@ -1,13 +1,13 @@
-from typing import Mapping, override
+from typing import Mapping, cast, override
 
 import openai
 import structlog
 from openai.types import chat as openai_chat_types
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, RunOptions, download_file_batch
-from bench.runtime.core import IncapableError, NotSupportedError
-from bench.runtime.model.token import TiktokenTokenizer
+from bench.language import Code, ModelType, Runnable, SpanType, download_file_batch
+from bench.runtime.code import CodeFunctionRunner
+from bench.runtime.core import ATTEMPT_ONCE, IncapableError, NotSupportedError, Runner
 from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
@@ -20,7 +20,8 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, Prompt, compile_prompt, log_prompt
+from .prompt import LOG_PROMPTS, compile_prompt, log_prompt
+from .token import TiktokenTokenizer
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -46,16 +47,16 @@ class OpenAIChatModelRunner(ChatModelRunner):
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
+    async def run(self) -> None:
         model_id = OPENAI_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 16_384
-        pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
+        pieces, _ = compile_prompt(prompt=self.prompt, tokenizer=tokenizer, max_tokens=max_tokens)
         if LOG_PROMPTS:
-            log_prompt(prompt, pieces)
+            log_prompt(self.prompt, pieces)
 
         # download media
         files_to_download = [
@@ -108,7 +109,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         # generate
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
-            {"role": "developer", "content": prompt.system_prompt},
+            {"role": "developer", "content": self.prompt.system_prompt},
             {"role": "user", "content": content},
         ]
         completion = await openai_client.chat.completions.create(
@@ -120,4 +121,20 @@ class OpenAIChatModelRunner(ChatModelRunner):
         completion_text = completion.choices[0].message.content
         if completion_text:
             completion_text = strip_code_completion(completion_text)
-        return Code.from_string(completion_text or "pass", language="python")
+
+        # run
+        print("RESPONSE:")
+        print(completion_text)  # nocheckin
+        code = Code.from_string(completion_text or "pass", language="python")
+        code_runner = CodeFunctionRunner(
+            runtime=self.runtime,
+            node=self.node,
+            code=code,
+            aliasing=self.prompt.aliasing,
+            options=ATTEMPT_ONCE,
+            inputs=self.inputs,
+            outputs=self.output_type,
+            parent=cast(Runner[Runnable], self),
+            run=SpanType.MODEL_PARSE,
+        )
+        await self.runtime.run_runner(code_runner)

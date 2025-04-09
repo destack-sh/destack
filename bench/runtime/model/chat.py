@@ -1,12 +1,12 @@
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, cast, final, override
+from abc import ABC
+from typing import TYPE_CHECKING
 
 import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language import Code, ModelDeveloper, ModelType, Runnable, RunOptions, SpanType
-from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, RunIn, Runner, Runtime
+from bench.language import Code, ModelDeveloper, ModelType, Runnable, RunOptions
+from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime
 
 from .model import ModelRunner
 from .prompt import Prompt
@@ -44,37 +44,6 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         self.model_type = model_type
         self.prompt = prompt
         self.code: Code | None = None
-
-    @abstractmethod
-    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
-        """Generate code with some model from the result."""
-        ...
-
-    @final
-    @override
-    async def run(self) -> None:
-        from bench.runtime.code import CodeFunctionRunner
-
-        assert self.output_type is not None, f"{self!r} has no output type"
-
-        # run model to generate code as response
-        code = await self.generate(prompt=self.prompt, options=ATTEMPT_ONCE)
-        self.code = code
-
-        # run code to parse outputs
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            code=code,
-            aliasing=self.prompt.aliasing,
-            options=ATTEMPT_ONCE,
-            inputs=self.inputs,
-            outputs=self.output_type,
-            parent=cast(Runner[Runnable], self),
-            run=SpanType.MODEL_PARSE,
-        )
-        await self.runtime.run_runner(code_runner)
-        self.outputs = code_runner.outputs
 
 
 def strip_code_completion(completion: str) -> str:

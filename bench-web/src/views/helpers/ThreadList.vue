@@ -2,9 +2,7 @@
 import {
   ACTIVE_PROCESS_STATUSES,
   INTERRUPTED_PROCESS_STATUSES,
-  isProcessableNode,
-  PRE_PROCESS_STATUSES,
-  toCamelName,
+  toCamelName
 } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
 import { isProcessActive } from "@/language/runtime/process";
@@ -13,24 +11,22 @@ import {
   ColorShade,
   ExpressionType,
   NodeType,
-  ProcessStatus,
   ProcessStatusOptionInfo,
   TextLineType,
   ThreadData,
   ThreadProperty,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
 import { describeNode, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { CONTEXT_COMMANDS_BY_TYPE, fireCommandById, getCommand, isCommandEnabled } from "@/ui/command";
+import { CONTEXT_COMMANDS_BY_TYPE, fireCommandById, getCommand } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import { formatAbsoluteDate, getNow, TimeUpdateInterval } from "@/utils/time";
-import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
+import { getNow, TimeUpdateInterval } from "@/utils/time";
 import Title from "@/views/builtin/Title.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
@@ -40,10 +36,6 @@ import { computed, Ref, ref, toRef } from "vue";
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ITEM_HEIGHT = 30;
 const DEFAULT_SORT = [
-  makeExpression({
-    type: ExpressionType.DESCENDING,
-    propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.activeAt),
-  }),
   makeExpression({
     type: ExpressionType.DESCENDING,
     propertyPtr: propertyReference(NodeType.THREAD, ThreadProperty.createdAt),

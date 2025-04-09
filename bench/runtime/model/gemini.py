@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING, Mapping, override
+from typing import TYPE_CHECKING, Mapping, cast, override
 
 import google.generativeai as genai
 import structlog
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, RunOptions, download_file_batch
-from bench.runtime.core import NotSupportedError
+from bench.language import Code, ModelType, Runnable, SpanType, download_file_batch
+from bench.runtime.code import CodeFunctionRunner
+from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, Runner
 from bench.runtime.model.token import TiktokenTokenizer
 from bench.utils.utils import get_from_env
 
@@ -18,7 +19,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, Prompt, compile_prompt, log_prompt
+from .prompt import LOG_PROMPTS, compile_prompt, log_prompt
 
 if TYPE_CHECKING:
     pass
@@ -42,16 +43,16 @@ class GeminiChatModelRunner(ChatModelRunner):
     SEPARATOR = "#" * 32  # = exactly 1 token
 
     @override
-    async def generate(self, prompt: Prompt, options: RunOptions) -> Code:
+    async def run(self) -> None:
         model_id = GEMINI_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
-        pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
+        pieces, _ = compile_prompt(prompt=self.prompt, tokenizer=tokenizer, max_tokens=max_tokens)
         if LOG_PROMPTS:
-            log_prompt(prompt, pieces)
+            log_prompt(self.prompt, pieces)
 
         # download media
         files_to_download = [
@@ -96,8 +97,8 @@ class GeminiChatModelRunner(ChatModelRunner):
         # generate
         # NOTE :Performance: maybe re-use genai.GenerativeModel instance?
         #  (but we may need different system prompts for different runs)
-        temperature = options.text_options.temperature if options.text_options else 0.1
-        model = genai.GenerativeModel(model_id, system_instruction=prompt.system_prompt)
+        temperature = self.options.text_options.temperature if self.options.text_options else 0.1
+        model = genai.GenerativeModel(model_id, system_instruction=self.prompt.system_prompt)
         completion = await model.generate_content_async(
             {"role": "user", "parts": content_parts},
             generation_config=genai.GenerationConfig(temperature=temperature),
@@ -105,4 +106,18 @@ class GeminiChatModelRunner(ChatModelRunner):
         completion_text = completion.parts[0].text
         if isinstance(completion_text, str):
             completion_text = strip_code_completion(completion_text)
-        return Code.from_string(completion_text or "pass")
+
+        # run
+        code = Code.from_string(completion_text or "pass", language="python")
+        code_runner = CodeFunctionRunner(
+            runtime=self.runtime,
+            node=self.node,
+            code=code,
+            aliasing=self.prompt.aliasing,
+            options=ATTEMPT_ONCE,
+            inputs=self.inputs,
+            outputs=self.output_type,
+            parent=cast(Runner[Runnable], self),
+            run=SpanType.MODEL_PARSE,
+        )
+        await self.runtime.run_runner(code_runner)
