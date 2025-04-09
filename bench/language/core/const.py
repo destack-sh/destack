@@ -513,10 +513,10 @@ class ColorType(BuiltinEnum):
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
-    BUILTIN = 10, "Builtin", "Provided by the Bench system", "fas fa-cog", ColorType.YELLOW
+    BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog", ColorType.YELLOW
     MAIN = 20, "Main", "Active and available", "fas fa-globe", ColorType.GREEN
-    TEST = 30, "Test", "Active in test mode", "fas fa-flask", ColorType.BLUE
-    TEMPLATE = 40, "Template", "Template to instantiate", "fas fa-puzzle-piece", ColorType.VIOLET
+    TEST = 30, "Test", "Active in test", "fas fa-flask", ColorType.BLUE
+    TEMPLATE = 40, "Template", "Template to use", "fas fa-puzzle-piece", ColorType.VIOLET
     ARCHIVE = 50, "Archive", "Inactive and hidden", "fas fa-box-archive", ColorType.GRAY
 
 
@@ -1500,17 +1500,20 @@ class ProcessStatus(BuiltinEnum):
     QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-clock", ColorType.GRAY
     # active
     RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch", ColorType.BLUE
+    FAILING = 11, "Failing", "Experiencing issues", "fas fa-circle-exclamation", ColorType.RED
     # interrupted
     PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
     YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK
     WAITING = 22, "Waiting", "Waiting for a condition", "fas fa-circle-pause", ColorType.PINK
+    # inactive
+    IDLE = 30, "Idle", "Waiting for work", "fas fa-zzz", ColorType.GRAY
     # terminal
-    CANCELLED = 30, "Cancelled", "Cancelled manually", "fas fa-circle-xmark", ColorType.GRAY
-    ABORTED = 31, "Aborted", "Aborted due to an error", "fas fa-skull", ColorType.GRAY
-    FAILED = 32, "Failed", "Failed due to an error", "fas fa-circle-exclamation", ColorType.RED
-    COMPLETED = 33, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
+    CANCELLED = 50, "Cancelled", "Cancelled manually", "fas fa-circle-xmark", ColorType.GRAY
+    ABORTED = 51, "Aborted", "Aborted due to an error", "fas fa-skull", ColorType.GRAY
+    FAILED = 52, "Failed", "Failed due to an error", "fas fa-circle-xmark", ColorType.RED
+    COMPLETED = 53, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
     SKIPPED = (
-        34,
+        54,
         "Skipped",
         "Skipped due to a condition",
         "fas fa-circle-exclamation",
@@ -1530,12 +1533,21 @@ class ProcessStatus(BuiltinEnum):
         return self >= 20 and self < 30
 
     @property
+    def is_inactive(self) -> bool:
+        return self >= 30 and self < 40
+
+    @property
     def is_terminal(self) -> bool:
-        return self >= 30
+        return self >= 50
+
+    @property
+    def is_bad(self) -> bool:
+        return self in (ProcessStatus.FAILED, ProcessStatus.ABORTED, ProcessStatus.CANCELLED)
 
 
 INTERRUPTED_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_interrupted))
 ACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_active))
+INACTIVE_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_inactive))
 TERMINAL_PROCESS_STATUSES = bittuple(*(s for s in ProcessStatus if s.is_terminal))
 
 

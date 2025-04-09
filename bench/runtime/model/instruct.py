@@ -295,12 +295,14 @@ def make_flow_think_prompt(
         thread_text += " (you may change the title/icon if really needed)"
     if len(agents) <= 1:
         thread_text += """
-You're the only Agent in this Thread, so you SHOULD assume you're needed even if you're not asked directly.
+You're the only Agent in this Thread. 
+You SHOULD assume you're needed even if you're not asked directly.
 """
     else:
         thread_text += """
-There are multiple Agents in this Thread, so decide from context if you should respond / do something. 
-You MAY need to engage with other Agents depending on context.
+There are multiple Agents in this Thread. 
+You MUST decide from context if you should respond / do something. 
+You MAY need to engage with other Agents.
 """
     prompt.region(
         "Thread",
@@ -330,7 +332,10 @@ You MAY need to engage with other Agents depending on context.
     if previous_attempts:
         prompt.region(
             "Previous Attempts",
-            f"You already tried this {len(previous_attempts)} times, so reflect on the instructions, the results before you try again.",
+            f"""
+You already tried this {len(previous_attempts)} times before.
+Reflect on the instructions, the context and any errors as you try again.
+""",
             *[AttemptPiece(node=a) for a in previous_attempts],
             priority=30,
         )

@@ -539,13 +539,43 @@ class IsProcessable(IsRuntime):
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
 
-    def inherit_status(self, other: "IsProcessable") -> None:
-        """Inherit the status of another Node."""
-        for prop in IsProcessable.__declared_properties__.values():
-            self_value = getattr(self, prop.name)
-            other_value = getattr(other, prop.name)
-            if self_value != other_value:
-                setattr(self, prop.name, other_value)
+    def update_from(self, *children: Processable) -> None:
+        """
+        Update this Node as a container of other Processables.
+        """
+        if not children:
+            return
+
+        # always 'touch' on update
+        now = self.active_session._oracle.utc()
+        self.active_at = now
+
+        # start as soon as any child is started
+        for child in children:
+            if child.started_at is not None and (
+                self.started_at is None or child.started_at < self.started_at
+            ):
+                self.started_at = child.started_at
+
+        # terminate if marked as should stop and all children are terminated
+        if self.should_stop and all(c.status.is_terminal for c in children):
+            self.terminated_at = now
+
+        # status
+        if any(c.status.is_bad for c in children):
+            self.status = ProcessStatus.FAILING
+        elif any(c.status.is_active or c.status.is_interrupted for c in children):
+            self.status = ProcessStatus.RUNNING
+        elif self.should_stop and all(c.status.is_terminal for c in children):
+            self.status = ProcessStatus.COMPLETED
+        else:
+            self.status = ProcessStatus.IDLE
+
+        # duration
+        if self.started_at is not None and self.terminated_at is not None:
+            duration = self.terminated_at - self.started_at
+            if self.duration != duration:
+                self.duration = duration
 
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""

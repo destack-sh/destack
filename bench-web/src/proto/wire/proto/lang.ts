@@ -12141,6 +12141,10 @@ export enum ProcessStatus {
      */
     RUNNING = 10,
     /**
+     * @generated from protobuf enum value: PROCESS_STATUS_FAILING = 11;
+     */
+    FAILING = 11,
+    /**
      * @generated from protobuf enum value: PROCESS_STATUS_PAUSED = 20;
      */
     PAUSED = 20,
@@ -12153,25 +12157,29 @@ export enum ProcessStatus {
      */
     WAITING = 22,
     /**
-     * @generated from protobuf enum value: PROCESS_STATUS_CANCELLED = 30;
+     * @generated from protobuf enum value: PROCESS_STATUS_IDLE = 30;
      */
-    CANCELLED = 30,
+    IDLE = 30,
     /**
-     * @generated from protobuf enum value: PROCESS_STATUS_ABORTED = 31;
+     * @generated from protobuf enum value: PROCESS_STATUS_CANCELLED = 50;
      */
-    ABORTED = 31,
+    CANCELLED = 50,
     /**
-     * @generated from protobuf enum value: PROCESS_STATUS_FAILED = 32;
+     * @generated from protobuf enum value: PROCESS_STATUS_ABORTED = 51;
      */
-    FAILED = 32,
+    ABORTED = 51,
     /**
-     * @generated from protobuf enum value: PROCESS_STATUS_COMPLETED = 33;
+     * @generated from protobuf enum value: PROCESS_STATUS_FAILED = 52;
      */
-    COMPLETED = 33,
+    FAILED = 52,
     /**
-     * @generated from protobuf enum value: PROCESS_STATUS_SKIPPED = 34;
+     * @generated from protobuf enum value: PROCESS_STATUS_COMPLETED = 53;
      */
-    SKIPPED = 34
+    COMPLETED = 53,
+    /**
+     * @generated from protobuf enum value: PROCESS_STATUS_SKIPPED = 54;
+     */
+    SKIPPED = 54
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunType
@@ -37141,14 +37149,16 @@ export const ProcessStatusOptionInfo: Partial<Record<ProcessStatus, EnumOptionIn
   [ProcessStatus.SCHEDULED]: { id: 4, name: 'SCHEDULED', text: 'Scheduled for sometime', title: 'Scheduled', color: ColorType.GRAY, icon: 'fas fa-clock' },
   [ProcessStatus.QUEUED]: { id: 5, name: 'QUEUED', text: 'Queued to happen soon', title: 'Queued', color: ColorType.GRAY, icon: 'fas fa-clock' },
   [ProcessStatus.RUNNING]: { id: 10, name: 'RUNNING', text: 'Actively running', title: 'Running', color: ColorType.BLUE, icon: 'fas fa-circle-notch' },
+  [ProcessStatus.FAILING]: { id: 11, name: 'FAILING', text: 'Experiencing issues', title: 'Failing', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
   [ProcessStatus.PAUSED]: { id: 20, name: 'PAUSED', text: 'Paused manually', title: 'Paused', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [ProcessStatus.YIELDED]: { id: 21, name: 'YIELDED', text: 'Yielded to someone', title: 'Yielded', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
   [ProcessStatus.WAITING]: { id: 22, name: 'WAITING', text: 'Waiting for a condition', title: 'Waiting', color: ColorType.PINK, icon: 'fas fa-circle-pause' },
-  [ProcessStatus.CANCELLED]: { id: 30, name: 'CANCELLED', text: 'Cancelled manually', title: 'Cancelled', color: ColorType.GRAY, icon: 'fas fa-circle-xmark' },
-  [ProcessStatus.ABORTED]: { id: 31, name: 'ABORTED', text: 'Aborted due to an error', title: 'Aborted', color: ColorType.GRAY, icon: 'fas fa-skull' },
-  [ProcessStatus.FAILED]: { id: 32, name: 'FAILED', text: 'Failed due to an error', title: 'Failed', color: ColorType.RED, icon: 'fas fa-circle-exclamation' },
-  [ProcessStatus.COMPLETED]: { id: 33, name: 'COMPLETED', text: 'Completed successfully', title: 'Completed', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
-  [ProcessStatus.SKIPPED]: { id: 34, name: 'SKIPPED', text: 'Skipped due to a condition', title: 'Skipped', color: ColorType.GRAY, icon: 'fas fa-circle-exclamation' },
+  [ProcessStatus.IDLE]: { id: 30, name: 'IDLE', text: 'Waiting for work', title: 'Idle', color: ColorType.GRAY, icon: 'fas fa-zzz' },
+  [ProcessStatus.CANCELLED]: { id: 50, name: 'CANCELLED', text: 'Cancelled manually', title: 'Cancelled', color: ColorType.GRAY, icon: 'fas fa-circle-xmark' },
+  [ProcessStatus.ABORTED]: { id: 51, name: 'ABORTED', text: 'Aborted due to an error', title: 'Aborted', color: ColorType.GRAY, icon: 'fas fa-skull' },
+  [ProcessStatus.FAILED]: { id: 52, name: 'FAILED', text: 'Failed due to an error', title: 'Failed', color: ColorType.RED, icon: 'fas fa-circle-xmark' },
+  [ProcessStatus.COMPLETED]: { id: 53, name: 'COMPLETED', text: 'Completed successfully', title: 'Completed', color: ColorType.GREEN, icon: 'fas fa-circle-check' },
+  [ProcessStatus.SKIPPED]: { id: 54, name: 'SKIPPED', text: 'Skipped due to a condition', title: 'Skipped', color: ColorType.GRAY, icon: 'fas fa-circle-exclamation' },
 }
 
 export const SpanTypeOptionInfo: Partial<Record<SpanType, EnumOptionInfo>> = {

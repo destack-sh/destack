@@ -991,16 +991,19 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </div>
       </div>
       <!-- Active -->
-      <div class="flex h-[24px] w-full flex-row items-center px-3 py-1 text-sm text-xs">
+      <div class="flex h-[20px] w-full flex-row items-center px-3 pt-1 text-sm text-xs">
         <template v-if="activeAuthors.length > 0">
-          <span class="fas fa-circle mr-1.5 animate-pulse text-blue-400" />
+          <!-- Status icon -->
+          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
+            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
+          </span>
           <template v-for="(author, i) in activeAuthors" :key="author.node.id">
+            <!-- Names -->
             <div class="rounded-full" :class="i > 0 ? 'ml-1' : ''">
               <span class="font-medium text-gray-900">{{ author.name }}</span>
             </div>
             <span v-if="i < activeAuthors.length - 1">, </span>
           </template>
-          <span class="ml-1 text-gray-700"> {{ activeAuthors.length > 1 ? "are" : "is" }} working...</span>
         </template>
       </div>
     </div>

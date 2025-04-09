@@ -1,5 +1,13 @@
 <script lang="ts" setup>
-import { isNodeActive, isNodeInstance, isProcessableNode, isResourceNode, toCamelName } from "@/language/core/const";
+import {
+  isNodeActive,
+  isNodeInstance,
+  isProcessableNode,
+  isResourceNode,
+  PRE_PROCESS_STATUSES,
+  toCamelName,
+} from "@/language/core/const";
+import { isProcessActive } from "@/language/runtime/process";
 import {
   AnyNodeData,
   ColorShade,
@@ -9,6 +17,7 @@ import {
   ResourceStatusOptionInfo,
   ProcessStatusOptionInfo,
   ObjectType,
+  ProcessStatus,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex } from "@/ui/style";
@@ -34,23 +43,26 @@ const textClass = computed(() => [
 ]);
 </script>
 <template>
-  <div>
+  <div class="flex flex-row items-center gap-x-0.5">
     <!-- Node mode -->
     <span
       v-if="'mode' in node && node.mode != NodeMode.MAIN"
-      class="ml-1 mr-1 rounded-sm border px-1 py-0.5 text-xs text-gray-900"
-      :style="{
-        backgroundColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S200),
-        borderColor: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S300),
+      v-tooltip="{
+        title: NodeModeOptionInfo[node.mode]!.title,
+        text: NodeModeOptionInfo[node.mode]!.text,
+        small: true,
       }"
-    >
-      {{ toCamelName(NodeMode, node.mode) }}
-    </span>
+      class="w-5 px-1 py-0.5 text-center text-gray-900"
+      :class="[NodeModeOptionInfo[node.mode]!.icon]"
+      :style="{
+        color: getColorHex(NodeModeOptionInfo[node.mode]!.color!, ColorShade.S500),
+      }"
+    />
     <!-- Resource metadata -->
     <span
       v-if="isResourceNode(node) && isNodeActive(node)"
-      class="w-5 text-center"
-      :class="[iconClass, ResourceStatusOptionInfo[node.status]!.icon!]"
+      class="fas fa-circle-small w-5 text-center"
+      :class="[iconClass]"
       :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
     />
     <!-- File metadata -->
@@ -59,10 +71,17 @@ const textClass = computed(() => [
     </span>
     <!-- Run metadata -->
     <span
-      v-if="isProcessableNode(node) && (node.metatype != ObjectType.AGENT || isNodeInstance(node))"
-      class="w-5 text-center"
-      :class="[iconClass, ProcessStatusOptionInfo[node.status]!.icon!]"
-      :style="{ color: getColorHex(ProcessStatusOptionInfo[node.status]!.color!) }"
-    />
+      v-if="
+        isProcessableNode(node) &&
+        node.status != ProcessStatus.IDLE &&
+        !PRE_PROCESS_STATUSES.includes(node.status) &&
+        (node.metatype != ObjectType.AGENT || isNodeInstance(node))
+      "
+      class="fas fa-circle-small relative w-5 text-center"
+      :class="[iconClass, isProcessActive(node) ? '' : '']"
+      :style="{ color: getColorHex(ProcessStatusOptionInfo[node.status]!.color!, ColorShade.S500) }"
+    >
+      <span v-if="isProcessActive(node)" class="fas fa-circle-small absolute inset-0 animate-ping" />
+    </span>
   </div>
 </template>

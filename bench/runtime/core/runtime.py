@@ -777,8 +777,6 @@ class Runtime:
             runner.status = span.status
             runner.error = span.error
 
-    # nocheckin: track Thread & Agent (instance) status (and show it in the UI)
-
     @tracer.start_as_current_span("runtime.run")
     async def run_runner(self, runner: Runner[Any]):
         """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
@@ -800,7 +798,9 @@ class Runtime:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
             if agent.implemented_by_id != span.id:
                 agent.implemented_by = span
-            agent.inherit_status(span)
+            agent.update_from(span)
+            thread = runner.thread.thread
+            thread.update_from(*thread.agents)
             self.session.stage(include_runtime=True)
         else:
             self.session.stage()
@@ -880,11 +880,11 @@ class Runtime:
                 self._on_run_updated(runner, span)
 
             # commit intermediate session edits
-            if runner.is_root:
-                if (agent := runner.agent) is not None:
-                    agent.inherit_status(span)
-                thread = runner.thread
-                thread.thread.touch()
+            if runner.is_root and (agent := runner.agent) is not None:
+                assert type(span) is Run, f"unexpected non-Run root: {span!r}"
+                agent.update_from(span)
+                thread = runner.thread.thread
+                thread.update_from(*thread.agents)
                 self.session.stage(include_runtime=True)
             else:
                 self.session.stage(include_runtime=False)
