@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
@@ -8,6 +8,7 @@ from bench.language.core import (
     Property,
     Struct,
     StructType,
+    bittuple,
     node_component_,
     p_internal,
     p_regular,
@@ -33,6 +34,9 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
+
+RunTarget = Union["Message", "Task"]
+RUN_TARGET_TYPES = bittuple(NodeType.MESSAGE, NodeType.TASK)
 
 
 @node_component_()
@@ -80,13 +84,13 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Trigger this Run is triggered by.",
     )
-    message: Optional["Message"] = p_internal(
+    target: Optional[RunTarget] = p_internal(
         75,
         require=False,
         array=False,
-        references=NodeType.MESSAGE,
+        references=RUN_TARGET_TYPES.tuple,
         same_bench=True,
-        description="The Message this Run is triggered by.",
+        description="The specific target Node this Run is for.",
     )
     manual_plan: Optional["Plan"] = p_internal(
         76,

@@ -108,7 +108,7 @@ class Thread(
         array=False,
         references=NodeType.PLAN,
         same_bench=True,
-        description="The main Plan to consider in this Thread (may be on the Page).",
+        description="The main Plan to work on in this Thread (may be on the Page, may not).",
     )
     text: Optional["Text"] = p_regular(65, require=False, default=None, struct=StructType.TEXT)
     if TYPE_CHECKING:

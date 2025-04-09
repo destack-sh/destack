@@ -497,7 +497,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             )
         ):
             # 'inherit' runtime context on new runtime nodes
-            runtime._set_context(node)
+            runtime._set_session_context(node)
         self._tx.record_edit_event(EditType.CREATE, node)
 
     def _upsert(self, node: Node):
@@ -711,7 +711,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
             return False
 
     def _preflush(
-        self, *, runtime: bool = True, exclude: Sequence[NodeType] = ()
+        self, *, include_runtime: bool = True, exclude: Sequence[NodeType] = ()
     ) -> list[EditData]:
         """
         Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
@@ -722,7 +722,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
 
         def _filter(node: Node) -> bool:
             return (
-                runtime or not self._is_current_runtime_node(node)
+                include_runtime or not self._is_current_runtime_node(node)
             ) and node.metatype not in exclude
 
         # return new_edits
@@ -853,12 +853,12 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 self._supergraph.remove_graph(graph)
 
     @tracer.start_as_current_span("session.stage")
-    def stage(self, *, runtime: bool = False):
+    def stage(self, *, include_runtime: bool = False):
         """Stage pending edits without waiting for the next background commit."""
         # schedule a new commit
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._preflush(runtime=runtime)
+        new_edits = self._preflush(include_runtime=include_runtime)
         event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
         if not self._tx.has_edits:
             return [], []  # nothing to do

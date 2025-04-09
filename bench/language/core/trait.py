@@ -522,18 +522,26 @@ class IsProcessable(IsRuntime):
     terminated_at: Optional[datetime] = p_internal(
         89, default=None, description="When the Node was last terminated."
     )
-    requested_stop_at: Optional[datetime] = p_internal(
+    requested_stop_at: Optional[datetime] = p_regular(
         90, default=None, description="When the Node was requested to stop."
     )
-    requested_pause_at: Optional[datetime] = p_internal(
+    requested_pause_at: Optional[datetime] = p_regular(
         91, default=None, description="When the Node was requested to pause."
     )
-    requested_resume_at: Optional[datetime] = p_internal(
+    requested_resume_at: Optional[datetime] = p_regular(
         92, default=None, description="When the Node was requested to resume."
     )
     if TYPE_CHECKING:
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
+
+    def inherit_status(self, other: "IsProcessable") -> None:
+        """Inherit the status of another Node."""
+        for prop in IsProcessable.__declared_properties__.values():
+            self_value = self._do_get(prop.name)
+            other_value = other._do_get(prop.name)
+            if self_value != other_value:
+                self._do_set(prop.name, other_value)
 
     def touch(self) -> None:
         """'Touch' the Node to update the active_at timestamp."""

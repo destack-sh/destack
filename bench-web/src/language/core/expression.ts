@@ -55,8 +55,6 @@ export function makeAndConditional(clauses: ExpressionData[]): ExpressionData | 
   else return makeExpression({ type: ExpressionType.AND, clauses });
 }
 
-export type EditSubject = UserData | RunData | BlockData | ActionData;
-
 /** Controls a SourceNode.computedValues */
 export function useComputedValues(options: {
   computedValues: Readonly<Ref<ComputedValueData[]>>;
