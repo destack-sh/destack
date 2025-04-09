@@ -60,7 +60,7 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 flex max-w-full flex-shrink-0 flex-col gap-x-2 pb-2"
+      class="mx-2 flex max-w-full flex-shrink-0 flex-col gap-x-2"
       :style="{
         minHeight: `${BAR_HEADER_HEIGHT}px`,
       }"
@@ -95,37 +95,9 @@ defineExpose<ViewExpose>({ self });
         <span v-if="bench" class="truncate font-medium">{{ bench.name }}</span>
         <span v-else class="italic"> Bench </span>
       </div>
-      <!-- Quick/Global commands -->
-      <button
-        v-for="command in (
-          [
-            'space.omnibar.bench',
-            'space.omnibar.commands',
-            'space.create.page',
-            'space.create.thread',
-          ] as CommandBuiltinId[]
-        ).map(getCommand)"
-        :key="command.id"
-        class="group/button flex flex-row items-center truncate rounded border border-transparent px-2 py-[4px] transition-colors duration-150 hover:bg-gray-100"
-        :style="{}"
-        @click="fireCommand(command)"
-      >
-        <IconInline class="mr-1 w-5 text-center" v-bind="command.icon" />
-        <span class="">
-          {{ command.title }}
-        </span>
-        <span class="ml-auto">
-          <!-- Shortcut -->
-          <Shortcut
-            v-if="command.shortcuts?.length ?? 0 > 0"
-            class="text-gray-400 opacity-0 transition-colors duration-150 group-hover/button:opacity-100"
-            :shortcut="command.shortcuts![0]"
-          />
-        </span>
-      </button>
     </div>
 
-    <!-- Content -->
+    <!-- Body -->
     <Scroll
       id="scroll"
       ref="scrollRef"
@@ -137,9 +109,39 @@ defineExpose<ViewExpose>({ self });
         ref="bodyRef"
         class="flex flex-col"
         :style="{
+          maxWidth: size?.width != null ? `${size.width}px` : undefined,
           minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
         }"
       >
+        <!-- Quick/Global commands -->
+        <button
+          v-for="command in (
+            [
+              'space.omnibar.bench',
+              'space.omnibar.commands',
+              'space.create.page',
+              'space.create.thread',
+            ] as CommandBuiltinId[]
+          ).map(getCommand)"
+          :key="command.id"
+          class="group/button mx-2 flex flex-row items-center truncate rounded border border-transparent px-2 py-[4px] transition-colors duration-150 hover:bg-gray-100"
+          :style="{}"
+          @click="fireCommand(command)"
+        >
+          <IconInline class="mr-1 w-5 text-center" v-bind="command.icon" />
+          <span class="">
+            {{ command.title }}
+          </span>
+          <span class="ml-auto">
+            <!-- Shortcut -->
+            <Shortcut
+              v-if="command.shortcuts?.length ?? 0 > 0"
+              class="text-gray-400 opacity-0 transition-colors duration-150 group-hover/button:opacity-100"
+              :shortcut="command.shortcuts![0]"
+            />
+          </span>
+        </button>
+
         <!-- Package -->
         <div
           class="group/header mx-4 flex flex-row items-center"
@@ -163,7 +165,6 @@ defineExpose<ViewExpose>({ self });
           "
         />
         <!-- Threads -->
-        <!-- ... -->
         <div
           class="group/header mx-4 flex flex-row items-center"
           :style="{

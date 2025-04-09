@@ -226,7 +226,6 @@ yup [@Agent2], please look at the file I was talking about: [@File1]
 (cc [@User2])
 """,
         ),
-        nodes=[File1],  # the main content nodes only
     )
     Thread1.append(Reply1)
 
