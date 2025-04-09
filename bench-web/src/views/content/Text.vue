@@ -34,7 +34,13 @@ const textInterface = useTextModelValueInterface({
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Text");
 
-const plugins: Plugin[] = [usePlaceholderPlugin({ defaultPlaceholder: props.placeholder, showIfUnfocused: true })];
+const plugins: Plugin[] = [
+  usePlaceholderPlugin({
+    defaultPlaceholder: props.placeholder,
+    showIfUnfocused: true,
+    showAtBeginningOnly: true,
+  }),
+];
 if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }

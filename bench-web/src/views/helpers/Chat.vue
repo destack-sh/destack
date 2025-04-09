@@ -764,7 +764,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)"
                 :id="'text-' + message.id"
                 placeholder="Empty message"
-                class="-mt-[1px]"
+                class="-mt-[2px]"
                 is-minimal
                 :model-value="message.text"
               />
@@ -882,7 +882,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       >
         <div class="flex flex-row">
           <!-- Side -->
-          <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 8 + 'px' }">
+          <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 9 + 'px' }">
             <!-- Add extra -->
             <!-- NOTE :Incomplete: support adding other Nodes to Chat instead of just Files -->
             <input
@@ -932,6 +932,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 </button>
               </div>
             </div>
+            <!-- Text -->
             <Scroll
               id="input-scroll"
               ref="inputScrollRef"
@@ -939,7 +940,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               size-is-dynamic
               :size="{ height: size?.height != null ? size.height / 2 : undefined }"
             >
-              <!-- Text -->
               <Text
                 id="input"
                 ref="inputRef"
