@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.09.1"
+VERSION = "2025.04.10.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -404,13 +404,15 @@ class EnumType(BuiltinEnum):
     SESSION_STATUS = 22020
     CACHE_MODE = 22040
     LOG_TYPE = 22060
-    SEVERITY = 22070
+    SEVERITY = 22061
     TRIGGER_TYPE = 22030
     TRIGGER_EFFECT = 22031
     TRIGGER_STATUS = 22032
     SCHEDULE_FREQUENCY = 22041
     CLAIM_TYPE = 22050
     CLAIM_STATUS = 22051
+    CURSOR_TYPE = 22070
+    CURSOR_STATUS = 22071
 
     # error (22100-22149)
     ERROR_KIND = 22100
@@ -610,7 +612,8 @@ class NodeType(BuiltinEnum):
     PLAN = 6100, "Plan", "Plan with Tasks", "fas fa-list-check"
     TASK = 6110, "Task", "Task", "far fa-square-check"
     CLAIM = 6150, "Claim", "Claim", "fas fa-stamp"
-    # ENTITLEMENT, CURSOR, POOL, LOCK, BARRIER, ...?
+    CURSOR = 6170, "Cursor", "Cursor", "fas fa-mouse"
+    # ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
     # view
     VIEW = 7000, "View", "View", "fas fa-window-frame"  # :PolyViews
@@ -796,7 +799,13 @@ LOADED_PACKAGE_NODE_TYPES = bittuple(
 
 # automatically included descendants :AutoLoading
 AUTOLOAD_DESCENDANT_TYPES: dict[NodeType, tuple[NodeType, ...]] = {
-    NodeType.THREAD: (NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.AGENT),
+    NodeType.THREAD: (
+        NodeType.FILE,
+        NodeType.MEMBERSHIP,
+        NodeType.CLAIM,
+        NodeType.AGENT,
+        NodeType.CURSOR,
+    ),
 }
 
 #

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.04.09.1"
+VERSION = "2025.04.10.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -66,6 +66,7 @@ AnyNodeData = Union[
     PlanData,
     TaskData,
     ClaimData,
+    CursorData,
     ViewData,
     SpaceData,
     RecordData,
@@ -168,6 +169,7 @@ BenchNodeData = Union[
     PlanData,
     TaskData,
     ClaimData,
+    CursorData,
     ViewData,
     SpaceData,
     RecordData,
@@ -253,6 +255,7 @@ OwnableNodeData = Union[
     PlanData,
     TaskData,
     ClaimData,
+    CursorData,
     ViewData,
     SpaceData,
     RecordData,

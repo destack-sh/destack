@@ -79,13 +79,15 @@ enum EnumType {
   ENUM_TYPE_SESSION_STATUS = 22020;
   ENUM_TYPE_CACHE_MODE = 22040;
   ENUM_TYPE_LOG_TYPE = 22060;
-  ENUM_TYPE_SEVERITY = 22070;
+  ENUM_TYPE_SEVERITY = 22061;
   ENUM_TYPE_TRIGGER_TYPE = 22030;
   ENUM_TYPE_TRIGGER_EFFECT = 22031;
   ENUM_TYPE_TRIGGER_STATUS = 22032;
   ENUM_TYPE_SCHEDULE_FREQUENCY = 22041;
   ENUM_TYPE_CLAIM_TYPE = 22050;
   ENUM_TYPE_CLAIM_STATUS = 22051;
+  ENUM_TYPE_CURSOR_TYPE = 22070;
+  ENUM_TYPE_CURSOR_STATUS = 22071;
   ENUM_TYPE_ERROR_KIND = 22100;
   ENUM_TYPE_ERROR_TYPE = 22101;
   ENUM_TYPE_BREAKPOINT_SITE = 22200;
@@ -173,6 +175,7 @@ enum NodeType {
   NODE_TYPE_PLAN = 6100;
   NODE_TYPE_TASK = 6110;
   NODE_TYPE_CLAIM = 6150;
+  NODE_TYPE_CURSOR = 6170;
   NODE_TYPE_VIEW = 7000;
   NODE_TYPE_SPACE = 7900;
   NODE_TYPE_RECORD = 8000;
@@ -281,6 +284,7 @@ enum ObjectType {
   OBJECT_TYPE_PLAN = 6100;
   OBJECT_TYPE_TASK = 6110;
   OBJECT_TYPE_CLAIM = 6150;
+  OBJECT_TYPE_CURSOR = 6170;
   OBJECT_TYPE_VIEW = 7000;
   OBJECT_TYPE_SPACE = 7900;
   OBJECT_TYPE_RECORD = 8000;
@@ -385,6 +389,7 @@ enum BenchType {
   BENCH_TYPE_PLAN = 6100;
   BENCH_TYPE_TASK = 6110;
   BENCH_TYPE_CLAIM = 6150;
+  BENCH_TYPE_CURSOR = 6170;
   BENCH_TYPE_VIEW = 7000;
   BENCH_TYPE_SPACE = 7900;
   BENCH_TYPE_RECORD = 8000;
@@ -510,13 +515,15 @@ enum BenchType {
   BENCH_TYPE_SESSION_STATUS = 22020;
   BENCH_TYPE_CACHE_MODE = 22040;
   BENCH_TYPE_LOG_TYPE = 22060;
-  BENCH_TYPE_SEVERITY = 22070;
+  BENCH_TYPE_SEVERITY = 22061;
   BENCH_TYPE_TRIGGER_TYPE = 22030;
   BENCH_TYPE_TRIGGER_EFFECT = 22031;
   BENCH_TYPE_TRIGGER_STATUS = 22032;
   BENCH_TYPE_SCHEDULE_FREQUENCY = 22041;
   BENCH_TYPE_CLAIM_TYPE = 22050;
   BENCH_TYPE_CLAIM_STATUS = 22051;
+  BENCH_TYPE_CURSOR_TYPE = 22070;
+  BENCH_TYPE_CURSOR_STATUS = 22071;
   BENCH_TYPE_ERROR_KIND = 22100;
   BENCH_TYPE_ERROR_TYPE = 22101;
   BENCH_TYPE_BREAKPOINT_SITE = 22200;
@@ -1385,6 +1392,22 @@ enum ClaimStatus {
   CLAIM_STATUS_OPEN = 10;
   CLAIM_STATUS_PAUSED = 20;
   CLAIM_STATUS_CLOSED = 30;
+}
+
+// The type of Cursor.
+enum CursorType {
+  CURSOR_TYPE_UNSPECIFIED = 0;
+  CURSOR_TYPE_BENCH = 10;
+}
+
+// The status of a Cursor.
+enum CursorStatus {
+  CURSOR_STATUS_UNSPECIFIED = 0;
+  CURSOR_STATUS_CREATED = 1;
+  CURSOR_STATUS_WORKING = 10;
+  CURSOR_STATUS_READING = 11;
+  CURSOR_STATUS_WRITING = 12;
+  CURSOR_STATUS_IDLE = 30;
 }
 
 enum ErrorKind {
@@ -2842,17 +2865,17 @@ message ClientData {
   optional google.protobuf.Value subnode_packed = 29;
   ClientType type = 30;
   optional string name = 31;
+  optional NodeReferenceData space_ptr = 35;
+  optional NodeReferenceData computer_ptr = 36;
   optional string device_type = 40;
   optional string device_name = 41;
   optional string operating_system = 42;
   optional string browser_name = 43;
   optional string browser_version = 44;
-  optional string place_id = 45;
   optional string access_token = 50;
   optional google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
-  optional NodeReferenceData space_ptr = 60;
-  optional NodeReferenceData computer_ptr = 62;
+  optional NodeReferenceData main_cursor_ptr = 55;
 }
 
 message HandleData {
@@ -2910,6 +2933,7 @@ message UserData {
   UserStatus status = 36;
   optional NodeReferenceData main_bench_ptr = 40;
   optional NodeReferenceData main_handle_ptr = 41;
+  optional NodeReferenceData main_cursor_ptr = 42;
   optional string email = 50;
   optional bytes password_salt = 51;
   optional bytes password_hash = 52;
@@ -2944,9 +2968,10 @@ message AgentData {
   optional NodeReferenceData main_flow_ptr = 53;
   optional NodeReferenceData main_page_ptr = 54;
   optional NodeReferenceData main_plan_ptr = 55;
-  optional NodeReferenceData implemented_by_ptr = 56;
+  optional NodeReferenceData main_cursor_ptr = 56;
   optional TextData text = 57;
-  optional ColorType color = 58;
+  optional NodeReferenceData implemented_by_ptr = 58;
+  optional ColorType color = 59;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3074,6 +3099,34 @@ message ClaimData {
   optional google.protobuf.Timestamp terminated_at = 55;
   optional NodeReferenceData target_ptr = 60;
   optional NodeReferenceData target_template_ptr = 65;
+  optional NodeReferenceData session_ptr = 94;
+  optional NodeReferenceData client_ptr = 95;
+  optional NodeReferenceData computer_ptr = 96;
+  optional NodeReferenceData user_ptr = 97;
+  optional NodeReferenceData agent_ptr = 98;
+}
+
+message CursorData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData owned_by_ptr = 17;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  CursorType type = 30;
+  CursorStatus status = 40;
+  optional google.protobuf.Timestamp active_at = 41;
+  optional NodeReferenceData target_ptr = 50;
+  optional SelectionData selection = 51;
+  optional SelectionData focus = 52;
   optional NodeReferenceData session_ptr = 94;
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
@@ -3924,11 +3977,12 @@ message SomeNodeData {
     PlanData plan = 41;
     TaskData task = 42;
     ClaimData claim = 43;
-    ViewData view = 44;
-    SpaceData space = 45;
-    RecordData record = 46;
-    SkipData skip = 47;
-    EmptyData empty = 48;
+    CursorData cursor = 44;
+    ViewData view = 45;
+    SpaceData space = 46;
+    RecordData record = 47;
+    SkipData skip = 48;
+    EmptyData empty = 49;
   };
 }
 

@@ -10,7 +10,7 @@ import { Ref, shallowRef, triggerRef } from "vue";
 
 // automatically included descendants :AutoLoading
 export const AUTOLOAD_DESCENDANT_TYPES: Partial<Record<NodeType, NodeType[]>> = {
-  [NodeType.THREAD]: [NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.AGENT],
+  [NodeType.THREAD]: [NodeType.FILE, NodeType.MEMBERSHIP, NodeType.CLAIM, NodeType.AGENT, NodeType.THREAD],
 };
 
 type AutoloadedBatch = {
