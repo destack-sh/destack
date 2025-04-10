@@ -720,9 +720,11 @@ export function moveNode(
   let parentPtr: NodeReferenceData | undefined;
   if (anchor == "start" || anchor == "end" || anchor == "before" || anchor == "after") {
     // move before target (in its parent's children = target siblings)
-    if (target == null) throw new Error(`no target given to move node ${anchor} ${describeNode(node)}`);
-    if (target.metatype != node.metatype)
+    if (target == null) {
+      throw new Error(`no target given to move node ${anchor} ${describeNode(node)}`);
+    } else if (target.metatype != node.metatype) {
       throw new Error(`target ${describeNode(target)} is not of same type as node ${describeNode(node)}`);
+    }
     const targetParent = graph.getOrError(target.parentPtr!);
     if ("orderKey" in node && "orderKey" in target) {
       updateOrder({
@@ -736,8 +738,9 @@ export function moveNode(
     parentPtr = target.parentPtr!;
   } else if (anchor == "center") {
     // move to end of target's children of that type
-    if (target == null) throw new Error(`no target given to move node ${anchor} ${describeNode(node)}`);
-    if ("orderKey" in node) {
+    if (target == null) {
+      throw new Error(`no target given to move node ${anchor} ${describeNode(node)}`);
+    } else if ("orderKey" in node) {
       updateOrder({
         tx,
         node: node as AnyNodeData & { orderKey: string },

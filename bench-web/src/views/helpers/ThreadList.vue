@@ -1,9 +1,5 @@
 <script lang="ts" setup>
-import {
-  ACTIVE_PROCESS_STATUSES,
-  INTERRUPTED_PROCESS_STATUSES,
-  toCamelName
-} from "@/language/core/const";
+import { ACTIVE_PROCESS_STATUSES, INTERRUPTED_PROCESS_STATUSES, toCamelName } from "@/language/core/const";
 import { makeExpression } from "@/language/core/expression";
 import { isProcessActive } from "@/language/runtime/process";
 import {
@@ -15,7 +11,7 @@ import {
   TextLineType,
   ThreadData,
   ThreadProperty,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { describeNode, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
@@ -198,17 +194,18 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
   <div ref="containerRef" @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)">
     <div class="relative flex flex-col">
       <!-- Thread groups -->
-      <div v-for="group in threadGroups" :key="group.title" class="mb-2">
+      <div v-for="group in threadGroups" :key="group.title" class="group/thread-group mb-2">
         <!-- Group header -->
-        <div class="group/header mx-4 my-1 flex flex-row items-center py-0.5 text-sm">
+        <div class="group/header mx-3 my-1 flex flex-row items-center px-1.5 py-0.5 text-sm">
           <span class="font-medium">{{ group.title }}</span>
+          <!-- Commands -->
           <button
             v-tooltip="{
               small: true,
               text: 'Create Thread',
               shortcut: getCommand('space.create.thread').shortcuts?.[0],
             }"
-            class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/header:opacity-100"
+            class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
             @click="fireCommandById('space.create.thread')"
           >
             <span class="fas fa-plus w-5 text-center" />
@@ -235,7 +232,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             v-for="thread in group.threads"
             :ref="(ref?: any) => (ref != null ? (itemRefs[thread.id] = ref) : delete itemRefs[thread.id])"
             :key="thread.id"
-            class="group/node relative mx-1.5 flex max-w-full flex-row items-center rounded px-2.5 transition-colors duration-150 hover:cursor-pointer"
+            class="group/node relative mx-3 flex max-w-full flex-row items-center rounded px-1.5 transition-colors duration-150 hover:cursor-pointer"
             :class="[
               canvas.isSelected(thread)
                 ? 'bg-orange-400/20'
