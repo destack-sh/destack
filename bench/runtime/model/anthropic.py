@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Mapping, Union, cast, override
+from typing import TYPE_CHECKING, Mapping, Union, override
 
 import anthropic
 import structlog
@@ -6,12 +6,12 @@ from anthropic import NOT_GIVEN
 from anthropic import types as anthropic_types
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, Runnable, SpanType, download_file_batch
-from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, Runner
+from bench.language import Code, ModelType, download_file_batch
+from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
+from .code import StreamingCodeRunner
 from .piece import (
     AudioPiece,
     BreakPiece,
@@ -20,7 +20,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, compile_prompt, log_prompt
+from .prompt import LOG_PROMPTS, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer
 
 if TYPE_CHECKING:
@@ -109,7 +109,8 @@ class AnthropicChatModelRunner(ChatModelRunner):
 
         _flush_text()
 
-        # generate
+        # generate & execute simultaneously
+        code_runner = StreamingCodeRunner(runner=self, aliasing=self.prompt.aliasing)
         messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_pieces}]
         temperature = self.options.text_options.temperature if self.options.text_options else None
         completion = await anthropic_client.messages.create(
@@ -124,21 +125,13 @@ class AnthropicChatModelRunner(ChatModelRunner):
             model=model_id,
             messages=messages,
             temperature=temperature or NOT_GIVEN,
+            stream=True,
         )
-        code_str = getattr(completion.content[0], "text", None) or ""
-        code_str = self.clean_code(code_str)
-
-        # run
-        code = Code.from_string(code_str or "pass", language="python")
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            code=code,
-            aliasing=self.prompt.aliasing,
-            options=ATTEMPT_ONCE,
-            inputs=self.inputs,
-            outputs=self.output_type,
-            parent=cast(Runner[Runnable], self),
-            run=SpanType.MODEL_PARSE,
-        )
-        await self.runtime.run_runner(code_runner)
+        async for chunk in completion:
+            if chunk.type == "content_block_delta" and chunk.delta.type == "text":
+                chunk_content = chunk.delta.text
+                code_runner.add(chunk_content)
+        code_runner.complete()
+        if LOG_PROMPTS:
+            log_completion(code_runner.code)
+        self.code = Code.from_string(code_runner.code or "pass", language="python")

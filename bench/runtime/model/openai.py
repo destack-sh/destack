@@ -1,18 +1,17 @@
-from typing import Mapping, cast, override
+from typing import Mapping, override
 
 import openai
 import structlog
 from openai.types import chat as openai_chat_types
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, Runnable, SpanType, download_file_batch
-from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, IncapableError, NotSupportedError, Runner
+from bench.language import Code, ModelType, download_file_batch
+from bench.runtime.core import IncapableError, NotSupportedError
 from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
-from .macro import MACROS
+from .code import StreamingCodeRunner
 from .piece import (
     AudioPiece,
     BreakPiece,
@@ -21,7 +20,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, compile_prompt, log_prompt
+from .prompt import LOG_PROMPTS, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer
 
 logger = structlog.get_logger(__name__)
@@ -110,7 +109,8 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         _flush_text()
 
-        # generate
+        # generate & execute simultaneously
+        code_runner = StreamingCodeRunner(runner=self, aliasing=self.prompt.aliasing)
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
             {"role": "developer", "content": self.prompt.system_prompt},
             {"role": "user", "content": content},
@@ -122,30 +122,11 @@ class OpenAIChatModelRunner(ChatModelRunner):
             user=hash_stable_hex(self.runtime.bench.id.int),
             stream=True,
         )
-        code_str = ""
         async for chunk in completion:
             if chunk.choices and chunk.choices[0].delta.content:
                 chunk_content = chunk.choices[0].delta.content
-                code_str += chunk_content
-                print(chunk_content)
-        code_str = self.clean_code(code_str)
-        print("=" * 32)
-        print("RESPONSE")
-        print("=" * 32)
-        print(code_str)  # nocheckin
-
-        # run
-        code = Code.from_string(code_str or "pass", language="python")
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            code=code,
-            aliasing=self.prompt.aliasing,
-            options=ATTEMPT_ONCE,
-            inputs=self.inputs,
-            outputs=self.output_type,
-            globals={macro.name: macro.bind(self) for macro in MACROS},
-            parent=cast(Runner[Runnable], self),
-            run=SpanType.MODEL_PARSE,
-        )
-        await self.runtime.run_runner(code_runner)
+                code_runner.add(chunk_content)
+        if LOG_PROMPTS:
+            log_completion(code_runner.code)
+        code_runner.complete()
+        self.code = Code.from_string(code_runner.code or "pass", language="python")

@@ -303,7 +303,7 @@ def make_flow_think_prompt(
     if thread.thread.title is None:
         thread_text += " (don't forget to title/icon it if needed)"
     else:
-        thread_text += " (you may change the title/icon if really needed)"
+        thread_text += " (you SHOULD NOT change the title/icon)"
     if len(agents) <= 1:
         thread_text += """
 You're the only Agent in this Thread. 

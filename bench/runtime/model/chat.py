@@ -1,8 +1,6 @@
-import textwrap
 from abc import ABC
 from typing import TYPE_CHECKING
 
-import regex
 import structlog
 from opentelemetry import trace
 
@@ -47,22 +45,6 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         self.model_type = model_type
         self.prompt = prompt
         self.code: Code | None = None
-
-    def clean_code(self, code: str) -> str:
-        """Standardize code completion."""
-        # clean completion
-        code = code.strip()
-        # strip ``` ... ``` wrapper
-        code = regex.sub(r"^```[a-zA-Z]*\n", "", code)
-        code = regex.sub(r"\n```$", "", code)
-        # replace suspicious unicode characters
-        code = code.replace("’", "'")  # noqa: RUF001
-        code = code.replace("‘", "'")  # noqa: RUF001
-        code = code.replace("“", '"')
-        code = code.replace("”", '"')
-        # dedent
-        code = textwrap.dedent(code)
-        return code
 
 
 def get_chat_model_runner_cls(

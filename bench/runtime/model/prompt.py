@@ -280,6 +280,7 @@ def compile_prompt(
 
 
 def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
+    """Log the prompt somewhere."""
     prompt_parts: list[str] = []
     for piece in pieces:
         if isinstance(piece, BreakPiece):
@@ -296,4 +297,17 @@ def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
         else:
             prompt_parts.append(f" ??? {piece!r} ???")
     rendered = "\n".join(prompt_parts)
-    print(rendered)  # noqa
+    print("=" * 32)  # noqa: T201
+    print("PROMPT")  # noqa: T201
+    print("=" * 32)  # noqa: T201
+    print(rendered)  # noqa: T201
+    print("=" * 32)  # noqa: T201
+
+
+def log_completion(response: str) -> None:
+    """Log the response somewhere."""
+    print("=" * 32)  # noqa: T201
+    print("RESPONSE")  # noqa: T201
+    print("=" * 32)  # noqa: T201
+    print(response)  # noqa: T201
+    print("=" * 32)  # noqa: T201
