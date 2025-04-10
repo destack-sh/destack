@@ -182,8 +182,6 @@ const {
 // Interaction
 //
 
-const SUGGESTED_BLOCK_TYPES = [BlockType.PAGE, BlockType.TASK, BlockType.FLOW, BlockType.DATABASE];
-
 // selecting
 const selectionZone = useSelectionZone({ containerEl: contentRef, overlayEl: selectionOverlayRef });
 
@@ -455,22 +453,16 @@ defineExpose<ViewExpose>({ self, commands, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in SUGGESTED_BLOCK_TYPES"
+            v-for="blockType in [BlockType.PAGE, BlockType.HEADING_1, BlockType.TASK, BlockType.FLOW, BlockType.DATABASE]"
             data-suppress-drag="both"
-            class="rounded-2xl border border-gray-200 px-2 py-0.5 transition-colors duration-150"
-            :class="[
-              isEmpty
-                ? 'bg-gray-100 text-gray-800 hover:bg-gray-200 hover:text-gray-900'
-                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-900 group-hover/footer:text-gray-700',
-            ]"
+            class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-400 transition-colors duration-300 hover:bg-gray-100 hover:text-gray-900 group-hover/footer:text-gray-700"
             @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
           >
             <IconInline
               v-bind="makeIcon(BlockTypeOptionInfo[blockType]!.icon!)"
-              class="mr-1.5 w-5 text-center transition-colors duration-150"
-              :class="isEmpty ? 'text-gray-700' : 'text-gray-400 group-hover/footer:text-gray-700'"
+              class="mr-1.5 w-5 text-center text-gray-400 transition-colors duration-300 group-hover/footer:text-gray-700"
             />
-            <span class="text-small">{{ toCamelName(BlockType, blockType) }}</span>
+            <span class="text-small">{{ BlockTypeOptionInfo[blockType]!.title }}</span>
           </button>
         </div>
 

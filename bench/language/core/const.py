@@ -527,11 +527,11 @@ class NodeType(BuiltinEnum):
     #
 
     # cosmos
-    BENCH = 1, "Bench", None, "fas fa-layer-group"
-    HANDLE = 2, None, None, "fas fa-at"
-    USER = 10, None, None, "fas fa-user"
-    ORGANIZATION = 20, None, None, "fas fa-building"
-    CLIENT = 50, None, None, "fas fa-desktop"
+    BENCH = 1, "Bench", "Universal workbench", "fas fa-layer-group"
+    HANDLE = 2, "Handle", "Unique identifier", "fas fa-at"
+    USER = 10, "User", "Human user", "fas fa-user"
+    ORGANIZATION = 20, "Organization", "Organization", "fas fa-building"
+    CLIENT = 50, "Client", "Client device", "fas fa-desktop"
     # CHALLENGE?
 
     #
@@ -539,16 +539,17 @@ class NodeType(BuiltinEnum):
     #
 
     # compute
-    SCALER = 2000, None, None, "fas fa-scale-unbalanced"
-    STORE = 2010, None, None, "fas fa-database"
+    SCALER = 2000, "Scaler", "Autoscale Resources", "fas fa-scale-unbalanced"
+    STORE = 2010, "Store", "Store custom data", "fas fa-database"
+    # VAULT?
     # CACHE?
-    COMPUTER = 2100, None, None, "fas fa-computer-classic"
-    APPLICATION = 2110, None, None, "fas fa-globe"
+    COMPUTER = 2100, "Computer", "Machine for computing", "fas fa-computer-classic"
+    APPLICATION = 2110, "Application", "End-user application", "fas fa-globe"
     # SNAPSHOT, NETWORK, ...
 
     # data
-    FILE = 2200, None, None, "fas fa-file"
-    STREAM = 2210, None, None, "fas fa-stream"
+    FILE = 2200, "File", "File", "fas fa-file"
+    STREAM = 2210, "Stream", "Stream", "fas fa-stream"
     # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
 
     # finance
@@ -564,63 +565,63 @@ class NodeType(BuiltinEnum):
     # ...
 
     # source
-    PACKAGE = 5000, None, None, "fas fa-box-open"
-    DEPENDENCY = 5010, None, None, "fas fa-turn-down-right"
-    PAGE = 5020, None, None, "far fa-file"
-    BLOCK = 5021, None, None, "fas fa-cube"
-    CHOICE = 5030, None, None, "fas fa-circle-chevron-down"
-    CLASS = 5031, None, None, "fas fa-shapes"
+    PACKAGE = 5000, "Package", "Isolated sub-Bench", "fas fa-box-open"
+    DEPENDENCY = 5010, "Dependency", "Dependency to something", "fas fa-turn-down-right"
+    PAGE = 5020, "Page", "Page of Blocks", "far fa-file"
+    BLOCK = 5021, "Block", "Rich Block on a Page", "fas fa-cube"
+    CHOICE = 5030, "Choice", "Choice between Options", "fas fa-circle-chevron-down"
+    CLASS = 5031, "Class", "Class", "fas fa-shapes"
     # UNION?
-    FIELD = 5035, None, None, "fas fa-triangle"
-    OPTION = 5036, None, None, "far fa-square-check"
-    TAG = 5040, None, None, "fas fa-tag"
-    FLOW = 5050, None, None, "fas fa-diagram-project"
-    ACTION = 5051, None, None, "fas fa-step-forward"
-    LINK = 5052, None, None, "fas fa-link"
-    TRIGGER = 5053, None, None, "fas fa-bolt"
-    KIT = 5060, None, None, "fas fa-screwdriver-wrench"
-    DATABASE = 5090, None, None, "fas fa-database"
+    FIELD = 5035, "Field", "Field", "fas fa-triangle"
+    OPTION = 5036, "Option", "Option", "far fa-square-check"
+    TAG = 5040, "Tag", "Tag", "fas fa-tag"
+    FLOW = 5050, "Flow", "Link Actions together", "fas fa-diagram-project"
+    ACTION = 5051, "Action", "Action", "fas fa-step-forward"
+    LINK = 5052, "Link", "Link between Actions", "fas fa-link"
+    TRIGGER = 5053, "Trigger", "Trigger to do something", "fas fa-bolt"
+    KIT = 5060, "Kit", "Kit of stuff", "fas fa-screwdriver-wrench"
+    DATABASE = 5090, "Database", "Database of Records", "fas fa-database"
 
     # communication
-    CHANNEL = 5500, None, None, "fas fa-hashtag"
-    THREAD = 5510, None, None, "fas fa-reel"
-    MESSAGE = 5520, None, None, "fas fa-message"
+    CHANNEL = 5500, "Channel", "Channel", "fas fa-hashtag"
+    THREAD = 5510, "Thread", "Thread", "fas fa-reel"
+    MESSAGE = 5520, "Message", "Message", "fas fa-message"
     # POLL?
     # REACTION?
-    NOTIFICATION = 5540, None, None, "fas fa-bell"
+    NOTIFICATION = 5540, "Notification", "Notification", "fas fa-bell"
 
     # identity
-    TEAM = 5600, None, None, "fas fa-users"
-    MEMBERSHIP = 5610, None, None, "fas fa-users"
-    INVITE = 5620, None, None, "fas fa-user-plus"
-    ROLE = 5630, None, None, "fas fa-user-tag"
-    AGENT = 5640, None, None, "fas fa-robot"
+    TEAM = 5600, "Team", "Group of Users or Agents", "fas fa-users"
+    MEMBERSHIP = 5610, "Membership", "Membership to something", "fas fa-users"
+    INVITE = 5620, "Invite", "Invite to something", "fas fa-user-plus"
+    ROLE = 5630, "Role", "Role", "fas fa-user-tag"
+    AGENT = 5640, "Agent", "Identity for an AI", "fas fa-robot"
     # CHALLENGE?
     # BADGE? POLICY? RULE?
 
     # runtime
-    SESSION = 6000, None, None, "fas fa-circle-play"
-    RUN = 6010, None, None, "fas fa-play"
-    SPAN = 6011, None, None, "fas fa-ruler-horizontal"
-    INTERRUPTION = 6020, None, None, "fas fa-hand"
-    LOG = 6030, None, None, "fas fa-file-alt"
+    SESSION = 6000, "Session", "Session", "fas fa-circle-play"
+    RUN = 6010, "Run", "Run", "fas fa-play"
+    SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
+    INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
+    LOG = 6030, "Log", "Log", "fas fa-file-alt"
 
     # orchestration
-    PLAN = 6100, None, None, "fas fa-list-check"
-    TASK = 6110, None, None, "far fa-square-check"
-    CLAIM = 6150, None, None, "fas fa-stamp"
+    PLAN = 6100, "Plan", "Plan with Tasks", "fas fa-list-check"
+    TASK = 6110, "Task", "Task", "far fa-square-check"
+    CLAIM = 6150, "Claim", "Claim", "fas fa-stamp"
     # ENTITLEMENT, CURSOR, POOL, LOCK, BARRIER, ...?
 
     # view
-    VIEW = 7000, None, None, "fas fa-window-frame"  # :PolyViews
+    VIEW = 7000, "View", "View", "fas fa-window-frame"  # :PolyViews
     # ... all the Views once we have :PolcyViews
-    SPACE = 7900, None, None, "fas fa-space-between"
+    SPACE = 7900, "Space", "Space", "fas fa-space-between"
 
     #
     # Local (8000-10000)
     #
 
-    RECORD = 8000, None, None, "fas fa-database"
+    RECORD = 8000, "Record", "Record in a Database", "fas fa-database"
 
     #
     # Misc

@@ -146,6 +146,10 @@ function select(direction: "up" | "down") {
   if (activeResultId.value == null) {
     activeResultId.value = results.value[0]?.id;
   }
+  const resultEl = resultsRefs.value[activeResultId.value!];
+  if (resultEl != null) {
+    resultEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 
 /** Apply the selected item. */

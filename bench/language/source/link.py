@@ -70,6 +70,7 @@ class Link(
 ):
     """
     A Link between Actions in a Flow (source = outgoing, target = incoming).
+    NOTE :Architecture: maybe add IsLinkable trait?
     """
 
     parent: Union["Flow", "Action", None] = p_node_parent(4, NodeType.FLOW, NodeType.ACTION)

@@ -168,6 +168,6 @@ def SEND(
     return message
 
 
-@function_macro_("UPLOAD", "Upload a file to the current Run.", signature="(str) -> File")
+@function_macro_("UPLOAD", "Upload a File.", signature="(file_in: bytes | Path, name: str) -> File")
 def UPLOAD(file_in: FileIn, name: str, runner: Runner = _INJECTED_RUNNER):
     return upload_file(file_in, name, parent=runner.closest_tracked_run)
