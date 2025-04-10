@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/core/graph";
-import { cloneNode, moveNode } from "@/language/core/node";
+import { cloneNode, getRootNodes, moveNode } from "@/language/core/node";
 import { newChangeId } from "@/language/core/transaction";
 import {
   CHILD_NODE_TYPES,
@@ -167,18 +167,19 @@ const { activeDropZone } = useMultiDropZone({
     if (targetId != null && (dragged.kind == "node" || dragged.kind == "selection")) {
       const tx = connection.tx.with({ change: { key: newChangeId(), title: "Move" } });
       const target = graph.getOrError({ id: targetId });
-      for (let i = 0; i < dragged.nodes.length; i++) {
-        let node = graph.getOrError(dragged.nodes[i]);
+      const nodes = getRootNodes(dragged.nodes);
+      for (let i = 0; i < nodes.length; i++) {
+        let node = graph.getOrError(nodes[i]);
         if (event.altKey) {
           // clone node before moving
           node = cloneNode(tx, graph, node, { keepProperties: true });
         }
         moveNode(tx, graph, node, {
           anchor: i == 0 ? anchor : "after",
-          target: i == 0 ? target : graph.getOrError(dragged.nodes[i - 1]),
+          target: i == 0 ? target : graph.getOrError(nodes[i - 1]),
         });
       }
-      canvas.goToNode(graph.getOrError(dragged.nodes[dragged.nodes.length - 1]));
+      canvas.goToNode(graph.getOrError(nodes[nodes.length - 1]));
     }
   },
 });

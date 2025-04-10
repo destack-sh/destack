@@ -365,10 +365,12 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
 
 /** Returns the root nodes of the given nodes (without parent in the given nodes). */
 export function getRootNodes<T extends AnyNodeData>(nodes: T[]): T[] {
-  const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr!.id!);
+  const nodeIds = new Set(nodes.map((node) => node.id!));
   const rootNodes: T[] = [];
   for (const node of nodes) {
-    if (nodesByParentId[node.id!] == null) rootNodes.push(node);
+    if (node.parentPtr == null || !nodeIds.has(node.parentPtr.id!)) {
+      rootNodes.push(node);
+    }
   }
   return rootNodes;
 }
@@ -722,8 +724,6 @@ export function moveNode(
     // move before target (in its parent's children = target siblings)
     if (target == null) {
       throw new Error(`no target given to move node ${anchor} ${describeNode(node)}`);
-    } else if (target.metatype != node.metatype) {
-      throw new Error(`target ${describeNode(target)} is not of same type as node ${describeNode(node)}`);
     }
     const targetParent = graph.getOrError(target.parentPtr!);
     if ("orderKey" in node && "orderKey" in target) {
