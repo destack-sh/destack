@@ -1,3 +1,4 @@
+import textwrap
 from abc import ABC
 from typing import TYPE_CHECKING
 
@@ -5,9 +6,10 @@ import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language import Code, ModelDeveloper, ModelType, Runnable, RunOptions
+from bench.language import Agent, Code, ModelDeveloper, ModelType, Runnable, RunOptions
 from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime
 
+from .macro import FUNCTION_MACROS
 from .model import ModelRunner
 from .prompt import Prompt
 
@@ -32,6 +34,7 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         run: RunIn,
         prompt: Prompt,
         parent: Runner | None = None,
+        agent: Agent | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -40,32 +43,33 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
             options=options,
             parent=parent,
             run=run,
+            agent=agent,
         )
         self.model_type = model_type
         self.prompt = prompt
         self.code: Code | None = None
 
+    def clean_code(self, code: str) -> str:
+        """Standardize code completion."""
+        # clean completion
+        code = code.strip()
+        # strip ``` ... ``` wrapper
+        code = regex.sub(r"^```[a-zA-Z]*\n", "", code)
+        code = regex.sub(r"\n```$", "", code)
+        # replace suspicious unicode characters
+        code = code.replace("’", "'")  # noqa: RUF001
+        code = code.replace("‘", "'")  # noqa: RUF001
+        code = code.replace("“", '"')
+        code = code.replace("”", '"')
+        # dedent
+        code = textwrap.dedent(code)
+        return code
 
-def strip_code_completion(completion: str) -> str:
-    """Strip code completion from a string."""
-    # clean completion
-    completion = completion.strip()
-    # strip ```[python] ... ``` wrapper
-    completion = regex.sub(r"^```[a-zA-Z]*\n", "", completion)
-    completion = regex.sub(r"\n```$", "", completion)
-    # replace suspicious unicode characters
-    completion = completion.replace("’", "'")  # noqa: RUF001
-    completion = completion.replace("‘", "'")  # noqa: RUF001
-    completion = completion.replace("“", '"')
-    completion = completion.replace("”", '"')
-    # remove any common indent
-    if not completion.strip():
-        return completion
-    lines = completion.splitlines()
-    indent = min((len(line) - len(line.lstrip()) for line in lines if line.strip()), default=0)
-    if indent:
-        completion = "\n".join(line[indent:] if line.strip() else line for line in lines)
-    return completion
+    def expand_code(self, code: str) -> str:
+        """Expand macros into a code completion."""
+        for macro in FUNCTION_MACROS:
+            code = macro.expand(code)
+        return code
 
 
 def get_chat_model_runner_cls(

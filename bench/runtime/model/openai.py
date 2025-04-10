@@ -11,7 +11,8 @@ from bench.runtime.core import ATTEMPT_ONCE, IncapableError, NotSupportedError, 
 from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
-from .chat import ChatModelRunner, strip_code_completion
+from .chat import ChatModelRunner
+from .macro import CONSTANT_MACROS
 from .piece import (
     AudioPiece,
     BreakPiece,
@@ -48,6 +49,8 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
     @override
     async def run(self) -> None:
+        agent = self.agent
+        assert agent is not None, f"{self!r} has no Agent"
         model_id = OPENAI_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
@@ -117,15 +120,23 @@ class OpenAIChatModelRunner(ChatModelRunner):
             model=model_id,
             max_tokens=max_tokens,
             user=hash_stable_hex(self.runtime.bench.id.int),
+            stream=True,
         )
-        completion_text = completion.choices[0].message.content
-        if completion_text:
-            completion_text = strip_code_completion(completion_text)
+        code_str = ""
+        async for chunk in completion:
+            if chunk.choices and chunk.choices[0].delta.content:
+                chunk_content = chunk.choices[0].delta.content
+                code_str += chunk_content
+                print(chunk_content)
+        print("RESPONSE")
+        print(code_str)
+        code_str = self.clean_code(code_str)
+        code_str = self.expand_code(code_str)
+        print("\nCLEANED\n")
+        print(code_str)  # nocheckin
 
         # run
-        print("RESPONSE:")
-        print(completion_text)  # nocheckin
-        code = Code.from_string(completion_text or "pass", language="python")
+        code = Code.from_string(code_str or "pass", language="python")
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,
@@ -134,6 +145,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
             options=ATTEMPT_ONCE,
             inputs=self.inputs,
             outputs=self.output_type,
+            constants={c.name: c.get_value(self) for c in CONSTANT_MACROS},
             parent=cast(Runner[Runnable], self),
             run=SpanType.MODEL_PARSE,
         )
