@@ -453,7 +453,13 @@ defineExpose<ViewExpose>({ self, commands, focus });
         >
           <!-- Add blocks -->
           <button
-            v-for="blockType in [BlockType.PAGE, BlockType.HEADING_1, BlockType.TASK, BlockType.FLOW, BlockType.DATABASE]"
+            v-for="blockType in [
+              BlockType.PAGE,
+              BlockType.HEADING_1,
+              BlockType.TASK,
+              BlockType.FLOW,
+              BlockType.DATABASE,
+            ]"
             data-suppress-drag="both"
             class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-400 transition-colors duration-300 hover:bg-gray-100 hover:text-gray-900 group-hover/footer:text-gray-700"
             @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"

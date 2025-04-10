@@ -192,7 +192,7 @@ def example_reply_to_message_2():
 @example_(ExampleType.SNIPPET, title="Reply to a Message with code in two parts")
 def example_reply_to_message_3():
     THREAD.title = text_line("Rust Basics")
-    THREAD.icon = to_icon("🦀")
+    THREAD.icon = to_icon("fab fa-rust")
     SEND("""\
 A simple Hello World in Rust would look like this:
 ```rust
@@ -237,7 +237,7 @@ Here's the text from [@File1]:
 
 @example_(ExampleType.SNIPPET, title="Include code block language")
 def example_always_include_code_block_language():
-    # should always try to include the language
+    # always to include the code language (even for markdown)
     text1 = text("""\
 Sure, here's how you make lists in markdown:
 ```markdown

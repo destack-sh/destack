@@ -103,6 +103,20 @@
     "family": "fas"
   },
   {
+    "id": "42-group",
+    "label": "42.group",
+    "unicode": "e080",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "500px",
+    "label": "500px",
+    "unicode": "f26e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "a",
     "label": "A",
     "unicode": "41",
@@ -112,6 +126,28 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "accessible-icon",
+    "label": "Accessible Icon",
+    "unicode": "f368",
+    "aliases": [
+      "accessibility",
+      "disabled",
+      "handicap",
+      "person",
+      "uer",
+      "wheelchair",
+      "wheelchair-alt"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "accusoft",
+    "label": "Accusoft",
+    "unicode": "f369",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "address-book",
@@ -148,6 +184,41 @@
       "username"
     ],
     "family": "fas"
+  },
+  {
+    "id": "adn",
+    "label": "App.net",
+    "unicode": "f170",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "adversal",
+    "label": "Adversal",
+    "unicode": "f36a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "affiliatetheme",
+    "label": "affiliatetheme",
+    "unicode": "f36b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "airbnb",
+    "label": "Airbnb",
+    "unicode": "f834",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "algolia",
+    "label": "Algolia",
+    "unicode": "f36c",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "align-center",
@@ -193,6 +264,34 @@
       "text"
     ],
     "family": "fas"
+  },
+  {
+    "id": "alipay",
+    "label": "Alipay",
+    "unicode": "f642",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "amazon",
+    "label": "Amazon",
+    "unicode": "f270",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "amazon-pay",
+    "label": "Amazon Pay",
+    "unicode": "f42c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "amilia",
+    "label": "Amilia",
+    "unicode": "f36d",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "anchor",
@@ -268,6 +367,22 @@
       "quarantine"
     ],
     "family": "fas"
+  },
+  {
+    "id": "android",
+    "label": "Android",
+    "unicode": "f17b",
+    "aliases": [
+      "robot"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "angellist",
+    "label": "AngelList",
+    "unicode": "f209",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "angle-down",
@@ -381,6 +496,20 @@
     "family": "fas"
   },
   {
+    "id": "angrycreative",
+    "label": "Angry Creative",
+    "unicode": "f36e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "angular",
+    "label": "Angular",
+    "unicode": "f420",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "ankh",
     "label": "Ankh",
     "unicode": "f644",
@@ -395,6 +524,48 @@
       "venus"
     ],
     "family": "fas"
+  },
+  {
+    "id": "app-store",
+    "label": "App Store",
+    "unicode": "f36f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "app-store-ios",
+    "label": "iOS App Store",
+    "unicode": "f370",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "apper",
+    "label": "Apper Systems AB",
+    "unicode": "f371",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "apple",
+    "label": "Apple",
+    "unicode": "f179",
+    "aliases": [
+      "fruit",
+      "ios",
+      "mac",
+      "operating system",
+      "os",
+      "osx"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "apple-pay",
+    "label": "Apple Pay",
+    "unicode": "f415",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "apple-whole",
@@ -1095,6 +1266,13 @@
     "family": "fas"
   },
   {
+    "id": "artstation",
+    "label": "Artstation",
+    "unicode": "f77a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "asterisk",
     "label": "Asterisk",
     "unicode": "2a",
@@ -1110,6 +1288,13 @@
     "family": "fas"
   },
   {
+    "id": "asymmetrik",
+    "label": "Asymmetrik, Ltd.",
+    "unicode": "f372",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "at",
     "label": "At",
     "unicode": "40",
@@ -1123,6 +1308,13 @@
       "handle"
     ],
     "family": "fas"
+  },
+  {
+    "id": "atlassian",
+    "label": "Atlassian",
+    "unicode": "f77b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "atom",
@@ -1144,6 +1336,13 @@
       "science"
     ],
     "family": "fas"
+  },
+  {
+    "id": "audible",
+    "label": "Audible",
+    "unicode": "f373",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "audio-description",
@@ -1168,6 +1367,27 @@
     "family": "fas"
   },
   {
+    "id": "autoprefixer",
+    "label": "Autoprefixer",
+    "unicode": "f41c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "avianex",
+    "label": "avianex",
+    "unicode": "f374",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "aviato",
+    "label": "Aviato",
+    "unicode": "f421",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "award",
     "label": "Award",
     "unicode": "f559",
@@ -1182,6 +1402,13 @@
       "warranty"
     ],
     "family": "fas"
+  },
+  {
+    "id": "aws",
+    "label": "Amazon Web Services (AWS)",
+    "unicode": "f375",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "b",
@@ -1407,6 +1634,13 @@
     "family": "fas"
   },
   {
+    "id": "bandcamp",
+    "label": "Bandcamp",
+    "unicode": "f2d5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "bangladeshi-taka-sign",
     "label": "Bangladeshi Taka Sign",
     "unicode": "e2e6",
@@ -1612,6 +1846,13 @@
     "family": "fas"
   },
   {
+    "id": "battle-net",
+    "label": "Battle.net",
+    "unicode": "f835",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "bed",
     "label": "Bed",
     "unicode": "f236",
@@ -1664,6 +1905,13 @@
       "stein"
     ],
     "family": "fas"
+  },
+  {
+    "id": "behance",
+    "label": "Behance",
+    "unicode": "f1b4",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "bell",
@@ -1746,6 +1994,20 @@
     "family": "fas"
   },
   {
+    "id": "bilibili",
+    "label": "Bilibili",
+    "unicode": "e3d9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "bimobject",
+    "label": "BIMobject",
+    "unicode": "f378",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "binoculars",
     "label": "Binoculars",
     "unicode": "f1e5",
@@ -1782,6 +2044,24 @@
     "family": "fas"
   },
   {
+    "id": "bitbucket",
+    "label": "Bitbucket",
+    "unicode": "f171",
+    "aliases": [
+      "atlassian",
+      "bitbucket-square",
+      "git"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "bitcoin",
+    "label": "Bitcoin",
+    "unicode": "f379",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "bitcoin-sign",
     "label": "Bitcoin Sign",
     "unicode": "e0b4",
@@ -1790,6 +2070,29 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "bity",
+    "label": "Bity",
+    "unicode": "f37a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "black-tie",
+    "label": "Font Awesome Black Tie",
+    "unicode": "f27e",
+    "aliases": [
+      "administrator"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "blackberry",
+    "label": "BlackBerry",
+    "unicode": "f37b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "blender",
@@ -1835,6 +2138,45 @@
       "writing"
     ],
     "family": "fas"
+  },
+  {
+    "id": "blogger",
+    "label": "Blogger",
+    "unicode": "f37c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "blogger-b",
+    "label": "Blogger B",
+    "unicode": "f37d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "bluesky",
+    "label": "Bluesky",
+    "unicode": "e671",
+    "aliases": [
+      "social network"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "bluetooth",
+    "label": "Bluetooth",
+    "unicode": "f293",
+    "aliases": [
+      "signal"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "bluetooth-b",
+    "label": "Bluetooth",
+    "unicode": "f294",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "bold",
@@ -2116,6 +2458,13 @@
     "family": "fas"
   },
   {
+    "id": "bootstrap",
+    "label": "Bootstrap",
+    "unicode": "f836",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "border-all",
     "label": "Border All",
     "unicode": "f84c",
@@ -2164,6 +2513,13 @@
       "hole"
     ],
     "family": "fas"
+  },
+  {
+    "id": "bots",
+    "label": "Bots",
+    "unicode": "e340",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "bottle-droplet",
@@ -2338,6 +2694,20 @@
       "wit"
     ],
     "family": "fas"
+  },
+  {
+    "id": "brave",
+    "label": "Brave",
+    "unicode": "e63c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "brave-reverse",
+    "label": "Brave Reverse",
+    "unicode": "e63d",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "brazilian-real-sign",
@@ -2525,6 +2895,13 @@
     "family": "fas"
   },
   {
+    "id": "btc",
+    "label": "BTC",
+    "unicode": "f15a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "bucket",
     "label": "Bucket",
     "unicode": "e4cf",
@@ -2534,6 +2911,13 @@
       "sandcastle"
     ],
     "family": "fas"
+  },
+  {
+    "id": "buffer",
+    "label": "Buffer",
+    "unicode": "f837",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "bug",
@@ -2810,6 +3194,13 @@
     "family": "fas"
   },
   {
+    "id": "buromobelexperte",
+    "label": "Büromöbel-Experte GmbH & Co. KG.",
+    "unicode": "f37f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "burst",
     "label": "Burst",
     "unicode": "e4dc",
@@ -2863,6 +3254,20 @@
       "wednesday"
     ],
     "family": "fas"
+  },
+  {
+    "id": "buy-n-large",
+    "label": "Buy n Large",
+    "unicode": "f8a6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "buysellads",
+    "label": "BuySellAds",
+    "unicode": "f20d",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "c",
@@ -3158,6 +3563,19 @@
       "tipi"
     ],
     "family": "fas"
+  },
+  {
+    "id": "canadian-maple-leaf",
+    "label": "Canadian Maple Leaf",
+    "unicode": "f785",
+    "aliases": [
+      "canada",
+      "flag",
+      "flora",
+      "nature",
+      "plant"
+    ],
+    "family": "fab"
   },
   {
     "id": "candy-cane",
@@ -3484,6 +3902,78 @@
     "family": "fas"
   },
   {
+    "id": "cc-amazon-pay",
+    "label": "Amazon Pay Credit Card",
+    "unicode": "f42d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-amex",
+    "label": "Cc Amex",
+    "unicode": "f1f3",
+    "aliases": [
+      "amex"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "cc-apple-pay",
+    "label": "Apple Pay Credit Card",
+    "unicode": "f416",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-diners-club",
+    "label": "Diner's Club Credit Card",
+    "unicode": "f24c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-discover",
+    "label": "Discover Credit Card",
+    "unicode": "f1f2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-jcb",
+    "label": "JCB Credit Card",
+    "unicode": "f24b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-mastercard",
+    "label": "MasterCard Credit Card",
+    "unicode": "f1f1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-paypal",
+    "label": "Paypal Credit Card",
+    "unicode": "f1f4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-stripe",
+    "label": "Stripe Credit Card",
+    "unicode": "f1f5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cc-visa",
+    "label": "Visa Credit Card",
+    "unicode": "f1f0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "cedi-sign",
     "label": "Cedi Sign",
     "unicode": "e0df",
@@ -3502,6 +3992,24 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "centercode",
+    "label": "Centercode",
+    "unicode": "f380",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "centos",
+    "label": "Centos",
+    "unicode": "f789",
+    "aliases": [
+      "linux",
+      "operating system",
+      "os"
+    ],
+    "family": "fab"
   },
   {
     "id": "certificate",
@@ -4041,6 +4549,22 @@
       "youth"
     ],
     "family": "fas"
+  },
+  {
+    "id": "chrome",
+    "label": "Chrome",
+    "unicode": "f268",
+    "aliases": [
+      "browser"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "chromecast",
+    "label": "Chromecast",
+    "unicode": "f838",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "church",
@@ -4854,6 +5378,34 @@
     "family": "fas"
   },
   {
+    "id": "cloudflare",
+    "label": "Cloudflare",
+    "unicode": "e07d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cloudscale",
+    "label": "cloudscale.ch",
+    "unicode": "f383",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cloudsmith",
+    "label": "Cloudsmith",
+    "unicode": "f384",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "cloudversify",
+    "label": "cloudversify",
+    "unicode": "f385",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "clover",
     "label": "Clover",
     "unicode": "e139",
@@ -4870,6 +5422,13 @@
       "lucky"
     ],
     "family": "fas"
+  },
+  {
+    "id": "cmplid",
+    "label": "Cmplid",
+    "unicode": "e360",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "code",
@@ -4972,6 +5531,20 @@
       "version"
     ],
     "family": "fas"
+  },
+  {
+    "id": "codepen",
+    "label": "Codepen",
+    "unicode": "f1cb",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "codiepie",
+    "label": "Codie Pie",
+    "unicode": "f284",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "coins",
@@ -5303,6 +5876,29 @@
     "family": "fas"
   },
   {
+    "id": "confluence",
+    "label": "Confluence",
+    "unicode": "f78d",
+    "aliases": [
+      "atlassian"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "connectdevelop",
+    "label": "Connect Develop",
+    "unicode": "f20e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "contao",
+    "label": "Contao",
+    "unicode": "f26d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "cookie",
     "label": "Cookie",
     "unicode": "f563",
@@ -5364,6 +5960,17 @@
     "family": "fas"
   },
   {
+    "id": "cotton-bureau",
+    "label": "Cotton Bureau",
+    "unicode": "f89e",
+    "aliases": [
+      "clothing",
+      "t-shirts",
+      "tshirts"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "couch",
     "label": "Couch",
     "unicode": "f4b8",
@@ -5397,6 +6004,111 @@
     "family": "fas"
   },
   {
+    "id": "cpanel",
+    "label": "cPanel",
+    "unicode": "f388",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons",
+    "label": "Creative Commons",
+    "unicode": "f25e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-by",
+    "label": "Creative Commons Attribution",
+    "unicode": "f4e7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-nc",
+    "label": "Creative Commons Noncommercial",
+    "unicode": "f4e8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-nc-eu",
+    "label": "Creative Commons Noncommercial (Euro Sign)",
+    "unicode": "f4e9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-nc-jp",
+    "label": "Creative Commons Noncommercial (Yen Sign)",
+    "unicode": "f4ea",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-nd",
+    "label": "Creative Commons No Derivative Works",
+    "unicode": "f4eb",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-pd",
+    "label": "Creative Commons Public Domain",
+    "unicode": "f4ec",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-pd-alt",
+    "label": "Alternate Creative Commons Public Domain",
+    "unicode": "f4ed",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-remix",
+    "label": "Creative Commons Remix",
+    "unicode": "f4ee",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-sa",
+    "label": "Creative Commons Share Alike",
+    "unicode": "f4ef",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-sampling",
+    "label": "Creative Commons Sampling",
+    "unicode": "f4f0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-sampling-plus",
+    "label": "Creative Commons Sampling +",
+    "unicode": "f4f1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-share",
+    "label": "Creative Commons Share",
+    "unicode": "f4f2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "creative-commons-zero",
+    "label": "Creative Commons CC0",
+    "unicode": "f4f3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "credit-card",
     "label": "Credit Card",
     "unicode": "f09d",
@@ -5413,6 +6125,21 @@
       "purchase"
     ],
     "family": "fas"
+  },
+  {
+    "id": "critical-role",
+    "label": "Critical Role",
+    "unicode": "f6c9",
+    "aliases": [
+      "Dungeons & Dragons",
+      "d&d",
+      "dnd",
+      "fantasy",
+      "game",
+      "gaming",
+      "tabletop"
+    ],
+    "family": "fab"
   },
   {
     "id": "crop",
@@ -5526,6 +6253,31 @@
     "family": "fas"
   },
   {
+    "id": "css",
+    "label": "Css",
+    "unicode": "e6a2",
+    "aliases": [
+      "rebecca purple"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "css3",
+    "label": "CSS 3 Logo",
+    "unicode": "f13c",
+    "aliases": [
+      "code"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "css3-alt",
+    "label": "Alternate CSS3 Logo",
+    "unicode": "f38b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "cube",
     "label": "Cube",
     "unicode": "f1b2",
@@ -5567,6 +6319,13 @@
     "family": "fas"
   },
   {
+    "id": "cuttlefish",
+    "label": "Cuttlefish",
+    "unicode": "f38c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "d",
     "label": "D",
     "unicode": "44",
@@ -5576,6 +6335,48 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "d-and-d",
+    "label": "Dungeons & Dragons",
+    "unicode": "f38d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "d-and-d-beyond",
+    "label": "D&D Beyond",
+    "unicode": "f6ca",
+    "aliases": [
+      "Dungeons & Dragons",
+      "d&d",
+      "dnd",
+      "fantasy",
+      "gaming",
+      "tabletop"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "dailymotion",
+    "label": "dailymotion",
+    "unicode": "e052",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "dart-lang",
+    "label": "Dart Lang",
+    "unicode": "e693",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "dashcube",
+    "label": "DashCube",
+    "unicode": "f210",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "database",
@@ -5593,6 +6394,20 @@
     "family": "fas"
   },
   {
+    "id": "debian",
+    "label": "Debian",
+    "unicode": "e60b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "deezer",
+    "label": "Deezer",
+    "unicode": "e077",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "delete-left",
     "label": "Delete Left",
     "unicode": "f55a",
@@ -5605,6 +6420,13 @@
       "undo"
     ],
     "family": "fas"
+  },
+  {
+    "id": "delicious",
+    "label": "Delicious",
+    "unicode": "f1a5",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "democrat",
@@ -5622,6 +6444,20 @@
       "usa"
     ],
     "family": "fas"
+  },
+  {
+    "id": "deploydog",
+    "label": "deploy.dog",
+    "unicode": "f38e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "deskpro",
+    "label": "Deskpro",
+    "unicode": "f38f",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "desktop",
@@ -5643,6 +6479,20 @@
     "family": "fas"
   },
   {
+    "id": "dev",
+    "label": "DEV",
+    "unicode": "f6cc",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "deviantart",
+    "label": "deviantART",
+    "unicode": "f1bd",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "dharmachakra",
     "label": "Dharmachakra",
     "unicode": "f655",
@@ -5656,6 +6506,19 @@
       "wheel of dharma"
     ],
     "family": "fas"
+  },
+  {
+    "id": "dhl",
+    "label": "DHL",
+    "unicode": "f790",
+    "aliases": [
+      "Dalsey",
+      "Hillblom and Lynn",
+      "german",
+      "package",
+      "shipping"
+    ],
+    "family": "fab"
   },
   {
     "id": "diagram-next",
@@ -5745,6 +6608,13 @@
       "turn"
     ],
     "family": "fas"
+  },
+  {
+    "id": "diaspora",
+    "label": "Diaspora",
+    "unicode": "f791",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "dice",
@@ -5872,6 +6742,34 @@
     "family": "fas"
   },
   {
+    "id": "digg",
+    "label": "Digg Logo",
+    "unicode": "f1a6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "digital-ocean",
+    "label": "Digital Ocean",
+    "unicode": "f391",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "discord",
+    "label": "Discord",
+    "unicode": "f392",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "discourse",
+    "label": "Discourse",
+    "unicode": "f393",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "disease",
     "label": "Disease",
     "unicode": "f7fa",
@@ -5935,6 +6833,20 @@
       "protein"
     ],
     "family": "fas"
+  },
+  {
+    "id": "dochub",
+    "label": "DocHub",
+    "unicode": "f394",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "docker",
+    "label": "Docker",
+    "unicode": "f395",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "dog",
@@ -6073,6 +6985,13 @@
     "family": "fas"
   },
   {
+    "id": "draft2digital",
+    "label": "Draft2digital",
+    "unicode": "f396",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "dragon",
     "label": "Dragon",
     "unicode": "f6d5",
@@ -6101,6 +7020,20 @@
       "shape"
     ],
     "family": "fas"
+  },
+  {
+    "id": "dribbble",
+    "label": "Dribbble",
+    "unicode": "f17d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "dropbox",
+    "label": "Dropbox",
+    "unicode": "f16b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "droplet",
@@ -6181,6 +7114,13 @@
     "family": "fas"
   },
   {
+    "id": "drupal",
+    "label": "Drupal Logo",
+    "unicode": "f1a9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "dumbbell",
     "label": "Dumbbell",
     "unicode": "f44b",
@@ -6243,6 +7183,13 @@
     "family": "fas"
   },
   {
+    "id": "dyalog",
+    "label": "Dyalog",
+    "unicode": "f399",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "e",
     "label": "E",
     "unicode": "45",
@@ -6278,6 +7225,13 @@
       "sound"
     ],
     "family": "fas"
+  },
+  {
+    "id": "earlybirds",
+    "label": "Earlybirds",
+    "unicode": "f39a",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "earth-africa",
@@ -6411,6 +7365,30 @@
     "family": "fas"
   },
   {
+    "id": "ebay",
+    "label": "eBay",
+    "unicode": "f4f4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "edge",
+    "label": "Edge Browser",
+    "unicode": "f282",
+    "aliases": [
+      "browser",
+      "ie"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "edge-legacy",
+    "label": "Edge Legacy Browser",
+    "unicode": "e078",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "egg",
     "label": "Egg",
     "unicode": "f7fb",
@@ -6438,6 +7416,13 @@
       "eject button"
     ],
     "family": "fas"
+  },
+  {
+    "id": "elementor",
+    "label": "Elementor",
+    "unicode": "f430",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "elevator",
@@ -6494,6 +7479,27 @@
       "ul"
     ],
     "family": "fas"
+  },
+  {
+    "id": "ello",
+    "label": "Ello",
+    "unicode": "f5f1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "ember",
+    "label": "Ember",
+    "unicode": "f423",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "empire",
+    "label": "Galactic Empire",
+    "unicode": "f1d1",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "envelope",
@@ -6588,6 +7594,15 @@
     "family": "fas"
   },
   {
+    "id": "envira",
+    "label": "Envira Gallery",
+    "unicode": "f299",
+    "aliases": [
+      "leaf"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "equals",
     "label": "Equals",
     "unicode": "3d",
@@ -6613,6 +7628,20 @@
     "family": "fas"
   },
   {
+    "id": "erlang",
+    "label": "Erlang",
+    "unicode": "f39d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "ethereum",
+    "label": "Ethereum",
+    "unicode": "f42e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "ethernet",
     "label": "Ethernet",
     "unicode": "f796",
@@ -6629,6 +7658,13 @@
     "family": "fas"
   },
   {
+    "id": "etsy",
+    "label": "Etsy",
+    "unicode": "f2d7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "euro-sign",
     "label": "Euro Sign",
     "unicode": "f153",
@@ -6637,6 +7673,13 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "evernote",
+    "label": "Evernote",
+    "unicode": "f839",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "exclamation",
@@ -6684,6 +7727,13 @@
       "viewfinder"
     ],
     "family": "fas"
+  },
+  {
+    "id": "expeditedssl",
+    "label": "ExpeditedSSL",
+    "unicode": "f23e",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "explosion",
@@ -7317,6 +8367,39 @@
     "family": "fas"
   },
   {
+    "id": "facebook",
+    "label": "Facebook",
+    "unicode": "f09a",
+    "aliases": [
+      "fabook",
+      "facebook-official",
+      "fb",
+      "social network"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "facebook-f",
+    "label": "Facebook F",
+    "unicode": "f39e",
+    "aliases": [
+      "fabook",
+      "facebook",
+      "fb"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "facebook-messenger",
+    "label": "Facebook Messenger",
+    "unicode": "f39f",
+    "aliases": [
+      "fabook",
+      "fb"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "fan",
     "label": "Fan",
     "unicode": "f863",
@@ -7329,6 +8412,21 @@
       "hot"
     ],
     "family": "fas"
+  },
+  {
+    "id": "fantasy-flight-games",
+    "label": "Fantasy Flight-games",
+    "unicode": "f6dc",
+    "aliases": [
+      "Dungeons & Dragons",
+      "d&d",
+      "dnd",
+      "fantasy",
+      "game",
+      "gaming",
+      "tabletop"
+    ],
+    "family": "fab"
   },
   {
     "id": "faucet",
@@ -7413,6 +8511,28 @@
     "family": "fas"
   },
   {
+    "id": "fedex",
+    "label": "FedEx",
+    "unicode": "f797",
+    "aliases": [
+      "Federal Express",
+      "package",
+      "shipping"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "fedora",
+    "label": "Fedora",
+    "unicode": "f798",
+    "aliases": [
+      "linux",
+      "operating system",
+      "os"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "ferry",
     "label": "Ferry",
     "unicode": "e4ea",
@@ -7424,6 +8544,17 @@
       "ship"
     ],
     "family": "fas"
+  },
+  {
+    "id": "figma",
+    "label": "Figma",
+    "unicode": "f799",
+    "aliases": [
+      "app",
+      "design",
+      "interface"
+    ],
+    "family": "fab"
   },
   {
     "id": "file",
@@ -7872,6 +9003,13 @@
     "family": "fas"
   },
   {
+    "id": "files-pinwheel",
+    "label": "Files Pinwheel",
+    "unicode": "e69f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "fill",
     "label": "Fill",
     "unicode": "f575",
@@ -8048,6 +9186,45 @@
     "family": "fas"
   },
   {
+    "id": "firefox",
+    "label": "Firefox",
+    "unicode": "f269",
+    "aliases": [
+      "browser"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "firefox-browser",
+    "label": "Firefox Browser",
+    "unicode": "e007",
+    "aliases": [
+      "browser"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "first-order",
+    "label": "First Order",
+    "unicode": "f2b0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "first-order-alt",
+    "label": "Alternate First Order",
+    "unicode": "f50a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "firstdraft",
+    "label": "firstdraft",
+    "unicode": "f3a1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "fish",
     "label": "Fish",
     "unicode": "f578",
@@ -8170,6 +9347,20 @@
     "family": "fas"
   },
   {
+    "id": "flickr",
+    "label": "Flickr",
+    "unicode": "f16e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "flipboard",
+    "label": "Flipboard",
+    "unicode": "f44d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "floppy-disk",
     "label": "Floppy Disk",
     "unicode": "f0c7",
@@ -8192,6 +9383,20 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "flutter",
+    "label": "Flutter",
+    "unicode": "e694",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "fly",
+    "label": "Fly",
+    "unicode": "f417",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "folder",
@@ -8304,7 +9509,21 @@
       "icons",
       "typeface"
     ],
-    "family": "fas"
+    "family": "fab"
+  },
+  {
+    "id": "fonticons",
+    "label": "Fonticons",
+    "unicode": "f280",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "fonticons-fi",
+    "label": "Fonticons Fi",
+    "unicode": "f3a2",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "football",
@@ -8321,6 +9540,31 @@
       "seasonal"
     ],
     "family": "fas"
+  },
+  {
+    "id": "fort-awesome",
+    "label": "Fort Awesome",
+    "unicode": "f286",
+    "aliases": [
+      "castle"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "fort-awesome-alt",
+    "label": "Alternate Fort Awesome",
+    "unicode": "f3a3",
+    "aliases": [
+      "castle"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "forumbee",
+    "label": "Forumbee",
+    "unicode": "f211",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "forward",
@@ -8366,6 +9610,13 @@
     "family": "fas"
   },
   {
+    "id": "foursquare",
+    "label": "Foursquare",
+    "unicode": "f180",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "franc-sign",
     "label": "Franc Sign",
     "unicode": "e18f",
@@ -8374,6 +9625,20 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "free-code-camp",
+    "label": "freeCodeCamp",
+    "unicode": "f2c5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "freebsd",
+    "label": "FreeBSD",
+    "unicode": "f3a4",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "frog",
@@ -8392,6 +9657,13 @@
       "wart"
     ],
     "family": "fas"
+  },
+  {
+    "id": "fulcrum",
+    "label": "Fulcrum",
+    "unicode": "f50b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "futbol",
@@ -8416,6 +9688,25 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "galactic-republic",
+    "label": "Galactic Republic",
+    "unicode": "f50c",
+    "aliases": [
+      "politics",
+      "star wars"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "galactic-senate",
+    "label": "Galactic Senate",
+    "unicode": "f50d",
+    "aliases": [
+      "star wars"
+    ],
+    "family": "fab"
   },
   {
     "id": "gamepad",
@@ -8579,6 +9870,27 @@
     "family": "fas"
   },
   {
+    "id": "get-pocket",
+    "label": "Get Pocket",
+    "unicode": "f265",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "gg",
+    "label": "GG Currency",
+    "unicode": "f260",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "gg-circle",
+    "label": "GG Currency Circle",
+    "unicode": "f261",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "ghost",
     "label": "Ghost",
     "unicode": "f6e2",
@@ -8639,6 +9951,61 @@
     "family": "fas"
   },
   {
+    "id": "git",
+    "label": "Git",
+    "unicode": "f1d3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "git-alt",
+    "label": "Git Alt",
+    "unicode": "f841",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "github",
+    "label": "GitHub",
+    "unicode": "f09b",
+    "aliases": [
+      "octocat"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "github-alt",
+    "label": "Alternate GitHub",
+    "unicode": "f113",
+    "aliases": [
+      "octocat"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "gitkraken",
+    "label": "GitKraken",
+    "unicode": "f3a6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "gitlab",
+    "label": "GitLab",
+    "unicode": "f296",
+    "aliases": [
+      "Axosoft"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "gitter",
+    "label": "Gitter",
+    "unicode": "f426",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "glass-water",
     "label": "Glass Water",
     "unicode": "e4f4",
@@ -8673,6 +10040,20 @@
     "family": "fas"
   },
   {
+    "id": "glide",
+    "label": "Glide",
+    "unicode": "f2a5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "glide-g",
+    "label": "Glide G",
+    "unicode": "f2a6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "globe",
     "label": "Globe",
     "unicode": "f0ac",
@@ -8703,6 +10084,20 @@
     "family": "fas"
   },
   {
+    "id": "gofore",
+    "label": "Gofore",
+    "unicode": "f3a7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "golang",
+    "label": "Go",
+    "unicode": "e40f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "golf-ball-tee",
     "label": "Golf Ball Tee",
     "unicode": "f450",
@@ -8713,6 +10108,84 @@
       "tee"
     ],
     "family": "fas"
+  },
+  {
+    "id": "goodreads",
+    "label": "Goodreads",
+    "unicode": "f3a8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "goodreads-g",
+    "label": "Goodreads G",
+    "unicode": "f3a9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "google",
+    "label": "Google Logo",
+    "unicode": "f1a0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "google-drive",
+    "label": "Google Drive",
+    "unicode": "f3aa",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "google-pay",
+    "label": "Google Pay",
+    "unicode": "e079",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "google-play",
+    "label": "Google Play",
+    "unicode": "f3ab",
+    "aliases": [
+      "playstore"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "google-plus",
+    "label": "Google Plus",
+    "unicode": "f2b3",
+    "aliases": [
+      "google-plus-circle",
+      "google-plus-official"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "google-plus-g",
+    "label": "Google Plus G",
+    "unicode": "f0d5",
+    "aliases": [
+      "google-plus",
+      "social network"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "google-scholar",
+    "label": "Google Scholar",
+    "unicode": "e63b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "google-wallet",
+    "label": "Google Wallet",
+    "unicode": "f1ee",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "gopuram",
@@ -8746,6 +10219,25 @@
       "student"
     ],
     "family": "fas"
+  },
+  {
+    "id": "gratipay",
+    "label": "Gratipay (Gittip)",
+    "unicode": "f184",
+    "aliases": [
+      "favorite",
+      "heart",
+      "like",
+      "love"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "grav",
+    "label": "Grav",
+    "unicode": "f2d6",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "greater-than",
@@ -8823,6 +10315,13 @@
     "family": "fas"
   },
   {
+    "id": "gripfire",
+    "label": "Gripfire, Inc.",
+    "unicode": "f3ac",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "group-arrows-rotate",
     "label": "Group Arrows Rotate",
     "unicode": "e4f6",
@@ -8835,6 +10334,13 @@
     "family": "fas"
   },
   {
+    "id": "grunt",
+    "label": "Grunt",
+    "unicode": "f3ad",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "guarani-sign",
     "label": "Guarani Sign",
     "unicode": "e19a",
@@ -8843,6 +10349,13 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "guilded",
+    "label": "Guilded",
+    "unicode": "e07e",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "guitar",
@@ -8858,6 +10371,13 @@
       "strings"
     ],
     "family": "fas"
+  },
+  {
+    "id": "gulp",
+    "label": "Gulp",
+    "unicode": "f3ae",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "gun",
@@ -8880,6 +10400,20 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "hacker-news",
+    "label": "Hacker News",
+    "unicode": "f1d4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "hackerrank",
+    "label": "Hackerrank",
+    "unicode": "f5f7",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "hammer",
@@ -9440,6 +10974,13 @@
     "family": "fas"
   },
   {
+    "id": "hashnode",
+    "label": "Hashnode",
+    "unicode": "e499",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "hashtag",
     "label": "Hashtag",
     "unicode": "23",
@@ -9921,6 +11462,27 @@
     "family": "fas"
   },
   {
+    "id": "hips",
+    "label": "Hips",
+    "unicode": "f452",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "hire-a-helper",
+    "label": "HireAHelper",
+    "unicode": "f3b0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "hive",
+    "label": "Hive Blockchain Network",
+    "unicode": "e07f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "hockey-puck",
     "label": "Hockey Puck",
     "unicode": "f453",
@@ -9948,6 +11510,20 @@
       "xmas"
     ],
     "family": "fas"
+  },
+  {
+    "id": "hooli",
+    "label": "Hooli",
+    "unicode": "f427",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "hornbill",
+    "label": "Hornbill",
+    "unicode": "f592",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "horse",
@@ -10055,6 +11631,13 @@
       "travel"
     ],
     "family": "fas"
+  },
+  {
+    "id": "hotjar",
+    "label": "Hotjar",
+    "unicode": "f3b1",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "hourglass",
@@ -10441,6 +12024,13 @@
     "family": "fas"
   },
   {
+    "id": "houzz",
+    "label": "Houzz",
+    "unicode": "f27c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "hryvnia-sign",
     "label": "Hryvnia Sign",
     "unicode": "f6f2",
@@ -10449,6 +12039,20 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "html5",
+    "label": "HTML 5 Logo",
+    "unicode": "f13b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "hubspot",
+    "label": "HubSpot",
+    "unicode": "f3b2",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "hurricane",
@@ -10585,6 +12189,13 @@
     "family": "fas"
   },
   {
+    "id": "ideal",
+    "label": "iDeal",
+    "unicode": "e013",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "igloo",
     "label": "Igloo",
     "unicode": "f7ae",
@@ -10640,6 +12251,13 @@
       "picture"
     ],
     "family": "fas"
+  },
+  {
+    "id": "imdb",
+    "label": "IMDB",
+    "unicode": "f2d8",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "inbox",
@@ -10719,6 +12337,59 @@
     "family": "fas"
   },
   {
+    "id": "instagram",
+    "label": "Instagram",
+    "unicode": "f16d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "instalod",
+    "label": "InstaLOD",
+    "unicode": "e081",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "intercom",
+    "label": "Intercom",
+    "unicode": "f7af",
+    "aliases": [
+      "app",
+      "customer",
+      "messenger"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "internet-explorer",
+    "label": "Internet-explorer",
+    "unicode": "f26b",
+    "aliases": [
+      "browser",
+      "ie"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "invision",
+    "label": "InVision",
+    "unicode": "f7b0",
+    "aliases": [
+      "app",
+      "design",
+      "interface"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "ioxhost",
+    "label": "ioxhost",
+    "unicode": "f208",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "italic",
     "label": "Italic",
     "unicode": "f033",
@@ -10731,6 +12402,27 @@
       "type"
     ],
     "family": "fas"
+  },
+  {
+    "id": "itch-io",
+    "label": "itch.io",
+    "unicode": "f83a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "itunes",
+    "label": "iTunes",
+    "unicode": "f3b4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "itunes-note",
+    "label": "Itunes Note",
+    "unicode": "f3b5",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "j",
@@ -10765,6 +12457,13 @@
     "family": "fas"
   },
   {
+    "id": "java",
+    "label": "Java",
+    "unicode": "f4e4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "jedi",
     "label": "Jedi",
     "unicode": "f669",
@@ -10777,6 +12476,22 @@
       "yoda"
     ],
     "family": "fas"
+  },
+  {
+    "id": "jedi-order",
+    "label": "Jedi Order",
+    "unicode": "f50e",
+    "aliases": [
+      "star wars"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "jenkins",
+    "label": "Jenkis",
+    "unicode": "f3b6",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "jet-fighter",
@@ -10823,6 +12538,22 @@
     "family": "fas"
   },
   {
+    "id": "jira",
+    "label": "Jira",
+    "unicode": "f7b1",
+    "aliases": [
+      "atlassian"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "joget",
+    "label": "Joget",
+    "unicode": "f3b7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "joint",
     "label": "Joint",
     "unicode": "f595",
@@ -10840,6 +12571,27 @@
     "family": "fas"
   },
   {
+    "id": "joomla",
+    "label": "Joomla Logo",
+    "unicode": "f1aa",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "js",
+    "label": "JavaScript (JS)",
+    "unicode": "f3b8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "jsfiddle",
+    "label": "jsFiddle",
+    "unicode": "f1cc",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "jug-detergent",
     "label": "Jug Detergent",
     "unicode": "e519",
@@ -10850,6 +12602,13 @@
       "wash"
     ],
     "family": "fas"
+  },
+  {
+    "id": "jxl",
+    "label": "JXL",
+    "unicode": "e67b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "k",
@@ -10878,6 +12637,13 @@
     "family": "fas"
   },
   {
+    "id": "kaggle",
+    "label": "Kaggle",
+    "unicode": "f5fa",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "key",
     "label": "Key",
     "unicode": "f084",
@@ -10890,6 +12656,13 @@
       "unlock"
     ],
     "family": "fas"
+  },
+  {
+    "id": "keybase",
+    "label": "Keybase",
+    "unicode": "f4f5",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "keyboard",
@@ -10908,6 +12681,13 @@
     "family": "fas"
   },
   {
+    "id": "keycdn",
+    "label": "KeyCDN",
+    "unicode": "f3ba",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "khanda",
     "label": "Khanda",
     "unicode": "f66d",
@@ -10919,6 +12699,20 @@
       "sword"
     ],
     "family": "fas"
+  },
+  {
+    "id": "kickstarter",
+    "label": "Kickstarter",
+    "unicode": "f3bb",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "kickstarter-k",
+    "label": "Kickstarter K",
+    "unicode": "f3bc",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "kip-sign",
@@ -10968,6 +12762,13 @@
       "new zealand"
     ],
     "family": "fas"
+  },
+  {
+    "id": "korvue",
+    "label": "KORVUE",
+    "unicode": "f42f",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "l",
@@ -11117,6 +12918,13 @@
     "family": "fas"
   },
   {
+    "id": "laravel",
+    "label": "Laravel",
+    "unicode": "f3bd",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "lari-sign",
     "label": "Lari Sign",
     "unicode": "e1c8",
@@ -11125,6 +12933,13 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "lastfm",
+    "label": "last.fm",
+    "unicode": "f202",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "layer-group",
@@ -11153,6 +12968,13 @@
       "vegan"
     ],
     "family": "fas"
+  },
+  {
+    "id": "leanpub",
+    "label": "Leanpub",
+    "unicode": "f212",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "left-long",
@@ -11196,6 +13018,13 @@
     "family": "fas"
   },
   {
+    "id": "less",
+    "label": "Less",
+    "unicode": "f41d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "less-than",
     "label": "Less Than",
     "unicode": "3c",
@@ -11217,6 +13046,13 @@
       "math"
     ],
     "family": "fas"
+  },
+  {
+    "id": "letterboxd",
+    "label": "Letterboxd",
+    "unicode": "e62d",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "life-ring",
@@ -11253,6 +13089,13 @@
       "mechanical"
     ],
     "family": "fas"
+  },
+  {
+    "id": "line",
+    "label": "Line",
+    "unicode": "f3c0",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "lines-leaning",
@@ -11295,6 +13138,42 @@
       "remove"
     ],
     "family": "fas"
+  },
+  {
+    "id": "linkedin",
+    "label": "LinkedIn",
+    "unicode": "f08c",
+    "aliases": [
+      "linkedin-square",
+      "linkin"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "linkedin-in",
+    "label": "LinkedIn In",
+    "unicode": "f0e1",
+    "aliases": [
+      "linkedin",
+      "linkin"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "linode",
+    "label": "Linode",
+    "unicode": "f2b8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "linux",
+    "label": "Linux",
+    "unicode": "f17c",
+    "aliases": [
+      "tux"
+    ],
+    "family": "fab"
   },
   {
     "id": "lira-sign",
@@ -11570,6 +13449,13 @@
     "family": "fas"
   },
   {
+    "id": "lyft",
+    "label": "lyft",
+    "unicode": "f3c3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "m",
     "label": "M",
     "unicode": "4d",
@@ -11579,6 +13465,13 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "magento",
+    "label": "Magento",
+    "unicode": "f3c4",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "magnet",
@@ -11706,6 +13599,13 @@
     "family": "fas"
   },
   {
+    "id": "mailchimp",
+    "label": "Mailchimp",
+    "unicode": "f59e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "manat-sign",
     "label": "Manat Sign",
     "unicode": "e1d5",
@@ -11714,6 +13614,13 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "mandalorian",
+    "label": "Mandalorian",
+    "unicode": "f50f",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "map",
@@ -11809,6 +13716,13 @@
       "travel"
     ],
     "family": "fas"
+  },
+  {
+    "id": "markdown",
+    "label": "Markdown",
+    "unicode": "f60f",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "marker",
@@ -12013,6 +13927,13 @@
     "family": "fas"
   },
   {
+    "id": "mastodon",
+    "label": "Mastodon",
+    "unicode": "f4f6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "mattress-pillow",
     "label": "Mattress Pillow",
     "unicode": "e525",
@@ -12024,6 +13945,13 @@
       "sleep"
     ],
     "family": "fas"
+  },
+  {
+    "id": "maxcdn",
+    "label": "MaxCDN",
+    "unicode": "f136",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "maximize",
@@ -12044,6 +13972,13 @@
     "family": "fas"
   },
   {
+    "id": "mdb",
+    "label": "Material Design for Bootstrap",
+    "unicode": "f8ca",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "medal",
     "label": "Medal",
     "unicode": "f5a2",
@@ -12061,6 +13996,41 @@
     "family": "fas"
   },
   {
+    "id": "medapps",
+    "label": "MedApps",
+    "unicode": "f3c6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "medium",
+    "label": "Medium",
+    "unicode": "f23a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "medrt",
+    "label": "MRT",
+    "unicode": "f3c8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "meetup",
+    "label": "Meetup",
+    "unicode": "f2e0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "megaport",
+    "label": "Megaport",
+    "unicode": "f5a3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "memory",
     "label": "Memory",
     "unicode": "f538",
@@ -12072,6 +14042,13 @@
       "technology"
     ],
     "family": "fas"
+  },
+  {
+    "id": "mendeley",
+    "label": "Mendeley",
+    "unicode": "f7b3",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "menorah",
@@ -12123,6 +14100,13 @@
     "family": "fas"
   },
   {
+    "id": "meta",
+    "label": "Meta",
+    "unicode": "e49b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "meteor",
     "label": "Meteor",
     "unicode": "f753",
@@ -12134,6 +14118,13 @@
       "space"
     ],
     "family": "fas"
+  },
+  {
+    "id": "microblog",
+    "label": "Micro.blog",
+    "unicode": "e01a",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "microchip",
@@ -12240,6 +14231,13 @@
     "family": "fas"
   },
   {
+    "id": "microsoft",
+    "label": "Microsoft",
+    "unicode": "f3ca",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "mill-sign",
     "label": "Mill Sign",
     "unicode": "e1ed",
@@ -12263,6 +14261,13 @@
       "smaller"
     ],
     "family": "fas"
+  },
+  {
+    "id": "mintbit",
+    "label": "Mintbit",
+    "unicode": "e62f",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "minus",
@@ -12299,6 +14304,34 @@
       "warmth"
     ],
     "family": "fas"
+  },
+  {
+    "id": "mix",
+    "label": "Mix",
+    "unicode": "f3cb",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "mixcloud",
+    "label": "Mixcloud",
+    "unicode": "f289",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "mixer",
+    "label": "Mixer",
+    "unicode": "e056",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "mizuni",
+    "label": "Mizuni",
+    "unicode": "f3cc",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "mobile",
@@ -12378,6 +14411,20 @@
       "telephone"
     ],
     "family": "fas"
+  },
+  {
+    "id": "modx",
+    "label": "MODX",
+    "unicode": "f285",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "monero",
+    "label": "Monero",
+    "unicode": "f3d0",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "money-bill",
@@ -12778,6 +14825,20 @@
     "family": "fas"
   },
   {
+    "id": "napster",
+    "label": "Napster",
+    "unicode": "f3d2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "neos",
+    "label": "Neos",
+    "unicode": "f612",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "network-wired",
     "label": "Network Wired",
     "unicode": "f6ff",
@@ -12817,6 +14878,59 @@
       "press"
     ],
     "family": "fas"
+  },
+  {
+    "id": "nfc-directional",
+    "label": "NFC Directional",
+    "unicode": "e530",
+    "aliases": [
+      "connect",
+      "data",
+      "near field communication",
+      "nfc",
+      "scan",
+      "signal",
+      "transfer",
+      "wireless"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "nfc-symbol",
+    "label": "Nfc Symbol",
+    "unicode": "e531",
+    "aliases": [
+      "connect",
+      "data",
+      "near field communication",
+      "nfc",
+      "scan",
+      "signal",
+      "transfer",
+      "wireless"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "nimblr",
+    "label": "Nimblr",
+    "unicode": "f5a8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "node",
+    "label": "Node.js",
+    "unicode": "f419",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "node-js",
+    "label": "Node.js JS",
+    "unicode": "f3d3",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "not-equal",
@@ -12869,6 +14983,27 @@
     "family": "fas"
   },
   {
+    "id": "npm",
+    "label": "npm",
+    "unicode": "f3d4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "ns8",
+    "label": "NS8",
+    "unicode": "f3d5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "nutritionix",
+    "label": "Nutritionix",
+    "unicode": "f3d6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "o",
     "label": "O",
     "unicode": "4f",
@@ -12906,6 +15041,27 @@
     "family": "fas"
   },
   {
+    "id": "octopus-deploy",
+    "label": "Octopus Deploy",
+    "unicode": "e082",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "odnoklassniki",
+    "label": "Odnoklassniki",
+    "unicode": "f263",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "odysee",
+    "label": "Odysee",
+    "unicode": "e5c6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "oil-can",
     "label": "Oil Can",
     "unicode": "f613",
@@ -12931,6 +15087,16 @@
     "family": "fas"
   },
   {
+    "id": "old-republic",
+    "label": "Old Republic",
+    "unicode": "f510",
+    "aliases": [
+      "politics",
+      "star wars"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "om",
     "label": "Om",
     "unicode": "f679",
@@ -12944,6 +15110,55 @@
       "religion"
     ],
     "family": "fas"
+  },
+  {
+    "id": "opencart",
+    "label": "OpenCart",
+    "unicode": "f23d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "openid",
+    "label": "OpenID",
+    "unicode": "f19b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "opensuse",
+    "label": "Opensuse",
+    "unicode": "e62b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "opera",
+    "label": "Opera",
+    "unicode": "f26a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "optin-monster",
+    "label": "Optin Monster",
+    "unicode": "f23c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "orcid",
+    "label": "ORCID",
+    "unicode": "f8d2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "osi",
+    "label": "Open Source Initiative",
+    "unicode": "f41a",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "otter",
@@ -12984,6 +15199,35 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "padlet",
+    "label": "Padlet",
+    "unicode": "e4a0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "page4",
+    "label": "page4 Corporation",
+    "unicode": "f3d7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pagelines",
+    "label": "Pagelines",
+    "unicode": "f18c",
+    "aliases": [
+      "eco",
+      "flora",
+      "leaf",
+      "leaves",
+      "nature",
+      "plant",
+      "tree"
+    ],
+    "family": "fab"
   },
   {
     "id": "pager",
@@ -13053,6 +15297,13 @@
       "watercolor"
     ],
     "family": "fas"
+  },
+  {
+    "id": "palfed",
+    "label": "Palfed",
+    "unicode": "f3d8",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "pallet",
@@ -13161,6 +15412,13 @@
     "family": "fas"
   },
   {
+    "id": "patreon",
+    "label": "Patreon",
+    "unicode": "f3d9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "pause",
     "label": "Pause",
     "unicode": "f04c",
@@ -13187,6 +15445,13 @@
       "print"
     ],
     "family": "fas"
+  },
+  {
+    "id": "paypal",
+    "label": "Paypal",
+    "unicode": "f1ed",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "peace",
@@ -13431,6 +15696,13 @@
     "family": "fas"
   },
   {
+    "id": "perbyte",
+    "label": "PerByte",
+    "unicode": "e083",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "percent",
     "label": "Percent",
     "unicode": "25",
@@ -13443,6 +15715,13 @@
       "ratio"
     ],
     "family": "fas"
+  },
+  {
+    "id": "periscope",
+    "label": "Periscope",
+    "unicode": "f3da",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "person",
@@ -14107,6 +16386,27 @@
     "family": "fas"
   },
   {
+    "id": "phabricator",
+    "label": "Phabricator",
+    "unicode": "f3db",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "phoenix-framework",
+    "label": "Phoenix Framework",
+    "unicode": "f3dc",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "phoenix-squadron",
+    "label": "Phoenix Squadron",
+    "unicode": "f511",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "phone",
     "label": "Phone",
     "unicode": "f095",
@@ -14191,6 +16491,43 @@
     "family": "fas"
   },
   {
+    "id": "php",
+    "label": "PHP",
+    "unicode": "f457",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pied-piper",
+    "label": "Pied Piper Logo",
+    "unicode": "f2ae",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pied-piper-alt",
+    "label": "Alternate Pied Piper Logo (Old)",
+    "unicode": "f1a8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pied-piper-hat",
+    "label": "Pied Piper Hat (Old)",
+    "unicode": "f4e5",
+    "aliases": [
+      "clothing"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "pied-piper-pp",
+    "label": "Pied Piper PP Logo (Old)",
+    "unicode": "f1a7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "piggy-bank",
     "label": "Piggy Bank",
     "unicode": "f4d3",
@@ -14213,6 +16550,34 @@
       "tablets"
     ],
     "family": "fas"
+  },
+  {
+    "id": "pinterest",
+    "label": "Pinterest",
+    "unicode": "f0d2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pinterest-p",
+    "label": "Pinterest P",
+    "unicode": "f231",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pix",
+    "label": "Pix",
+    "unicode": "e43a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "pixiv",
+    "label": "Pixiv",
+    "unicode": "e640",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "pizza-slice",
@@ -14447,6 +16812,13 @@
       "video"
     ],
     "family": "fas"
+  },
+  {
+    "id": "playstation",
+    "label": "PlayStation",
+    "unicode": "f3df",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "plug",
@@ -14712,6 +17084,13 @@
     "family": "fas"
   },
   {
+    "id": "product-hunt",
+    "label": "Product Hunt",
+    "unicode": "f288",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "pump-medical",
     "label": "Pump Medical",
     "unicode": "e06a",
@@ -14743,6 +17122,13 @@
     "family": "fas"
   },
   {
+    "id": "pushed",
+    "label": "Pushed",
+    "unicode": "f3e1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "puzzle-piece",
     "label": "Puzzle Piece",
     "unicode": "f12e",
@@ -14761,6 +17147,13 @@
     "family": "fas"
   },
   {
+    "id": "python",
+    "label": "Python",
+    "unicode": "f3e2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "q",
     "label": "Q",
     "unicode": "51",
@@ -14770,6 +17163,13 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "qq",
+    "label": "QQ",
+    "unicode": "f1d6",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "qrcode",
@@ -14804,6 +17204,20 @@
       "white question mark"
     ],
     "family": "fas"
+  },
+  {
+    "id": "quinscape",
+    "label": "QuinScape",
+    "unicode": "f459",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "quora",
+    "label": "Quora",
+    "unicode": "f2c4",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "quote-left",
@@ -14843,6 +17257,13 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "r-project",
+    "label": "R Project",
+    "unicode": "f4f7",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "radiation",
@@ -14906,6 +17327,48 @@
       "win"
     ],
     "family": "fas"
+  },
+  {
+    "id": "raspberry-pi",
+    "label": "Raspberry Pi",
+    "unicode": "f7bb",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "ravelry",
+    "label": "Ravelry",
+    "unicode": "f2d9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "react",
+    "label": "React",
+    "unicode": "f41b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "reacteurope",
+    "label": "ReactEurope",
+    "unicode": "f75d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "readme",
+    "label": "ReadMe",
+    "unicode": "f4d5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "rebel",
+    "label": "Rebel Alliance",
+    "unicode": "f1d0",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "receipt",
@@ -15001,6 +17464,38 @@
     "family": "fas"
   },
   {
+    "id": "red-river",
+    "label": "red river",
+    "unicode": "f3e3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "reddit",
+    "label": "Reddit",
+    "unicode": "f1a1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "reddit-alien",
+    "label": "Reddit Alien",
+    "unicode": "f281",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "redhat",
+    "label": "Redhat",
+    "unicode": "f7bc",
+    "aliases": [
+      "linux",
+      "operating system",
+      "os"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "registered",
     "label": "Registered",
     "unicode": "f25d",
@@ -15012,6 +17507,13 @@
       "trademark"
     ],
     "family": "fas"
+  },
+  {
+    "id": "renren",
+    "label": "Renren",
+    "unicode": "f18b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "repeat",
@@ -15054,6 +17556,13 @@
     "family": "fas"
   },
   {
+    "id": "replyd",
+    "label": "replyd",
+    "unicode": "f3e6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "republican",
     "label": "Republican",
     "unicode": "f75e",
@@ -15069,6 +17578,20 @@
       "usa"
     ],
     "family": "fas"
+  },
+  {
+    "id": "researchgate",
+    "label": "Researchgate",
+    "unicode": "f4f8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "resolving",
+    "label": "Resolving",
+    "unicode": "f3e7",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "restroom",
@@ -15096,6 +17619,13 @@
       "swap"
     ],
     "family": "fas"
+  },
+  {
+    "id": "rev",
+    "label": "Rev.io",
+    "unicode": "f5b2",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "ribbon",
@@ -15336,6 +17866,20 @@
     "family": "fas"
   },
   {
+    "id": "rocketchat",
+    "label": "Rocket.Chat",
+    "unicode": "f3e8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "rockrms",
+    "label": "Rockrms",
+    "unicode": "f3e9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "rotate",
     "label": "Rotate",
     "unicode": "f2f1",
@@ -15503,6 +18047,13 @@
     "family": "fas"
   },
   {
+    "id": "rust",
+    "label": "Rust",
+    "unicode": "e07a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "s",
     "label": "S",
     "unicode": "53",
@@ -15549,6 +18100,15 @@
     "family": "fas"
   },
   {
+    "id": "safari",
+    "label": "Safari",
+    "unicode": "f267",
+    "aliases": [
+      "browser"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "sailboat",
     "label": "Sailboat",
     "unicode": "e445",
@@ -15560,6 +18120,20 @@
       "yacht"
     ],
     "family": "fas"
+  },
+  {
+    "id": "salesforce",
+    "label": "Salesforce",
+    "unicode": "f83b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "sass",
+    "label": "Sass",
+    "unicode": "f41e",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "satellite",
@@ -15639,6 +18213,13 @@
       "weight"
     ],
     "family": "fas"
+  },
+  {
+    "id": "schlix",
+    "label": "SCHLIX",
+    "unicode": "f3ea",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "school",
@@ -15735,6 +18316,13 @@
     "family": "fas"
   },
   {
+    "id": "screenpal",
+    "label": "Screenpal",
+    "unicode": "e570",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "screwdriver",
     "label": "Screwdriver",
     "unicode": "f54a",
@@ -15772,6 +18360,13 @@
       "wrench"
     ],
     "family": "fas"
+  },
+  {
+    "id": "scribd",
+    "label": "Scribd",
+    "unicode": "f28a",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "scroll",
@@ -15817,6 +18412,13 @@
     "family": "fas"
   },
   {
+    "id": "searchengin",
+    "label": "Searchengin",
+    "unicode": "f3eb",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "section",
     "label": "Section",
     "unicode": "e447",
@@ -15846,6 +18448,22 @@
     "family": "fas"
   },
   {
+    "id": "sellcast",
+    "label": "Sellcast",
+    "unicode": "f2da",
+    "aliases": [
+      "eercast"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "sellsy",
+    "label": "Sellsy",
+    "unicode": "f213",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "server",
     "label": "Server",
     "unicode": "f233",
@@ -15859,6 +18477,13 @@
       "sql"
     ],
     "family": "fas"
+  },
+  {
+    "id": "servicestack",
+    "label": "Servicestack",
+    "unicode": "f3ec",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "shapes",
@@ -16070,6 +18695,13 @@
     "family": "fas"
   },
   {
+    "id": "shirtsinbulk",
+    "label": "Shirts in Bulk",
+    "unicode": "f214",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "shoe-prints",
     "label": "Shoe Prints",
     "unicode": "f54b",
@@ -16080,6 +18712,13 @@
       "walk"
     ],
     "family": "fas"
+  },
+  {
+    "id": "shoelace",
+    "label": "Shoelace",
+    "unicode": "e60c",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "shop",
@@ -16132,6 +18771,20 @@
       "shopping"
     ],
     "family": "fas"
+  },
+  {
+    "id": "shopify",
+    "label": "Shopify",
+    "unicode": "e057",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "shopware",
+    "label": "Shopware",
+    "unicode": "f5b5",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "shower",
@@ -16224,6 +18877,13 @@
     "family": "fas"
   },
   {
+    "id": "signal-messenger",
+    "label": "Signal Messenger",
+    "unicode": "e663",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "signature",
     "label": "Signature",
     "unicode": "f5b7",
@@ -16264,6 +18924,13 @@
     "family": "fas"
   },
   {
+    "id": "simplybuilt",
+    "label": "SimplyBuilt",
+    "unicode": "f215",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "sink",
     "label": "Sink",
     "unicode": "e06d",
@@ -16277,6 +18944,13 @@
     "family": "fas"
   },
   {
+    "id": "sistrix",
+    "label": "SISTRIX",
+    "unicode": "f3ee",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "sitemap",
     "label": "Sitemap",
     "unicode": "f0e8",
@@ -16288,6 +18962,31 @@
       "organization"
     ],
     "family": "fas"
+  },
+  {
+    "id": "sith",
+    "label": "Sith",
+    "unicode": "f512",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "sitrox",
+    "label": "Sitrox",
+    "unicode": "e44a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "sketch",
+    "label": "Sketch",
+    "unicode": "f7c6",
+    "aliases": [
+      "app",
+      "design",
+      "interface"
+    ],
+    "family": "fab"
   },
   {
     "id": "skull",
@@ -16340,6 +19039,31 @@
     "family": "fas"
   },
   {
+    "id": "skyatlas",
+    "label": "skyatlas",
+    "unicode": "f216",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "skype",
+    "label": "Skype",
+    "unicode": "f17e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "slack",
+    "label": "Slack Logo",
+    "unicode": "f198",
+    "aliases": [
+      "anchor",
+      "hash",
+      "hashtag"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "slash",
     "label": "Slash",
     "unicode": "f715",
@@ -16384,6 +19108,13 @@
     "family": "fas"
   },
   {
+    "id": "slideshare",
+    "label": "Slideshare",
+    "unicode": "f1e7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "smog",
     "label": "Smog",
     "unicode": "f75f",
@@ -16410,6 +19141,13 @@
       "tobacco"
     ],
     "family": "fas"
+  },
+  {
+    "id": "snapchat",
+    "label": "Snapchat",
+    "unicode": "f2ab",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "snowflake",
@@ -16543,6 +19281,20 @@
     "family": "fas"
   },
   {
+    "id": "soundcloud",
+    "label": "Soundcloud",
+    "unicode": "f1be",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "sourcetree",
+    "label": "Sourcetree",
+    "unicode": "f7d3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "spa",
     "label": "Spa",
     "unicode": "f5bb",
@@ -16556,6 +19308,18 @@
     "family": "fas"
   },
   {
+    "id": "space-awesome",
+    "label": "Space Awesome",
+    "unicode": "e5ac",
+    "aliases": [
+      "adventure",
+      "rocket",
+      "ship",
+      "shuttle"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "spaghetti-monster-flying",
     "label": "Spaghetti Monster Flying",
     "unicode": "f67b",
@@ -16566,6 +19330,20 @@
       "fsm"
     ],
     "family": "fas"
+  },
+  {
+    "id": "speakap",
+    "label": "Speakap",
+    "unicode": "f3f3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "speaker-deck",
+    "label": "Speaker Deck",
+    "unicode": "f83c",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "spell-check",
@@ -16639,6 +19417,13 @@
     "family": "fas"
   },
   {
+    "id": "spotify",
+    "label": "Spotify",
+    "unicode": "f1bc",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "spray-can",
     "label": "Spray Can",
     "unicode": "f5bd",
@@ -16695,6 +19480,13 @@
     "family": "fas"
   },
   {
+    "id": "square-behance",
+    "label": "Square Behance",
+    "unicode": "f1b5",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "square-binary",
     "label": "Square Binary",
     "unicode": "e69b",
@@ -16708,6 +19500,15 @@
       "token"
     ],
     "family": "fas"
+  },
+  {
+    "id": "square-bluesky",
+    "label": "Square Bluesky",
+    "unicode": "e6a3",
+    "aliases": [
+      "social network"
+    ],
+    "family": "fab"
   },
   {
     "id": "square-caret-down",
@@ -16797,6 +19598,13 @@
     "family": "fas"
   },
   {
+    "id": "square-dribbble",
+    "label": "Square Dribbble",
+    "unicode": "f397",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "square-envelope",
     "label": "Square Envelope",
     "unicode": "f199",
@@ -16811,6 +19619,37 @@
       "support"
     ],
     "family": "fas"
+  },
+  {
+    "id": "square-facebook",
+    "label": "Square Facebook",
+    "unicode": "f082",
+    "aliases": [
+      "fabook",
+      "fb",
+      "social network"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "square-font-awesome",
+    "label": "Square Font Awesome",
+    "unicode": "e5ad",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-font-awesome-stroke",
+    "label": "Square Font Awesome Stroke",
+    "unicode": "f35c",
+    "aliases": [
+      "awesome",
+      "flag",
+      "font",
+      "icons",
+      "typeface"
+    ],
+    "family": "fab"
   },
   {
     "id": "square-full",
@@ -16842,6 +19681,38 @@
     "family": "fas"
   },
   {
+    "id": "square-git",
+    "label": "Square Git",
+    "unicode": "f1d2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-github",
+    "label": "Square Github",
+    "unicode": "f092",
+    "aliases": [
+      "octocat"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "square-gitlab",
+    "label": "Square Gitlab",
+    "unicode": "e5ae",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-google-plus",
+    "label": "Square Google Plus",
+    "unicode": "f0d4",
+    "aliases": [
+      "social network"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "square-h",
     "label": "Square H",
     "unicode": "f0fd",
@@ -16854,6 +19725,41 @@
       "map"
     ],
     "family": "fas"
+  },
+  {
+    "id": "square-hacker-news",
+    "label": "Square Hacker News",
+    "unicode": "f3af",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-instagram",
+    "label": "Square Instagram",
+    "unicode": "e055",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-js",
+    "label": "Square Js",
+    "unicode": "f3b9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-lastfm",
+    "label": "Square Lastfm",
+    "unicode": "f203",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-letterboxd",
+    "label": "Square Letterboxd",
+    "unicode": "e62e",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "square-minus",
@@ -16880,6 +19786,13 @@
       "supplies"
     ],
     "family": "fas"
+  },
+  {
+    "id": "square-odnoklassniki",
+    "label": "Square Odnoklassniki",
+    "unicode": "f264",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "square-parking",
@@ -16947,6 +19860,20 @@
     "family": "fas"
   },
   {
+    "id": "square-pied-piper",
+    "label": "Pied Piper Square Logo (Old)",
+    "unicode": "e01e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-pinterest",
+    "label": "Square Pinterest",
+    "unicode": "f0d3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "square-plus",
     "label": "Square Plus",
     "unicode": "f0fe",
@@ -16994,6 +19921,13 @@
     "family": "fas"
   },
   {
+    "id": "square-reddit",
+    "label": "Square Reddit",
+    "unicode": "f1a2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "square-root-variable",
     "label": "Square Root Variable",
     "unicode": "f698",
@@ -17031,6 +19965,46 @@
     "family": "fas"
   },
   {
+    "id": "square-snapchat",
+    "label": "Snapchat Square",
+    "unicode": "f2ad",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-steam",
+    "label": "Square Steam",
+    "unicode": "f1b7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-threads",
+    "label": "Square Threads",
+    "unicode": "e619",
+    "aliases": [
+      "social network"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "square-tumblr",
+    "label": "Square Tumblr",
+    "unicode": "f174",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-twitter",
+    "label": "Square Twitter",
+    "unicode": "f081",
+    "aliases": [
+      "social network",
+      "tweet"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "square-up-right",
     "label": "Square Up Right",
     "unicode": "f360",
@@ -17049,6 +20023,27 @@
     "family": "fas"
   },
   {
+    "id": "square-upwork",
+    "label": "Square Upwork",
+    "unicode": "e67c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-viadeo",
+    "label": "Square Viadeo",
+    "unicode": "f2aa",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-vimeo",
+    "label": "Square Vimeo",
+    "unicode": "f194",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "square-virus",
     "label": "Square Virus",
     "unicode": "e578",
@@ -17061,6 +20056,57 @@
       "pandemic"
     ],
     "family": "fas"
+  },
+  {
+    "id": "square-web-awesome",
+    "label": "Square Web Awesome",
+    "unicode": "e683",
+    "aliases": [
+      "awesome",
+      "coding",
+      "components",
+      "crown",
+      "web"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "square-web-awesome-stroke",
+    "label": "Square Web Awesome Stroke",
+    "unicode": "e684",
+    "aliases": [
+      "awesome",
+      "coding",
+      "components",
+      "crown",
+      "web"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "square-whatsapp",
+    "label": "Square Whatsapp",
+    "unicode": "f40c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "square-x-twitter",
+    "label": "Square X Twitter",
+    "unicode": "e61a",
+    "aliases": [
+      "elon",
+      "twitter",
+      "x"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "square-xing",
+    "label": "Square Xing",
+    "unicode": "f169",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "square-xmark",
@@ -17084,6 +20130,41 @@
       "×"
     ],
     "family": "fas"
+  },
+  {
+    "id": "square-youtube",
+    "label": "Square Youtube",
+    "unicode": "f431",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "squarespace",
+    "label": "Squarespace",
+    "unicode": "f5be",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "stack-exchange",
+    "label": "Stack Exchange",
+    "unicode": "f18d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "stack-overflow",
+    "label": "Stack Overflow",
+    "unicode": "f16c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "stackpath",
+    "label": "Stackpath",
+    "unicode": "f842",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "staff-snake",
@@ -17224,6 +20305,29 @@
     "family": "fas"
   },
   {
+    "id": "staylinked",
+    "label": "StayLinked",
+    "unicode": "f3f5",
+    "aliases": [
+      "linkin"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "steam",
+    "label": "Steam",
+    "unicode": "f1b6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "steam-symbol",
+    "label": "Steam Symbol",
+    "unicode": "f3f6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "sterling-sign",
     "label": "Sterling Sign",
     "unicode": "f154",
@@ -17251,6 +20355,13 @@
       "stethoscope"
     ],
     "family": "fas"
+  },
+  {
+    "id": "sticker-mule",
+    "label": "Sticker Mule",
+    "unicode": "f3f7",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "stop",
@@ -17326,6 +20437,13 @@
     "family": "fas"
   },
   {
+    "id": "strava",
+    "label": "Strava",
+    "unicode": "f428",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "street-view",
     "label": "Street View",
     "unicode": "f21d",
@@ -17354,6 +20472,20 @@
     "family": "fas"
   },
   {
+    "id": "stripe",
+    "label": "Stripe",
+    "unicode": "f429",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "stripe-s",
+    "label": "Stripe S",
+    "unicode": "f42a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "stroopwafel",
     "label": "Stroopwafel",
     "unicode": "f551",
@@ -17365,6 +20497,34 @@
       "waffle"
     ],
     "family": "fas"
+  },
+  {
+    "id": "stubber",
+    "label": "Stubber",
+    "unicode": "e5c7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "studiovinari",
+    "label": "Studio Vinari",
+    "unicode": "f3f8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "stumbleupon",
+    "label": "StumbleUpon Logo",
+    "unicode": "f1a4",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "stumbleupon-circle",
+    "label": "StumbleUpon Circle",
+    "unicode": "f1a3",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "subscript",
@@ -17455,6 +20615,13 @@
     "family": "fas"
   },
   {
+    "id": "superpowers",
+    "label": "Superpowers",
+    "unicode": "f2dd",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "superscript",
     "label": "Superscript",
     "unicode": "f12b",
@@ -17469,6 +20636,24 @@
     "family": "fas"
   },
   {
+    "id": "supple",
+    "label": "Supple",
+    "unicode": "f3f9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "suse",
+    "label": "Suse",
+    "unicode": "f7d6",
+    "aliases": [
+      "linux",
+      "operating system",
+      "os"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "swatchbook",
     "label": "Swatchbook",
     "unicode": "f5c3",
@@ -17480,6 +20665,20 @@
       "palette"
     ],
     "family": "fas"
+  },
+  {
+    "id": "swift",
+    "label": "Swift",
+    "unicode": "f8e1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "symfony",
+    "label": "Symfony",
+    "unicode": "f83d",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "synagogue",
@@ -17815,6 +21014,13 @@
     "family": "fas"
   },
   {
+    "id": "teamspeak",
+    "label": "Teamspeak",
+    "unicode": "f4f9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "teeth",
     "label": "Teeth",
     "unicode": "f62e",
@@ -17842,6 +21048,13 @@
       "tooth"
     ],
     "family": "fas"
+  },
+  {
+    "id": "telegram",
+    "label": "Telegram",
+    "unicode": "f2c6",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "temperature-arrow-down",
@@ -17958,6 +21171,13 @@
       "temperature"
     ],
     "family": "fas"
+  },
+  {
+    "id": "tencent-weibo",
+    "label": "Tencent Weibo",
+    "unicode": "f1d5",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "tenge-sign",
@@ -18130,6 +21350,27 @@
     "family": "fas"
   },
   {
+    "id": "the-red-yeti",
+    "label": "The Red Yeti",
+    "unicode": "f69d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "themeco",
+    "label": "Themeco",
+    "unicode": "f5c6",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "themeisle",
+    "label": "ThemeIsle",
+    "unicode": "f2b2",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "thermometer",
     "label": "Thermometer",
     "unicode": "f491",
@@ -18140,6 +21381,22 @@
       "temperature"
     ],
     "family": "fas"
+  },
+  {
+    "id": "think-peaks",
+    "label": "Think Peaks",
+    "unicode": "f731",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "threads",
+    "label": "Threads",
+    "unicode": "e618",
+    "aliases": [
+      "social network"
+    ],
+    "family": "fab"
   },
   {
     "id": "thumbs-down",
@@ -18244,6 +21501,13 @@
       "voucher"
     ],
     "family": "fas"
+  },
+  {
+    "id": "tiktok",
+    "label": "TikTok",
+    "unicode": "e07b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "timeline",
@@ -18494,6 +21758,13 @@
     "family": "fas"
   },
   {
+    "id": "trade-federation",
+    "label": "Trade Federation",
+    "unicode": "f513",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "trademark",
     "label": "Trademark",
     "unicode": "f25c",
@@ -18681,6 +21952,15 @@
       "urban"
     ],
     "family": "fas"
+  },
+  {
+    "id": "trello",
+    "label": "Trello",
+    "unicode": "f181",
+    "aliases": [
+      "atlassian"
+    ],
+    "family": "fab"
   },
   {
     "id": "triangle-exclamation",
@@ -18930,6 +22210,13 @@
     "family": "fas"
   },
   {
+    "id": "tumblr",
+    "label": "Tumblr",
+    "unicode": "f173",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "turkish-lira-sign",
     "label": "Turkish Lira Sign",
     "unicode": "e2bb",
@@ -18975,6 +22262,30 @@
     "family": "fas"
   },
   {
+    "id": "twitch",
+    "label": "Twitch",
+    "unicode": "f1e8",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "twitter",
+    "label": "Twitter",
+    "unicode": "f099",
+    "aliases": [
+      "social network",
+      "tweet"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "typo3",
+    "label": "Typo3",
+    "unicode": "f42b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "u",
     "label": "U",
     "unicode": "55",
@@ -18984,6 +22295,38 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "uber",
+    "label": "Uber",
+    "unicode": "f402",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "ubuntu",
+    "label": "Ubuntu",
+    "unicode": "f7df",
+    "aliases": [
+      "linux",
+      "operating system",
+      "os"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "uikit",
+    "label": "UIkit",
+    "unicode": "f403",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "umbraco",
+    "label": "Umbraco",
+    "unicode": "f8e8",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "umbrella",
@@ -19015,6 +22358,13 @@
     "family": "fas"
   },
   {
+    "id": "uncharted",
+    "label": "Uncharted Software",
+    "unicode": "e084",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "underline",
     "label": "Underline",
     "unicode": "f0cd",
@@ -19027,6 +22377,20 @@
       "writing"
     ],
     "family": "fas"
+  },
+  {
+    "id": "uniregistry",
+    "label": "Uniregistry",
+    "unicode": "f404",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "unity",
+    "label": "Unity 3D",
+    "unicode": "e049",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "universal-access",
@@ -19070,6 +22434,20 @@
       "protect"
     ],
     "family": "fas"
+  },
+  {
+    "id": "unsplash",
+    "label": "Unsplash",
+    "unicode": "e07c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "untappd",
+    "label": "Untappd",
+    "unicode": "f405",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "up-down",
@@ -19159,6 +22537,31 @@
       "upgrade"
     ],
     "family": "fas"
+  },
+  {
+    "id": "ups",
+    "label": "UPS",
+    "unicode": "f7e0",
+    "aliases": [
+      "United Parcel Service",
+      "package",
+      "shipping"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "upwork",
+    "label": "Upwork",
+    "unicode": "e641",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "usb",
+    "label": "USB",
+    "unicode": "f287",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "user",
@@ -19603,6 +23006,25 @@
     "family": "fas"
   },
   {
+    "id": "usps",
+    "label": "United States Postal Service",
+    "unicode": "f7e1",
+    "aliases": [
+      "american",
+      "package",
+      "shipping",
+      "usa"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "ussunnah",
+    "label": "us-Sunnah Foundation",
+    "unicode": "f407",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "utensils",
     "label": "Utensils",
     "unicode": "f2e7",
@@ -19630,6 +23052,13 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "vaadin",
+    "label": "Vaadin",
+    "unicode": "f408",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "van-shuttle",
@@ -19737,6 +23166,20 @@
     "family": "fas"
   },
   {
+    "id": "viacoin",
+    "label": "Viacoin",
+    "unicode": "f237",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "viadeo",
+    "label": "Viadeo",
+    "unicode": "f2a9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "vial",
     "label": "Vial",
     "unicode": "f492",
@@ -19811,6 +23254,13 @@
     "family": "fas"
   },
   {
+    "id": "viber",
+    "label": "Viber",
+    "unicode": "f409",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "video",
     "label": "Video",
     "unicode": "f03d",
@@ -19851,6 +23301,29 @@
       "monastery"
     ],
     "family": "fas"
+  },
+  {
+    "id": "vimeo",
+    "label": "Vimeo",
+    "unicode": "f40a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "vimeo-v",
+    "label": "Vimeo V",
+    "unicode": "f27d",
+    "aliases": [
+      "vimeo"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "vine",
+    "label": "Vine",
+    "unicode": "f1ca",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "virus",
@@ -19945,6 +23418,20 @@
       "viral"
     ],
     "family": "fas"
+  },
+  {
+    "id": "vk",
+    "label": "VK",
+    "unicode": "f189",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "vnv",
+    "label": "VNV",
+    "unicode": "f40b",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "voicemail",
@@ -20061,6 +23548,13 @@
     "family": "fas"
   },
   {
+    "id": "vuejs",
+    "label": "Vue.js",
+    "unicode": "f41f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "w",
     "label": "W",
     "unicode": "57",
@@ -20160,6 +23654,13 @@
     "family": "fas"
   },
   {
+    "id": "watchman-monitoring",
+    "label": "Watchman Monitoring",
+    "unicode": "e087",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "water",
     "label": "Water",
     "unicode": "f773",
@@ -20197,6 +23698,13 @@
     "family": "fas"
   },
   {
+    "id": "waze",
+    "label": "Waze",
+    "unicode": "f83f",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "web-awesome",
     "label": "Web Awesome",
     "unicode": "e682",
@@ -20207,7 +23715,28 @@
       "crown",
       "web"
     ],
-    "family": "fas"
+    "family": "fab"
+  },
+  {
+    "id": "webflow",
+    "label": "Webflow",
+    "unicode": "e65c",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "weebly",
+    "label": "Weebly",
+    "unicode": "f5cc",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "weibo",
+    "label": "Weibo",
+    "unicode": "f18a",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "weight-hanging",
@@ -20231,6 +23760,20 @@
       "weight"
     ],
     "family": "fas"
+  },
+  {
+    "id": "weixin",
+    "label": "Weixin (WeChat)",
+    "unicode": "f1d7",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "whatsapp",
+    "label": "What's App",
+    "unicode": "f232",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "wheat-awn",
@@ -20310,6 +23853,13 @@
     "family": "fas"
   },
   {
+    "id": "whmcs",
+    "label": "WHMCS",
+    "unicode": "f40d",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "wifi",
     "label": "Wifi",
     "unicode": "f1eb",
@@ -20323,6 +23873,13 @@
       "www"
     ],
     "family": "fas"
+  },
+  {
+    "id": "wikipedia-w",
+    "label": "Wikipedia W",
+    "unicode": "f266",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "wind",
@@ -20376,6 +23933,17 @@
     "family": "fas"
   },
   {
+    "id": "windows",
+    "label": "Windows",
+    "unicode": "f17a",
+    "aliases": [
+      "microsoft",
+      "operating system",
+      "os"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "wine-bottle",
     "label": "Wine Bottle",
     "unicode": "f72f",
@@ -20426,6 +23994,49 @@
     "family": "fas"
   },
   {
+    "id": "wirsindhandwerk",
+    "label": "wirsindhandwerk",
+    "unicode": "e2d0",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wix",
+    "label": "Wix",
+    "unicode": "f5cf",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wizards-of-the-coast",
+    "label": "Wizards of the Coast",
+    "unicode": "f730",
+    "aliases": [
+      "Dungeons & Dragons",
+      "d&d",
+      "dnd",
+      "fantasy",
+      "game",
+      "gaming",
+      "tabletop"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "wodu",
+    "label": "Wodu",
+    "unicode": "e088",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wolf-pack-battalion",
+    "label": "Wolf Pack Battalion",
+    "unicode": "f514",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "won-sign",
     "label": "Won Sign",
     "unicode": "f159",
@@ -20434,6 +24045,20 @@
       "currency"
     ],
     "family": "fas"
+  },
+  {
+    "id": "wordpress",
+    "label": "WordPress Logo",
+    "unicode": "f19a",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wordpress-simple",
+    "label": "Wordpress Simple",
+    "unicode": "f411",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "worm",
@@ -20446,6 +24071,36 @@
       "wriggle"
     ],
     "family": "fas"
+  },
+  {
+    "id": "wpbeginner",
+    "label": "WPBeginner",
+    "unicode": "f297",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wpexplorer",
+    "label": "WPExplorer",
+    "unicode": "f2de",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wpforms",
+    "label": "WPForms",
+    "unicode": "f298",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "wpressr",
+    "label": "wpressr",
+    "unicode": "f3e4",
+    "aliases": [
+      "rendact"
+    ],
+    "family": "fab"
   },
   {
     "id": "wrench",
@@ -20491,6 +24146,31 @@
       "skeleton"
     ],
     "family": "fas"
+  },
+  {
+    "id": "x-twitter",
+    "label": "X Twitter",
+    "unicode": "e61b",
+    "aliases": [
+      "elon",
+      "twitter",
+      "x"
+    ],
+    "family": "fab"
+  },
+  {
+    "id": "xbox",
+    "label": "Xbox",
+    "unicode": "f412",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "xing",
+    "label": "Xing",
+    "unicode": "f168",
+    "aliases": [],
+    "family": "fab"
   },
   {
     "id": "xmark",
@@ -20549,6 +24229,55 @@
     "family": "fas"
   },
   {
+    "id": "y-combinator",
+    "label": "Y Combinator",
+    "unicode": "f23b",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "yahoo",
+    "label": "Yahoo Logo",
+    "unicode": "f19e",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "yammer",
+    "label": "Yammer",
+    "unicode": "f840",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "yandex",
+    "label": "Yandex",
+    "unicode": "f413",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "yandex-international",
+    "label": "Yandex International",
+    "unicode": "f414",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "yarn",
+    "label": "Yarn",
+    "unicode": "f7e3",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "yelp",
+    "label": "Yelp",
+    "unicode": "f1e9",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
     "id": "yen-sign",
     "label": "Yen Sign",
     "unicode": "f157",
@@ -20576,6 +24305,25 @@
     "family": "fas"
   },
   {
+    "id": "yoast",
+    "label": "Yoast",
+    "unicode": "f2b1",
+    "aliases": [],
+    "family": "fab"
+  },
+  {
+    "id": "youtube",
+    "label": "YouTube",
+    "unicode": "f167",
+    "aliases": [
+      "film",
+      "video",
+      "youtube-play",
+      "youtube-square"
+    ],
+    "family": "fab"
+  },
+  {
     "id": "z",
     "label": "Z",
     "unicode": "5a",
@@ -20585,5 +24333,12 @@
       "letter"
     ],
     "family": "fas"
+  },
+  {
+    "id": "zhihu",
+    "label": "Zhihu",
+    "unicode": "f63f",
+    "aliases": [],
+    "family": "fab"
   }
 ]
