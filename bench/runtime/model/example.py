@@ -227,12 +227,17 @@ def example_mention_specific_things():
 @example_(ExampleType.SNIPPET, title="Use quotes as needed")
 def example_use_quotes_as_needed(Thread1: Thread, File1: File):
     SEND("""\
-Here's the text from [@File1]:
+This is the text from [@File1]:
 > Total amount: $100.00
 > Date: 2021-01-01
 > Description: 79kg of rice
 """)
     SEND("(btw the stuff at the borders wasn't really legible)")
+    SEND("""\
+And here's how to file it:
+1. Go to the accounting dashboard
+2. Ask someone who knows
+""")
 
 
 @example_(ExampleType.SNIPPET, title="Include code block language")

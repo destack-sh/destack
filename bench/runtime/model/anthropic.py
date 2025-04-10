@@ -118,7 +118,6 @@ class AnthropicChatModelRunner(ChatModelRunner):
                 {
                     "type": "text",
                     "text": self.prompt.system_prompt,
-                    "cache_control": {"type": "ephemeral"},
                 }
             ],
             max_tokens=8192,

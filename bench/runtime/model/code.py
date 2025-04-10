@@ -37,8 +37,8 @@ class StreamingCodeRunner:
             logger.error("streaming_code_runner.error", code=code, span="current", exc_info=e)
             raise
 
-    def _is_complete(self, code: str) -> bool:
-        """Check if the code is complete."""
+    def _is_valid(self, code: str) -> bool:
+        """Check if the code is (syntactically) complete."""
         try:
             return codeop.compile_command(code, symbol="exec") is not None
         except Exception:
@@ -48,16 +48,16 @@ class StreamingCodeRunner:
         """Adds code and executes it (if complete & valid)."""
         self.code += new_code
         self.pending_code += new_code
-        if self.pending_code.endswith("\n") and self._is_complete(self.pending_code):
+        if self.pending_code.endswith("\n") and self._is_valid(self.pending_code):
             self._execute(self.pending_code)
             self.pending_code = ""
 
     def complete(self) -> None:
         """Finish running the code. Raise if there is trailing unexecuted (=invalid) code."""
         if self.pending_code:
-            if self._is_complete(self.pending_code):
-                self.pending_code = ""
+            if self._is_valid(self.pending_code):
                 self._execute(self.pending_code)
+                self.pending_code = ""
             else:
                 raise RuntimeError(f"bad trailing code: {self.pending_code!r}")
 
