@@ -244,8 +244,8 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
             isDragging(node) ? 'opacity-50' : '',
           ]"
           :style="{
-            paddingLeft: 8 + depth * DEPTH_OFFSET + 'px',
-            paddingRight: 8 + 'px',
+            paddingLeft: 6 + depth * DEPTH_OFFSET + 'px',
+            paddingRight: 6 + 'px',
             height: ITEM_HEIGHT + 'px',
           }"
           role="treeitem"

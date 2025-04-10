@@ -1,16 +1,16 @@
-from typing import TYPE_CHECKING, Mapping, cast, override
+from typing import TYPE_CHECKING, Mapping, override
 
 import google.generativeai as genai
 import structlog
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, Runnable, SpanType, download_file_batch
-from bench.runtime.code import CodeFunctionRunner
-from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, Runner
+from bench.language import Code, ModelType, download_file_batch
+from bench.runtime.core import NotSupportedError
 from bench.runtime.model.token import TiktokenTokenizer
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
+from .code import StreamingCodeRunner
 from .piece import (
     AudioPiece,
     BreakPiece,
@@ -19,7 +19,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, compile_prompt, log_prompt
+from .prompt import LOG_PROMPTS, compile_prompt, log_completion, log_prompt
 
 if TYPE_CHECKING:
     pass
@@ -94,29 +94,21 @@ class GeminiChatModelRunner(ChatModelRunner):
 
         _flush_text()
 
-        # generate
+        # generate & execute simultaneously
         # NOTE :Performance: maybe re-use genai.GenerativeModel instance?
         #  (but we may need different system prompts for different runs)
-        temperature = self.options.text_options.temperature if self.options.text_options else 0.1
+        code_runner = StreamingCodeRunner(runner=self, aliasing=self.prompt.aliasing)
+        temperature = self.options.text_options.temperature if self.options.text_options else None
         model = genai.GenerativeModel(model_id, system_instruction=self.prompt.system_prompt)
         completion = await model.generate_content_async(
             {"role": "user", "parts": content_parts},
-            generation_config=genai.GenerationConfig(temperature=temperature),
+            generation_config=genai.GenerationConfig(temperature=temperature or 0.1),
+            stream=True,
         )
-        code_str = completion.parts[0].text
-        code_str = self.clean_code(code_str)
-
-        # run
-        code = Code.from_string(code_str or "pass", language="python")
-        code_runner = CodeFunctionRunner(
-            runtime=self.runtime,
-            node=self.node,
-            code=code,
-            aliasing=self.prompt.aliasing,
-            options=ATTEMPT_ONCE,
-            inputs=self.inputs,
-            outputs=self.output_type,
-            parent=cast(Runner[Runnable], self),
-            run=SpanType.MODEL_PARSE,
-        )
-        await self.runtime.run_runner(code_runner)
+        async for chunk in completion:
+            if chunk.text:
+                code_runner.add(chunk.text)
+        code_runner.complete()
+        if LOG_PROMPTS:
+            log_completion(code_runner.code)
+        self.code = Code.from_string(code_runner.code or "pass", language="python")
