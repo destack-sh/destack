@@ -12,23 +12,9 @@ from bench import language
 from bench.language import (
     BENCH_CLASS_BY_NAME,
     NODE_CLASS_STUBS_BY_NAME,
-    Aliasing,
-    Bench,
-    CustomObject,
-    Node,
-    Run,
-    Session,
-    evaluate_path,
-    get_node,
-    get_node_or_error,
-    render,
-    upload_file,
 )
-from bench.runtime.core import Runner, Runtime
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
-
-from .capture import LogSink
 
 RUNTIME_ERROR_CLASSES = get_subclasses(RuntimeError)
 
@@ -59,31 +45,3 @@ STATIC_CODE_GLOBALS: dict[str, Any] = {
 # and some general stuff
 for t in (datetime, timedelta, UUID, base64):
     STATIC_CODE_GLOBALS[t.__name__] = t
-DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
-    # dynamic globals are set per code run, these are just the types :CodeGlobals
-    "self": Runner,
-    "node": Node,
-    "session": Session,
-    "runtime": Runtime,
-    "bench": Bench,
-    "run": Run,
-    "aliasing": Aliasing,
-    "resources": CustomObject,
-    "inputs": CustomObject,
-    "outputs": CustomObject,
-    "get_node": get_node,
-    "get_node_or_error": get_node_or_error,
-    "evaluate_path": evaluate_path,
-    "render": render,
-    "upload": upload_file,
-    "log": LogSink.log,
-    "trace": LogSink.trace,
-    "debug": LogSink.debug,
-    "info": LogSink.info,
-    "warn": LogSink.warn,
-    "error": LogSink.error,
-    "panic": LogSink.panic,
-    "print": LogSink.print,
-}
-
-CODE_GLOBALS = {**STATIC_CODE_GLOBALS, **DYNAMIC_CODE_GLOBALS}

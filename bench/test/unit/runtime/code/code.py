@@ -14,7 +14,7 @@ from bench.language import (
     code,
     text,
 )
-from bench.runtime import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, create_run
+from bench.runtime import create_run
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -73,123 +73,6 @@ return {"Output1": text1}
     assert runner.status == ProcessStatus.COMPLETED
     assert runner.outputs
     assert runner.outputs.Output1 == text("hello, [@Code1]!", aliasing={"Code1": Code1})
-
-
-@simulated_runtime()
-async def test_run_code_capture_logs(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """All logging functions should be captured."""
-    Flow1 = Flow.new("Flow1")
-    Logs101 = Action.new(
-        ActionType.CODE,
-        "Logs101",
-        code=code("""\
-import builtins
-print('print1', 'print2') # our own print (injected)
-builtins.print('print3') # python print
-log('log1')
-trace('trace1')
-builtins.print('print4') # python print
-debug('debug1')
-builtins.print('print5\\nwith newline') # python print
-info('info1')
-warn('warn1')
-error('error1')
-panic('panic1')        
-"""),
-    )
-    Flow1.actions.append(Logs101)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Logs101)
-    assert runner.status == ProcessStatus.COMPLETED
-    assert runner.logs and len(runner.logs) == 11
-    for s, log in zip(
-        (
-            "print1 print2",
-            "print3",
-            "log1",
-            "trace1",
-            "print4",
-            "debug1",
-            "print5\nwith newline",
-            "info1",
-            "warn1",
-            "error1",
-            "panic1",
-        ),
-        runner.logs,
-    ):
-        assert log.title == s
-
-
-@simulated_runtime()
-async def test_run_code_capture_logs_on_error(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Logs should also be captured if the code raises an error."""
-    Flow1 = Flow.new("Flow1")
-    Logs102 = Action.new(
-        ActionType.CODE,
-        "Logs102",
-        code=code("""\
-print('print1')
-print('print2')
-raise ValueError('error1')
-print('print3')
-"""),
-    )
-    Flow1.actions.append(Logs102)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Logs102, return_error=True)
-    assert runner.status == ProcessStatus.FAILED
-    assert runner.logs and len(runner.logs) == 2
-    for s, log in zip(("print1", "print2"), runner.logs):
-        assert log.title == s
-
-
-@simulated_runtime()
-async def test_run_code_capture_log_size_overflow(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Logs should only be captured up to a certain size."""
-    Flow1 = Flow.new("Flow1")
-    Logs103 = Action.new(
-        ActionType.CODE,
-        "Logs103",
-        code=code(f"""\
-for i in range(0, {MAX_LOGS_PER_RUN + 5}):
-    print('print', i)
-"""),
-    )
-    Flow1.actions.append(Logs103)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Logs103)
-    assert len(runner.logs) == MAX_LOGS_PER_RUN
-
-
-@simulated_runtime()
-async def test_run_code_capture_log_line_overflow(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Logs should only be captured up to a certain size."""
-    Flow1 = Flow.new("Flow1")
-    Logs103 = Action.new(
-        ActionType.CODE,
-        "Logs103",
-        code=code(f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})"""),
-    )
-    Flow1.actions.append(Logs103)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Logs103)
-    assert runner.logs and len(runner.logs) == 1
-    assert runner.logs[0].title and "truncate" in runner.logs[0].title
 
 
 @simulated_runtime()

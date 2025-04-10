@@ -117,7 +117,7 @@ class Aliasing:
 
     def add(self, obj: Node | NodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
-        from bench.runtime.code.context import CODE_GLOBALS, PYTHON_KEYWORDS
+        from bench.runtime.code.context import PYTHON_KEYWORDS, STATIC_CODE_GLOBALS
 
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
@@ -136,7 +136,7 @@ class Aliasing:
             has_given_name = False
         if (
             alias in self._node_by_alias
-            or alias in CODE_GLOBALS
+            or alias in STATIC_CODE_GLOBALS
             or alias in PYTHON_KEYWORDS
             or not has_given_name
         ):
@@ -147,7 +147,11 @@ class Aliasing:
                 count = 1
             else:
                 count = int(count.group())
-            while alias in self._node_by_alias or alias in CODE_GLOBALS or alias in PYTHON_KEYWORDS:
+            while (
+                alias in self._node_by_alias
+                or alias in STATIC_CODE_GLOBALS
+                or alias in PYTHON_KEYWORDS
+            ):
                 count += 1
                 alias = regex.sub(r"\d+$", str(count + 1), alias)
         self._alias_by_node_id[cast(UUID, obj.id)] = alias

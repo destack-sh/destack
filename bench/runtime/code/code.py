@@ -1,5 +1,4 @@
 import asyncio
-import functools
 from abc import ABC
 from contextlib import contextmanager
 from typing import Any, ClassVar, cast, override
@@ -18,21 +17,17 @@ from bench.language import (
     Field,
     IsType,
     Node,
-    RenderOptions,
     Runnable,
     RunOptions,
     RunType,
     coerce_custom_object_scalar,
     get_node,
-    get_node_or_error,
-    get_path,
-    render,
-    upload_file,
 )
 from bench.runtime.core import CodeInvalidError, Interrupted, RunIn, Runner, Runtime
 
 from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
+from .context import STATIC_CODE_GLOBALS
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -43,7 +38,7 @@ tracer = trace.get_tracer(__name__)
 class CodeRunner(Runner, ABC):
     """Common base for compiling and running code."""
 
-    __slots__ = ("aliasing", "code", "combined_glbls", "compiled", "log_sink")
+    __slots__ = ("aliasing", "code", "combined_globals", "compiled", "log_sink")
 
     runner_type: ClassVar[RunType] = RunType.ACTION
 
@@ -60,8 +55,10 @@ class CodeRunner(Runner, ABC):
         agent: Agent | None = None,
         inputs: CustomObject | None = None,
         outputs: IsType | CustomObject | None = None,
-        constants: dict[str, Any] | None = None,
+        globals: dict[str, Any] | None = None,
     ) -> None:
+        from bench.runtime.model.macro import MACROS_BY_NAME
+
         super().__init__(
             runtime=runtime,
             node=node,
@@ -78,10 +75,11 @@ class CodeRunner(Runner, ABC):
             # ensure the node is aliased for convenience (mostly for testing)
             self.aliasing = self.aliasing.clone()
             self.aliasing.add(self.node)
-        self.combined_glbls: dict[str, Any] = {
-            **self.runtime.combined_glbls,
+        self.combined_globals: dict[str, Any] = {
+            **STATIC_CODE_GLOBALS,
+            **MACROS_BY_NAME,
             **(self.aliasing._node_by_alias if self.aliasing else {}),
-            **(constants or {}),
+            **(globals or {}),
         }
         self.compiled: CompiledCode | None = None
         self.log_sink = LogSink(
@@ -96,7 +94,7 @@ class CodeRunner(Runner, ABC):
         compiled = self.compiled
         if compiled is None:
             self.compiled = compiled = compile_code(
-                self.code.to_string(), kind, self.combined_glbls
+                self.code.to_string(), kind, self.combined_globals
             )
         if compiled.syntax_error:
             syntax_e = compiled.syntax_error
@@ -133,47 +131,15 @@ class CodeRunner(Runner, ABC):
 
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
-        _get_node = functools.partial(get_node, self.node, self.tracked)
-        _get_node_or_error = functools.partial(get_node_or_error, self.node, self.tracked)
-        _get_path = functools.partial(get_path, self.node)
-        _render = functools.partial(
-            render, options=RenderOptions(scope=self.node, aliasing=self.aliasing)
-        )
-        _upload = functools.partial(upload_file, parent=self.tracked_run)
-        glbls = {  # :CodeGlobals
-            # static
-            **self.combined_glbls,
-            # dynamic
-            "self": self,
-            "node": self.node,
-            "session": self.runtime.session,
-            "runtime": self.runtime,
-            "bench": self.runtime.bench,
-            "run": self.closest_tracked_run,
-            "runner": self,
-            "aliasing": self.aliasing,
-            "inputs": self.inputs,
-            "outputs": self.outputs,
-            "get_node": _get_node,
-            "get_node_or_error": _get_node_or_error,
-            "get_path": _get_path,
-            "render": _render,
-            "upload": _upload,
-            "log": self.log_sink,
-            "trace": self.log_sink.trace,
-            "debug": self.log_sink.debug,
-            "info": self.log_sink.info,
-            "warn": self.log_sink.warn,
-            "error": self.log_sink.error,
-            "panic": self.log_sink.panic,
-            "print": self.log_sink.print,
-        }
+        glbls = {**self.combined_globals}
 
         # references
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
         resolved_references: dict[str, Node] = {}
         for reference_name in self.compiled.references:
-            reference = get_node_or_error(self.node, self.tracked, f"^{reference_name}")
+            reference = get_node(self.node, self.tracked, f"^{reference_name}")
+            if reference is None:
+                continue  # unknown reference, may error
             if isinstance(reference, Field):
                 # replace Field reference with the underlying type if it's the same name
                 # (this is useful for Choice/)

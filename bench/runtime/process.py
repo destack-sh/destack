@@ -15,7 +15,6 @@ from bench.pb2 import (
 from bench.pb2.system_grpc import SupervisorClient
 from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeServiceBase
-from bench.runtime.code import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.core import RedisCache, Runtime
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
@@ -112,8 +111,6 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
             cache=cache,
             oracle=self.oracle,
             process=self,
-            static_glbls=STATIC_CODE_GLOBALS,
-            dynamic_glbls=DYNAMIC_CODE_GLOBALS,
             on_error=self.on_error,
         )
         await self._runtime.start()

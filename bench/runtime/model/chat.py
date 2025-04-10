@@ -9,7 +9,6 @@ from opentelemetry import trace
 from bench.language import Agent, Code, ModelDeveloper, ModelType, Runnable, RunOptions
 from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime
 
-from .macro import FUNCTION_MACROS
 from .model import ModelRunner
 from .prompt import Prompt
 
@@ -63,13 +62,6 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         code = code.replace("”", '"')
         # dedent
         code = textwrap.dedent(code)
-        return code
-
-    def expand_code(self, code: str) -> str:
-        """Expand macros into a code completion."""
-        # apply any macros
-        for macro in FUNCTION_MACROS:
-            code = macro.expand(code)
         return code
 
 
