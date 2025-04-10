@@ -60,6 +60,7 @@ class CodeRunner(Runner, ABC):
         agent: Agent | None = None,
         inputs: CustomObject | None = None,
         outputs: IsType | CustomObject | None = None,
+        constants: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -80,6 +81,7 @@ class CodeRunner(Runner, ABC):
         self.combined_glbls: dict[str, Any] = {
             **self.runtime.combined_glbls,
             **(self.aliasing._node_by_alias if self.aliasing else {}),
+            **(constants or {}),
         }
         self.compiled: CompiledCode | None = None
         self.log_sink = LogSink(

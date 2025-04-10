@@ -3,7 +3,7 @@ import inspect
 import textwrap
 from datetime import datetime
 from enum import StrEnum
-from typing import Generator, override
+from typing import Generator, cast, override
 from uuid import UUID
 
 import pytz
@@ -39,6 +39,7 @@ from bench.language import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
+from .macro import SEND
 from .piece import (
     CodePiece,
     CompoundPiece,
@@ -168,41 +169,47 @@ def example_(example_type: ExampleType, title: str):
     return decorator
 
 
+# constant macros
+THREAD: Thread = cast(Thread, None)
+ME: Agent = cast(Agent, None)
+
+
 @example_(ExampleType.SNIPPET, title="Reply to a Message directly")
-def example_reply_to_message_1(Thread1: Thread, Message1: Message):
+def example_reply_to_message_1(Message1: Message):
     # reply to specific message
-    Reply1 = Message.new(text=text("yeah, I'll get right on this"), reply_to=Message1)
-    Thread1.append(Reply1)
+    SEND("yeah, I'll get right on this, sorry I missed it", reply_to=Message1)
 
 
 @example_(ExampleType.SNIPPET, title="Reply to a Message indirectly, title is missing")
-def example_reply_to_message_2(Thread1: Thread, Message1: Message):
+def example_reply_to_message_2():
     # continue conversation
-    Thread1.title = text_line("The Solar System")  # title was missing
-    Thread1.icon = to_icon("☀️")  # there's an appropriate icon we could use
-    Reply1 = Message.new(
-        text=text("The distance from Earth to the moon is **about 384,400 km** (238,855 miles)."),
-    )
-    Thread1.append(Reply1)
+    THREAD.title = text_line("The Solar System")  # title was missing
+    THREAD.icon = to_icon("☀️")  # there's an appropriate icon we could use
+    SEND("The distance from Earth to the moon is **about 384,400 km** (238,855 miles).")
+    SEND("(FYI, The Earth is about 12742 km (7918 miles) in diameter.)")
 
 
-@example_(ExampleType.SNIPPET, title="Reply to a Message with code")
-def example_reply_to_message_3(Thread1: Thread, Message1: Message):
-    # reply to specific message
-    Thread1.title = text_line("Rust Basics")
-    Thread1.icon = to_icon("🦀")
-    Reply1 = Message.new(
-        text=text("""\
+@example_(ExampleType.SNIPPET, title="Reply to a Message with code in two parts")
+def example_reply_to_message_3():
+    THREAD.title = text_line("Rust Basics")
+    THREAD.icon = to_icon("🦀")
+    SEND("""\
 A simple Hello World in Rust would look like this:
-
 ```rust
 fn main() {
     println!("Hello, world!");
 }
-```
-"""),
-    )
-    Thread1.append(Reply1)
+```""")
+    SEND("""\
+Or you could do it like this with your `hilib` crate:
+```rust
+use hilib::{hello, goodbye};
+
+fn main() {
+    hello();
+    goodbye();
+}
+```""")
 
 
 @example_(ExampleType.SNIPPET, title="Don't do anything if not needed")
@@ -212,38 +219,20 @@ def example_reply_to_message_4(Thread1: Thread, Message1: Message):
 
 
 @example_(ExampleType.SNIPPET, title="Mention specific things")
-def example_mention_specific_things(
-    Thread1: Thread,
-    Agent7: Agent,
-    User2: User,
-    File1: File,
-):
+def example_mention_specific_things():
     # tag the relevant agent, and mention the specific file
-    Reply1 = Message.new(
-        text=text(
-            """\
-yup [@Agent2], please look at the file I was talking about: [@File1]
-(cc [@User2])
-""",
-        ),
-    )
-    Thread1.append(Reply1)
+    SEND("yup [@Agent2], please look at the file I was talking about: [@File1]\n(cc [@User2])")
 
 
 @example_(ExampleType.SNIPPET, title="Use quotes as needed")
 def example_use_quotes_as_needed(Thread1: Thread, File1: File):
-    Reply1 = Message.new(
-        text=text(
-            """\
+    SEND("""\
 Here's the text from [@File1]:
 > Total amount: $100.00
 > Date: 2021-01-01
 > Description: 79kg of rice
-Note that the text near the borders is not legible. 
-""",
-        ),
-    )
-    Thread1.append(Reply1)
+""")
+    SEND("(btw the stuff at the borders wasn't really legible)")
 
 
 @example_(ExampleType.SNIPPET, title="Include code block language")
@@ -255,35 +244,4 @@ Sure, here's how you make lists in markdown:
 - Item 1
 - Item 2
 ```
----
-Looks like this:
-- Item 1
-- Item 2
 """)
-
-
-@example_(ExampleType.SNIPPET, title="Split long responses")
-def example_split_long_responses(Thread1: Thread):
-    Message1 = Message.new(
-        text=text("""\
-ah okay
-""")
-    )
-    Thread1.append(Message1)
-    # this will be a long response
-    # --- FLUSH ---
-    Message2 = Message.new(
-        text=text("""\
-< ... long response part 1 ... >
-""")
-    )
-    Thread1.append(Message2)
-    # --- FLUSH ---
-    # < ... more code to do something else ... >
-    # --- FLUSH ---
-    Message3 = Message.new(
-        text=text("""\
-done
-""")
-    )
-    Thread1.append(Message3)

@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import TYPE_CHECKING, ClassVar
 
-from bench.language import CustomObject, IsType, ModelType, Runnable, RunOptions, RunType
+from bench.language import Agent, CustomObject, IsType, ModelType, Runnable, RunOptions, RunType
 from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ class ModelRunner[R: Runnable = Runnable](Runner[R], ABC):
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
         outputs: IsType | CustomObject | None = None,
+        agent: "Agent | None" = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
@@ -35,5 +36,6 @@ class ModelRunner[R: Runnable = Runnable](Runner[R], ABC):
             inputs=inputs,
             outputs=outputs,
             run=run,
+            agent=agent,
         )
         self.model_type = model_type

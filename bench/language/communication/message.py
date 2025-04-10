@@ -20,6 +20,7 @@ from bench.language.core import (
     PackageNode,
     StructType,
     Text,
+    TextIn,
     TextLine,
     enum_,
     p_internal,
@@ -31,6 +32,7 @@ from bench.language.core import (
     p_value_runtime,
     text_line,
     timed_node_,
+    to_text,
 )
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
@@ -227,9 +229,9 @@ class Message(
 
     @staticmethod
     def new(
-        title: TextLine | None = None,
-        text: Text | None = None,
+        text: TextIn | None = None,
         *,
+        title: TextLine | None = None,
         platform: MessagePlatform = MessagePlatform.BENCH,
         scope: Optional["InlineNode"] = None,
         reply_to: Optional["Message"] = None,
@@ -239,7 +241,7 @@ class Message(
             type=MessageType.REGULAR,
             platform=platform,
             title=text_line(title) if title is not None else None,
-            text=text,
+            text=to_text(text) if text is not None else None,
             reply_to=reply_to,
         )
         if nodes is not None:

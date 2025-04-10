@@ -11,7 +11,7 @@ from bench.runtime.code import CodeFunctionRunner
 from bench.runtime.core import ATTEMPT_ONCE, NotSupportedError, Runner
 from bench.utils.utils import get_from_env
 
-from .chat import ChatModelRunner, strip_code_completion
+from .chat import ChatModelRunner
 from .piece import (
     AudioPiece,
     BreakPiece,
@@ -125,12 +125,12 @@ class AnthropicChatModelRunner(ChatModelRunner):
             messages=messages,
             temperature=temperature or NOT_GIVEN,
         )
-        completion_text = getattr(completion.content[0], "text", None)
-        if isinstance(completion_text, str):
-            completion_text = strip_code_completion(completion_text)
+        code_str = getattr(completion.content[0], "text", None) or ""
+        code_str = self.clean_code(code_str)
+        code_str = self.expand_code(code_str)
 
         # run
-        code = Code.from_string(completion_text or "pass", language="python")
+        code = Code.from_string(code_str or "pass", language="python")
         code_runner = CodeFunctionRunner(
             runtime=self.runtime,
             node=self.node,

@@ -326,6 +326,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 options=self.options,
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
+                agent=self.agent,
                 run=SpanType.FLOW_THINK,
             )
             attempt = model_runner.tracked_span

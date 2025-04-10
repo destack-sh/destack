@@ -267,6 +267,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
                     type=run,
                     status=self.status,
                     mode=self.mode,
+                    agent=agent,
                     _skip_validate_self=True,
                 )
                 parent_run._copy_context_to(tracked_span)
