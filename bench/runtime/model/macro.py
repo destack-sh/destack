@@ -48,33 +48,30 @@ class ConstantMacro[T: Any](Macro):
     def compile(
         self, prompt: Prompt, tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        yield CodePiece(code=f"{self.text}\n{self.name}: {self.type}")
+        yield CodePiece(code=f"# {self.text}\n{self.name}: {self.type}")
 
     def get_value(self, runner: Runner) -> T:
         """Get the value of the Macro (not its name, the actual value for the global)."""
         return self._get_value(runner)
 
 
-def constant_macro_(name: str, text: str):
+def constant_macro_(name: str, text: str, type: str):
     def decorator(func):
-        signature = inspect.signature(func)
-        return_annotation = signature.return_annotation
-        type_str = str(return_annotation)
-        macro = ConstantMacro(name, text, type_str, func)
+        macro = ConstantMacro(name, text, type, func)
         CONSTANT_MACROS.append(macro)
         return func
 
     return decorator
 
 
-@constant_macro_("ME", "You (i.e. the current Agent).")
+@constant_macro_("ME", "You (i.e. the current Agent).", "Agent")
 def ME(runner: Runner) -> Agent:
     agent = runner.agent
     assert agent is not None, "Agent is not set"
     return agent
 
 
-@constant_macro_("THREAD", "The current Thread.")
+@constant_macro_("THREAD", "The current Thread.", "Thread")
 def THREAD(runner: Runner) -> Thread:
     return runner.thread.thread
 
@@ -87,12 +84,13 @@ def THREAD(runner: Runner) -> Thread:
 class FunctionMacro(Macro):
     """A function 'macro' (really just a function)"""
 
-    def __init__(self, name: str, text: str, signature: str, pattern: str, substitution: str):
+    def __init__(self, name: str, text: str, signature: str, substitution: str):
         super().__init__(name, text)
         self.signature = signature
-        self.pattern = pattern
         self.substitution = substitution
-        self._compiled_pattern = regex.compile(f"^{self.name}\\((?P<args>.*)\\)$", regex.MULTILINE)
+        self._compiled_pattern = regex.compile(
+            f"^{self.name}\\((?P<args>.*?)\\)$", regex.MULTILINE | regex.DOTALL
+        )
 
     @override
     def compile(
@@ -107,12 +105,11 @@ class FunctionMacro(Macro):
         )
 
 
-def function_macro_(name: str, text: str, substitution: str):
+def function_macro_(
+    name: str, text: str, signature: str, substitution: str, base: type[FunctionMacro] | None = None
+):
     def decorator(func):
-        signature = inspect.signature(func)
-        type_str = str(signature)
-        pattern = f"{name}\\((.*)\\)"
-        macro = FunctionMacro(name, text, type_str, pattern, substitution)
+        macro = (base or FunctionMacro)(name, text, signature, substitution)
         FUNCTION_MACROS.append(macro)
         return func
 
@@ -121,7 +118,10 @@ def function_macro_(name: str, text: str, substitution: str):
 
 @function_macro_(
     "SEND",
-    "Create a Message in the current Thread.",
+    """\
+Create a Message in the current Thread. SEND SHOULD ONLY BE ONE PARAGRAPH.
+(NO \\n\\n except in code blocks and such.)""",
+    signature="(text: str, *, nodes: list[Node] | None = None, reply_to: Message | None = None, autosplit: bool = True)",
     substitution="""\
 MY_LAST_MESSAGE = Message.new(<args>)
 THREAD.append(MY_LAST_MESSAGE)
@@ -134,6 +134,7 @@ def SEND(text: str, *, nodes: list[Node] | None = None, reply_to: Message | None
 @function_macro_(
     "FLUSH",
     "Flush all edits.",
+    signature="()",
     substitution="""\
 # --- FLUSH ---
 """,

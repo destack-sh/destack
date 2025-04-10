@@ -67,6 +67,7 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
 
     def expand_code(self, code: str) -> str:
         """Expand macros into a code completion."""
+        # apply any macros
         for macro in FUNCTION_MACROS:
             code = macro.expand(code)
         return code

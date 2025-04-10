@@ -180,7 +180,8 @@ class RegionPiece(CompoundPiece):
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        yield BreakPiece()
+        if self.insert_breaks:
+            yield BreakPiece()
         yield SeparatorPiece()
         yield TextPiece(text=self.title)
         if self.text is not None:
@@ -197,7 +198,8 @@ class RegionPiece(CompoundPiece):
             if self.insert_breaks:
                 yield BreakPiece()
         yield SeparatorPiece()
-        yield BreakPiece()
+        if self.insert_breaks:
+            yield BreakPiece()
 
 
 @piece_()

@@ -128,11 +128,15 @@ class OpenAIChatModelRunner(ChatModelRunner):
                 chunk_content = chunk.choices[0].delta.content
                 code_str += chunk_content
                 print(chunk_content)
+        print("=" * 32)
         print("RESPONSE")
+        print("=" * 32)
         print(code_str)
         code_str = self.clean_code(code_str)
         code_str = self.expand_code(code_str)
-        print("\nCLEANED\n")
+        print("=" * 32)
+        print("EXPANDED")
+        print("=" * 32)
         print(code_str)  # nocheckin
 
         # run
