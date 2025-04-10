@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 
 assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
-FLUSH_MARKER = "# --- FLUSH ---"
 SYSTEM_PROMPT = """\
 You are a generalist agent in a Python shell on the Bench software platform.
 You MUST always respond directly with valid, inline Python code (0 indent, escape quotes, ...).

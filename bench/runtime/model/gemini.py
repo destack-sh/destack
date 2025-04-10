@@ -105,7 +105,6 @@ class GeminiChatModelRunner(ChatModelRunner):
         )
         code_str = completion.parts[0].text
         code_str = self.clean_code(code_str)
-        code_str = self.expand_code(code_str)
 
         # run
         code = Code.from_string(code_str or "pass", language="python")

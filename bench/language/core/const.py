@@ -1500,7 +1500,7 @@ class ProcessStatus(BuiltinEnum):
     QUEUED = 5, "Queued", "Queued to happen soon", "fas fa-clock", ColorType.GRAY
     # active
     RUNNING = 10, "Running", "Actively running", "fas fa-circle-notch", ColorType.BLUE
-    FAILING = 11, "Failing", "Experiencing issues", "fas fa-circle-exclamation", ColorType.RED
+    FAILING = 11, "Failing", "Experiencing issues", "fas fa-circle-exclamation", ColorType.ORANGE
     # interrupted
     PAUSED = 20, "Paused", "Paused manually", "fas fa-circle-pause", ColorType.PINK
     YIELDED = 21, "Yielded", "Yielded to someone", "fas fa-circle-pause", ColorType.PINK

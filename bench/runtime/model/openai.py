@@ -12,7 +12,7 @@ from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
-from .macro import CONSTANT_MACROS
+from .macro import MACROS
 from .piece import (
     AudioPiece,
     BreakPiece,
@@ -128,14 +128,9 @@ class OpenAIChatModelRunner(ChatModelRunner):
                 chunk_content = chunk.choices[0].delta.content
                 code_str += chunk_content
                 print(chunk_content)
+        code_str = self.clean_code(code_str)
         print("=" * 32)
         print("RESPONSE")
-        print("=" * 32)
-        print(code_str)
-        code_str = self.clean_code(code_str)
-        code_str = self.expand_code(code_str)
-        print("=" * 32)
-        print("EXPANDED")
         print("=" * 32)
         print(code_str)  # nocheckin
 
@@ -149,7 +144,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
             options=ATTEMPT_ONCE,
             inputs=self.inputs,
             outputs=self.output_type,
-            constants={c.name: c.get_value(self) for c in CONSTANT_MACROS},
+            globals={macro.name: macro.bind(self) for macro in MACROS},
             parent=cast(Runner[Runnable], self),
             run=SpanType.MODEL_PARSE,
         )

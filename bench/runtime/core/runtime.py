@@ -1,7 +1,7 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime, timedelta
-from typing import Any, Callable, Mapping, Sequence, cast
+from typing import Any, Callable, Sequence, cast
 from uuid import UUID
 
 import structlog
@@ -116,12 +116,8 @@ class Runtime:
         cache: Cache,
         oracle: Oracle,
         process: "RuntimeProcess | None" = None,
-        static_glbls: Mapping[str, Any] | None = None,
-        dynamic_glbls: Mapping[str, Any] | None = None,
         on_error: Callable[[BaseException], None] | None = None,
     ):
-        from bench.runtime.code import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
-
         assert session.bench is not None, f"{session!r} is not attached"
         self.session = session
         self.session._graph.add_types(*RUNTIME_NODE_TYPES)
@@ -132,9 +128,6 @@ class Runtime:
         self.bench = session.bench
         self.cache = cache
         self.oracle = oracle
-        self.static_glbls = static_glbls or STATIC_CODE_GLOBALS
-        self.dynamic_glbls = dynamic_glbls or DYNAMIC_CODE_GLOBALS
-        self.combined_glbls = {**self.static_glbls, **self.dynamic_glbls}
         self.process = process
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"

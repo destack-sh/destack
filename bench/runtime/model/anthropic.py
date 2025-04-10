@@ -127,7 +127,6 @@ class AnthropicChatModelRunner(ChatModelRunner):
         )
         code_str = getattr(completion.content[0], "text", None) or ""
         code_str = self.clean_code(code_str)
-        code_str = self.expand_code(code_str)
 
         # run
         code = Code.from_string(code_str or "pass", language="python")
