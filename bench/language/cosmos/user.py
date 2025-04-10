@@ -23,7 +23,7 @@ from bench.language.core import (
 from bench.pb2 import UserData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, Icon, NodeReference, Text, User
+    from bench.language import Bench, Cursor, Handle, Icon, NodeReference, Text, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -54,11 +54,16 @@ class User(IsSubject, Node[UserData]):
     main_handle: Optional["Handle"] = p_system(
         41, require=False, array=False, references=NodeType.HANDLE, fk=True
     )
+    main_cursor: Optional["Cursor"] = p_regular(
+        42, default=None, require=False, references=NodeType.CURSOR, fk=True
+    )
     if TYPE_CHECKING:
         main_bench_id: Optional[UUID] = None
         main_bench_ptr: Optional[NodeReference] = None
         main_handle_id: Optional[UUID] = None
         main_handle_ptr: Optional[NodeReference] = None
+        main_cursor_id: Optional[UUID] = None
+        main_cursor_ptr: Optional[NodeReference] = None
 
     # auth
     # TODO :Architecture: refactor out authentication & challenges for Users/Client

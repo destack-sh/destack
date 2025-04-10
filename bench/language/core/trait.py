@@ -36,6 +36,7 @@ if TYPE_CHECKING:
         ComputedValue,
         ComputedValueMode,
         Computer,
+        Cursor,
         Database,
         Error,
         Flow,
@@ -82,6 +83,7 @@ Ownable = Union[
     "Claim",
     "Agent",
     "Record",
+    "Cursor",
 ]
 OWNABLE_NODE_TYPES = bittuple(
     NodeType.BENCH,
@@ -99,6 +101,7 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.CLAIM,
     NodeType.AGENT,
     NodeType.RECORD,
+    NodeType.CURSOR,
 )
 
 Claimable = Union[

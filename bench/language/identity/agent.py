@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Channel,
         Claim,
+        Cursor,
         Field,
         Flow,
         Page,
@@ -102,15 +103,23 @@ class Agent(
         same_bench=True,
         description="The main Plan to consider in this Agent (may be on the Page).",
     )
-    implemented_by: Optional["Run"] = p_regular(
+    main_cursor: Optional["Cursor"] = p_regular(
         56,
+        require=False,
+        array=False,
+        references=NodeType.CURSOR,
+        same_bench=True,
+        description="The main Cursor for this Agent.",
+    )
+    implemented_by: Optional["Run"] = p_regular(
+        58,
         require=False,
         references=NodeType.RUN,
         same_bench=True,
         description="The Run implementing this Agent (there may be only one at a time).",
     )
     text: Optional["Text"] = p_regular(57, default=None, struct=StructType.TEXT)
-    color: ColorType | None = p_regular(58)
+    color: ColorType | None = p_regular(59)
     if TYPE_CHECKING:
         main_flow_ptr: Optional[NodeReference] = None
         main_flow_id: Optional[UUID] = None
@@ -118,6 +127,8 @@ class Agent(
         main_page_id: Optional[UUID] = None
         main_plan_ptr: Optional[NodeReference] = None
         main_plan_id: Optional[UUID] = None
+        main_cursor_ptr: Optional[NodeReference] = None
+        main_cursor_id: Optional[UUID] = None
         implemented_by_ptr: Optional[NodeReference] = None
         implemented_by_id: Optional[UUID] = None
 

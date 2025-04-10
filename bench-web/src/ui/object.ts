@@ -772,7 +772,7 @@ export class KitLayout extends RunnableNodeLayout<NodeType.KIT> {
   make() {
     const commonRows: Row[] = [];
     this.section(undefined, commonRows);
-    this.section("Catalog", this.claimRows());
+    this.section("Context", this.claimRows());
   }
 }
 
@@ -783,7 +783,7 @@ export class FlowLayout extends RunnableNodeLayout<NodeType.FLOW> {
 
     // schema
     if (!this.isPartial) {
-      this.section("Catalog", this.claimRows());
+      this.section("Context", this.claimRows());
       this.section(
         "Schema",
         [
@@ -832,7 +832,7 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
       } else {
         toolRows.push(...this.claimRows());
       }
-      this.section("Catalog", toolRows);
+      this.section("Context", toolRows);
       // tool schema
       this.section(
         "Schema",
@@ -903,7 +903,7 @@ export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
   make() {
     this.section(undefined, []);
     this.section("Members", [{ type: "membership-list", title: undefined }], {});
-    this.section("Catalog", [{ type: "claims-list", title: undefined }], {});
+    this.section("Context", [{ type: "claims-list", title: undefined }], {});
   }
 }
 
@@ -913,7 +913,7 @@ export class ThreadLayout extends NodeLayout<NodeType.THREAD> {
       // this.rowProperty(ThreadProperty.mainPagePtr)
     ]);
     this.section("Members", [{ type: "membership-list", title: undefined }], {});
-    this.section("Catalog", [{ type: "claims-list", title: undefined }], {});
+    this.section("Context", [{ type: "claims-list", title: undefined }], {});
   }
 }
 
@@ -930,7 +930,7 @@ export class TaskLayout extends NodeLayout<NodeType.TASK> {
 export class AgentLayout extends NodeLayout<NodeType.AGENT> {
   make() {
     this.section(undefined, []);
-    this.section("Catalog", [{ type: "claims-list", title: undefined }], {});
+    this.section("Context", [{ type: "claims-list", title: undefined }], {});
     this.section(
       "Schema",
       [

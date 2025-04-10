@@ -31,6 +31,7 @@ THREAD_QUERY = Thread.include_descendants(
     NodeType.TASK,
     NodeType.CLAIM,
     NodeType.AGENT,
+    NodeType.CURSOR,
 )
 
 

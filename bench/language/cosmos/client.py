@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.pb2 import ClientData, ClientOriginData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Computer, Space, User
+    from bench.language import Bench, Computer, Cursor, Space, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -31,34 +31,44 @@ if TYPE_CHECKING:
 class Client(IsNamed, Node[ClientData]):
     """A Client to connect with the system."""
 
+    # meta
     parent: Union["User", "Bench", None] = p_node_parent(4, NodeType.USER, NodeType.BENCH)
     bench: "Bench | None" = p_node_ancestor(5, NodeType.BENCH, require=False, store=True, wire=True)
     user: "User | None" = p_node_ancestor(7, NodeType.USER, require=False, store=True, wire=True)
+    type: ClientType = p_regular(30)
+    space: Optional["Space"] = p_system(35, array=False, require=False, references=NodeType.SPACE)
+    computer: Optional["Computer"] = p_system(
+        36, array=False, require=False, references=NodeType.COMPUTER
+    )
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
+        space_id: Optional[UUID] = None
+        space_ptr: Optional[NodeReference] = None
+        computer_id: Optional[UUID] = None
+        computer_ptr: Optional[NodeReference] = None
 
-    type: ClientType = p_regular(30)
-
-    device_type: Optional[str] = p_regular(40, default=None)
-    device_name: Optional[str] = p_regular(41, default=None)
-    operating_system: Optional[str] = p_regular(42, default=None)
-    browser_name: Optional[str] = p_regular(43, default=None)
-    browser_version: Optional[str] = p_regular(44, default=None)
-    place_id: Optional[str] = p_regular(45, default=None)
-
+    # status
     access_token: Optional[str] = p_kernel(
         50, default=None, defer=True, unique=True, sensitive=True
     )
     seen_at: Optional[datetime] = p_system(51, default=None)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
-
-    space: Optional["Space"] = p_system(60, array=False, require=False, references=NodeType.SPACE)
-    computer: Optional["Computer"] = p_system(
-        62, array=False, require=False, references=NodeType.COMPUTER
+    main_cursor: Optional["Cursor"] = p_regular(
+        55, default=None, require=False, references=NodeType.CURSOR, fk=True
     )
+    if TYPE_CHECKING:
+        main_cursor_id: Optional[UUID] = None
+        main_cursor_ptr: Optional[NodeReference] = None
+
+    # details
+    device_type: Optional[str] = p_regular(40, default=None)
+    device_name: Optional[str] = p_regular(41, default=None)
+    operating_system: Optional[str] = p_regular(42, default=None)
+    browser_name: Optional[str] = p_regular(43, default=None)
+    browser_version: Optional[str] = p_regular(44, default=None)
 
     @property
     def is_attached(self) -> bool:
