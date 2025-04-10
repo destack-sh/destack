@@ -360,6 +360,16 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 )
                 if not retry.on_error(e):
                     raise
+                else:
+                    interval = retry.get_wait_interval()
+                    logger.trace(
+                        "flow.think.retry",
+                        flow=self.node,
+                        runner=self,
+                        attempt=attempt,
+                        interval=interval,
+                    )
+                    await self.runtime.oracle.sleep(interval)
             finally:
                 self._active_planning_runner = None
 

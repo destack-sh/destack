@@ -51,11 +51,17 @@ def get_chat_model_runner_cls(
     model_developer: ModelDeveloper, model_type: ModelType
 ) -> type[ChatModelRunner]:
     """Get the ChatModelRunner class for the given model type."""
-    from bench.runtime.model import AnthropicChatModelRunner, OpenAIChatModelRunner
+    from bench.runtime.model import (
+        AnthropicChatModelRunner,
+        GeminiChatModelRunner,
+        OpenAIChatModelRunner,
+    )
 
     if model_developer == ModelDeveloper.OPENAI:
         return OpenAIChatModelRunner
     elif model_developer == ModelDeveloper.ANTHROPIC:
         return AnthropicChatModelRunner
+    elif model_developer == ModelDeveloper.GOOGLE:
+        return GeminiChatModelRunner
     else:
         raise NotSupportedError(f"unsupported model developer {model_developer!r}")
