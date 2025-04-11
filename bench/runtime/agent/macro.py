@@ -1,19 +1,13 @@
 import abc
 import functools
-import inspect
-import textwrap
-from abc import ABC
 from enum import StrEnum
-from typing import Any, Callable, Generator, Sequence, cast, final, override
+from typing import TYPE_CHECKING, Any, Callable, Generator, cast, final, override
 
-import regex
+from bench.language import Agent, FileIn, Message, Node, TextIn, Thread, upload_file
+from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, TextPiece, Tokenizer
 
-from bench.language import Agent, Aliasing, FileIn, Message, Node, TextIn, Thread, upload_file
-from bench.runtime.core import Runner
-
-from .piece import CodePiece, CompoundPiece, Piece, TextPiece
-from .prompt import Prompt
-from .token import Tokenizer
+if TYPE_CHECKING:
+    from bench.runtime import AgentRunner
 
 # ruff: noqa: F401,B018,N802,N803,F841
 
@@ -43,7 +37,7 @@ class Macro(CompoundPiece):
         self.text = text
 
     @abc.abstractmethod
-    def bind(self, runner: Runner) -> Any:
+    def bind(self, runner: "AgentRunner") -> Any:
         """Bind the Macro to a Runner."""
 
 
@@ -55,7 +49,7 @@ class Macro(CompoundPiece):
 class ConstantMacro[T: Any](Macro):
     """A constant 'macro' (really just a global)"""
 
-    def __init__(self, name: str, text: str, type: str, func: Callable[[Runner], T]):
+    def __init__(self, name: str, text: str, type: str, func: Callable[["AgentRunner"], T]):
         super().__init__(name, text)
         self.type = type
         self._get_value = func
@@ -67,7 +61,7 @@ class ConstantMacro[T: Any](Macro):
         yield CodePiece(code=f"# {self.text}\n{self.name}: {self.type}")
 
     @final
-    def bind(self, runner: Runner) -> T:
+    def bind(self, runner: "AgentRunner") -> T:
         """Get the value of the Macro (not its name, the actual value for the global)."""
         return self._get_value(runner)
 
@@ -83,14 +77,14 @@ def constant_macro_(name: str, text: str, type: str):
 
 
 @constant_macro_("ME", "You (i.e. the current Agent).", "Agent")
-def ME(runner: Runner) -> Agent:
+def ME(runner: "AgentRunner") -> Agent:
     agent = runner.agent
     assert agent is not None, f"no agent in {runner!r}"
     return agent
 
 
 @constant_macro_("THREAD", "The current Thread.", "Thread")
-def THREAD(runner: Runner) -> Thread:
+def THREAD(runner: "AgentRunner") -> Thread:
     thread = runner.thread.thread
     assert thread is not None, f"no thread in {runner!r}"
     return thread
@@ -109,7 +103,7 @@ class FunctionMacro(Macro):
         name: str,
         text: str,
         signature: str,
-        func: Callable[[Runner], Callable[..., None]],
+        func: Callable[["AgentRunner"], Callable[..., None]],
     ):
         self.name = name
         self.text = text
@@ -123,7 +117,7 @@ class FunctionMacro(Macro):
         yield TextPiece(text=f"{self.text}\n{self.name}{self.signature}")
 
     @final
-    def bind(self, runner: Runner) -> Callable:
+    def bind(self, runner: "AgentRunner") -> Callable:
         return functools.partial(self.func, runner=runner)  # type: ignore
 
 
@@ -138,11 +132,11 @@ def function_macro_(name: str, text: str, signature: str):
 
 
 # just for type-checking, function macros are never called directly (only after binding)
-_INJECTED_RUNNER = cast(Runner, None)
+_INJECTED_RUNNER = cast("AgentRunner", None)
 
 
 @function_macro_("FLUSH", "Flush all pending edits.", signature="() -> None")
-def FLUSH(*, runner: Runner = _INJECTED_RUNNER):
+def FLUSH(*, runner: "AgentRunner" = _INJECTED_RUNNER):
     runner.session.stage()
 
 
@@ -160,7 +154,7 @@ def SEND(
     *,
     nodes: list[Node] | None = None,
     reply_to: Message | None = None,
-    runner: Runner = _INJECTED_RUNNER,
+    runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
     thread = runner.thread.thread
     message = Message.new(text=text, nodes=nodes, reply_to=reply_to)
@@ -170,5 +164,10 @@ def SEND(
 
 
 @function_macro_("UPLOAD", "Upload a File.", signature="(file_in: bytes | Path, name: str) -> File")
-def UPLOAD(file_in: FileIn, name: str, runner: Runner = _INJECTED_RUNNER):
+def UPLOAD(file_in: FileIn, name: str, runner: "AgentRunner" = _INJECTED_RUNNER):
     return upload_file(file_in, name, parent=runner.closest_tracked_run)
+
+
+@function_macro_("COMPLETE", "Stop for now.", signature="() -> None")
+def COMPLETE(runner: "AgentRunner" = _INJECTED_RUNNER):
+    runner.complete()

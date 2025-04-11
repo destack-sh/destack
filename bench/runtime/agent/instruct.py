@@ -6,8 +6,6 @@ from bench.language import (
     _is_setup_complete,
 )
 from bench.runtime.model import (
-    CONSTANT_MACROS,
-    FUNCTION_MACROS,
     AgentPiece,
     AttemptPiece,
     PagePiece,
@@ -15,6 +13,8 @@ from bench.runtime.model import (
     Prompt,
     ThreadPiece,
 )
+
+from .macro import CONSTANT_MACROS, FUNCTION_MACROS
 
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
@@ -140,7 +140,7 @@ def make_agent_think_prompt(
 ) -> Prompt:
     """Build a Prompt to think about Flow execution."""
 
-    from ..model.example import EXAMPLES
+    from .example import EXAMPLES
 
     # context
     run = runner.tracked_run

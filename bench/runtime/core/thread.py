@@ -1,16 +1,17 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    RESOURCE_NODE_TYPES,
+    Agent,
     Computer,
     GetConnection,
     GraphCapture,
+    LocalNodeList,
     Message,
     NodeReference,
-    NodeType,
     Plan,
     ResourceStatus,
     SearchConnection,
@@ -92,6 +93,11 @@ class ThreadHandle:
         return self._messages_connection.result.roots
 
     @property
+    def agents(self) -> LocalNodeList[Agent]:
+        """The Agents."""
+        return self.thread.agents
+
+    @property
     def last_message(self) -> Message | None:
         """The last Message (if any)."""
         if (
@@ -99,6 +105,14 @@ class ThreadHandle:
             and len(self._messages_connection.result.roots) > 0
         ):
             return self._messages_connection.result.roots[-1]
+        else:
+            return None
+
+    @property
+    def last_message_at(self) -> datetime | None:
+        """The timestamp of the last Message (if any)."""
+        if (message := self.last_message) is not None:
+            return message.created_at
         else:
             return None
 

@@ -56,6 +56,7 @@ from bench.language import (
 from bench.proto.network import Network
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
+from bench.utils.task import TaskManager
 
 from .cache import Cache
 from .error import NonRetryableError, RetryableError
@@ -67,6 +68,7 @@ from .runner import (
     RunnerCompletedEvent,
     RunnerFailedEvent,
     RunnerInterruptedEvent,
+    create_run,
     restore_runner,
 )
 from .thread import ThreadHandle
@@ -134,15 +136,17 @@ class Runtime:
         self.on_error = on_error
         assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
         self.session._runtime = self
+        self.tasks = TaskManager(owner=self, logger=logger, oracle=self.oracle)
 
         self._locks_by_run_id: dict[UUID, asyncio.Lock] = {}
         self._locks_by_thread_id: dict[UUID, asyncio.Lock] = {}
         self._threads_by_id: dict[UUID, ThreadHandle] = {}
         self._runners_by_id: dict[UUID, Runner] = {}
-        self._runners_by_thread_id: dict[UUID, list[Runner]] = {}
+        self._runners_by_runnable_id: dict[UUID, list[Runner]] = {}
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
         self._active_root_runners: list[Runner] = []
+        self._thread_tick_queue: asyncio.Queue[Thread] = asyncio.Queue()
         self._is_draining: bool = False
 
     def __str__(self):
@@ -177,21 +181,27 @@ class Runtime:
     @tracer.start_as_current_span("runtime.start")
     async def start(self):
         """Start the Runtime."""
+        # open session
         assert self.session.status == SessionStatus.PENDING, f"{self.session!r} is not pending"
         self.session.status = SessionStatus.OPEN
         self.session.opened_at = self.oracle.utc()
         self.session._create(self.session)
         await self.session.commit()
 
+        # start tasks
+        self.tasks.start_queue(self._thread_tick_queue, self._tick_thread, skip_errors=True)
+
     def stop(self):
         """Stop the Runtime (drain active Runs)."""
         # TODO :Robustness: handle Runtime stop better? pause, transfer existing Runs?
         #  (maybe auto-interrupt all active Runners so we can transfer them? :HibernateRuns)
+        self.tasks.close()
         self._is_draining = True
 
     @tracer.start_as_current_span("runtime.wait_stopped")
     async def wait_stopped(self):
         """Wait for the Runtime to stop (all active Runs to stop + commit)."""
+        await self.tasks.wait_closed()
         active_runners = tuple(runner for runner in self._active_root_runners if runner.task)
         if active_runners:
             logger.debug("runtime.wait_stopped.runners", runners=active_runners)
@@ -202,216 +212,6 @@ class Runtime:
         self.session.status = SessionStatus.CLOSED
         await self.session.commit(_ignore_open=True)
         await self.session.close()
-
-    #
-    # Context
-    #
-
-    @tracer.start_as_current_span("runtime.wait_for")
-    async def wait_for(
-        self,
-        nodes: Sequence[Node],
-        condition: Callable[[], bool],
-        timeout: timedelta | None = None,
-    ):
-        """
-        Wait for the given nodes to reach a certain state.
-        NOTE :Architecture: use Triggers/Interruptions instead of 'busy' (async) wait in Runtime?
-        """
-        if condition():
-            return  # already good
-        if timeout is None:
-            timeout = DEFAULT_WAIT_TIMEOUT
-
-        # ensure nodes are in global graph
-        assert not any(node.is_deleted for node in nodes), f"cannot watch deleted: {nodes!r}"
-        if any(node._is_new for node in nodes):
-            await self.session.commit()
-
-        log = logger.bind(runtime=self, nodes=nodes, condition=condition)
-        subs: list[Callable[[], None]] = []
-        links = None
-        complete_signal = asyncio.Event()
-
-        def _check():
-            """Check if the condition is met, stop if so."""
-            if condition():
-                log.debug("runtime.wait_for.complete")
-                complete_signal.set()
-
-        try:
-            # subscribe
-            stale_nodes = [node for node in nodes if not node._is_live]
-            links = await synchronize_nodes(stale_nodes)
-            for link in links:
-                subs.append(link.on_update(_check))
-            for node in nodes:
-                subs.append(self.session.on_edit(node, lambda _: _check()))
-            log.trace("runtime.wait_for.subscribe", links=links)
-
-            # wait for condition
-            log.debug("runtime.wait_for")
-            _check()
-            await asyncio.wait_for(complete_signal.wait(), timeout=timeout.total_seconds())
-            log.debug("runtime.wait_for.complete")
-        except asyncio.TimeoutError as e:
-            raise TimeoutError(f"timed out waiting for {nodes!r}") from e
-        except BaseException as e:
-            log.error("runtime.wait_for.error", exc_info=e)
-            raise
-        finally:
-            if links is not None:
-                for link in links:
-                    link.close()
-            for sub in subs:
-                sub()
-
-    def _set_session_context(self, node: IsRuntime):
-        """Sets the Session context on a runtime Node."""
-        if node.session_id != self.session.id:
-            node.session_ptr = self.session_ptr
-        if node.client_id != self.session.client_id:
-            node.client_ptr = self.session.client_ptr
-        if node.computer_id != self.session.computer_id:
-            node.computer_ptr = self.session.computer_ptr
-
-    def on_external_update(self, update: WatchGetUpdate | WatchSearchUpdate):
-        """React to updates on Runtime nodes from outside this Runtime."""
-        print(update)
-        for node in update.updated.values():
-            if isinstance(node, Run):
-                # handle requested state changes
-                if node.should_stop:
-                    self.stop_run(node)
-                elif node.should_pause:
-                    pass  # nothing to do (pause is trapped automatically)
-                elif node.should_resume:
-                    # close open Interruption, resume affected Runs
-                    interruption = node.interruption
-                    if (
-                        interruption
-                        and interruption.type == InterruptionType.PAUSE
-                        and not interruption.status.is_closed
-                    ):
-                        interruption.complete(_trigger_runtime=False)
-                    self.resume_run(node, *node.ancestors)
-            elif isinstance(node, Interruption):
-                if node.status.is_closed:
-                    self.resume_run(*self.get_interrupted_runs(self.session._graph, node))
-
-    def get_thread(self, thread_id: UUID) -> ThreadHandle | None:
-        """Get a Thread."""
-        return self._threads_by_id.get(thread_id)
-
-    @tracer.start_as_current_span("runtime.load_thread")
-    async def _load_thread(self, thread_ptr: NodeReference) -> ThreadHandle:
-        """Load a Thread."""
-        trace.get_current_span().set_attribute("thread_id", str(thread_ptr.id))
-
-        # bail if we already have this thread
-        if thread_ptr.id in self._threads_by_id:
-            thread = self._threads_by_id[thread_ptr.id]
-            logger.debug("runtime.load_thread.skip", thread=thread, span="current")
-            return thread
-
-        # synchronize
-        if thread_ptr.id in self._locks_by_thread_id:
-            thread_lock = self._locks_by_thread_id[thread_ptr.id]
-        else:
-            thread_lock = asyncio.Lock()
-            self._locks_by_thread_id[thread_ptr.id] = thread_lock
-
-        async with thread_lock:
-            # bail if we already have this thread
-            if thread_ptr.id in self._threads_by_id:
-                thread = self._threads_by_id[thread_ptr.id]
-                logger.debug("runtime.load_thread.skip", thread=thread, span="current")
-                return thread
-
-            # load thread
-            capture = GraphCapture()
-            async with capture.capture():
-                thread, thread_connection = await THREAD_QUERY.get_connection(thread_ptr, live=True)
-                thread._graph.add_types(*RUNTIME_NODE_TYPES)
-                thread._graph.add_types(*COMMUNICATION_NODE_TYPES)
-
-                _, messages_connection = (
-                    await Message.where(Message.get_property("thread").eq(thread_ptr))
-                    .order_by(Message.get_property("created_at").asc())
-                    .search_connection(live=True)
-                )
-                messages_connection.on_update(lambda _, update: self.on_external_update(update))
-
-            handle = ThreadHandle(
-                runtime=self,
-                capture=capture,
-                thread_ptr=thread_ptr,
-                thread_connection=thread_connection,
-                messages_connection=messages_connection,
-            )
-            self._threads_by_id[thread_ptr.id] = handle
-            logger.debug("runtime.load_thread", thread=handle, span="current")
-            return handle
-
-    def get_runner(self, span: Run | Span) -> Runner | None:
-        """Get a Runner for a Run or Span."""
-        return self._runners_by_id.get(span.id)
-
-    def restore_runner(self, run: Run) -> Runner:
-        """Restore a Runner from a Run."""
-        if (runner := self._runners_by_id.get(run.id)) is not None:
-            return runner
-        else:
-            runner = restore_runner(runtime=self, run=run)
-            return runner
-
-    @tracer.start_as_current_span("runtime.load_runner")
-    async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
-        """Load a top-level Run."""
-        # NOTE :Architecture: split Runner into Runner & RunHandle/RunLoader (like ThreadHandle)?
-        trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
-
-        # synchronize
-        if run_ptr.id in self._locks_by_run_id:
-            run_lock = self._locks_by_run_id[run_ptr.id]
-        else:
-            run_lock = asyncio.Lock()
-            self._locks_by_run_id[run_ptr.id] = run_lock
-
-        async with run_lock:
-            # already loaded
-            if run_ptr.id in self._runners_by_id:
-                runner = self._runners_by_id[run_ptr.id]
-                assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
-                logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
-                return runner, runner.tracked_run
-
-            # load run
-            capture = GraphCapture()
-            async with capture.capture():
-                run = await RUN_QUERY.get(run_ptr, live=True)
-                run._graph.add_types(*RUNTIME_NODE_TYPES)
-                run._graph.add_types(*COMMUNICATION_NODE_TYPES)
-                assert run.root_ptr is None, f"{run!r} is not a root Run"
-                assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
-
-            # make runner
-            runner = restore_runner(runtime=self, run=run)
-            runner.connection = run._connection
-            runner.capture = capture
-            self._runners_by_id[run_ptr.id] = runner
-            thread_id = run.thread_id
-            assert thread_id is not None, f"{run!r} has no Thread"
-            if thread_id not in self._runners_by_thread_id:
-                self._runners_by_thread_id[thread_id] = []
-            self._runners_by_thread_id[thread_id].append(runner)
-            run._connection.on_update(lambda _, update: self.on_external_update(update))
-            logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
-            return runner, run
-
-    #
-    # Running
-    #
 
     @tracer.start_as_current_span("runtime.run.attempt")
     async def _attempt_run(self, runner: Runner, span: Span, attempt: int):
@@ -486,51 +286,6 @@ class Runtime:
                 span.terminated_at = terminated_at
                 if started_at is not None:
                     span.duration = terminated_at - started_at
-
-    @tracer.start_as_current_span("runtime.prefetch_context")
-    async def _prefetch_context(self, runner: Runner):
-        """
-        Load remote Nodes that are (probably) required for the given Runner.
-        TODO :Architecture :Incomplete: unclear which remote Nodes to load for Runs and how
-         (should we only load top level references? Text mentions? expand Messages into Threads?
-           entire Run trees? this seems related to the context/projection stuff in model instruct)
-        NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
-         (and what if a Node is loaded only because it's loaded by a different concurrent Run?,
-          but then that Run completes, so we unload it again while the other dependent Run runs?)
-        """
-
-        # gather inputs, resources & outputs
-        nodes_ptr_by_id: dict[UUID, NodeReference] = {}
-        for obj in (runner.inputs, runner.outputs):
-            if obj is None:
-                continue
-            # fields
-            for field in obj.fields:
-                if field.kind != TypeKind.NODE and field.kind != TypeKind.BASED_NODE:
-                    continue
-                field_value = cast(Any, obj._do_get(field, _raw=True))
-                if field_value is not None:
-                    if not field.is_list:
-                        nodes_ptr_by_id[field_value.id] = field_value
-                    else:
-                        for node_ptr in field_value:
-                            nodes_ptr_by_id[node_ptr.id] = node_ptr
-        if not nodes_ptr_by_id:
-            return
-
-        # filter missing nodes
-        supergraph = self.session._supergraph
-        missing_nodes_ptr: list[NodeReference] = []
-        for node_ptr in nodes_ptr_by_id.values():
-            node = supergraph.get(node_ptr)
-            if node is None:
-                missing_nodes_ptr.append(node_ptr)
-        if not missing_nodes_ptr:
-            return
-
-        # load missing nodes
-        missing_links = await synchronize_nodes(missing_nodes_ptr)
-        logger.debug("runtime.load_run.missing", nodes=missing_nodes_ptr, links=missing_links)
 
     @tracer.start_as_current_span("runtime.prepare")
     async def _prepare_run(self, runner: Runner):
@@ -686,10 +441,10 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.run")
     async def run_runner(self, runner: Runner[Any]):
-        """Runs a Runner, retrying automatically and updating the tracked Run along the way."""
+        """Run a Runner, retrying automatically and updating the tracked Run along the way."""
         if runner.status.is_terminal:
             return  # already terminated
-        if runner.parent is None:
+        if runner.is_root:
             self._active_root_runners.append(runner)
         self._active_runners_by_id[runner.id] = runner
 
@@ -714,9 +469,6 @@ class Runtime:
 
         # actually attempt Run
         try:
-            assert (
-                runner.parent is None or not runner.parent.status.is_terminal
-            ), f"parent {runner.parent!r} was terminated"
             if runner.tracked_span is not None:
                 await self._run_span(runner)
             elif runner.tracked_run is not None:
@@ -794,28 +546,27 @@ class Runtime:
             else:
                 self.session.stage(include_runtime=False)
 
+            # close runner once we're done
+            if runner.is_root and runner.status.is_terminal:
+                runner.close()
+
     async def _wrap_run_runner(self, runner: Runner):
         """Run the runner at the top-level, handling any exceptions."""
         try:
             await self.run_runner(runner)
         except (Interrupted, asyncio.CancelledError):
             pass  # already handled, not a top-level error
-        except Exception as e:
+        except (BenchError, ValueError, TypeError) as e:
             logger.error("runtime.run_runner.error", runner=runner, exc_info=e)
+        except BaseException as e:
+            logger.error("runtime.run_runner.internal_error", runner=runner, exc_info=e)
+            if self.on_error is not None:
+                self.on_error(e)
 
     def run_runner_soon(self, runner: Runner) -> Runner:
         """Schedule a Runner to run asynchronously."""
         runner.outer_task = asyncio.create_task(self._wrap_run_runner(runner))
         return runner
-
-    def _try_mark_failed(self, run: Run, kind: ErrorKind, error: BaseException):
-        """Mark a Run as failed (but ignore if we can't, perhaps because the Session is closing)."""
-        try:
-            if run.status != ProcessStatus.FAILED:
-                run.status = ProcessStatus.FAILED
-                run.error = Error.from_exception(kind, error)
-        except BaseException as e:
-            logger.error("runtime.mark_failed.error", run=run, exc_info=e)
 
     def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
         """Gets all Runs that were directly interrupted by the given Interruptions."""
@@ -866,7 +617,7 @@ class Runtime:
                     self.run_runner_soon(root_runner)
 
     def stop_run(self, run: Run):
-        """Kill a Run that is currently active in this Runtime (and any inside it)."""
+        """Stop a Run that is currently active in this Runtime (and any inside it)."""
         root_runner = self._runners_by_id.get(run.id)
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
@@ -874,6 +625,289 @@ class Runtime:
             if not runner.status.is_terminal:
                 logger.debug("runtime.stop_run", runner=runner)
                 runner.stop()
+
+    #
+    # Loading
+    #
+
+    @tracer.start_as_current_span("runtime.wait_for")
+    async def wait_for(
+        self,
+        nodes: Sequence[Node],
+        condition: Callable[[], bool],
+        timeout: timedelta | None = None,
+    ):
+        """
+        Wait for the given nodes to reach a certain state.
+        NOTE :Architecture: use Triggers/Interruptions instead of 'busy' (async) wait in Runtime?
+        """
+        if condition():
+            return  # already good
+        if timeout is None:
+            timeout = DEFAULT_WAIT_TIMEOUT
+
+        # ensure nodes are in global graph
+        assert not any(node.is_deleted for node in nodes), f"cannot watch deleted: {nodes!r}"
+        if any(node._is_new for node in nodes):
+            await self.session.commit()
+
+        log = logger.bind(runtime=self, nodes=nodes, condition=condition)
+        subs: list[Callable[[], None]] = []
+        links = None
+        complete_signal = asyncio.Event()
+
+        def _check():
+            """Check if the condition is met, stop if so."""
+            if condition():
+                log.debug("runtime.wait_for.complete")
+                complete_signal.set()
+
+        try:
+            # subscribe
+            stale_nodes = [node for node in nodes if not node._is_live]
+            links = await synchronize_nodes(stale_nodes)
+            for link in links:
+                subs.append(link.on_update(_check))
+            for node in nodes:
+                subs.append(self.session.on_edit(node, lambda _: _check()))
+            log.trace("runtime.wait_for.subscribe", links=links)
+
+            # wait for condition
+            log.debug("runtime.wait_for")
+            _check()
+            await asyncio.wait_for(complete_signal.wait(), timeout=timeout.total_seconds())
+            log.debug("runtime.wait_for.complete")
+        except asyncio.TimeoutError as e:
+            raise TimeoutError(f"timed out waiting for {nodes!r}") from e
+        except BaseException as e:
+            log.error("runtime.wait_for.error", exc_info=e)
+            raise
+        finally:
+            if links is not None:
+                for link in links:
+                    link.close()
+            for sub in subs:
+                sub()
+
+    def _set_session_context(self, node: IsRuntime):
+        """Sets the Session context on a runtime Node."""
+        if node.session_id != self.session.id:
+            node.session_ptr = self.session_ptr
+        if node.client_id != self.session.client_id:
+            node.client_ptr = self.session.client_ptr
+        if node.computer_id != self.session.computer_id:
+            node.computer_ptr = self.session.computer_ptr
+
+    def on_external_update(self, update: WatchGetUpdate | WatchSearchUpdate):
+        """React to updates on Runtime nodes from outside this Runtime."""
+        touched_threads: set[Thread] = set()
+        # added
+        for node in update.added.values():
+            if isinstance(node, Message) and (thread := node.thread) is not None:
+                touched_threads.add(thread)
+        # updated
+        for node in update.updated.values():
+            if isinstance(node, Run):
+                # handle requested state changes
+                if node.should_stop:
+                    self.stop_run(node)
+                elif node.should_pause:
+                    pass  # nothing to do (pause is trapped automatically)
+                elif node.should_resume:
+                    # close open Interruption, resume affected Runs
+                    interruption = node.interruption
+                    if (
+                        interruption
+                        and interruption.type == InterruptionType.PAUSE
+                        and not interruption.status.is_closed
+                    ):
+                        interruption.complete(_trigger_runtime=False)
+                    self.resume_run(node, *node.ancestors)
+            elif isinstance(node, Interruption):
+                if node.status.is_closed:
+                    self.resume_run(*self.get_interrupted_runs(self.session._graph, node))
+            elif isinstance(node, Thread):
+                touched_threads.add(node)
+            elif isinstance(node, Message) and (thread := node.thread) is not None:
+                touched_threads.add(thread)
+        # removed
+        for node in update.removed.values():
+            if isinstance(node, Thread):
+                touched_threads.add(node)
+            elif isinstance(node, Message) and (thread := node.thread) is not None:
+                touched_threads.add(thread)
+
+    def get_thread(self, thread_id: UUID) -> ThreadHandle | None:
+        """Get a Thread."""
+        return self._threads_by_id.get(thread_id)
+
+    @tracer.start_as_current_span("runtime.load_thread")
+    async def _load_thread(self, thread_ptr: NodeReference) -> ThreadHandle:
+        """Load a Thread."""
+        trace.get_current_span().set_attribute("thread_id", str(thread_ptr.id))
+
+        # bail if we already have this thread
+        if thread_ptr.id in self._threads_by_id:
+            thread = self._threads_by_id[thread_ptr.id]
+            logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+            return thread
+
+        # synchronize
+        if thread_ptr.id in self._locks_by_thread_id:
+            thread_lock = self._locks_by_thread_id[thread_ptr.id]
+        else:
+            thread_lock = asyncio.Lock()
+            self._locks_by_thread_id[thread_ptr.id] = thread_lock
+
+        async with thread_lock:
+            # bail if we already have this thread
+            if thread_ptr.id in self._threads_by_id:
+                thread = self._threads_by_id[thread_ptr.id]
+                logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+                return thread
+
+            # load thread
+            capture = GraphCapture()
+            async with capture.capture():
+                thread, thread_connection = await THREAD_QUERY.get_connection(thread_ptr, live=True)
+                thread._graph.add_types(*RUNTIME_NODE_TYPES)
+                thread._graph.add_types(*COMMUNICATION_NODE_TYPES)
+
+                _, messages_connection = (
+                    await Message.where(Message.get_property("thread").eq(thread_ptr))
+                    .order_by(Message.get_property("created_at").asc())
+                    .search_connection(live=True)
+                )
+                messages_connection.on_update(lambda _, update: self.on_external_update(update))
+
+            handle = ThreadHandle(
+                runtime=self,
+                capture=capture,
+                thread_ptr=thread_ptr,
+                thread_connection=thread_connection,
+                messages_connection=messages_connection,
+            )
+            self._threads_by_id[thread_ptr.id] = handle
+            logger.debug("runtime.load_thread", thread=handle, span="current")
+            return handle
+
+    async def _tick_thread(self, thread: Thread):
+        """Tick a Thread on some update, waking Agents as needed."""
+        from bench.runtime import AgentRunner
+
+        handle = self._threads_by_id.get(thread.id)
+        assert handle is not None, f"missing thread handle for {thread!r} in {self!r}"
+
+        # nocheckin: optimize (parallelize?)
+        for agent in thread.agents:
+            run_id = agent.implemented_by_id
+            if run_id is not None and (runner := self._runners_by_id.get(run_id)) is not None:
+                assert isinstance(runner, AgentRunner), f"{runner!r} is not an AgentRunner"
+                runner.wake()
+            elif (
+                last_message := handle.last_message
+            ) is not None and last_message.created_by_id != agent.id:
+                # run agent
+                run, _ = create_run(agent, parent=agent, thread=thread, agent=agent)
+                await self.session.commit()
+                runner, run = await self._load_runner(run.to_ref())
+                self.run_runner_soon(runner)
+
+    def get_runner(self, span: Run | Span) -> Runner | None:
+        """Get a Runner for a Run or Span."""
+        return self._runners_by_id.get(span.id)
+
+    def restore_runner(self, run: Run) -> Runner:
+        """Restore a Runner from a Run."""
+        if (runner := self._runners_by_id.get(run.id)) is not None:
+            return runner
+        else:
+            runner = restore_runner(runtime=self, run=run)
+            return runner
+
+    @tracer.start_as_current_span("runtime.load_runner")
+    async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
+        """Load a top-level Run."""
+        # NOTE :Architecture: split Runner into Runner & RunHandle/RunLoader (like ThreadHandle)?
+        trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
+
+        # synchronize
+        if run_ptr.id in self._locks_by_run_id:
+            run_lock = self._locks_by_run_id[run_ptr.id]
+        else:
+            run_lock = asyncio.Lock()
+            self._locks_by_run_id[run_ptr.id] = run_lock
+
+        async with run_lock:
+            # already loaded
+            if run_ptr.id in self._runners_by_id:
+                runner = self._runners_by_id[run_ptr.id]
+                assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
+                logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
+                return runner, runner.tracked_run
+
+            # load run
+            capture = GraphCapture()
+            async with capture.capture():
+                run = await RUN_QUERY.get(run_ptr, live=True)
+                run._graph.add_types(*RUNTIME_NODE_TYPES)
+                run._graph.add_types(*COMMUNICATION_NODE_TYPES)
+                assert run.root_ptr is None, f"{run!r} is not a root Run"
+                assert isinstance(run._connection, GetConnection), f"{run!r} has no connection"
+
+            # make runner
+            runner = restore_runner(runtime=self, run=run)
+            runner.connection = run._connection
+            runner.capture = capture
+            self._runners_by_id[run_ptr.id] = runner
+            run._connection.on_update(lambda _, update: self.on_external_update(update))
+            logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
+            return runner, run
+
+    @tracer.start_as_current_span("runtime.prefetch_context")
+    async def _prefetch_context(self, runner: Runner):
+        """
+        Load remote Nodes that are (probably) required for the given Runner.
+        TODO :Architecture :Incomplete: unclear which remote Nodes to load for Runs and how
+         (should we only load top level references? Text mentions? expand Messages into Threads?
+           entire Run trees? this seems related to the context/projection stuff in model instruct)
+        NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
+         (and what if a Node is loaded only because it's loaded by a different concurrent Run?,
+          but then that Run completes, so we unload it again while the other dependent Run runs?)
+        """
+
+        # gather inputs, resources & outputs
+        nodes_ptr_by_id: dict[UUID, NodeReference] = {}
+        for obj in (runner.inputs, runner.outputs):
+            if obj is None:
+                continue
+            # fields
+            for field in obj.fields:
+                if field.kind != TypeKind.NODE and field.kind != TypeKind.BASED_NODE:
+                    continue
+                field_value = cast(Any, obj._do_get(field, _raw=True))
+                if field_value is not None:
+                    if not field.is_list:
+                        nodes_ptr_by_id[field_value.id] = field_value
+                    else:
+                        for node_ptr in field_value:
+                            nodes_ptr_by_id[node_ptr.id] = node_ptr
+        if not nodes_ptr_by_id:
+            return
+
+        # filter missing nodes
+        supergraph = self.session._supergraph
+        missing_nodes_ptr: list[NodeReference] = []
+        for node_ptr in nodes_ptr_by_id.values():
+            node = supergraph.get(node_ptr)
+            if node is None:
+                missing_nodes_ptr.append(node_ptr)
+        if not missing_nodes_ptr:
+            return
+
+        # load missing nodes
+        missing_links = await synchronize_nodes(missing_nodes_ptr)
+        logger.debug("runtime.load_run.missing", nodes=missing_nodes_ptr, links=missing_links)
 
     #
     # Service
@@ -885,10 +919,7 @@ class Runtime:
         *,
         _return_error: bool = True,
     ) -> Runner | None:
-        """
-        Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
-        Automatically lifts/joins the Run with a higher or existing Run if needed.
-        """
+        """Run a top-level Run in this Runtime."""
 
         if isinstance(run, Run):
             run = run.to_ref()
@@ -923,15 +954,11 @@ class Runtime:
                 pass  # already handled, not a top-level error
             except (BenchError, ValueError, TypeError) as e:
                 # re-raised inner user error
-                self._try_mark_failed(run, ErrorKind.RUNTIME, e)
-                self.session.stage()
                 logger.info("runtime.run.error", thread=thread, run=run, exc_info=e, span="current")
                 if not _return_error:
                     raise
             except BaseException as e:
                 # some unexpected internal error
-                self._try_mark_failed(run, ErrorKind.INTERNAL, e)
-                self.session.stage()
                 logger.error(
                     "runtime.run.internal_error", thread=thread, run=run, exc_info=e, span="current"
                 )
@@ -940,16 +967,10 @@ class Runtime:
                 if not _return_error:
                     raise
 
-        # close runner once we're done
-        if runner.is_root and runner.status.is_terminal:
-            runner.close()
-            if runner.id in self._runners_by_thread_id:
-                self._runners_by_thread_id[runner.id].remove(runner)
-
         return runner
 
     async def wake(self, thread_ptr: NodeReference) -> None:
         """Wake a Thread (and all its members)."""
         async with self.session.active():
             thread = await self._load_thread(thread_ptr)
-            # nocheckin: wake Thread
+            self._thread_tick_queue.put_nowait(thread.thread)

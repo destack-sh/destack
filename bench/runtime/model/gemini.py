@@ -45,6 +45,8 @@ class GeminiChatModelRunner(ChatModelRunner):
 
     @override
     async def run(self) -> None:
+        from bench.runtime import MACROS, AgentRunner
+
         model_id = GEMINI_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
@@ -98,7 +100,10 @@ class GeminiChatModelRunner(ChatModelRunner):
         # generate & execute simultaneously
         # NOTE :Performance: maybe re-use genai.GenerativeModel instance?
         #  (but we may need different system prompts for different runs)
-        code_runner = StreamingCodeRunner(runner=self, aliasing=self.prompt.aliasing)
+        agent_runner = self.closest_runner_like(AgentRunner)
+        code_runner = StreamingCodeRunner(
+            runner=agent_runner, macros=MACROS, aliasing=self.prompt.aliasing
+        )
         temperature = self.options.text_options.temperature if self.options.text_options else None
         model = genai.GenerativeModel(model_id, system_instruction=self.prompt.system_prompt)
         completion = await model.generate_content_async(

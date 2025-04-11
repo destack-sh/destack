@@ -1,6 +1,6 @@
 import codeop
 import textwrap
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import regex
 import structlog
@@ -8,22 +8,25 @@ from opentelemetry import trace
 
 from bench.language import Aliasing
 from bench.runtime.code import STATIC_CODE_GLOBALS
-from bench.runtime.core import Runner
-from bench.runtime.model.macro import MACROS_BY_NAME
+
+if TYPE_CHECKING:
+    from bench.runtime import AgentRunner, Macro
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
 class StreamingCodeRunner:
-    def __init__(self, runner: Runner, aliasing: Aliasing, code: str = ""):
+    def __init__(
+        self, runner: "AgentRunner", macros: list["Macro"], aliasing: Aliasing, code: str = ""
+    ):
         self.runner = runner
         self.aliasing = aliasing
         self.code = code
         self.pending_code = code
         self.globals: dict[str, Any] = {
             **STATIC_CODE_GLOBALS,
-            **{macro.name: macro.bind(runner) for macro in MACROS_BY_NAME.values()},
+            **{macro.name: macro.bind(runner) for macro in macros},
             **(aliasing._node_by_alias if aliasing else {}),
         }
 

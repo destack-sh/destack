@@ -37,20 +37,20 @@ from bench.language import (
     text_line,
     to_icon,
 )
-from bench.utils.oracle import REAL_ORACLE
-
-from .macro import SEND
-from .piece import (
+from bench.runtime.model import (
     CodePiece,
     CompoundPiece,
     Piece,
+    Prompt,
     SeparatorPiece,
     TextPiece,
+    Tokenizer,
     piece_,
     raise_if_none,
 )
-from .prompt import Prompt
-from .token import Tokenizer
+from bench.utils.oracle import REAL_ORACLE
+
+from .macro import SEND
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false

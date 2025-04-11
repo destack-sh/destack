@@ -285,6 +285,9 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         if self.id in self.runtime._runners_by_id:
             raise RuntimeError(f"runner {self!r} already exists in {self.runtime!r}")
         self.runtime._runners_by_id[self.id] = self
+        if node.id not in self.runtime._runners_by_runnable_id:
+            self.runtime._runners_by_runnable_id[node.id] = []
+        self.runtime._runners_by_runnable_id[node.id].append(self)
 
     def __str__(self):
         str_parts: list[str] = [
@@ -351,6 +354,14 @@ class Runner[N: Runnable = Runnable](abc.ABC):
                 return runner.tracked_run
             runner = runner.parent
         return None
+
+    def closest_runner_like[T: Runner](self, runner_cls: type[T]) -> T:
+        runner = self
+        while runner is not None:
+            if isinstance(runner, runner_cls):
+                return cast(T, runner)
+            runner = runner.parent
+        raise RuntimeError(f"no {runner_cls.__name__} ancestor for {self!r}")
 
     @property
     def should_pause(self) -> bool:
@@ -559,6 +570,10 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         if self.capture is not None:
             self.capture.close_and_detach()
         self.runtime._runners_by_id.pop(self.id, None)
+        runnable_id = self.node.id
+        self.runtime._runners_by_runnable_id[runnable_id].remove(self)
+        if len(self.runtime._runners_by_runnable_id[runnable_id]) == 0:
+            self.runtime._runners_by_runnable_id.pop(runnable_id, None)
         if recursive:
             for runner in self.runners:
                 runner.close(recursive=True)
