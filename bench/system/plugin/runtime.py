@@ -35,6 +35,8 @@ from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 if TYPE_CHECKING:
     from bench.system.host import HostService
 
+# ruff: noqa: RUF009
+
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
@@ -73,25 +75,25 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
     async def start(self) -> None:
         # TODO :Robustness: kill/re-queue abandoned Runs :SystemRecovery
         #  (like Runs 'stuck' on dead or since restarted Computers)
-        self.tasks.start_queue(self._queue, self._process_op, skip_errors=True)
+        self.tasks.start_queue(self._queue, self._send_op, skip_errors=True)
 
     @abc.abstractmethod
-    async def _process_in_runtime(self, op: O, computer: Computer, runtime: RuntimeClient) -> None:
+    async def _send_in_runtime(self, op: O, computer: Computer, runtime: RuntimeClient) -> None:
         """Do stuff in a Runtime."""
         ...
 
     @abc.abstractmethod
-    async def _fail_op(self, op: O, error: Error) -> None:
+    async def _on_failed(self, op: O, error: Error) -> None:
         """Fail an operation."""
         ...
 
-    @tracer.start_as_current_span("runtime_plugin.process")
-    async def _process_op(self, op: O) -> None:
-        """Do stuff in relevant Runtimes."""
+    @tracer.start_as_current_span("runtime_plugin.send")
+    async def _send_op(self, op: O) -> None:
+        """Send an operation to relevant Runtimes."""
         op.retry.on_attempt()
         log = logger.bind(host=self, op=op, retry=op.retry)
 
-        # select computers to process run on :RuntimeRouting
+        # select computers to send run on :RuntimeRouting
         assert NodeType.COMPUTER in self.bench._graph.node_types, f"not loaded in {self.bench!r}"
         available_computers = [
             computer
@@ -107,14 +109,12 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
                 assert computer.grpc_url, f"missing GRPC URL for {computer!r}"
                 channel = await self.network.get_channel(computer.grpc_url, source_id=self.host.id)
                 runtime = RuntimeClient(channel)
-                await self._process_in_runtime(op, computer, runtime)
-                log.info(
-                    "runtime_plugin.process", computer=computer, channel=channel, span="current"
-                )
+                await self._send_in_runtime(op, computer, runtime)
+                log.debug(f"{self.name}.send", computer=computer, channel=channel, span="current")
                 return  # success
             except Exception as e:
                 log.error(
-                    "runtime_plugin.process.error",
+                    f"{self.name}.send.error",
                     computer=computer,
                     grpc_url=computer.grpc_url,
                     exc_info=e,
@@ -122,18 +122,18 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
                 op.retry.on_error(e)
                 continue
 
-        # failed to process run
+        # failed to send run
         if not op.retry.should_retry:
             # give up
             error = Error(
                 kind=ErrorKind.RUNTIME,
                 type=ErrorType.RUNTIME_UNAVAILABLE,
-                title="Failed to process",
+                title="Failed to send",
                 text=Text.from_markdown("Could not reach any available Computer."),
             )
-            await self._fail_op(op, error)
+            await self._on_failed(op, error)
             log.error(
-                "runtime_plugin.process.failed",
+                f"{self.name}.send.failed",
                 computers=available_computers,
                 error=error,
                 span="current",
@@ -191,9 +191,7 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
                 self._queue_run(run.root or run)
 
     @override
-    async def _process_in_runtime(
-        self, op: RunOp, computer: Computer, runtime: RuntimeClient
-    ) -> None:
+    async def _send_in_runtime(self, op: RunOp, computer: Computer, runtime: RuntimeClient) -> None:
         # should be batched and routed per Thread :RuntimeRouting
         assert op.run.thread_ptr, f"missing thread for run {op.run!r}"
         request = RunRequest(
@@ -205,7 +203,7 @@ class RunPlugin(RuntimePlugin[Run, RunOp]):
         await runtime.run(request)
 
     @override
-    async def _fail_op(self, op: RunOp, error: Error) -> None:
+    async def _on_failed(self, op: RunOp, error: Error) -> None:
         # mark run as failed
         run = op.run
         async with self.host.session(commit=True):  # :StaleNodes
@@ -257,7 +255,7 @@ class WakePlugin(RuntimePlugin[Thread | Message, WakeOp]):
             self._queue_wake(thread)
 
     @override
-    async def _process_in_runtime(
+    async def _send_in_runtime(
         self, op: WakeOp, computer: Computer, runtime: RuntimeClient
     ) -> None:
         request = WakeRequest(
@@ -268,5 +266,5 @@ class WakePlugin(RuntimePlugin[Thread | Message, WakeOp]):
         await runtime.wake(request)
 
     @override
-    async def _fail_op(self, op: WakeOp, error: Error) -> None:
+    async def _on_failed(self, op: WakeOp, error: Error) -> None:
         pass  # nothing to do?

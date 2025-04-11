@@ -14,35 +14,29 @@ from bench.language import (
     DEFAULT_RESOURCE_TIMEOUT,
     DEFAULT_WAIT_TIMEOUT,
     PROCESS_STATUS_BY_INTERRUPTION_TYPE,
+    RESOURCE_NODE_TYPES,
     RUNTIME_NODE_TYPES,
-    Action,
     Agent,
     BenchError,
     BreakpointSite,
-    BuiltinObject,
     CheckOptions,
     Claim,
     ClaimStatus,
-    ComputedValue,
-    ComputedValueKind,
-    ComputedValueMode,
     CustomObject,
     Error,
     ErrorKind,
-    Field,
     GetConnection,
+    GraphCapture,
     Interruption,
     InterruptionType,
     IsRuntime,
+    Message,
     Node,
     NodeGraph,
     NodeMode,
     NodeReference,
     NodeType,
     Package,
-    PathElementType,
-    PathError,
-    PathOptions,
     ProcessStatus,
     Run,
     Session,
@@ -53,20 +47,18 @@ from bench.language import (
     TypeKind,
     ValidationError,
     WatchGetUpdate,
+    WatchSearchUpdate,
     capture_span,
     check_value,
-    coerce_value,
-    evaluate_path,
     on_invalid_raise,
     synchronize_nodes,
 )
-from bench.language.connection.capture import GraphCapture
 from bench.proto.network import Network
 from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
 
 from .cache import Cache
-from .error import InvalidComputedError, NonRetryableError, RetryableError
+from .error import NonRetryableError, RetryableError
 from .runner import (
     Interrupted,
     Runner,
@@ -93,6 +85,17 @@ RUN_QUERY = Run.include_descendants(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.INTERRUPTION,
+)
+
+
+THREAD_QUERY = Thread.include_descendants(
+    *RESOURCE_NODE_TYPES,
+    NodeType.MEMBERSHIP,
+    NodeType.PLAN,
+    NodeType.TASK,
+    NodeType.CLAIM,
+    NodeType.AGENT,
+    NodeType.CURSOR,
 )
 
 
@@ -204,97 +207,6 @@ class Runtime:
     # Context
     #
 
-    def _evaluate_computed_value(self, runner: Runner, computed_value: ComputedValue):
-        """Evaluates the ComputedValue in/to the Run/Runner."""
-        if computed_value.kind == ComputedValueKind.PATH:
-            source_path = computed_value.source_path
-            assert source_path is not None, f"no source path for {computed_value!r}"
-            return evaluate_path(
-                current=runner.node,
-                scope=runner.node,
-                context=runner.tracked,
-                path=source_path,
-                options=PathOptions(missing_is="invalid"),
-            )
-        else:
-            raise RuntimeError(f"unsupported {computed_value!r}")
-
-    def _apply_computed_value(self, runner: Runner, computed_value: ComputedValue) -> bool:
-        """Applies the ComputedValue in/to the Run/Runner. Returns True if the value was applied."""
-        # get source value
-        try:
-            source_value = self._evaluate_computed_value(runner, computed_value)
-        except (PathError, AttributeError, ValidationError) as e:
-            raise InvalidComputedError(computed_value=computed_value) from e
-        if source_value is None and computed_value.mode == ComputedValueMode.IF_SOURCE_SET:
-            logger.trace(
-                "runtime.apply_computed_value.skip_if_source_set", computed_value=computed_value
-            )
-            return False
-
-        # get target site
-        assert computed_value.target_path is not None, f"no target for {computed_value!r}"
-        target_obj = evaluate_path(
-            current=runner.node,
-            scope=runner.node,
-            context=runner.tracked,
-            path=computed_value.target_path.elements[:-1],
-            options=PathOptions(missing_is="none"),
-        )
-        target_key = computed_value.target_path.elements[-1]
-        if target_obj is None:
-            logger.trace(
-                "runtime.apply_computed_value.missing", runner=runner, computed_value=computed_value
-            )
-            return False
-        if target_key.type != PathElementType.ATTRIBUTE:
-            raise InvalidComputedError(computed_value=computed_value)
-
-        # skip if target is already set (if configured)
-        if computed_value.mode == ComputedValueMode.IF_TARGET_UNSET:
-            if isinstance(field := target_key.node, Field):
-                assert isinstance(
-                    target_obj, CustomObject
-                ), f"bad target {target_obj!r} in {computed_value!r}"
-                is_set = target_obj.is_set(field)
-            elif (prop := target_key.property) is not None:
-                assert isinstance(
-                    target_obj, (BuiltinObject, CustomObject)
-                ), f"bad target {target_obj!r} in {computed_value!r}"
-                is_set = target_obj.is_set(prop)
-            else:
-                raise InvalidComputedError(computed_value=computed_value)
-            if is_set:
-                logger.trace(
-                    "runtime.apply_computed_value.skip_if_target_unset",
-                    runner=runner,
-                    computed_value=computed_value,
-                )
-                return False
-
-        # coerce & set value
-        if isinstance(field := target_key.node, Field):
-            assert isinstance(
-                target_obj, CustomObject
-            ), f"bad target {target_obj!r} in {computed_value!r}"
-            mapped_value = coerce_value(source_value, field)
-            target_obj._do_set(field, mapped_value, coerce=False)
-        elif (prop := target_key.property) is not None:
-            assert isinstance(
-                target_obj, (BuiltinObject, CustomObject)
-            ), f"bad target {target_obj!r} in {computed_value!r}"
-            mapped_value = coerce_value(source_value, prop.type_info)
-            target_obj._do_set(prop.name, mapped_value)
-        else:
-            raise InvalidComputedError(computed_value=computed_value)
-        logger.debug(
-            "runtime.apply_computed_value",
-            computed_value=computed_value,
-            target=target_obj,
-            value=mapped_value,
-        )
-        return True
-
     @tracer.start_as_current_span("runtime.wait_for")
     async def wait_for(
         self,
@@ -363,36 +275,29 @@ class Runtime:
         if node.computer_id != self.session.computer_id:
             node.computer_ptr = self.session.computer_ptr
 
-    def _on_run_updated(self, runner: Runner, run: Run):
-        """React to updates on a Run."""
-        # handle requested state changes
-        if run.should_stop:
-            self.stop_run(run)
-        elif run.should_pause:
-            pass  # nothing to do (pause is trapped automatically)
-        elif run.should_resume:
-            # close open Interruption, resume affected Runs
-            interruption = run.interruption
-            if (
-                interruption
-                and interruption.type == InterruptionType.PAUSE
-                and not interruption.status.is_closed
-            ):
-                interruption.complete(_trigger_runtime=False)
-            self.resume_run(run, *run.ancestors)
-
-    def _on_interrupt_updated(self, runner: Runner, interruption: Interruption):
-        """React to updates on an Interruption."""
-        if interruption.status.is_closed:
-            self.resume_run(*self.get_interrupted_runs(self.session._graph, interruption))
-
-    def _on_updated(self, runner: Runner, update: WatchGetUpdate):
+    def on_external_update(self, update: WatchGetUpdate | WatchSearchUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
+        print(update)
         for node in update.updated.values():
             if isinstance(node, Run):
-                self._on_run_updated(runner, node)
+                # handle requested state changes
+                if node.should_stop:
+                    self.stop_run(node)
+                elif node.should_pause:
+                    pass  # nothing to do (pause is trapped automatically)
+                elif node.should_resume:
+                    # close open Interruption, resume affected Runs
+                    interruption = node.interruption
+                    if (
+                        interruption
+                        and interruption.type == InterruptionType.PAUSE
+                        and not interruption.status.is_closed
+                    ):
+                        interruption.complete(_trigger_runtime=False)
+                    self.resume_run(node, *node.ancestors)
             elif isinstance(node, Interruption):
-                self._on_interrupt_updated(runner, node)
+                if node.status.is_closed:
+                    self.resume_run(*self.get_interrupted_runs(self.session._graph, node))
 
     def get_thread(self, thread_id: UUID) -> ThreadHandle | None:
         """Get a Thread."""
@@ -402,6 +307,12 @@ class Runtime:
     async def _load_thread(self, thread_ptr: NodeReference) -> ThreadHandle:
         """Load a Thread."""
         trace.get_current_span().set_attribute("thread_id", str(thread_ptr.id))
+
+        # bail if we already have this thread
+        if thread_ptr.id in self._threads_by_id:
+            thread = self._threads_by_id[thread_ptr.id]
+            logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+            return thread
 
         # synchronize
         if thread_ptr.id in self._locks_by_thread_id:
@@ -418,9 +329,27 @@ class Runtime:
                 return thread
 
             # load thread
-            handle = ThreadHandle(runtime=self, thread_ptr=thread_ptr)
+            capture = GraphCapture()
+            async with capture.capture():
+                thread, thread_connection = await THREAD_QUERY.get_connection(thread_ptr, live=True)
+                thread._graph.add_types(*RUNTIME_NODE_TYPES)
+                thread._graph.add_types(*COMMUNICATION_NODE_TYPES)
+
+                _, messages_connection = (
+                    await Message.where(Message.get_property("thread").eq(thread_ptr))
+                    .order_by(Message.get_property("created_at").asc())
+                    .search_connection(live=True)
+                )
+                messages_connection.on_update(lambda _, update: self.on_external_update(update))
+
+            handle = ThreadHandle(
+                runtime=self,
+                capture=capture,
+                thread_ptr=thread_ptr,
+                thread_connection=thread_connection,
+                messages_connection=messages_connection,
+            )
             self._threads_by_id[thread_ptr.id] = handle
-            await handle.open()
             logger.debug("runtime.load_thread", thread=handle, span="current")
             return handle
 
@@ -438,7 +367,8 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.load_runner")
     async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
-        """Load the top-level Run."""
+        """Load a top-level Run."""
+        # NOTE :Architecture: split Runner into Runner & RunHandle/RunLoader (like ThreadHandle)?
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
         # synchronize
@@ -475,7 +405,7 @@ class Runtime:
             if thread_id not in self._runners_by_thread_id:
                 self._runners_by_thread_id[thread_id] = []
             self._runners_by_thread_id[thread_id].append(runner)
-            run._connection.on_update(lambda _, update: self._on_updated(runner, update))
+            run._connection.on_update(lambda _, update: self.on_external_update(update))
             logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
             return runner, run
 
@@ -610,21 +540,6 @@ class Runtime:
         """
         run = runner.tracked_run
         assert run is not None, f"missing tracked run for {runner!r}"
-
-        # compute resources/inputs/options from context
-        if isinstance(runner.node, Action):
-            # init inputs from action
-            if runner.inputs is not None and runner.node.inputs_packed is not None:
-                runner.inputs.set_default(runner.node.inputs, _skip_validate=True)
-        # apply computed values
-        try:
-            for computed_value in runner.node.computed_values:
-                if computed_value.target_path is not None and computed_value.is_active:
-                    self._apply_computed_value(runner, computed_value)
-        except Exception as e:
-            runner.status = ProcessStatus.FAILED
-            runner.error = Error.from_exception(ErrorKind.RUNTIME, e)
-            raise
 
         # prepare resources
         open_claims: list[Claim] = []
@@ -868,8 +783,6 @@ class Runtime:
                 runner.fire_event(RunnerAbortedEvent(runner))
             elif runner.status == ProcessStatus.CANCELLED:
                 runner.fire_event(RunnerCancelledEvent(runner))
-            if type(span) is Run:
-                self._on_run_updated(runner, span)
 
             # commit intermediate session edits
             if runner.is_root and (agent := runner.agent) is not None:
@@ -1032,15 +945,11 @@ class Runtime:
             runner.close()
             if runner.id in self._runners_by_thread_id:
                 self._runners_by_thread_id[runner.id].remove(runner)
-                # also close thread if it's no longer needed
-                if not self._runners_by_thread_id[runner.id]:
-                    thread = runner.thread
-                    assert thread is not None, f"{runner!r} has no thread"
-                    thread.close()
-                    del self._runners_by_thread_id[thread.id]
 
         return runner
 
     async def wake(self, thread_ptr: NodeReference) -> None:
         """Wake a Thread (and all its members)."""
-        raise NotImplementedError(f"nocheckin: wake {thread_ptr!r}")
+        async with self.session.active():
+            thread = await self._load_thread(thread_ptr)
+            # nocheckin: wake Thread

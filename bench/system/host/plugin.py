@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar, Sequence, final, override
 
 import structlog
@@ -8,6 +9,7 @@ from opentelemetry import trace
 from bench.language import Bench, Node, NodeType, Package, Session, bittuple
 from bench.proto import EditData, Network
 from bench.utils.oracle import Oracle
+from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
 
 if TYPE_CHECKING:
@@ -53,9 +55,9 @@ class HostPlugin[T: Node]:
         else:
             return f"<{self.__class__.__name__} in '{self.bench.slug}'>"
 
-    @property
+    @cached_property
     def name(self) -> str:
-        return self.__class__.__name__
+        return to_casing(self.__class__.__name__, Casing.SNAKE)
 
     @property
     def oracle(self) -> Oracle:

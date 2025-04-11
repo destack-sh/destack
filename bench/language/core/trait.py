@@ -353,6 +353,7 @@ class IsClaimable(BuiltinObject):
 class IsComputable(BuiltinObject):
     """A Node that can be computed at runtime."""
 
+    # NOTE :Architecture: IsComputable.computed_values should probably be a Node? "Formula"?
     computed_values: list["ComputedValue"] = p_internal(
         28, require=False, array=True, struct=StructType.COMPUTED_VALUE
     )

@@ -24,16 +24,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-THREAD_QUERY = Thread.include_descendants(
-    *RESOURCE_NODE_TYPES,
-    NodeType.MEMBERSHIP,
-    NodeType.PLAN,
-    NodeType.TASK,
-    NodeType.CLAIM,
-    NodeType.AGENT,
-    NodeType.CURSOR,
-)
-
 
 class ThreadHandle:
     """
@@ -51,14 +41,22 @@ class ThreadHandle:
         "thread_ptr",
     )
 
-    def __init__(self, *, runtime: "Runtime", thread_ptr: NodeReference):
+    def __init__(
+        self,
+        *,
+        runtime: "Runtime",
+        capture: GraphCapture,
+        thread_ptr: NodeReference,
+        thread_connection: GetConnection | SearchConnection,
+        messages_connection: SearchConnection,
+    ):
         self.id = thread_ptr.id
         self.runtime = runtime
+        self.capture = capture
         self.thread_ptr = thread_ptr
-        self.capture: GraphCapture = GraphCapture()
         self._computer_clients_by_uri: dict[str, ComputerClient] = {}
-        self._thread_connection: GetConnection | SearchConnection | None = None
-        self._messages_connection: SearchConnection | None = None
+        self._thread_connection: GetConnection | SearchConnection | None = thread_connection
+        self._messages_connection: SearchConnection | None = messages_connection
 
     def __str__(self) -> str:
         content_parts: list[str] = []
@@ -103,18 +101,6 @@ class ThreadHandle:
             return self._messages_connection.result.roots[-1]
         else:
             return None
-
-    async def open(self):
-        # NOTE :Performance: limit Runtime Thread.messages (to like 100? 200?)
-        async with self.capture.capture():
-            _, self._thread_connection = await THREAD_QUERY.get_connection(
-                self.thread_ptr, live=True
-            )
-            _, self._messages_connection = (
-                await Message.where(Message.get_property("thread").eq(self.thread_ptr))
-                .order_by(Message.get_property("created_at").asc())
-                .search_connection(live=True)
-            )
 
     def close(self):
         if self.capture is not None:

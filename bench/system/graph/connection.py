@@ -284,7 +284,8 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
             # filter scope
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
-                not self.query.include_removed and edit_type == EditType.RESTORE
+                not self.query.include_removed
+                and (edit_type == EditType.RESTORE or edit_type == EditType.UNARCHIVE)
             ):
                 # add: node or its ancestors must be in a root, in our graph or be optional
                 node = _get_edited_node(edit, updated_graph)
@@ -460,8 +461,13 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
             ) and (self.query._filter is None or evaluate_conditional(self.query._filter, node))
             if not (is_relevant or is_extant):
                 continue  # ignore irrelevant edit
-            is_add = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.RESTORE)
-            is_remove = edit.type in (EditType.DELETE, EditType.ERASE)
+            is_add = edit.type in (
+                EditType.CREATE,
+                EditType.UPSERT,
+                EditType.RESTORE,
+                EditType.UNARCHIVE,
+            )
+            is_remove = edit.type in (EditType.DELETE, EditType.ERASE, EditType.ARCHIVE)
             if is_extant:
                 if is_relevant and not is_remove:
                     # regular update
