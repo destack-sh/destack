@@ -39,6 +39,7 @@ if TYPE_CHECKING:
         Agent,
         Channel,
         Claim,
+        Cursor,
         Field,
         File,
         Membership,
@@ -128,6 +129,7 @@ class Thread(
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
+    cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
     files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
 
     @property
