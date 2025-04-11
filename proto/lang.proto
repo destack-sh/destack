@@ -1407,6 +1407,7 @@ enum CursorStatus {
   CURSOR_STATUS_WORKING = 10;
   CURSOR_STATUS_READING = 11;
   CURSOR_STATUS_WRITING = 12;
+  CURSOR_STATUS_WAITING = 13;
   CURSOR_STATUS_IDLE = 30;
 }
 
@@ -1912,6 +1913,7 @@ message TextSpanData {
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
   optional bool is_code = 64;
+  optional bool is_spoiler = 65;
   optional string language = 70;
 }
 
@@ -1927,6 +1929,7 @@ message TextLineData {
   optional bool is_strikethrough = 62;
   optional bool is_underline = 63;
   optional bool is_code = 64;
+  optional bool is_spoiler = 65;
   optional string language = 70;
 }
 

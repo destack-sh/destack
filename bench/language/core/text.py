@@ -26,6 +26,7 @@ class TextOptionsBase(BuiltinObject):
     is_strikethrough: Optional[bool] = p_regular(62, default=None)
     is_underline: Optional[bool] = p_regular(63, default=None)
     is_code: Optional[bool] = p_regular(64, default=None)
+    is_spoiler: Optional[bool] = p_regular(65, default=None)
     language: Optional[str] = p_regular(70, default=None)
 
     def _to_option_kwargs(self):
@@ -102,6 +103,7 @@ class TextSpan(TextOptionsBase, Struct):
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
+        is_spoiler: bool | None = None,
         color: "ColorType | None" = None,
         background_color: "ColorType | None" = None,
     ) -> "TextSpan":
@@ -114,6 +116,7 @@ class TextSpan(TextOptionsBase, Struct):
             is_italic=is_italic,
             is_strikethrough=is_strikethrough,
             is_underline=is_underline,
+            is_spoiler=is_spoiler,
             color=color,
             background_color=background_color,
         )
@@ -210,6 +213,7 @@ class TextLine(TextOptionsBase, Struct):
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
         is_underline: bool | None = None,
+        is_spoiler: bool | None = None,
         color: "ColorType | None" = None,
     ) -> "TextLine":
         if spans is None:
@@ -225,6 +229,7 @@ class TextLine(TextOptionsBase, Struct):
             is_italic=is_italic,
             is_strikethrough=is_strikethrough,
             is_underline=is_underline,
+            is_spoiler=is_spoiler,
             color=color,
         )
 
@@ -285,6 +290,7 @@ MARKER_TO_FLAG = {
     "__": "is_bold",
     "~~": "is_strikethrough",
     "<u>": "is_underline",
+    "||": "is_spoiler",
     "`": "is_code",
 }
 
@@ -304,7 +310,7 @@ def _parse_color(color: str) -> "ColorType":
 
 
 _marker_pattern = regex.compile(
-    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\*|\[\^[a-zA-Z0-9]+\]|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\]|\[@[a-zA-Z0-9_]+\])"
+    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\|\||\*|\[\^[a-zA-Z0-9]+\]|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\]|\[@[a-zA-Z0-9_]+\])"
 )
 
 
@@ -419,7 +425,7 @@ def _parse_inline_raw(
             spans.extend(inner)
             continue
         # symmetric markers
-        if marker in {"*", "**", "~~", "`"}:
+        if marker in {"*", "**", "~~", "`", "||"}:
             flag = MARKER_TO_FLAG[marker]
             inner, pos = _parse_inline_raw(
                 text, pos, end_marker=marker, base=base.copy(), aliasing=aliasing
@@ -470,6 +476,7 @@ def _span_format_key(span: TextSpan) -> tuple:
         span.is_strikethrough,
         span.is_underline,
         span.is_code,
+        span.is_spoiler,
         span.color,
         span.background_color,
     )
@@ -610,13 +617,14 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
 # Rendering
 #
 
-MARKER_ORDER = ["is_italic", "is_bold", "is_strikethrough", "is_underline", "is_code"]
+MARKER_ORDER = ["is_spoiler", "is_italic", "is_bold", "is_strikethrough", "is_underline", "is_code"]
 MARKER_OPEN = {
     "is_italic": "*",
     "is_bold": "**",
     "is_strikethrough": "~~",
     "is_underline": "<u>",
     "is_code": "`",
+    "is_spoiler": "||",
 }
 MARKER_CLOSE = {
     "is_italic": "*",
@@ -624,6 +632,7 @@ MARKER_CLOSE = {
     "is_strikethrough": "~~",
     "is_underline": "</u>",
     "is_code": "`",
+    "is_spoiler": "||",
 }
 
 
@@ -707,6 +716,7 @@ def _render_inline_raw(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = 
                 result.append(MARKER_OPEN[flag])
             result.append(span.content or "")
             current_state = new_state
+
     for flag in reversed(current_state):
         result.append(MARKER_CLOSE[flag])
     return "".join(result)

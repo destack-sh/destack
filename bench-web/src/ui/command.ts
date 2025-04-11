@@ -115,6 +115,7 @@ export const COMMAND_BUILTIN_IDS = [
   "text.format.strikethrough",
   "text.format.underline",
   "text.format.code",
+  "text.format.spoiler",
   // code
   "code.edit.format",
   "code.edit.comment",
@@ -721,6 +722,13 @@ declareCommands<"text">({
     title: "Code",
     text: "Format as code",
     shortcuts: ["mod+e"],
+  },
+  "text.format.spoiler": {
+    type: "toggle",
+    icon: "fas fa-eye",
+    title: "Spoiler",
+    text: "Format as spoiler",
+    shortcuts: ["mod+s"],
   },
 });
 

@@ -34,6 +34,7 @@ const formatCommands: FormatCommand[] = [
   makeCommand("underline", "text.format.underline", "fas fa-underline"),
   makeCommand("strikethrough", "text.format.strikethrough", "fas fa-strikethrough"),
   makeCommand("code", "text.format.code", "fas fa-code"),
+  makeCommand("spoiler", "text.format.spoiler", "fas fa-eye"),
 ];
 </script>
 <template>

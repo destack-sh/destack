@@ -33,6 +33,7 @@ genai.configure(api_key=get_from_env("GEMINI_API_KEY", description="Gemini API k
 GEMINI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
     ModelType.GOOGLE_GEMINI_2_0_FLASH: "gemini-2.0-flash-exp",
     ModelType.GOOGLE_GEMINI_2_0_FLASH_THINKING: "gemini-2.0-flash-thinking-exp-01-21",
+    ModelType.GOOGLE_GEMINI_2_5_PRO: "gemini-2.5-pro-exp-03-25",
 }
 GEMINI_DEFAULT_MODEL = ModelType.GOOGLE_GEMINI_2_0_FLASH
 

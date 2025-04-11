@@ -112,6 +112,26 @@ they [yellow]can be *nested, like ~~deeply~~ nested* _and_ ~~combined~~[/yellow]
     assert md_out == md
 
 
+def test_text_spoiler():
+    md = "This text has ||spoiler content|| and normal text"
+    text = markdown_to_text(md)
+    assert text.lines[0].spans[0] == TextSpan.new(TextSpanType.TEXT, "This text has ")
+    assert text.lines[0].spans[1] == TextSpan.new(
+        TextSpanType.TEXT, "spoiler content", is_spoiler=True
+    )
+    assert text.lines[0].spans[2] == TextSpan.new(TextSpanType.TEXT, " and normal text")
+    md_out = text_to_markdown(text)
+    assert md_out == md
+
+
+def test_text_nested_spoilers():
+    md = """\
+This has ||spoilers with *italic* and **bold**|| and ||another ~~strikethrough~~ spoiler||."""
+    text = markdown_to_text(md)
+    md_out = text_to_markdown(text)
+    assert md_out == md
+
+
 def test_text_code_block():
     md = """\
 ```

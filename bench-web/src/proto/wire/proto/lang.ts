@@ -160,6 +160,10 @@ export interface TextSpanData {
      */
     isCode?: boolean;
     /**
+     * @generated from protobuf field: optional bool is_spoiler = 65;
+     */
+    isSpoiler?: boolean;
+    /**
      * @generated from protobuf field: optional string language = 70;
      */
     language?: string;
@@ -212,6 +216,10 @@ export interface TextLineData {
      * @generated from protobuf field: optional bool is_code = 64;
      */
     isCode?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_spoiler = 65;
+     */
+    isSpoiler?: boolean;
     /**
      * @generated from protobuf field: optional string language = 70;
      */
@@ -12710,6 +12718,10 @@ export enum CursorStatus {
      */
     WRITING = 12,
     /**
+     * @generated from protobuf enum value: CURSOR_STATUS_WAITING = 13;
+     */
+    WAITING = 13,
+    /**
      * @generated from protobuf enum value: CURSOR_STATUS_IDLE = 30;
      */
     IDLE = 30
@@ -14613,6 +14625,7 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 65, name: "is_spoiler", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -14665,6 +14678,9 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
                 case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
                     break;
+                case /* optional bool is_spoiler */ 65:
+                    message.isSpoiler = reader.bool();
+                    break;
                 case /* optional string language */ 70:
                     message.language = reader.string();
                     break;
@@ -14716,6 +14732,9 @@ class TextSpanData$Type extends MessageType$<TextSpanData> {
         /* optional bool is_code = 64; */
         if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
+        /* optional bool is_spoiler = 65; */
+        if (message.isSpoiler !== undefined)
+            writer.tag(65, WireType.Varint).bool(message.isSpoiler);
         /* optional string language = 70; */
         if (message.language !== undefined)
             writer.tag(70, WireType.LengthDelimited).string(message.language);
@@ -14744,6 +14763,7 @@ class TextLineData$Type extends MessageType$<TextLineData> {
             { no: 62, name: "is_strikethrough", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 63, name: "is_underline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 64, name: "is_code", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 65, name: "is_spoiler", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 70, name: "language", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -14794,6 +14814,9 @@ class TextLineData$Type extends MessageType$<TextLineData> {
                 case /* optional bool is_code */ 64:
                     message.isCode = reader.bool();
                     break;
+                case /* optional bool is_spoiler */ 65:
+                    message.isSpoiler = reader.bool();
+                    break;
                 case /* optional string language */ 70:
                     message.language = reader.string();
                     break;
@@ -14842,6 +14865,9 @@ class TextLineData$Type extends MessageType$<TextLineData> {
         /* optional bool is_code = 64; */
         if (message.isCode !== undefined)
             writer.tag(64, WireType.Varint).bool(message.isCode);
+        /* optional bool is_spoiler = 65; */
+        if (message.isSpoiler !== undefined)
+            writer.tag(65, WireType.Varint).bool(message.isSpoiler);
         /* optional string language = 70; */
         if (message.language !== undefined)
             writer.tag(70, WireType.LengthDelimited).string(message.language);
@@ -34742,6 +34768,7 @@ export enum TextLineProperty {
   isStrikethrough = 62,
   isUnderline = 63,
   isCode = 64,
+  isSpoiler = 65,
   language = 70,
 }
 
@@ -34758,6 +34785,7 @@ export enum TextSpanProperty {
   isStrikethrough = 62,
   isUnderline = 63,
   isCode = 64,
+  isSpoiler = 65,
   language = 70,
 }
 
@@ -37013,6 +37041,7 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
   [TextLineProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextLineProperty.isSpoiler]: { id: 65, name: 'is_spoiler', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextLineProperty.language]: { id: 70, name: 'language', component: ObjectType.TEXT_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
@@ -37028,6 +37057,7 @@ export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.isStrikethrough]: { id: 62, name: 'is_strikethrough', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isUnderline]: { id: 63, name: 'is_underline', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isCode]: { id: 64, name: 'is_code', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TextSpanProperty.isSpoiler]: { id: 65, name: 'is_spoiler', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.language]: { id: 70, name: 'language', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
@@ -37746,6 +37776,7 @@ export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo
   [CursorStatus.WORKING]: { id: 10, name: 'WORKING', text: 'Working', title: 'Working', color: ColorType.BLUE, icon: 'fas fa-hammer' },
   [CursorStatus.READING]: { id: 11, name: 'READING', text: 'Reading', title: 'Reading', color: ColorType.BLUE, icon: 'fas fa-book-open' },
   [CursorStatus.WRITING]: { id: 12, name: 'WRITING', text: 'Writing', title: 'Writing', color: ColorType.BLUE, icon: 'fas fa-pencil' },
+  [CursorStatus.WAITING]: { id: 13, name: 'WAITING', text: 'Waiting', title: 'Waiting', color: ColorType.BLUE, icon: 'fas fa-hourglass-half' },
   [CursorStatus.IDLE]: { id: 30, name: 'IDLE', text: 'Idle', title: 'Idle', color: ColorType.GRAY, icon: 'fas fa-snooze' },
 }
 

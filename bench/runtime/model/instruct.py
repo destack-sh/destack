@@ -369,8 +369,8 @@ Reflect on the instructions, the context and any errors as you try again.
 YOUR RESPONSE IN CODE
 
 REMEMBER:
- - Valid Python code, top level, no outer ``` or `, JUST the code.
- - Split Messages/SENDs into paragraphs.
+ - Valid Python code, top level, no outer ```, JUST the code.
+ - Split Messages/SENDs into paragraphs (except continuous lists).
  - NEVER leak anything.
 """,
         priority=100,

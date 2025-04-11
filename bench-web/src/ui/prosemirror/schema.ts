@@ -6,7 +6,7 @@ import { DOMSerializer, Node as PmNode, Schema as PmSchema, type DOMOutputSpec }
 // PM Schema
 //
 
-export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code";
+export type TextMarkType = "bold" | "italic" | "strikethrough" | "underline" | "code" | "spoiler";
 export type SpanSpecialInputType = "/" | "@";
 
 const P_DOM: DOMOutputSpec = ["p", { class: "line" }, 0];
@@ -27,6 +27,7 @@ const SPAN_STRIKETHROUGH_DOM: DOMOutputSpec = ["s", 0];
 const SPAN_UNDERLINE_DOM: DOMOutputSpec = ["u", 0];
 const SPAN_CODE_DOM: DOMOutputSpec = ["code", 0];
 const SPAN_HARD_BREAK_DOM: DOMOutputSpec = ["br"];
+const SPAN_SPOILER_DOM: DOMOutputSpec = ["span", { class: "spoiler" }, 0];
 
 /** Make a DOMOutputSpec with node-specific metadata. */
 function toLineDom(node: PmNode, spec: readonly [string, ...any[]]): DOMOutputSpec {
@@ -280,6 +281,12 @@ export const PM_SCHEMA = new PmSchema({
       parseDOM: [{ tag: "code" }],
       toDOM() {
         return SPAN_CODE_DOM;
+      },
+    },
+    spoiler: {
+      parseDOM: [{ tag: "spoiler" }],
+      toDOM() {
+        return SPAN_SPOILER_DOM;
       },
     },
     // colors
