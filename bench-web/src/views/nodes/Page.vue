@@ -456,8 +456,8 @@ defineExpose<ViewExpose>({ self, commands, focus });
             v-for="blockType in [
               BlockType.PAGE,
               BlockType.HEADING_1,
+              BlockType.CODE,
               BlockType.TASK,
-              BlockType.FLOW,
               BlockType.DATABASE,
             ]"
             data-suppress-drag="both"

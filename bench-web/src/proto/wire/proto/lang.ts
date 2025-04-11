@@ -6768,6 +6768,10 @@ export interface PageData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData main_thread_ptr = 38;
+     */
+    mainThreadPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbolx.bench.TagData
@@ -12593,9 +12597,17 @@ export enum CursorType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CURSOR_TYPE_BENCH = 10;
+     * @generated from protobuf enum value: CURSOR_TYPE_THREAD = 10;
      */
-    BENCH = 10
+    THREAD = 10,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_PAGE = 20;
+     */
+    PAGE = 20,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_DATABASE = 30;
+     */
+    DATABASE = 30
 }
 /**
  * The status of a Cursor.
@@ -12624,9 +12636,13 @@ export enum CursorStatus {
      */
     WRITING = 12,
     /**
-     * @generated from protobuf enum value: CURSOR_STATUS_WAITING = 13;
+     * @generated from protobuf enum value: CURSOR_STATUS_THINKING = 13;
      */
-    WAITING = 13,
+    THINKING = 13,
+    /**
+     * @generated from protobuf enum value: CURSOR_STATUS_WAITING = 15;
+     */
+    WAITING = 15,
     /**
      * @generated from protobuf enum value: CURSOR_STATUS_IDLE = 30;
      */
@@ -29422,7 +29438,8 @@ class PageData$Type extends MessageType$<PageData> {
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
-            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "main_thread_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PageData>): PageData {
@@ -29499,6 +29516,9 @@ class PageData$Type extends MessageType$<PageData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
+                case /* optional symbolx.bench.NodeReferenceData main_thread_ptr */ 38:
+                    message.mainThreadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.mainThreadPtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -29571,6 +29591,9 @@ class PageData$Type extends MessageType$<PageData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData main_thread_ptr = 38; */
+        if (message.mainThreadPtr)
+            NodeReferenceData.internalBinaryWrite(message.mainThreadPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -33222,6 +33245,7 @@ export enum PageProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
+  mainThreadPtr = 38,
 }
 
 export enum BlockProperty {
@@ -35325,7 +35349,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.11.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -35362,7 +35386,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.11.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.11.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35550,6 +35574,7 @@ export const PageDataInfo: Record<PageProperty, PropertyInfo> = {
   [PageProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PageProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PageProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [PageProperty.mainThreadPtr]: { id: 38, name: 'main_thread_ptr', component: ObjectType.PAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37548,7 +37573,9 @@ export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>>
 }
 
 export const CursorTypeOptionInfo: Partial<Record<CursorType, EnumOptionInfo>> = {
-  [CursorType.BENCH]: { id: 10, name: 'BENCH', text: 'Bench', title: 'Bench', icon: 'fas fa-layer-group' },
+  [CursorType.THREAD]: { id: 10, name: 'THREAD', title: 'Thread' },
+  [CursorType.PAGE]: { id: 20, name: 'PAGE', title: 'Page' },
+  [CursorType.DATABASE]: { id: 30, name: 'DATABASE', title: 'Database' },
 }
 
 export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo>> = {
@@ -37556,7 +37583,8 @@ export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo
   [CursorStatus.WORKING]: { id: 10, name: 'WORKING', text: 'Working', title: 'Working', color: ColorType.BLUE, icon: 'fas fa-hammer' },
   [CursorStatus.READING]: { id: 11, name: 'READING', text: 'Reading', title: 'Reading', color: ColorType.BLUE, icon: 'fas fa-book-open' },
   [CursorStatus.WRITING]: { id: 12, name: 'WRITING', text: 'Writing', title: 'Writing', color: ColorType.BLUE, icon: 'fas fa-pencil' },
-  [CursorStatus.WAITING]: { id: 13, name: 'WAITING', text: 'Waiting', title: 'Waiting', color: ColorType.BLUE, icon: 'fas fa-hourglass-half' },
+  [CursorStatus.THINKING]: { id: 13, name: 'THINKING', text: 'Thinking', title: 'Thinking', color: ColorType.BLUE, icon: 'fas fa-brain' },
+  [CursorStatus.WAITING]: { id: 15, name: 'WAITING', text: 'Waiting', title: 'Waiting', color: ColorType.GRAY, icon: 'fas fa-hourglass-half' },
   [CursorStatus.IDLE]: { id: 30, name: 'IDLE', text: 'Idle', title: 'Idle', color: ColorType.GRAY, icon: 'fas fa-snooze' },
   [CursorStatus.CANCELLED]: { id: 50, name: 'CANCELLED', text: 'Cancelled', title: 'Cancelled', color: ColorType.RED, icon: 'fas fa-times' },
   [CursorStatus.COMPLETED]: { id: 53, name: 'COMPLETED', text: 'Completed', title: 'Completed', color: ColorType.GREEN, icon: 'fas fa-check' },

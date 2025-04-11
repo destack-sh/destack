@@ -23,7 +23,7 @@ from bench.runtime.core import RunIn, Runner, Runtime
 from bench.runtime.model import get_chat_model_runner_cls
 from bench.utils.tenacity import RetryOptions
 
-from .instruct import make_agent_think_prompt
+from .instruct import build_prompt
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -109,7 +109,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             cursor.active_at = self.runtime.oracle.utc()
 
             # make prompt
-            prompt = make_agent_think_prompt(
+            prompt = build_prompt(
                 agent=self.node, runner=cast(AgentRunner[Agent], self), previous_attempts=attempts
             )
 
