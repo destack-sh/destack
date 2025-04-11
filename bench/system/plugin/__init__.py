@@ -2,7 +2,7 @@ from .claim import ClaimPlugin
 from .computer import DockerComputerProvisioner, KubernetesComputerProvisioner
 from .database import DatabasePlugin
 from .provisioner import Provisioner
-from .run import RunPlugin
+from .runtime import RunPlugin, WakePlugin
 from .scaler import ScalerProvisioner
 from .store import LocalhostStoreProvisioner, NeonStoreProvisioner, StoreProvisioner
 from .trigger import ScheduleTriggerPlugin
@@ -19,4 +19,5 @@ __all__ = [
     "ScalerProvisioner",
     "ScheduleTriggerPlugin",
     "StoreProvisioner",
+    "WakePlugin",
 ]

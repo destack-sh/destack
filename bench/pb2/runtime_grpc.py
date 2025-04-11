@@ -28,6 +28,12 @@ class RuntimeBase(abc.ABC):
     ) -> "runtime_pb2.RunResponse":
         pass
 
+    @abc.abstractmethod
+    async def wake(
+        self, request: "runtime_pb2.WakeRequest", headers: Mapping
+    ) -> "runtime_pb2.WakeResponse":
+        pass
+
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Runtime/Run": grpclib.const.Handler(
@@ -35,6 +41,12 @@ class RuntimeBase(abc.ABC):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 runtime_pb2.RunRequest,
                 runtime_pb2.RunResponse,
+            ),
+            "/symbolx.bench.Runtime/Wake": grpclib.const.Handler(
+                self.wake,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                runtime_pb2.WakeRequest,
+                runtime_pb2.WakeResponse,
             ),
         }
 
@@ -46,4 +58,10 @@ class RuntimeClient:
             "/symbolx.bench.Runtime/Run",
             runtime_pb2.RunRequest,
             runtime_pb2.RunResponse,
+        )
+        self.wake = grpclib.client.UnaryUnaryMethod(
+            channel,
+            "/symbolx.bench.Runtime/Wake",
+            runtime_pb2.WakeRequest,
+            runtime_pb2.WakeResponse,
         )

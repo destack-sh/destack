@@ -904,6 +904,68 @@ class Runtime:
         except BaseException as e:
             logger.error("runtime.mark_failed.error", run=run, exc_info=e)
 
+    def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
+        """Gets all Runs that were directly interrupted by the given Interruptions."""
+        interrupted_runs: list[Run] = []
+        for run in graph.nodes_of_type(Run):
+            interruption = run.interruption
+            if (
+                run.status.is_interrupted
+                and interruption is not None
+                and interruption in interruptions
+            ):
+                interrupted_runs.append(run)
+        return interrupted_runs
+
+    def resume_run(self, *runs: Run):
+        """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
+        from bench.runtime.flow import FlowRunner
+
+        if self._is_draining:
+            raise RuntimeError(f"{self!r} was stopped")
+
+        runs_by_parent: dict[Package | Thread | Run | Agent | None, list[Run]] = group_by(
+            runs, key=lambda run: run.parent
+        )
+        for parent, child_runs in runs_by_parent.items():
+            assert parent is not None, f"missing parent for {child_runs!r}"
+            if isinstance(parent, (Package, Thread)):
+                # resume root runs
+                for root_run in child_runs:
+                    runner = self.restore_runner(root_run)
+                    logger.debug("runtime.resume_run", run=root_run, runner=runner)
+                    self.run_runner_soon(runner)
+            elif isinstance(parent, Run):
+                # resume child runs within their parent
+                parent_runner = self._active_runners_by_id.get(parent.id)
+                if isinstance(parent_runner, FlowRunner):
+                    parent_runner.run_inner(child_runs)
+                    logger.debug(
+                        "runtime.resume_run",
+                        run=parent,
+                        runner=parent_runner,
+                        inner_runs=child_runs,
+                    )
+                else:
+                    root_run = parent.root or parent
+                    root_runner = self.restore_runner(root_run)
+                    logger.debug("runtime.resume_run.inner", run=parent, runner=root_runner)
+                    self.run_runner_soon(root_runner)
+
+    def stop_run(self, run: Run):
+        """Kill a Run that is currently active in this Runtime (and any inside it)."""
+        root_runner = self._runners_by_id.get(run.id)
+        if root_runner is None:
+            raise RuntimeError(f"no active runner for {run!r} in {self!r}")
+        for runner in reversed(list(root_runner.walk())):
+            if not runner.status.is_terminal:
+                logger.debug("runtime.stop_run", runner=runner)
+                runner.stop()
+
+    #
+    # Service
+    #
+
     async def run(
         self,
         run: Run | NodeReference,
@@ -979,60 +1041,6 @@ class Runtime:
 
         return runner
 
-    def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
-        """Gets all Runs that were directly interrupted by the given Interruptions."""
-        interrupted_runs: list[Run] = []
-        for run in graph.nodes_of_type(Run):
-            interruption = run.interruption
-            if (
-                run.status.is_interrupted
-                and interruption is not None
-                and interruption in interruptions
-            ):
-                interrupted_runs.append(run)
-        return interrupted_runs
-
-    def resume_run(self, *runs: Run):
-        """Resume interrupted Runs. Does *not* mark the Run or close open Interruptions."""
-        from bench.runtime.flow import FlowRunner
-
-        if self._is_draining:
-            raise RuntimeError(f"{self!r} was stopped")
-
-        runs_by_parent: dict[Package | Thread | Run | Agent | None, list[Run]] = group_by(
-            runs, key=lambda run: run.parent
-        )
-        for parent, child_runs in runs_by_parent.items():
-            assert parent is not None, f"missing parent for {child_runs!r}"
-            if isinstance(parent, (Package, Thread)):
-                # resume root runs
-                for root_run in child_runs:
-                    runner = self.restore_runner(root_run)
-                    logger.debug("runtime.resume_run", run=root_run, runner=runner)
-                    self.run_runner_soon(runner)
-            elif isinstance(parent, Run):
-                # resume child runs within their parent
-                parent_runner = self._active_runners_by_id.get(parent.id)
-                if isinstance(parent_runner, FlowRunner):
-                    parent_runner.run_inner(child_runs)
-                    logger.debug(
-                        "runtime.resume_run",
-                        run=parent,
-                        runner=parent_runner,
-                        inner_runs=child_runs,
-                    )
-                else:
-                    root_run = parent.root or parent
-                    root_runner = self.restore_runner(root_run)
-                    logger.debug("runtime.resume_run.inner", run=parent, runner=root_runner)
-                    self.run_runner_soon(root_runner)
-
-    def stop_run(self, run: Run):
-        """Kill a Run that is currently active in this Runtime (and any inside it)."""
-        root_runner = self._runners_by_id.get(run.id)
-        if root_runner is None:
-            raise RuntimeError(f"no active runner for {run!r} in {self!r}")
-        for runner in reversed(list(root_runner.walk())):
-            if not runner.status.is_terminal:
-                logger.debug("runtime.stop_run", runner=runner)
-                runner.stop()
+    async def wake(self, thread_ptr: NodeReference) -> None:
+        """Wake a Thread (and all its members)."""
+        raise NotImplementedError(f"nocheckin: wake {thread_ptr!r}")

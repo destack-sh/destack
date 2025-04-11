@@ -5,10 +5,18 @@ package symbolx.bench;
 import "proto/common.proto";
 import "proto/lang.proto";
 
+message WakeRequest {
+	GraphScopeData scope = 1;
+	NodeReferenceData computer_ptr = 2;
+	repeated NodeReferenceData thread_ptrs = 3; // :RuntimeRouting
+}
+message WakeResponse {
+}
+
 message RunRequest {
 	GraphScopeData scope = 1;
 	NodeReferenceData computer_ptr = 2;
-	NodeReferenceData thread_ptr = 3; // :RunRouting
+	NodeReferenceData thread_ptr = 3; // :RuntimeRouting
 	repeated NodeReferenceData run_ptrs = 10;
 }
 message RunResponse {
@@ -21,5 +29,7 @@ service Runtime {
   
 	// Process Runs. Returns immediately after queuing.
 	rpc Run(RunRequest) returns (RunResponse);
+	// Wake up a Thread/Agent. Returns immediately.
+	rpc Wake(WakeRequest) returns (WakeResponse);
 }
    
