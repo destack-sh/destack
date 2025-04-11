@@ -252,6 +252,8 @@ dbus-daemon --system --fork
 # vnc
 x11vnc -passwd bench -shared -display :99 -forever -listen 0.0.0.0 -rfbport 5900 &
 until nc -z localhost 5900; do sleep 0.1; done
+# websockify
+websockify -D 6080 localhost:5900
 # user
 mkdir -p /tmp/runtime-bench-user
 chown bench-user:bench-user /tmp/runtime-bench-user

@@ -88,13 +88,13 @@ class ThreadHandle:
 
     @property
     def messages(self) -> list[Message]:
-        """The Messages."""
+        """The Messages in this Thread (sorted by created_at)."""
         assert self._messages_connection is not None, f"{self!r} is not ready"
         return self._messages_connection.result.roots
 
     @property
     def agents(self) -> LocalNodeList[Agent]:
-        """The Agents."""
+        """The Agents instanced into this Thread."""
         return self.thread.agents
 
     @property
