@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.11.0"
+VERSION = "2025.04.11.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -626,6 +626,9 @@ PAGE_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_thread_id", PrimitiveType.UUID, is_nullable=True),
+        Column("main_thread_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("main_thread_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

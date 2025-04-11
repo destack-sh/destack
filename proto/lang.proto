@@ -1383,7 +1383,9 @@ enum ClaimStatus {
 // The type of Cursor.
 enum CursorType {
   CURSOR_TYPE_UNSPECIFIED = 0;
-  CURSOR_TYPE_BENCH = 10;
+  CURSOR_TYPE_THREAD = 10;
+  CURSOR_TYPE_PAGE = 20;
+  CURSOR_TYPE_DATABASE = 30;
 }
 
 // The status of a Cursor.
@@ -1393,7 +1395,8 @@ enum CursorStatus {
   CURSOR_STATUS_WORKING = 10;
   CURSOR_STATUS_READING = 11;
   CURSOR_STATUS_WRITING = 12;
-  CURSOR_STATUS_WAITING = 13;
+  CURSOR_STATUS_THINKING = 13;
+  CURSOR_STATUS_WAITING = 15;
   CURSOR_STATUS_IDLE = 30;
   CURSOR_STATUS_CANCELLED = 50;
   CURSOR_STATUS_COMPLETED = 53;
@@ -3715,6 +3718,7 @@ message PageData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
+  optional NodeReferenceData main_thread_ptr = 38;
 }
 
 message TagData {

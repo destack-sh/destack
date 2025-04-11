@@ -167,11 +167,14 @@ defineExpose<ViewExpose>({ self });
             :node-ptr="props.nodePtr"
             :expanded-nodes-ptr="expandedPackageNodesPtr"
             @update:expanded-nodes-ptr="
-              state.update({
-                subnodePacked: packSubnode(NodeType.VIEW, ViewType.SIDEBAR, {
-                  expandedPackageNodesPtr: $event,
-                }),
-              })
+              state.update(
+                {
+                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.SIDEBAR, {
+                    expandedPackageNodesPtr: $event,
+                  }),
+                },
+                { debounce: 'long' },
+              )
             "
           />
         </div>

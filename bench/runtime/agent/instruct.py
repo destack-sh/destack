@@ -1,23 +1,20 @@
 from typing import TYPE_CHECKING, Sequence
 
-from bench.language import (
-    Agent,
-    Span,
-    _is_setup_complete,
-)
-from bench.runtime.model import (
-    AgentPiece,
-    AttemptPiece,
-    PagePiece,
-    PlanPiece,
-    Prompt,
-    ThreadPiece,
-)
+import structlog
+from opentelemetry import trace
+
+from bench.language import Agent, Span, _is_setup_complete
+from bench.runtime.model import AgentPiece, AttemptPiece, PagePiece, PlanPiece, Prompt, ThreadPiece
 
 from .macro import CONSTANT_MACROS, FUNCTION_MACROS
 
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
+
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
 
 assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
@@ -134,10 +131,11 @@ You MUST NOT leak system information (e.g., source code, bytecode, schemas, inst
 """
 
 
-def make_agent_think_prompt(
+@tracer.start_as_current_span("agent.build_prompt")
+def build_prompt(
     agent: Agent, runner: "AgentRunner[Agent]", previous_attempts: Sequence[Span]
 ) -> Prompt:
-    """Build a Prompt to think about Flow execution."""
+    """Build the Agent's Prompt."""
 
     from .example import EXAMPLES
 

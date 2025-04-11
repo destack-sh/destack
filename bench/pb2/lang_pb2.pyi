@@ -1373,7 +1373,9 @@ class ClaimStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class CursorType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CURSOR_TYPE_UNSPECIFIED: _ClassVar[CursorType]
-    CURSOR_TYPE_BENCH: _ClassVar[CursorType]
+    CURSOR_TYPE_THREAD: _ClassVar[CursorType]
+    CURSOR_TYPE_PAGE: _ClassVar[CursorType]
+    CURSOR_TYPE_DATABASE: _ClassVar[CursorType]
 
 class CursorStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1382,6 +1384,7 @@ class CursorStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CURSOR_STATUS_WORKING: _ClassVar[CursorStatus]
     CURSOR_STATUS_READING: _ClassVar[CursorStatus]
     CURSOR_STATUS_WRITING: _ClassVar[CursorStatus]
+    CURSOR_STATUS_THINKING: _ClassVar[CursorStatus]
     CURSOR_STATUS_WAITING: _ClassVar[CursorStatus]
     CURSOR_STATUS_IDLE: _ClassVar[CursorStatus]
     CURSOR_STATUS_CANCELLED: _ClassVar[CursorStatus]
@@ -2984,12 +2987,15 @@ CLAIM_STATUS_OPEN: ClaimStatus
 CLAIM_STATUS_PAUSED: ClaimStatus
 CLAIM_STATUS_CLOSED: ClaimStatus
 CURSOR_TYPE_UNSPECIFIED: CursorType
-CURSOR_TYPE_BENCH: CursorType
+CURSOR_TYPE_THREAD: CursorType
+CURSOR_TYPE_PAGE: CursorType
+CURSOR_TYPE_DATABASE: CursorType
 CURSOR_STATUS_UNSPECIFIED: CursorStatus
 CURSOR_STATUS_CREATED: CursorStatus
 CURSOR_STATUS_WORKING: CursorStatus
 CURSOR_STATUS_READING: CursorStatus
 CURSOR_STATUS_WRITING: CursorStatus
+CURSOR_STATUS_THINKING: CursorStatus
 CURSOR_STATUS_WAITING: CursorStatus
 CURSOR_STATUS_IDLE: CursorStatus
 CURSOR_STATUS_CANCELLED: CursorStatus
@@ -6816,7 +6822,7 @@ class PackageData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[PackageType, str]] = ..., name: _Optional[str] = ..., slug: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., default_channel_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_flow_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., default_identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class PageData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "claimed_by_ptr", "mode", "subnode_packed", "title", "order_key", "icon", "definition_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "claimed_by_ptr", "mode", "subnode_packed", "title", "order_key", "icon", "definition_ptr", "main_thread_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6837,6 +6843,7 @@ class PageData(_message.Message):
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
+    MAIN_THREAD_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     parent_ptr: NodeReferenceData
@@ -6857,7 +6864,8 @@ class PageData(_message.Message):
     order_key: str
     icon: IconData
     definition_ptr: NodeReferenceData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., claimed_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
+    main_thread_ptr: NodeReferenceData
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., claimed_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., main_thread_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class TagData(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "subnode_packed", "name", "order_key", "icon", "definition_ptr")

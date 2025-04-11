@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, overload
+from typing import TYPE_CHECKING, Optional, Union, overload
 
 from bench.language.core import (
     InlineNode,
@@ -14,12 +14,13 @@ from bench.language.core import (
     node_,
     p_node_children,
     p_node_parent,
+    p_regular,
     text_line,
 )
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Channel, Package
+    from bench.language import Block, Channel, Package, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,6 +38,9 @@ class Page(
 
     # meta
     parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
+    main_thread: Optional["Thread"] = p_regular(
+        38, default=None, require=False, array=False, references=NodeType.THREAD
+    )
 
     # identity, roles, ...?
 
