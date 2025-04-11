@@ -33,7 +33,6 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
-    Trigger,
     code,
     constraint,
     format_code,
@@ -270,9 +269,7 @@ def test_render_field_with_constraint(session: Session, package: Package):
 def test_render_flow_simple(session: Session, package: Package):
     """Flows should create Links with `connect`."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(
-        ActionType.START, "Start", triggers=[Trigger.on_start(), Trigger.on_message()]
-    )
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
     Forward1 = Start.connect(LinkType.REQUIRE, End, "Forward1")

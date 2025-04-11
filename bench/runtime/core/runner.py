@@ -601,7 +601,10 @@ def create_run(
     action: Action | None = None
     link: Link | None = None
     typ: RunType | None = None
-    if isinstance(node, Flow):
+    if isinstance(node, Agent):
+        typ = RunType.AGENT
+        agent = node
+    elif isinstance(node, Flow):
         typ = RunType.FLOW
         flow = node
     elif isinstance(node, Action):
@@ -781,10 +784,14 @@ def make_runner(
 
     # map to runner
     if RUN_TYPE == RunType.CODE:
-        from bench.runtime.code.code import CodeFunctionRunner
+        from bench.runtime.code import CodeFunctionRunner
 
         code = getattr(node, "code", None) or Code.empty()
         runner = CodeFunctionRunner(**base_kwargs, code=code)
+    elif RUN_TYPE == RunType.AGENT:
+        from bench.runtime.agent import AgentRunner
+
+        runner = AgentRunner(**base_kwargs)
     elif RUN_TYPE == RunType.FLOW:
         from bench.runtime.flow import FlowRunner
 

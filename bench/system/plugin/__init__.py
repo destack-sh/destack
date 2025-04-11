@@ -5,7 +5,7 @@ from .provisioner import Provisioner
 from .run import RunPlugin
 from .scaler import ScalerProvisioner
 from .store import LocalhostStoreProvisioner, NeonStoreProvisioner, StoreProvisioner
-from .trigger import MessageTriggerPlugin, ScheduleTriggerPlugin
+from .trigger import ScheduleTriggerPlugin
 
 __all__ = [
     "ClaimPlugin",
@@ -13,7 +13,6 @@ __all__ = [
     "DockerComputerProvisioner",
     "KubernetesComputerProvisioner",
     "LocalhostStoreProvisioner",
-    "MessageTriggerPlugin",
     "NeonStoreProvisioner",
     "Provisioner",
     "RunPlugin",

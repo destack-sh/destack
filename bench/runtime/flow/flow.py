@@ -1,4 +1,3 @@
-import asyncio
 from abc import ABC
 from asyncio import Queue
 from typing import ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
@@ -18,22 +17,16 @@ from bench.language import (
     IsType,
     Link,
     LinkType,
-    ModelDeveloper,
-    ModelType,
     Plan,
-    PlanType,
     ProcessStatus,
     Run,
     Runnable,
     RunOptions,
     RunType,
-    SpanType,
     Task,
     TextLine,
-    TriggerType,
     coerce_custom_object_scalar,
 )
-from bench.language.runtime.span import Span
 from bench.runtime.core import (
     Interrupted,
     RetryableError,
@@ -46,18 +39,13 @@ from bench.runtime.core import (
     Runtime,
     make_runner,
 )
-from bench.runtime.model import ModelRunner, get_chat_model_runner_cls, make_flow_think_prompt
-from bench.utils.tenacity import RetryOptions
+from bench.runtime.model import ModelRunner
 
 from .action import ActionRunner
 from .link import LinkRunner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-THINK_RETRY_OPTIONS = RetryOptions(
-    max_attempts=10, retry_interval=0.2, backoff=1.5, max_retry_interval=10
-)
 
 
 class TickActionResult(NamedTuple):
@@ -241,46 +229,16 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
         new_runs: list[Run] = []
-        is_completed = isinstance(event, RunnerCompletedEvent)
-        is_failed = isinstance(event, RunnerFailedEvent)
-        suppressed_fail = False
-
-        # tick caller plan
-        if (task := run.run_task) is not None and (plan := run.run_plan) is not None:
-            assert plan.type == PlanType.RUN, f"{plan!r} is not a Flow"
-            parent_run = plan.parent
-            assert isinstance(parent_run, Run), f"{plan!r} is not from a Run"
-            # progress run plan
-            if is_completed:
-                next_run = None
-                tasks = plan.tasks.tolist()
-                step = tasks.index(task)
-                while next_run is None and step < (len(tasks) - 1):
-                    step += 1
-                    next_task = tasks[step]
-                    for link in self.node.links:
-                        if (
-                            link.target_id == next_task.target_id
-                            and link.source_id == parent_run.action_id
-                        ):
-                            next_run = self._start(link, run_plan=plan, run_task=next_task)
-                            new_runs.append(next_run)
-                            break
-                if next_run is None:
-                    # no next task, complete plan
-                    plan.complete()
-            elif is_failed:
-                plan.fail(run.error)
-                suppressed_fail = True
 
         # start manual links
-        if is_completed:
+        if isinstance(event, RunnerCompletedEvent):
             for link in self.node.links:
                 if link.type == LinkType.MANUAL and link.source_id == action.id:
-                    self._start(link)
+                    new_run = self._start(link)
+                    new_runs.append(new_run)
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
-        return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0 or suppressed_fail)
+        return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0)
 
     def _tick_link(self, runner: LinkRunner, link: Link, event: RunnerEvent) -> TickLinkResult:
         """Ticks the Link to progress the Flow."""
@@ -290,95 +248,14 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         next_action = link.target
         if next_action is None or next_action.is_deleted:
             return TickLinkResult(new_runs=(), is_handled=False)
-        if (run_plan := runner.tracked_run.run_plan) is not None and (
-            run_task := runner.tracked_run.run_task
-        ) is not None:
-            next_run = self._start(
-                next_action,
-                run_plan=run_plan,
-                run_task=run_task,
-                inputs=run_task.value,
-                title=run_task.title,
-            )
-        else:
-            next_run = self._start(next_action)
+        next_run = self._start(next_action)
         return TickLinkResult(new_runs=(next_run,), is_handled=True)
-
-    @tracer.start_as_current_span("flow.think")
-    async def _think(self):
-        """Prepare the next actions in this Flow (if any)."""
-        attempts: list[Span] = []
-        retry = THINK_RETRY_OPTIONS.new(oracle=self.runtime.oracle)
-        while retry.should_retry:
-            retry.on_attempt()
-            prompt = make_flow_think_prompt(
-                flow=self.node, runner=cast(FlowRunner[Flow], self), previous_attempts=attempts
-            )
-            model_developer = ModelDeveloper.OPENAI
-            model_type = ModelType.OPENAI_GPT4_0
-            model_runner_cls = get_chat_model_runner_cls(
-                model_developer=model_developer, model_type=model_type
-            )
-            model_runner = model_runner_cls(
-                runtime=self.runtime,
-                node=self.node,
-                model_type=model_type,
-                options=self.options,
-                prompt=prompt,
-                parent=cast(Runner[Runnable], self),
-                agent=self.agent,
-                run=SpanType.FLOW_THINK,
-            )
-            attempt = model_runner.tracked_span
-            assert attempt is not None, f"{model_runner!r} has no Span"
-            attempts.append(attempt)
-            try:
-                self._active_planning_runner = model_runner
-                await self.runtime.run_runner(model_runner)
-                logger.debug(
-                    "flow.think", flow=self.node, runner=self, attempt=attempt, span="current"
-                )
-                retry.on_success()
-                return  # success
-            except asyncio.CancelledError:
-                logger.debug(
-                    "flow.think.aborted",
-                    flow=self.node,
-                    runner=self,
-                    attempt=attempt,
-                    span="current",
-                )
-                raise
-            except BaseException as e:
-                logger.debug(
-                    "flow.think.error",
-                    flow=self.node,
-                    runner=self,
-                    attempt=attempt,
-                    span="current",
-                    exc_info=e,
-                )
-                if not retry.on_error(e):
-                    raise
-                else:
-                    interval = retry.get_wait_interval()
-                    logger.trace(
-                        "flow.think.retry",
-                        flow=self.node,
-                        runner=self,
-                        attempt=attempt,
-                        interval=interval,
-                    )
-                    await self.runtime.oracle.sleep(interval)
-            finally:
-                self._active_planning_runner = None
 
     @override
     async def run(self) -> None:
         """Run this Flow until it stops."""
         run = self.tracked_run
         assert run is not None, f"{self!r} must be tracked"
-        is_manual = all(link.type == LinkType.MANUAL for link in self.node.links)
 
         # start / resume
         self._stop_result = None  # clear
@@ -386,10 +263,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         if not runs:
             # start from scratch
             for action in self.node.actions:
-                if action.type == ActionType.START and any(
-                    trigger.type == TriggerType.START and trigger.status.is_open
-                    for trigger in action.triggers
-                ):
+                if action.type == ActionType.START:
                     self._start(action, inputs=self.inputs)
         else:
             # resume from interrupted
@@ -407,15 +281,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 # process next event
                 event = await self._events.get()
                 await self._process_event(event)
-
-                # plan next actions
-                # nocheckin: cancel current thinking if there's a new event
-                if (
-                    (run.run_plan is None or run.run_plan.status.is_terminal)
-                    and not self._is_stopping
-                    and not is_manual
-                ):
-                    await self._think()
 
                 # stop if no more events
                 if self._events.empty():

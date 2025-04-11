@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.10.0"
+VERSION = "2025.04.11.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -399,8 +399,6 @@ class EnumType(BuiltinEnum):
     PROCESS_STATUS = 22000
     RUN_TYPE = 22001
     SPAN_TYPE = 22002
-    PLAN_TYPE = 22003
-    TASK_TYPE = 22010
     SESSION_STATUS = 22020
     CACHE_MODE = 22040
     LOG_TYPE = 22060
@@ -1468,6 +1466,7 @@ class RunType(BuiltinEnum):
     ACTION = 10
     FLOW = 11
     LINK = 12
+    AGENT = 15
 
 
 @enum_(EnumType.SPAN_TYPE)
@@ -1478,7 +1477,7 @@ class SpanType(BuiltinEnum):
     ACQUIRE = 3, None, None, "fas fa-toolbox"
     CODE = 10, None, None, "fas fa-code"
     # flow
-    FLOW_THINK = 100, None, None, "fas fa-hexagon-nodes"
+    AGENT_THINK = 100, None, None, "fas fa-hexagon-nodes"
     # action
     # ...
     # application (action)
@@ -1518,12 +1517,13 @@ class ProcessStatus(BuiltinEnum):
     # inactive
     IDLE = 30, "Idle", "Waiting for work", "fas fa-zzz", ColorType.GRAY
     # terminal
-    CANCELLED = 50, "Cancelled", "Cancelled manually", "fas fa-circle-xmark", ColorType.GRAY
-    ABORTED = 51, "Aborted", "Aborted due to an error", "fas fa-skull", ColorType.GRAY
-    FAILED = 52, "Failed", "Failed due to an error", "fas fa-circle-xmark", ColorType.RED
-    COMPLETED = 53, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
+    CANCELLED = 50, "Cancelled", "Cancelled before running", "fas fa-circle-xmark", ColorType.GRAY
+    ABORTED = 51, "Aborted", "Aborted while running", "fas fa-circle-xmark", ColorType.GRAY
+    DIED = 52, "Died", "Unresponsive while running", "fas fa-skull", ColorType.RED
+    FAILED = 53, "Failed", "Failed due to an error", "fas fa-circle-xmark", ColorType.RED
+    COMPLETED = 54, "Completed", "Completed successfully", "fas fa-circle-check", ColorType.GREEN
     SKIPPED = (
-        54,
+        55,
         "Skipped",
         "Skipped due to a condition",
         "fas fa-circle-exclamation",

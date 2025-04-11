@@ -28,6 +28,7 @@ import {
   Timestamp,
   type RunData,
   RunnableNodeData,
+  AgentData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -329,10 +330,14 @@ export function makeRun(
   },
 ): RunData {
   let packagePtr: NodeReferenceData | undefined = undefined;
+  let agent: AgentData | undefined = undefined;
   let flow: FlowData | undefined = undefined;
   let command: ActionData | undefined = undefined;
   let link: LinkData | undefined = undefined;
-  if (isNode(runnable, NodeType.FLOW)) {
+  if (isNode(runnable, NodeType.AGENT)) {
+    agent = runnable;
+    packagePtr = options?.packagePtr ?? runnable.packagePtr;
+  } else if (isNode(runnable, NodeType.FLOW)) {
     flow = runnable;
     packagePtr = options?.packagePtr ?? runnable.packagePtr;
   } else if (isNode(runnable, NodeType.ACTION)) {

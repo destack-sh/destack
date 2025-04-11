@@ -22,7 +22,7 @@ from bench.pb2 import TriggerData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
+        Agent,
         Interruption,
         Plan,
         Run,
@@ -35,17 +35,15 @@ if TYPE_CHECKING:
 @enum_(EnumType.TRIGGER_TYPE)
 class TriggerType(BuiltinEnum):
     # flow
-    START = 10, "Start", "Run when a Flow is started", "fas fa-play"
-    MESSAGE = 20, "Message", "Run when a Message is received", "fas fa-envelope"
-    SCHEDULE = 30, "Schedule", "Run on a schedule", "fas fa-clock"
-    # RECORD, LOG, EDIT, ...
+    SCHEDULE = 10, "Schedule", "Run on a schedule", "fas fa-clock"
+    # MESSAGE, RECORD, LOG, EDIT, ...
 
 
 @enum_(EnumType.TRIGGER_STATUS)
 class TriggerStatus(BuiltinEnum):
     INACTIVE = 1, "Inactive", "Not actively triggering", "fas fa-bolt-slash", ColorType.GRAY
     OPEN = 10, "Open", "Actively triggering", "fas fa-bolt", ColorType.BLUE
-    # CLOSED = 20, "Closed", "No longer triggering", "fas fa-toggle-large-off", ColorType.GRAY
+    CLOSED = 20, "Closed", "No longer triggering", "fas fa-toggle-large-off", ColorType.GRAY
 
     @property
     def is_open(self) -> bool:
@@ -63,11 +61,11 @@ class TriggerEffect(BuiltinEnum):
 @node_(NodeType.TRIGGER)
 class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     """
-    A Trigger is an event-driven condition that, once met, affects the Bench somehow.
+    A Trigger is an event-driven condition that, once met, does something.
     """
 
-    parent: Union["Action", "Plan", "Task", None] = p_node_parent(
-        4, NodeType.ACTION, NodeType.PLAN, NodeType.TASK, NodeType.RUN
+    parent: Union["Agent", "Plan", "Task", None] = p_node_parent(
+        4, NodeType.AGENT, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
 
     # meta
@@ -109,22 +107,3 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     @property
     def is_open(self) -> bool:
         return self.status.is_open
-
-    @staticmethod
-    def on_start(
-        name: str | None = None,
-        text: Text | None = None,
-        *,
-        effect: TriggerEffect = TriggerEffect.RUN,
-    ) -> "Trigger":
-        return Trigger(type=TriggerType.START, name=name, text=text, effect=effect)
-
-    @staticmethod
-    def on_message(
-        name: str | None = None,
-        text: Text | None = None,
-        *,
-        effect: TriggerEffect = TriggerEffect.RUN,
-    ) -> "Trigger":
-        trigger = Trigger(type=TriggerType.MESSAGE, name=name, text=text, effect=effect)
-        return trigger

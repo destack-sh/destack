@@ -1230,27 +1230,6 @@ export class FlowContext {
       parentPtr,
       packagePtr,
     });
-    if (action.type == ActionType.START) {
-      // default triggers
-      tx.create({
-        metatype: NodeType.TRIGGER,
-        type: TriggerType.START,
-        benchPtr: action.benchPtr,
-        packagePtr: action.packagePtr,
-        parentPtr: toNodeRef(action),
-        name: "Start",
-        effect: TriggerEffect.RUN,
-      });
-      tx.create({
-        metatype: NodeType.TRIGGER,
-        type: TriggerType.MESSAGE,
-        benchPtr: action.benchPtr,
-        packagePtr: action.packagePtr,
-        parentPtr: toNodeRef(action),
-        name: "Message",
-        effect: TriggerEffect.RUN,
-      });
-    }
     canvas.inspect({ node: action, view: this.view.value });
     return action;
   }

@@ -92,8 +92,7 @@ class ActionRunner(Runner[Action], ABC):
         assert self.tracked_run is not None, f"{self!r} must be tracked"
 
         if isinstance(node, Agent):
-            runnable = node.main_flow
-            assert runnable is not None, f"{node!r} must have a default Flow"
+            runnable = node
             agent = node
         else:
             runnable = node
@@ -137,27 +136,13 @@ class ToolActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
         assert self.tracked_run is not None, f"{self!r} must be in a Run"
-        if self.node.tool_ptr is not None:
-            # run static tool
-            tool = self.node.tool
-            assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
-            tool_runner: Runner[Any] = self._get_resumable_subrunner(
-                node=tool, inputs=self.inputs, output_type=self.output_type
-            )
-            await self.runtime.run_runner(tool_runner)
-            self.outputs = tool_runner.outputs
-        else:
-            # run dynamic tool (from Task)
-            task = self.tracked_run.run_task
-            assert task is not None, f"{self!r} must have a Task (as tool is not provided)"
-            tool_ptr = task.tool_ptr
-            assert tool_ptr is not None, f"{task!r} for {self!r} must have a tool"
-            tool = task.target
-            assert tool is not None, f"{task!r} for {self!r} is missing {tool_ptr!r}"
-            tool_runner: Runner[Any] = self._get_resumable_subrunner(
-                node=tool, inputs=task.value, output_type=self.output_type
-            )
-            await self.runtime.run_runner(tool_runner)
+        tool = self.node.tool
+        assert tool is not None, f"{self.node!r} is missing {self.node.tool_ptr!r}"
+        tool_runner: Runner[Any] = self._get_resumable_subrunner(
+            node=tool, inputs=self.inputs, output_type=self.output_type
+        )
+        await self.runtime.run_runner(tool_runner)
+        self.outputs = tool_runner.outputs
 
 
 class CodeActionRunner(ActionRunner):
@@ -201,28 +186,10 @@ class CodeActionRunner(ActionRunner):
         self.outputs = code_runner.outputs
 
 
-class DoActionRunner(ActionRunner):
-    @override
-    async def run(self) -> None:
-        from bench.builtin import BenchFlow
-
-        # run main flow
-        flow_runner = self._get_resumable_subrunner(
-            node=BenchFlow,
-            inputs=self.inputs,
-            output_type=self.output_type,
-        )
-        try:
-            await self.runtime.run_runner(flow_runner)
-        finally:
-            self.outputs = flow_runner.outputs
-
-
 ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
     # flow
     ActionType.START: StartActionRunner,
     ActionType.END: EndActionRunner,
     ActionType.TOOL: ToolActionRunner,
     ActionType.CODE: CodeActionRunner,
-    ActionType.DO: DoActionRunner,
 }

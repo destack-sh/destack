@@ -137,6 +137,7 @@ def function_macro_(name: str, text: str, signature: str):
     return decorator
 
 
+# just for type-checking, function macros are never called directly (only after binding)
 _INJECTED_RUNNER = cast(Runner, None)
 
 

@@ -44,8 +44,16 @@ class IsRun(BuiltinObject):
     """Context for a Node that's in a Run."""
 
     # context
-    flow: Optional["Flow"] = p_internal(
+    agent: Optional["Agent"] = p_internal(
         70,
+        require=False,
+        array=False,
+        references=NodeType.AGENT,
+        same_bench=True,
+        description="The Agent we're running as.",
+    )
+    flow: Optional["Flow"] = p_internal(
+        71,
         require=False,
         array=False,
         references=NodeType.FLOW,
@@ -53,7 +61,7 @@ class IsRun(BuiltinObject):
         description="The Flow the Action is in.",
     )
     kit: Optional["Kit"] = p_internal(
-        71,
+        72,
         require=False,
         array=False,
         references=NodeType.KIT,
@@ -61,7 +69,7 @@ class IsRun(BuiltinObject):
         description="The Kit the Action is in.",
     )
     action: Optional["Action"] = p_internal(
-        72,
+        73,
         require=False,
         array=False,
         references=NodeType.ACTION,
@@ -69,7 +77,7 @@ class IsRun(BuiltinObject):
         description="The Action this Run is executing.",
     )
     link: Optional["Link"] = p_internal(
-        73,
+        74,
         require=False,
         array=False,
         references=NodeType.LINK,
@@ -77,7 +85,7 @@ class IsRun(BuiltinObject):
         description="The Link this Run is executing.",
     )
     trigger: Optional["Trigger"] = p_regular(
-        74,
+        75,
         require=False,
         array=False,
         references=NodeType.TRIGGER,
@@ -85,48 +93,32 @@ class IsRun(BuiltinObject):
         description="The Trigger this Run is triggered by.",
     )
     target: Optional[RunTarget] = p_internal(
-        75,
+        76,
         require=False,
         array=False,
         references=RUN_TARGET_TYPES.tuple,
         same_bench=True,
         description="The specific target Node this Run is for.",
     )
-    manual_plan: Optional["Plan"] = p_internal(
-        76,
+    plan: Optional["Plan"] = p_internal(
+        77,
         require=False,
         array=False,
         references=NodeType.PLAN,
         same_bench=True,
         description="The manual Plan this Run is following (leaf).",
     )
-    manual_task: Optional["Task"] = p_internal(
-        77,
+    task: Optional["Task"] = p_internal(
+        78,
         require=False,
         array=False,
         references=NodeType.TASK,
         same_bench=True,
         description="The manual Task this Run is implementing (leaf).",
     )
-    run_plan: Optional["Plan"] = p_internal(
-        78,
-        require=False,
-        array=False,
-        references=NodeType.PLAN,
-        same_bench=True,
-        ckless=True,
-        description="The specific Run Plan this Run is following.",
-    )
-    run_task: Optional["Task"] = p_internal(
-        79,
-        require=False,
-        array=False,
-        references=NodeType.TASK,
-        same_bench=True,
-        ckless=True,
-        description="The specific Run Task this Run is implementing.",
-    )
     if TYPE_CHECKING:
+        agent_ptr: Optional[NodeReference] = None
+        agent_id: Optional[UUID] = None
         flow_ptr: Optional[NodeReference] = None
         flow_id: Optional[UUID] = None
         kit_ptr: Optional[NodeReference] = None
@@ -141,14 +133,10 @@ class IsRun(BuiltinObject):
         trigger_id: Optional[UUID] = None
         message_ptr: Optional[NodeReference] = None
         message_id: Optional[UUID] = None
-        manual_plan_ptr: Optional[NodeReference] = None
-        manual_plan_id: Optional[UUID] = None
-        manual_task_ptr: Optional[NodeReference] = None
-        manual_task_id: Optional[UUID] = None
-        run_plan_ptr: Optional[NodeReference] = None
-        run_plan_id: Optional[UUID] = None
-        run_task_ptr: Optional[NodeReference] = None
-        run_task_id: Optional[UUID] = None
+        plan_ptr: Optional[NodeReference] = None
+        plan_id: Optional[UUID] = None
+        task_ptr: Optional[NodeReference] = None
+        task_id: Optional[UUID] = None
 
     def _copy_context_to(self, span: "Span"):
         """Copy context from this HasRunContext to a Span."""

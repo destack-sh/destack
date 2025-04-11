@@ -364,7 +364,6 @@ class HostService(GraphServiceBase, HostBase):
         from bench.system.plugin import (
             ClaimPlugin,
             DatabasePlugin,
-            MessageTriggerPlugin,
             RunPlugin,
             ScheduleTriggerPlugin,
         )
@@ -460,7 +459,6 @@ class HostService(GraphServiceBase, HostBase):
             database_plugin,
             *self._provisioners,
             ScheduleTriggerPlugin(self, self._bench),
-            MessageTriggerPlugin(self, self._bench),
             RunPlugin(self, self._bench),
             ClaimPlugin(self, self._bench),
         )

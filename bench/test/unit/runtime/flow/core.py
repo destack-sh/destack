@@ -14,7 +14,6 @@ from bench.language import (
     ProcessStatus,
     Run,
     RunOptions,
-    Trigger,
     code,
 )
 from bench.runtime import create_run
@@ -38,7 +37,7 @@ async def test_run_flow_empty(simulation: Simulation, runtime: RuntimeLambdaWork
 async def test_run_flow_lifted_from_action(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow lifted from an Action."""
     Flow1 = Flow.new("Flow1")
-    Action1 = Action.new(ActionType.START, "Action1", triggers=[Trigger.on_start()])
+    Action1 = Action.new(ActionType.START, "Action1")
     Flow1.actions.append(Action1)
     runtime.page().append(Flow1)
     await runtime.commit()
@@ -53,7 +52,7 @@ async def test_run_flow_lifted_from_action(simulation: Simulation, runtime: Runt
 async def test_run_flow_spurious(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Flow with Actions that go nowhere."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("pass"))
     # don't actually connect the actions
@@ -69,7 +68,7 @@ async def test_run_flow_spurious(simulation: Simulation, runtime: RuntimeLambdaW
 async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Trivial flow with Start->End, no value."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
     Start.connect(LinkType.MANUAL, End)
@@ -90,7 +89,7 @@ async def test_run_flow_code(simulation: Simulation, runtime: RuntimeLambdaWorkl
             Field.output("Output1", int, is_required=True),
         ),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
@@ -134,7 +133,7 @@ async def test_run_flow_computed_value_chain(
             Field.output("IntOut", int),
         ),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Flow1.actions.append(Start)
     prev = Start
     for i in range(4):
@@ -244,7 +243,7 @@ async def test_run_flow_computed_value_mode(simulation: Simulation, runtime: Run
             Field.output("Output3", int),
         ),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
     Start.connect(LinkType.MANUAL, End)
@@ -292,7 +291,7 @@ async def test_run_flow_create_in_test_mode(simulation: Simulation, runtime: Run
         "Flow1",
         fields=(Field.output("Block", Block, is_required=True),),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Create = Action.new(
         ActionType.CODE,
         "Create",
@@ -327,7 +326,7 @@ async def test_run_flow_computed_run_options(
 ):
     """Run a Flow with computed run options."""
     Flow1 = Flow.new("Flow1", fields=(Field.input("Attempts", int),))
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
@@ -363,7 +362,7 @@ else:
 async def test_run_flow_link_from_nowhere(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a flow with a link from nowhere. Should not be run and just be ignored."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
@@ -380,7 +379,7 @@ async def test_run_flow_link_from_nowhere(simulation: Simulation, runtime: Runti
 async def test_run_flow_link_to_nowhere(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a flow with a link to nowhere. Should not be run and just be ignored."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Nowhere = Action.new(ActionType.START, "Nowhere")  # not added to flow/graph
     Flow1.actions.extend(Start, Nowhere, End)
@@ -403,7 +402,7 @@ async def test_run_flow_force_invalid_output(
         "Flow1",
         fields=(Field.output("Output1", str, is_required=True),),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
     Start.connect(LinkType.MANUAL, End)
@@ -422,7 +421,7 @@ async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: Run
         "Flow1",
         fields=(Field.output("Output1", str, is_required=True),),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(
         ActionType.CODE,
         "Code1",
@@ -445,7 +444,7 @@ async def test_run_flow_force_invalid_input(simulation: Simulation, runtime: Run
 async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a code Action that raises an error. Flow should abort and fail."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("raise ValueError"))
     Flow1.actions.extend(Start, Code1)
     Start.connect(LinkType.MANUAL, Code1)
@@ -461,7 +460,7 @@ async def test_run_flow_error(simulation: Simulation, runtime: RuntimeLambdaWork
 async def test_run_flow_abort(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async flow script and abort it. All pending actions should be aborted."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Code1 = Action.new(ActionType.CODE, "Code1", code=code("await asyncio.sleep(5)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Code1, End)

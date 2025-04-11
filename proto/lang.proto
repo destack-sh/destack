@@ -74,8 +74,6 @@ enum EnumType {
   ENUM_TYPE_PROCESS_STATUS = 22000;
   ENUM_TYPE_RUN_TYPE = 22001;
   ENUM_TYPE_SPAN_TYPE = 22002;
-  ENUM_TYPE_PLAN_TYPE = 22003;
-  ENUM_TYPE_TASK_TYPE = 22010;
   ENUM_TYPE_SESSION_STATUS = 22020;
   ENUM_TYPE_CACHE_MODE = 22040;
   ENUM_TYPE_LOG_TYPE = 22060;
@@ -510,8 +508,6 @@ enum BenchType {
   BENCH_TYPE_PROCESS_STATUS = 22000;
   BENCH_TYPE_RUN_TYPE = 22001;
   BENCH_TYPE_SPAN_TYPE = 22002;
-  BENCH_TYPE_PLAN_TYPE = 22003;
-  BENCH_TYPE_TASK_TYPE = 22010;
   BENCH_TYPE_SESSION_STATUS = 22020;
   BENCH_TYPE_CACHE_MODE = 22040;
   BENCH_TYPE_LOG_TYPE = 22060;
@@ -1279,9 +1275,10 @@ enum ProcessStatus {
   PROCESS_STATUS_IDLE = 30;
   PROCESS_STATUS_CANCELLED = 50;
   PROCESS_STATUS_ABORTED = 51;
-  PROCESS_STATUS_FAILED = 52;
-  PROCESS_STATUS_COMPLETED = 53;
-  PROCESS_STATUS_SKIPPED = 54;
+  PROCESS_STATUS_DIED = 52;
+  PROCESS_STATUS_FAILED = 53;
+  PROCESS_STATUS_COMPLETED = 54;
+  PROCESS_STATUS_SKIPPED = 55;
 }
 
 enum RunType {
@@ -1290,6 +1287,7 @@ enum RunType {
   RUN_TYPE_ACTION = 10;
   RUN_TYPE_FLOW = 11;
   RUN_TYPE_LINK = 12;
+  RUN_TYPE_AGENT = 15;
 }
 
 enum SpanType {
@@ -1298,7 +1296,7 @@ enum SpanType {
   SPAN_TYPE_WAIT = 2;
   SPAN_TYPE_ACQUIRE = 3;
   SPAN_TYPE_CODE = 10;
-  SPAN_TYPE_FLOW_THINK = 100;
+  SPAN_TYPE_AGENT_THINK = 100;
   SPAN_TYPE_MODEL_PREPARE = 300;
   SPAN_TYPE_MODEL_GENERATE = 310;
   SPAN_TYPE_MODEL_PARSE = 320;
@@ -1306,18 +1304,6 @@ enum SpanType {
   SPAN_TYPE_FILE_PREPARE_UPLOAD = 501;
   SPAN_TYPE_FILE_DOWNLOAD = 502;
   SPAN_TYPE_FILE_PREPARE_DOWNLOAD = 503;
-}
-
-enum PlanType {
-  PLAN_TYPE_UNSPECIFIED = 0;
-  PLAN_TYPE_MANUAL = 10;
-  PLAN_TYPE_RUN = 20;
-}
-
-enum TaskType {
-  TASK_TYPE_UNSPECIFIED = 0;
-  TASK_TYPE_MANUAL = 10;
-  TASK_TYPE_RUN = 20;
 }
 
 enum SessionStatus {
@@ -1353,9 +1339,7 @@ enum Severity {
 
 enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
-  TRIGGER_TYPE_START = 10;
-  TRIGGER_TYPE_MESSAGE = 20;
-  TRIGGER_TYPE_SCHEDULE = 30;
+  TRIGGER_TYPE_SCHEDULE = 10;
 }
 
 enum TriggerEffect {
@@ -1367,6 +1351,7 @@ enum TriggerStatus {
   TRIGGER_STATUS_UNSPECIFIED = 0;
   TRIGGER_STATUS_INACTIVE = 1;
   TRIGGER_STATUS_OPEN = 10;
+  TRIGGER_STATUS_CLOSED = 20;
 }
 
 enum ScheduleFrequency {
@@ -1409,6 +1394,8 @@ enum CursorStatus {
   CURSOR_STATUS_WRITING = 12;
   CURSOR_STATUS_WAITING = 13;
   CURSOR_STATUS_IDLE = 30;
+  CURSOR_STATUS_CANCELLED = 50;
+  CURSOR_STATUS_COMPLETED = 53;
 }
 
 enum ErrorKind {
@@ -1544,7 +1531,6 @@ enum ActionType {
   ACTION_TYPE_END = 20;
   ACTION_TYPE_TOOL = 100;
   ACTION_TYPE_CODE = 101;
-  ACTION_TYPE_DO = 200;
 }
 
 enum PortSide {
@@ -2174,7 +2160,6 @@ message ContextData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message RunTraceData {
@@ -2454,7 +2439,6 @@ message ChannelData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message MessageData {
@@ -2586,7 +2570,6 @@ message ThreadData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message ApplicationData {
@@ -2961,6 +2944,7 @@ message AgentData {
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
+  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 31;
   optional string order_key = 33;
@@ -2968,7 +2952,6 @@ message AgentData {
   optional NodeReferenceData definition_ptr = 35;
   optional google.protobuf.Value inputs_packed = 50;
   optional google.protobuf.Value outputs_packed = 51;
-  optional NodeReferenceData main_flow_ptr = 53;
   optional NodeReferenceData main_page_ptr = 54;
   optional NodeReferenceData main_plan_ptr = 55;
   optional NodeReferenceData main_cursor_ptr = 56;
@@ -2991,7 +2974,6 @@ message AgentData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message InviteData {
@@ -3106,7 +3088,6 @@ message ClaimData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message CursorData {
@@ -3125,8 +3106,12 @@ message CursorData {
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   CursorType type = 30;
+  optional TextLineData title = 32;
   CursorStatus status = 40;
-  optional google.protobuf.Timestamp active_at = 41;
+  optional google.protobuf.Timestamp started_at = 41;
+  optional google.protobuf.Timestamp active_at = 42;
+  optional google.protobuf.Timestamp seen_at = 43;
+  optional google.protobuf.Timestamp terminated_at = 45;
   optional NodeReferenceData target_ptr = 50;
   optional SelectionData selection = 51;
   optional SelectionData focus = 52;
@@ -3134,7 +3119,6 @@ message CursorData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message PlanData {
@@ -3155,7 +3139,6 @@ message PlanData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  PlanType type = 30;
   optional TextLineData title = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
@@ -3177,7 +3160,6 @@ message PlanData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message TaskData {
@@ -3198,7 +3180,6 @@ message TaskData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  TaskType type = 30;
   optional TextLineData title = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
@@ -3228,7 +3209,6 @@ message TaskData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message InterruptionData {
@@ -3265,7 +3245,6 @@ message InterruptionData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message LogData {
@@ -3290,7 +3269,6 @@ message LogData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message RunData {
@@ -3316,16 +3294,15 @@ message RunData {
   optional google.protobuf.Value outputs_packed = 62;
   optional TextData text = 65;
   optional CodeData code = 66;
-  optional NodeReferenceData flow_ptr = 70;
-  optional NodeReferenceData kit_ptr = 71;
-  optional NodeReferenceData action_ptr = 72;
-  optional NodeReferenceData link_ptr = 73;
-  optional NodeReferenceData trigger_ptr = 74;
-  optional NodeReferenceData target_ptr = 75;
-  optional NodeReferenceData manual_plan_ptr = 76;
-  optional NodeReferenceData manual_task_ptr = 77;
-  optional NodeReferenceData run_plan_ptr = 78;
-  optional NodeReferenceData run_task_ptr = 79;
+  optional NodeReferenceData agent_ptr = 70;
+  optional NodeReferenceData flow_ptr = 71;
+  optional NodeReferenceData kit_ptr = 72;
+  optional NodeReferenceData action_ptr = 73;
+  optional NodeReferenceData link_ptr = 74;
+  optional NodeReferenceData trigger_ptr = 75;
+  optional NodeReferenceData target_ptr = 76;
+  optional NodeReferenceData plan_ptr = 77;
+  optional NodeReferenceData task_ptr = 78;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3342,7 +3319,6 @@ message RunData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message SessionData {
@@ -3366,7 +3342,6 @@ message SessionData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message SpanData {
@@ -3390,16 +3365,15 @@ message SpanData {
   optional TextData text = 61;
   optional CodeData code = 62;
   repeated NodeReferenceData nodes_ptr = 65;
-  optional NodeReferenceData flow_ptr = 70;
-  optional NodeReferenceData kit_ptr = 71;
-  optional NodeReferenceData action_ptr = 72;
-  optional NodeReferenceData link_ptr = 73;
-  optional NodeReferenceData trigger_ptr = 74;
-  optional NodeReferenceData target_ptr = 75;
-  optional NodeReferenceData manual_plan_ptr = 76;
-  optional NodeReferenceData manual_task_ptr = 77;
-  optional NodeReferenceData run_plan_ptr = 78;
-  optional NodeReferenceData run_task_ptr = 79;
+  optional NodeReferenceData agent_ptr = 70;
+  optional NodeReferenceData flow_ptr = 71;
+  optional NodeReferenceData kit_ptr = 72;
+  optional NodeReferenceData action_ptr = 73;
+  optional NodeReferenceData link_ptr = 74;
+  optional NodeReferenceData trigger_ptr = 75;
+  optional NodeReferenceData target_ptr = 76;
+  optional NodeReferenceData plan_ptr = 77;
+  optional NodeReferenceData task_ptr = 78;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3416,7 +3390,6 @@ message SpanData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
-  optional NodeReferenceData agent_ptr = 98;
 }
 
 message ActionData {
@@ -3743,6 +3716,27 @@ message PageData {
   optional NodeReferenceData definition_ptr = 35;
 }
 
+message TagData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 5;
+  optional NodeReferenceData package_ptr = 9;
+  google.protobuf.Timestamp created_at = 10;
+  optional NodeReferenceData created_by_ptr = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional NodeReferenceData updated_by_ptr = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData template_ptr = 16;
+  NodeMode mode = 20;
+  optional google.protobuf.Value subnode_packed = 29;
+  optional string name = 31;
+  optional string order_key = 33;
+  optional IconData icon = 34;
+  optional NodeReferenceData definition_ptr = 35;
+}
+
 message TriggerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3770,27 +3764,6 @@ message TriggerData {
   int32 processed_count = 42;
   optional string processed_key = 43;
   optional google.protobuf.Timestamp closed_at = 45;
-}
-
-message TagData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
 }
 
 message SpaceData {
