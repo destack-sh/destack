@@ -749,7 +749,7 @@ class Runtime:
         # bail if we already have this thread
         if thread_ptr.id in self._threads_by_id:
             thread = self._threads_by_id[thread_ptr.id]
-            logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+            logger.trace("runtime.load_thread.skip", thread=thread, span="current")
             return thread
 
         # synchronize
@@ -763,7 +763,7 @@ class Runtime:
             # bail if we already have this thread
             if thread_ptr.id in self._threads_by_id:
                 thread = self._threads_by_id[thread_ptr.id]
-                logger.debug("runtime.load_thread.skip", thread=thread, span="current")
+                logger.trace("runtime.load_thread.skip", thread=thread, span="current")
                 return thread
 
             # load thread
@@ -798,18 +798,29 @@ class Runtime:
         handle = self._threads_by_id.get(thread.id)
         assert handle is not None, f"missing thread handle for {thread!r} in {self!r}"
 
-        # nocheckin: optimize (parallelize?)
+        # ensure all Agent runs are active if they should be
+        new_runs: list[Run] = []
         for agent in thread.agents:
             run_id = agent.implemented_by_id
             if run_id is not None and (runner := self._runners_by_id.get(run_id)) is not None:
+                # continue existing agent run
                 assert isinstance(runner, AgentRunner), f"{runner!r} is not an AgentRunner"
                 runner.wake()
             elif (
                 last_message := handle.last_message
             ) is not None and last_message.created_by_id != agent.id:
-                # run agent
-                run, _ = create_run(agent, parent=agent, thread=thread, agent=agent)
-                await self.session.commit()
+                # create new agent run
+                run, _ = create_run(
+                    agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
+                )
+                agent.implemented_by = run
+                new_runs.append(run)
+        logger.trace("runtime.tick_thread", thread=thread, runs=new_runs)
+
+        # kick off new runs
+        if new_runs:
+            await self.session.commit()
+            for run in new_runs:
                 runner, run = await self._load_runner(run.to_ref())
                 self.run_runner_soon(runner)
 
@@ -827,7 +838,11 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.load_runner")
     async def _load_runner(self, run_ptr: NodeReference) -> tuple[Runner, Run]:
-        """Load a top-level Run."""
+        """
+        Load a top-level Run.
+        TODO :Performance: having to commit before loading Run/Runner is inefficient
+         (but need to synchronize the Run somehow?)
+        """
         # NOTE :Architecture: split Runner into Runner & RunHandle/RunLoader (like ThreadHandle)?
         trace.get_current_span().set_attribute("run_id", str(run_ptr.id))
 
@@ -843,7 +858,7 @@ class Runtime:
             if run_ptr.id in self._runners_by_id:
                 runner = self._runners_by_id[run_ptr.id]
                 assert runner.tracked_run is not None, f"missing tracked run for {runner!r}"
-                logger.debug("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
+                logger.trace("runtime.load_runner.skip", runner=runner, run=runner.tracked_run)
                 return runner, runner.tracked_run
 
             # load run

@@ -48,7 +48,8 @@ class CursorStatus(BuiltinEnum):
     WORKING = 10, "Working", "Working", "fas fa-hammer", ColorType.BLUE
     READING = 11, "Reading", "Reading", "fas fa-book-open", ColorType.BLUE
     WRITING = 12, "Writing", "Writing", "fas fa-pencil", ColorType.BLUE
-    WAITING = 13, "Waiting", "Waiting", "fas fa-hourglass-half", ColorType.BLUE
+    THINKING = 13, "Thinking", "Thinking", "fas fa-brain", ColorType.BLUE
+    WAITING = 15, "Waiting", "Waiting", "fas fa-hourglass-half", ColorType.GRAY
     # inactive
     IDLE = 30, "Idle", "Idle", "fas fa-snooze", ColorType.GRAY
     # terminal

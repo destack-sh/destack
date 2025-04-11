@@ -40,7 +40,6 @@ You can get and set most values directly (like `user.name` or `block.name = "Ali
 Create Nodes either via 
  `Node.<child type>.create` (like `Block.actions.create(...)`) OR
  create Nodes inline and then append them to their parent (like `Block.append(...)`).
-You MAY `Node.delete()` -> `Node.restore()` or `Node.archive()` -> `Node.unarchive()`.
 
 # Builtins
 Bench has its own Structs/Nodes/Enums for many things (like Computer, File, Code, Text).
@@ -149,8 +148,7 @@ def make_agent_think_prompt(
     prompt = Prompt(subject=agent, session=runner.session, node=agent, system_prompt=SYSTEM_PROMPT)
     agent_alias = prompt.aliasing.get_or_add(agent)
 
-    # system
-    ...
+    # system...?
 
     # examples
     prompt.region(
@@ -163,14 +161,11 @@ def make_agent_think_prompt(
     # macros
     prompt.region(
         "Macros",
-        "Available MACROS which are substituted into your response",
+        "Available MACROS (constants and functions)",
         *CONSTANT_MACROS,
         *FUNCTION_MACROS,
         priority=20,
     )
-
-    # flow
-    ...
 
     # page / context (files, resources, etc)
     if (page := thread.thread.main_page) is not None:
@@ -247,6 +242,7 @@ YOUR RESPONSE IN CODE
 REMEMBER:
  - Valid Python code, top level, no outer ```, JUST the code.
  - Split Messages/SENDs into paragraphs (except continuous lists).
+ - Silence / noop is possible.
  - NEVER leak anything.
 """,
         priority=100,
