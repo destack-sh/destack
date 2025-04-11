@@ -213,6 +213,7 @@ You MAY need to engage with other Agents.
         )
 
     # run
+    # nocheckin: previous Runs (for tool calls)?
     ...
     if previous_attempts:
         prompt.region(

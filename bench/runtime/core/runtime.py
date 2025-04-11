@@ -736,6 +736,9 @@ class Runtime:
                 touched_threads.add(node)
             elif isinstance(node, Message) and (thread := node.thread) is not None:
                 touched_threads.add(thread)
+        # tick threads
+        for thread in touched_threads:
+            self._thread_tick_queue.put_nowait(thread)
 
     def get_thread(self, thread_id: UUID) -> ThreadHandle | None:
         """Get a Thread."""
@@ -801,14 +804,25 @@ class Runtime:
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
         for agent in thread.agents:
+            cursor = agent.main_cursor
             run_id = agent.implemented_by_id
-            if run_id is not None and (runner := self._runners_by_id.get(run_id)) is not None:
+            if (
+                run_id is not None
+                and (runner := self._runners_by_id.get(run_id)) is not None
+                and not runner.status.is_terminal
+            ):
                 # continue existing agent run
                 assert isinstance(runner, AgentRunner), f"{runner!r} is not an AgentRunner"
                 runner.wake()
             elif (
-                last_message := handle.last_message
-            ) is not None and last_message.created_by_id != agent.id:
+                (last_message := handle.last_message) is not None
+                and last_message.created_by_id != agent.id
+                and (
+                    cursor is None
+                    or cursor.seen_at is None
+                    or cursor.seen_at < last_message.created_at
+                )
+            ):
                 # create new agent run
                 run, _ = create_run(
                     agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
@@ -985,7 +999,9 @@ class Runtime:
         return runner
 
     async def wake(self, thread_ptr: NodeReference) -> None:
-        """Wake a Thread (and all its members)."""
+        """Wake a Thread (if inactive)."""
+        if thread_ptr.id in self._threads_by_id:
+            return  # already alive (we don't need to wake it)
         async with self.session.active():
             thread = await self._load_thread(thread_ptr)
             self._thread_tick_queue.put_nowait(thread.thread)

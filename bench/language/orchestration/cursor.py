@@ -33,7 +33,9 @@ class CursorType(BuiltinEnum):
     The type of Cursor.
     """
 
-    BENCH = 10, "Bench", "Bench", "fas fa-layer-group", None
+    THREAD = 10, "Thread", None, None, None
+    PAGE = 20, "Page", None, None, None
+    DATABASE = 30, "Database", None, None, None
 
 
 @enum_(EnumType.CURSOR_STATUS)

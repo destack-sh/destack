@@ -7,6 +7,9 @@ from opentelemetry import trace
 
 from bench.language import (
     Agent,
+    Cursor,
+    CursorStatus,
+    CursorType,
     CustomObject,
     IsType,
     ModelDeveloper,
@@ -90,11 +93,27 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         """Prepare the next actions in this Flow (if any)."""
         attempts: list[Span] = []
         retry = THINK_RETRY_OPTIONS.new(oracle=self.runtime.oracle)
+        thread = self.thread.thread
+        agent = self.node
         while retry.should_retry:
             retry.on_attempt()
+
+            # update thread cursor
+            if (cursor := agent.main_cursor) is None:
+                cursor = Cursor(type=CursorType.THREAD, target=thread, owned_by=agent)
+                thread.cursors.append(cursor)
+                agent.main_cursor = cursor
+            assert cursor.type == CursorType.THREAD
+            cursor.status = CursorStatus.THINKING
+            cursor.seen_at = self.thread.last_message_at
+            cursor.active_at = self.runtime.oracle.utc()
+
+            # make prompt
             prompt = make_agent_think_prompt(
                 agent=self.node, runner=cast(AgentRunner[Agent], self), previous_attempts=attempts
             )
+
+            # run model
             model_developer = ModelDeveloper.OPENAI
             model_type = ModelType.OPENAI_GPT4_0
             model_runner_cls = get_chat_model_runner_cls(
