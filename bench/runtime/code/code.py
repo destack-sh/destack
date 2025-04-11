@@ -57,7 +57,7 @@ class CodeRunner(Runner, ABC):
         outputs: IsType | CustomObject | None = None,
         globals: dict[str, Any] | None = None,
     ) -> None:
-        from bench.runtime.model.macro import MACROS_BY_NAME
+        from bench.runtime.agent.macro import MACROS_BY_NAME
 
         super().__init__(
             runtime=runtime,

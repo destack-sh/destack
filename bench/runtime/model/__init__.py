@@ -1,7 +1,6 @@
 from .anthropic import AnthropicChatModelRunner
 from .chat import ChatModelRunner, get_chat_model_runner_cls
 from .gemini import GeminiChatModelRunner
-from .macro import CONSTANT_MACROS, FUNCTION_MACROS
 from .model import ModelRunner
 from .openai import OpenAIChatModelRunner
 from .piece import (
@@ -25,13 +24,13 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
     ThreadPiece,
+    piece_,
+    raise_if_none,
 )
 from .prompt import Prompt, compile_prompt
 from .token import StupidTokenizer, TiktokenTokenizer, Tokenizer
 
 __all__ = [
-    "CONSTANT_MACROS",
-    "FUNCTION_MACROS",
     "AgentPiece",
     "AnthropicChatModelRunner",
     "AttemptPiece",
@@ -63,4 +62,6 @@ __all__ = [
     "Tokenizer",
     "compile_prompt",
     "get_chat_model_runner_cls",
+    "piece_",
+    "raise_if_none",
 ]

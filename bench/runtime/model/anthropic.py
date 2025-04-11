@@ -48,6 +48,8 @@ class AnthropicChatModelRunner(ChatModelRunner):
 
     @override
     async def run(self) -> None:
+        from bench.runtime import MACROS, AgentRunner
+
         model_id = ANTHROPIC_MODEL_BY_TYPE.get(self.model_type)
         if model_id is None:
             raise NotSupportedError(f"unsupported model type {self.model_type!r}")
@@ -110,7 +112,10 @@ class AnthropicChatModelRunner(ChatModelRunner):
         _flush_text()
 
         # generate & execute simultaneously
-        code_runner = StreamingCodeRunner(runner=self, aliasing=self.prompt.aliasing)
+        agent_runner = self.closest_runner_like(AgentRunner)
+        code_runner = StreamingCodeRunner(
+            runner=agent_runner, macros=MACROS, aliasing=self.prompt.aliasing
+        )
         messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_pieces}]
         temperature = self.options.text_options.temperature if self.options.text_options else None
         completion = await anthropic_client.messages.create(

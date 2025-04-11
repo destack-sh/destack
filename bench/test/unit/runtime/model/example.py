@@ -6,7 +6,7 @@ from bench.test.unit.conftest import simulated_runtime
 
 def test_print_examples():
     """Just import the examples to make sure they work."""
-    from bench.runtime.model.example import EXAMPLES
+    from bench.runtime.agent.example import EXAMPLES
 
     assert EXAMPLES
 

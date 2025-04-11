@@ -43,18 +43,15 @@ from .context import IsRun
 
 if TYPE_CHECKING:
     from bench.language import (
-        Action,
         Agent,
         AudioOptions,
         Breakpoint,
         Code,
         CustomObject,
         ErrorType,
-        Flow,
         ImageOptions,
         Interruption,
         IsType,
-        Link,
         Log,
         ModelDeveloper,
         ModelFamily,
@@ -210,13 +207,17 @@ class Run(
             return f"{self.type.bench_name}:{path}, {self.status.bench_name}"
 
     @property
-    def runnable(self) -> Union["Flow", "Action", "Link", None]:
+    def runnable(self) -> Optional["Runnable"]:
         if self.type == RunType.LINK:
             return self.link
         elif self.type == RunType.ACTION:
             return self.action
-        else:
+        elif self.type == RunType.FLOW:
             return self.flow
+        elif self.type == RunType.AGENT:
+            return self.agent
+        else:
+            return None
 
     @property
     def runnable_ptr(self) -> "NodeReference | None":
@@ -224,28 +225,36 @@ class Run(
             return self.link_ptr
         elif self.type == RunType.ACTION:
             return self.action_ptr
-        else:
+        elif self.type == RunType.FLOW:
             return self.flow_ptr
+        elif self.type == RunType.AGENT:
+            return self.agent_ptr
+        else:
+            return None
 
     @property
     def base_ptr(self) -> Optional["NodeReference"]:
-        if self.link_ptr is not None:
+        if self.type == RunType.LINK:
             return self.link_ptr
-        elif self.action_ptr is not None:
+        elif self.type == RunType.ACTION:
             return self.action_ptr
-        elif self.flow_ptr is not None:
+        elif self.type == RunType.FLOW:
             return self.flow_ptr
+        elif self.type == RunType.AGENT:
+            return self.agent_ptr
         else:
             return None
 
     @property
     def base(self) -> Optional["Runnable"]:
-        if self.link_ptr is not None:
+        if self.type == RunType.LINK:
             return self.link
-        elif self.action_ptr is not None:
+        elif self.type == RunType.ACTION:
             return self.action
-        elif self.flow_ptr is not None:
+        elif self.type == RunType.FLOW:
             return self.flow
+        elif self.type == RunType.AGENT:
+            return self.agent
         else:
             return None
 
@@ -253,11 +262,15 @@ class Run(
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         run_data = cast(RunData, data)
         if run_data.link_ptr.metatype != 0:
-            return cast(RunData, data).link_ptr
+            return run_data.link_ptr
         elif run_data.action_ptr.metatype != 0:
-            return cast(RunData, data).action_ptr
+            return run_data.action_ptr
+        elif run_data.flow_ptr.metatype != 0:
+            return run_data.flow_ptr
+        elif run_data.agent_ptr.metatype != 0:
+            return run_data.agent_ptr
         else:
-            return cast(RunData, data).flow_ptr
+            return None
 
     @staticmethod
     def get_base_from_partial(data: dict[str, Any]) -> Optional["Runnable"]:
@@ -267,6 +280,8 @@ class Run(
             return data["action"]
         elif "flow" in data:
             return data["flow"]
+        elif "agent" in data:
+            return data["agent"]
         else:
             return None
 

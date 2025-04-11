@@ -129,7 +129,7 @@ class EndActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
         if self.flow is not None:
-            self.flow._complete(outputs=self.inputs)
+            self.flow.complete(outputs=self.inputs)
 
 
 class ToolActionRunner(ActionRunner):

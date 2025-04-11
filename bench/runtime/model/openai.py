@@ -48,6 +48,8 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
     @override
     async def run(self) -> None:
+        from bench.runtime import MACROS, AgentRunner
+
         agent = self.agent
         assert agent is not None, f"{self!r} has no Agent"
         model_id = OPENAI_MODEL_BY_TYPE.get(self.model_type)
@@ -110,7 +112,10 @@ class OpenAIChatModelRunner(ChatModelRunner):
         _flush_text()
 
         # generate & execute simultaneously
-        code_runner = StreamingCodeRunner(runner=self, aliasing=self.prompt.aliasing)
+        agent_runner = self.closest_runner_like(AgentRunner)
+        code_runner = StreamingCodeRunner(
+            runner=agent_runner, macros=MACROS, aliasing=self.prompt.aliasing
+        )
         messages: list[openai_chat_types.ChatCompletionMessageParam] = [
             {"role": "developer", "content": self.prompt.system_prompt},
             {"role": "user", "content": content},

@@ -91,7 +91,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         self._events: Queue[RunnerEvent] = Queue()
         self._active_planning_runner: ModelRunner | None = None
 
-    def _abort(self):
+    def abort(self):
         """Abort any contained Actions (and any relevant Interrupts)."""
         logger.trace("flow.abort", flow=self.node, runner=self)
         for runner in self.runners:
@@ -101,7 +101,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 continue  # ignore boundary Actions
             runner.stop()
 
-    def _complete(self, outputs: CustomObject | None) -> None:
+    def complete(self, outputs: CustomObject | None) -> None:
         """Complete this Flow, aborting all active Actions."""
         if self._stop_result is not None:
             logger.debug("flow.complete.skip", flow=self.node, runner=self)
@@ -111,16 +111,16 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             self._stop_result = coerce_custom_object_scalar(outputs, self.output_type)
         else:
             self._stop_result = "completed"
-        self._abort()
+        self.abort()
         logger.debug("flow.complete", flow=self.node, runner=self, outputs=outputs)
 
-    def _fail(self, error: Error) -> None:
+    def fail(self, error: Error) -> None:
         """Fail this Flow, aborting all active Actions."""
         if self._stop_result is not None:
             logger.debug("flow.fail.skip", flow=self.node, runner=self, error=error)
             return  # already done
         self._stop_result = error
-        self._abort()
+        self.abort()
         logger.debug("flow.fail", flow=self.node, runner=self, error=error)
 
     @property
@@ -215,9 +215,9 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 if isinstance(runner.node, Action):
                     tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
                     if not tick.is_handled:
-                        self._fail(runner.error)  # fail on unhandled action error
+                        self.fail(runner.error)  # fail on unhandled action error
                 elif isinstance(runner.node, Link):
-                    self._fail(runner.error)  # fail on any link fail?
+                    self.fail(runner.error)  # fail on any link fail?
 
     def _tick_action(
         self,
@@ -286,7 +286,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                 if self._events.empty():
                     self._try_stop()
         except Exception:
-            self._abort()  # abort if we get cancelled
+            self.abort()  # abort if we get cancelled
             raise
         assert self._stop_result is not None, f"no stop result for {self!r}"
         if self._stop_result == "completed":

@@ -6,8 +6,8 @@ ATTEMPT_THRICE = RunOptions(max_attempts=3)
 ATTEMPT_FOREVER = RunOptions(max_attempts=None)
 BASE_RUN_OPTIONS_BY_KIND = {
     RunType.CODE: ATTEMPT_ONCE,
+    RunType.AGENT: ATTEMPT_ONCE,
     RunType.ACTION: ATTEMPT_THRICE,
-    RunType.ACTION: ATTEMPT_ONCE,
     RunType.LINK: ATTEMPT_ONCE,
     RunType.FLOW: ATTEMPT_ONCE,
 }

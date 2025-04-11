@@ -1,5 +1,5 @@
 import asyncio
-from typing import cast
+from typing import Literal, NamedTuple, cast
 
 import structlog
 from opentelemetry import trace
@@ -7,6 +7,8 @@ from opentelemetry import trace
 from bench.language import (
     Agent,
     CustomObject,
+    Error,
+    Interruption,
     IsType,
     ModelDeveloper,
     ModelType,
@@ -15,11 +17,7 @@ from bench.language import (
     Span,
     SpanType,
 )
-from bench.runtime.core import (
-    RunIn,
-    Runner,
-    Runtime,
-)
+from bench.runtime.core import RunIn, Runner, Runtime
 from bench.runtime.model import get_chat_model_runner_cls
 from bench.utils.tenacity import RetryOptions
 
@@ -31,6 +29,10 @@ tracer = trace.get_tracer(__name__)
 THINK_RETRY_OPTIONS = RetryOptions(
     max_attempts=10, retry_interval=0.2, backoff=1.5, max_retry_interval=10
 )
+
+
+class AgentEvent(NamedTuple):
+    pass
 
 
 class AgentRunner[N: Agent = Agent](Runner[N]):
@@ -56,6 +58,15 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             outputs=outputs,
             agent=agent,
         )
+        self._stop_result: Literal["completed"] | Error | Interruption | None = None
+
+    def complete(self):
+        """Complete the current Run."""
+        self._stop_result = "completed"
+
+    def wake(self):
+        """Wake the Agent."""
+        self._stop_result = None
 
     @tracer.start_as_current_span("agent.think")
     async def _think(self):
@@ -127,4 +138,5 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 self._active_planning_runner = None
 
     async def run(self) -> None:
-        pass
+        # nocheckin: think .. in a loop :o
+        await self._think()
