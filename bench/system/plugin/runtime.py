@@ -110,7 +110,7 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
                 channel = await self.network.get_channel(computer.grpc_url, source_id=self.host.id)
                 runtime = RuntimeClient(channel)
                 await self._send_in_runtime(op, computer, runtime)
-                log.debug(f"{self.name}.send", computer=computer, channel=channel, span="current")
+                log.trace(f"{self.name}.send", computer=computer, channel=channel, span="current")
                 return  # success
             except Exception as e:
                 log.error(

@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import functools
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Callable, Generator, cast, final, override
@@ -168,6 +169,17 @@ def UPLOAD(file_in: FileIn, name: str, runner: "AgentRunner" = _INJECTED_RUNNER)
     return upload_file(file_in, name, parent=runner.closest_tracked_run)
 
 
-@function_macro_("COMPLETE", "Stop for now.", signature="() -> None")
-def COMPLETE(runner: "AgentRunner" = _INJECTED_RUNNER):
-    runner.complete()
+@function_macro_(
+    "WAIT",
+    """\
+Wait for some time before thinking again. 
+If you expect something to happen quickly, just wait for a bit.
+(This MUST be the last line.)
+""",
+    signature="(seconds: float = 2) -> None",
+)
+def WAIT(
+    seconds: float = 3,
+    runner: "AgentRunner" = _INJECTED_RUNNER,
+):
+    runner.wait(seconds)

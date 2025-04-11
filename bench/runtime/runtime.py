@@ -354,7 +354,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 _ = await process.client.wake(request)
             else:
                 assert_never(process.client)
-            logger.info(
+            logger.trace(
                 "runtime_service.wake",
                 process=process,
                 thread_ptrs=[

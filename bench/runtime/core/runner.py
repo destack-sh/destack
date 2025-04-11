@@ -571,9 +571,10 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             self.capture.close_and_detach()
         self.runtime._runners_by_id.pop(self.id, None)
         runnable_id = self.node.id
-        self.runtime._runners_by_runnable_id[runnable_id].remove(self)
-        if len(self.runtime._runners_by_runnable_id[runnable_id]) == 0:
-            self.runtime._runners_by_runnable_id.pop(runnable_id, None)
+        if runnable_id in self.runtime._runners_by_runnable_id:
+            self.runtime._runners_by_runnable_id[runnable_id].remove(self)
+            if len(self.runtime._runners_by_runnable_id[runnable_id]) == 0:
+                self.runtime._runners_by_runnable_id.pop(runnable_id, None)
         if recursive:
             for runner in self.runners:
                 runner.close(recursive=True)
