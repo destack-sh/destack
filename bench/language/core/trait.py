@@ -148,8 +148,8 @@ SUBJECT_NODE_TYPES = bittuple(
 )
 
 
-Runnable = Union["Flow", "Action", "Link"]
-RUNNABLE_NODE_TYPES = bittuple(NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
+Runnable = Union["Agent", "Flow", "Action", "Link"]
+RUNNABLE_NODE_TYPES = bittuple(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
 
 
 Processable = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run", "Span"]
@@ -473,7 +473,6 @@ class IsRuntime(BuiltinObject):
         96, require=False, array=False, references=NodeType.COMPUTER, same_bench=True
     )
     user: Optional["User"] = p_internal(97, require=False, array=False, references=NodeType.USER)
-    agent: Optional["Agent"] = p_internal(98, require=False, array=False, references=NodeType.AGENT)
     if TYPE_CHECKING:
         session_ptr: Optional[NodeReference] = None
         session_id: Optional[UUID] = None
@@ -483,9 +482,6 @@ class IsRuntime(BuiltinObject):
         computer_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
         user_id: Optional[UUID] = None
-        agent_ptr: Optional[NodeReference] = None
-        agent_id: Optional[UUID] = None
-        agent_ck: Optional[UUID] = None
 
     @property
     def runtime(self):

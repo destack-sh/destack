@@ -69,7 +69,6 @@ from .flow import Flow
 from .link import Link
 from .option import Option
 from .page import Page
-from .trigger import Trigger, TriggerEffect
 
 if TYPE_CHECKING:
     from bench.language import Claim, Plan, Task, View
@@ -941,27 +940,6 @@ class OptionRenderer(PackageNodeRenderer[Option]):
         return f"Option.new({renderer.render_args(*args)})"
 
 
-@_renderer(NodeType.TRIGGER)
-class TriggerRenderer(NodeRenderer["Trigger"]):
-    @override
-    def _render_constructor(
-        self,
-        renderer: "Renderer",
-        obj: "Trigger",
-        kwargs: dict[Property, Any],
-        rendered_kwargs: dict[str, str],
-    ) -> str:
-        rendered_kwargs.pop("type", None)
-        if obj.effect == TriggerEffect.RUN:
-            rendered_kwargs.pop("effect", None)
-        args = (
-            rendered_kwargs.pop("name", None),
-            rendered_kwargs.pop("text", None),
-            renderer.render_kwargs(**rendered_kwargs) or None,
-        )
-        return f"Trigger.on_{obj.type.name.lower()}({renderer.render_args(*args)})"
-
-
 @_renderer(NodeType.PLAN)
 class PlanRenderer(NodeRenderer["Plan"]):
     @override
@@ -981,7 +959,7 @@ class PlanRenderer(NodeRenderer["Plan"]):
             *tasks_refs,
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Plan.{obj.type.name.lower()}({renderer.render_args(*args)})"
+        return f"Plan.new({renderer.render_args(*args)})"
 
 
 @_renderer(NodeType.TASK)
@@ -1005,7 +983,7 @@ class TaskRenderer(NodeRenderer["Task"]):
             target_str,
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
-        return f"Task.{obj.type.name.lower()}({args})"
+        return f"Task.new({args})"
 
 
 @_renderer(NodeType.CLAIM)

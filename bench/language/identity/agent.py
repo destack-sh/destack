@@ -8,12 +8,14 @@ from bench.language.core import (
     FieldType,
     InlineNode,
     IsClaimable,
+    IsComputable,
     IsFieldBase,
     IsInstantiable,
     IsModal,
     IsNamed,
     IsOwnable,
     IsProcessable,
+    IsRunnable,
     IsSubject,
     IsTimed,
     IsType,
@@ -37,7 +39,6 @@ if TYPE_CHECKING:
         Claim,
         Cursor,
         Field,
-        Flow,
         Page,
         Plan,
         Run,
@@ -56,6 +57,8 @@ class Agent(
     IsClaimable,
     IsModal,
     IsFieldBase,
+    IsRunnable,
+    IsComputable,
     IsProcessable,
     IsSubject,
     IsNamed,
@@ -80,12 +83,6 @@ class Agent(
     outputs_packed: Any = p_value_packed(51)
     outputs: "CustomObject | None" = p_value_runtime(
         51, type=FieldType.OUTPUT, typ=lambda self: cast("Agent", self).output_type
-    )
-    main_flow: Optional["Flow"] = p_regular(
-        53,
-        require=False,
-        references=NodeType.FLOW,
-        description="The main Flow backing this Agent.",
     )
     main_page: Optional["Page"] = p_regular(
         54,
@@ -121,8 +118,6 @@ class Agent(
     text: Optional["Text"] = p_regular(57, default=None, struct=StructType.TEXT)
     color: ColorType | None = p_regular(59)
     if TYPE_CHECKING:
-        main_flow_ptr: Optional[NodeReference] = None
-        main_flow_id: Optional[UUID] = None
         main_page_ptr: Optional[NodeReference] = None
         main_page_id: Optional[UUID] = None
         main_plan_ptr: Optional[NodeReference] = None

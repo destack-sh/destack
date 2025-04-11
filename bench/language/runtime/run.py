@@ -428,7 +428,9 @@ class Run(
         elif isinstance(where, Collection):
             where = Run.get_property("status").in_(*where)
 
-        if isinstance(node, Action):
+        if isinstance(node, Agent):
+            base_query = Run.get_property("agent").eq(node)
+        elif isinstance(node, Action):
             base_query = Run.get_property("action").eq(node)
         elif isinstance(node, Link):
             base_query = Run.get_property("link").eq(node)

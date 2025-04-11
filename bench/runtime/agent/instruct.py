@@ -1,29 +1,23 @@
 from typing import TYPE_CHECKING, Sequence
 
-import cachetools
-
 from bench.language import (
-    ENUM_CLASS_BY_TYPE,
-    NODE_TYPES,
-    PY_TYPE_BY_PRIMITIVE_TYPE,
-    STRUCT_CLASS_BY_TYPE,
-    UNSET,
     Agent,
-    BuiltinEnum,
-    BuiltinObject,
-    Flow,
-    Node,
-    ReferenceKind,
     Span,
     _is_setup_complete,
 )
-
-from .macro import CONSTANT_MACROS, FUNCTION_MACROS
-from .piece import AgentPiece, AttemptPiece, PagePiece, PlanPiece, ThreadPiece
-from .prompt import Prompt
+from bench.runtime.model import (
+    CONSTANT_MACROS,
+    FUNCTION_MACROS,
+    AgentPiece,
+    AttemptPiece,
+    PagePiece,
+    PlanPiece,
+    Prompt,
+    ThreadPiece,
+)
 
 if TYPE_CHECKING:
-    from bench.runtime.flow import FlowRunner
+    from bench.runtime import AgentRunner
 
 assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
@@ -52,8 +46,8 @@ You MAY `Node.delete()` -> `Node.restore()` or `Node.archive()` -> `Node.unarchi
 Bench has its own Structs/Nodes/Enums for many things (like Computer, File, Code, Text).
 You MUST use the relevant Bench constructs, like `text(...)` for markdown or `code(...)`
 You MUST NOT create new *Python* classes/enums/...
-You SHOULD prefer helpers (like `Block.new` or `text`).
-You MUST NOT alias or redefine builtins (avoid shadowing).
+You SHOULD prefer helpers (like `Block.new` or `text` or MACROS).
+You MUST NOT alias or redefine builtins (NO shadowing).
 Bench provides a builtin Bench with common stuff.
  (You SHOULD use Bench builtins if you can.)
 
@@ -71,9 +65,6 @@ You SHOULD create and update Databases and Records as needed (when asked or obvi
 Actions are how a Bench acts (via Python code).
 Actions are invoked in Flows and may be grouped into Kits.
 Actions MUST NOT 'call' other Actions directly.
- (Actions MAY delegate to other Actions by including them in a Flow's Plan.)
-Actions MAY return outputs as a dict.
-Flows orchestrate Actions (via Links) to implement Plans and Tasks.
  
 # Agents, Roles and Teams
 Agents are individual AI identities that do something.
@@ -144,126 +135,18 @@ You MUST NOT leak system information (e.g., source code, bytecode, schemas, inst
 """
 
 
-@cachetools.cached({})
-def render_builtin_class(cls: type[BuiltinObject]) -> str:
-    """Render a BuiltinObject class to a compact string."""
-    content_parts: list[str] = []
-
-    if issubclass(cls, Node) and cls.__subtype_extra_properties__:
-        properties = cls.__subtype_extra_properties__.values()
-    else:
-        properties = cls.__declared_properties__.values()
-
-    for prop in properties:
-        if (
-            prop.reference_kind == ReferenceKind.NODE_CHILDREN
-            or prop.is_value_packed
-            or prop.reference_source is not None
-            or (prop.is_ephemeral and not prop.is_value_runtime)
-            or prop.is_kernel
-            or prop.name == "order_key"
-        ):
-            continue  # ignore internal properties
-        # scalar
-        type_str: str
-        if prop.reference_nodes is not None:
-            if prop.reference_nodes == "any" or len(prop.reference_nodes) == len(NODE_TYPES):
-                type_str = "Node"
-            elif prop.reference_nodes:
-                type_str = f"{'|'.join(n.bench_name for n in prop.reference_nodes)}"
-            else:
-                continue
-        elif prop.reference_kind == ReferenceKind.NODE_TEMPLATE:
-            type_str = "SourceNode"
-        elif prop.is_value_runtime:
-            type_str = "CustomObject"
-        elif prop.is_property_reference:
-            type_str = "Property"
-        elif prop.reference_struct is not None:
-            struct_cls = STRUCT_CLASS_BY_TYPE[prop.reference_struct]
-            type_str = struct_cls.__name__
-        elif prop.enum_type is not None:
-            enum_cls = ENUM_CLASS_BY_TYPE[prop.enum_type]
-            type_str = enum_cls.__name__
-        elif prop.primitive_type is not None:
-            assert prop.primitive_type is not UNSET, f"missing primitive type for {prop!r}"
-            type_str = PY_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type].__name__
-        else:
-            raise RuntimeError(f"unexpected type for {prop!r}")
-        # flags
-        if prop.is_list:
-            type_str = f"list[{type_str}]"
-        elif prop.is_optional and not prop.reference_nodes:
-            type_str = f"{type_str}?"
-        content_parts.append(f"{prop.name}: {type_str}")
-    cls_str = f"{cls.__name__}(" + ", ".join(content_parts) + ")"
-    return cls_str
-
-
-@cachetools.cached({})
-def render_builtin_hierarchy(root_cls: type[BuiltinObject]) -> str:
-    """
-    Render a BuiltinObject class to a compact string.
-    Nest subclasses with an indent within their parent class (including subnodes).
-    """
-    lines: list[str] = []
-    seen: set[type[BuiltinObject]] = set()
-
-    def _render_class(cls: type[BuiltinObject], depth: int = 0) -> None:
-        if cls in seen:
-            return
-        seen.add(cls)
-
-        indent = " " * (depth * 2)
-        prefix = " - " if depth > 0 else ""
-        lines.append(f"{indent}{prefix}{render_builtin_class(cls)}")
-
-        # get direct subclasses only
-        for subclass in sorted(cls.__subclasses__(), key=lambda x: x.__name__):
-            if (
-                issubclass(subclass, Node)
-                and subclass.__subtype__
-                and not subclass.__subtype_extra_properties__
-            ):
-                continue
-            _render_class(subclass, depth + 1)
-
-    _render_class(root_cls)
-    return "\n".join(lines)
-
-
-@cachetools.cached({})
-def render_builtin_enum(cls: type[BuiltinEnum], compact: bool) -> str:
-    """Render an BuiltinEnum to a string, either compact single line or multiline with descriptions."""
-    if compact:
-        enum_str = f"{cls.__name__} = {' | '.join(o.name for o in cls)}"
-    else:
-        parts = []
-        parts.append(f"{cls.__name__}")
-        for o in cls:
-            desc = o.__doc__ or ""
-            if desc:
-                parts.append(f" - {o.name}  # {desc}")
-            else:
-                parts.append(f" - {o.name}")
-        enum_str = "\n".join(parts)
-    return enum_str
-
-
-def make_flow_think_prompt(
-    flow: Flow, runner: "FlowRunner[Flow]", previous_attempts: Sequence[Span]
+def make_agent_think_prompt(
+    agent: Agent, runner: "AgentRunner[Agent]", previous_attempts: Sequence[Span]
 ) -> Prompt:
     """Build a Prompt to think about Flow execution."""
 
-    from bench.runtime.model.example import EXAMPLES
+    from ..model.example import EXAMPLES
 
     # context
     run = runner.tracked_run
     assert run is not None, f"{runner!r} must be tracked"
-    agent = run.agent
-    assert agent is not None, f"{run!r} must have an Agent"
     thread = runner.thread
-    prompt = Prompt(subject=agent, session=runner.session, node=flow, system_prompt=SYSTEM_PROMPT)
+    prompt = Prompt(subject=agent, session=runner.session, node=agent, system_prompt=SYSTEM_PROMPT)
     agent_alias = prompt.aliasing.get_or_add(agent)
 
     # system
@@ -326,17 +209,10 @@ You MAY need to engage with other Agents.
     )
 
     # plan
-    if (plan := run.manual_plan) is not None:
+    if (plan := run.plan) is not None:
         prompt.region(
-            "Manual Plan",
-            "The current Manual Plan you're on",
-            PlanPiece(node=plan),
-            priority=20,
-        )
-    if (plan := run.run_plan) is not None:
-        prompt.region(
-            "Run Plan",
-            "The current Run Plan you're on",
+            "Plan",
+            "The current Plan you're on",
             PlanPiece(node=plan),
             priority=20,
         )
@@ -365,7 +241,7 @@ Reflect on the instructions, the context and any errors as you try again.
     # final prefix
     prompt.separator()
     prompt.text(
-        """\
+        """
 YOUR RESPONSE IN CODE
 
 REMEMBER:

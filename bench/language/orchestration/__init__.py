@@ -1,7 +1,7 @@
 from .claim import Claim, ClaimStatus, ClaimType
 from .cursor import Cursor, CursorType
-from .plan import Plan, PlanType
-from .task import Task, TaskType
+from .plan import Plan
+from .task import Task
 
 __all__ = [
     "Claim",
@@ -10,7 +10,5 @@ __all__ = [
     "Cursor",
     "CursorType",
     "Plan",
-    "PlanType",
     "Task",
-    "TaskType",
 ]

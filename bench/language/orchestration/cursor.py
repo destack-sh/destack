@@ -7,6 +7,7 @@ from bench.language.core import (
     IsModal,
     IsOwnable,
     IsRuntime,
+    IsTitled,
     Node,
     NodeType,
     PackageNode,
@@ -50,12 +51,16 @@ class CursorStatus(BuiltinEnum):
     WAITING = 13, "Waiting", "Waiting", "fas fa-hourglass-half", ColorType.BLUE
     # inactive
     IDLE = 30, "Idle", "Idle", "fas fa-snooze", ColorType.GRAY
+    # terminal
+    CANCELLED = 50, "Cancelled", "Cancelled", "fas fa-times", ColorType.RED
+    COMPLETED = 53, "Completed", "Completed", "fas fa-check", ColorType.GREEN
 
 
 @node_(NodeType.CURSOR)
-class Cursor(IsRuntime, IsOwnable, IsModal, PackageNode):
+class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
     """
     A Cursor is the current logical or physical 'position' or 'focus' of its owner.
+     (e.g., editing Blocks on a Page or processing a specific Record in a Database.)
     """
 
     # meta
@@ -72,7 +77,10 @@ class Cursor(IsRuntime, IsOwnable, IsModal, PackageNode):
 
     # status?
     status: CursorStatus = p_regular(40, default=CursorStatus.CREATED)
-    active_at: Optional[datetime] = p_regular(41, default=None)
+    started_at: Optional[datetime] = p_regular(41, default=None)
+    active_at: Optional[datetime] = p_regular(42, default=None)
+    seen_at: Optional[datetime] = p_regular(43, default=None)
+    terminated_at: Optional[datetime] = p_regular(45, default=None)
 
     # content
     target: Optional[Node] = p_regular(

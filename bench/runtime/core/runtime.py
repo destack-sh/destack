@@ -45,7 +45,6 @@ from bench.language import (
     PathOptions,
     ProcessStatus,
     Run,
-    RunType,
     Session,
     SessionStatus,
     Span,
@@ -76,7 +75,6 @@ from .runner import (
     RunnerCompletedEvent,
     RunnerFailedEvent,
     RunnerInterruptedEvent,
-    create_run,
     restore_runner,
 )
 from .thread import ThreadHandle
@@ -916,7 +914,6 @@ class Runtime:
         Run a top-level Run in this Runtime. This Runtime will assume ownership of the Run.
         Automatically lifts/joins the Run with a higher or existing Run if needed.
         """
-        from bench.runtime.flow import FlowRunner
 
         if isinstance(run, Run):
             run = run.to_ref()
@@ -935,79 +932,11 @@ class Runtime:
             runner, run = await self._load_runner(run)
             assert runner.tracked.is_attached, f"{runner!r}'s {runner.tracked!r} is not attached"
             assert runner.is_root, f"{runner!r} is not a root runner"
-            inner_runner = runner
 
             # get thread
             thread_ptr = run.thread_ptr
             assert thread_ptr is not None, f"{run!r} has no Thread"
             thread = await self._load_thread(thread_ptr)
-
-            # lift run into existing / higher flow
-            if (
-                run.type == RunType.ACTION
-                and (action := run.action) is not None
-                and (flow := action.flow) is not None
-            ):
-                # find existing Flow to lift into
-                agent_id = run.agent_id
-                self.session.stage()
-                for existing_runner in self._runners_by_id.values():
-                    if (
-                        (existing_run := existing_runner.tracked_run) is not None
-                        and existing_run.type == RunType.FLOW
-                        and existing_run.flow_id == flow.id
-                        and existing_run.agent_id == agent_id
-                        and not existing_run.status.is_terminal
-                    ):
-                        target_runner = existing_runner
-                        assert isinstance(
-                            target_runner, FlowRunner
-                        ), f"{target_runner!r} is not a FlowRunner"
-                        break
-                else:
-                    target_runner = None
-
-                if target_runner is not None:
-                    # lift into existing run
-                    outer_run = target_runner.tracked_run
-                    assert outer_run is not None, f"{target_runner!r} has no tracked run"
-                    run.move(to=outer_run)
-                    self.session.stage(include_runtime=True)
-                    runner.close()  # we're moving the runner to an existing runner
-
-                    # bail if target runner is already active
-                    if target_runner.id in self._active_runners_by_id:
-                        target_runner.run_inner((run,))
-                        runner = self._active_runners_by_id[runner.id]
-                        return runner
-                    runner = target_runner
-                    logger.debug(
-                        "runtime.lift_flow.existing",
-                        runner=runner,
-                        inner_run=run,
-                        outer_run=outer_run,
-                    )
-                else:
-                    # create new outer run
-                    parent_node = run.parent or run.thread
-                    assert parent_node is not None, f"no parent for {run!r}"
-                    outer_run, _ = create_run(
-                        flow,
-                        parent=parent_node,
-                        mode=run.mode,
-                        status=ProcessStatus.QUEUED,
-                        thread=run.thread,
-                        graph=parent_node._graph,
-                        agent=run.agent,
-                    )
-                    run.move(to=outer_run)
-                    self.session.stage(include_runtime=True)
-                    runner.close()  # we're loading a new runner to cover the outer run
-                    await self.session.commit()  # wait for Run to actually exist
-                    runner, run = await self._load_runner(outer_run.to_ref())
-                    logger.debug(
-                        "runtime.lift_flow.new", runner=runner, inner_run=run, outer_run=outer_run
-                    )
 
             # actually run
             try:
@@ -1036,12 +965,6 @@ class Runtime:
                 if not _return_error:
                     raise
 
-        # get inner runner from actual runner (may have been lifted)
-        if inner_runner is not runner:
-            inner_runner = runner.get_latest_runner(inner_runner.node)
-            if inner_runner is None:
-                raise RuntimeError(f"missing lifted inner {inner_runner!r} in {runner!r}")
-
         # close runner once we're done
         if runner.is_root and runner.status.is_terminal:
             runner.close()
@@ -1054,7 +977,7 @@ class Runtime:
                     thread.close()
                     del self._runners_by_thread_id[thread.id]
 
-        return inner_runner
+        return runner
 
     def get_interrupted_runs(self, graph: NodeGraph, *interruptions: Interruption) -> list[Run]:
         """Gets all Runs that were directly interrupted by the given Interruptions."""

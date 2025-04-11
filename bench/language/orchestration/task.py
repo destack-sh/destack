@@ -4,9 +4,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
-    BuiltinEnum,
-    CustomObject,
-    EnumType,
     FieldType,
     InlineNode,
     IsClaimable,
@@ -24,7 +21,6 @@ from bench.language.core import (
     Text,
     TextLineIn,
     coerce_custom_object_scalar,
-    enum_,
     p_internal,
     p_node_children,
     p_node_parent,
@@ -53,12 +49,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.TASK_TYPE)
-class TaskType(BuiltinEnum):
-    MANUAL = 10, "Manual", "Describe a manual Task", "far fa-square-check"
-    RUN = 20, "Run", "Run a specific Node", "fas fa-play"
-
-
 @timed_node_(NodeType.TASK)
 class Task(
     IsTimed,
@@ -76,7 +66,6 @@ class Task(
     parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
-    type: TaskType = p_regular(30, default=TaskType.MANUAL)
     # priority?
     implemented_by: Optional["Run"] = p_internal(
         41,
@@ -167,7 +156,7 @@ class Task(
             return None
 
     @staticmethod
-    def general(
+    def new(
         title: "TextLineIn | None",
         text: "Text | None",
         clazz: "Class | None",
@@ -180,42 +169,10 @@ class Task(
         else:
             value = None
         task = Task(
-            type=TaskType.MANUAL,
             title=text_line(title) if title is not None else None,
             text=text,
             clazz=clazz,
             value=value,
             is_manual=is_manual,
-        )
-        return task
-
-    @staticmethod
-    def run(
-        title: "TextLineIn | None",
-        node: "Flow | Action",
-        value: CustomObject | None = None,
-        *,
-        tool: "Flow | Action | None" = None,
-        text: "Text | None" = None,
-        **kwargs,
-    ) -> "Task":
-        from bench.language import Action, Block
-
-        if not isinstance(node, (Block, Action)):
-            raise ValueError(f"invalid node type for Call: {type(node)}")
-
-        if tool is not None:
-            value_type = tool.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-            assert value_type is not None, f"no call value type for tool {tool!r}"
-        else:
-            value_type = node.to_type_maybe(of="value", field_types=[FieldType.INPUT])
-            assert value_type is not None, f"no call value type for node {node!r}"
-        value = coerce_custom_object_scalar(value or kwargs, value_type)
-        task = Task(
-            type=TaskType.RUN,
-            title=text_line(title) if title is not None else None,
-            target=node,
-            value=value,
-            text=text,
         )
         return task

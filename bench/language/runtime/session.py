@@ -478,8 +478,6 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 context.client_ptr.CopyFrom(self.client_ptr._to_data())
             if self.computer_ptr is not None:
                 context.computer_ptr.CopyFrom(self.computer_ptr._to_data())
-            if self.user_ptr is not None:
-                context.user_ptr.CopyFrom(self.user_ptr._to_data())
             self._context_data = context
         return self._context_data
 

@@ -15,7 +15,6 @@ from bench.language import (
     Run,
     Session,
     Thread,
-    Trigger,
     code,
     text,
 )
@@ -86,11 +85,14 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
     assert run.status == ProcessStatus.COMPLETED
 
 
+# nocheckin: start Agent from .. Message? something?
+
+
 @simulated_runtime(system=True, runtimes=True)
 async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run by messaging an Identity in a Flow."""
     Flow1 = Flow.new("Flow1")
-    Start1 = Action.new(ActionType.START, "Start1", triggers=[Trigger.on_message()])
+    Start1 = Action.new(ActionType.START, "Start1")
     End1 = Action.new(ActionType.END, "End1")
     Flow1.extend(Start1, End1)
     Start1.connect(LinkType.MANUAL, End1)
@@ -118,7 +120,7 @@ async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLa
 async def test_pause_resume_run(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(1)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Action1, End)

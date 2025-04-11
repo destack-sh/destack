@@ -50,7 +50,6 @@ if TYPE_CHECKING:
         NodeReference,
         RunOptions,
         Text,
-        Trigger,
         Vector2,
     )
 
@@ -69,7 +68,6 @@ class ActionType(BuiltinEnum):
     # action
     TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.ORANGE
     CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.ORANGE
-    DO = 200, "Do", "Perform an arbitrary action", "fas fa-hammer", ColorType.ORANGE
 
     # containers
     # GROUP, LOOP, ...
@@ -144,7 +142,6 @@ class Action(
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
-    triggers: LocalNodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
     @property
@@ -216,7 +213,7 @@ class Action(
         field_types: list[FieldType] | None = None,
     ) -> "IsType | None":
         """Gets a type represented by this Action (if any)"""
-        from bench.language import Agent, Kit, Type
+        from bench.language import Kit, Type
 
         if of == "instance":
             return Type(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
@@ -229,8 +226,6 @@ class Action(
                 field_types = [FieldType.OUTPUT]  # remap to only output fields from Flow
             elif self.type == ActionType.TOOL:
                 base = self.tool
-                if isinstance(base, Agent):
-                    base = base.main_flow
             else:
                 base = self
             return Type(

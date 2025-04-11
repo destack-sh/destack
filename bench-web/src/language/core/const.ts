@@ -259,7 +259,12 @@ export const PRE_PROCESS_STATUSES = [
 ];
 export const ACTIVE_PROCESS_STATUSES = [ProcessStatus.RUNNING, ProcessStatus.FAILING];
 export const INACTIVE_PROCESS_STATUSES = [ProcessStatus.IDLE];
-export const BAD_PROCESS_STATUSES = [ProcessStatus.CANCELLED, ProcessStatus.ABORTED, ProcessStatus.FAILED];
+export const BAD_PROCESS_STATUSES = [
+  ProcessStatus.CANCELLED,
+  ProcessStatus.ABORTED,
+  ProcessStatus.FAILED,
+  ProcessStatus.DIED,
+];
 
 // view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
@@ -405,7 +410,6 @@ export const EXPOSED_MODEL_TYPES = [
   ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
-export const EXPOSED_ACTION_TYPES = [ActionType.START, ActionType.END, ActionType.TOOL, ActionType.DO];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
@@ -416,7 +420,6 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
   [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
   [EnumType.REGION]: EXPOSED_REGIONS,
-  [EnumType.ACTION_TYPE]: EXPOSED_ACTION_TYPES,
 };
 
 export function getPropertyTitle(property: PropertyInfo | PropertyReferenceData): string {

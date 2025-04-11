@@ -10,7 +10,6 @@ from bench.language import (
     LinkType,
     ProcessStatus,
     RunOptions,
-    Trigger,
     code,
 )
 from bench.runtime import Interrupted, create_run, make_runner
@@ -23,7 +22,7 @@ from bench.test.unit.conftest import simulated_runtime
 async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run multiple actions in parallel, losers should be aborted on completion of winner."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Race1 = Action.new(ActionType.CODE, "Race1", code=code("await asyncio.sleep(1)"))
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
@@ -51,7 +50,7 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
     from bench.builtin import ActionKit
 
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(ActionKit.actions.Yield, "Yield")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, End)
@@ -93,7 +92,7 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
 
     # inner flow
     FlowInner = Flow.new("FlowInner")
-    StartInner = Action.new(ActionType.START, "StartInner", triggers=[Trigger.on_start()])
+    StartInner = Action.new(ActionType.START, "StartInner")
     YieldInner = Action.new(ActionKit.actions.Yield, "YieldInner")
     EndInner = Action.new(ActionType.END, "EndInner")
     FlowInner.actions.extend(StartInner, YieldInner, EndInner)
@@ -102,7 +101,7 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
 
     # outer flow
     FlowOuter = Flow.new("FlowOuter")
-    StartOuter = Action.new(ActionType.START, "StartOuter", triggers=[Trigger.on_start()])
+    StartOuter = Action.new(ActionType.START, "StartOuter")
     ActionOuter = Action.new(ActionType.TOOL, "Action", tool=FlowInner)
     EndOuter = Action.new(ActionType.END, "EndOuter")
     FlowOuter.actions.extend(StartOuter, ActionOuter, EndOuter)
@@ -137,7 +136,7 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     from bench.builtin import ActionKit
 
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(ActionKit.actions.Yield, "Yield")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, End)
@@ -165,7 +164,7 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
         "Flow1",
         options=RunOptions(breakpoints=[Breakpoint.before(BreakpointScope.ACTION)]),
     )
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Yield = Action.new(
         ActionKit.actions.Yield, "Yield", options=RunOptions(breakpoints=[Breakpoint.before()])
     )
@@ -234,7 +233,7 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
 async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a long async Flow and pause it, then resume it."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start", triggers=[Trigger.on_start()])
+    Start = Action.new(ActionType.START, "Start")
     Action1 = Action.new(ActionType.CODE, "Action1", code=code("await sleep(0.2)"))
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     End = Action.new(ActionType.END, "End")
