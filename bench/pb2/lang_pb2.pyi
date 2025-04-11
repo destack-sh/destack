@@ -1335,6 +1335,7 @@ class TriggerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class TriggerEffect(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRIGGER_EFFECT_UNSPECIFIED: _ClassVar[TriggerEffect]
+    TRIGGER_EFFECT_WAKE: _ClassVar[TriggerEffect]
     TRIGGER_EFFECT_RUN: _ClassVar[TriggerEffect]
 
 class TriggerStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2960,6 +2961,7 @@ SEVERITY_PANIC: Severity
 TRIGGER_TYPE_UNSPECIFIED: TriggerType
 TRIGGER_TYPE_SCHEDULE: TriggerType
 TRIGGER_EFFECT_UNSPECIFIED: TriggerEffect
+TRIGGER_EFFECT_WAKE: TriggerEffect
 TRIGGER_EFFECT_RUN: TriggerEffect
 TRIGGER_STATUS_UNSPECIFIED: TriggerStatus
 TRIGGER_STATUS_INACTIVE: TriggerStatus

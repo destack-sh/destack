@@ -48,8 +48,7 @@ def raise_if_none():
 # Basic Pieces
 #
 
-# Registry of piece classes by node type
-_piece_by_node_type = {}
+_piece_by_node_type: dict[NodeType, type["Piece"]] = {}
 
 
 @dataclass_transform(kw_only_default=True)

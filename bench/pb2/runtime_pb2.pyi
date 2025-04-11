@@ -15,6 +15,20 @@ from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Map
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class WakeRequest(_message.Message):
+    __slots__ = ("scope", "computer_ptr", "thread_ptrs")
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    COMPUTER_PTR_FIELD_NUMBER: _ClassVar[int]
+    THREAD_PTRS_FIELD_NUMBER: _ClassVar[int]
+    scope: _lang_pb2.GraphScopeData
+    computer_ptr: _lang_pb2.NodeReferenceData
+    thread_ptrs: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
+    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., computer_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., thread_ptrs: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ...) -> None: ...
+
+class WakeResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
 class RunRequest(_message.Message):
     __slots__ = ("scope", "computer_ptr", "thread_ptr", "run_ptrs")
     SCOPE_FIELD_NUMBER: _ClassVar[int]

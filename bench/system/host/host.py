@@ -366,6 +366,7 @@ class HostService(GraphServiceBase, HostBase):
             DatabasePlugin,
             RunPlugin,
             ScheduleTriggerPlugin,
+            WakePlugin,
         )
 
         # start base service
@@ -460,6 +461,7 @@ class HostService(GraphServiceBase, HostBase):
             *self._provisioners,
             ScheduleTriggerPlugin(self, self._bench),
             RunPlugin(self, self._bench),
+            WakePlugin(self, self._bench),
             ClaimPlugin(self, self._bench),
         )
         await asyncio.gather(*(plugin.start() for plugin in self._plugins))

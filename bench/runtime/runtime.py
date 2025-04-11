@@ -24,6 +24,7 @@ from bench.pb2 import (
     ServiceKind,
     SupervisorClient,
 )
+from bench.pb2.runtime_pb2 import WakeRequest, WakeResponse
 from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeProcessMode, RuntimeServiceBase
 from bench.runtime.process import RuntimeProcess
@@ -252,7 +253,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         # processing
         self._max_processs = max_processs
         self._processs: list[RuntimeProcessHandle] = []
-        self._is_stop_requested = False
+        self._is_draining = False
 
     def __str__(self):
         return f"{self._client_id} on {self._bench_id}"
@@ -279,7 +280,9 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             #  (we ignore errors because either setsid is unavailable or we're already the leader)
             os.setsid()
         assert self._max_processs > 0, f"no processs for {self!r}"
-        assert self._max_processs == 1, f"multi-processs not supported for {self!r}"  # :RunRouting
+        assert (
+            self._max_processs == 1
+        ), f"multi-processs not supported for {self!r}"  # :RuntimeRouting
         self._processs = [
             RuntimeProcessHandle(self, id=f"{self.id}-process-{i}", process_id=i, mode=self._mode)
             for i in range(self._max_processs)
@@ -289,7 +292,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
     def stop(self):
         super().stop()
-        self._is_stop_requested = True
+        self._is_draining = True
         for process in self._processs:
             process.stop()
 
@@ -302,12 +305,12 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         assert self._main_package, f"{self!r} has no main package"
 
         # refuse if stopping
-        if self._is_stop_requested:
-            raise grpclib.GRPCError(grpclib.Status.ABORTED, "Runtime is stopping")
+        if self._is_draining:
+            raise grpclib.GRPCError(grpclib.Status.UNAVAILABLE, "Runtime is draining")
 
         # run in process
         set_baggage(bench_id=self._bench_id, client_id=self._client_id)
-        process = self._processs[0]  # :RunRouting
+        process = self._processs[0]  # :RuntimeRouting
         try:
             # and run 'blocking'
             if isinstance(process.client, RuntimeBase):
@@ -332,3 +335,42 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             raise
 
         return RunResponse()
+
+    @override
+    async def wake(self, request: WakeRequest, headers: Mapping) -> WakeResponse:
+        assert self._main_package, f"{self!r} has no main package"
+
+        # refuse if stopping
+        if self._is_draining:
+            raise grpclib.GRPCError(grpclib.Status.UNAVAILABLE, "Runtime is draining")
+
+        # run in process
+        set_baggage(bench_id=self._bench_id, client_id=self._client_id)
+        process = self._processs[0]  # :RuntimeRouting
+        try:
+            if isinstance(process.client, RuntimeBase):
+                _ = await process.client.wake(request, {})
+            elif isinstance(process.client, RuntimeClient):
+                _ = await process.client.wake(request)
+            else:
+                assert_never(process.client)
+            logger.info(
+                "runtime_service.wake",
+                process=process,
+                thread_ptrs=[
+                    wiring.describe_node_ptr(thread_ptr) for thread_ptr in request.thread_ptrs
+                ],
+                span="current",
+            )
+        except Exception as e:
+            logger.error(
+                "runtime_service.wake.error",
+                process=process,
+                thread_ptrs=[
+                    wiring.describe_node_ptr(thread_ptr) for thread_ptr in request.thread_ptrs
+                ],
+                exc_info=e,
+            )
+            raise
+
+        return WakeResponse()

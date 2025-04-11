@@ -11,8 +11,10 @@ from bench.pb2 import (
     RunResponse,
     RuntimeBase,
     ServiceKind,
+    SupervisorClient,
+    WakeRequest,
+    WakeResponse,
 )
-from bench.pb2.system_grpc import SupervisorClient
 from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeServiceBase
 from bench.runtime.core import RedisCache, Runtime
@@ -20,7 +22,7 @@ from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 
 if TYPE_CHECKING:
-    from bench.runtime.runtime import RuntimeProcessMode
+    from bench.runtime import RuntimeProcessMode
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -141,3 +143,12 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
             *(self.runtime.run(run_ptr, _return_error=True) for run_ptr in run_ptrs)
         )
         return RunResponse()
+
+    @override
+    async def wake(self, request: WakeRequest, headers: Mapping) -> WakeResponse:
+        thread_ptrs = [
+            wiring.unpack_builtin_object_validate(thread_ptr, supergraph=None, expect=NodeReference)
+            for thread_ptr in request.thread_ptrs
+        ]
+        await asyncio.gather(*(self.runtime.wake(thread_ptr) for thread_ptr in thread_ptrs))
+        return WakeResponse()

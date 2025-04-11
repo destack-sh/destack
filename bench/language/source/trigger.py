@@ -52,9 +52,8 @@ class TriggerStatus(BuiltinEnum):
 
 @enum_(EnumType.TRIGGER_EFFECT)
 class TriggerEffect(BuiltinEnum):
-    # run
-    RUN = 10, "Start Run", "Start a new Run", "fas fa-play"
-    # interruption
+    WAKE = 10, "Wake", "Wake up something", "fas fa-alarm-clock"
+    RUN = 20, "Start Run", "Start a new Run", "fas fa-play"
     # TASK = 50, "Instantiate Task", "Create a new Task from a template", "fas fa-tasks"
 
 

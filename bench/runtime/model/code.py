@@ -7,8 +7,8 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Aliasing
-from bench.runtime.code.context import STATIC_CODE_GLOBALS
-from bench.runtime.core.runner import Runner
+from bench.runtime.code import STATIC_CODE_GLOBALS
+from bench.runtime.core import Runner
 from bench.runtime.model.macro import MACROS_BY_NAME
 
 logger = structlog.get_logger(__name__)

@@ -1344,7 +1344,8 @@ enum TriggerType {
 
 enum TriggerEffect {
   TRIGGER_EFFECT_UNSPECIFIED = 0;
-  TRIGGER_EFFECT_RUN = 10;
+  TRIGGER_EFFECT_WAKE = 10;
+  TRIGGER_EFFECT_RUN = 20;
 }
 
 enum TriggerStatus {
