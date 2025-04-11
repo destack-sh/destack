@@ -542,7 +542,6 @@ class SearchConnection[ConnectorT: Connector, T: Node](
             for edit in update.edits:
                 if edit.type in (
                     EditType.ARCHIVE,
-                    EditType.UNARCHIVE,
                     EditType.DELETE,
                     EditType.ERASE,
                 ):
