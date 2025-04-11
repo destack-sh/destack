@@ -420,6 +420,15 @@ mark {
 }
 
 /* Span Nodes */
+.pm-text span.spoiler {
+  @apply rounded bg-gray-400 transition-colors duration-150;
+}
+.pm-text span.spoiler:hover {
+  @apply bg-gray-100;
+}
+.pm-text span.spoiler:not(:hover) {
+  @apply text-transparent;
+}
 .pm-text .span-node-view {
   @apply rounded px-1 transition-colors duration-150;
 }

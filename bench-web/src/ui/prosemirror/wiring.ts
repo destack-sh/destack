@@ -493,6 +493,7 @@ function mapSpanToPmNode(span: TextSpanData): PmNode | null {
   if (span.isStrikethrough) marks.push(PM_SCHEMA.mark("strikethrough"));
   if (span.isUnderline) marks.push(PM_SCHEMA.mark("underline"));
   if (span.isCode) marks.push(PM_SCHEMA.mark("code"));
+  if (span.isSpoiler) marks.push(PM_SCHEMA.mark("spoiler"));
   return marks.length ? node.mark(marks) : node;
 }
 
@@ -538,6 +539,8 @@ function mapPmNodeToSpan(spanMention: PmNode): TextSpanData | null {
       span.isUnderline = true;
     } else if (mark.type.name === "code") {
       span.isCode = true;
+    } else if (mark.type.name === "spoiler") {
+      span.isSpoiler = true;
     } else {
       throw new Error(`unexpected mark type: ${mark.type.name}`);
     }

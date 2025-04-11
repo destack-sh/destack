@@ -958,6 +958,11 @@ export function useTextEditor(options: {
       () => view,
       () => toValue(isInput),
     ),
+    "text.format.spoiler": markFormatCommand(
+      "spoiler",
+      () => view,
+      () => toValue(isInput),
+    ),
     // space
     "space.edit.delete": {
       command: (command, ctx) => {
