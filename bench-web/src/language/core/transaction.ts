@@ -672,9 +672,13 @@ export function editGraph(
       if (edit.nodeData == null) throw new Error(`missing node in edit: ${describeEdit(edit)}`);
       const node = unwrapSomeNode(edit.nodeData);
       // implicit metadata
-      node.createdAt = node.updatedAt = edit.editedAt;
+      if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
+        node.createdAt = edit.editedAt;
+        node.createdByPtr = edit.subjectPtr;
+      }
+      node.updatedAt = edit.editedAt;
       node.deletedAt = undefined;
-      node.createdByPtr = node.updatedByPtr = edit.subjectPtr;
+      node.updatedByPtr = edit.subjectPtr;
       if (edit.type == EditType.CREATE || !graph.has(node)) {
         graph.add(node);
       } else {

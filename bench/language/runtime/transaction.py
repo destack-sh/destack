@@ -773,11 +773,13 @@ def edit_graph(
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
             node_data = wiring.unwrap_some_node(edit.node_data)
             # inline implicit metadata
-            node_data.created_at.CopyFrom(edit.edited_at)
+            if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
+                node_data.created_at.CopyFrom(edit.edited_at)
             node_data.updated_at.CopyFrom(edit.edited_at)
             node_data.ClearField("deleted_at")
             if edit.subject_ptr.metatype != 0:
-                node_data.created_by_ptr.CopyFrom(edit.subject_ptr)
+                if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
+                    node_data.created_by_ptr.CopyFrom(edit.subject_ptr)
                 node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
             # unpack
             node = wiring.unpack_builtin_object(
@@ -880,11 +882,13 @@ def edit_data_graph(
             assert edit.HasField("node_data"), f"missing node_data for {edit!r}"
             node = wiring.unwrap_some_node(edit.node_data)
             # inline implicit metadata
-            node.created_at.CopyFrom(edit.edited_at)
+            if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
+                node.created_at.CopyFrom(edit.edited_at)
             node.updated_at.CopyFrom(edit.edited_at)
             node.ClearField("deleted_at")
             if subject_ptr is not None:
-                node.created_by_ptr.CopyFrom(subject_ptr)
+                if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
+                    node.created_by_ptr.CopyFrom(subject_ptr)
                 node.updated_by_ptr.CopyFrom(subject_ptr)
             else:
                 node.ClearField("created_by_ptr")

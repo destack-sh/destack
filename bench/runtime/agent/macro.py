@@ -160,6 +160,8 @@ def SEND(
     thread = runner.thread.thread
     message = Message.new(text=text, owned_by=runner.agent, nodes=nodes, reply_to=reply_to)
     thread.append(message)
+    if (cursor := runner.node.main_cursor) is not None:
+        cursor.seen_at = message.created_at
     runner.session.stage()
     return message
 

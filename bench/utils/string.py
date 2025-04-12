@@ -96,7 +96,7 @@ def humanize_number(num: float) -> str:
         return f"{round(num / 100000000) / 10}b"
 
 
-def humanize_bytes(num: float, cutoff: float = 100, round_it: bool = True) -> str:
+def humanize_bytes(num: float, cutoff: float = 10, round_it: bool = True) -> str:
     """Shorten bytes into nearest (KB, MB, GB, etc.), keep up to 3 significant digits"""
     units = ["B", "KB", "MB", "GB", "TB", "PB"]
     unit = 0
