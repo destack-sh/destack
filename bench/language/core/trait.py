@@ -150,10 +150,8 @@ SUBJECT_NODE_TYPES = bittuple(
     NodeType.AGENT,
 )
 
-
 Runnable = Union["Agent", "Flow", "Action", "Link"]
 RUNNABLE_NODE_TYPES = bittuple(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
-
 
 Processable = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run", "Span"]
 PROCESSABLE_NODE_TYPES = bittuple(

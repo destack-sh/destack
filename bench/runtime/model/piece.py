@@ -243,16 +243,19 @@ class MessagePiece(NodePiece[Message]):
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
-        if created_by := self.node.created_by:
-            created_by_alias = prompt.renderer.aliasing.get_or_add(created_by)
-        elif created_by_ptr := self.node.created_by_ptr:
+        if created_by_ptr := self.node.created_by_ptr:
             # NOTE :Incomplete: load relevant Users (in ThreadHandle)?
-            created_by_alias = prompt.renderer.aliasing.get_or_add(created_by_ptr)
+            if created_by := self.node.created_by:
+                created_by_alias = prompt.renderer.aliasing.get_or_add(created_by)
+            else:
+                created_by_alias = prompt.renderer.aliasing.get_or_add(created_by_ptr)
+            if created_by_ptr.id == prompt.subject.id:
+                created_by_alias += " (YOU)"
         else:
             created_by_alias = "<system>"
         ago = prompt.now - self.node.created_at
         rendered_node = (
-            f"# from {created_by_alias} ({round(ago.total_seconds())}s ago)\n{rendered_node}"
+            f"# from {created_by_alias} {round(ago.total_seconds())}s ago\n{rendered_node}"
         )
         yield CodePiece(code=rendered_node)
         for node in self.node.nodes:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, override
 
 from bench.language.core import (
     BuiltinEnum,
@@ -98,3 +98,14 @@ class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
     focus: Optional[Selection] = p_regular(
         52, default=None, require=False, struct=StructType.SELECTION
     )
+
+    @override
+    def __content_str__(self) -> str:
+        content_parts: list[str] = [self.status.bench_name]
+        if (target := self.target) is not None:
+            content_parts.append(f"target={target.absolute_path}")
+        if self.active_at is not None:
+            content_parts.append(f"active={self.active_at.isoformat()}")
+        if self.seen_at is not None:
+            content_parts.append(f"seen={self.seen_at.isoformat()}")
+        return ", ".join(content_parts)

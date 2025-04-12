@@ -107,7 +107,10 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 agent.main_cursor = cursor
             assert cursor.type == CursorType.THREAD
             cursor.status = CursorStatus.THINKING
-            cursor.seen_at = self.thread.last_message_at
+            if (new_seen_at := self.thread.last_message_at) is not None and (
+                cursor.seen_at is None or new_seen_at > cursor.seen_at
+            ):
+                cursor.seen_at = new_seen_at
             cursor.active_at = self.runtime.oracle.utc()
 
             # make prompt
