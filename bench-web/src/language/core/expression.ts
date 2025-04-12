@@ -1,8 +1,6 @@
-import { getPathKey } from "@/language/core/path";
 import { getPropertyType } from "@/language/core/type";
 import { packValue } from "@/language/core/value";
-import { ExpressionType, ObjectType, PathData, type ExpressionData, type SortType } from "@/proto/wire";
-import { computed, Ref } from "vue";
+import { ExpressionType, ObjectType, type ExpressionData, type SortType } from "@/proto/wire";
 
 export function makeExpression(
   options: { type: ExpressionType; value?: any } & Partial<ExpressionData>,

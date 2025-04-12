@@ -933,7 +933,6 @@ LINK_TABLE = Table(
         Column("target_id", PrimitiveType.UUID),
         Column("target_bench_id", PrimitiveType.UUID),
         Column("options", PrimitiveType.JSON, is_nullable=True),
-        Column("delay", PrimitiveType.DURATION, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),

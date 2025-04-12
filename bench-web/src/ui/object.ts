@@ -867,7 +867,7 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
 export class LinkLayout extends NodeLayout<NodeType.LINK> {
   make() {
     const commonRows = [this.rowProperty(LinkProperty.type)];
-    commonRows.push(this.rowProperty(LinkProperty.color), this.rowProperty(LinkProperty.delay));
+    commonRows.push(this.rowProperty(LinkProperty.color));
     this.section(undefined, commonRows);
   }
 }

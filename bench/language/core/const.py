@@ -385,8 +385,6 @@ class EnumType(BuiltinEnum):
     AGGREGATION_TYPE = 21255
     SORT_MODE = 21256
     SORT_TYPE = 21257
-    PATH_ELEMENT_TYPE = 21260
-    PATH_RUN_SELECTOR = 21261
     SELECTION_TYPE = 21265
 
     #
@@ -851,8 +849,6 @@ class StructType(BuiltinEnum):
     CODE = 12100, None, None, "fas fa-code"
 
     # expression (12200-12699)
-    PATH = 12200, None, None, "fas fa-road"
-    PATH_ELEMENT = 12201
     EXPRESSION = 12210
     AGGREGATION_RESULT = 12211
     SELECTION = 12220

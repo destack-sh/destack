@@ -64,8 +64,7 @@ class LinkRunner(Runner[Link], ABC):
 
     @override
     async def run(self) -> None:
-        if self.node.delay is not None:
-            await self.runtime.oracle.sleep(self.node.delay.total_seconds())
+        pass
 
 
 LINK_RUNNER_BY_LINK_TYPE: dict[LinkType, type[LinkRunner]] = {

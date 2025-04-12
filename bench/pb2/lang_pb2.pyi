@@ -78,8 +78,6 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_AGGREGATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_MODE: _ClassVar[EnumType]
     ENUM_TYPE_SORT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_PATH_ELEMENT_TYPE: _ClassVar[EnumType]
-    ENUM_TYPE_PATH_RUN_SELECTOR: _ClassVar[EnumType]
     ENUM_TYPE_SELECTION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_PROCESS_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_RUN_TYPE: _ClassVar[EnumType]
@@ -218,8 +216,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_TEXT_LINE: _ClassVar[StructType]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructType]
     STRUCT_TYPE_CODE: _ClassVar[StructType]
-    STRUCT_TYPE_PATH: _ClassVar[StructType]
-    STRUCT_TYPE_PATH_ELEMENT: _ClassVar[StructType]
     STRUCT_TYPE_EXPRESSION: _ClassVar[StructType]
     STRUCT_TYPE_AGGREGATION_RESULT: _ClassVar[StructType]
     STRUCT_TYPE_SELECTION: _ClassVar[StructType]
@@ -321,8 +317,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_TEXT_LINE: _ClassVar[ObjectType]
     OBJECT_TYPE_TEXT_SPAN: _ClassVar[ObjectType]
     OBJECT_TYPE_CODE: _ClassVar[ObjectType]
-    OBJECT_TYPE_PATH: _ClassVar[ObjectType]
-    OBJECT_TYPE_PATH_ELEMENT: _ClassVar[ObjectType]
     OBJECT_TYPE_EXPRESSION: _ClassVar[ObjectType]
     OBJECT_TYPE_AGGREGATION_RESULT: _ClassVar[ObjectType]
     OBJECT_TYPE_SELECTION: _ClassVar[ObjectType]
@@ -424,8 +418,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TEXT_LINE: _ClassVar[BenchType]
     BENCH_TYPE_TEXT_SPAN: _ClassVar[BenchType]
     BENCH_TYPE_CODE: _ClassVar[BenchType]
-    BENCH_TYPE_PATH: _ClassVar[BenchType]
-    BENCH_TYPE_PATH_ELEMENT: _ClassVar[BenchType]
     BENCH_TYPE_EXPRESSION: _ClassVar[BenchType]
     BENCH_TYPE_AGGREGATION_RESULT: _ClassVar[BenchType]
     BENCH_TYPE_SELECTION: _ClassVar[BenchType]
@@ -504,8 +496,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_AGGREGATION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_SORT_MODE: _ClassVar[BenchType]
     BENCH_TYPE_SORT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PATH_ELEMENT_TYPE: _ClassVar[BenchType]
-    BENCH_TYPE_PATH_RUN_SELECTOR: _ClassVar[BenchType]
     BENCH_TYPE_SELECTION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_PROCESS_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_RUN_TYPE: _ClassVar[BenchType]
@@ -1198,27 +1188,6 @@ class SortType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SORT_TYPE_ASCENDING: _ClassVar[SortType]
     SORT_TYPE_DESCENDING: _ClassVar[SortType]
 
-class PathElementType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    PATH_ELEMENT_TYPE_UNSPECIFIED: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_ROOT: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_BENCH: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_PACKAGE: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_NODE: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_CURRENT: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_CONTAINER: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_CLOSEST: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_PARENT: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_CHILD: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_ATTRIBUTE: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_CONTEXT: _ClassVar[PathElementType]
-    PATH_ELEMENT_TYPE_RUN: _ClassVar[PathElementType]
-
-class PathRunSelector(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    PATH_RUN_SELECTOR_UNSPECIFIED: _ClassVar[PathRunSelector]
-    PATH_RUN_SELECTOR_LATEST: _ClassVar[PathRunSelector]
-
 class SelectionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SELECTION_TYPE_UNSPECIFIED: _ClassVar[SelectionType]
@@ -1547,7 +1516,6 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_TASK: _ClassVar[ViewType]
     VIEW_TYPE_OBJECT: _ClassVar[ViewType]
     VIEW_TYPE_TYPE: _ClassVar[ViewType]
-    VIEW_TYPE_PATH: _ClassVar[ViewType]
     VIEW_TYPE_SELECTION: _ClassVar[ViewType]
     VIEW_TYPE_USER_WIZARD: _ClassVar[ViewType]
     VIEW_TYPE_EMPTY: _ClassVar[ViewType]
@@ -1886,8 +1854,6 @@ ENUM_TYPE_CONDITIONAL_TYPE: EnumType
 ENUM_TYPE_AGGREGATION_TYPE: EnumType
 ENUM_TYPE_SORT_MODE: EnumType
 ENUM_TYPE_SORT_TYPE: EnumType
-ENUM_TYPE_PATH_ELEMENT_TYPE: EnumType
-ENUM_TYPE_PATH_RUN_SELECTOR: EnumType
 ENUM_TYPE_SELECTION_TYPE: EnumType
 ENUM_TYPE_PROCESS_STATUS: EnumType
 ENUM_TYPE_RUN_TYPE: EnumType
@@ -2020,8 +1986,6 @@ STRUCT_TYPE_TEXT: StructType
 STRUCT_TYPE_TEXT_LINE: StructType
 STRUCT_TYPE_TEXT_SPAN: StructType
 STRUCT_TYPE_CODE: StructType
-STRUCT_TYPE_PATH: StructType
-STRUCT_TYPE_PATH_ELEMENT: StructType
 STRUCT_TYPE_EXPRESSION: StructType
 STRUCT_TYPE_AGGREGATION_RESULT: StructType
 STRUCT_TYPE_SELECTION: StructType
@@ -2120,8 +2084,6 @@ OBJECT_TYPE_TEXT: ObjectType
 OBJECT_TYPE_TEXT_LINE: ObjectType
 OBJECT_TYPE_TEXT_SPAN: ObjectType
 OBJECT_TYPE_CODE: ObjectType
-OBJECT_TYPE_PATH: ObjectType
-OBJECT_TYPE_PATH_ELEMENT: ObjectType
 OBJECT_TYPE_EXPRESSION: ObjectType
 OBJECT_TYPE_AGGREGATION_RESULT: ObjectType
 OBJECT_TYPE_SELECTION: ObjectType
@@ -2220,8 +2182,6 @@ BENCH_TYPE_TEXT: BenchType
 BENCH_TYPE_TEXT_LINE: BenchType
 BENCH_TYPE_TEXT_SPAN: BenchType
 BENCH_TYPE_CODE: BenchType
-BENCH_TYPE_PATH: BenchType
-BENCH_TYPE_PATH_ELEMENT: BenchType
 BENCH_TYPE_EXPRESSION: BenchType
 BENCH_TYPE_AGGREGATION_RESULT: BenchType
 BENCH_TYPE_SELECTION: BenchType
@@ -2300,8 +2260,6 @@ BENCH_TYPE_CONDITIONAL_TYPE: BenchType
 BENCH_TYPE_AGGREGATION_TYPE: BenchType
 BENCH_TYPE_SORT_MODE: BenchType
 BENCH_TYPE_SORT_TYPE: BenchType
-BENCH_TYPE_PATH_ELEMENT_TYPE: BenchType
-BENCH_TYPE_PATH_RUN_SELECTOR: BenchType
 BENCH_TYPE_SELECTION_TYPE: BenchType
 BENCH_TYPE_PROCESS_STATUS: BenchType
 BENCH_TYPE_RUN_TYPE: BenchType
@@ -2843,21 +2801,6 @@ SORT_MODE_MEDIAN: SortMode
 SORT_TYPE_UNSPECIFIED: SortType
 SORT_TYPE_ASCENDING: SortType
 SORT_TYPE_DESCENDING: SortType
-PATH_ELEMENT_TYPE_UNSPECIFIED: PathElementType
-PATH_ELEMENT_TYPE_ROOT: PathElementType
-PATH_ELEMENT_TYPE_BENCH: PathElementType
-PATH_ELEMENT_TYPE_PACKAGE: PathElementType
-PATH_ELEMENT_TYPE_NODE: PathElementType
-PATH_ELEMENT_TYPE_CURRENT: PathElementType
-PATH_ELEMENT_TYPE_CONTAINER: PathElementType
-PATH_ELEMENT_TYPE_CLOSEST: PathElementType
-PATH_ELEMENT_TYPE_PARENT: PathElementType
-PATH_ELEMENT_TYPE_CHILD: PathElementType
-PATH_ELEMENT_TYPE_ATTRIBUTE: PathElementType
-PATH_ELEMENT_TYPE_CONTEXT: PathElementType
-PATH_ELEMENT_TYPE_RUN: PathElementType
-PATH_RUN_SELECTOR_UNSPECIFIED: PathRunSelector
-PATH_RUN_SELECTOR_LATEST: PathRunSelector
 SELECTION_TYPE_UNSPECIFIED: SelectionType
 SELECTION_TYPE_LIST: SelectionType
 SELECTION_TYPE_RANGE: SelectionType
@@ -3082,7 +3025,6 @@ VIEW_TYPE_PLAN: ViewType
 VIEW_TYPE_TASK: ViewType
 VIEW_TYPE_OBJECT: ViewType
 VIEW_TYPE_TYPE: ViewType
-VIEW_TYPE_PATH: ViewType
 VIEW_TYPE_SELECTION: ViewType
 VIEW_TYPE_USER_WIZARD: ViewType
 VIEW_TYPE_EMPTY: ViewType
@@ -3628,30 +3570,6 @@ class IconData(_message.Message):
     file_ptr: NodeReferenceData
     color: ColorData
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[IconType, str]] = ..., emoji: _Optional[str] = ..., fa_name: _Optional[str] = ..., vsc_name: _Optional[str] = ..., file_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
-
-class PathElementData(_message.Message):
-    __slots__ = ("metatype", "type", "name", "node_ptr", "property_ptr", "run")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
-    RUN_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    type: PathElementType
-    name: str
-    node_ptr: NodeReferenceData
-    property_ptr: PropertyReferenceData
-    run: PathRunSelector
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[PathElementType, str]] = ..., name: _Optional[str] = ..., node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., property_ptr: _Optional[_Union[PropertyReferenceData, _Mapping]] = ..., run: _Optional[_Union[PathRunSelector, str]] = ...) -> None: ...
-
-class PathData(_message.Message):
-    __slots__ = ("metatype", "elements")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ELEMENTS_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    elements: _containers.RepeatedCompositeFieldContainer[PathElementData]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., elements: _Optional[_Iterable[_Union[PathElementData, _Mapping]]] = ...) -> None: ...
 
 class SelectOptionsData(_message.Message):
     __slots__ = ("metatype", "select_all_properties", "include_properties_ptr", "exclude_properties_ptr", "select_properties_ptr", "select_fields_ptr")
@@ -6598,7 +6516,7 @@ class KitData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., claimed_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., text: _Optional[_Union[TextData, _Mapping]] = ...) -> None: ...
 
 class LinkData(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "subnode_packed", "type", "name", "order_key", "text", "source_ptr", "target_ptr", "options", "delay", "color")
+    __slots__ = ("metatype", "id", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "subnode_packed", "type", "name", "order_key", "text", "source_ptr", "target_ptr", "options", "color")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -6620,7 +6538,6 @@ class LinkData(_message.Message):
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     TARGET_PTR_FIELD_NUMBER: _ClassVar[int]
     OPTIONS_FIELD_NUMBER: _ClassVar[int]
-    DELAY_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
@@ -6643,9 +6560,8 @@ class LinkData(_message.Message):
     source_ptr: NodeReferenceData
     target_ptr: NodeReferenceData
     options: RunOptionsData
-    delay: _duration_pb2.Duration
     color: ColorData
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[LinkType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., delay: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., subnode_packed: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., type: _Optional[_Union[LinkType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., text: _Optional[_Union[TextData, _Mapping]] = ..., source_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., target_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., options: _Optional[_Union[RunOptionsData, _Mapping]] = ..., color: _Optional[_Union[ColorData, _Mapping]] = ...) -> None: ...
 
 class OptionData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "mode", "subnode_packed", "name", "order_key", "text", "icon")

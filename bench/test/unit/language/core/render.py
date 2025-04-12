@@ -25,7 +25,6 @@ from bench.language import (
     Option,
     Package,
     Page,
-    PathElementType,
     Property,
     Renderer,
     RenderOptions,
@@ -34,7 +33,6 @@ from bench.language import (
     code,
     constraint,
     format_code,
-    path,
     render_expression,
     text,
     text_line,
@@ -225,14 +223,6 @@ def test_render_type_in(session: Session, package: Package):
     type_2 = to_type(str)
     type_3 = Node.partial_type()
     return {"type_1": type_1, "type_2": type_2, "type_3": type_3}
-
-
-@_render_test
-def test_render_path(session: Session, package: Package):
-    """Path elements should be rendered with `path`."""
-    path_1 = path(PathElementType.RUN, Run.get_property("inputs"))
-    path_2 = path(PathElementType.RUN, Run.get_property("inputs"))
-    return {"path_1": path_1, "path_2": path_2}
 
 
 @_render_test
