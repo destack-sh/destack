@@ -60,6 +60,8 @@ SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
 LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
 
 
+# nocheckin: rename Link/IsLinkable to something else
+#  (reserve Link for Links to external resources?)
 @node_(NodeType.LINK, has_subtypes=True)
 class Link(
     IsTemplatable,

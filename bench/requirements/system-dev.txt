@@ -33,6 +33,8 @@ attrs==24.2.0
     # via
     #   aiohttp
     #   hypothesis
+    #   jsonschema
+    #   referencing
 backoff==2.2.1
     # via posthog
 bitarray==2.9.2
@@ -220,6 +222,10 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
+jsonschema==4.23.0
+    # via -r bench/requirements/base.in
+jsonschema-specifications==2024.10.1
+    # via jsonschema
 kubernetes==30.1.0
     # via -r bench/requirements/system.in
 kubernetes-asyncio==30.3.0
@@ -465,6 +471,10 @@ pyyaml==6.0.2
     #   tach
 redis==4.5.4
     # via -r bench/requirements/base.in
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2024.11.6
     # via -r bench/requirements/base.in
 requests==2.32.3
@@ -483,6 +493,10 @@ rich==13.9.4
     #   -r bench/requirements/base.in
     #   tach
     #   typer
+rpds-py==0.24.0
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9
     # via google-auth
 ruff==0.7.4

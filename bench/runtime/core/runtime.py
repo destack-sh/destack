@@ -1,5 +1,7 @@
 import asyncio
+from collections import defaultdict
 from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Callable, Sequence, cast
 from uuid import UUID
@@ -101,6 +103,20 @@ THREAD_QUERY = Thread.include_descendants(
 )
 
 
+@dataclass(slots=True)
+class ThreadUpdateTick:
+    thread: Thread
+    nodes: list[Node]
+
+
+@dataclass(slots=True)
+class ThreadWakeTick:
+    thread: Thread
+
+
+ThreadTick = ThreadUpdateTick | ThreadWakeTick
+
+
 class Runtime:
     """
     The runtime for executing Runs. A Runtime is tied exclusively to one Session.
@@ -146,7 +162,7 @@ class Runtime:
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
         self._active_root_runners: list[Runner] = []
-        self._thread_tick_queue: asyncio.Queue[Thread] = asyncio.Queue()
+        self._thread_tick_queue: asyncio.Queue[ThreadTick] = asyncio.Queue()
         self._is_draining: bool = False
 
     def __str__(self):
@@ -700,11 +716,12 @@ class Runtime:
 
     def on_external_update(self, update: WatchGetUpdate | WatchSearchUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
-        touched_threads: set[Thread] = set()
+        print("EXTERNAL UPDATE", repr(update))
+        touched_nodes_by_thread: dict[Thread, list[Node]] = defaultdict(list)
         # added
         for node in update.added.values():
             if isinstance(node, Message) and (thread := node.thread) is not None:
-                touched_threads.add(thread)
+                touched_nodes_by_thread[thread].append(node)
         # updated
         for node in update.updated.values():
             if isinstance(node, Run):
@@ -727,18 +744,18 @@ class Runtime:
                 if node.status.is_closed:
                     self.resume_run(*self.get_interrupted_runs(self.session._graph, node))
             elif isinstance(node, Thread):
-                touched_threads.add(node)
+                touched_nodes_by_thread[node].append(node)
             elif isinstance(node, Message) and (thread := node.thread) is not None:
-                touched_threads.add(thread)
+                touched_nodes_by_thread[thread].append(node)
         # removed
         for node in update.removed.values():
             if isinstance(node, Thread):
-                touched_threads.add(node)
+                touched_nodes_by_thread.pop(node, None)
             elif isinstance(node, Message) and (thread := node.thread) is not None:
-                touched_threads.add(thread)
+                touched_nodes_by_thread.pop(thread, None)
         # tick threads
-        for thread in touched_threads:
-            self._thread_tick_queue.put_nowait(thread)
+        for thread, nodes in touched_nodes_by_thread.items():
+            self._thread_tick_queue.put_nowait(ThreadUpdateTick(thread=thread, nodes=nodes))
 
     def get_thread(self, thread_id: UUID) -> ThreadHandle | None:
         """Get a Thread."""
@@ -794,12 +811,14 @@ class Runtime:
             logger.debug("runtime.load_thread", thread=handle, span="current")
             return handle
 
-    async def _tick_thread(self, thread: Thread):
+    async def _tick_thread(self, tick: ThreadTick):
         """Tick a Thread on some update, waking Agents as needed."""
         from bench.runtime import AgentRunner
 
+        thread = tick.thread
         handle = self._threads_by_id.get(thread.id)
         assert handle is not None, f"missing thread handle for {thread!r} in {self!r}"
+        print("TICK THREAD", repr(tick))
 
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
@@ -808,11 +827,10 @@ class Runtime:
             run_id = agent.implemented_by_id
             if (
                 run_id is not None
-                and (runner := self._runners_by_id.get(run_id)) is not None
+                and isinstance(runner := self._runners_by_id.get(run_id), AgentRunner)
                 and not runner.status.is_terminal
             ):
-                # continue existing agent run
-                assert isinstance(runner, AgentRunner), f"{runner!r} is not an AgentRunner"
+                # continue existing agent run?
                 runner.wake()
             elif (
                 (last_message := handle.last_message) is not None
@@ -829,7 +847,7 @@ class Runtime:
                 )
                 agent.implemented_by = run
                 new_runs.append(run)
-        logger.trace("runtime.tick_thread", thread=thread, runs=new_runs)
+        logger.trace("runtime.tick_thread", tick=tick, thread=thread, runs=new_runs)
 
         # kick off new runs
         if new_runs:
@@ -1004,4 +1022,4 @@ class Runtime:
             return  # already alive (we don't need to wake it)
         async with self.session.active():
             thread = await self._load_thread(thread_ptr)
-            self._thread_tick_queue.put_nowait(thread.thread)
+            self._thread_tick_queue.put_nowait(ThreadWakeTick(thread=thread.thread))

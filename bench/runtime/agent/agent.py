@@ -82,7 +82,9 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     def wake(self):
         """Wake the Agent."""
-        self._next_action = AgentContinue()
+        # nocheckin: handle resuming AgentRunner somehow?
+        # self._next_action = AgentContinue()
+        pass
 
     def wait(self, duration: float):
         """Wait for the Agent."""
