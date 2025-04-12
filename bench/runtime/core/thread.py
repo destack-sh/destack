@@ -7,6 +7,7 @@ from opentelemetry import trace
 from bench.language import (
     Agent,
     Computer,
+    Cursor,
     GetConnection,
     GraphCapture,
     LocalNodeList,
@@ -15,6 +16,7 @@ from bench.language import (
     Plan,
     ResourceStatus,
     SearchConnection,
+    Subject,
     Thread,
 )
 from bench.pb2 import ComputerClient
@@ -115,6 +117,14 @@ class ThreadHandle:
             return message.created_at
         else:
             return None
+
+    def has_new_messages_for(self, owner: Subject, cursor: Cursor | None) -> bool:
+        """Check if there are new Messages for the given Cursor."""
+        return any(
+            m.created_by_id != owner.id
+            and (cursor is None or cursor.seen_at is None or m.created_at > cursor.seen_at)
+            for m in self.messages
+        )
 
     def close(self):
         if self.capture is not None:
