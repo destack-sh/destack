@@ -34,7 +34,7 @@ import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/co
 import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
 import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";
-import { useSingleDropZone } from "@/ui/drag";
+import { startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -50,6 +50,7 @@ import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 import { isProcessableNode } from "@/language/core/const";
 import { isProcessActive, touchProcess } from "@/language/runtime/process";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
@@ -330,12 +331,17 @@ const inputRef = ref<InstanceType<typeof Text> | null>(null);
 const inputContainerSize = useElementSize(inputContainerRef);
 const containerRef = ref<HTMLDivElement | null>(null);
 const bodyScrollRef = ref<InstanceType<typeof Scroll> | null>(null);
+const innerScrollRef = ref<HTMLElement | null>(null);
 const editingTextRefs = ref<InstanceType<typeof Text>[] | null>(null); // there can only be one but it's inside a v-for (so it has to be an array)
 const bodyHeight = computed(() => {
   return props.size?.height != null
     ? props.size.height - inputContainerSize.height.value - (props.isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
     : undefined;
 });
+
+// selection
+const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
+const selectionZone = useSelectionZone({ containerEl: innerScrollRef, overlayEl: selectionOverlayRef });
 
 // automatically stick to end (whenever we're at the end)
 const stickToEnd: Ref<boolean> = ref(true);
@@ -595,9 +601,11 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     >
       <!-- Messages -->
       <ul
+        ref="innerScrollRef"
         class="relative mt-2 flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 24 + 'px' : undefined }"
+        @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
       >
         <!-- Top placeholder / general loading state -->
         <Transition
@@ -646,7 +654,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </div>
 
         <!-- Message -->
-        <li
+        <template
           v-for="{
             idx,
             message,
@@ -663,19 +671,13 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           } in messageViews"
           v-if="node != null"
           :key="message.id"
-          class="group/message max-w-full rounded transition-colors duration-75 hover:bg-gray-100"
-          :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
-          :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
-          :data-node-type="message.metatype"
-          :data-node-id="message.id"
-          :data-node-ck="(message as any).ck"
-          :data-node-bench-id="(message as any).benchPtr?.id"
-          data-contextmenu-items="chat.message*"
-          data-suppress-node="self"
-          @dblclick="isReplyingTo ? stopReplying() : startReplying(message)"
         >
           <!-- New date (line with date in middle) -->
-          <div v-if="isNewDate" class="relative mb-2 flex items-center">
+          <div
+            v-if="isNewDate"
+            class="relative mb-2 flex items-center"
+            :style="{ marginLeft: GUTTER_WIDTH - 4 + 'px', marginRight: GUTTER_WIDTH - 4 + 'px' }"
+          >
             <div class="flex-grow border-t border-gray-200" />
             <div class="mx-4 flex-shrink text-sm text-gray-400">
               {{ formatAbsoluteDate(message.createdAt!, { prefer: "date" }) }}
@@ -683,166 +685,182 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <div class="flex-grow border-t border-gray-200"></div>
           </div>
 
-          <!-- Replying to -->
-          <div v-if="replyTo != null" class="relative flex max-w-full items-center">
-            <!-- 'Line' (supposed to go from avatar to the author with a bend) -->
-            <div
-              class="absolute top-2 h-4 w-7 rounded rounded-b-none rounded-r-none border-l-2 border-t-2"
-              :style="{ left: MESSAGE_SIDE_WIDTH / 2 - 3 + 'px' }"
-            />
-            <!-- Spacing for side -->
-            <div class="" :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" />
-            <!-- Author -->
-            <span class="flex-shrink-0 text-gray-700">@{{ replyTo.author?.name ?? "???" }}</span>
-            <!-- Preview -->
-            <span
-              v-if="replyTo.message.text"
-              class="ml-1 min-w-0 flex-1 truncate text-xs text-gray-400"
-              :style="{ maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px' }"
-            >
-              {{ renderText(replyTo.message.text, 3) }}
-            </span>
-          </div>
-
-          <!-- Body -->
-          <div
-            class="flex flex-row rounded transition-colors duration-150"
-            :class="[
-              isSelected ? 'bg-orange-100' : '',
-              messageViews[idx - 1]?.isSelected && !isNewGroup ? 'rounded-t-none' : '',
-              messageViews[idx + 1]?.isSelected && !messageViews[idx + 1]?.isNewGroup ? 'rounded-b-none' : '',
-              isReplyingTo ? 'bg-gray-100' : '',
-            ]"
+          <li
+            class="group/message max-w-full rounded px-0.5 transition-colors duration-75 hover:bg-gray-100"
+            :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
+            :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
+            :data-node-type="message.metatype"
+            :data-node-id="message.id"
+            :data-node-ck="(message as any).ck"
+            :data-node-bench-id="(message as any).benchPtr?.id"
+            data-contextmenu-items="chat.message*"
+            @dblclick="isReplyingTo ? stopReplying() : startReplying(message)"
           >
-            <!-- Side -->
-            <div
-              class="flex-shrink-0 text-center"
-              :class="[isNewGroup ? 'mt-1' : 'mt-0.5']"
-              :style="{
-                width: MESSAGE_SIDE_WIDTH + 'px',
-              }"
-            >
-              <!-- Author for new groups -->
-              <AvatarInline
-                v-if="isNewGroup && author?.icon"
-                class="mr-1 cursor-pointer text-gray-700"
-                size="medium"
-                v-bind="author.icon"
-                :force-color="author.color ?? undefined"
-                @click="author && canvas.goToNode(author.node)"
-              />
-              <div v-else-if="isNewGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
-              <!-- Time/edited otherwise -->
-              <div v-else class="pt-[4px] text-xs text-gray-400">
-                <!-- Time -->
-                <span class="hidden group-hover/message:inline">
-                  {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_SIMPLE) }}
-                </span>
-                <!-- Edited? -->
-                <span v-if="isEdited" class="fas fa-pencil text-xs text-gray-300 group-hover/message:hidden" />
-              </div>
-            </div>
-            <!-- Body -->
-            <div class="relative flex-1">
-              <!-- Meta (if new group) -->
-              <div v-if="isNewGroup" class="">
-                <!-- Author -->
-                <span
-                  class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
-                  @click="author && canvas.goToNode(author.node)"
-                >
-                  {{ author?.name ?? "[missing]" }}
-                </span>
-                <!-- Timestamp -->
-                <span class="ml-1.5 text-xs text-gray-400">
-                  {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
-                </span>
-                <!-- Edited? -->
-                <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
-              </div>
-              <!-- Commands -->
+            <!-- Replying to -->
+            <div v-if="replyTo != null" class="relative flex max-w-full items-center">
+              <!-- 'Line' (supposed to go from avatar to the author with a bend) -->
               <div
-                v-if="!isEditing"
-                class="absolute right-0 top-0 z-10 flex flex-row rounded border border-gray-200 bg-white opacity-0 group-hover/message:opacity-100"
-              >
-                <button
-                  v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
-                  :key="command.id"
-                  v-tooltip="{ small: true, title: command.title, group: 'message' }"
-                  class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-150 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
-                  :disabled="command.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
-                  @click.stop.prevent="fireCommand(command, { nodes: [message] })"
-                >
-                  <IconInline v-bind="command.icon" />
-                </button>
-              </div>
-              <!-- Content -->
-              <Text
-                v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)"
-                :id="'text-' + message.id"
-                placeholder="Empty message"
-                class="-mt-[2px]"
-                is-minimal
-                :model-value="message.text"
+                class="absolute top-2 h-4 w-7 rounded rounded-b-none rounded-r-none border-l-2 border-t-2"
+                :style="{ left: MESSAGE_SIDE_WIDTH / 2 - 3 + 'px' }"
               />
-              <div v-if="isEditing" class="my-1">
-                <Text
-                  :id="'text-' + message.id"
-                  ref="editingTextRefs"
-                  :model-value="editingText ?? undefined"
-                  is-input
-                  suppress-enter
-                  suppress-drop
-                  placeholder="Empty message"
-                  @update:model-value="
-                    (value) => {
-                      editingText = value;
-                    }
-                  "
-                  @keydown.enter="
-                    (e: KeyboardEvent) => {
-                      if (!e.shiftKey) {
-                        submitEdit();
-                        stopEditing();
-                      }
-                    }
-                  "
-                  @keydown.esc.stop.prevent="stopEditing()"
+              <!-- Spacing for side -->
+              <div class="" :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" />
+              <!-- Author -->
+              <span class="flex-shrink-0 text-gray-700">@{{ replyTo.author?.name ?? "???" }}</span>
+              <!-- Preview -->
+              <span
+                v-if="replyTo.message.text"
+                class="ml-1 min-w-0 flex-1 truncate text-xs text-gray-400"
+                :style="{ maxWidth: (size?.width != null ? size.width - 300 : 100) + 'px' }"
+              >
+                {{ renderText(replyTo.message.text, 3) }}
+              </span>
+            </div>
+
+            <!-- Body -->
+            <div
+              class="flex flex-row rounded transition-colors duration-75"
+              :class="[
+                isSelected ? 'bg-orange-100' : '',
+                messageViews[idx - 1]?.isSelected && !isNewGroup ? 'rounded-t-none' : '',
+                messageViews[idx + 1]?.isSelected && !messageViews[idx + 1]?.isNewGroup ? 'rounded-b-none' : '',
+                isReplyingTo ? 'bg-gray-100' : '',
+              ]"
+            >
+              <!-- Side -->
+              <div
+                class="flex-shrink-0 text-center"
+                :class="[isNewGroup ? 'mt-1' : 'mt-0.5']"
+                :style="{
+                  width: MESSAGE_SIDE_WIDTH + 'px',
+                }"
+              >
+                <!-- Author for new groups -->
+                <AvatarInline
+                  v-if="isNewGroup && author?.icon"
+                  class="mr-1 cursor-pointer text-gray-700"
+                  size="medium"
+                  v-bind="author.icon"
+                  :force-color="author.color ?? undefined"
+                  @click="author && canvas.goToNode(author.node)"
                 />
-                <div v-if="isEditing" class="mt-0.5 flex-row text-xs text-gray-400">
-                  <span>
-                    escape to
-                    <a href="#" class="text-primary-700 underline-offset-2 hover:underline" @click.stop="stopEditing()"
-                      >cancel</a
-                    >
+                <div v-else-if="isNewGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
+                <!-- Time/edited otherwise -->
+                <div v-else class="pt-[4px] text-xs text-gray-400">
+                  <!-- Time -->
+                  <span class="hidden group-hover/message:inline">
+                    {{ tsToDt(message.createdAt!).toLocaleString(DateTime.TIME_SIMPLE) }}
                   </span>
-                  •
-                  <span>
-                    enter to
-                    <a href="#" class="text-primary-700 underline-offset-2 hover:underline" @click.stop="submitEdit()"
-                      >save</a
-                    >
-                  </span>
+                  <!-- Edited? -->
+                  <span v-if="isEdited" class="fas fa-pencil text-xs text-gray-300 group-hover/message:hidden" />
                 </div>
               </div>
-              <!-- Extras -->
-              <!-- NOTE :UX: this should be a proper :FileGallery -->
-              <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">
-                <File
-                  v-for="filePtr in filesPtr"
-                  :id="'file-' + filePtr.id"
-                  :key="filePtr.id"
-                  is-inline
-                  :model-value="toNodeRef(filePtr)"
-                  :size="{
-                    height: size?.height != null ? Math.min(300, size.height / 2) : undefined,
-                  }"
-                  class=""
+              <!-- Body -->
+              <div class="relative flex-1">
+                <!-- Meta (if new group) -->
+                <div v-if="isNewGroup" class="">
+                  <!-- Author -->
+                  <span
+                    class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
+                    @click="author && canvas.goToNode(author.node)"
+                  >
+                    {{ author?.name ?? "[missing]" }}
+                  </span>
+                  <!-- Timestamp -->
+                  <span class="ml-1.5 text-xs text-gray-400">
+                    {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
+                  </span>
+                  <!-- Edited? -->
+                  <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
+                </div>
+                <!-- Commands -->
+                <div
+                  v-if="!isEditing"
+                  class="absolute -right-2 top-0 z-10 flex -translate-y-[80%] flex-row rounded-lg border border-gray-200 bg-white opacity-0 transition-opacity duration-75 group-hover/message:opacity-100"
+                >
+                  <button
+                    v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
+                    :key="command.id"
+                    v-tooltip="{ small: true, title: command.title, group: 'message' }"
+                    class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-75 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
+                    :disabled="command.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
+                    @click.stop.prevent="fireCommand(command, { nodes: [message] })"
+                  >
+                    <IconInline v-bind="command.icon" />
+                  </button>
+                </div>
+                <!-- Content -->
+                <Text
+                  v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)"
+                  :id="'text-' + message.id"
+                  placeholder="Empty message"
+                  class="-mt-[2px]"
+                  is-minimal
+                  :model-value="message.text"
                 />
+                <!-- Editing content -->
+                <div v-if="isEditing" class="my-1">
+                  <Text
+                    :id="'text-' + message.id"
+                    ref="editingTextRefs"
+                    :model-value="editingText ?? undefined"
+                    is-input
+                    suppress-enter
+                    suppress-drop
+                    placeholder="Empty message"
+                    @update:model-value="
+                      (value) => {
+                        editingText = value;
+                      }
+                    "
+                    @keydown.enter="
+                      (e: KeyboardEvent) => {
+                        if (!e.shiftKey) {
+                          submitEdit();
+                          stopEditing();
+                        }
+                      }
+                    "
+                    @keydown.esc.stop.prevent="stopEditing()"
+                  />
+                  <div v-if="isEditing" class="mt-0.5 flex-row text-xs text-gray-400">
+                    <span>
+                      escape to
+                      <a
+                        href="#"
+                        class="text-primary-700 underline-offset-2 hover:underline"
+                        @click.stop="stopEditing()"
+                        >cancel</a
+                      >
+                    </span>
+                    •
+                    <span>
+                      enter to
+                      <a href="#" class="text-primary-700 underline-offset-2 hover:underline" @click.stop="submitEdit()"
+                        >save</a
+                      >
+                    </span>
+                  </div>
+                </div>
+                <!-- Extras -->
+                <!-- NOTE :UX: this should be a proper :FileGallery -->
+                <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">
+                  <File
+                    v-for="filePtr in filesPtr"
+                    :id="'file-' + filePtr.id"
+                    :key="filePtr.id"
+                    is-inline
+                    :model-value="toNodeRef(filePtr)"
+                    :size="{
+                      height: size?.height != null ? Math.min(300, size.height / 2) : undefined,
+                    }"
+                    class=""
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </li>
+          </li>
+        </template>
 
         <!-- Loading down 'skeleton' -->
         <div
@@ -860,6 +878,9 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
           </div>
         </div>
+
+        <!-- Selection overlay -->
+        <SelectionOverlay ref="selectionOverlayRef" :zone="selectionZone" />
       </ul>
     </Scroll>
 
@@ -938,7 +959,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           />
           <button
             v-tooltip="{ small: true, title: 'Add Context' }"
-            class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-150 hover:bg-gray-200"
+            class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
             @click.stop="fileInputRef?.click()"
           >
             <i class="fas fa-plus" />
@@ -964,7 +985,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               />
               <!-- Remove -->
               <button
-                class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-150 hover:bg-gray-600"
+                class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-75 hover:bg-gray-600"
                 @click.stop="removeFiles([file])"
               >
                 <i class="fas fa-xmark" />

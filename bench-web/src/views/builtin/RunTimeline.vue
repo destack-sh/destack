@@ -265,7 +265,7 @@ watchEffect(() => {
               v-if="
                 IS_DEVELOPER_MODE && (thing.baseNode as ActionData)?.type != ActionType.CODE && thing.span.code != null
               "
-              class="rounded px-0.5 transition-colors duration-150 hover:bg-gray-100"
+              class="rounded px-0.5 transition-colors duration-75 hover:bg-gray-100"
               :class="[
                 codeExpandedSpanIds.includes(thing.id) ? 'text-primary-700' : 'text-gray-400 hover:text-gray-700',
               ]"
@@ -281,7 +281,7 @@ watchEffect(() => {
               v-for="command in getRunCommands(thing.span)"
               :key="command.title"
               v-tooltip="{ title: command.title, small: true, group: 'run.header' }"
-              class="rounded px-0.5 text-gray-400 transition-colors duration-150 hover:text-gray-700"
+              class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:text-gray-700"
               @click="command.command()"
             >
               <IconInline v-bind="command.icon" />
@@ -428,7 +428,7 @@ watchEffect(() => {
             <!-- Duration -->
             <span class="text-gray-400">{{ formatDuration(span.durationMs, { minUnit: "s" }) }}</span>
             <span
-              class="h-[8px] w-[8px] rounded-full transition-colors duration-150"
+              class="h-[8px] w-[8px] rounded-full transition-colors duration-75"
               :style="{ backgroundColor: span.color }"
             />
           </div>

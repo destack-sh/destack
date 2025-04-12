@@ -109,7 +109,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
     <div v-else class="flex flex-col gap-y-1">
       <!-- Banner -->
       <div
-        class="group/banner mx-5 mb-2 flex flex-row items-center rounded border px-2.5 py-1.5 transition-colors duration-150"
+        class="group/banner mx-5 mb-2 flex flex-row items-center rounded border px-2.5 py-1.5 transition-colors duration-75"
         :style="{
           backgroundColor: getRunColorHex(run.status, ColorShade.S100),
           borderColor: getRunColorHex(run.status, ColorShade.S400),
@@ -127,7 +127,7 @@ defineExpose<ViewExpose & { start: () => void; run: Ref<RunData | null> }>({ sel
         <div class="ml-auto">
           <button
             v-tooltip="{ title: 'Clear this Run', small: true, group: 'run.header' }"
-            class="rounded px-0.5 text-gray-400 transition-colors duration-150 hover:text-gray-700 group-hover/banner:opacity-100"
+            class="rounded px-0.5 text-gray-400 transition-colors duration-75 hover:text-gray-700 group-hover/banner:opacity-100"
             @click="() => CLEAR_RUN_COMMAND.command()"
           >
             <span class="fas fa-xmark" />

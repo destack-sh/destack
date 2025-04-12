@@ -308,7 +308,7 @@ defineExpose<ViewExpose>({
     <!-- No value -->
     <div
       v-else
-      class="mr-2 transition-colors duration-150"
+      class="mr-2 transition-colors duration-75"
       :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
     >
       <IconInline v-if="facetIcon" v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
@@ -324,13 +324,13 @@ defineExpose<ViewExpose>({
     <!-- Controls -->
     <div
       v-if="!isDisabled && isInput"
-      class="ml-auto flex-shrink-0 pl-1.5 transition-colors duration-150"
+      class="ml-auto flex-shrink-0 pl-1.5 transition-colors duration-75"
       :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
     >
       <!-- Clear -->
       <button
         v-if="hasValue && !valueType?.isRequired"
-        class="mr-2 text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
+        class="mr-2 text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
         @click.stop="clear"
       >
         <i class="fas fa-xmark" />
@@ -387,7 +387,7 @@ defineExpose<ViewExpose>({
           <!-- Deselect -->
           <button
             v-if="!isDisabled && isInput"
-            class="ml-1.5 text-gray-400 transition-colors duration-150 hover:text-gray-700"
+            class="ml-1.5 text-gray-400 transition-colors duration-75 hover:text-gray-700"
             @click.stop="deselect(i)"
           >
             <i class="fas fa-xmark" />

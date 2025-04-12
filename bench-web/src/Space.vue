@@ -17,7 +17,6 @@ import Split from "@/views/containers/Split.vue";
 import DragOverlay from "@/views/overlays/DragOverlay.vue";
 import LightboxOverlay from "@/views/overlays/LightboxOverlay.vue";
 import PopoverOverlay from "@/views/overlays/PopoverOverlay.vue";
-import RunOverlay from "@/views/overlays/RunOverlay.vue";
 import ToastOverlay from "@/views/overlays/ToastOverlay.vue";
 import TooltipOverlay from "@/views/overlays/TooltipOverlay.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
@@ -110,7 +109,6 @@ watch(
     <EmptySpace v-else class="absolute flex h-full w-full flex-col justify-center bg-white text-center" />
 
     <!-- Overlays -->
-    <RunOverlay />
     <DragOverlay />
     <ToastOverlay anchor="bottom-right" :box="mainBox" />
     <Omnibar ref="omnibarRef" :box="mainBox" />

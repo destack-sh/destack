@@ -145,7 +145,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <Field
           :id="field.id"
           :ref="(ref: any) => (ref != null ? (fieldRefs[field.id] = ref) : delete fieldRefs[field.id])"
-          class="h-[30px] cursor-pointer truncate px-1.5 transition-colors duration-150"
+          class="h-[30px] cursor-pointer truncate px-1.5 transition-colors duration-75"
           :class="[
             orientation == Orientation.VERTICAL ? 'w-full' : 'max-w-[200px]',
             isDragging(field) ? 'opacity-50' : '',
@@ -160,7 +160,7 @@ defineExpose<ViewExpose>({ self, id, commands});
       </li>
       <!-- Create -->
       <button
-        class="h-[30px] rounded px-2.5 text-left text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] rounded px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e) => {
             const button = (e.target as HTMLElement).closest('button')!;

@@ -125,7 +125,7 @@ defineExpose<ViewExpose>({ self });
               ] as CommandBuiltinId[]
             ).map(getCommand)"
             :key="command.id"
-            class="group/button mx-3 flex flex-row items-center truncate rounded border border-transparent px-1.5 py-[4px] transition-colors duration-150 hover:bg-gray-100"
+            class="group/button mx-3 flex flex-row items-center truncate rounded border border-transparent px-1.5 py-[4px] transition-colors duration-75 hover:bg-gray-100"
             :style="{}"
             @click="fireCommand(command)"
           >
@@ -137,7 +137,7 @@ defineExpose<ViewExpose>({ self });
               <!-- Shortcut -->
               <Shortcut
                 v-if="command.shortcuts?.length ?? 0 > 0"
-                class="text-gray-400 opacity-0 transition-colors duration-150 group-hover/button:opacity-100"
+                class="text-gray-400 opacity-0 transition-colors duration-75 group-hover/button:opacity-100"
                 :shortcut="command.shortcuts![0]"
               />
             </span>
@@ -155,7 +155,7 @@ defineExpose<ViewExpose>({ self });
                 text: 'Create Page',
                 shortcut: getCommand('space.create.page').shortcuts?.[0],
               }"
-              class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/package-tree:opacity-100"
+              class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/package-tree:opacity-100"
               @click="fireCommandById('space.create.page')"
             >
               <span class="fas fa-plus w-5 text-center" />

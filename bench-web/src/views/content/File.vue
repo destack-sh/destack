@@ -356,7 +356,7 @@ defineExpose<ViewExpose>({
         <div class="ml-2 flex flex-col">
           <div>
             <span
-              class="font-medium decoration-gray-300 underline-offset-3 transition-colors duration-150"
+              class="font-medium decoration-gray-300 underline-offset-3 transition-colors duration-75"
               :class="download?.getUrl.value != null ? 'group-hover:underline' : ''"
             >
               {{ optimisticValue?.name ?? "???" }}
@@ -377,7 +377,7 @@ defineExpose<ViewExpose>({
       <div
         v-if="!isLightbox"
         class="absolute top-0 w-full"
-        :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors duration-150' : ''"
+        :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors duration-75' : ''"
       >
         <!-- Upload progress -->
         <div v-if="upload != null && upload.isActive.value" class="absolute top-0 w-full">

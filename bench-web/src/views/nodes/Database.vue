@@ -661,7 +661,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </div>
         <!-- Add field -->
         <button
-          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
           :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
           @click="
             (e: MouseEvent) => {
@@ -742,7 +742,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         >
           <!-- Composite commands -->
           <div
-            class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-end px-1.5 transition-colors duration-150"
+            class="sticky left-0 z-30 flex flex-shrink-0 flex-row items-center justify-end px-1.5 transition-colors duration-75"
             :class="[selectedRecords.length > 0 ? 'bg-white' : 'bg-transparent']"
             :style="{
               width: `${ROW_COMMANDS_WIDTH}px`,
@@ -752,7 +752,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           >
             <!-- Selection checkbox -->
             <button
-              class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-150"
+              class="flex h-4 w-4 items-center rounded border border-gray-200 bg-white px-[1px] transition-colors duration-75"
               :class="selectedRecords.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
               @click="() => (isAllSelectedRows ? state.deselect() : state.select(records))"
             >
