@@ -17,13 +17,11 @@ from bench.language import (
     IsType,
     Link,
     LinkType,
-    Plan,
     ProcessStatus,
     Run,
     Runnable,
     RunOptions,
     RunType,
-    Task,
     TextLine,
     coerce_custom_object_scalar,
 )
@@ -149,8 +147,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         self,
         node: Action | Link,
         *,
-        run_plan: Plan | None = None,
-        run_task: Task | None = None,
         inputs: CustomObject | None = None,
         title: TextLine | None = None,
     ) -> Run:
@@ -168,10 +164,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
         run.title = title
-        run.run_plan = run_plan
-        run.run_task = run_task
-        if run_task is not None:
-            run_task.implemented_by = run
         logger.debug("flow.start", flow=self.node, node=node, runner=runner)
         self._active_runners_by_id[runner.id] = runner
         runner.on_event(self._events.put_nowait)

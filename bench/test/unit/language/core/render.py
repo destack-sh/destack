@@ -14,8 +14,6 @@ from bench.language import (
     BuiltinObject,
     Choice,
     Class,
-    ComputedValue,
-    ComputedValueMode,
     CustomObject,
     Field,
     Flow,
@@ -271,41 +269,6 @@ def test_render_flow_simple(session: Session, package: Package):
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
-    Forward1 = Start.connect(LinkType.REQUIRE, End, "Forward1")
-    return {"Flow1": Flow1, "Start": Start, "End": End, "Forward1": Forward1}
-
-
-@_render_test
-def test_render_flow_computed_value(session: Session, package: Package):
-    """Computed values should be rendered nicely."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=[
-            Field.input("Input1", int),
-            Field.input("Input2", int),
-            Field.input("Input3", int),
-            Field.output("Output1", int),
-            Field.output("Output2", int),
-            Field.output("Output3", int),
-        ],
-    )
-    Start = Action.new(ActionType.START, "Start")
-    End = Action.new(
-        ActionType.END,
-        "End",
-        computed_values=[
-            ComputedValue.new(
-                target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
-                source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
-            ),
-            ComputedValue.new(
-                target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output2),
-                source=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
-                mode=ComputedValueMode.IF_SOURCE_SET,
-            ),
-        ],
-    )
     Flow1.actions.extend(Start, End)
     Forward1 = Start.connect(LinkType.REQUIRE, End, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "End": End, "Forward1": Forward1}

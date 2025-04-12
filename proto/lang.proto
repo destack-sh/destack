@@ -66,8 +66,6 @@ enum EnumType {
   ENUM_TYPE_AGGREGATION_TYPE = 21255;
   ENUM_TYPE_SORT_MODE = 21256;
   ENUM_TYPE_SORT_TYPE = 21257;
-  ENUM_TYPE_COMPUTED_VALUE_KIND = 21258;
-  ENUM_TYPE_COMPUTED_VALUE_MODE = 21259;
   ENUM_TYPE_PATH_ELEMENT_TYPE = 21260;
   ENUM_TYPE_PATH_RUN_SELECTOR = 21261;
   ENUM_TYPE_SELECTION_TYPE = 21265;
@@ -214,8 +212,6 @@ enum StructType {
   STRUCT_TYPE_AGGREGATION_RESULT = 12211;
   STRUCT_TYPE_SELECTION = 12220;
   STRUCT_TYPE_SELECT_OPTIONS = 12230;
-  STRUCT_TYPE_VALUE = 12240;
-  STRUCT_TYPE_COMPUTED_VALUE = 12241;
   STRUCT_TYPE_ERROR = 12700;
   STRUCT_TYPE_RUN_OPTIONS = 12701;
   STRUCT_TYPE_RUN_TRACE = 12703;
@@ -319,8 +315,6 @@ enum ObjectType {
   OBJECT_TYPE_AGGREGATION_RESULT = 12211;
   OBJECT_TYPE_SELECTION = 12220;
   OBJECT_TYPE_SELECT_OPTIONS = 12230;
-  OBJECT_TYPE_VALUE = 12240;
-  OBJECT_TYPE_COMPUTED_VALUE = 12241;
   OBJECT_TYPE_ERROR = 12700;
   OBJECT_TYPE_RUN_OPTIONS = 12701;
   OBJECT_TYPE_RUN_TRACE = 12703;
@@ -424,8 +418,6 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION_RESULT = 12211;
   BENCH_TYPE_SELECTION = 12220;
   BENCH_TYPE_SELECT_OPTIONS = 12230;
-  BENCH_TYPE_VALUE = 12240;
-  BENCH_TYPE_COMPUTED_VALUE = 12241;
   BENCH_TYPE_ERROR = 12700;
   BENCH_TYPE_RUN_OPTIONS = 12701;
   BENCH_TYPE_RUN_TRACE = 12703;
@@ -500,8 +492,6 @@ enum BenchType {
   BENCH_TYPE_AGGREGATION_TYPE = 21255;
   BENCH_TYPE_SORT_MODE = 21256;
   BENCH_TYPE_SORT_TYPE = 21257;
-  BENCH_TYPE_COMPUTED_VALUE_KIND = 21258;
-  BENCH_TYPE_COMPUTED_VALUE_MODE = 21259;
   BENCH_TYPE_PATH_ELEMENT_TYPE = 21260;
   BENCH_TYPE_PATH_RUN_SELECTOR = 21261;
   BENCH_TYPE_SELECTION_TYPE = 21265;
@@ -1217,20 +1207,6 @@ enum SortType {
   SORT_TYPE_DESCENDING = 501;
 }
 
-enum ComputedValueKind {
-  COMPUTED_VALUE_KIND_UNSPECIFIED = 0;
-  COMPUTED_VALUE_KIND_PATH = 1;
-  COMPUTED_VALUE_KIND_EXPRESSION = 2;
-  COMPUTED_VALUE_KIND_CODE = 3;
-}
-
-enum ComputedValueMode {
-  COMPUTED_VALUE_MODE_UNSPECIFIED = 0;
-  COMPUTED_VALUE_MODE_ALWAYS = 1;
-  COMPUTED_VALUE_MODE_IF_SOURCE_SET = 2;
-  COMPUTED_VALUE_MODE_IF_TARGET_UNSET = 3;
-}
-
 enum PathElementType {
   PATH_ELEMENT_TYPE_UNSPECIFIED = 0;
   PATH_ELEMENT_TYPE_ROOT = 1;
@@ -1585,7 +1561,6 @@ enum ViewType {
   VIEW_TYPE_OBJECT = 10000;
   VIEW_TYPE_TYPE = 10001;
   VIEW_TYPE_PATH = 10004;
-  VIEW_TYPE_COMPUTED_VALUE = 10005;
   VIEW_TYPE_SELECTION = 10006;
   VIEW_TYPE_USER_WIZARD = 20001;
   VIEW_TYPE_EMPTY = 20100;
@@ -2001,20 +1976,6 @@ message ColorData {
   optional string hex = 33;
 }
 
-message PathElementData {
-  ObjectType metatype = 1;
-  PathElementType type = 31;
-  optional string name = 32;
-  optional NodeReferenceData node_ptr = 33;
-  optional PropertyReferenceData property_ptr = 34;
-  optional PathRunSelector run = 35;
-}
-
-message PathData {
-  ObjectType metatype = 1;
-  repeated PathElementData elements = 31;
-}
-
 message SelectionData {
   ObjectType metatype = 1;
   SelectionType type = 30;
@@ -2048,26 +2009,6 @@ message AggregationResultData {
   optional float scalar = 33;
 }
 
-message ValueData {
-  ObjectType metatype = 1;
-  optional string name = 32;
-  optional TextData text = 33;
-  TypeData value_type = 35;
-  optional google.protobuf.Value value_packed = 36;
-}
-
-message ComputedValueData {
-  ObjectType metatype = 1;
-  ComputedValueKind kind = 30;
-  optional string name = 32;
-  ComputedValueMode mode = 35;
-  optional PathData target_path = 41;
-  optional PathData source_path = 51;
-  optional ExpressionData source_expression = 52;
-  optional CodeData source_code = 53;
-  bool is_active = 60;
-}
-
 message IconData {
   ObjectType metatype = 1;
   IconType type = 30;
@@ -2076,6 +2017,20 @@ message IconData {
   optional string vsc_name = 34;
   optional NodeReferenceData file_ptr = 35;
   optional ColorData color = 40;
+}
+
+message PathElementData {
+  ObjectType metatype = 1;
+  PathElementType type = 31;
+  optional string name = 32;
+  optional NodeReferenceData node_ptr = 33;
+  optional PropertyReferenceData property_ptr = 34;
+  optional PathRunSelector run = 35;
+}
+
+message PathData {
+  ObjectType metatype = 1;
+  repeated PathElementData elements = 31;
 }
 
 message SelectOptionsData {
@@ -2950,7 +2905,6 @@ message AgentData {
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   optional string name = 31;
   optional string order_key = 33;
@@ -3414,7 +3368,6 @@ message ActionData {
   optional NodeReferenceData template_ptr = 16;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   ActionType type = 30;
   optional string name = 31;
@@ -3588,7 +3541,6 @@ message FlowData {
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   FlowType type = 30;
   optional string name = 31;
@@ -3639,7 +3591,6 @@ message LinkData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
-  repeated ComputedValueData computed_values = 28;
   optional google.protobuf.Value subnode_packed = 29;
   LinkType type = 30;
   optional string name = 32;

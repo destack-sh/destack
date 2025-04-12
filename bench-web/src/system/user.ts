@@ -64,7 +64,6 @@ function makeCurrentClient(): ClientData {
   return makeNode(
     {
       metatype: NodeType.CLIENT,
-      placeId: persistentInfo.value!.placeId,
       benchPtr: undefined,
       ...local.clientMeta.value,
       name: local.clientMeta.value.deviceType,

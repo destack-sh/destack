@@ -15,13 +15,10 @@ from bench.language.core import (
     NODE_TYPES_SET,
     BuiltinObject,
     Code,
-    ComputedValue,
-    ComputedValueMode,
     CustomObject,
     EnumType,
     FieldType,
     Icon,
-    IsComputable,
     IsModal,
     IsType,
     Node,
@@ -672,8 +669,6 @@ class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
     @override
     def render(self, renderer: Renderer, obj: T) -> str:
         kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
-        if isinstance(obj, IsComputable) and (computed_values := obj.computed_values):
-            kwargs[obj.get_property("computed_values")] = computed_values
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
@@ -1117,23 +1112,6 @@ class PathRenderer(BuiltinObjectRenderer[Path]):
     def render(self, renderer: "Renderer", obj: Path) -> str:
         path_in_str = _render_path_in(renderer, obj)
         return f"path{path_in_str}"
-
-
-@_renderer(StructType.COMPUTED_VALUE)
-class ComputedValueRenderer(BuiltinObjectRenderer[ComputedValue]):
-    @override
-    def render(self, renderer: "Renderer", obj: ComputedValue) -> str:
-        rendered_kwargs = {}
-        if target := obj.target_path:
-            rendered_kwargs["target"] = _render_path_in(renderer, target)
-        if (source := obj.source) is not None:
-            if isinstance(source, Path):
-                rendered_kwargs["source"] = _render_path_in(renderer, source)
-            else:
-                rendered_kwargs["source"] = renderer.render_expression(source)
-        if obj.mode != ComputedValueMode.ALWAYS:
-            rendered_kwargs["mode"] = f"ComputedValueMode.{obj.mode.name}"
-        return f"ComputedValue.new({renderer.render_kwargs(**rendered_kwargs)})"
 
 
 #

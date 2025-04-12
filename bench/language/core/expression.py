@@ -3,7 +3,7 @@
 import datetime
 import functools
 from collections.abc import Collection
-from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, assert_never, cast
+from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
 from uuid import UUID
 
 import regex
@@ -31,23 +31,16 @@ from .const import (
 )
 from .node import Node, NodeReference
 from .object import Property, PropertyReference
-from .path import PathIn, to_path
 from .property import p_regular, p_value_packed, p_value_runtime
 from .struct import Struct, struct_
 from .trait import FieldBaseNode, TypeBaseNode
-from .validation import NAME_CONSTRAINT
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
     from bench.language import (
-        Code,
-        ComputedValueMode,
         Field,
         IsType,
-        Path,
         Tag,
-        Text,
-        Type,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -917,139 +910,3 @@ class _IntoQuery:
     #
 
     ...
-
-
-#
-# Value / value mappings & transformations
-#
-
-
-@struct_(StructType.VALUE)
-class Value(Struct):
-    """A generic typed 'freeform' value."""
-
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(
-        33, default=None, require=False, array=False, struct=StructType.TEXT
-    )
-    value_type: "Type" = p_regular(35, struct=StructType.TYPE)
-    value_packed: Any = p_value_packed(36)
-    value: Any = p_value_runtime(36, typ=lambda self: cast("Value", self).value_type)
-
-
-@enum_(EnumType.COMPUTED_VALUE_KIND)
-class ComputedValueKind(BuiltinEnum):
-    PATH = 1
-    EXPRESSION = 2
-    CODE = 3
-    # GENERATE = 4
-
-
-@enum_(EnumType.COMPUTED_VALUE_MODE)
-class ComputedValueMode(BuiltinEnum):
-    ALWAYS = 1
-    IF_SOURCE_SET = 2
-    IF_TARGET_UNSET = 3
-
-
-ComputedSourceIn = Union[PathIn, Expression, "Code"]
-
-
-@struct_(StructType.COMPUTED_VALUE)
-class ComputedValue(Struct):
-    """
-    A computed value for a certain Property/Field on a Node.
-    The value is computed and set according to the context and mode (and may be re-computed later,
-     for instance at the start of a Run or inside an instanced View in a UI).
-    The property/field corresponds to the last element of the path (so we know the type).
-    """
-
-    # meta
-    kind: ComputedValueKind = p_regular(30)
-    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-    # scope...?
-    mode: ComputedValueMode = p_regular(35, default=ComputedValueMode.ALWAYS)
-
-    # path to set at
-    target_path: "Path | None" = p_regular(41, struct=StructType.PATH)
-
-    # value to set
-    source_path: "Path | None" = p_regular(51, struct=StructType.PATH)
-    source_expression: "Expression | None" = p_regular(52, struct=StructType.EXPRESSION)
-    source_code: "Code | None" = p_regular(53, struct=StructType.CODE)
-
-    # flags
-    is_active: bool = p_regular(
-        60, default=True, description="Whether to apply this computed value"
-    )
-
-    def __content_str__(self) -> str:
-        if self.kind == ComputedValueKind.PATH:
-            source_str = repr(self.source_path) if self.source_path is not None else "???"
-        elif self.kind == ComputedValueKind.EXPRESSION:
-            source_str = (
-                repr(self.source_expression) if self.source_expression is not None else "???"
-            )
-        elif self.kind == ComputedValueKind.CODE:
-            source_str = repr(self.source_code) if self.source_code is not None else "???"
-        else:
-            assert_never(self.kind)
-        if self.target_path is not None:
-            flags_str = " [inactive]" if not self.is_active else ""
-            return f"{self.target_path} <- {source_str}{flags_str}"
-        else:
-            return source_str
-
-    @property
-    def source(self) -> "Path | Expression | Code":
-        if self.kind == ComputedValueKind.PATH:
-            path = self.source_path
-            assert path is not None, f"missing source_path for {self!r}"
-            return path
-        elif self.kind == ComputedValueKind.EXPRESSION:
-            expression = self.source_expression
-            assert expression is not None, f"missing source_expression for {self!r}"
-            return expression
-        elif self.kind == ComputedValueKind.CODE:
-            code = self.source_code
-            assert code is not None, f"missing source_code for {self!r}"
-            return code
-        else:
-            assert_never(self.kind)
-
-    @staticmethod
-    def new(
-        target: PathIn,
-        *,
-        mode: ComputedValueMode = ComputedValueMode.ALWAYS,
-        source: ComputedSourceIn,
-        is_active: bool = True,
-    ) -> "ComputedValue":
-        from .code import Code
-
-        target = to_path(target)
-        if isinstance(source, Code):
-            return ComputedValue(
-                mode=mode,
-                kind=ComputedValueKind.CODE,
-                target_path=target,
-                source_code=source,
-                is_active=is_active,
-            )
-        elif isinstance(source, Expression):
-            return ComputedValue(
-                kind=ComputedValueKind.EXPRESSION,
-                mode=mode,
-                target_path=target,
-                source_expression=source,
-                is_active=is_active,
-            )
-        else:
-            source = to_path(source)
-            return ComputedValue(
-                kind=ComputedValueKind.PATH,
-                mode=mode,
-                target_path=target,
-                source_path=source,
-                is_active=is_active,
-            )

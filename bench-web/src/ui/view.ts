@@ -202,7 +202,6 @@ export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.COLOR]: ViewType.COLOR,
   [BenchType.PATH]: ViewType.PATH,
   [BenchType.TYPE]: ViewType.TYPE,
-  [BenchType.COMPUTED_VALUE]: ViewType.COMPUTED_VALUE,
 };
 export const VIEW_TYPE_BY_FILE_TYPE: Partial<Record<FileType, ViewType>> = {
   [FileType.IMAGE]: ViewType.IMAGE,

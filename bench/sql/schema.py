@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.12.1"
+VERSION = "2025.04.12.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -849,7 +849,6 @@ FLOW_TABLE = Table(
         Column("claimed_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("claimed_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
-        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
@@ -887,7 +886,6 @@ ACTION_TABLE = Table(
         Column("claimed_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("claimed_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
-        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
@@ -925,7 +923,6 @@ LINK_TABLE = Table(
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
         Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
-        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
@@ -1406,7 +1403,6 @@ AGENT_TABLE = Table(
         Column("claimed_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("claimed_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
-        Column("computed_values", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
