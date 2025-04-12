@@ -248,7 +248,8 @@ type MessageView = {
   author: AuthorInfo | null;
   replyTo: MessageView | null;
   isEmpty: boolean;
-  isNewGroup: boolean;
+  isStartOfGroup: boolean;
+  isEndOfGroup: boolean;
   isNewDate: boolean;
   isEdited: boolean;
   isEditing: boolean;
@@ -263,15 +264,15 @@ const messageViews = computed(() => {
     const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? authorsById.value[authorPtr.id!] : null;
-    let isNewGroup;
+    let isStartOfGroup;
     let isNewDate;
     if (i == 0) {
-      isNewGroup = true;
+      isStartOfGroup = true;
       isNewDate = true;
     } else {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
-      isNewGroup =
+      isStartOfGroup =
         message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
         Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
           MESSAGE_MAX_TIME_DELTA_SECONDS;
@@ -288,7 +289,8 @@ const messageViews = computed(() => {
       filesPtr,
       author,
       isEmpty,
-      isNewGroup,
+      isStartOfGroup,
+      isEndOfGroup: false, // fill later
       isNewDate,
       isEdited,
       isEditing,
@@ -299,16 +301,23 @@ const messageViews = computed(() => {
     views.push(richMessage);
     viewsById[message.id] = richMessage;
   }
-  // fill in replyTo
+  // replyTo
   for (const view of views) {
     if (view.message.replyToPtr != null) {
       const replyTo = viewsById[view.message.replyToPtr.id!];
       if (replyTo != null) {
         view.replyTo = replyTo;
-        view.isNewGroup = true; // always begin new group for reply
+        view.isStartOfGroup = true; // always begin new group for reply
       }
     }
   }
+  // isEndOfGroup
+  for (let i = 1; i < views.length; i++) {
+    if (views[i].isStartOfGroup) {
+      views[i - 1].isEndOfGroup = true;
+    }
+  }
+  views[views.length - 1].isEndOfGroup = true;
   return views;
 });
 const replyTo = computed(() => {
@@ -605,7 +614,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       <!-- Messages -->
       <ul
         ref="innerScrollRef"
-        class="relative mt-2 flex flex-col focus:outline-none"
+        class="relative flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 24 + 'px' : undefined }"
         @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
@@ -666,7 +675,8 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             replyTo,
             isEmpty,
             isEdited,
-            isNewGroup,
+            isStartOfGroup,
+            isEndOfGroup,
             isNewDate,
             isEditing,
             isSelected,
@@ -690,7 +700,12 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 
           <li
             class="group/message max-w-full rounded px-0.5 transition-colors duration-75 hover:bg-gray-100"
-            :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
+            :class="[
+              isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
+              isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
+              isSelected ? 'bg-orange-100' : '',
+              isReplyingTo ? 'bg-gray-100' : '',
+            ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
             :data-node-type="message.metatype"
             :data-node-id="message.id"
@@ -721,33 +736,25 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             </div>
 
             <!-- Body -->
-            <div
-              class="flex flex-row rounded transition-colors duration-75"
-              :class="[
-                isSelected ? 'bg-orange-100' : '',
-                messageViews[idx - 1]?.isSelected && !isNewGroup ? 'rounded-t-none' : '',
-                messageViews[idx + 1]?.isSelected && !messageViews[idx + 1]?.isNewGroup ? 'rounded-b-none' : '',
-                isReplyingTo ? 'bg-gray-100' : '',
-              ]"
-            >
+            <div class="flex flex-row rounded transition-colors duration-75">
               <!-- Side -->
               <div
                 class="flex-shrink-0 text-center"
-                :class="[isNewGroup ? 'mt-1' : 'mt-0.5']"
+                :class="[isStartOfGroup ? 'mt-1' : 'mt-0.5']"
                 :style="{
                   width: MESSAGE_SIDE_WIDTH + 'px',
                 }"
               >
                 <!-- Author for new groups -->
                 <AvatarInline
-                  v-if="isNewGroup && author?.icon"
+                  v-if="isStartOfGroup && author?.icon"
                   class="mr-1 cursor-pointer text-gray-700"
                   size="medium"
                   v-bind="author.icon"
                   :force-color="author.color ?? undefined"
                   @click="author && canvas.goToNode(author.node)"
                 />
-                <div v-else-if="isNewGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
+                <div v-else-if="isStartOfGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
                 <!-- Time/edited otherwise -->
                 <div v-else class="pt-[4px] text-xs text-gray-400">
                   <!-- Time -->
@@ -761,7 +768,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               <!-- Body -->
               <div class="relative flex-1">
                 <!-- Meta (if new group) -->
-                <div v-if="isNewGroup" class="">
+                <div v-if="isStartOfGroup" class="">
                   <!-- Author -->
                   <span
                     class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
@@ -894,7 +901,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       @mousedown="inputRef?.focus?.('right')"
     >
       <!-- Activity -->
-      <div class="flex h-[24px] w-full flex-row items-center px-3 pt-1 text-sm text-xs">
+      <div class="flex h-[24px] w-full flex-row items-center px-3 text-sm text-xs">
         <template v-if="activeAuthors.length > 0">
           <!-- Status icon -->
           <span class="fas fa-circle-small relative mr-1.5 text-blue-500">

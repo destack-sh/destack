@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union, override
 
 from bench.language.core import (
     BuiltinEnum,
+    ColorType,
     EnumType,
     IsModal,
     IsOwnable,
@@ -18,7 +19,6 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.language.core.const import ColorType
 
 if TYPE_CHECKING:
     from bench.language import Agent, Package, Run, Space, Thread
