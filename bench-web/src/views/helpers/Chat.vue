@@ -595,14 +595,14 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     >
       <!-- Messages -->
       <ul
-        class="relative mb-3 mt-2 flex flex-col focus:outline-none"
+        class="relative mt-2 flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 24 + 'px' : undefined }"
       >
         <!-- Top placeholder / general loading state -->
         <Transition
           appear
-          enter-active-class="transition-opacity duration-200"
+          enter-active-class="transition-opacity duration-300"
           leave-active-class="transition-opacity duration-75"
           enter-from-class="opacity-0"
           enter-to-class="opacity-100"
@@ -663,7 +663,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           } in messageViews"
           v-if="node != null"
           :key="message.id"
-          class="group/message max-w-full"
+          class="group/message max-w-full rounded transition-colors duration-75 hover:bg-gray-100"
           :class="[isNewGroup && idx != 0 ? 'mt-2.5' : '']"
           :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
           :data-node-type="message.metatype"
@@ -869,6 +869,28 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
       @mousedown="inputRef?.focus?.('right')"
     >
+      <!-- Activity -->
+      <div class="flex h-[24px] w-full flex-row items-center px-3 pt-1 text-sm text-xs">
+        <template v-if="activeAuthors.length > 0">
+          <!-- Status icon -->
+          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
+            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
+          </span>
+          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
+            <!-- Names -->
+            <div
+              class="cursor-pointer rounded-full decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
+              role="link"
+              :class="i > 0 ? 'ml-1' : ''"
+              @click="author && canvas.goToNode(author.node)"
+            >
+              <span class="font-medium text-gray-900">{{ author.name }}</span>
+            </div>
+            <span v-if="i < activeAuthors.length - 1">, </span>
+          </template>
+        </template>
+      </div>
+
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -892,6 +914,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <i class="fas fa-xmark" />
         </button>
       </div>
+
       <!-- Main box -->
       <div
         class="relative flex flex-row rounded border border-gray-200 px-2 pb-2 pt-3"
@@ -985,26 +1008,14 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             />
           </Scroll>
         </div>
-        <!-- Controls? -->
+        <!-- Controls? (pause/stop/resume) -->
         <div>
           <!-- ... -->
         </div>
       </div>
-      <!-- Active -->
-      <div class="flex h-[20px] w-full flex-row items-center px-3 pt-1 text-sm text-xs">
-        <template v-if="activeAuthors.length > 0">
-          <!-- Status icon -->
-          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
-            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
-          </span>
-          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
-            <!-- Names -->
-            <div class="rounded-full" :class="i > 0 ? 'ml-1' : ''">
-              <span class="font-medium text-gray-900">{{ author.name }}</span>
-            </div>
-            <span v-if="i < activeAuthors.length - 1">, </span>
-          </template>
-        </template>
+      <!-- Footer -->
+      <div class="h-2">
+        <!-- ... -->
       </div>
     </div>
   </div>

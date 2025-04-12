@@ -8,6 +8,7 @@ beautifulsoup4==4.12.3
 black==24.10.0
 dateparser==1.1.8
 dropbox==11.36.2
+exa-py==1.11.0
 feedparser==6.0.10
 gitpython==3.1.32
 google-api-python-client==2.151.0

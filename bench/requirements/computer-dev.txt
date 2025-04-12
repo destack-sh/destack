@@ -154,8 +154,6 @@ googleapis-common-protos==1.66.0
     #   google-api-core
     #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
-greenlet==3.1.1
-    # via playwright
 grpcio==1.71.0
     # via
     #   -r bench/requirements/computer.in
@@ -348,8 +346,6 @@ platformdirs==4.3.7
     # via
     #   black
     #   virtualenv
-playwright==1.49.1
-    # via -r bench/requirements/dev.in
 pluggy==1.5.0
     # via pytest
 pre-commit==3.3.3
@@ -419,8 +415,6 @@ pydot==3.0.4
     # via tach
 pydub==0.25.1
     # via -r bench/requirements/computer.in
-pyee==12.0.0
-    # via playwright
 pygments==2.19.1
     # via
     #   ipython
@@ -586,7 +580,6 @@ typing-extensions==4.12.2
     #   opentelemetry-sdk
     #   pydantic
     #   pydantic-core
-    #   pyee
     #   pyright
     #   python-docx
     #   python-pptx
