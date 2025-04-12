@@ -134,6 +134,7 @@ class Message(
     sent_at: Optional[datetime] = p_system(43, default=None)
     received_at: Optional[datetime] = p_system(44, default=None)
     read_at: Optional[datetime] = p_system(45, default=None)
+    # nocheckin: Message.edited_at
 
     # routing
     reply_to: Optional["Message"] = p_regular(

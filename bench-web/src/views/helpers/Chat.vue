@@ -543,7 +543,7 @@ const commands: Partial<CommandMapKit<"chat">> = {
   "chat.message.edit": {
     isEnabled: (command, ctx) => {
       const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);
-      return messages.length > 0 && messages.every((m) => m.createdByPtr?.id == currentAuthor.value?.id);
+      return messages.length == 1 && messages.every((m) => m.createdByPtr?.id == currentAuthor.value?.id);
     },
     command: (command, ctx) => {
       const { nodes: messages } = getNodesForCommand(command, ctx, [NodeType.MESSAGE]);

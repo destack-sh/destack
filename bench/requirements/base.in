@@ -18,6 +18,7 @@ grpclib==0.4.7
 httpx[http2,brotli]==0.27.0
 livekit-agents==0.12.8
 livekit==0.19.1
+jsonschema==4.23.0
 magika==0.5.1
 more-itertools==9.0.0
 multidict>=6.0.4

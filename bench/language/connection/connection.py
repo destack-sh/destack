@@ -459,6 +459,12 @@ class GetConnection[ConnectorT: Connector, T: Node](
                             added[node.id] = node
                         else:
                             updated[node.id] = node
+                    elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
+                        node = result.graph.get(UUID(edit.node_ptr.id))
+                        assert (
+                            node is not None
+                        ), f"missing node for edit: {wiring.describe_edit(edit)}"
+                        added[node.id] = node
 
                 return WatchGetUpdate(added=added, updated=updated, removed=removed)
             else:
@@ -594,6 +600,10 @@ class SearchConnection[ConnectorT: Connector, T: Node](
                         added[node.id] = node
                     else:
                         updated[node.id] = node
+                elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
+                    node = result.graph.get(UUID(edit.node_ptr.id))
+                    assert node is not None, f"missing node for edit: {wiring.describe_edit(edit)}"
+                    added[node.id] = node
 
             # update 'roots' list
             result_data.roots_ptr = update.roots_ptr
