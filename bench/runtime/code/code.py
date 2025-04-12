@@ -21,7 +21,6 @@ from bench.language import (
     RunOptions,
     RunType,
     coerce_custom_object_scalar,
-    get_node,
 )
 from bench.runtime.core import CodeInvalidError, Interrupted, RunIn, Runner, Runtime
 

@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
@@ -96,7 +95,6 @@ class Link(
     )
 
     # modulation
-    delay: Optional[timedelta] = p_regular(50, default=None)
     color: Optional["Color"] = p_regular(
         60, default=None, require=False, array=False, struct=StructType.COLOR
     )

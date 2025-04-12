@@ -1,4 +1,3 @@
-import functools
 from typing import Any
 
 import structlog
@@ -34,7 +33,6 @@ async def shell(
         PUBLIC_NODE_TYPES,
         RESOURCE_NODE_TYPES,
         SOURCE_NODE_TYPES,
-        Aliasing,
         Bench,
         Client,
         Context,
@@ -43,13 +41,8 @@ async def shell(
         NodeType,
         Package,
         RemoteEngine,
-        RenderOptions,
         Session,
         User,
-        get_node,
-        get_node_or_error,
-        get_path,
-        render,
     )
     from bench.runtime.code import STATIC_CODE_GLOBALS
     from bench.system import global_session, global_store_from_env, pg_engine_from_store
@@ -133,22 +126,12 @@ async def shell(
 
         # prepare repl context :CodeGlobals
         context = Context()
-        _get_node = functools.partial(get_node, main_package, context)
-        _get_node_or_error = functools.partial(get_node_or_error, main_package, context)
-        _get_path = functools.partial(get_path, main_package)
-        _render = functools.partial(
-            render, options=RenderOptions(scope=main_package, aliasing=Aliasing())
-        )
         glbls: dict[str, Any] = {
             **STATIC_CODE_GLOBALS,
             "session": session,
             "bench": bench_node,
             "package": main_package,
             "user": session.user,
-            "get_node": _get_node,
-            "get_node_or_error": _get_node_or_error,
-            "get_path": _get_path,
-            "render": _render,
         }
 
         # enter repl

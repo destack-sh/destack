@@ -354,7 +354,6 @@ export const EXPOSED_BLOCK_TYPES = [
 ];
 export const EXPOSED_STRUCT_TYPES = [
   // core
-  StructType.PATH,
   StructType.TYPE,
   StructType.SCHEDULE,
   // files

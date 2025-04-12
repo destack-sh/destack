@@ -27,9 +27,6 @@ from bench.language.core import (
     NodeType,
     ObjectType,
     PackageNode,
-    Path,
-    PathElement,
-    PathElementType,
     PrimitiveType,
     Property,
     PropertyReference,
@@ -47,7 +44,6 @@ from bench.language.core import (
     get_custom_object_properties,
     is_node_type,
     reverse_icon,
-    reverse_path_element,
     reverse_type_scalar,
     text_line_to_markdown,
     text_to_markdown,
@@ -1072,46 +1068,6 @@ class IconRenderer(BuiltinObjectRenderer[Icon]):
             return f"icon({simplified!r})"
         else:
             return super().render(renderer, obj)
-
-
-def _render_path_element_in(renderer: "Renderer", element: PathElement) -> str:
-    element_in = reverse_path_element(element)
-    if isinstance(element_in, Node):
-        return renderer.render_node_ref(element_in)
-    elif isinstance(element_in, Property):
-        return renderer.render_property_ref(element_in)
-    elif isinstance(element_in, PathElementType):
-        return f"PathElementType.{element_in.name}"
-    elif isinstance(element_in, str):
-        return element_in
-    elif isinstance(element_in, PathElement):
-        return renderer.render_expression(element_in)
-    else:
-        assert_never(element_in)
-
-
-def _render_path_in(renderer: "Renderer", obj: Path) -> str:
-    elements_in: list[str] = []
-    for element in obj.elements:
-        element_in_str = _render_path_element_in(renderer, element)
-        elements_in.append(element_in_str)
-    return f"({', '.join(elements_in)})"
-
-
-@_renderer(StructType.PATH_ELEMENT)
-class PathElementRenderer(BuiltinObjectRenderer[PathElement]):
-    @override
-    def render(self, renderer: "Renderer", obj: PathElement) -> str:
-        element_in_str = _render_path_element_in(renderer, obj)
-        return f"path_element({element_in_str})"
-
-
-@_renderer(StructType.PATH)
-class PathRenderer(BuiltinObjectRenderer[Path]):
-    @override
-    def render(self, renderer: "Renderer", obj: Path) -> str:
-        path_in_str = _render_path_in(renderer, obj)
-        return f"path{path_in_str}"
 
 
 #
