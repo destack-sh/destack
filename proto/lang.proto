@@ -2457,6 +2457,7 @@ message MessageData {
   optional NodeReferenceData updated_by_ptr = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   optional google.protobuf.Timestamp deleted_at = 15;
+  optional NodeReferenceData owned_by_ptr = 17;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
@@ -2470,6 +2471,7 @@ message MessageData {
   optional google.protobuf.Timestamp sent_at = 43;
   optional google.protobuf.Timestamp received_at = 44;
   optional google.protobuf.Timestamp read_at = 45;
+  optional google.protobuf.Timestamp edited_at = 46;
   optional NodeReferenceData reply_to_ptr = 50;
   optional NodeReferenceData forwarded_from_ptr = 51;
   optional NodeReferenceData run_ptr = 52;

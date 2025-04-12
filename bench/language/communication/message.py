@@ -12,6 +12,7 @@ from bench.language.core import (
     InlineNode,
     IsBased,
     IsModal,
+    IsOwnable,
     IsTimed,
     IsTitled,
     IsType,
@@ -19,6 +20,7 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     StructType,
+    Subject,
     Text,
     TextIn,
     TextLine,
@@ -27,7 +29,6 @@ from bench.language.core import (
     p_node_ancestor,
     p_node_parent,
     p_regular,
-    p_system,
     p_value_packed,
     p_value_runtime,
     text_line,
@@ -87,6 +88,7 @@ class MessageStatus(BuiltinEnum):
 class Message(
     IsTimed,
     IsBased,
+    IsOwnable,
     IsTitled,
     IsModal,
     PackageNode[MessageData],
@@ -130,11 +132,11 @@ class Message(
 
     # status
     status: MessageStatus = p_internal(40, default=MessageStatus.SENT, default_sql=None)
-    failed_at: Optional[datetime] = p_system(42, default=None)
-    sent_at: Optional[datetime] = p_system(43, default=None)
-    received_at: Optional[datetime] = p_system(44, default=None)
-    read_at: Optional[datetime] = p_system(45, default=None)
-    # nocheckin: Message.edited_at
+    failed_at: Optional[datetime] = p_internal(42, default=None)
+    sent_at: Optional[datetime] = p_internal(43, default=None)
+    received_at: Optional[datetime] = p_internal(44, default=None)
+    read_at: Optional[datetime] = p_internal(45, default=None)
+    edited_at: Optional[datetime] = p_internal(46, default=None)
 
     # routing
     reply_to: Optional["Message"] = p_regular(
@@ -233,6 +235,7 @@ class Message(
         text: TextIn | None = None,
         *,
         title: TextLine | None = None,
+        owned_by: Optional[Subject] = None,
         platform: MessagePlatform = MessagePlatform.BENCH,
         scope: Optional["InlineNode"] = None,
         reply_to: Optional["Message"] = None,
@@ -244,6 +247,7 @@ class Message(
             title=text_line(title) if title is not None else None,
             text=to_text(text) if text is not None else None,
             reply_to=reply_to,
+            owned_by=owned_by,
         )
         if nodes is not None:
             message.nodes = nodes

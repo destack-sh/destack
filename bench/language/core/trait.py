@@ -59,6 +59,7 @@ if TYPE_CHECKING:
         Session,
         Space,
         Span,
+        Subject,
         Task,
         Team,
         TextLine,
@@ -83,6 +84,7 @@ Ownable = Union[
     "Claim",
     "Agent",
     "Record",
+    "Message",
     "Cursor",
 ]
 OWNABLE_NODE_TYPES = bittuple(
@@ -101,6 +103,7 @@ OWNABLE_NODE_TYPES = bittuple(
     NodeType.CLAIM,
     NodeType.AGENT,
     NodeType.RECORD,
+    NodeType.MESSAGE,
     NodeType.CURSOR,
 )
 

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.11.1"
+VERSION = "2025.04.12.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1181,6 +1181,8 @@ MESSAGE_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
@@ -1199,6 +1201,7 @@ MESSAGE_TABLE = Table(
         Column("sent_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("received_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("edited_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reply_to_id", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("forwarded_from_id", PrimitiveType.UUID, is_nullable=True),
