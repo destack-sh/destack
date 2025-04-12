@@ -158,7 +158,7 @@ def SEND(
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
     thread = runner.thread.thread
-    message = Message.new(text=text, nodes=nodes, reply_to=reply_to)
+    message = Message.new(text=text, owned_by=runner.agent, nodes=nodes, reply_to=reply_to)
     thread.append(message)
     runner.session.stage()
     return message

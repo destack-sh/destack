@@ -25,6 +25,7 @@ import {
   SubjectNodeData,
   TextData,
   ThreadData,
+  Timestamp,
   ViewData,
   ViewType,
 } from "@/proto/wire";
@@ -277,7 +278,7 @@ const messageViews = computed(() => {
       isNewDate = previousDt.day != currentDt.day;
     }
     const isEmpty = message.text == null || isTextEmpty(message.text);
-    const isEdited = message.updatedAt?.seconds != message.createdAt?.seconds;
+    const isEdited = message.editedAt != null && message.editedAt.seconds != message.createdAt?.seconds;
     const isEditing = editingPtr.value?.id == message.id;
     const isReplyingTo = draftReplyTo.value?.id == message.id;
     const isSelected = canvas.isSelected(message);
@@ -389,7 +390,7 @@ function submitEdit() {
   const text = trimText(editingText.value ?? emptyText());
   if (isTextEmpty(text) && draftNodesPtr.value.length == 0) return; // don't create empty messages
   const { connection } = supergraph.getLinkOrError(toNodeRef(message));
-  connection.tx.update(message, { text });
+  connection.tx.update(message, { text, editedAt: Timestamp.now() });
   stopEditing();
 }
 
@@ -400,6 +401,7 @@ function submit() {
   if (isTextEmpty(text) && draftNodesPtr.value.length == 0) return; // don't create empty messages
   if (benchPtr.value == null) throw new Error("no bench");
   if (space.value == null) throw new Error("no space");
+  if (currentAuthor.value == null) throw new Error("no current author");
 
   let tx = isEnabled.value ? txFactory() : benchConnection.tx;
   if (tx.change?.key == null) {
@@ -415,6 +417,7 @@ function submit() {
     message: {
       type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
       parentPtr: messageThreadPtr ?? messageChannelPtr,
+      ownedByPtr: toNodeRef(currentAuthor.value),
       benchPtr: benchPtr.value,
       packagePtr: packagePtr.value!,
       channelPtr: messageChannelPtr,
