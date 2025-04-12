@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.12.1"
+VERSION = "2025.04.12.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -385,8 +385,6 @@ class EnumType(BuiltinEnum):
     AGGREGATION_TYPE = 21255
     SORT_MODE = 21256
     SORT_TYPE = 21257
-    COMPUTED_VALUE_KIND = 21258
-    COMPUTED_VALUE_MODE = 21259
     PATH_ELEMENT_TYPE = 21260
     PATH_RUN_SELECTOR = 21261
     SELECTION_TYPE = 21265
@@ -550,6 +548,7 @@ class NodeType(BuiltinEnum):
     # data
     FILE = 2200, "File", "File", "fas fa-file"
     STREAM = 2210, "Stream", "Stream", "fas fa-stream"
+    # LINK = 2220
     # REPOSITORY: REST/GraphQl/SQL/... schema & API, ...?
 
     # finance
@@ -858,8 +857,6 @@ class StructType(BuiltinEnum):
     AGGREGATION_RESULT = 12211
     SELECTION = 12220
     SELECT_OPTIONS = 12230
-    VALUE = 12240
-    COMPUTED_VALUE = 12241
 
     # run (12700-13199)
     ERROR = 12700

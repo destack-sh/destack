@@ -361,10 +361,6 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.ICON,
   // code
   StructType.CODE,
-  // expressions
-  StructType.EXPRESSION,
-  StructType.SELECTION,
-  StructType.VALUE,
   // views
   StructType.COLOR,
   StructType.FONT,

@@ -1,4 +1,4 @@
-import { AnyNodeData, ComputedValueData, FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import { AnyNodeData, FieldData, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { CommandMapKit } from "@/ui/command";
 import { Casing, toCasing } from "@/utils/string";
@@ -22,7 +22,6 @@ export type ViewComponent = {
 export type NavigationDirection = "left" | "right" | "up" | "down" | "enter";
 export type ViewEmits = {
   (e: "update:modelValue", modelValue: any, options?: ModelValueOptions): void;
-  (e: "update:computedValues", computedValues: ComputedValueData[] | undefined): void;
   (e: "apply", value: any, keepOpen?: boolean): void;
   (e: "cancel"): void;
   (e: "close"): void;

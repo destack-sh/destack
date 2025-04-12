@@ -4,16 +4,12 @@ from bench.language import (
     Action,
     ActionType,
     Block,
-    ComputedValueMode,
     ErrorType,
     Field,
     Flow,
     LinkType,
     NodeMode,
-    PathElementType,
     ProcessStatus,
-    Run,
-    RunOptions,
     code,
 )
 from bench.runtime import create_run
@@ -80,211 +76,6 @@ async def test_run_flow_trivial(simulation: Simulation, runtime: RuntimeLambdaWo
 
 
 @simulated_runtime()
-async def test_run_flow_code(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a code action with values."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(
-            Field.input("Input1", int, is_required=True),
-            Field.output("Output1", int, is_required=True),
-        ),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("return {'Output1': 2 * Input1}"),
-        fields=(
-            Field.input("Input1", int, is_required=True),
-            Field.output("Output1", int, is_required=True),
-        ),
-    )
-    Code1.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Code1.fields.Input1),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
-    )
-    End = Action.new(ActionType.END, "End")
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
-        source=(Code1, PathElementType.RUN, Run.get_property("outputs"), Code1.fields.Output1),
-    )
-    Flow1.actions.extend(Start, Code1, End)
-    Start.connect(LinkType.MANUAL, Code1)
-    Code1.connect(LinkType.MANUAL, End)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1, inputs={"Input1": 2})
-    assert runner.tracked_run and len(runner.tracked_run.runs) == 5
-    assert runner.outputs and runner.outputs.Output1 == 4
-
-
-@simulated_runtime()
-async def test_run_flow_computed_value_chain(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Run a Flow with Actions chaining computed inputs."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(
-            Field.input("BoolIn", bool),
-            Field.input("IntIn", int),
-            Field.output("BoolOut", bool),
-            Field.output("IntOut", int),
-        ),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Flow1.actions.append(Start)
-    prev = Start
-    for i in range(4):
-        Code = Action.new(
-            ActionType.CODE,
-            f"Code{i}",
-            code=code("""
-    return {'BoolOut': not BoolIn, 'IntOut': IntIn + 1}
-    """),
-            fields=(
-                Field.input("BoolIn", bool),
-                Field.input("IntIn", int),
-                Field.output("BoolOut", bool),
-                Field.output("IntOut", int),
-            ),
-        )
-        Flow1.actions.append(Code)
-        if i == 0:
-            Code.set_computed(
-                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.BoolIn),
-                source=(
-                    Flow1,
-                    PathElementType.RUN,
-                    Run.get_property("inputs"),
-                    Flow1.fields.BoolIn,
-                ),
-            )
-            Code.set_computed(
-                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.IntIn),
-                source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.IntIn),
-            )
-        else:
-            Code.set_computed(
-                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.BoolIn),
-                source=(
-                    prev,
-                    PathElementType.RUN,
-                    Run.get_property("outputs"),
-                    prev.fields.BoolOut,
-                ),
-            )
-            Code.set_computed(
-                target=(PathElementType.RUN, Run.get_property("inputs"), Code.fields.IntIn),
-                source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
-            )
-        prev.connect(LinkType.MANUAL, Code)
-        prev = Code
-    End = Action.new(ActionType.END, "End")
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.BoolOut),
-        source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.BoolOut),
-    )
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.IntOut),
-        source=(prev, PathElementType.RUN, Run.get_property("outputs"), prev.fields.IntOut),
-    )
-    Flow1.actions.append(End)
-    prev.connect(LinkType.MANUAL, End)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1, inputs={"BoolIn": True, "IntIn": 0})
-    assert runner.outputs and runner.outputs.BoolOut is True
-    assert runner.outputs and runner.outputs.IntOut == 4
-
-
-@simulated_runtime()
-async def test_run_flow_invalid_computed_target(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Run a Flow with an invalid computed value (invalid target). Should pass (?)."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(Field.input("Input", int), Field.output("Output", int)),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.MANUAL, End)
-    End.set_computed(
-        # refers to Output, but we delete output below (oh no!, should be ignored)
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input),
-    )
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    # delete output Field
-    Flow1.fields.Output.delete()
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1, inputs={"Input": 1})
-    assert runner.status == ProcessStatus.COMPLETED
-
-
-@simulated_runtime()
-async def test_run_flow_computed_value_mode(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with computed value set if source is set."""
-    Flow1 = Flow.new(
-        "Flow1",
-        fields=(
-            Field.input("Input1", int),
-            Field.input("Input2", int),
-            Field.input("Input3", int),
-            Field.output("Output1", int),
-            Field.output("Output2", int),
-            Field.output("Output3", int),
-        ),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
-    Start.connect(LinkType.MANUAL, End)
-    runtime.page().append(Flow1)
-    # always
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output1),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
-        mode=ComputedValueMode.ALWAYS,
-    )
-    # if source is set
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output2),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
-        mode=ComputedValueMode.IF_SOURCE_SET,
-    )
-    # if target is unset x2 (all but first should be ignored)
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output3),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input3),
-        mode=ComputedValueMode.IF_TARGET_UNSET,
-    )
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output3),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input2),
-        mode=ComputedValueMode.IF_TARGET_UNSET,
-    )
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Output3),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Input1),
-        mode=ComputedValueMode.IF_TARGET_UNSET,
-    )
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1, inputs={"Input1": 1, "Input2": 2, "Input3": 3})
-    assert runner.outputs and runner.outputs.Output1 == 1  # Output 1 == Input1 (always)
-    assert runner.outputs and runner.outputs.Output2 == 2  # Output2 == Input2?
-    assert runner.outputs and runner.outputs.Output3 == 3  # Output3 == Input3 (first set)
-
-
-@simulated_runtime()
 async def test_run_flow_create_in_test_mode(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Flow with Start->End in test mode, creating a simple Node. Should be in same node."""
     Flow1 = Flow.new(
@@ -303,10 +94,6 @@ return {'Block': block}
         fields=(Field.output("Block", Block, is_required=True),),
     )
     End = Action.new(ActionType.END, "End")
-    End.set_computed(
-        target=(PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Block),
-        source=(Create, PathElementType.RUN, Run.get_property("outputs"), Create.fields.Block),
-    )
     Flow1.actions.extend(Start, Create, End)
     Start.connect(LinkType.MANUAL, Create)
     Create.connect(LinkType.MANUAL, End)
@@ -318,44 +105,6 @@ return {'Block': block}
     assert all(r.mode == NodeMode.TEST for r in runner.tracked_run.runs)
     assert runner.outputs and isinstance(runner.outputs.Block, Block)
     assert runner.outputs.Block.mode == NodeMode.TEST
-
-
-@simulated_runtime()
-async def test_run_flow_computed_run_options(
-    simulation: Simulation, runtime: RuntimeLambdaWorkload
-):
-    """Run a Flow with computed run options."""
-    Flow1 = Flow.new("Flow1", fields=(Field.input("Attempts", int),))
-    Start = Action.new(ActionType.START, "Start")
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("""
-if len(run.attempts) < 6:
-    raise RetryableError("not enough attempts")
-else:
-    pass  # yay!
-"""),
-    )
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Code1, End)
-    Start.connect(LinkType.MANUAL, Code1)
-    Code1.connect(LinkType.MANUAL, End)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    Code1.set_computed(
-        target=(
-            PathElementType.RUN,
-            Run.get_property("options"),
-            RunOptions.get_property("max_attempts"),
-        ),
-        source=(Flow1, PathElementType.RUN, Run.get_property("inputs"), Flow1.fields.Attempts),
-    )
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Flow1, inputs={"Attempts": 6})
-    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime()

@@ -1,20 +1,7 @@
-import { getPropertyType } from "@/language/core/type";
 import { getPathKey } from "@/language/core/path";
+import { getPropertyType } from "@/language/core/type";
 import { packValue } from "@/language/core/value";
-import {
-  BlockData,
-  ExpressionType,
-  ObjectType,
-  RunData,
-  ActionData,
-  UserData,
-  type ExpressionData,
-  type SortType,
-  ComputedValueData,
-  PathData,
-  ComputedValueKind,
-  ComputedValueMode,
-} from "@/proto/wire";
+import { ExpressionType, ObjectType, PathData, type ExpressionData, type SortType } from "@/proto/wire";
 import { computed, Ref } from "vue";
 
 export function makeExpression(
@@ -53,87 +40,4 @@ export function makeSort(
 export function makeAndConditional(clauses: ExpressionData[]): ExpressionData | undefined {
   if (clauses.length == 0) return undefined;
   else return makeExpression({ type: ExpressionType.AND, clauses });
-}
-
-/** Controls a SourceNode.computedValues */
-export function useComputedValues(options: {
-  computedValues: Readonly<Ref<ComputedValueData[]>>;
-  computedPrefix?: Readonly<Ref<PathData | undefined>>;
-  update: (computedValues: ComputedValueData[]) => void;
-}) {
-  const computedValuesByKey: Ref<Record<string, ComputedValueData>> = computed(() => {
-    const values = options.computedValues.value;
-    return values.reduce(
-      (acc, value) => {
-        acc[getPathKey(value.targetPath!)] = value;
-        return acc;
-      },
-      {} as Record<string, ComputedValueData>,
-    );
-  });
-
-  /** Checks if there is an active computed value for a given path */
-  function has(path: PathData | string | undefined): boolean {
-    if (path == null) return false;
-    if (typeof path != "string") path = getPathKey(path);
-    return computedValuesByKey.value[path]?.isActive ?? false;
-  }
-
-  /** Gets the active computed value for a given path */
-  function get(path: PathData | string | undefined): ComputedValueData | undefined {
-    if (path == null) return undefined;
-    if (typeof path != "string") path = getPathKey(path);
-    return computedValuesByKey.value[path];
-  }
-
-  /** Clears any computed value for a given path */
-  function clear(path: PathData | string | undefined): void {
-    if (path == null) return;
-    if (typeof path != "string") path = getPathKey(path);
-    const newComputedValues = options.computedValues.value.filter((cv) => getPathKey(cv.targetPath!) != path);
-    options.update(newComputedValues);
-  }
-
-  /** Sets an active computed value for a given path (or activates if already exists) */
-  function set(path: PathData, value?: ComputedValueData): void {
-    const pathKey = getPathKey(path);
-    const existing = computedValuesByKey.value[pathKey];
-    const computedValue = {
-      ...(value ?? existing ?? {}),
-      metatype: ObjectType.COMPUTED_VALUE,
-      kind: ComputedValueKind.PATH,
-      mode: value?.mode ?? existing?.mode ?? ComputedValueMode.ALWAYS,
-      targetPath: path,
-      isActive: true,
-    };
-    options.update([
-      ...(options.computedValues.value.filter((cv) => cv.targetPath != null && getPathKey(cv.targetPath) != pathKey) ??
-        []),
-      computedValue,
-    ]);
-  }
-
-  /** Deactivates the computed value for a given path */
-  function deactivate(path: PathData | string | undefined): void {
-    if (path == null) return;
-    if (typeof path != "string") path = getPathKey(path);
-    const newComputedValues = options.computedValues.value.map((cv) => {
-      if (cv.targetPath != null && getPathKey(cv.targetPath) === path) {
-        return { ...cv, isActive: false };
-      }
-      return cv;
-    });
-    options.update(newComputedValues);
-  }
-
-  /** Toggles an active computed value for a given path */
-  function toggle(path: PathData): void {
-    if (has(path)) {
-      deactivate(path);
-    } else {
-      set(path);
-    }
-  }
-
-  return { computedValues: options.computedValues, computedValuesByKey, has, get, clear, set, deactivate, toggle };
 }

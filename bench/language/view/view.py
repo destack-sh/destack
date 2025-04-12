@@ -67,7 +67,6 @@ class ViewType(BuiltinEnum):
     OBJECT = 10000
     TYPE = 10001
     PATH = 10004
-    COMPUTED_VALUE = 10005
     SELECTION = 10006
 
     # helpers (20000-30000)

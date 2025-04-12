@@ -32,9 +32,6 @@ if TYPE_CHECKING:
         Claim,
         Class,
         Client,
-        ComputedSourceIn,
-        ComputedValue,
-        ComputedValueMode,
         Computer,
         Cursor,
         Database,
@@ -51,7 +48,6 @@ if TYPE_CHECKING:
         Organization,
         Package,
         Page,
-        PathIn,
         Plan,
         Record,
         Resource,
@@ -59,7 +55,6 @@ if TYPE_CHECKING:
         Session,
         Space,
         Span,
-        Subject,
         Task,
         Team,
         TextLine,
@@ -355,37 +350,7 @@ class IsComputable(BuiltinObject):
     """A Node that can be computed at runtime."""
 
     # NOTE :Architecture: IsComputable.computed_values should probably be a Node? "Formula"?
-    computed_values: list["ComputedValue"] = p_internal(
-        28, require=False, array=True, struct=StructType.COMPUTED_VALUE
-    )
-
-    def set_computed(
-        self,
-        target: "PathIn",
-        source: "ComputedSourceIn",
-        *,
-        mode: "ComputedValueMode | None" = None,
-        is_active: bool = True,
-    ):
-        """Sets and overrides the computed value for the target path."""
-        from .expression import ComputedValue, ComputedValueMode
-
-        computed_value = ComputedValue.new(
-            target=target, source=source, mode=mode or ComputedValueMode.ALWAYS, is_active=is_active
-        )
-        self.computed_values = [
-            *(cv for cv in self.computed_values if cv.target_path != target),
-            computed_value,
-        ]
-
-    def clear_computed(self, target: "PathIn"):
-        """Clears the computed value for the target path."""
-        from .path import to_path
-
-        target = to_path(target)
-        self.computed_values = [
-            *(cv for cv in self.computed_values if cv.target_path != target),
-        ]
+    pass
 
 
 @object_()
