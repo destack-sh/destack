@@ -716,7 +716,6 @@ class Runtime:
 
     def on_external_update(self, update: WatchGetUpdate | WatchSearchUpdate):
         """React to updates on Runtime nodes from outside this Runtime."""
-        print("EXTERNAL UPDATE", repr(update))
         touched_nodes_by_thread: dict[Thread, list[Node]] = defaultdict(list)
         # added
         for node in update.added.values():
@@ -818,7 +817,6 @@ class Runtime:
         thread = tick.thread
         handle = self._threads_by_id.get(thread.id)
         assert handle is not None, f"missing thread handle for {thread!r} in {self!r}"
-        print("TICK THREAD", repr(tick))
 
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
@@ -832,15 +830,7 @@ class Runtime:
             ):
                 # continue existing agent run?
                 runner.wake()
-            elif (
-                (last_message := handle.last_message) is not None
-                and last_message.created_by_id != agent.id
-                and (
-                    cursor is None
-                    or cursor.seen_at is None
-                    or cursor.seen_at < last_message.created_at
-                )
-            ):
+            elif handle.has_new_messages_for(agent, cursor):
                 # create new agent run
                 run, _ = create_run(
                     agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
