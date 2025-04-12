@@ -20,17 +20,17 @@ const props = defineProps<{
     <template v-if="icon == 'dot'">
       <span v-if="isProcessInterrupted(run)" class="relative flex h-[8px] w-[8px]">
         <span
-          class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 transition-colors duration-150"
+          class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 transition-colors duration-75"
           :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
         />
         <span
-          class="relative inline-flex h-[8px] w-[8px] rounded-full transition-colors duration-150"
+          class="relative inline-flex h-[8px] w-[8px] rounded-full transition-colors duration-75"
           :style="{ backgroundColor: getRunColorHex(run.status, ColorShade.S400) }"
         />
       </span>
       <span
         v-else
-        class="h-[8px] w-[8px] rounded-full transition-colors duration-150"
+        class="h-[8px] w-[8px] rounded-full transition-colors duration-75"
         :class="[isProcessActive(run) ? 'animate-pulse' : '']"
         :style="{ backgroundColor: getRunColorHex(run.status) }"
       />
@@ -49,7 +49,7 @@ const props = defineProps<{
     <IconInline
       v-if="isProcessInterrupted(run)"
       v-tooltip="{ title: toCamelName(ProcessStatus, run.status), small: true, group: 'run.status' }"
-      class="text-pink-500 transition-colors duration-150"
+      class="text-pink-500 transition-colors duration-75"
       v-bind="makeIcon(ProcessStatusOptionInfo[run.status]!.icon!)"
     />
   </div>

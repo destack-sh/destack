@@ -184,7 +184,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             },
           ]"
           :key="type"
-          class="rounded px-1.5 py-0.5 font-medium transition-colors duration-150 enabled:hover:bg-gray-100"
+          class="rounded px-1.5 py-0.5 font-medium transition-colors duration-75 enabled:hover:bg-gray-100"
           :class="[type == iconType ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-700']"
           @click.stop.prevent="((iconType = type), queryRef?.focus())"
         >

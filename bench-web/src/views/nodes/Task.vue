@@ -110,7 +110,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       <!-- Metadata -->
       <!-- Owner -->
       <button
-        class="inline-flex flex-row items-center gap-x-1.5 rounded bg-white px-1.5 py-0.5 transition-colors duration-150 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+        class="inline-flex flex-row items-center gap-x-1.5 rounded bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         :class="[
           hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
         ]"
@@ -145,7 +145,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       </button>
       <!-- Due -->
       <button
-        class="inline-flex flex-row items-center gap-x-1.5 rounded bg-white px-1.5 py-0.5 transition-colors duration-150 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+        class="inline-flex flex-row items-center gap-x-1.5 rounded bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         :class="[
           hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
         ]"

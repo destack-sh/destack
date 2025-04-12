@@ -205,7 +205,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               text: 'Create Thread',
               shortcut: getCommand('space.create.thread').shortcuts?.[0],
             }"
-            class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
+            class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
             @click="fireCommandById('space.create.thread')"
           >
             <span class="fas fa-plus w-5 text-center" />
@@ -215,7 +215,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
         <!-- Empty state for Today -->
         <div
           v-if="group.title === 'Today' && group.threads.length === 0"
-          class="mx-2 flex flex-row items-center rounded px-2 text-sm text-gray-400 transition-colors duration-150 hover:cursor-pointer hover:bg-gray-100"
+          class="mx-2 flex flex-row items-center rounded px-2 text-sm text-gray-400 transition-colors duration-75 hover:cursor-pointer hover:bg-gray-100"
           role="button"
           :style="{
             height: `${ITEM_HEIGHT}px`,
@@ -232,7 +232,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             v-for="thread in group.threads"
             :ref="(ref?: any) => (ref != null ? (itemRefs[thread.id] = ref) : delete itemRefs[thread.id])"
             :key="thread.id"
-            class="group/node relative mx-3 flex max-w-full flex-row items-center rounded px-1.5 transition-colors duration-150 hover:cursor-pointer"
+            class="group/node relative mx-3 flex max-w-full flex-row items-center rounded px-1.5 transition-colors duration-75 hover:cursor-pointer"
             :class="[
               canvas.isSelected(thread)
                 ? 'bg-orange-400/20'
@@ -270,7 +270,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               <!-- Metadata -->
               <!-- Run metadata -->
               <span
-                class="fas fa-circle-small relative w-5 text-center transition-colors duration-150"
+                class="fas fa-circle-small relative w-5 text-center transition-colors duration-75"
                 :class="[
                   ACTIVE_PROCESS_STATUSES.includes(thread.status) ||
                   INTERRUPTED_PROCESS_STATUSES.includes(thread.status)

@@ -231,7 +231,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-bench-id="(node as any).benchPtr?.id"
-          class="group/node relative mx-3 flex max-w-full flex-row items-center rounded border transition-colors duration-150 hover:cursor-pointer"
+          class="group/node relative mx-3 flex max-w-full flex-row items-center rounded border transition-colors duration-75 hover:cursor-pointer"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'

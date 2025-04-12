@@ -153,7 +153,7 @@ defineExpose<ViewExpose>({
       <!-- Clear button -->
       <button
         v-if="!isDisabled && isInput"
-        class="ml-auto text-gray-400 opacity-0 transition-colors duration-150 hover:text-gray-700 group-hover:opacity-100"
+        class="ml-auto text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
         @click.stop="clear"
       >
         <i class="fas fa-xmark" />
@@ -162,7 +162,7 @@ defineExpose<ViewExpose>({
     <!-- No value -->
     <span
       v-else
-      class="text-gray-400 transition-colors duration-150 group-hover:text-gray-700"
+      class="text-gray-400 transition-colors duration-75 group-hover:text-gray-700"
       :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
     >
       <IconInline v-if="icon || !isMinimal" v-bind="icon ?? { faName: 'fas fa-clock' }" class="mr-1.5 w-5" />
