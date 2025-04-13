@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.12.2"
+VERSION = "2025.04.13.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -904,12 +904,11 @@ ACTION_TABLE = Table(
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
 
-LINK_TABLE = Table(
-    "bench_link",
+TRANSITION_TABLE = Table(
+    "bench_transition",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),
@@ -1506,7 +1505,7 @@ RUN_TABLE = Table(
         Column("kit_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("link_id", PrimitiveType.UUID, is_nullable=True),
+        Column("transition_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("target_id", PrimitiveType.UUID, is_nullable=True),
         Column("target_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1575,7 +1574,7 @@ SPAN_TABLE = Table(
         Column("kit_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_id", PrimitiveType.UUID, is_nullable=True),
         Column("action_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("link_id", PrimitiveType.UUID, is_nullable=True),
+        Column("transition_id", PrimitiveType.UUID, is_nullable=True),
         Column("trigger_id", PrimitiveType.UUID, is_nullable=True),
         Column("target_id", PrimitiveType.UUID, is_nullable=True),
         Column("target_ck", PrimitiveType.UUID, is_nullable=True),

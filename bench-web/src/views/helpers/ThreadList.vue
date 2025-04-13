@@ -203,7 +203,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             v-tooltip="{
               small: true,
               text: 'Create Thread',
-              shortcut: getCommand('space.create.thread').shortcuts?.[0],
+              shortcuts: getCommand('space.create.thread').shortcuts,
             }"
             class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
             @click="fireCommandById('space.create.thread')"

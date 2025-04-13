@@ -12,7 +12,6 @@ import File from "@/views/content/File.vue";
 import Agent from "@/views/nodes/Agent.vue";
 import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
-import Flow from "@/views/nodes/Flow.vue";
 import Kit from "@/views/nodes/Kit.vue";
 import Task from "@/views/nodes/Task.vue";
 import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
@@ -129,18 +128,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       class=""
       :prepared-connection="preparedConnection"
       :node-ptr="nodePtr"
-      is-minimal
-      is-inline
-      @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
-    />
-    <Flow
-      v-else-if="block.type == BlockType.FLOW"
-      id="flow"
-      ref="nodeRef"
-      :style="{ height: MAX_INLINE_HEIGHT + 'px' }"
-      v-bind="state.getChildState('flow')"
-      :node-ptr="nodePtr"
-      :prepared-connection="preparedConnection"
       is-minimal
       is-inline
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"

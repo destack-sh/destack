@@ -30,7 +30,6 @@ import {
   FieldProperty,
   FieldType,
   IconData,
-  LinkProperty,
   NodeReferenceData,
   NodeType,
   NodeTypeMapping,
@@ -44,6 +43,7 @@ import {
   RecordProperty,
   TaskProperty,
   ThreadProperty,
+  TransitionProperty,
   TypeConstraintProperty,
   TypeData,
   TypeKind,
@@ -864,10 +864,10 @@ export class ActionLayout extends RunnableNodeLayout<NodeType.ACTION> {
   }
 }
 
-export class LinkLayout extends NodeLayout<NodeType.LINK> {
+export class TransitionLayout extends NodeLayout<NodeType.TRANSITION> {
   make() {
-    const commonRows = [this.rowProperty(LinkProperty.type)];
-    commonRows.push(this.rowProperty(LinkProperty.color));
+    const commonRows = [this.rowProperty(TransitionProperty.type)];
+    commonRows.push(this.rowProperty(TransitionProperty.color));
     this.section(undefined, commonRows);
   }
 }
@@ -1020,7 +1020,7 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.FLOW]: FlowLayout,
   [NodeType.ACTION]: ActionLayout,
   [NodeType.KIT]: KitLayout,
-  [NodeType.LINK]: LinkLayout,
+  [NodeType.TRANSITION]: TransitionLayout,
   [NodeType.RECORD]: RecordLayout,
   [NodeType.FIELD]: FieldLayout,
   [NodeType.CHANNEL]: ChannelLayout,

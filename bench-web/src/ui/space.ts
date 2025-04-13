@@ -948,17 +948,11 @@ export class SpaceCanvas {
 
     // open flow
     if (
-      (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
       isNode(node, NodeType.FLOW) ||
       (isNode(node, NodeType.ACTION) && node.parentPtr?.nodeType == NodeType.FLOW) ||
-      isNode(node, NodeType.LINK) ||
+      isNode(node, NodeType.TRANSITION) ||
       (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
     ) {
-      if (isNode(node, NodeType.BLOCK)) {
-        // unwrap FlowBlock to Flow
-        node = supergraph.getOrError(node.nodePtr!);
-        nodePtr = toNodeRef(node);
-      }
       const containingFlow = getContainingFlow(graph, node);
       if (!containingFlow) throw new Error(`no containing flow for: ${describeNode(node)}`);
       const view = this.addView(

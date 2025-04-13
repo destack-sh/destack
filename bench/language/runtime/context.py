@@ -21,7 +21,6 @@ if TYPE_CHECKING:
         Agent,
         Flow,
         Kit,
-        Link,
         Message,
         NodeReference,
         Page,
@@ -30,6 +29,7 @@ if TYPE_CHECKING:
         Session,
         Span,
         Task,
+        Transition,
         Trigger,
     )
 
@@ -76,13 +76,13 @@ class IsRun(BuiltinObject):
         same_bench=True,
         description="The Action this Run is executing.",
     )
-    link: Optional["Link"] = p_internal(
+    transition: Optional["Transition"] = p_internal(
         74,
         require=False,
         array=False,
-        references=NodeType.LINK,
+        references=NodeType.TRANSITION,
         same_bench=True,
-        description="The Link this Run is executing.",
+        description="The Transition this Run is executing.",
     )
     trigger: Optional["Trigger"] = p_regular(
         75,
@@ -126,8 +126,8 @@ class IsRun(BuiltinObject):
         action_ptr: Optional[NodeReference] = None
         action_id: Optional[UUID] = None
         action_ck: Optional[UUID] = None
-        link_ptr: Optional[NodeReference] = None
-        link_id: Optional[UUID] = None
+        transition_ptr: Optional[NodeReference] = None
+        transition_id: Optional[UUID] = None
         incoming_ptr: tuple["NodeReference", ...] = ()
         trigger_ptr: Optional[NodeReference] = None
         trigger_id: Optional[UUID] = None

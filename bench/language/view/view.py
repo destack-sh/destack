@@ -52,7 +52,7 @@ class ViewType(BuiltinEnum):
     FIELD = 5035
     FLOW = 5050
     ACTION = 5051
-    LINK = 5052
+    TRANSITION = 5052
     TRIGGER = 5053
     KIT = 5060
     DATABASE = 5090

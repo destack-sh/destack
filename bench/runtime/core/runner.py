@@ -35,7 +35,6 @@ from bench.language import (
     InterruptionType,
     IsType,
     Kit,
-    Link,
     Log,
     Membership,
     Message,
@@ -54,6 +53,7 @@ from bench.language import (
     SpanType,
     Task,
     Thread,
+    Transition,
     Trigger,
     active_session,
 )
@@ -583,7 +583,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
 RUN_TYPE_BY_NODE_TYPE: dict[NodeType, RunType] = {
     NodeType.ACTION: RunType.ACTION,
     NodeType.FLOW: RunType.FLOW,
-    NodeType.LINK: RunType.LINK,
+    NodeType.TRANSITION: RunType.TRANSITION,
 }
 
 
@@ -615,7 +615,7 @@ def create_run(
     flow: Flow | None = None
     kit: Kit | None = None
     action: Action | None = None
-    link: Link | None = None
+    link: Transition | None = None
     typ: RunType | None = None
     if isinstance(node, Agent):
         typ = RunType.AGENT
@@ -628,8 +628,8 @@ def create_run(
         action = node
         flow = node.flow
         kit = node.kit
-    elif isinstance(node, Link):
-        typ = RunType.LINK
+    elif isinstance(node, Transition):
+        typ = RunType.TRANSITION
         link = node
         flow = node.flow
     else:
@@ -701,7 +701,7 @@ def create_run(
         flow=flow,
         kit=kit,
         action=action,
-        link=link,
+        transition=link,
         mode=mode,
         thread=thread,
         target=target,
@@ -818,11 +818,11 @@ def make_runner(
         assert isinstance(node, Action), f"expected Action, got {node!r}"
         runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[node.type]
         runner = runner_cls(**base_kwargs)
-    elif RUN_TYPE == RunType.LINK:
-        from bench.runtime.flow import LINK_RUNNER_BY_LINK_TYPE
+    elif RUN_TYPE == RunType.TRANSITION:
+        from bench.runtime.flow import TRANSITION_RUNNER_BY_TRANSITION_TYPE
 
-        assert isinstance(node, Link), f"expected Link, got {node!r}"
-        runner_cls = LINK_RUNNER_BY_LINK_TYPE[node.type]
+        assert isinstance(node, Transition), f"expected Link, got {node!r}"
+        runner_cls = TRANSITION_RUNNER_BY_TRANSITION_TYPE[node.type]
         runner = runner_cls(**base_kwargs)
     else:
         assert_never(RUN_TYPE)

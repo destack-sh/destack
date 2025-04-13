@@ -233,7 +233,7 @@ export const TYPE_NODE_TYPES = [NodeType.AGENT, NodeType.CLASS, NodeType.CHOICE,
 
 // block types
 export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
-export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.KIT, BlockType.FLOW, BlockType.DATABASE];
+export const CANVAS_BLOCK_TYPES = [BlockType.PAGE, BlockType.KIT, BlockType.DATABASE];
 export const TEXT_BLOCK_TYPES = BLOCK_TYPES.filter((bt) => bt >= BlockType.PARAGRAPH);
 
 // action
@@ -289,7 +289,7 @@ export function getBaseFromNode(node: Partial<AnyNodeData>): NodeReferenceData |
   } else if (isNode(node, NodeType.MESSAGE)) {
     return node.threadPtr ?? null;
   } else if (isNode(node, NodeType.RUN)) {
-    return node.linkPtr ?? node.actionPtr ?? node.flowPtr ?? null;
+    return node.transitionPtr ?? node.actionPtr ?? node.flowPtr ?? null;
   } else {
     return null;
   }
@@ -344,7 +344,6 @@ export const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it'
 export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
   BlockType.DATABASE,
-  BlockType.FLOW,
   BlockType.PAGE,
   BlockType.CHOICE,
   BlockType.TASK,

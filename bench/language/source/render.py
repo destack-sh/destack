@@ -59,7 +59,7 @@ from .clazz import Class
 from .database import Database
 from .field import Field
 from .flow import Flow
-from .link import Link
+from .link import Transition
 from .option import Option
 from .page import Page
 
@@ -426,7 +426,7 @@ class Renderer:
                     self._get_parent_child_key(nodes[i + 1]) if i < len(nodes) - 1 else None
                 )
                 if parent_key is not None:
-                    if node.metatype == NodeType.LINK:
+                    if node.metatype == NodeType.TRANSITION:
                         continue  # implicitly added into parent (see LinkRenderer)
                     current_children.append(node_alias)
                     if parent_key != next_parent_key:
@@ -767,13 +767,13 @@ class ActionRenderer(PackageNodeRenderer[Action]):
         return f"Action.new({action_args})"
 
 
-@_renderer(NodeType.LINK)
-class LinkRenderer(PackageNodeRenderer[Link]):
+@_renderer(NodeType.TRANSITION)
+class LinkRenderer(PackageNodeRenderer[Transition]):
     @override
     def _render_constructor(
         self,
         renderer: "Renderer",
-        obj: Link,
+        obj: Transition,
         kwargs: dict[Property, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:

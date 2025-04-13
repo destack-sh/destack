@@ -31,7 +31,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Claim, Field, Link, Page, RunOptions
+    from bench.language import Action, Agent, Claim, Field, Page, RunOptions, Transition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -82,7 +82,7 @@ class Flow(
         default_agent_id: Optional[UUID] = None
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
+    transitions: LocalNodeList["Transition"] = p_node_children(NodeType.TRANSITION)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 

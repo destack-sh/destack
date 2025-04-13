@@ -49,17 +49,12 @@ class BlockType(BuiltinEnum):
     CHOICE = 5030
     CLASS = 5031
     TAG = 5040
-    FLOW = 5050
     KIT = 5060
     DATABASE = 5090
-    TEAM = 5600
-    ROLE = 5630
     AGENT = 5640
     PLAN = 6100
     TASK = 6110
-    CHANNEL = 5500
     THREAD = 5510
-    VIEW = 7000
 
     # text
     # NOTE: text BlockTypes should align with :TextLineTypes

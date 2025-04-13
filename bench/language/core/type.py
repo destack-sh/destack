@@ -55,7 +55,7 @@ if typing.TYPE_CHECKING:
         Field,
         FileType,
         Flow,
-        Link,
+        Transition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -484,7 +484,7 @@ TypeIn = Union[
     "Flow",
     "Agent",
     "BuiltinEnum",
-    "Link",
+    "Transition",
     "Action",
     "PrimitiveType",
     "BenchType",
@@ -508,7 +508,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
         Database,
         FileType,
         Flow,
-        Link,
+        Transition,
     )
 
     if isinstance(type_in, Block) and (node := type_in.node) is not None:
@@ -516,7 +516,7 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
 
     if isinstance(type_in, IsType):
         return cast("Type", type_in)
-    elif isinstance(type_in, (Class, Choice, Flow, Action, Link, Database, Agent)):
+    elif isinstance(type_in, (Class, Choice, Flow, Action, Transition, Database, Agent)):
         type_scalar = type_in.to_type_maybe()
         if type_scalar is not None:
             assert isinstance(type_scalar, Type), f"expected Type, got {type_scalar!r}"

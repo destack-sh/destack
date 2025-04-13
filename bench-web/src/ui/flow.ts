@@ -11,8 +11,8 @@ import {
   FieldData,
   FieldType,
   FlowData,
-  LinkData,
-  LinkType,
+  TransitionData,
+  TransitionType,
   NodeType,
   ObjectType,
   PortSide,
@@ -50,8 +50,8 @@ export const FLOW_SCALE_MIN = 0.5;
 export const FLOW_SCALE_MAX = 1.5;
 export const FLOW_SCALE_SPEED = 0.01;
 
-export const LINK_WIDTH = 2;
-export const SELF_LINK_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
+export const TRANSITION_WIDTH = 2;
+export const SELF_TRANSITION_CONNECTION_DISTANCE = FLOW_GRID_STEP * 3; // minimum distance to consider a connection when dragging a port
 export const ACTION_SIZE = { width: FLOW_GRID_STEP * 17, height: FLOW_GRID_STEP * 3 };
 export const ACTION_SIZE_HALF = { width: ACTION_SIZE.width / 2, height: ACTION_SIZE.height / 2 };
 
@@ -74,7 +74,7 @@ export type Port = {
 export function portEquals(a: Port, b: Port): boolean {
   return a.parent?.id == b.parent?.id && a.side == b.side;
 }
-export type LinkPath = {
+export type TransitionPath = {
   start: Vector2;
   control1?: Vector2;
   control2?: Vector2;
@@ -87,7 +87,7 @@ export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; widt
 export type FlowThing =
   | { kind: "canvas" }
   | { kind: "action"; action: ActionData }
-  | { kind: "link"; link: LinkData }
+  | { kind: "transition"; transition: TransitionData }
   | { kind: "selection"; selection: SelectionData; nodes: AnyNodeData[] }
   | { kind: "port"; action: ActionData; side: PortSide };
 
@@ -144,28 +144,28 @@ export class ActionState {
   }
 }
 
-/** Link state in a Flow. */
-export class LinkState {
+/** Transition state in a Flow. */
+export class TransitionState {
   // self
   flow: FlowContext;
-  linkPtr: TypedNodeReferenceData<NodeType.LINK>;
-  link: Ref<LinkData | null>;
+  transitionPtr: TypedNodeReferenceData<NodeType.TRANSITION>;
+  transition: Ref<TransitionData | null>;
   source: Ref<ActionData | null>;
   target: Ref<ActionData | null>;
 
   // layout
-  path: Ref<LinkPath | null>;
+  path: Ref<TransitionPath | null>;
   boundingBox: Ref<BoundingBox | null>;
 
-  constructor(flow: FlowContext, link: LinkData) {
+  constructor(flow: FlowContext, transition: TransitionData) {
     this.flow = flow;
-    this.linkPtr = toNodeRef(link);
-    this.link = flow.graph.getRef(this.linkPtr);
+    this.transitionPtr = toNodeRef(transition);
+    this.transition = flow.graph.getRef(this.transitionPtr);
     this.source = flow.graph.getRef(
-      computed(() => this.link.value?.sourcePtr as TypedNodeReferenceData<NodeType.ACTION> | null),
+      computed(() => this.transition.value?.sourcePtr as TypedNodeReferenceData<NodeType.ACTION> | null),
     );
     this.target = flow.graph.getRef(
-      computed(() => this.link.value?.targetPtr as TypedNodeReferenceData<NodeType.ACTION> | null),
+      computed(() => this.transition.value?.targetPtr as TypedNodeReferenceData<NodeType.ACTION> | null),
     );
 
     // layout
@@ -185,7 +185,7 @@ export class LinkState {
 }
 const mouse = useMouse();
 
-/** An entire flow canvas (including actions, sub-actions, links, etc.) */
+/** An entire flow canvas (including actions, sub-actions, transitions, etc.) */
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
   graph: ReadNodeGraph;
@@ -207,10 +207,10 @@ export class FlowContext {
   flow: Ref<FlowData | null>;
   fields: Ref<FieldData[]>;
   actions: Ref<ActionData[]>;
-  links: Ref<LinkData[]>;
+  transitions: Ref<TransitionData[]>;
 
   actionsStates: Ref<Record<string, ActionState>> = shallowRef({});
-  linksStates: Ref<Record<string, LinkState>> = shallowRef({});
+  transitionsStates: Ref<Record<string, TransitionState>> = shallowRef({});
   contentBoundingBox: Ref<BoundingBox | null>;
 
   constructor(context: {
@@ -278,9 +278,9 @@ export class FlowContext {
     this.flow = this.graph.getRef(context.flowPtr);
     this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
     this.actions = this.graph.getChildrenRef(this.flow, NodeType.ACTION);
-    this.links = this.graph.getChildrenRef(this.flow, NodeType.LINK);
+    this.transitions = this.graph.getChildrenRef(this.flow, NodeType.TRANSITION);
 
-    // maintain action/link contexts
+    // maintain action/transition contexts
     watch(
       this.actions,
       () => {
@@ -299,17 +299,17 @@ export class FlowContext {
       { immediate: true },
     );
     watch(
-      this.links,
+      this.transitions,
       () => {
-        const linksIds = this.links.value.map((p) => p.id);
-        this.links.value
-          .filter((link) => this.linksStates.value[link.id] == null)
+        const transitionsIds = this.transitions.value.map((p) => p.id);
+        this.transitions.value
+          .filter((transition) => this.transitionsStates.value[transition.id] == null)
           .forEach(
-            (link) => ((this.linksStates.value[link.id] = new LinkState(this, link)), triggerRef(this.linksStates)),
+            (transition) => ((this.transitionsStates.value[transition.id] = new TransitionState(this, transition)), triggerRef(this.transitionsStates)),
           );
-        Object.keys(this.linksStates.value)
-          .filter((linkId) => !linksIds.includes(linkId))
-          .forEach((linkId) => (delete this.linksStates.value[linkId], triggerRef(this.linksStates)));
+        Object.keys(this.transitionsStates.value)
+          .filter((transitionId) => !transitionsIds.includes(transitionId))
+          .forEach((transitionId) => (delete this.transitionsStates.value[transitionId], triggerRef(this.transitionsStates)));
       },
       { immediate: true },
     );
@@ -420,8 +420,8 @@ export class FlowContext {
     return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
-  /** Computes the Link path */
-  computePath(source: BoundingBox, target: BoundingBox): LinkPath {
+  /** Computes the Transition path */
+  computePath(source: BoundingBox, target: BoundingBox): TransitionPath {
     const sides: Array<"top" | "right" | "bottom" | "left"> = ["top", "right", "bottom", "left"];
     const ANGLE_FACTOR = 1; // penalty for angle deviations
     const CONTROL_DISTANCE_FACTOR = 0.3; // control point distance factor
@@ -635,10 +635,10 @@ export class FlowContext {
       return this.contentBoundingBox.value;
     } else if (thing.kind == "action") {
       return this.actionsStates.value[thing.action.id!]?.boundingBox.value;
-    } else if (thing.kind == "link") {
-      const linkState = this.linksStates.value[thing.link.id!];
-      if (linkState == null) return null;
-      return linkState.boundingBox.value;
+    } else if (thing.kind == "transition") {
+      const transitionState = this.transitionsStates.value[thing.transition.id!];
+      if (transitionState == null) return null;
+      return transitionState.boundingBox.value;
     } else {
       throw new Error(`no bounding box for ${thing.kind}`);
     }
@@ -855,7 +855,7 @@ export class FlowContext {
         this.dragging.value = { thing, viewOffsetByThing: { [thing.action.id]: viewOffsetToThing } };
       }
     } else if (thing.kind == "port") {
-      // create pending link
+      // create pending transition
       const positionViewportVec = this.worldToViewportVec({
         x: thing.action.position?.x ?? 0,
         y: thing.action.position?.y ?? 0,
@@ -938,8 +938,8 @@ export class FlowContext {
     } else if (SOURCE_ACTION_TYPES.includes(targetPort?.parent.type)) {
       return "Cannot connect to ending Action.";
     } else if (
-      this.links.value.some(
-        (link) => link.sourcePtr?.id == sourcePort.parent.id && link.targetPtr?.id == targetPort.parent.id,
+      this.transitions.value.some(
+        (transition) => transition.sourcePtr?.id == sourcePort.parent.id && transition.targetPtr?.id == targetPort.parent.id,
       )
     ) {
       return "Cannot connect same two Actions.";
@@ -953,7 +953,7 @@ export class FlowContext {
     if (this.flow.value == null) throw new Error("no flow to connect");
     if (this.dragging.value == null) return;
 
-    // (re-)connect links
+    // (re-)connect transitions
     try {
       if (this.draggable?.kind == "port") {
         const sourceAction = this.draggable.action;
@@ -969,7 +969,7 @@ export class FlowContext {
         if (
           (at.kind == "action" || at.kind == "port") &&
           at.action.id == sourceAction.id &&
-          distance < SELF_LINK_CONNECTION_DISTANCE
+          distance < SELF_TRANSITION_CONNECTION_DISTANCE
         ) {
           return null; // ignore self-connections that are too close to starting point
         }
@@ -1001,9 +1001,9 @@ export class FlowContext {
                 tx,
               });
               if (this.canPortsConnect(sourcePort, { parent: action, side: PortSide.INCOMING })) {
-                this.createLink({
+                this.createTransition({
                   parent: this.flow.value!,
-                  link: {},
+                  transition: {},
                   source: sourcePort,
                   target: { parent: action, side: PortSide.INCOMING },
                   tx,
@@ -1016,32 +1016,32 @@ export class FlowContext {
         }
 
         const canConnect = this.canPortsConnect(sourcePort, targetPort);
-        const existingLink = this.links.value.find(
-          (link) => link.sourcePtr?.id == sourcePort.parent.id && link.targetPtr?.id == targetPort.parent.id,
+        const existingTransition = this.transitions.value.find(
+          (transition) => transition.sourcePtr?.id == sourcePort.parent.id && transition.targetPtr?.id == targetPort.parent.id,
         );
-        if (existingLink) {
+        if (existingTransition) {
           // already connected
-          canvas.inspect({ node: existingLink, view: this.view.value });
+          canvas.inspect({ node: existingTransition, view: this.view.value });
         } else if (canConnect === true) {
           // connect it up
           log.trace("flow.drag.connect", { from: sourcePort, to: targetPort });
-          const link = this.createLink({
+          const transition = this.createTransition({
             parent: this.flow.value,
-            link: {},
+            transition: {},
             source: sourcePort,
             target: targetPort,
           });
-          canvas.inspect({ node: link, view: this.view.value });
+          canvas.inspect({ node: transition, view: this.view.value });
         } else {
           // nothing to do?
           toaster.error({
-            title: "Invalid Link",
+            title: "Invalid Transition",
             text: canConnect,
           });
         }
       }
     } catch (e) {
-      toaster.error({ title: "Invalid Link", text: (e as any)?.message ?? "Cannot link like that." });
+      toaster.error({ title: "Invalid Transition", text: (e as any)?.message ?? "Cannot transition like that." });
       log.error("flow.drag.connect.error", this.draggable, at, e);
     }
 
@@ -1068,8 +1068,8 @@ export class FlowContext {
     return hit ?? null;
   }
 
-  /** Gets the bounding box for a link path (in world coordinates). */
-  computePathBoundingBox(path: LinkPath): BoundingBox | null {
+  /** Gets the bounding box for a transition path (in world coordinates). */
+  computePathBoundingBox(path: TransitionPath): BoundingBox | null {
     // (taking bezier control points into account)
     if (path.control1 == null || path.control2 == null) {
       const x1 = Math.min(path.start.x, path.end.x);
@@ -1086,16 +1086,16 @@ export class FlowContext {
     }
   }
 
-  /** Gets the links connected to the given port. */
-  getLinksAtPort(action: ActionData, side: PortSide): LinkData[] {
-    if (side == PortSide.INCOMING) return this.links.value.filter((link) => link.targetPtr?.id == action.id);
-    else return this.links.value.filter((link) => link.sourcePtr?.id == action.id);
+  /** Gets the transitions connected to the given port. */
+  getTransitionsAtPort(action: ActionData, side: PortSide): TransitionData[] {
+    if (side == PortSide.INCOMING) return this.transitions.value.filter((transition) => transition.targetPtr?.id == action.id);
+    else return this.transitions.value.filter((transition) => transition.sourcePtr?.id == action.id);
   }
 
-  /** Gets the hex color of the given link. */
-  getLinkColorHex(link: LinkData): string | undefined {
-    if (link.color != null) {
-      return getColorHex(link.color, link.color?.shade ?? ColorShade.S400);
+  /** Gets the hex color of the given transition. */
+  getTransitionColorHex(transition: TransitionData): string | undefined {
+    if (transition.color != null) {
+      return getColorHex(transition.color, transition.color?.shade ?? ColorShade.S400);
     } else {
       return undefined;
     }
@@ -1116,15 +1116,15 @@ export class FlowContext {
 
   /** Moves the thing */
   move(
-    thing: ActionData | LinkData,
+    thing: ActionData | TransitionData,
     move: { x: number; y: number },
     options?: { tx?: Transaction } & TransactionOptions,
   ) {
     const tx = options?.tx ?? this.tx;
     if (isNode(thing, NodeType.ACTION)) {
       tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long", ...options });
-    } else if (isNode(thing, NodeType.LINK)) {
-      throw new Error(":Incomplete: move link");
+    } else if (isNode(thing, NodeType.TRANSITION)) {
+      throw new Error(":Incomplete: move transition");
     } else {
       assertNever(thing);
     }
@@ -1234,10 +1234,10 @@ export class FlowContext {
     return action;
   }
 
-  /** Creates a Link */
-  createLink(options: {
+  /** Creates a Transition */
+  createTransition(options: {
     parent: ActionData | TypedNodeReferenceData<NodeType.ACTION> | FlowData | TypedNodeReferenceData<NodeType.FLOW>;
-    link: Partial<LinkData>;
+    transition: Partial<TransitionData>;
     source: Port;
     target: Port;
     tx?: Transaction;
@@ -1251,30 +1251,30 @@ export class FlowContext {
       [options.source, options.target] = [options.target, options.source];
     }
     const { source, target } = options;
-    if (source.side != PortSide.OUTGOING) throw new Error(`cannot link from incoming port`);
-    if (target.side != PortSide.INCOMING) throw new Error(`cannot link to outgoing port`);
+    if (source.side != PortSide.OUTGOING) throw new Error(`cannot transition from incoming port`);
+    if (target.side != PortSide.INCOMING) throw new Error(`cannot transition to outgoing port`);
 
     // position in graph
-    const siblings = this.graph.getChildren(parent, NodeType.LINK);
+    const siblings = this.graph.getChildren(parent, NodeType.TRANSITION);
     const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
 
-    // decide link type
-    const type = options.link.type ?? LinkType.DECIDE;
+    // decide transition type
+    const type = options.transition.type ?? TransitionType.DECIDE;
 
     // create
-    const link = (options.tx ?? this.tx).create({
-      metatype: NodeType.LINK,
-      name: makeNodeName(this.graph, { ...options.link, metatype: ObjectType.LINK, type, parentPtr }),
+    const transition = (options.tx ?? this.tx).create({
+      metatype: NodeType.TRANSITION,
+      name: makeNodeName(this.graph, { ...options.transition, metatype: ObjectType.TRANSITION, type, parentPtr }),
       orderKey,
-      ...options.link,
+      ...options.transition,
       type,
       parentPtr,
       packagePtr,
       sourcePtr: toNodeRef(source.parent),
       targetPtr: toNodeRef(target.parent),
     });
-    canvas.inspect({ node: link, view: this.view.value });
-    return link;
+    canvas.inspect({ node: transition, view: this.view.value });
+    return transition;
   }
 }
 export const FLOW_CONTEXT_KEY = Symbol("flow");
@@ -1388,7 +1388,7 @@ export function interpolatePath(points: Vector2[], factor: number = 2): Vector2[
   return interpolated;
 }
 
-export function pathToSvg(path: LinkPath): string {
+export function pathToSvg(path: TransitionPath): string {
   if (path.control1 == null || path.control2 == null) {
     return `M ${path.start.x} ${path.start.y} L ${path.end.x} ${path.end.y}`;
   } else {

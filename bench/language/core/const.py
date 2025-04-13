@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.12.2"
+VERSION = "2025.04.13.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -432,7 +432,7 @@ class EnumType(BuiltinEnum):
     # flow (22350-22399)
     ACTION_TYPE = 22350
     PORT_SIDE = 22352
-    LINK_TYPE = 22353
+    TRANSITION_TYPE = 22353
     FLOW_TYPE = 22360
 
     # views (22400-22449)
@@ -574,7 +574,7 @@ class NodeType(BuiltinEnum):
     TAG = 5040, "Tag", "Tag", "fas fa-tag"
     FLOW = 5050, "Flow", "Link Actions together", "fas fa-diagram-project"
     ACTION = 5051, "Action", "Action", "fas fa-step-forward"
-    LINK = 5052, "Link", "Link between Actions", "fas fa-link"
+    TRANSITION = 5052, "Transition", "Transition between Nodes", "fas fa-link"
     TRIGGER = 5053, "Trigger", "Trigger to do something", "fas fa-bolt"
     KIT = 5060, "Kit", "Kit of stuff", "fas fa-screwdriver-wrench"
     DATABASE = 5090, "Database", "Database of Records", "fas fa-database"
@@ -1458,7 +1458,7 @@ class RunType(BuiltinEnum):
     CODE = 1
     ACTION = 10
     FLOW = 11
-    LINK = 12
+    TRANSITION = 12
     AGENT = 15
 
 

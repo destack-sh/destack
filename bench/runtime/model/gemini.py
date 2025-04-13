@@ -104,11 +104,10 @@ class GeminiChatModelRunner(ChatModelRunner):
         code_runner = StreamingCodeRunner(
             runner=agent_runner, macros=MACROS, aliasing=self.prompt.aliasing
         )
-        temperature = self.options.text_options.temperature if self.options.text_options else None
         model = genai.GenerativeModel(model_id, system_instruction=self.prompt.system_prompt)
         completion = await model.generate_content_async(
             {"role": "user", "parts": content_parts},
-            generation_config=genai.GenerationConfig(temperature=temperature or 0.1),
+            generation_config=genai.GenerationConfig(temperature=0.1),
             stream=True,
         )
         async for chunk in completion:

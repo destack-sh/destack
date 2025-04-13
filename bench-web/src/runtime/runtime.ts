@@ -16,7 +16,6 @@ import {
   IconData,
   InterruptionData,
   InterruptionStatus,
-  LinkData,
   NodeMode,
   NodeReferenceData,
   NodeType,
@@ -29,6 +28,7 @@ import {
   type RunData,
   RunnableNodeData,
   AgentData,
+  TransitionData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -88,7 +88,7 @@ export class RunTree {
       includeSelf: true,
     });
     this.runBasePtr = computedValue(
-      () => this.runRef.value?.linkPtr ?? this.runRef.value?.actionPtr ?? this.runRef.value?.flowPtr ?? null,
+      () => this.runRef.value?.transitionPtr ?? this.runRef.value?.actionPtr ?? this.runRef.value?.flowPtr ?? null,
     );
     this.runBaseRef = graph.getRef(this.runBasePtr) as Ref<RunnableNodeData | null>;
     this.runConnection = runConnection as Connection<"get", NodeType.RUN>;
@@ -333,7 +333,7 @@ export function makeRun(
   let agent: AgentData | undefined = undefined;
   let flow: FlowData | undefined = undefined;
   let command: ActionData | undefined = undefined;
-  let link: LinkData | undefined = undefined;
+  let transition: TransitionData | undefined = undefined;
   if (isNode(runnable, NodeType.AGENT)) {
     agent = runnable;
     packagePtr = options?.packagePtr ?? runnable.packagePtr;
@@ -344,10 +344,10 @@ export function makeRun(
     command = runnable;
     flow = graph.getAncestors(command, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
     packagePtr = options?.packagePtr ?? command.packagePtr;
-  } else if (isNode(runnable, NodeType.LINK)) {
-    link = runnable;
-    flow = graph.getAncestors(link, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
-    packagePtr = options?.packagePtr ?? link.packagePtr;
+  } else if (isNode(runnable, NodeType.TRANSITION)) {
+    transition = runnable;
+    flow = graph.getAncestors(transition, { includeSelf: true }).find((node) => isNode(node, NodeType.FLOW));
+    packagePtr = options?.packagePtr ?? transition.packagePtr;
   } else {
     assertNever(runnable);
   }
@@ -364,7 +364,7 @@ export function makeRun(
     mode: options?.mode ?? space.value?.mode ?? NodeMode.MAIN,
     flowPtr: flow != null ? toNodeRef(flow) : undefined,
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
-    linkPtr: isNode(runnable, NodeType.LINK) ? toNodeRef(runnable) : undefined,
+    transitionPtr: isNode(runnable, NodeType.TRANSITION) ? toNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
     options: makeRunOptions(options?.options),
   });

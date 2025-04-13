@@ -39,7 +39,6 @@ if TYPE_CHECKING:
         Flow,
         Interruption,
         Kit,
-        Link,
         Log,
         Message,
         Node,
@@ -59,6 +58,7 @@ if TYPE_CHECKING:
         Team,
         TextLine,
         Thread,
+        Transition,
         User,
         View,
     )
@@ -145,8 +145,8 @@ SUBJECT_NODE_TYPES = bittuple(
     NodeType.AGENT,
 )
 
-Runnable = Union["Agent", "Flow", "Action", "Link"]
-RUNNABLE_NODE_TYPES = bittuple(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.LINK)
+Runnable = Union["Agent", "Flow", "Action", "Transition"]
+RUNNABLE_NODE_TYPES = bittuple(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.TRANSITION)
 
 Processable = Union["Channel", "Thread", "Agent", "Task", "Plan", "Run", "Span"]
 PROCESSABLE_NODE_TYPES = bittuple(

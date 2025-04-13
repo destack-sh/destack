@@ -317,7 +317,9 @@ const messageViews = computed(() => {
       views[i - 1].isEndOfGroup = true;
     }
   }
-  views[views.length - 1].isEndOfGroup = true;
+  if (views.length > 0) {
+    views[views.length - 1].isEndOfGroup = true;
+  }
   return views;
 });
 const replyTo = computed(() => {

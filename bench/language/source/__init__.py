@@ -7,7 +7,7 @@ from .dependency import Dependency
 from .field import Field
 from .flow import Flow
 from .kit import Kit
-from .link import Link, LinkType, PortSide
+from .link import PortSide, Transition, TransitionType
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
@@ -45,8 +45,6 @@ __all__ = [
     "Field",
     "Flow",
     "Kit",
-    "Link",
-    "LinkType",
     "Option",
     "Package",
     "PackageType",
@@ -59,6 +57,8 @@ __all__ = [
     "Schedule",
     "ScheduleFrequency",
     "Tag",
+    "Transition",
+    "TransitionType",
     "Trigger",
     "TriggerEffect",
     "TriggerStatus",

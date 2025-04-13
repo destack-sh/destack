@@ -7,9 +7,9 @@ from bench.language import (
     BreakpointScope,
     ErrorType,
     Flow,
-    LinkType,
     ProcessStatus,
     RunOptions,
+    TransitionType,
     code,
 )
 from bench.runtime import Interrupted, create_run, make_runner
@@ -28,12 +28,12 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
     Race2 = Action.new(ActionType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
     Race3 = Action.new(ActionType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
     Flow1.actions.extend(Start, Race1, Race2, Race3, End)
-    Start.connect(LinkType.MANUAL, Race1)
-    Start.connect(LinkType.MANUAL, Race2)
-    Start.connect(LinkType.MANUAL, Race3)
-    Race1.connect(LinkType.MANUAL, End)
-    Race2.connect(LinkType.MANUAL, End)
-    Race3.connect(LinkType.MANUAL, End)
+    Start.connect(TransitionType.MANUAL, Race1)
+    Start.connect(TransitionType.MANUAL, Race2)
+    Start.connect(TransitionType.MANUAL, Race3)
+    Race1.connect(TransitionType.MANUAL, End)
+    Race2.connect(TransitionType.MANUAL, End)
+    Race3.connect(TransitionType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -54,8 +54,8 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
     Yield = Action.new(ActionKit.actions.Yield, "Yield")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, End)
-    Start.connect(LinkType.MANUAL, Yield)
-    Yield.connect(LinkType.MANUAL, End)
+    Start.connect(TransitionType.MANUAL, Yield)
+    Yield.connect(TransitionType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -96,8 +96,8 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     YieldInner = Action.new(ActionKit.actions.Yield, "YieldInner")
     EndInner = Action.new(ActionType.END, "EndInner")
     FlowInner.actions.extend(StartInner, YieldInner, EndInner)
-    StartInner.connect(LinkType.MANUAL, YieldInner)
-    YieldInner.connect(LinkType.MANUAL, EndInner)
+    StartInner.connect(TransitionType.MANUAL, YieldInner)
+    YieldInner.connect(TransitionType.MANUAL, EndInner)
 
     # outer flow
     FlowOuter = Flow.new("FlowOuter")
@@ -105,8 +105,8 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
     ActionOuter = Action.new(ActionType.TOOL, "Action", tool=FlowInner)
     EndOuter = Action.new(ActionType.END, "EndOuter")
     FlowOuter.actions.extend(StartOuter, ActionOuter, EndOuter)
-    StartOuter.connect(LinkType.MANUAL, ActionOuter)
-    ActionOuter.connect(LinkType.MANUAL, EndOuter)
+    StartOuter.connect(TransitionType.MANUAL, ActionOuter)
+    ActionOuter.connect(TransitionType.MANUAL, EndOuter)
 
     runtime.page().extend(FlowInner, FlowOuter)
     await runtime.commit()
@@ -140,8 +140,8 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     Yield = Action.new(ActionKit.actions.Yield, "Yield")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, End)
-    Start.connect(LinkType.MANUAL, Yield)
-    Yield.connect(LinkType.MANUAL, End)
+    Start.connect(TransitionType.MANUAL, Yield)
+    Yield.connect(TransitionType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 
@@ -179,13 +179,13 @@ async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambd
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, Action1, End)
     StartToYield = Start.connect(
-        LinkType.MANUAL,
+        TransitionType.MANUAL,
         Yield,
         options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
     )
-    Yield.connect(LinkType.MANUAL, Action1)
+    Yield.connect(TransitionType.MANUAL, Action1)
     Action1ToEnd = Action1.connect(
-        LinkType.MANUAL,
+        TransitionType.MANUAL,
         End,
         options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
     )
@@ -238,9 +238,9 @@ async def test_run_flow_pause_resume(simulation: Simulation, runtime: RuntimeLam
     Action2 = Action.new(ActionType.CODE, "Action2", code=code("await sleep(0.2)"))
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Action1, Action2, End)
-    Start.connect(LinkType.MANUAL, Action1)
-    Action1.connect(LinkType.MANUAL, Action2)
-    Action2.connect(LinkType.MANUAL, End)
+    Start.connect(TransitionType.MANUAL, Action1)
+    Action1.connect(TransitionType.MANUAL, Action2)
+    Action2.connect(TransitionType.MANUAL, End)
     runtime.page().append(Flow1)
     await runtime.commit()
 

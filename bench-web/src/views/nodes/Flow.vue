@@ -7,7 +7,7 @@ import {
   AnyNodeData,
   BenchType,
   ChangeCategory,
-  LinkData,
+  TransitionData,
   NodeReferenceData,
   NodeType,
   PickerVariant,
@@ -19,7 +19,7 @@ import {
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas, spaceGraph } from "@/system/space";
-import { ACTION_CONTEXT_COMMANDS, LINK_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
+import { ACTION_CONTEXT_COMMANDS, TRANSITION_CONTEXT_COMMANDS, type CommandMapKit } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import {
   ACTION_SIZE,
@@ -28,10 +28,10 @@ import {
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP,
   FlowContext,
-  LINK_WIDTH,
-  LinkPath,
+  TRANSITION_WIDTH,
+  TransitionPath,
   pathToSvg,
-  SELF_LINK_CONNECTION_DISTANCE,
+  SELF_TRANSITION_CONNECTION_DISTANCE,
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
@@ -40,7 +40,7 @@ import InlineHeader from "@/views/builtin/InlineHeader.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
-import Link from "@/views/nodes/Link.vue";
+import Transition from "@/views/nodes/Transition.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { MaybeElement, useElementSize } from "@vueuse/core";
 import { computed, provide, ref, toRef, type Ref } from "vue";
@@ -69,7 +69,7 @@ const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
 const actionRefs: Ref<Record<string, InstanceType<typeof Action>>> = ref({});
-const linkRefs: Ref<Record<string, InstanceType<typeof Link>>> = ref({});
+const transitionRefs: Ref<Record<string, InstanceType<typeof Transition>>> = ref({});
 const containerSize = useElementSize(containerRef);
 const headerSize = useElementSize(headerRef as Ref<MaybeElement>);
 
@@ -92,9 +92,9 @@ const flowCtx = new FlowContext({
 provide(FLOW_CONTEXT_KEY, flowCtx);
 const flow = flowCtx.flow;
 const actions = flowCtx.actions;
-const links = flowCtx.links;
+const transitions = flowCtx.transitions;
 const fields = flowCtx.fields;
-const actionsAndLinks: Ref<(ActionData | LinkData)[]> = computed(() => [...actions.value, ...links.value]);
+const actionsAndTransitions: Ref<(ActionData | TransitionData)[]> = computed(() => [...actions.value, ...transitions.value]);
 
 const viewport = flowCtx.viewport;
 
@@ -103,7 +103,7 @@ const viewport = flowCtx.viewport;
 //
 
 // pending
-const pendingPath: Ref<LinkPath | null> = computed(() => {
+const pendingPath: Ref<TransitionPath | null> = computed(() => {
   // preview path between current dragged port and action (or point in canvas if nothing)
   if (flowCtx.draggable?.kind != "port") return null;
   const sourcePort = flowCtx.draggable;
@@ -117,7 +117,7 @@ const pendingPath: Ref<LinkPath | null> = computed(() => {
   };
   const targetAction = flowCtx.getActionAt(cursor);
   const distance = lengthVector2(subVector2(sourcePos, cursor));
-  if (targetAction != null && targetAction.id === sourceAction.id && distance < SELF_LINK_CONNECTION_DISTANCE) {
+  if (targetAction != null && targetAction.id === sourceAction.id && distance < SELF_TRANSITION_CONNECTION_DISTANCE) {
     return null; // ignore self-connections that are too close to starting point
   }
 
@@ -187,11 +187,11 @@ const implementedActions: Partial<CommandMapKit<"flow" | "space" | "runtime">> =
       context.event,
     );
   },
-  "flow.edit.splitLink": (action, context) => {
+  "flow.edit.splitTransition": (action, context) => {
     if (context.nodes?.length != 1) return;
-    const link = context.nodes[0];
-    if (!isNode(link, NodeType.LINK)) return;
-    const oldTarget = graph.getOrError(link.targetPtr!) as ActionData;
+    const transition = context.nodes[0];
+    if (!isNode(transition, NodeType.TRANSITION)) return;
+    const oldTarget = graph.getOrError(transition.targetPtr!) as ActionData;
     pushPopover(
       {
         kind: "view",
@@ -203,23 +203,23 @@ const implementedActions: Partial<CommandMapKit<"flow" | "space" | "runtime">> =
           subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
         },
         onApply: (value) => {
-          const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Link" } });
+          const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Transition" } });
           // find position
-          const linkMidpoint = flowCtx.linksStates.value[link.id!].path.value?.midpoint;
-          if (linkMidpoint == null) throw new Error("no link midpoint");
-          const position = subVector2(linkMidpoint, { x: ACTION_SIZE_HALF.width, y: ACTION_SIZE_HALF.height });
+          const transitionMidpoint = flowCtx.transitionsStates.value[transition.id!].path.value?.midpoint;
+          if (transitionMidpoint == null) throw new Error("no transition midpoint");
+          const position = subVector2(transitionMidpoint, { x: ACTION_SIZE_HALF.width, y: ACTION_SIZE_HALF.height });
           // create new action
           const newAction = flowCtx.createAction({ parent: flow.value!, action: { type: value, position }, tx });
-          // create new link from new action to old link target
-          const newLink = flowCtx.createLink({
+          // create new transition from new action to old transition target
+          const newTransition = flowCtx.createTransition({
             parent: flow.value!,
-            link: {},
+            transition: {},
             source: { parent: newAction, side: PortSide.OUTGOING },
             target: { parent: oldTarget, side: PortSide.INCOMING },
             tx,
           });
-          // reconnect old link to new action
-          tx.update(link, { targetPtr: toNodeRef(newAction) }, { debounce: "long" });
+          // reconnect old transition to new action
+          tx.update(transition, { targetPtr: toNodeRef(newAction) }, { debounce: "long" });
           // and go to
           canvas.inspect({ node: newAction });
         },
@@ -249,7 +249,7 @@ const implementedActions: Partial<CommandMapKit<"flow" | "space" | "runtime">> =
   "space.navigate.zoomOut": () => flowCtx.zoom("out", "center", 10),
   "space.navigate.reset": () => flowCtx.resetViewport(),
   // select
-  "space.select.all": () => canvas.select(actionsAndLinks.value),
+  "space.select.all": () => canvas.select(actionsAndTransitions.value),
 };
 
 // focus
@@ -264,12 +264,12 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
         flowCtx.panToCenter({ kind: "action", action: actionState.action.value! });
       }
       return actionRefs.value[anchor.id!].$el;
-    } else if (linkRefs.value[anchor.id!] != null) {
-      const linkState = flowCtx.linksStates.value[anchor.id!];
-      if (linkState.link.value != null && !flowCtx.isInViewport({ kind: "link", link: linkState.link.value })) {
-        flowCtx.panToCenter({ kind: "link", link: linkState.link.value! });
+    } else if (transitionRefs.value[anchor.id!] != null) {
+      const transitionState = flowCtx.transitionsStates.value[anchor.id!];
+      if (transitionState.transition.value != null && !flowCtx.isInViewport({ kind: "transition", transition: transitionState.transition.value })) {
+        flowCtx.panToCenter({ kind: "transition", transition: transitionState.transition.value! });
       }
-      return linkRefs.value[anchor.id!].$el;
+      return transitionRefs.value[anchor.id!].$el;
     }
   } else {
     headerRef.value?.focus?.(anchor ?? "top");
@@ -477,15 +477,15 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
             transform: `scale(${viewport.scale}, ${viewport.scale}) translate(${viewport.transform.translateX}px, ${viewport.transform.translateY}px) `,
           }"
         >
-          <!-- Links -->
-          <Link
-            v-for="link in links"
-            :id="link.id"
-            :ref="(ref: any) => (ref != null ? (linkRefs[link.id] = ref) : delete linkRefs[link.id])"
-            :key="link.id"
+          <!-- Transitions -->
+          <Transition
+            v-for="transition in transitions"
+            :id="transition.id"
+            :ref="(ref: any) => (ref != null ? (transitionRefs[transition.id] = ref) : delete transitionRefs[transition.id])"
+            :key="transition.id"
             :prepared-connection="preparedConnection"
-            :node-ptr="toNodeRef(link)"
-            :data-contextmenu-items="LINK_CONTEXT_COMMANDS.join(',')"
+            :node-ptr="toNodeRef(transition)"
+            :data-contextmenu-items="TRANSITION_CONTEXT_COMMANDS.join(',')"
             class="absolute"
           />
           <!-- Commands -->
@@ -508,11 +508,11 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
             data-suppress-drag="select"
             @mousedown="(e: MouseEvent) => flowCtx.startDraggingIfAllowed(e, { kind: 'action', action: action! })"
           />
-          <!-- Pending Link (above Actions for clarity)-->
+          <!-- Pending Transition (above Actions for clarity)-->
           <div v-if="flowCtx.draggable?.kind == 'port'" class="pointer-events-none absolute text-gray-700 opacity-50">
             <svg v-if="pendingPath" class="overflow-visible">
               <path
-                :stroke-width="LINK_WIDTH * 2"
+                :stroke-width="TRANSITION_WIDTH * 2"
                 stroke-linecap="round"
                 stroke-linejoin="bevel"
                 stroke="currentColor"
