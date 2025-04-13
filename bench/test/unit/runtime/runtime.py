@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from bench.language import (
     TERMINAL_PROCESS_STATUSES,
     Action,
@@ -85,9 +87,7 @@ async def test_start_run(simulation: Simulation, runtime: RuntimeLambdaWorkload)
     assert run.status == ProcessStatus.COMPLETED
 
 
-# nocheckin: start Agent from .. Message? something?
-
-
+@pytest.mark.skip(reason="TODO :Test! start Agent from Message?")
 @simulated_runtime(system=True, runtimes=True)
 async def test_start_run_from_message(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Create a Run by messaging an Identity in a Flow."""

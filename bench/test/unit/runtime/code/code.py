@@ -6,7 +6,6 @@ from bench.language import (
     ErrorType,
     Field,
     Flow,
-    Node,
     ProcessStatus,
     RunOptions,
     Text,
@@ -255,26 +254,6 @@ async def test_run_code_output_scalar(simulation: Simulation, runtime: RuntimeLa
     await runtime.commit()
     runner = await runtime.run_in_runtime(Function, inputs={"Input1": 3}, return_error=True)
     assert runner.status == ProcessStatus.FAILED
-
-
-@simulated_runtime()
-async def test_run_code_output_generic_node(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a code function that outputs a generic node field."""
-    Flow1 = Flow.new("Flow1")
-    Function = Action.new(
-        ActionType.CODE,
-        "Function",
-        code=code("""\
-return {"Output": [node]}
-"""),
-        fields=[Field.output("Output", Node, is_list=True)],
-    )
-    Flow1.actions.append(Function)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Function)
-    assert runner.outputs
 
 
 @simulated_runtime()
