@@ -14,9 +14,7 @@ from bench.language import (
     Code,
     CodeType,
     CustomObject,
-    Field,
     IsType,
-    Node,
     Runnable,
     RunOptions,
     RunType,
@@ -123,33 +121,6 @@ class CodeRunner(Runner, ABC):
                 IS_IN_USER_CODE.reset(in_user_code_token)
                 ACTIVE_ALIASING.reset(aliasing_token)
 
-    @tracer.start_as_current_span("code.prepare_context")
-    def _prepare_glbls(self) -> dict[str, Any]:
-        """Prepares the context for running the code."""
-        assert self.compiled, f"no compiled code for {self!r}"
-
-        # assemble globals
-        assert self.node is not None, f"no node scope for {self!r}"
-        glbls = {**self.combined_globals}
-
-        # references
-        # NOTE :Incomplete: handle references to exported definitions (not just node references)
-        resolved_references: dict[str, Node] = {}
-        for reference_name in self.compiled.references:
-            reference = get_node(self.node, self.tracked, f"^{reference_name}")
-            if reference is None:
-                continue  # unknown reference, may error
-            if isinstance(reference, Field):
-                # replace Field reference with the underlying type if it's the same name
-                # (this is useful for Choice/)
-                base_type = reference.base_type
-                if base_type is not None and base_type.code_name == reference_name:
-                    reference = base_type
-            resolved_references[reference_name] = reference
-        glbls.update(resolved_references)  # may shadow existing glbls
-
-        return glbls
-
     @tracer.start_as_current_span("code.coerce_outputs")
     def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:
         """Coerves raw outputs into the output type for this run."""
@@ -169,7 +140,7 @@ class CodeScriptRunner(CodeRunner):
             return  # empty
 
         # context
-        glbls = self._prepare_glbls()
+        glbls = {**self.combined_globals}
 
         # run
         with self._enter(), tracer.start_as_current_span("code.run.script") as span:
@@ -196,7 +167,7 @@ class CodeFunctionRunner(CodeRunner):
         assert compiled.function_name, f"no function name for {self!r}"
 
         # context
-        glbls = self._prepare_glbls()
+        glbls = {**self.combined_globals}
         if self.inputs is not None:
             for field in self.inputs.fields:
                 value = self.inputs._do_get(field)
