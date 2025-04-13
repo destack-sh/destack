@@ -2,7 +2,7 @@ import abc
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, override
 
-from bench.language import NodeMode, ProcessStatus, Run, Runnable, RunOptions
+from bench.language import NodeMode, ProcessStatus, Run, Runnable
 from bench.runtime import MemoryCache, Runner, Runtime, create_run
 from bench.test.simulation.core import Simulation
 
@@ -34,7 +34,6 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
         run: Run | Runnable,
         *,
         inputs: Any | None = None,
-        options: RunOptions | None = None,
         mode: NodeMode | None = None,
         return_error: bool = False,
     ) -> Runner:
@@ -43,7 +42,6 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
             run, _ = create_run(
                 run,
                 inputs=inputs,
-                options=options,
                 mode=mode,
                 parent=self.main_package,
                 session=self.session,

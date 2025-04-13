@@ -15,7 +15,6 @@ from bench.language.core import (
     PackageNode,
     ProcessStatus,
     Runnable,
-    Struct,
     StructType,
     enum_,
     p_internal,
@@ -24,7 +23,6 @@ from bench.language.core import (
     p_regular,
     p_value_packed,
     p_value_runtime,
-    struct_,
     timed_node_,
 )
 from bench.pb2 import InterruptionData
@@ -43,79 +41,6 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.BREAKPOINT_SITE)
-class BreakpointSite(BuiltinEnum):
-    # run
-    RUN_BEFORE = 1
-    RUN_AFTER_FAILED = 2
-    RUN_AFTER_COMPLETED = 3
-    RUN_AFTER = 5
-    # flow
-    ...
-    # action
-    ...
-
-
-@enum_(EnumType.BREAKPOINT_TARGET)
-class BreakpointScope(BuiltinEnum):
-    # general
-    SELF = 1
-    CHILD = 2
-    # DESCENDANT, ...?
-    # flow
-    ACTION = 20
-    TRANSITION = 21
-
-
-@enum_(EnumType.BREAKPOINT_ACTION)
-class BreakpointAction(BuiltinEnum):
-    YIELD = 1
-    # LOG, FAIL, ...?
-
-
-@struct_(StructType.BREAKPOINT)
-class Breakpoint(Struct):
-    """
-    A (conditional) Breakpoint for some Run. Overlapping Breakpoints coalesce.
-    NOTE :Architecture: should Breakpoints be Nodes?
-    """
-
-    site: BreakpointSite = p_regular(30)
-    scope: BreakpointScope = p_regular(31, default=BreakpointScope.SELF)
-    action: BreakpointAction = p_regular(32, default=BreakpointAction.YIELD)
-
-    def __content_str__(self) -> str:
-        return f"{self.site.bench_name}:{self.scope.bench_name} -> {self.action.bench_name}"
-
-    @staticmethod
-    def before(
-        scope: BreakpointScope = BreakpointScope.SELF,
-        action: BreakpointAction = BreakpointAction.YIELD,
-    ) -> "Breakpoint":
-        return Breakpoint(site=BreakpointSite.RUN_BEFORE, scope=scope, action=action)
-
-    @staticmethod
-    def after(
-        scope: BreakpointScope = BreakpointScope.SELF,
-        action: BreakpointAction = BreakpointAction.YIELD,
-    ) -> "Breakpoint":
-        return Breakpoint(site=BreakpointSite.RUN_AFTER, scope=scope, action=action)
-
-    @staticmethod
-    def after_failed(
-        scope: BreakpointScope = BreakpointScope.SELF,
-        action: BreakpointAction = BreakpointAction.YIELD,
-    ) -> "Breakpoint":
-        return Breakpoint(site=BreakpointSite.RUN_AFTER_FAILED, scope=scope, action=action)
-
-    @staticmethod
-    def after_completed(
-        scope: BreakpointScope = BreakpointScope.SELF,
-        action: BreakpointAction = BreakpointAction.YIELD,
-    ) -> "Breakpoint":
-        return Breakpoint(site=BreakpointSite.RUN_AFTER_COMPLETED, scope=scope, action=action)
 
 
 @enum_(EnumType.INTERRUPTION_TYPE)
@@ -179,7 +104,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         action_ptr: Optional[NodeReference] = None
         link_ptr: Optional[NodeReference] = None
     span: Optional["Span"] = p_internal(37, require=False, default=None, references=NodeType.SPAN)
-    breakpoint_site: BreakpointSite | None = p_internal(38)
     if TYPE_CHECKING:
         root_id: Optional[UUID] = None
         root_ptr: Optional[NodeReference] = None
@@ -308,7 +232,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         kind: InterruptionType,
         run: "Run",
         span: Optional["Span"] = None,
-        breakpoint_site: BreakpointSite | None = None,
     ) -> "Interruption":
         return Interruption(
             type=kind,
@@ -318,6 +241,5 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             action=run.action,
             link=run.transition,
             span=span,
-            breakpoint_site=breakpoint_site,
             mode=run.mode,
         )

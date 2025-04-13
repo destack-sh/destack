@@ -9,24 +9,15 @@ from bench.language import (
     ActionType,
     Agent,
     Aliasing,
-    BreakpointScope,
-    BreakpointSite,
     CustomObject,
     IsType,
     Runnable,
-    RunOptions,
     RunType,
     Span,
     SpanType,
     code,
 )
-from bench.runtime.core import (
-    ATTEMPT_ONCE,
-    RunIn,
-    Runner,
-    Runtime,
-    make_runner,
-)
+from bench.runtime.core import RunIn, Runner, Runtime, make_runner
 
 if TYPE_CHECKING:
     from .flow import FlowRunner
@@ -49,7 +40,6 @@ class ActionRunner(Runner[Action], ABC):
         runtime: Runtime,
         node: Action,
         run: RunIn,
-        options: RunOptions,
         agent: Agent | None = None,
         parent: Runner | None = None,
         inputs: CustomObject | None = None,
@@ -59,7 +49,6 @@ class ActionRunner(Runner[Action], ABC):
         super().__init__(
             runtime=runtime,
             node=node,
-            options=options,
             parent=parent,
             agent=agent,
             inputs=inputs,
@@ -67,16 +56,6 @@ class ActionRunner(Runner[Action], ABC):
             run=run,
         )
         self.flow = flow
-
-    @override
-    def _has_breakpoint_set(self, *sites: BreakpointSite):
-        if super()._has_breakpoint_set(*sites):
-            return True
-        if self.flow is not None:
-            for bp in self.flow.breakpoints:
-                if bp.scope == BreakpointScope.ACTION and bp.site in sites:
-                    return True
-        return False
 
     def _get_resumable_subrunner(
         self,
@@ -172,7 +151,6 @@ class CodeActionRunner(ActionRunner):
             code_runner = CodeFunctionRunner(
                 runtime=self.runtime,
                 node=self.node,
-                options=ATTEMPT_ONCE,
                 run=resumed_span or SpanType.CODE,
                 code=code,
                 aliasing=Aliasing(),

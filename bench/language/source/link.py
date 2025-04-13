@@ -30,7 +30,6 @@ if TYPE_CHECKING:
         Color,
         Flow,
         NodeReference,
-        RunOptions,
         Text,
     )
 
@@ -88,9 +87,6 @@ class Transition(
         source_id: Optional[UUID] = None
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None
-    options: Optional["RunOptions"] = p_regular(
-        39, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
 
     # modulation
     color: Optional["Color"] = p_regular(

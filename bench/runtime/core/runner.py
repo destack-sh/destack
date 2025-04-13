@@ -22,9 +22,7 @@ from bench.language import (
     RUNTIME_NODE_TYPES,
     Action,
     Agent,
-    Breakpoint,
-    BreakpointScope,
-    BreakpointSite,
+    Aliasing,
     Code,
     CustomObject,
     Error,
@@ -46,7 +44,6 @@ from bench.language import (
     ProcessStatus,
     Run,
     Runnable,
-    RunOptions,
     RunType,
     Session,
     Span,
@@ -59,7 +56,6 @@ from bench.language import (
 )
 
 from .error import InterruptionCancelledError, RunImpossibleError
-from .options import BASE_RUN_OPTIONS_BY_KIND
 from .thread import ThreadHandle
 
 if TYPE_CHECKING:
@@ -157,7 +153,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         "is_stopped",
         "mode",
         "node",
-        "options",
         "outer_task",
         "output_type",
         "outputs",
@@ -178,7 +173,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         *,
         runtime: "Runtime",
         node: N,
-        options: RunOptions,
         run: RunIn,
         parent: "Runner[Any] | None" = None,
         inputs: CustomObject | None = None,
@@ -188,7 +182,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         self.runtime = runtime
         self.node = node
         self.status = ProcessStatus.QUEUED
-        self.options = options
         self.parent = parent or runtime.active_runner
         self.runners: list[Runner] = []
         self.task: asyncio.Task | None = None
@@ -234,7 +227,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
                 tracked_run, _ = create_run(
                     node=node,
                     parent=parent_node,
-                    options=options,
                     status=self.status,
                     mode=self.mode,
                     inputs=self.inputs,
@@ -248,16 +240,12 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             # get objects from Run (Node may copy them if they're from a different parent,
             #  like when we re-use a Flow's inputs for the StartAction.inputs)
             self.inputs = tracked_run.inputs
-            self.options = tracked_run.options
             self.tracked_run = tracked_run
             self.tracked_span = None
             self.tracked = tracked_run
             assert (
                 tracked_run.inputs is self.inputs
             ), f"{tracked_run!r} has other inputs than {self!r}"
-            assert (
-                tracked_run.options is self.options
-            ), f"{tracked_run!r} has other options than {self!r}"
         else:
             # Runner = Span
             if type(run) is SpanType:
@@ -290,11 +278,7 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         self.runtime._runners_by_runnable_id[node.id].append(self)
 
     def __str__(self):
-        str_parts: list[str] = [
-            self.status.bench_name,
-            f"node={self.node!r}",
-            f"options={self.options!r}",
-        ]
+        str_parts: list[str] = [self.status.bench_name, f"node={self.node!r}"]
         if self.runners:
             str_parts.append(f"runs={len(self.runners)}")
         if self.tracked_run:
@@ -461,55 +445,29 @@ class Runner[N: Runnable = Runnable](abc.ABC):
     def interruption(self) -> Interruption | None:
         return self.tracked.interruption
 
-    @property
-    def breakpoints(self) -> Sequence[Breakpoint]:
-        if self.tracked_run is None or self.tracked_run.options is None:
-            return ()
-        else:
-            return self.tracked_run.options.breakpoints
-
-    def _has_breakpoint_set(self, *sites: BreakpointSite):
-        """Gets all Breakpoints applicable to this Runner."""
-        for bp in self.breakpoints:
-            if bp.scope == BreakpointScope.SELF and bp.site in sites:
-                return True
-        if self.parent is not None:
-            for bp in self.parent.breakpoints:
-                if bp.scope == BreakpointScope.CHILD and bp.site in sites:
-                    return True
-        return False
-
     def _get_or_create_interruption(
         self,
         kind: InterruptionType,
-        *,
-        breakpoint_site: BreakpointSite | None = None,
     ):
         """Gets an Interrupt in the current Runner of the given shape (or creates one)."""
         run = self.closest_tracked_run
         assert run is not None, f"{self!r} is not tracked"
         for interruption in run.interruptions:
             interruption = cast(Interruption, interruption)
-            if (
-                interruption.type == kind
-                and (interruption.span_ptr is None or interruption.span_ptr.id == self.id)
-                and interruption.breakpoint_site == breakpoint_site
+            if interruption.type == kind and (
+                interruption.span_ptr is None or interruption.span_ptr.id == self.id
             ):
                 return interruption
-        interruption = Interruption.from_run(
-            kind, run, span=self.tracked_span, breakpoint_site=breakpoint_site
-        )
+        interruption = Interruption.from_run(kind, run, span=self.tracked_span)
         self.session._create(interruption)
         return interruption
 
     def _trap_interruption(
         self,
         kind: InterruptionType,
-        *,
-        breakpoint_site: BreakpointSite | None = None,
     ):
         """Yield/resume an Interrupt of the given kind if set in this Runner."""
-        interruption = self._get_or_create_interruption(kind, breakpoint_site=breakpoint_site)
+        interruption = self._get_or_create_interruption(kind)
         if interruption.status == InterruptionStatus.COMPLETED:
             logger.trace(
                 f"runtime.{kind.name.lower()}.completed", runner=self, interrupt=interruption
@@ -523,13 +481,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         else:
             logger.trace(f"runtime.{kind.name.lower()}", runner=self, interrupt=interruption)
             raise Interrupted(self, self.tracked, interruption)
-
-    @final
-    def _trap_breakpoint(self, site: BreakpointSite, *alias_sites: BreakpointSite):
-        """Yield/resume the given kind of breakpoint if set in this Runner."""
-        # handle applicable breakpoint (if any)
-        if self._has_breakpoint_set(site, *alias_sites):
-            self._trap_interruption(InterruptionType.YIELD, breakpoint_site=site)
 
     @final
     def _trap_pause(self):
@@ -592,7 +543,6 @@ def create_run(
     *,
     parent: "Package | Thread | Run | Agent",
     inputs: Any | None = None,
-    options: RunOptions | None = None,
     mode: NodeMode | None = None,
     status: ProcessStatus | None = None,
     thread: "Thread | None" = None,
@@ -719,17 +669,6 @@ def create_run(
         inputs = coerce_custom_object_scalar(inputs, input_type)
         run.inputs = inputs
 
-    # options
-    if options is None:
-        if isinstance(run_options := getattr(node, "options", None), RunOptions):
-            options = run_options.clone()
-            options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
-        else:
-            options = BASE_RUN_OPTIONS_BY_KIND[typ].clone()
-    else:
-        options.set_default(BASE_RUN_OPTIONS_BY_KIND[typ], copy=False)
-    run.options = options
-
     session._create(run)
 
     return run, thread
@@ -764,7 +703,6 @@ def make_runner(
     type: RunType | None = None,
     inputs: Any | None = None,
     outputs: IsType | CustomObject | None = None,
-    options: RunOptions | None = None,
     agent: "Agent | None" = None,
     parent: "Runner[Any] | None" = None,
 ) -> "Runner":
@@ -778,52 +716,76 @@ def make_runner(
     if inputs is None and input_type is not None:
         inputs = CustomObject.new({}, typ=input_type, supergraph=runtime.session._supergraph)
 
-    # options
-    if options is None and isinstance(run_options := getattr(node, "options", None), RunOptions):
-        options = run_options.clone()
-    if options is None:
-        options = BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE].clone()
-    else:
-        options.set_default(BASE_RUN_OPTIONS_BY_KIND[RUN_TYPE], copy=False)
-
-    # build runner
-    base_kwargs: dict[str, Any] = {
-        "runtime": runtime,
-        "options": options,
-        "inputs": inputs,
-        "outputs": outputs,
-        "run": run,
-        "node": node,
-        "parent": parent,
-        "agent": agent,
-    }
-
     # map to runner
     if RUN_TYPE == RunType.CODE:
         from bench.runtime.code import CodeFunctionRunner
 
         code = getattr(node, "code", None) or Code.empty()
-        runner = CodeFunctionRunner(**base_kwargs, code=code)
+        runner = CodeFunctionRunner(
+            runtime=runtime,
+            inputs=inputs,
+            outputs=outputs,
+            run=run,
+            node=node,
+            parent=parent,
+            agent=agent,
+            code=code,
+            aliasing=Aliasing(),
+        )
     elif RUN_TYPE == RunType.AGENT:
         from bench.runtime.agent import AgentRunner
 
-        runner = AgentRunner(**base_kwargs)
+        assert isinstance(node, Agent), f"expected Agent, got {node!r}"
+        runner = AgentRunner(
+            runtime=runtime,
+            inputs=inputs,
+            outputs=outputs,
+            run=run,
+            node=cast(Agent, node),
+            parent=parent,
+            agent=agent,
+        )
     elif RUN_TYPE == RunType.FLOW:
         from bench.runtime.flow import FlowRunner
 
-        runner = FlowRunner(**base_kwargs)
+        assert isinstance(node, Flow), f"expected Flow, got {node!r}"
+        runner = FlowRunner(
+            runtime=runtime,
+            inputs=inputs,
+            outputs=outputs,
+            run=run,
+            node=node,
+            parent=parent,
+            agent=agent,
+        )
     elif RUN_TYPE == RunType.ACTION:
         from bench.runtime.flow import ACTION_RUNNER_BY_ACTION_TYPE
 
         assert isinstance(node, Action), f"expected Action, got {node!r}"
         runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[node.type]
-        runner = runner_cls(**base_kwargs)
+        runner = runner_cls(
+            runtime=runtime,
+            inputs=inputs,
+            outputs=outputs,
+            run=run,
+            node=node,
+            parent=parent,
+            agent=agent,
+        )
     elif RUN_TYPE == RunType.TRANSITION:
         from bench.runtime.flow import TRANSITION_RUNNER_BY_TRANSITION_TYPE
 
         assert isinstance(node, Transition), f"expected Link, got {node!r}"
         runner_cls = TRANSITION_RUNNER_BY_TRANSITION_TYPE[node.type]
-        runner = runner_cls(**base_kwargs)
+        runner = runner_cls(
+            runtime=runtime,
+            inputs=inputs,
+            outputs=outputs,
+            run=run,
+            node=node,
+            parent=parent,
+            agent=agent,
+        )
     else:
         assert_never(RUN_TYPE)
 

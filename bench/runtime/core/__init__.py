@@ -14,7 +14,6 @@ from .error import (
     RunImpossibleError,
     RuntimeError,
 )
-from .options import ATTEMPT_FOREVER, ATTEMPT_ONCE, ATTEMPT_THRICE, BASE_RUN_OPTIONS_BY_KIND
 from .runner import (
     Interrupted,
     RunIn,
@@ -34,10 +33,6 @@ from .runtime import Runtime
 from .thread import ThreadHandle
 
 __all__ = [
-    "ATTEMPT_FOREVER",
-    "ATTEMPT_ONCE",
-    "ATTEMPT_THRICE",
-    "BASE_RUN_OPTIONS_BY_KIND",
     "AbortedError",
     "BenchError",
     "Cache",

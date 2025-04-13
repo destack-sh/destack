@@ -46,7 +46,6 @@ if TYPE_CHECKING:
         Icon,
         Kit,
         NodeReference,
-        RunOptions,
         Text,
         Transition,
         TransitionType,
@@ -105,9 +104,6 @@ class Action(
     )
 
     # meta
-    options: Optional["RunOptions"] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
     position: Optional["Vector2"] = p_regular(
         45, default=None, require=False, array=False, struct=StructType.VECTOR2
     )
@@ -176,7 +172,6 @@ class Action(
         name: str | None = None,
         *,
         parent: Union["Flow", "Kit", None] = None,
-        options: "RunOptions | None" = None,
     ) -> "Transition":
         """Connects a target Action to this Action."""
         from bench.language import Flow, Transition
@@ -200,7 +195,6 @@ class Action(
             source=self,
             target=target,
             parent=parent,
-            options=options,
         )
         parent.transitions.append(transition)
         return transition

@@ -193,4 +193,4 @@ def WAIT(
 # nocheckin: CALL macro for tools (CALL_PARALLEL?)
 # like:
 #  - CALL(builtin.Action.BingSearch, query='France')
-#  - CALL(builtin.Computer.Screenshot)
+#  - CALL(builtin.Computer.Screenshot, Computer1)

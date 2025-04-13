@@ -4,17 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import (
-    Agent,
-    BreakpointScope,
-    BreakpointSite,
-    CustomObject,
-    IsType,
-    RunOptions,
-    RunType,
-    Transition,
-    TransitionType,
-)
+from bench.language import Agent, CustomObject, IsType, RunType, Transition, TransitionType
 from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
@@ -32,7 +22,6 @@ class TransitionRunner(Runner[Transition], ABC):
         *,
         runtime: Runtime,
         node: Transition,
-        options: RunOptions,
         run: RunIn,
         flow: "FlowRunner | None" = None,
         parent: Runner | None = None,
@@ -43,7 +32,6 @@ class TransitionRunner(Runner[Transition], ABC):
         super().__init__(
             runtime=runtime,
             node=node,
-            options=options,
             parent=parent,
             agent=agent,
             inputs=inputs,
@@ -51,16 +39,6 @@ class TransitionRunner(Runner[Transition], ABC):
             run=run,
         )
         self.flow = flow
-
-    @override
-    def _has_breakpoint_set(self, *sites: BreakpointSite):
-        if super()._has_breakpoint_set(*sites):
-            return True
-        if self.flow is not None:
-            for bp in self.flow.breakpoints:
-                if bp.scope == BreakpointScope.TRANSITION and bp.site in sites:
-                    return True
-        return False
 
     @override
     async def run(self) -> None:

@@ -20,7 +20,6 @@ from bench.language import (
     RUNTIME_NODE_TYPES,
     Agent,
     BenchError,
-    BreakpointSite,
     CheckOptions,
     Claim,
     ClaimStatus,
@@ -360,7 +359,7 @@ class Runtime:
         # recover run
         run = runner.tracked_run
         assert run is not None, f"missing tracked run for {runner!r}"
-        retry = runner.options.to_retry().new(self.oracle)
+        retry = runner.node.to_retry().new(self.oracle)
         attempts = runner.attempts
         retry.attempt = len(attempts)
         last_attempt = attempts[-1] if attempts else None
@@ -373,8 +372,6 @@ class Runtime:
                 retry.attempt -= 1  # don't count interrupted attempt (see above)
         # breakpoint before
         runner._trap_pause()
-        if last_attempt is None:
-            runner._trap_breakpoint(BreakpointSite.RUN_BEFORE)
         # core loop
         active_runner_token = self._active_runner.set(runner)
         try:
@@ -422,18 +419,6 @@ class Runtime:
             self._active_runner.reset(active_runner_token)
             # update from last attempt
             assert last_attempt is not None, f"missing last attempt for run {runner!r}"
-            # breakpoint after
-            if last_attempt.status.is_terminal:
-                if last_attempt.status == ProcessStatus.FAILED:
-                    runner._trap_breakpoint(
-                        BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_FAILED
-                    )
-                elif last_attempt.status == ProcessStatus.COMPLETED:
-                    runner._trap_breakpoint(
-                        BreakpointSite.RUN_AFTER, BreakpointSite.RUN_AFTER_COMPLETED
-                    )
-                else:
-                    runner._trap_breakpoint(BreakpointSite.RUN_AFTER)
             # runner status = last attempt status
             runner.status = last_attempt.status
             runner.error = last_attempt.error

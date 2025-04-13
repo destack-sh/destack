@@ -4,9 +4,7 @@ from uuid import UUID
 
 from bench.language.core import (
     TERMINAL_PROCESS_STATUSES,
-    BuiltinEnum,
     CustomObject,
-    EnumType,
     Expression,
     FieldType,
     IsBased,
@@ -20,11 +18,8 @@ from bench.language.core import (
     ProcessStatus,
     RunType,
     SpanType,
-    Struct,
     StructType,
     Text,
-    TypeConstraintIn,
-    enum_,
     p_internal,
     p_node_ancestor,
     p_node_children,
@@ -33,21 +28,17 @@ from bench.language.core import (
     p_system,
     p_value_packed,
     p_value_runtime,
-    struct_,
     timed_node_,
 )
 from bench.pb2 import AnyNodeData, NodeReferenceData, RunData
-from bench.utils.tenacity import RetryOptions
 
 from .context import IsRun
 
 if TYPE_CHECKING:
     from bench.language import (
         Agent,
-        Breakpoint,
         Code,
         CustomObject,
-        ErrorType,
         Interruption,
         IsType,
         Log,
@@ -60,51 +51,6 @@ if TYPE_CHECKING:
 
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.CACHE_MODE)
-class CacheMode(BuiltinEnum):
-    """How to handle caching."""
-
-    NEVER = 1
-    ALWAYS = 2
-
-
-@struct_(StructType.RUN_OPTIONS)
-class RunOptions(Struct):
-    """
-    Options for running something.
-    """
-
-    # nocheckin: redo RunOptions/ModelOptions, should be unified and maybe per Runnable?
-
-    # general
-    max_attempts: Optional[int] = p_regular(
-        30, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
-    )
-    # max_concurrency, max_runs, ..
-    timeout: Optional[timedelta] = p_regular(35)
-
-    # retry
-    retry_interval: Optional[timedelta] = p_regular(40)
-    backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
-    max_retry_interval: Optional[timedelta] = p_regular(42)
-    retry_on: list["ErrorType"] = p_regular(44, array=True)
-
-    # control
-    breakpoints: list["Breakpoint"] = p_regular(60, array=True, struct=StructType.BREAKPOINT)
-
-    def to_retry(self) -> RetryOptions:
-        """Turns the options into our RetryOptions."""
-        return RetryOptions(
-            max_attempts=self.max_attempts or 1,
-            retry_interval=self.retry_interval.total_seconds() if self.retry_interval else 1,
-            backoff=self.backoff or 2,
-            max_retry_interval=self.max_retry_interval.total_seconds()
-            if self.max_retry_interval
-            else 30,
-            # NOTE: retry_on is handled separately in runtime because we need the specific ErrorType
-        )
 
 
 @timed_node_(NodeType.RUN)
@@ -129,7 +75,6 @@ class Run(
     root: "Run | None" = p_node_ancestor(
         33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    options: "RunOptions" = p_internal(35, require=True, array=False, struct=StructType.RUN_OPTIONS)
     thread: "Thread" = p_internal(
         38,
         require=True,

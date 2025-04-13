@@ -20,7 +20,6 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  RunOptionsData,
   RunProperty,
   SpanData,
   ProcessStatus,
@@ -237,7 +236,6 @@ export class Runtime {
     runnable: RunnableNodeData,
     options?: {
       focus?: boolean;
-      options?: RunOptionsData;
       resourcesPacked?: Record<string, any>;
       inputsPacked?: Record<string, any>;
       benchPtr?: NodeReferenceData;
@@ -264,7 +262,6 @@ export class Runtime {
       focus: true,
       benchPtr: run.benchPtr,
       inputsPacked: run.inputsPacked as Record<string, any> | undefined,
-      options: run.options,
       tx: options?.tx,
     });
   }
@@ -313,10 +310,6 @@ export class Runtime {
 const runPtr = computedValue(() => space.value?.runPtr ?? null);
 export const runtime = new Runtime(benchGraph, () => benchConnection.tx, runPtr);
 
-export function makeRunOptions(options?: Partial<RunOptionsData>): RunOptionsData {
-  return makeDefaultObject({ metatype: ObjectType.RUN_OPTIONS, ...options }) as RunOptionsData;
-}
-
 /** Make a new Run for some runnable node */
 export function makeRun(
   graph: ReadNodeGraph,
@@ -325,7 +318,6 @@ export function makeRun(
     resourcesPacked?: Record<string, any>;
     inputsPacked?: Record<string, any>;
     packagePtr?: NodeReferenceData;
-    options?: RunOptionsData;
     mode?: NodeMode;
   },
 ): RunData {
@@ -366,7 +358,6 @@ export function makeRun(
     actionPtr: isNode(runnable, NodeType.ACTION) ? toNodeRef(runnable) : undefined,
     transitionPtr: isNode(runnable, NodeType.TRANSITION) ? toNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked ?? undefined,
-    options: makeRunOptions(options?.options),
   });
   return run;
 }

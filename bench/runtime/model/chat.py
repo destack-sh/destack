@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, Code, ModelDeveloper, ModelType, Runnable, RunOptions
+from bench.language import Agent, Code, ModelDeveloper, ModelType, Runnable
 from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime
 
 from .model import ModelRunner
@@ -27,7 +27,6 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         runtime: Runtime,
         node: R,
         model_type: ModelType,
-        options: RunOptions,
         run: RunIn,
         prompt: Prompt,
         parent: Runner | None = None,
@@ -37,7 +36,6 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
             runtime=runtime,
             node=node,
             model_type=model_type,
-            options=options,
             parent=parent,
             run=run,
             agent=agent,
