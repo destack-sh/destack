@@ -14,11 +14,12 @@ from bench.language import (
     IsType,
     ModelDeveloper,
     ModelType,
+    Run,
     Runnable,
     Span,
     SpanType,
 )
-from bench.runtime.core import RunIn, Runner, Runtime
+from bench.runtime.core import RunIn, Runner, Runtime, restore_runner
 from bench.runtime.model import get_chat_model_runner_cls
 from bench.utils.tenacity import RetryOptions
 
@@ -47,7 +48,12 @@ class AgentContinue:
     pass
 
 
-AgentAction = Union[AgentComplete, AgentWait, AgentContinue]
+@dataclass
+class AgentTool:
+    run: Run
+
+
+AgentAction = Union[AgentComplete, AgentWait, AgentContinue, AgentTool]
 
 
 class AgentRunner[N: Agent = Agent](Runner[N]):
@@ -79,13 +85,17 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     def wake(self):
         """Wake the Agent."""
-        # nocheckin: handle resuming AgentRunner somehow?
+        # nocheckin: handle waking/resuming AgentRunner while it's running (?)
         # self._next_action = AgentContinue()
         pass
 
     def wait(self, duration: float):
         """Wait for the Agent."""
         self._next_action = AgentWait(seconds=duration)
+
+    def call(self, run: Run):
+        """Call an Action."""
+        self._next_action = AgentTool(run=run)
 
     @tracer.start_as_current_span("agent.think")
     async def _think(self):
@@ -171,9 +181,30 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                     )
                     await self.runtime.oracle.sleep(interval)
 
+    @tracer.start_as_current_span("agent.call")
+    async def _call(self, run: Run):
+        """Call an Action as a tool."""
+        try:
+            runner = restore_runner(self.runtime, run)
+            await self.runtime.run_runner(runner)
+        except asyncio.CancelledError:
+            logger.debug(
+                "agent.tool.aborted",
+                agent=self.node,
+                runner=self,
+                run=run,
+            )
+        except BaseException as e:
+            logger.debug(
+                "agent.tool.error",
+                agent=self.node,
+                runner=self,
+                run=run,
+                exc_info=e,
+            )
+
     async def run(self) -> None:
         # run main loop
-        self._next_action = AgentContinue()
         while True:
             self._next_action = AgentComplete()
             await self._think()
@@ -183,5 +214,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 await self.runtime.oracle.sleep(self._next_action.seconds)
             elif isinstance(self._next_action, AgentContinue):
                 continue
+            elif isinstance(self._next_action, AgentTool):
+                await self._call(self._next_action.run)
             else:
                 assert_never(self._next_action)

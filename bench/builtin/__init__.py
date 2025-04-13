@@ -12,10 +12,10 @@ from bench.language import (
 )
 
 from .bench import (
-    ActionKit,
     ActionPage,
     AgentPage,
     BenchAgent,
+    CommonKit,
     ComputerKit,
     ComputerPage,
     ThreadPage,
@@ -44,11 +44,11 @@ for node in BuiltinPackage._graph.nodes:
 assign_builtin_ids(BuiltinPackage._graph, ignore=(BuiltinPackage,))
 
 __all__ = [
-    "ActionKit",
     "ActionPage",
     "AgentPage",
     "BenchAgent",
     "BuiltinPackage",
+    "CommonKit",
     "ComputerKit",
     "ComputerPage",
     "UbuntuComputerTemplate",

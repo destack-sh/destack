@@ -4,7 +4,19 @@ import functools
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Callable, Generator, cast, final, override
 
-from bench.language import Agent, FileIn, Message, Node, TextIn, Thread, upload_file
+from bench.language import (
+    Action,
+    Agent,
+    FileIn,
+    Message,
+    Node,
+    ProcessStatus,
+    TextIn,
+    Thread,
+    coerce_custom_object_scalar,
+    upload_file,
+)
+from bench.runtime.core import create_run
 from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, TextPiece, Tokenizer
 
 if TYPE_CHECKING:
@@ -190,7 +202,24 @@ def WAIT(
     runner.wait(seconds)
 
 
-# nocheckin: CALL macro for tools (CALL_PARALLEL?)
-# like:
-#  - CALL(builtin.Action.BingSearch, query='France')
-#  - CALL(builtin.Computer.Screenshot, Computer1)
+@function_macro_(
+    "CALL",
+    "Call an Action as a tool.",
+    signature="(action: Action, **inputs) -> None",
+    is_terminal=True,
+)
+def CALL(action: Action, runner: "AgentRunner" = _INJECTED_RUNNER, **inputs):
+    agent_run = runner.tracked_run
+    assert agent_run is not None, f"no agent run in {runner!r}"
+    input_type = action.input_type
+    assert input_type is not None, f"no input type for {action!r}"
+    inputs = coerce_custom_object_scalar(inputs, input_type)
+    run, _ = create_run(
+        action,
+        parent=agent_run,
+        thread=runner.thread.thread,
+        status=ProcessStatus.QUEUED,
+        agent=runner.agent,
+        inputs=inputs,
+    )
+    runner.call(run)

@@ -44,11 +44,11 @@ async def test_run_flow_race(simulation: Simulation, runtime: RuntimeLambdaWorkl
 @simulated_runtime(system=True)
 async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then resume from the Yield."""
-    from bench.builtin import ActionKit
+    from bench.builtin import CommonKit
 
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(ActionKit.actions.Yield, "Yield")
+    Yield = Action.new(CommonKit.actions.Yield, "Yield")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, End)
     Start.connect(TransitionType.MANUAL, Yield)
@@ -85,12 +85,12 @@ async def test_run_flow_yield(simulation: Simulation, runtime: RuntimeLambdaWork
 @simulated_runtime(system=True)
 async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a FLow inside another Flow and yield from there. Should propagate and resume properly."""
-    from bench.builtin import ActionKit
+    from bench.builtin import CommonKit
 
     # inner flow
     FlowInner = Flow.new("FlowInner")
     StartInner = Action.new(ActionType.START, "StartInner")
-    YieldInner = Action.new(ActionKit.actions.Yield, "YieldInner")
+    YieldInner = Action.new(CommonKit.actions.Yield, "YieldInner")
     EndInner = Action.new(ActionType.END, "EndInner")
     FlowInner.actions.extend(StartInner, YieldInner, EndInner)
     StartInner.connect(TransitionType.MANUAL, YieldInner)
@@ -130,11 +130,11 @@ async def test_run_flow_yield_nested(simulation: Simulation, runtime: RuntimeLam
 @simulated_runtime(system=True)
 async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     """Run a Flow with a Yield action, then cancel it."""
-    from bench.builtin import ActionKit
+    from bench.builtin import CommonKit
 
     Flow1 = Flow.new("Flow1")
     Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(ActionKit.actions.Yield, "Yield")
+    Yield = Action.new(CommonKit.actions.Yield, "Yield")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, Yield, End)
     Start.connect(TransitionType.MANUAL, Yield)

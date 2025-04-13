@@ -1,4 +1,3 @@
-import abc
 from typing import TYPE_CHECKING, Annotated
 
 from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page, upload_file
@@ -24,7 +23,6 @@ from bench.builtin.core import class_to_kit
 class IComputer(Runner if TYPE_CHECKING else object):
     """The basic interface to any sort of a Computer :ComputerKit."""
 
-    @abc.abstractmethod
     async def Screenshot(self, Self: "Computer") -> Annotated[dict[str, File], {"Image": File}]:
         """
         Take a screenshot of the current screen
@@ -38,7 +36,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         )
         return {"Image": screenshot}
 
-    @abc.abstractmethod
     async def Click(self, Self: "Computer", X: int, Y: int, Button: str = "left") -> None:
         """
         Click an element
@@ -47,7 +44,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         computer_client = await self.thread.get_computer_client(Self)
         await computer_client.click(ClickRequest(x=X, y=Y, button=Button))
 
-    @abc.abstractmethod
     async def Double_Click(self, Self: "Computer", X: int, Y: int) -> None:
         """
         Double click an element
@@ -56,7 +52,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         computer_client = await self.thread.get_computer_client(Self)
         await computer_client.double_click(ClickRequest(x=X, y=Y))
 
-    @abc.abstractmethod
     async def Press(self, Self: "Computer", Keys: list[str]) -> None:
         """
         Press a key
@@ -65,7 +60,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         computer_client = await self.thread.get_computer_client(Self)
         await computer_client.press(PressRequest(keys=Keys))
 
-    @abc.abstractmethod
     async def Type(self, Self: "Computer", String: str) -> None:
         """
         Type a string on the keyboard
@@ -74,7 +68,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         computer_client = await self.thread.get_computer_client(Self)
         await computer_client.type(TypeRequest(text=String))
 
-    @abc.abstractmethod
     async def Move(self, Self: "Computer", X: int, Y: int) -> None:
         """
         Move the mouse to a position
@@ -83,7 +76,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         computer_client = await self.thread.get_computer_client(Self)
         await computer_client.move(MoveRequest(x=X, y=Y))
 
-    @abc.abstractmethod
     async def Scroll(self, Self: "Computer", X: int, Y: int, Scroll_X: int, Scroll_Y: int) -> None:
         """
         Scroll the mouse
@@ -92,7 +84,6 @@ class IComputer(Runner if TYPE_CHECKING else object):
         computer_client = await self.thread.get_computer_client(Self)
         await computer_client.scroll(ScrollRequest(x=X, y=Y, scroll_x=Scroll_X, scroll_y=Scroll_Y))
 
-    @abc.abstractmethod
     async def Shell(self, Self: "Computer", Command: str) -> None:
         """
         Execute a shell command
