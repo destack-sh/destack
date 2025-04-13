@@ -474,8 +474,6 @@ class Runtime:
         span.status = ProcessStatus.RUNNING
         if runner.is_root and (agent := runner.agent) is not None:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
-            if agent.implemented_by_id != span.id:
-                agent.implemented_by = span
             agent.update_from(span)
             thread = runner.thread.thread
             thread.update_from(*thread.agents)
@@ -822,21 +820,21 @@ class Runtime:
         new_runs: list[Run] = []
         for agent in thread.agents:
             cursor = agent.main_cursor
-            run_id = agent.implemented_by_id
-            if (
-                run_id is not None
-                and isinstance(runner := self._runners_by_id.get(run_id), AgentRunner)
-                and not runner.status.is_terminal
-            ):
-                # continue existing agent run?
-                runner.wake()
-            elif handle.has_new_messages_for(agent, cursor):
-                # create new agent run
-                run, _ = create_run(
-                    agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
-                )
-                agent.implemented_by = run
-                new_runs.append(run)
+            if handle.has_new_messages_for(agent, cursor):
+                # try to resume, otherwise create new run
+                agent_runners = self._runners_by_runnable_id.get(agent.id, ())
+                resumed = False
+                for runner in agent_runners:  # (should only be at most one per now)
+                    if not runner.status.is_terminal:
+                        assert isinstance(runner, AgentRunner), f"unexpected {runner!r}"
+                        resumed = True
+                        runner.wake()
+                if not resumed:
+                    # create new agent run
+                    run, _ = create_run(
+                        agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
+                    )
+                    new_runs.append(run)
         logger.trace("runtime.tick_thread", tick=tick, thread=thread, runs=new_runs)
 
         # kick off new runs

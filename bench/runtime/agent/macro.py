@@ -105,11 +105,13 @@ class FunctionMacro(Macro):
         text: str,
         signature: str,
         func: Callable[["AgentRunner"], Callable[..., None]],
+        is_terminal: bool,
     ):
         self.name = name
         self.text = text
         self.signature = signature
         self.func = func
+        self.is_terminal = is_terminal
 
     @override
     def compile(
@@ -122,9 +124,11 @@ class FunctionMacro(Macro):
         return functools.partial(self.func, runner=runner)  # type: ignore
 
 
-def function_macro_(name: str, text: str, signature: str):
+def function_macro_(name: str, text: str, signature: str, is_terminal: bool = False):
     def decorator(func):
-        macro = FunctionMacro(name=name, text=text, signature=signature, func=func)
+        macro = FunctionMacro(
+            name=name, text=text, signature=signature, func=func, is_terminal=is_terminal
+        )
         FUNCTION_MACROS.append(macro)
         _add_macro(macro)
         return func
@@ -145,8 +149,7 @@ def FLUSH(*, runner: "AgentRunner" = _INJECTED_RUNNER):
     "SEND",
     """\
 Create a Message in the current Thread.
-Text SHOULD almost always be just one 'paragraph'. 
-Use multiple SENDs as needed, interleaved with other actions.
+SHOULD be just one 'paragraph' (use multiple SENDs if needed).
 """,
     signature="(str, *, nodes: list[Node] | None = None, reply_to: Message | None = None) -> Message",
 )
@@ -175,13 +178,19 @@ def UPLOAD(file_in: FileIn, name: str, runner: "AgentRunner" = _INJECTED_RUNNER)
     "WAIT",
     """\
 Wait for some time before thinking again. 
-If you expect something to happen quickly, just wait for a bit.
-(This MUST be the last line.)
+If you expect something to happen soon, just wait for a bit.
 """,
     signature="(seconds: float = 2) -> None",
+    is_terminal=True,
 )
 def WAIT(
     seconds: float = 3,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
     runner.wait(seconds)
+
+
+# nocheckin: CALL macro for tools (CALL_PARALLEL?)
+# like:
+#  - CALL(builtin.Action.BingSearch, query='France')
+#  - CALL(builtin.Computer.Screenshot)

@@ -67,17 +67,6 @@ class Task(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
     # priority?
-    implemented_by: Optional["Run"] = p_internal(
-        41,
-        require=False,
-        array=False,
-        same_bench=True,
-        references=NodeType.RUN,
-        description="The Run that implements this Task.",
-    )
-    if TYPE_CHECKING:
-        implemented_by_ptr: Optional[NodeReference] = None
-        implemented_by_id: Optional[UUID] = None
 
     # routing
     due_at: Optional[datetime] = p_regular(52, default=None)

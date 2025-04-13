@@ -76,7 +76,7 @@ class RunOptions(Struct):
     Options for running something.
     """
 
-    # NOTE :Architecture :Incomplete: RunOptions feels like a grab-bag that should be refactored
+    # nocheckin: redo RunOptions/ModelOptions, should be unified and maybe per Runnable?
 
     # general
     max_attempts: Optional[int] = p_regular(

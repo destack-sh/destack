@@ -3,6 +3,12 @@ import { getBaseFromNode, getPropertyTitle, isNodeType, isSourceNodeType, toCame
 import { ReadNodeGraph } from "@/language/core/graph";
 import { unpackSubnode } from "@/language/core/node";
 import {
+  getTransactionOptionsForType,
+  makeEditFromSubnode,
+  Transaction,
+  TransactionOptions,
+} from "@/language/core/transaction";
+import {
   getPropertyType,
   getStorageKey,
   getTypeName,
@@ -11,12 +17,6 @@ import {
   typeIsNumeric,
 } from "@/language/core/type";
 import { getPartialObjectType, packValue, unpackPartialNode, unpackValue } from "@/language/core/value";
-import {
-  getTransactionOptionsForType,
-  makeEditFromSubnode,
-  Transaction,
-  TransactionOptions,
-} from "@/language/core/transaction";
 import { getFieldTypeUpdate } from "@/language/source/field";
 import {
   ActionProperty,
@@ -42,12 +42,11 @@ import {
   PropertyInfo,
   RecordProperty,
   TaskProperty,
-  ThreadProperty,
   TransitionProperty,
   TypeConstraintProperty,
   TypeData,
   TypeKind,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { useAutoConnection } from "@/system/connection";
@@ -58,6 +57,8 @@ import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import { computedValue } from "@/utils/ref";
 import { ModelValueOptions, ViewProps } from "@/views/common";
 import { computed, Ref } from "vue";
+
+// nocheckin: revamp ObjectLayout / context / alternate view stuff
 
 export type ObjectAction = {
   title: string;

@@ -409,7 +409,7 @@ function submitEdit() {
 
 function submit() {
   const text = trimText(draftText.value ?? emptyText());
-  if (isTextEmpty(text) && draftNodesPtr.value.length == 0) return; // don't create empty messages
+  if (isTextEmpty(text) && draftNodesPtr?.value.length == 0) return; // don't create empty messages
   if (benchPtr.value == null) throw new Error("no bench");
   if (space.value == null) throw new Error("no space");
   if (currentAuthor.value == null) throw new Error("no current author");
@@ -618,7 +618,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         ref="innerScrollRef"
         class="relative flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
-        :style="{ minHeight: bodyHeight != null ? bodyHeight - 24 + 'px' : undefined }"
+        :style="{ minHeight: bodyHeight != null ? bodyHeight + 'px' : undefined }"
         @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
       >
         <!-- Top placeholder / general loading state -->

@@ -41,7 +41,6 @@ if TYPE_CHECKING:
         Field,
         Page,
         Plan,
-        Run,
         Text,
         Thread,
     )
@@ -108,13 +107,6 @@ class Agent(
         same_bench=True,
         description="The main Cursor for this Agent.",
     )
-    implemented_by: Optional["Run"] = p_regular(
-        58,
-        require=False,
-        references=NodeType.RUN,
-        same_bench=True,
-        description="The Run implementing this Agent (there may be only one at a time).",
-    )
     text: Optional["Text"] = p_regular(57, default=None, struct=StructType.TEXT)
     color: ColorType | None = p_regular(59)
     if TYPE_CHECKING:
@@ -124,13 +116,12 @@ class Agent(
         main_plan_id: Optional[UUID] = None
         main_cursor_ptr: Optional[NodeReference] = None
         main_cursor_id: Optional[UUID] = None
-        implemented_by_ptr: Optional[NodeReference] = None
-        implemented_by_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
 
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
+    cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
 
     def to_type_maybe(
         self,
