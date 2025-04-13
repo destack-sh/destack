@@ -97,7 +97,7 @@ enum EnumType {
   ENUM_TYPE_CODE_TYPE = 22300;
   ENUM_TYPE_ACTION_TYPE = 22350;
   ENUM_TYPE_PORT_SIDE = 22352;
-  ENUM_TYPE_LINK_TYPE = 22353;
+  ENUM_TYPE_TRANSITION_TYPE = 22353;
   ENUM_TYPE_FLOW_TYPE = 22360;
   ENUM_TYPE_SPACE_TYPE = 22400;
   ENUM_TYPE_VIEW_TYPE = 22401;
@@ -148,7 +148,7 @@ enum NodeType {
   NODE_TYPE_TAG = 5040;
   NODE_TYPE_FLOW = 5050;
   NODE_TYPE_ACTION = 5051;
-  NODE_TYPE_LINK = 5052;
+  NODE_TYPE_TRANSITION = 5052;
   NODE_TYPE_TRIGGER = 5053;
   NODE_TYPE_KIT = 5060;
   NODE_TYPE_DATABASE = 5090;
@@ -253,7 +253,7 @@ enum ObjectType {
   OBJECT_TYPE_TAG = 5040;
   OBJECT_TYPE_FLOW = 5050;
   OBJECT_TYPE_ACTION = 5051;
-  OBJECT_TYPE_LINK = 5052;
+  OBJECT_TYPE_TRANSITION = 5052;
   OBJECT_TYPE_TRIGGER = 5053;
   OBJECT_TYPE_KIT = 5060;
   OBJECT_TYPE_DATABASE = 5090;
@@ -354,7 +354,7 @@ enum BenchType {
   BENCH_TYPE_TAG = 5040;
   BENCH_TYPE_FLOW = 5050;
   BENCH_TYPE_ACTION = 5051;
-  BENCH_TYPE_LINK = 5052;
+  BENCH_TYPE_TRANSITION = 5052;
   BENCH_TYPE_TRIGGER = 5053;
   BENCH_TYPE_KIT = 5060;
   BENCH_TYPE_DATABASE = 5090;
@@ -515,7 +515,7 @@ enum BenchType {
   BENCH_TYPE_CODE_TYPE = 22300;
   BENCH_TYPE_ACTION_TYPE = 22350;
   BENCH_TYPE_PORT_SIDE = 22352;
-  BENCH_TYPE_LINK_TYPE = 22353;
+  BENCH_TYPE_TRANSITION_TYPE = 22353;
   BENCH_TYPE_FLOW_TYPE = 22360;
   BENCH_TYPE_SPACE_TYPE = 22400;
   BENCH_TYPE_VIEW_TYPE = 22401;
@@ -986,17 +986,12 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 5030;
   BLOCK_TYPE_CLASS = 5031;
   BLOCK_TYPE_TAG = 5040;
-  BLOCK_TYPE_FLOW = 5050;
   BLOCK_TYPE_KIT = 5060;
   BLOCK_TYPE_DATABASE = 5090;
-  BLOCK_TYPE_TEAM = 5600;
-  BLOCK_TYPE_ROLE = 5630;
   BLOCK_TYPE_AGENT = 5640;
   BLOCK_TYPE_PLAN = 6100;
   BLOCK_TYPE_TASK = 6110;
-  BLOCK_TYPE_CHANNEL = 5500;
   BLOCK_TYPE_THREAD = 5510;
-  BLOCK_TYPE_VIEW = 7000;
   BLOCK_TYPE_PARAGRAPH = 10001;
   BLOCK_TYPE_HEADING_1 = 10010;
   BLOCK_TYPE_HEADING_2 = 10011;
@@ -1231,7 +1226,7 @@ enum RunType {
   RUN_TYPE_CODE = 1;
   RUN_TYPE_ACTION = 10;
   RUN_TYPE_FLOW = 11;
-  RUN_TYPE_LINK = 12;
+  RUN_TYPE_TRANSITION = 12;
   RUN_TYPE_AGENT = 15;
 }
 
@@ -1392,7 +1387,7 @@ enum BreakpointScope {
   BREAKPOINT_SCOPE_SELF = 1;
   BREAKPOINT_SCOPE_CHILD = 2;
   BREAKPOINT_SCOPE_ACTION = 20;
-  BREAKPOINT_SCOPE_LINK = 21;
+  BREAKPOINT_SCOPE_TRANSITION = 21;
 }
 
 enum InterruptionType {
@@ -1488,11 +1483,11 @@ enum PortSide {
   PORT_SIDE_OUTGOING = 2;
 }
 
-enum LinkType {
-  LINK_TYPE_UNSPECIFIED = 0;
-  LINK_TYPE_MANUAL = 10;
-  LINK_TYPE_DECIDE = 20;
-  LINK_TYPE_REQUIRE = 30;
+enum TransitionType {
+  TRANSITION_TYPE_UNSPECIFIED = 0;
+  TRANSITION_TYPE_MANUAL = 10;
+  TRANSITION_TYPE_DECIDE = 20;
+  TRANSITION_TYPE_REQUIRE = 30;
 }
 
 enum FlowType {
@@ -1517,7 +1512,7 @@ enum ViewType {
   VIEW_TYPE_FIELD = 5035;
   VIEW_TYPE_FLOW = 5050;
   VIEW_TYPE_ACTION = 5051;
-  VIEW_TYPE_LINK = 5052;
+  VIEW_TYPE_TRANSITION = 5052;
   VIEW_TYPE_TRIGGER = 5053;
   VIEW_TYPE_KIT = 5060;
   VIEW_TYPE_DATABASE = 5090;
@@ -2127,15 +2122,6 @@ message RunOptionsData {
   optional google.protobuf.Duration max_retry_interval = 42;
   repeated ErrorType retry_on = 44;
   repeated BreakpointData breakpoints = 60;
-  optional CacheMode cache_mode = 70;
-  optional google.protobuf.Duration cache_retention = 71;
-  optional ModelDeveloper model_developer = 80;
-  optional ModelFamily model_family = 81;
-  optional ModelType model_type = 82;
-  optional TextOptionsData text_options = 83;
-  optional AudioOptionsData audio_options = 84;
-  optional ImageOptionsData image_options = 85;
-  optional VideoOptionsData video_options = 86;
 }
 
 message ChangeVignetteData {
@@ -3212,7 +3198,7 @@ message RunData {
   optional NodeReferenceData flow_ptr = 71;
   optional NodeReferenceData kit_ptr = 72;
   optional NodeReferenceData action_ptr = 73;
-  optional NodeReferenceData link_ptr = 74;
+  optional NodeReferenceData transition_ptr = 74;
   optional NodeReferenceData trigger_ptr = 75;
   optional NodeReferenceData target_ptr = 76;
   optional NodeReferenceData plan_ptr = 77;
@@ -3283,7 +3269,7 @@ message SpanData {
   optional NodeReferenceData flow_ptr = 71;
   optional NodeReferenceData kit_ptr = 72;
   optional NodeReferenceData action_ptr = 73;
-  optional NodeReferenceData link_ptr = 74;
+  optional NodeReferenceData transition_ptr = 74;
   optional NodeReferenceData trigger_ptr = 75;
   optional NodeReferenceData target_ptr = 76;
   optional NodeReferenceData plan_ptr = 77;
@@ -3531,7 +3517,7 @@ message KitData {
   optional TextData text = 41;
 }
 
-message LinkData {
+message TransitionData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
@@ -3546,7 +3532,7 @@ message LinkData {
   optional NodeReferenceData template_ptr = 16;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  LinkType type = 30;
+  TransitionType type = 30;
   optional string name = 32;
   string order_key = 33;
   optional TextData text = 34;
@@ -3843,7 +3829,7 @@ message SomeNodeData {
     TagData tag = 20;
     FlowData flow = 21;
     ActionData action = 22;
-    LinkData link = 23;
+    TransitionData transition = 23;
     TriggerData trigger = 24;
     KitData kit = 25;
     DatabaseData database = 26;

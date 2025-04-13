@@ -17,7 +17,6 @@ from bench.language import (
     CustomObject,
     Field,
     Flow,
-    LinkType,
     Message,
     Node,
     NodeMode,
@@ -30,6 +29,7 @@ from bench.language import (
     RenderOptions,
     Run,
     Session,
+    TransitionType,
     code,
     constraint,
     format_code,
@@ -260,7 +260,7 @@ def test_render_flow_simple(session: Session, package: Package):
     Start = Action.new(ActionType.START, "Start")
     End = Action.new(ActionType.END, "End")
     Flow1.actions.extend(Start, End)
-    Forward1 = Start.connect(LinkType.REQUIRE, End, "Forward1")
+    Forward1 = Start.connect(TransitionType.REQUIRE, End, "Forward1")
     return {"Flow1": Flow1, "Start": Start, "End": End, "Forward1": Forward1}
 
 

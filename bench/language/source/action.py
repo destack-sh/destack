@@ -45,11 +45,11 @@ if TYPE_CHECKING:
         Flow,
         Icon,
         Kit,
-        Link,
-        LinkType,
         NodeReference,
         RunOptions,
         Text,
+        Transition,
+        TransitionType,
         Vector2,
     )
 
@@ -92,9 +92,7 @@ class Action(
     A unit of work to do, usually expressed with Code, some Flow or some other tool.
     """
 
-    parent: Union["Flow", "Kit", "Action", None] = p_node_parent(
-        4, NodeType.FLOW, NodeType.KIT, NodeType.ACTION
-    )
+    parent: Union["Flow", "Kit", None] = p_node_parent(4, NodeType.FLOW, NodeType.KIT)
 
     # common
     type: ActionType = p_regular(30, description="Type of this Action. Only dynamic for tools.")
@@ -140,7 +138,7 @@ class Action(
         tool_ck: Optional[UUID] = None
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
-    links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
+    links: LocalNodeList["Transition"] = p_node_children(NodeType.TRANSITION)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
 
@@ -173,30 +171,30 @@ class Action(
 
     def connect(
         self,
-        type: "LinkType",
+        type: "TransitionType",
         target: "Action",
         name: str | None = None,
         *,
-        parent: Union["Flow", "Kit", "Action", None] = None,
+        parent: Union["Flow", "Kit", None] = None,
         options: "RunOptions | None" = None,
-    ) -> "Link":
+    ) -> "Transition":
         """Connects a target Action to this Action."""
-        from bench.language import Flow, Link
+        from bench.language import Flow, Transition
 
         parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
-        assert isinstance(parent, (Action, Flow)), f"{parent!r} is not valid for {self!r}"
+        assert isinstance(parent, Flow), f"{parent!r} is not valid for {self!r}"
 
         # assign next name like Pipe1, .. in parent :AutoNaming
         if name is None:
-            siblings = parent.links.tolist()
+            siblings = parent.transitions.tolist()
             count = len(siblings) + 1
             name = f"{type.bench_name}{count}"
             while any(p.name == name for p in siblings):
                 count += 1
                 name = f"{type.bench_name}{count}"
 
-        link = Link(
+        transition = Transition(
             type=type,
             name=name,
             source=self,
@@ -204,8 +202,8 @@ class Action(
             parent=parent,
             options=options,
         )
-        parent.links.append(link)
-        return link
+        parent.transitions.append(transition)
+        return transition
 
     def to_type_maybe(
         self,

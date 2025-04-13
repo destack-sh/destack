@@ -117,7 +117,6 @@ class AnthropicChatModelRunner(ChatModelRunner):
             runner=agent_runner, macros=MACROS, aliasing=self.prompt.aliasing
         )
         messages: list[anthropic_types.MessageParam] = [{"role": "user", "content": content_pieces}]
-        temperature = self.options.text_options.temperature if self.options.text_options else None
         completion = await anthropic_client.messages.create(
             system=[
                 {
@@ -128,7 +127,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
             max_tokens=8192,
             model=model_id,
             messages=messages,
-            temperature=temperature or NOT_GIVEN,
+            temperature=NOT_GIVEN,
             stream=True,
         )
         async for chunk in completion:

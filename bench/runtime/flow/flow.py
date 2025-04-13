@@ -15,14 +15,14 @@ from bench.language import (
     Flow,
     Interruption,
     IsType,
-    Link,
-    LinkType,
     ProcessStatus,
     Run,
     Runnable,
     RunOptions,
     RunType,
     TextLine,
+    Transition,
+    TransitionType,
     coerce_custom_object_scalar,
 )
 from bench.runtime.core import (
@@ -40,7 +40,7 @@ from bench.runtime.core import (
 from bench.runtime.model import ModelRunner
 
 from .action import ActionRunner
-from .link import LinkRunner
+from .transition import TransitionRunner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -84,7 +84,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             agent=agent,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, LinkRunner | ActionRunner] = {}
+        self._active_runners_by_id: dict[UUID, TransitionRunner | ActionRunner] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._events: Queue[RunnerEvent] = Queue()
         self._active_planning_runner: ModelRunner | None = None
@@ -145,7 +145,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     def _start(
         self,
-        node: Action | Link,
+        node: Action | Transition,
         *,
         inputs: CustomObject | None = None,
         title: TextLine | None = None,
@@ -159,7 +159,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             run="track",
             agent=self.agent,
         )
-        assert isinstance(runner, (ActionRunner, LinkRunner)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunner, TransitionRunner)), f"unexpected {runner!r}"
         runner.flow = cast(FlowRunner, self)
         run = runner.tracked_run
         assert run is not None, f"{runner!r} must be tracked"
@@ -175,7 +175,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         runner = run if isinstance(run, Runner) else self.runtime.restore_runner(run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
-        assert isinstance(runner, (ActionRunner, LinkRunner)), f"unexpected {runner!r}"
+        assert isinstance(runner, (ActionRunner, TransitionRunner)), f"unexpected {runner!r}"
         runner.flow = cast(FlowRunner, self)
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
         logger.debug("flow.resume", flow=self.node, node=runner.node, runner=runner)
@@ -198,8 +198,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             if not self._is_stopping:
                 if isinstance(runner.node, Action):
                     self._tick_action(cast(ActionRunner, runner), runner.node, event)
-                elif isinstance(runner.node, Link):
-                    self._tick_link(cast(LinkRunner, runner), runner.node, event)
+                elif isinstance(runner.node, Transition):
+                    self._tick_link(cast(TransitionRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
             self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
@@ -208,7 +208,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
                     tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
                     if not tick.is_handled:
                         self.fail(runner.error)  # fail on unhandled action error
-                elif isinstance(runner.node, Link):
+                elif isinstance(runner.node, Transition):
                     self.fail(runner.error)  # fail on any link fail?
 
     def _tick_action(
@@ -224,15 +224,17 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
         # start manual links
         if isinstance(event, RunnerCompletedEvent):
-            for link in self.node.links:
-                if link.type == LinkType.MANUAL and link.source_id == action.id:
+            for link in self.node.transitions:
+                if link.type == TransitionType.MANUAL and link.source_id == action.id:
                     new_run = self._start(link)
                     new_runs.append(new_run)
 
         logger.trace("flow.tick", flow=self.node, node=runner.node, runner=runner)
         return TickActionResult(new_runs=new_runs, is_handled=len(new_runs) > 0)
 
-    def _tick_link(self, runner: LinkRunner, link: Link, event: RunnerEvent) -> TickLinkResult:
+    def _tick_link(
+        self, runner: TransitionRunner, link: Transition, event: RunnerEvent
+    ) -> TickLinkResult:
         """Ticks the Link to progress the Flow."""
         assert runner.tracked_run is not None, f"{runner!r} must be tracked"
 
@@ -302,6 +304,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             if runner is not None:
                 self._resume(runner)
             else:
-                runnable = run.action or run.link
+                runnable = run.action or run.transition
                 assert runnable is not None, f"{run!r} has no runnable"
                 self._start(runnable, inputs=run.inputs)

@@ -34,12 +34,12 @@ if TYPE_CHECKING:
         Action,
         Flow,
         IsType,
-        Link,
         Message,
         Run,
         Span,
         Task,
         Text,
+        Transition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -66,7 +66,7 @@ class BreakpointScope(BuiltinEnum):
     # DESCENDANT, ...?
     # flow
     ACTION = 20
-    LINK = 21
+    TRANSITION = 21
 
 
 @enum_(EnumType.BREAKPOINT_ACTION)
@@ -168,7 +168,9 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     action: Optional["Action"] = p_internal(
         34, require=False, array=False, references=NodeType.ACTION
     )
-    link: Optional["Link"] = p_internal(35, require=False, array=False, references=NodeType.LINK)
+    link: Optional["Transition"] = p_internal(
+        35, require=False, array=False, references=NodeType.TRANSITION
+    )
     if TYPE_CHECKING:
         flow_ptr: Optional[NodeReference] = None
         action_ptr: Optional[NodeReference] = None
@@ -311,7 +313,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
             session=run.session,
             flow=run.flow,
             action=run.action,
-            link=run.link,
+            link=run.transition,
             span=span,
             breakpoint_site=breakpoint_site,
             mode=run.mode,

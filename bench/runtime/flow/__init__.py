@@ -7,16 +7,16 @@ from .action import (
     ToolActionRunner,
 )
 from .flow import FlowRunner
-from .link import LINK_RUNNER_BY_LINK_TYPE, LinkRunner
+from .transition import TRANSITION_RUNNER_BY_TRANSITION_TYPE, TransitionRunner
 
 __all__ = [
     "ACTION_RUNNER_BY_ACTION_TYPE",
-    "LINK_RUNNER_BY_LINK_TYPE",
+    "TRANSITION_RUNNER_BY_TRANSITION_TYPE",
     "ActionRunner",
     "CodeActionRunner",
     "EndActionRunner",
     "FlowRunner",
-    "LinkRunner",
     "StartActionRunner",
     "ToolActionRunner",
+    "TransitionRunner",
 ]

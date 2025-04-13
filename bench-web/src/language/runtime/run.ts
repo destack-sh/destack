@@ -5,12 +5,12 @@ import { formatDuration, FormatDurationOptions, getNow, timestampToMs, TimeUpdat
 export const RUN_TYPE_BY_NODE_TYPE: Partial<Record<NodeType, RunType>> = {
   [NodeType.FLOW]: RunType.FLOW,
   [NodeType.ACTION]: RunType.ACTION,
-  [NodeType.LINK]: RunType.LINK,
+  [NodeType.TRANSITION]: RunType.TRANSITION,
 };
 export const NODE_TYPE_BY_RUN_TYPE: Partial<Record<RunType, NodeType>> = {
   [RunType.FLOW]: NodeType.FLOW,
   [RunType.ACTION]: NodeType.ACTION,
-  [RunType.LINK]: NodeType.LINK,
+  [RunType.TRANSITION]: NodeType.TRANSITION,
 };
 
 /** Determine the type of run for some runnable object */

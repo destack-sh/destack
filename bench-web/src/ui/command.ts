@@ -1,6 +1,16 @@
 import { canvas, supergraph } from "@/globals";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { COSMOS_NODE_TYPES, NodeType, NodeTypeMapping, NodeTypeOptionInfo, RESOURCE_NODE_TYPES, RUNTIME_NODE_TYPES, ROOT_NODE_TYPES, type AnyNodeData, type IconData } from "@/proto/wire";
+import {
+  COSMOS_NODE_TYPES,
+  NodeType,
+  NodeTypeMapping,
+  NodeTypeOptionInfo,
+  RESOURCE_NODE_TYPES,
+  RUNTIME_NODE_TYPES,
+  ROOT_NODE_TYPES,
+  type AnyNodeData,
+  type IconData,
+} from "@/proto/wire";
 import { toNodeRef } from "@/proto/wiring";
 import { isDeveloperMode } from "@/system/client";
 import type { ConnectionBase } from "@/system/connection";
@@ -103,7 +113,7 @@ export const COMMAND_BUILTIN_IDS = [
   "table.column.hide",
   // flow
   "flow.edit.createAction",
-  "flow.edit.splitLink",
+  "flow.edit.splitTransition",
   // chat
   "chat.message.copy",
   "chat.message.reply",
@@ -562,7 +572,7 @@ export function getNodesForCommand<T extends NodeType>(
 export const NON_DUPLICATABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,
   NodeType.PACKAGE,
-  NodeType.LINK,
+  NodeType.TRANSITION,
   NodeType.THREAD,
   NodeType.MESSAGE,
   ...RUNTIME_NODE_TYPES,
@@ -596,7 +606,7 @@ export const INTERRUPTION_CONTEXT_COMMANDS: CommandBuiltinId[] = [
   "runtime.interruption.resume",
   "runtime.interruption.cancel",
 ];
-export const LINK_CONTEXT_COMMANDS: CommandBuiltinId[] = ["flow.edit.splitLink"];
+export const TRANSITION_CONTEXT_COMMANDS: CommandBuiltinId[] = ["flow.edit.splitTransition"];
 export const RESOURCE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
   "resource.status.activate",
   // "resource.status.suspend", // (not supported yet)
@@ -612,7 +622,7 @@ export const CONTEXT_COMMANDS_BY_TYPE: Partial<Record<NodeType, CommandBuiltinId
   [NodeType.BLOCK]: BLOCK_CONTEXT_COMMANDS,
   [NodeType.RECORD]: RECORD_CONTEXT_COMMANDS,
   [NodeType.ACTION]: ACTION_CONTEXT_COMMANDS,
-  [NodeType.LINK]: LINK_CONTEXT_COMMANDS,
+  [NodeType.TRANSITION]: TRANSITION_CONTEXT_COMMANDS,
   [NodeType.RUN]: RUN_CONTEXT_COMMANDS,
   [NodeType.INTERRUPTION]: INTERRUPTION_CONTEXT_COMMANDS,
 };
@@ -656,7 +666,7 @@ declareCommands<"flow">({
     title: "Create Action",
     text: "Create a new action",
   },
-  "flow.edit.splitLink": {
+  "flow.edit.splitTransition": {
     icon: "fas fa-scissors",
     title: "Split Link",
     text: "Split this link",

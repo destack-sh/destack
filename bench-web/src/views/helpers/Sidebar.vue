@@ -153,7 +153,7 @@ defineExpose<ViewExpose>({ self });
               v-tooltip="{
                 small: true,
                 text: 'Create Page',
-                shortcut: getCommand('space.create.page').shortcuts?.[0],
+                shortcuts: getCommand('space.create.page').shortcuts,
               }"
               class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/package-tree:opacity-100"
               @click="fireCommandById('space.create.page')"

@@ -20,7 +20,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
-from bench.pb2 import LinkData
+from bench.pb2 import TransitionData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -43,41 +43,39 @@ class PortSide(BuiltinEnum):
     OUTGOING = 2
 
 
-@enum_(EnumType.LINK_TYPE)
-class LinkType(BuiltinEnum):
+@enum_(EnumType.TRANSITION_TYPE)
+class TransitionType(BuiltinEnum):
     MANUAL = 10, "Manual", "Manually triggered", "fas fa-link"
     DECIDE = 20, "Decide", "Determine when and how to call", "far fa-shuffle"
     REQUIRE = 30, "Require", "Determine how to call", "fas fa-arrow-right-long"
     # MESSAGE? WAIT? STREAM?
 
 
-SIGN_BY_LINK_TYPE: dict[LinkType, str] = {
-    LinkType.MANUAL: "-!>",
-    LinkType.DECIDE: "-*>",
-    LinkType.REQUIRE: "-=>",
+SIGN_BY_LINK_TYPE: dict[TransitionType, str] = {
+    TransitionType.MANUAL: "-!>",
+    TransitionType.DECIDE: "-*>",
+    TransitionType.REQUIRE: "-=>",
 }
-LINK_TYPES_BY_SIGN: dict[str, LinkType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
+LINK_TYPES_BY_SIGN: dict[str, TransitionType] = {v: k for k, v in SIGN_BY_LINK_TYPE.items()}
 
 
-# nocheckin: rename Link/IsLinkable to something else
-#  (reserve Link for Links to external resources?)
-@node_(NodeType.LINK, has_subtypes=True)
-class Link(
+@node_(NodeType.TRANSITION)
+class Transition(
     IsTemplatable,
     IsModal,
     IsComputable,
     IsRunnable,
-    PackageNode[LinkData],
+    PackageNode[TransitionData],
 ):
     """
-    A Link between Actions in a Flow (source = outgoing, target = incoming).
-    NOTE :Architecture: maybe add IsLinkable trait?
+    A Transition between nodes in a Flow (source = outgoing, target = incoming).
+    NOTE :Architecture: maybe add IsTransitionable trait?
     """
 
-    parent: Union["Flow", "Action", None] = p_node_parent(4, NodeType.FLOW, NodeType.ACTION)
+    parent: Union["Flow", None] = p_node_parent(4, NodeType.FLOW)
 
     # meta
-    type: LinkType = p_internal(30)
+    type: TransitionType = p_internal(30)
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     text: Optional["Text"] = p_regular(
@@ -109,7 +107,7 @@ class Link(
 
     @property
     def run_type(self) -> RunType:
-        return RunType.LINK
+        return RunType.TRANSITION
 
     @property
     def flow(self) -> "Flow | None":
@@ -142,5 +140,5 @@ class Link(
         return None  # Links don't have outputs (?)
 
     @staticmethod
-    def new(type: LinkType, name: str, **kwargs) -> "Link":
-        return Link(type=type, name=name, **kwargs)
+    def new(type: TransitionType, name: str, **kwargs) -> "Transition":
+        return Transition(type=type, name=name, **kwargs)

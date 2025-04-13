@@ -10,10 +10,10 @@ from bench.language import (
     BreakpointSite,
     CustomObject,
     IsType,
-    Link,
-    LinkType,
     RunOptions,
     RunType,
+    Transition,
+    TransitionType,
 )
 from bench.runtime.core import RunIn, Runner, Runtime
 
@@ -24,14 +24,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class LinkRunner(Runner[Link], ABC):
-    runner_type: ClassVar[RunType] = RunType.LINK
+class TransitionRunner(Runner[Transition], ABC):
+    runner_type: ClassVar[RunType] = RunType.TRANSITION
 
     def __init__(
         self,
         *,
         runtime: Runtime,
-        node: Link,
+        node: Transition,
         options: RunOptions,
         run: RunIn,
         flow: "FlowRunner | None" = None,
@@ -58,7 +58,7 @@ class LinkRunner(Runner[Link], ABC):
             return True
         if self.flow is not None:
             for bp in self.flow.breakpoints:
-                if bp.scope == BreakpointScope.LINK and bp.site in sites:
+                if bp.scope == BreakpointScope.TRANSITION and bp.site in sites:
                     return True
         return False
 
@@ -67,8 +67,8 @@ class LinkRunner(Runner[Link], ABC):
         pass
 
 
-LINK_RUNNER_BY_LINK_TYPE: dict[LinkType, type[LinkRunner]] = {
-    LinkType.MANUAL: LinkRunner,
-    LinkType.DECIDE: LinkRunner,
-    LinkType.REQUIRE: LinkRunner,
+TRANSITION_RUNNER_BY_TRANSITION_TYPE: dict[TransitionType, type[TransitionRunner]] = {
+    TransitionType.MANUAL: TransitionRunner,
+    TransitionType.DECIDE: TransitionRunner,
+    TransitionType.REQUIRE: TransitionRunner,
 }

@@ -44,25 +44,18 @@ from .context import IsRun
 if TYPE_CHECKING:
     from bench.language import (
         Agent,
-        AudioOptions,
         Breakpoint,
         Code,
         CustomObject,
         ErrorType,
-        ImageOptions,
         Interruption,
         IsType,
         Log,
-        ModelDeveloper,
-        ModelFamily,
-        ModelType,
         NodeReference,
         Plan,
         Runnable,
         Span,
-        TextOptions,
         Thread,
-        VideoOptions,
     )
 
 
@@ -98,32 +91,8 @@ class RunOptions(Struct):
     max_retry_interval: Optional[timedelta] = p_regular(42)
     retry_on: list["ErrorType"] = p_regular(44, array=True)
 
-    # context
-    # ...
-
     # control
     breakpoints: list["Breakpoint"] = p_regular(60, array=True, struct=StructType.BREAKPOINT)
-
-    # cache
-    cache_mode: Optional["CacheMode"] = p_regular(70)
-    cache_retention: Optional[timedelta] = p_regular(71)
-
-    # model
-    model_developer: Optional["ModelDeveloper"] = p_regular(80)
-    model_family: Optional["ModelFamily"] = p_regular(81)
-    model_type: Optional["ModelType"] = p_regular(82)
-    text_options: Optional["TextOptions"] = p_regular(
-        83, require=False, array=False, struct=StructType.TEXT_OPTIONS
-    )
-    audio_options: Optional["AudioOptions"] = p_regular(
-        84, require=False, array=False, struct=StructType.AUDIO_OPTIONS
-    )
-    image_options: Optional["ImageOptions"] = p_regular(
-        85, require=False, array=False, struct=StructType.IMAGE_OPTIONS
-    )
-    video_options: Optional["VideoOptions"] = p_regular(
-        86, require=False, array=False, struct=StructType.VIDEO_OPTIONS
-    )
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
@@ -208,8 +177,8 @@ class Run(
 
     @property
     def runnable(self) -> Optional["Runnable"]:
-        if self.type == RunType.LINK:
-            return self.link
+        if self.type == RunType.TRANSITION:
+            return self.transition
         elif self.type == RunType.ACTION:
             return self.action
         elif self.type == RunType.FLOW:
@@ -221,8 +190,8 @@ class Run(
 
     @property
     def runnable_ptr(self) -> "NodeReference | None":
-        if self.type == RunType.LINK:
-            return self.link_ptr
+        if self.type == RunType.TRANSITION:
+            return self.transition_ptr
         elif self.type == RunType.ACTION:
             return self.action_ptr
         elif self.type == RunType.FLOW:
@@ -234,8 +203,8 @@ class Run(
 
     @property
     def base_ptr(self) -> Optional["NodeReference"]:
-        if self.type == RunType.LINK:
-            return self.link_ptr
+        if self.type == RunType.TRANSITION:
+            return self.transition_ptr
         elif self.type == RunType.ACTION:
             return self.action_ptr
         elif self.type == RunType.FLOW:
@@ -247,8 +216,8 @@ class Run(
 
     @property
     def base(self) -> Optional["Runnable"]:
-        if self.type == RunType.LINK:
-            return self.link
+        if self.type == RunType.TRANSITION:
+            return self.transition
         elif self.type == RunType.ACTION:
             return self.action
         elif self.type == RunType.FLOW:
@@ -261,8 +230,8 @@ class Run(
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         run_data = cast(RunData, data)
-        if run_data.link_ptr.metatype != 0:
-            return run_data.link_ptr
+        if run_data.transition_ptr.metatype != 0:
+            return run_data.transition_ptr
         elif run_data.action_ptr.metatype != 0:
             return run_data.action_ptr
         elif run_data.flow_ptr.metatype != 0:
@@ -274,8 +243,8 @@ class Run(
 
     @staticmethod
     def get_base_from_partial(data: dict[str, Any]) -> Optional["Runnable"]:
-        if "link" in data:
-            return data["link"]
+        if "transition" in data:
+            return data["transition"]
         elif "action" in data:
             return data["action"]
         elif "flow" in data:
@@ -298,8 +267,8 @@ class Run(
 
     @property
     def input_type(self) -> "IsType | None":
-        if (link := self.link) is not None:
-            return link.input_type
+        if (transition := self.transition) is not None:
+            return transition.input_type
         elif (action := self.action) is not None:
             return action.input_type
         elif (flow := self.flow) is not None:
@@ -309,8 +278,8 @@ class Run(
 
     @property
     def output_type(self) -> "IsType | None":
-        if (link := self.link) is not None:
-            return link.output_type
+        if (transition := self.transition) is not None:
+            return transition.output_type
         elif (action := self.action) is not None:
             return action.output_type
         elif (flow := self.flow) is not None:
@@ -436,7 +405,7 @@ class Run(
         timeout: timedelta | None = None,
     ) -> "Run":
         """Get the Run of a Node (waiting if necessary)."""
-        from bench.language import Action, Flow, Link
+        from bench.language import Action, Flow, Transition
 
         if where is None:
             where = Run.get_property("status").gte(ProcessStatus.QUEUED)
@@ -447,7 +416,7 @@ class Run(
             base_query = Run.get_property("agent").eq(node)
         elif isinstance(node, Action):
             base_query = Run.get_property("action").eq(node)
-        elif isinstance(node, Link):
+        elif isinstance(node, Transition):
             base_query = Run.get_property("link").eq(node)
         elif isinstance(node, Flow):
             base_query = (
