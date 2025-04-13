@@ -4,9 +4,19 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Agent, Span, _is_setup_complete
-from bench.runtime.model import AgentPiece, AttemptPiece, PagePiece, PlanPiece, Prompt, ThreadPiece
+from bench.language.core.const import RunType
+from bench.runtime.model import Prompt
 
 from .macro import CONSTANT_MACROS, FUNCTION_MACROS
+from .piece import (
+    ActionPiece,
+    AgentPiece,
+    AttemptPiece,
+    PagePiece,
+    PlanPiece,
+    RunPiece,
+    ThreadPiece,
+)
 
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
@@ -20,9 +30,10 @@ assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
 SYSTEM_PROMPT = """\
 You are a generalist agent in a Python shell on the Bench software platform.
+You're thinking in a loop of thinking, action and waiting.
 You MUST always respond directly with valid, inline Python code (0 indent, escape quotes, ...).
 You MUST NOT respond with anything other than valid Python code.
-You MUST NOT include placeholders, incomplete or laziness (NO `...` or `<code goes here>`).
+You MUST NOT include placeholders or laziness (NO `...` or `<code goes here>`).
 You MUST split Messages into paragraphs (this is CRITICAL for responsiveness!).
 
 # Bench
@@ -59,12 +70,12 @@ You SHOULD create and update Databases and Records as needed (when asked or obvi
 
 # Actions, Flows and Kits
 Actions are how a Bench acts (via Python code).
-Actions are invoked in Flows and may be grouped into Kits.
-Actions MUST NOT 'call' other Actions directly.
+You MAY CALL Actions with the CALL macro.
+You SHOULD consider previous Runs of Actions you've called in your response.
  
 # Agents, Roles and Teams
 Agents are individual AI identities that do something.
-Agents may be assigned to Roles and Teams with additional instructions and access.
+Agents MAY be assigned to Roles and Teams with additional instructions and access.
 
 # Plans and Tasks
 Plans consist of Tasks to do. There are two types:
@@ -137,6 +148,8 @@ def build_prompt(
 ) -> Prompt:
     """Build the Agent's Prompt."""
 
+    from bench.builtin.bench import CommonKit
+
     from .example import EXAMPLES
 
     # context
@@ -165,10 +178,22 @@ def build_prompt(
         priority=20,
     )
 
-    # page / context (files, resources, etc)
+    # claims / resources
+    ...
+
+    # actions / tools
+    actions = [*CommonKit.actions]
+    prompt.region(
+        "Actions",
+        "Available Actions (to CALL if needed)",
+        *[ActionPiece(node=a) for a in actions],
+        priority=20,
+    )
+
+    # page
     if (page := thread.thread.main_page) is not None:
         prompt.region(
-            "Thread's Main Page",
+            "Main Page",
             "The current Page you're on",
             PagePiece(node=page),
             priority=10,
@@ -181,7 +206,7 @@ def build_prompt(
         thread_text += " (don't forget title/icon if needed)"
     else:
         thread_text += (
-            " (you SHOULD NOT change title/icon unless it's early and the topic clarifies)"
+            " (you SHOULD NOT change title/icon unless it's early and the topic has clarified)"
         )
     if len(agents) <= 1:
         thread_text += """
@@ -210,9 +235,20 @@ You MAY need to engage with other Agents.
             priority=20,
         )
 
-    # run
-    # nocheckin: previous Runs (for tool calls)?
-    ...
+    # previous tool Runs
+    previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]
+    if previous_tool_runs:
+        prompt.region(
+            "Previous Runs",
+            "Actions you've previously called",
+            *[
+                RunPiece(node=r, is_last_action=i == len(previous_tool_runs) - 1)
+                for i, r in enumerate(previous_tool_runs)
+            ],
+            priority=30,
+        )
+
+    # attempts
     if previous_attempts:
         prompt.region(
             "Previous Attempts",
@@ -240,6 +276,7 @@ YOUR RESPONSE IN CODE
 
 REMEMBER:
  - Valid Python code, top level, no outer ```, JUST the code.
+ - Users can't see the code, comments are for yourself.
  - Split Messages/SEND into paragraphs (except continuous lists).
  - Ignore yourself.
  - Silence / noop is possible.

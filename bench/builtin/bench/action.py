@@ -1,6 +1,6 @@
 import asyncio
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from bench.builtin.core import class_to_kit
 from bench.language import InterruptionType, Page
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 # ruff: noqa: N802,N803
 
 
-class IActionKit(ActionRunner if TYPE_CHECKING else object):
+class ICommonKit(ActionRunner if TYPE_CHECKING else object):
     """Common utility Actions for Flows."""
 
     async def Pass(self) -> None:
@@ -45,6 +45,15 @@ class IActionKit(ActionRunner if TYPE_CHECKING else object):
         """
         _ = self._trap_interruption(InterruptionType.YIELD)
 
+    # nocheckin
+    async def Multiply(self, A: int, B: int) -> Annotated[dict[str, int], {"Result": int}]:
+        """
+        Multiply two numbers.
+        ICON: fas fa-calculator
+        """
+        await asyncio.sleep(5)
+        return {"Result": A * B}
 
-ActionKit = class_to_kit(IActionKit, "Action Kit")
-ActionPage = Page.new("Action", ActionKit)
+
+CommonKit = class_to_kit(ICommonKit, "Common")
+ActionPage = Page.new("Action", CommonKit)
