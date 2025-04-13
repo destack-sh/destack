@@ -16,7 +16,6 @@ from bench.language import (
     CustomObject,
     IsType,
     Runnable,
-    RunOptions,
     RunType,
     coerce_custom_object_scalar,
 )
@@ -46,7 +45,6 @@ class CodeRunner(Runner, ABC):
         node: Runnable,
         code: Code,
         aliasing: Aliasing,
-        options: RunOptions,
         run: RunIn,
         parent: Runner | None = None,
         agent: Agent | None = None,
@@ -59,7 +57,6 @@ class CodeRunner(Runner, ABC):
         super().__init__(
             runtime=runtime,
             node=node,
-            options=options,
             parent=parent,
             agent=agent,
             inputs=inputs,

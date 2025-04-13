@@ -5,6 +5,7 @@ from uuid import UUID
 
 from bench.language.registry import CHILD_NODE_TYPES
 from bench.pb2 import AnyNodeData, NodeReferenceData
+from bench.utils.tenacity import RetryOptions
 from bench.utils.uuidt import UUIDT
 
 from .const import (
@@ -19,7 +20,7 @@ from .const import (
 from .list import attach_node
 from .object import BuiltinObject, object_
 from .property import p_internal, p_node_template, p_regular, p_system
-from .validation import NAME_CONSTRAINT
+from .validation import NAME_CONSTRAINT, TypeConstraintIn
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -41,6 +42,9 @@ if TYPE_CHECKING:
         Kit,
         Log,
         Message,
+        ModelDeveloper,
+        ModelFamily,
+        ModelProvider,
         Node,
         NodeReference,
         Notification,
@@ -577,4 +581,27 @@ class IsProcessable(IsRuntime):
 class IsRunnable(BuiltinObject):
     """A Node that can be run (at runtime with a Run)."""
 
-    pass
+    # control
+    max_attempts: Optional[int] = p_regular(
+        70, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
+    )
+    retry_interval: Optional[timedelta] = p_regular(71)
+    backoff: Optional[float] = p_regular(72, constraint=TypeConstraintIn(min_value=1))
+    max_retry_interval: Optional[timedelta] = p_regular(73)
+
+    # model
+    model_developer: Optional["ModelDeveloper"] = p_regular(75)
+    model_provider: Optional["ModelProvider"] = p_regular(76)
+    model_family: Optional["ModelFamily"] = p_regular(77)
+
+    def to_retry(self) -> RetryOptions:
+        """Turns the options into our RetryOptions."""
+        return RetryOptions(
+            max_attempts=self.max_attempts or 1,
+            retry_interval=self.retry_interval.total_seconds() if self.retry_interval else 1,
+            backoff=self.backoff or 2,
+            max_retry_interval=self.max_retry_interval.total_seconds()
+            if self.max_retry_interval
+            else 30,
+            # NOTE: retry_on is handled separately in runtime because we need the specific ErrorType
+        )

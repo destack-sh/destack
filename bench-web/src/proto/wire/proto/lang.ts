@@ -984,104 +984,6 @@ export interface ErrorData {
     trace?: RunTraceData;
 }
 /**
- * @generated from protobuf message symbolx.bench.BreakpointData
- */
-export interface BreakpointData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.BreakpointSite site = 30;
-     */
-    site: BreakpointSite;
-    /**
-     * @generated from protobuf field: symbolx.bench.BreakpointScope scope = 31;
-     */
-    scope: BreakpointScope;
-    /**
-     * @generated from protobuf field: symbolx.bench.BreakpointAction action = 32;
-     */
-    action: BreakpointAction;
-}
-/**
- * @generated from protobuf message symbolx.bench.TextOptionsData
- */
-export interface TextOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional float temperature = 30;
-     */
-    temperature?: number;
-}
-/**
- * @generated from protobuf message symbolx.bench.AudioOptionsData
- */
-export interface AudioOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-}
-/**
- * @generated from protobuf message symbolx.bench.ImageOptionsData
- */
-export interface ImageOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-}
-/**
- * @generated from protobuf message symbolx.bench.VideoOptionsData
- */
-export interface VideoOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-}
-/**
- * @generated from protobuf message symbolx.bench.RunOptionsData
- */
-export interface RunOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional int32 max_attempts = 30;
-     */
-    maxAttempts?: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration timeout = 35;
-     */
-    timeout?: Duration;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 40;
-     */
-    retryInterval?: Duration;
-    /**
-     * @generated from protobuf field: optional float backoff = 41;
-     */
-    backoff?: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Duration max_retry_interval = 42;
-     */
-    maxRetryInterval?: Duration;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.ErrorType retry_on = 44;
-     */
-    retryOn: ErrorType[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.BreakpointData breakpoints = 60;
-     */
-    breakpoints: BreakpointData[];
-}
-/**
  * @generated from protobuf message symbolx.bench.ChangeVignetteData
  */
 export interface ChangeVignetteData {
@@ -3783,6 +3685,34 @@ export interface AgentData {
      */
     color?: ColorType;
     /**
+     * @generated from protobuf field: optional int32 max_attempts = 70;
+     */
+    maxAttempts?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 71;
+     */
+    retryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional float backoff = 72;
+     */
+    backoff?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration max_retry_interval = 73;
+     */
+    maxRetryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelDeveloper model_developer = 75;
+     */
+    modelDeveloper?: ModelDeveloper;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
+     */
+    modelProvider?: ModelProvider;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
+     */
+    modelFamily?: ModelFamily;
+    /**
      * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
     status: ProcessStatus;
@@ -4804,10 +4734,6 @@ export interface InterruptionData {
      */
     spanPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BreakpointSite breakpoint_site = 38;
-     */
-    breakpointSite?: BreakpointSite;
-    /**
      * @generated from protobuf field: symbolx.bench.InterruptionStatus status = 40;
      */
     status: InterruptionStatus;
@@ -5017,10 +4943,6 @@ export interface RunData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData root_ptr = 33;
      */
     rootPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.RunOptionsData options = 35;
-     */
-    options?: RunOptionsData;
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData thread_ptr = 38;
      */
@@ -5501,10 +5423,6 @@ export interface ActionData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData options = 40;
-     */
-    options?: RunOptionsData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.Vector2Data position = 45;
      */
     position?: Vector2Data;
@@ -5520,6 +5438,34 @@ export interface ActionData {
      * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 55;
      */
     inputsPacked?: JsonValue;
+    /**
+     * @generated from protobuf field: optional int32 max_attempts = 70;
+     */
+    maxAttempts?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 71;
+     */
+    retryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional float backoff = 72;
+     */
+    backoff?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration max_retry_interval = 73;
+     */
+    maxRetryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelDeveloper model_developer = 75;
+     */
+    modelDeveloper?: ModelDeveloper;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
+     */
+    modelProvider?: ModelProvider;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
+     */
+    modelFamily?: ModelFamily;
 }
 /**
  * @generated from protobuf message symbolx.bench.BlockData
@@ -6144,10 +6090,6 @@ export interface FlowData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData options = 40;
-     */
-    options?: RunOptionsData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 41;
      */
     text?: TextData;
@@ -6155,6 +6097,34 @@ export interface FlowData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData default_agent_ptr = 50;
      */
     defaultAgentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional int32 max_attempts = 70;
+     */
+    maxAttempts?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 71;
+     */
+    retryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional float backoff = 72;
+     */
+    backoff?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration max_retry_interval = 73;
+     */
+    maxRetryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelDeveloper model_developer = 75;
+     */
+    modelDeveloper?: ModelDeveloper;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
+     */
+    modelProvider?: ModelProvider;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
+     */
+    modelFamily?: ModelFamily;
 }
 /**
  * @generated from protobuf message symbolx.bench.KitData
@@ -6334,13 +6304,37 @@ export interface TransitionData {
      */
     targetPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunOptionsData options = 39;
-     */
-    options?: RunOptionsData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.ColorData color = 60;
      */
     color?: ColorData;
+    /**
+     * @generated from protobuf field: optional int32 max_attempts = 70;
+     */
+    maxAttempts?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration retry_interval = 71;
+     */
+    retryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional float backoff = 72;
+     */
+    backoff?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration max_retry_interval = 73;
+     */
+    maxRetryInterval?: Duration;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelDeveloper model_developer = 75;
+     */
+    modelDeveloper?: ModelDeveloper;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
+     */
+    modelProvider?: ModelProvider;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
+     */
+    modelFamily?: ModelFamily;
 }
 /**
  * @generated from protobuf message symbolx.bench.OptionData
@@ -7737,10 +7731,6 @@ export enum EnumType {
      */
     SESSION_STATUS = 22020,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CACHE_MODE = 22040;
-     */
-    CACHE_MODE = 22040,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_LOG_TYPE = 22060;
      */
     LOG_TYPE = 22060,
@@ -7788,18 +7778,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_ERROR_TYPE = 22101;
      */
     ERROR_TYPE = 22101,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_SITE = 22200;
-     */
-    BREAKPOINT_SITE = 22200,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_ACTION = 22201;
-     */
-    BREAKPOINT_ACTION = 22201,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_TARGET = 22202;
-     */
-    BREAKPOINT_TARGET = 22202,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_INTERRUPTION_TYPE = 22210;
      */
@@ -8275,10 +8253,6 @@ export enum StructType {
      */
     ERROR = 12700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 12701;
-     */
-    RUN_OPTIONS = 12701,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_RUN_TRACE = 12703;
      */
     RUN_TRACE = 12703,
@@ -8286,26 +8260,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_RUN_FRAME = 12704;
      */
     RUN_FRAME = 12704,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BREAKPOINT = 12740;
-     */
-    BREAKPOINT = 12740,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_OPTIONS = 12800;
-     */
-    TEXT_OPTIONS = 12800,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AUDIO_OPTIONS = 12801;
-     */
-    AUDIO_OPTIONS = 12801,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_IMAGE_OPTIONS = 12802;
-     */
-    IMAGE_OPTIONS = 12802,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VIDEO_OPTIONS = 12803;
-     */
-    VIDEO_OPTIONS = 12803,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 13200;
      */
@@ -8672,10 +8626,6 @@ export enum ObjectType {
      */
     ERROR = 12700,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 12701;
-     */
-    RUN_OPTIONS = 12701,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_RUN_TRACE = 12703;
      */
     RUN_TRACE = 12703,
@@ -8683,26 +8633,6 @@ export enum ObjectType {
      * @generated from protobuf enum value: OBJECT_TYPE_RUN_FRAME = 12704;
      */
     RUN_FRAME = 12704,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BREAKPOINT = 12740;
-     */
-    BREAKPOINT = 12740,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_OPTIONS = 12800;
-     */
-    TEXT_OPTIONS = 12800,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AUDIO_OPTIONS = 12801;
-     */
-    AUDIO_OPTIONS = 12801,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_IMAGE_OPTIONS = 12802;
-     */
-    IMAGE_OPTIONS = 12802,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VIDEO_OPTIONS = 12803;
-     */
-    VIDEO_OPTIONS = 12803,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 13200;
      */
@@ -9069,10 +8999,6 @@ export enum BenchType {
      */
     ERROR = 12700,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 12701;
-     */
-    RUN_OPTIONS = 12701,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_TRACE = 12703;
      */
     RUN_TRACE = 12703,
@@ -9080,26 +9006,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 12704;
      */
     RUN_FRAME = 12704,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT = 12740;
-     */
-    BREAKPOINT = 12740,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_OPTIONS = 12800;
-     */
-    TEXT_OPTIONS = 12800,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_AUDIO_OPTIONS = 12801;
-     */
-    AUDIO_OPTIONS = 12801,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_IMAGE_OPTIONS = 12802;
-     */
-    IMAGE_OPTIONS = 12802,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIDEO_OPTIONS = 12803;
-     */
-    VIDEO_OPTIONS = 12803,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_COLOR = 13200;
      */
@@ -9381,10 +9287,6 @@ export enum BenchType {
      */
     SESSION_STATUS = 22020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CACHE_MODE = 22040;
-     */
-    CACHE_MODE = 22040,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_LOG_TYPE = 22060;
      */
     LOG_TYPE = 22060,
@@ -9432,18 +9334,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_ERROR_TYPE = 22101;
      */
     ERROR_TYPE = 22101,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_SITE = 22200;
-     */
-    BREAKPOINT_SITE = 22200,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_ACTION = 22201;
-     */
-    BREAKPOINT_ACTION = 22201,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_TARGET = 22202;
-     */
-    BREAKPOINT_TARGET = 22202,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_INTERRUPTION_TYPE = 22210;
      */
@@ -11073,6 +10963,10 @@ export enum BlockType {
      */
     TAG = 5040,
     /**
+     * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 5050;
+     */
+    FLOW = 5050,
+    /**
      * @generated from protobuf enum value: BLOCK_TYPE_KIT = 5060;
      */
     KIT = 5060,
@@ -12004,25 +11898,6 @@ export enum SessionStatus {
     CLOSED = 30
 }
 /**
- * How to handle caching.
- *
- * @generated from protobuf enum symbolx.bench.CacheMode
- */
-export enum CacheMode {
-    /**
-     * @generated from protobuf enum value: CACHE_MODE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CACHE_MODE_NEVER = 1;
-     */
-    NEVER = 1,
-    /**
-     * @generated from protobuf enum value: CACHE_MODE_ALWAYS = 2;
-     */
-    ALWAYS = 2
-}
-/**
  * @generated from protobuf enum symbolx.bench.LogType
  */
 export enum LogType {
@@ -12369,69 +12244,6 @@ export enum ErrorType {
      * @generated from protobuf enum value: ERROR_TYPE_RETRYABLE = 999;
      */
     RETRYABLE = 999
-}
-/**
- * @generated from protobuf enum symbolx.bench.BreakpointSite
- */
-export enum BreakpointSite {
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SITE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SITE_RUN_BEFORE = 1;
-     */
-    RUN_BEFORE = 1,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SITE_RUN_AFTER_FAILED = 2;
-     */
-    RUN_AFTER_FAILED = 2,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SITE_RUN_AFTER_COMPLETED = 3;
-     */
-    RUN_AFTER_COMPLETED = 3,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SITE_RUN_AFTER = 5;
-     */
-    RUN_AFTER = 5
-}
-/**
- * @generated from protobuf enum symbolx.bench.BreakpointAction
- */
-export enum BreakpointAction {
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_ACTION_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_ACTION_YIELD = 1;
-     */
-    YIELD = 1
-}
-/**
- * @generated from protobuf enum symbolx.bench.BreakpointScope
- */
-export enum BreakpointScope {
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SCOPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SCOPE_SELF = 1;
-     */
-    SELF = 1,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SCOPE_CHILD = 2;
-     */
-    CHILD = 2,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SCOPE_ACTION = 20;
-     */
-    ACTION = 20,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_SCOPE_TRANSITION = 21;
-     */
-    TRANSITION = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.InterruptionType
@@ -16560,378 +16372,6 @@ class ErrorData$Type extends MessageType$<ErrorData> {
  * @generated MessageType for protobuf message symbolx.bench.ErrorData
  */
 export const ErrorData = new ErrorData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class BreakpointData$Type extends MessageType$<BreakpointData> {
-    constructor() {
-        super("symbolx.bench.BreakpointData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "site", kind: "enum", T: () => ["symbolx.bench.BreakpointSite", BreakpointSite, "BREAKPOINT_SITE_"] },
-            { no: 31, name: "scope", kind: "enum", T: () => ["symbolx.bench.BreakpointScope", BreakpointScope, "BREAKPOINT_SCOPE_"] },
-            { no: 32, name: "action", kind: "enum", T: () => ["symbolx.bench.BreakpointAction", BreakpointAction, "BREAKPOINT_ACTION_"] }
-        ]);
-    }
-    create(value?: PartialMessage<BreakpointData>): BreakpointData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.site = 0;
-        message.scope = 0;
-        message.action = 0;
-        if (value !== undefined)
-            reflectionMergePartial<BreakpointData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: BreakpointData): BreakpointData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.BreakpointSite site */ 30:
-                    message.site = reader.int32();
-                    break;
-                case /* symbolx.bench.BreakpointScope scope */ 31:
-                    message.scope = reader.int32();
-                    break;
-                case /* symbolx.bench.BreakpointAction action */ 32:
-                    message.action = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: BreakpointData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.BreakpointSite site = 30; */
-        if (message.site !== 0)
-            writer.tag(30, WireType.Varint).int32(message.site);
-        /* symbolx.bench.BreakpointScope scope = 31; */
-        if (message.scope !== 0)
-            writer.tag(31, WireType.Varint).int32(message.scope);
-        /* symbolx.bench.BreakpointAction action = 32; */
-        if (message.action !== 0)
-            writer.tag(32, WireType.Varint).int32(message.action);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.BreakpointData
- */
-export const BreakpointData = new BreakpointData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class TextOptionsData$Type extends MessageType$<TextOptionsData> {
-    constructor() {
-        super("symbolx.bench.TextOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "temperature", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
-        ]);
-    }
-    create(value?: PartialMessage<TextOptionsData>): TextOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<TextOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TextOptionsData): TextOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional float temperature */ 30:
-                    message.temperature = reader.float();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: TextOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional float temperature = 30; */
-        if (message.temperature !== undefined)
-            writer.tag(30, WireType.Bit32).float(message.temperature);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.TextOptionsData
- */
-export const TextOptionsData = new TextOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class AudioOptionsData$Type extends MessageType$<AudioOptionsData> {
-    constructor() {
-        super("symbolx.bench.AudioOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<AudioOptionsData>): AudioOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<AudioOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AudioOptionsData): AudioOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: AudioOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.AudioOptionsData
- */
-export const AudioOptionsData = new AudioOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ImageOptionsData$Type extends MessageType$<ImageOptionsData> {
-    constructor() {
-        super("symbolx.bench.ImageOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<ImageOptionsData>): ImageOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ImageOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ImageOptionsData): ImageOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ImageOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ImageOptionsData
- */
-export const ImageOptionsData = new ImageOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class VideoOptionsData$Type extends MessageType$<VideoOptionsData> {
-    constructor() {
-        super("symbolx.bench.VideoOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<VideoOptionsData>): VideoOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<VideoOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VideoOptionsData): VideoOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: VideoOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.VideoOptionsData
- */
-export const VideoOptionsData = new VideoOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RunOptionsData$Type extends MessageType$<RunOptionsData> {
-    constructor() {
-        super("symbolx.bench.RunOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "timeout", kind: "message", T: () => Duration },
-            { no: 40, name: "retry_interval", kind: "message", T: () => Duration },
-            { no: 41, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "max_retry_interval", kind: "message", T: () => Duration },
-            { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.ErrorType", ErrorType, "ERROR_TYPE_"] },
-            { no: 60, name: "breakpoints", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BreakpointData }
-        ]);
-    }
-    create(value?: PartialMessage<RunOptionsData>): RunOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.retryOn = [];
-        message.breakpoints = [];
-        if (value !== undefined)
-            reflectionMergePartial<RunOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunOptionsData): RunOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional int32 max_attempts */ 30:
-                    message.maxAttempts = reader.int32();
-                    break;
-                case /* optional google.protobuf.Duration timeout */ 35:
-                    message.timeout = Duration.internalBinaryRead(reader, reader.uint32(), options, message.timeout);
-                    break;
-                case /* optional google.protobuf.Duration retry_interval */ 40:
-                    message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
-                    break;
-                case /* optional float backoff */ 41:
-                    message.backoff = reader.float();
-                    break;
-                case /* optional google.protobuf.Duration max_retry_interval */ 42:
-                    message.maxRetryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.maxRetryInterval);
-                    break;
-                case /* repeated symbolx.bench.ErrorType retry_on */ 44:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.retryOn.push(reader.int32());
-                    else
-                        message.retryOn.push(reader.int32());
-                    break;
-                case /* repeated symbolx.bench.BreakpointData breakpoints */ 60:
-                    message.breakpoints.push(BreakpointData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RunOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 max_attempts = 30; */
-        if (message.maxAttempts !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.maxAttempts);
-        /* optional google.protobuf.Duration timeout = 35; */
-        if (message.timeout)
-            Duration.internalBinaryWrite(message.timeout, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Duration retry_interval = 40; */
-        if (message.retryInterval)
-            Duration.internalBinaryWrite(message.retryInterval, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional float backoff = 41; */
-        if (message.backoff !== undefined)
-            writer.tag(41, WireType.Bit32).float(message.backoff);
-        /* optional google.protobuf.Duration max_retry_interval = 42; */
-        if (message.maxRetryInterval)
-            Duration.internalBinaryWrite(message.maxRetryInterval, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ErrorType retry_on = 44; */
-        if (message.retryOn.length) {
-            writer.tag(44, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.retryOn.length; i++)
-                writer.int32(message.retryOn[i]);
-            writer.join();
-        }
-        /* repeated symbolx.bench.BreakpointData breakpoints = 60; */
-        for (let i = 0; i < message.breakpoints.length; i++)
-            BreakpointData.internalBinaryWrite(message.breakpoints[i], writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RunOptionsData
- */
-export const RunOptionsData = new RunOptionsData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ChangeVignetteData$Type extends MessageType$<ChangeVignetteData> {
     constructor() {
@@ -22720,6 +22160,13 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 56, name: "main_cursor_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 57, name: "text", kind: "message", T: () => TextData },
             { no: 59, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
+            { no: 70, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 71, name: "retry_interval", kind: "message", T: () => Duration },
+            { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
+            { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "error", kind: "message", T: () => ErrorData },
@@ -22837,6 +22284,27 @@ class AgentData$Type extends MessageType$<AgentData> {
                     break;
                 case /* optional symbolx.bench.ColorType color */ 59:
                     message.color = reader.int32();
+                    break;
+                case /* optional int32 max_attempts */ 70:
+                    message.maxAttempts = reader.int32();
+                    break;
+                case /* optional google.protobuf.Duration retry_interval */ 71:
+                    message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
+                    break;
+                case /* optional float backoff */ 72:
+                    message.backoff = reader.float();
+                    break;
+                case /* optional google.protobuf.Duration max_retry_interval */ 73:
+                    message.maxRetryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.maxRetryInterval);
+                    break;
+                case /* optional symbolx.bench.ModelDeveloper model_developer */ 75:
+                    message.modelDeveloper = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelProvider model_provider */ 76:
+                    message.modelProvider = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelFamily model_family */ 77:
+                    message.modelFamily = reader.int32();
                     break;
                 case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
@@ -22982,6 +22450,27 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.ColorType color = 59; */
         if (message.color !== undefined)
             writer.tag(59, WireType.Varint).int32(message.color);
+        /* optional int32 max_attempts = 70; */
+        if (message.maxAttempts !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.maxAttempts);
+        /* optional google.protobuf.Duration retry_interval = 71; */
+        if (message.retryInterval)
+            Duration.internalBinaryWrite(message.retryInterval, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional float backoff = 72; */
+        if (message.backoff !== undefined)
+            writer.tag(72, WireType.Bit32).float(message.backoff);
+        /* optional google.protobuf.Duration max_retry_interval = 73; */
+        if (message.maxRetryInterval)
+            Duration.internalBinaryWrite(message.maxRetryInterval, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ModelDeveloper model_developer = 75; */
+        if (message.modelDeveloper !== undefined)
+            writer.tag(75, WireType.Varint).int32(message.modelDeveloper);
+        /* optional symbolx.bench.ModelProvider model_provider = 76; */
+        if (message.modelProvider !== undefined)
+            writer.tag(76, WireType.Varint).int32(message.modelProvider);
+        /* optional symbolx.bench.ModelFamily model_family = 77; */
+        if (message.modelFamily !== undefined)
+            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
@@ -24875,7 +24364,6 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 34, name: "action_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "link_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 37, name: "span_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 38, name: "breakpoint_site", kind: "enum", opt: true, T: () => ["symbolx.bench.BreakpointSite", BreakpointSite, "BREAKPOINT_SITE_"] },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.InterruptionStatus", InterruptionStatus, "INTERRUPTION_STATUS_"] },
             { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "closed_at", kind: "message", T: () => Timestamp },
@@ -24963,9 +24451,6 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData span_ptr */ 37:
                     message.spanPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.spanPtr);
-                    break;
-                case /* optional symbolx.bench.BreakpointSite breakpoint_site */ 38:
-                    message.breakpointSite = reader.int32();
                     break;
                 case /* symbolx.bench.InterruptionStatus status */ 40:
                     message.status = reader.int32();
@@ -25075,9 +24560,6 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional symbolx.bench.NodeReferenceData span_ptr = 37; */
         if (message.spanPtr)
             NodeReferenceData.internalBinaryWrite(message.spanPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.BreakpointSite breakpoint_site = 38; */
-        if (message.breakpointSite !== undefined)
-            writer.tag(38, WireType.Varint).int32(message.breakpointSite);
         /* symbolx.bench.InterruptionStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
@@ -25338,7 +24820,6 @@ class RunData$Type extends MessageType$<RunData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.RunType", RunType, "RUN_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 35, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 38, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 62, name: "outputs_packed", kind: "message", T: () => Value },
@@ -25434,9 +24915,6 @@ class RunData$Type extends MessageType$<RunData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData root_ptr */ 33:
                     message.rootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootPtr);
-                    break;
-                case /* symbolx.bench.RunOptionsData options */ 35:
-                    message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
                 case /* symbolx.bench.NodeReferenceData thread_ptr */ 38:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
@@ -25588,9 +25066,6 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData root_ptr = 33; */
         if (message.rootPtr)
             NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunOptionsData options = 35; */
-        if (message.options)
-            RunOptionsData.internalBinaryWrite(message.options, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData thread_ptr = 38; */
         if (message.threadPtr)
             NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
@@ -26260,11 +25735,17 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
-            { no: 40, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 45, name: "position", kind: "message", T: () => Vector2Data },
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 55, name: "inputs_packed", kind: "message", T: () => Value }
+            { no: 55, name: "inputs_packed", kind: "message", T: () => Value },
+            { no: 70, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 71, name: "retry_interval", kind: "message", T: () => Duration },
+            { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
+            { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] }
         ]);
     }
     create(value?: PartialMessage<ActionData>): ActionData {
@@ -26347,9 +25828,6 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbolx.bench.TextData text */ 36:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional symbolx.bench.RunOptionsData options */ 40:
-                    message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
-                    break;
                 case /* optional symbolx.bench.Vector2Data position */ 45:
                     message.position = Vector2Data.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
@@ -26361,6 +25839,27 @@ class ActionData$Type extends MessageType$<ActionData> {
                     break;
                 case /* optional google.protobuf.Value inputs_packed */ 55:
                     message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
+                    break;
+                case /* optional int32 max_attempts */ 70:
+                    message.maxAttempts = reader.int32();
+                    break;
+                case /* optional google.protobuf.Duration retry_interval */ 71:
+                    message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
+                    break;
+                case /* optional float backoff */ 72:
+                    message.backoff = reader.float();
+                    break;
+                case /* optional google.protobuf.Duration max_retry_interval */ 73:
+                    message.maxRetryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.maxRetryInterval);
+                    break;
+                case /* optional symbolx.bench.ModelDeveloper model_developer */ 75:
+                    message.modelDeveloper = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelProvider model_provider */ 76:
+                    message.modelProvider = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelFamily model_family */ 77:
+                    message.modelFamily = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -26437,9 +25936,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.TextData text = 36; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData options = 40; */
-        if (message.options)
-            RunOptionsData.internalBinaryWrite(message.options, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.Vector2Data position = 45; */
         if (message.position)
             Vector2Data.internalBinaryWrite(message.position, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
@@ -26452,6 +25948,27 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional google.protobuf.Value inputs_packed = 55; */
         if (message.inputsPacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(55, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 max_attempts = 70; */
+        if (message.maxAttempts !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.maxAttempts);
+        /* optional google.protobuf.Duration retry_interval = 71; */
+        if (message.retryInterval)
+            Duration.internalBinaryWrite(message.retryInterval, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional float backoff = 72; */
+        if (message.backoff !== undefined)
+            writer.tag(72, WireType.Bit32).float(message.backoff);
+        /* optional google.protobuf.Duration max_retry_interval = 73; */
+        if (message.maxRetryInterval)
+            Duration.internalBinaryWrite(message.maxRetryInterval, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ModelDeveloper model_developer = 75; */
+        if (message.modelDeveloper !== undefined)
+            writer.tag(75, WireType.Varint).int32(message.modelDeveloper);
+        /* optional symbolx.bench.ModelProvider model_provider = 76; */
+        if (message.modelProvider !== undefined)
+            writer.tag(76, WireType.Varint).int32(message.modelProvider);
+        /* optional symbolx.bench.ModelFamily model_family = 77; */
+        if (message.modelFamily !== undefined)
+            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27649,9 +27166,15 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 41, name: "text", kind: "message", T: () => TextData },
-            { no: 50, name: "default_agent_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 50, name: "default_agent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 70, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 71, name: "retry_interval", kind: "message", T: () => Duration },
+            { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
+            { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] }
         ]);
     }
     create(value?: PartialMessage<FlowData>): FlowData {
@@ -27732,14 +27255,32 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* optional symbolx.bench.RunOptionsData options */ 40:
-                    message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
-                    break;
                 case /* optional symbolx.bench.TextData text */ 41:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData default_agent_ptr */ 50:
                     message.defaultAgentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.defaultAgentPtr);
+                    break;
+                case /* optional int32 max_attempts */ 70:
+                    message.maxAttempts = reader.int32();
+                    break;
+                case /* optional google.protobuf.Duration retry_interval */ 71:
+                    message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
+                    break;
+                case /* optional float backoff */ 72:
+                    message.backoff = reader.float();
+                    break;
+                case /* optional google.protobuf.Duration max_retry_interval */ 73:
+                    message.maxRetryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.maxRetryInterval);
+                    break;
+                case /* optional symbolx.bench.ModelDeveloper model_developer */ 75:
+                    message.modelDeveloper = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelProvider model_provider */ 76:
+                    message.modelProvider = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelFamily model_family */ 77:
+                    message.modelFamily = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27816,15 +27357,33 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData options = 40; */
-        if (message.options)
-            RunOptionsData.internalBinaryWrite(message.options, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 41; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData default_agent_ptr = 50; */
         if (message.defaultAgentPtr)
             NodeReferenceData.internalBinaryWrite(message.defaultAgentPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 max_attempts = 70; */
+        if (message.maxAttempts !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.maxAttempts);
+        /* optional google.protobuf.Duration retry_interval = 71; */
+        if (message.retryInterval)
+            Duration.internalBinaryWrite(message.retryInterval, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional float backoff = 72; */
+        if (message.backoff !== undefined)
+            writer.tag(72, WireType.Bit32).float(message.backoff);
+        /* optional google.protobuf.Duration max_retry_interval = 73; */
+        if (message.maxRetryInterval)
+            Duration.internalBinaryWrite(message.maxRetryInterval, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ModelDeveloper model_developer = 75; */
+        if (message.modelDeveloper !== undefined)
+            writer.tag(75, WireType.Varint).int32(message.modelDeveloper);
+        /* optional symbolx.bench.ModelProvider model_provider = 76; */
+        if (message.modelProvider !== undefined)
+            writer.tag(76, WireType.Varint).int32(message.modelProvider);
+        /* optional symbolx.bench.ModelFamily model_family = 77; */
+        if (message.modelFamily !== undefined)
+            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -28055,8 +27614,14 @@ class TransitionData$Type extends MessageType$<TransitionData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 39, name: "options", kind: "message", T: () => RunOptionsData },
-            { no: 60, name: "color", kind: "message", T: () => ColorData }
+            { no: 60, name: "color", kind: "message", T: () => ColorData },
+            { no: 70, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 71, name: "retry_interval", kind: "message", T: () => Duration },
+            { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
+            { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] }
         ]);
     }
     create(value?: PartialMessage<TransitionData>): TransitionData {
@@ -28135,11 +27700,29 @@ class TransitionData$Type extends MessageType$<TransitionData> {
                 case /* symbolx.bench.NodeReferenceData target_ptr */ 36:
                     message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
                     break;
-                case /* optional symbolx.bench.RunOptionsData options */ 39:
-                    message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
-                    break;
                 case /* optional symbolx.bench.ColorData color */ 60:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                    break;
+                case /* optional int32 max_attempts */ 70:
+                    message.maxAttempts = reader.int32();
+                    break;
+                case /* optional google.protobuf.Duration retry_interval */ 71:
+                    message.retryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.retryInterval);
+                    break;
+                case /* optional float backoff */ 72:
+                    message.backoff = reader.float();
+                    break;
+                case /* optional google.protobuf.Duration max_retry_interval */ 73:
+                    message.maxRetryInterval = Duration.internalBinaryRead(reader, reader.uint32(), options, message.maxRetryInterval);
+                    break;
+                case /* optional symbolx.bench.ModelDeveloper model_developer */ 75:
+                    message.modelDeveloper = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelProvider model_provider */ 76:
+                    message.modelProvider = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelFamily model_family */ 77:
+                    message.modelFamily = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -28213,12 +27796,30 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         /* symbolx.bench.NodeReferenceData target_ptr = 36; */
         if (message.targetPtr)
             NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunOptionsData options = 39; */
-        if (message.options)
-            RunOptionsData.internalBinaryWrite(message.options, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ColorData color = 60; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 max_attempts = 70; */
+        if (message.maxAttempts !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.maxAttempts);
+        /* optional google.protobuf.Duration retry_interval = 71; */
+        if (message.retryInterval)
+            Duration.internalBinaryWrite(message.retryInterval, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional float backoff = 72; */
+        if (message.backoff !== undefined)
+            writer.tag(72, WireType.Bit32).float(message.backoff);
+        /* optional google.protobuf.Duration max_retry_interval = 73; */
+        if (message.maxRetryInterval)
+            Duration.internalBinaryWrite(message.maxRetryInterval, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ModelDeveloper model_developer = 75; */
+        if (message.modelDeveloper !== undefined)
+            writer.tag(75, WireType.Varint).int32(message.modelDeveloper);
+        /* optional symbolx.bench.ModelProvider model_provider = 76; */
+        if (message.modelProvider !== undefined)
+            writer.tag(76, WireType.Varint).int32(message.modelProvider);
+        /* optional symbolx.bench.ModelFamily model_family = 77; */
+        if (message.modelFamily !== undefined)
+            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30750,9 +30351,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | TransitionData | TriggerData | KitData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | CursorData | ViewData | SpaceData | RecordData | SkipData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunOptionsData | RunTraceData | RunFrameData | BreakpointData | TextOptionsData | AudioOptionsData | ImageOptionsData | VideoOptionsData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof ComputerData | typeof ApplicationData | typeof FileData | typeof StreamData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof ActionData | typeof TransitionData | typeof TriggerData | typeof KitData | typeof DatabaseData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TeamData | typeof MembershipData | typeof InviteData | typeof RoleData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ViewData | typeof SpaceData | typeof RecordData | typeof SkipData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunOptionsData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof TextOptionsData | typeof AudioOptionsData | typeof ImageOptionsData | typeof VideoOptionsData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | ActionData | TransitionData | TriggerData | KitData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | CursorData | ViewData | SpaceData | RecordData
 export type ClaimableNodeData = ScalerData | StoreData | ComputerData | ApplicationData | FileData | StreamData | PageData | FlowData | ActionData | KitData | DatabaseData | AgentData | PlanData | TaskData | ViewData | RecordData
 export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData | AgentData
@@ -31416,14 +31017,8 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
   [ObjectType.ERROR]: ErrorData,
-  [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RUN_TRACE]: RunTraceData,
   [ObjectType.RUN_FRAME]: RunFrameData,
-  [ObjectType.BREAKPOINT]: BreakpointData,
-  [ObjectType.TEXT_OPTIONS]: TextOptionsData,
-  [ObjectType.AUDIO_OPTIONS]: AudioOptionsData,
-  [ObjectType.IMAGE_OPTIONS]: ImageOptionsData,
-  [ObjectType.VIDEO_OPTIONS]: VideoOptionsData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
   [ObjectType.RECTANGLE]: RectangleData,
@@ -31516,14 +31111,8 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
   ["symbolx.bench.SelectOptionsData"]: ObjectType.SELECT_OPTIONS,
   ["symbolx.bench.ErrorData"]: ObjectType.ERROR,
-  ["symbolx.bench.RunOptionsData"]: ObjectType.RUN_OPTIONS,
   ["symbolx.bench.RunTraceData"]: ObjectType.RUN_TRACE,
   ["symbolx.bench.RunFrameData"]: ObjectType.RUN_FRAME,
-  ["symbolx.bench.BreakpointData"]: ObjectType.BREAKPOINT,
-  ["symbolx.bench.TextOptionsData"]: ObjectType.TEXT_OPTIONS,
-  ["symbolx.bench.AudioOptionsData"]: ObjectType.AUDIO_OPTIONS,
-  ["symbolx.bench.ImageOptionsData"]: ObjectType.IMAGE_OPTIONS,
-  ["symbolx.bench.VideoOptionsData"]: ObjectType.VIDEO_OPTIONS,
   ["symbolx.bench.ColorData"]: ObjectType.COLOR,
   ["symbolx.bench.FontData"]: ObjectType.FONT,
   ["symbolx.bench.RectangleData"]: ObjectType.RECTANGLE,
@@ -31598,7 +31187,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.RUN_TYPE]: RunType,
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.SESSION_STATUS]: SessionStatus,
-  [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.LOG_TYPE]: LogType,
   [EnumType.SEVERITY]: Severity,
   [EnumType.TRIGGER_TYPE]: TriggerType,
@@ -31611,9 +31199,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CURSOR_STATUS]: CursorStatus,
   [EnumType.ERROR_KIND]: ErrorKind,
   [EnumType.ERROR_TYPE]: ErrorType,
-  [EnumType.BREAKPOINT_SITE]: BreakpointSite,
-  [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
-  [EnumType.BREAKPOINT_TARGET]: BreakpointScope,
   [EnumType.INTERRUPTION_TYPE]: InterruptionType,
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
   [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
@@ -31684,14 +31269,8 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.SELECTION]: SelectionData,
   [StructType.SELECT_OPTIONS]: SelectOptionsData,
   [StructType.ERROR]: ErrorData,
-  [StructType.RUN_OPTIONS]: RunOptionsData,
   [StructType.RUN_TRACE]: RunTraceData,
   [StructType.RUN_FRAME]: RunFrameData,
-  [StructType.BREAKPOINT]: BreakpointData,
-  [StructType.TEXT_OPTIONS]: TextOptionsData,
-  [StructType.AUDIO_OPTIONS]: AudioOptionsData,
-  [StructType.IMAGE_OPTIONS]: ImageOptionsData,
-  [StructType.VIDEO_OPTIONS]: VideoOptionsData,
   [StructType.COLOR]: ColorData,
   [StructType.FONT]: FontData,
   [StructType.RECTANGLE]: RectangleData,
@@ -31854,14 +31433,8 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsData,
   [ObjectType.ERROR]: ErrorData,
-  [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RUN_TRACE]: RunTraceData,
   [ObjectType.RUN_FRAME]: RunFrameData,
-  [ObjectType.BREAKPOINT]: BreakpointData,
-  [ObjectType.TEXT_OPTIONS]: TextOptionsData,
-  [ObjectType.AUDIO_OPTIONS]: AudioOptionsData,
-  [ObjectType.IMAGE_OPTIONS]: ImageOptionsData,
-  [ObjectType.VIDEO_OPTIONS]: VideoOptionsData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
   [ObjectType.RECTANGLE]: RectangleData,
@@ -31936,7 +31509,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.RUN_TYPE]: RunType,
   [EnumType.SPAN_TYPE]: SpanType,
   [EnumType.SESSION_STATUS]: SessionStatus,
-  [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.LOG_TYPE]: LogType,
   [EnumType.SEVERITY]: Severity,
   [EnumType.TRIGGER_TYPE]: TriggerType,
@@ -31949,9 +31521,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CURSOR_STATUS]: CursorStatus,
   [EnumType.ERROR_KIND]: ErrorKind,
   [EnumType.ERROR_TYPE]: ErrorType,
-  [EnumType.BREAKPOINT_SITE]: BreakpointSite,
-  [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
-  [EnumType.BREAKPOINT_TARGET]: BreakpointScope,
   [EnumType.INTERRUPTION_TYPE]: InterruptionType,
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
   [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
@@ -32580,9 +32149,15 @@ export enum FlowProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  options = 40,
   text = 41,
   defaultAgentPtr = 50,
+  maxAttempts = 70,
+  retryInterval = 71,
+  backoff = 72,
+  maxRetryInterval = 73,
+  modelDeveloper = 75,
+  modelProvider = 76,
+  modelFamily = 77,
 }
 
 export enum ActionProperty {
@@ -32607,11 +32182,17 @@ export enum ActionProperty {
   orderKey = 33,
   icon = 35,
   text = 36,
-  options = 40,
   position = 45,
   code = 52,
   toolPtr = 53,
   inputsPacked = 55,
+  maxAttempts = 70,
+  retryInterval = 71,
+  backoff = 72,
+  maxRetryInterval = 73,
+  modelDeveloper = 75,
+  modelProvider = 76,
+  modelFamily = 77,
 }
 
 export enum TransitionProperty {
@@ -32635,8 +32216,14 @@ export enum TransitionProperty {
   text = 34,
   sourcePtr = 35,
   targetPtr = 36,
-  options = 39,
   color = 60,
+  maxAttempts = 70,
+  retryInterval = 71,
+  backoff = 72,
+  maxRetryInterval = 73,
+  modelDeveloper = 75,
+  modelProvider = 76,
+  modelFamily = 77,
 }
 
 export enum TriggerProperty {
@@ -32975,6 +32562,13 @@ export enum AgentProperty {
   mainCursorPtr = 56,
   text = 57,
   color = 59,
+  maxAttempts = 70,
+  retryInterval = 71,
+  backoff = 72,
+  maxRetryInterval = 73,
+  modelDeveloper = 75,
+  modelProvider = 76,
+  modelFamily = 77,
   status = 80,
   duration = 81,
   error = 82,
@@ -33033,7 +32627,6 @@ export enum RunProperty {
   type = 30,
   title = 32,
   rootPtr = 33,
-  options = 35,
   threadPtr = 38,
   inputsPacked = 61,
   outputsPacked = 62,
@@ -33134,7 +32727,6 @@ export enum InterruptionProperty {
   actionPtr = 34,
   linkPtr = 35,
   spanPtr = 37,
-  breakpointSite = 38,
   status = 40,
   duration = 41,
   closedAt = 42,
@@ -33832,47 +33424,12 @@ export enum ErrorProperty {
   trace = 35,
 }
 
-export enum RunOptionsProperty {
-  metatype = 1,
-  maxAttempts = 30,
-  timeout = 35,
-  retryInterval = 40,
-  backoff = 41,
-  maxRetryInterval = 42,
-  retryOn = 44,
-  breakpoints = 60,
-}
-
 export enum RunTraceProperty {
   metatype = 1,
   frames = 30,
 }
 
 export enum RunFrameProperty {
-  metatype = 1,
-}
-
-export enum BreakpointProperty {
-  metatype = 1,
-  site = 30,
-  scope = 31,
-  action = 32,
-}
-
-export enum TextOptionsProperty {
-  metatype = 1,
-  temperature = 30,
-}
-
-export enum AudioOptionsProperty {
-  metatype = 1,
-}
-
-export enum ImageOptionsProperty {
-  metatype = 1,
-}
-
-export enum VideoOptionsProperty {
   metatype = 1,
 }
 
@@ -33956,11 +33513,11 @@ export enum RectangleConstraintProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunOptionsProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof TextOptionsProperty | typeof AudioOptionsProperty | typeof ImageOptionsProperty | typeof VideoOptionsProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof ApplicationProperty | typeof FileProperty | typeof StreamProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof KitProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -34044,14 +33601,8 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
   [ObjectType.ERROR]: ErrorProperty,
-  [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RUN_TRACE]: RunTraceProperty,
   [ObjectType.RUN_FRAME]: RunFrameProperty,
-  [ObjectType.BREAKPOINT]: BreakpointProperty,
-  [ObjectType.TEXT_OPTIONS]: TextOptionsProperty,
-  [ObjectType.AUDIO_OPTIONS]: AudioOptionsProperty,
-  [ObjectType.IMAGE_OPTIONS]: ImageOptionsProperty,
-  [ObjectType.VIDEO_OPTIONS]: VideoOptionsProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
   [ObjectType.RECTANGLE]: RectangleProperty,
@@ -34144,14 +33695,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsProperty,
   [ObjectType.ERROR]: ErrorProperty,
-  [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RUN_TRACE]: RunTraceProperty,
   [ObjectType.RUN_FRAME]: RunFrameProperty,
-  [ObjectType.BREAKPOINT]: BreakpointProperty,
-  [ObjectType.TEXT_OPTIONS]: TextOptionsProperty,
-  [ObjectType.AUDIO_OPTIONS]: AudioOptionsProperty,
-  [ObjectType.IMAGE_OPTIONS]: ImageOptionsProperty,
-  [ObjectType.VIDEO_OPTIONS]: VideoOptionsProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
   [ObjectType.RECTANGLE]: RectangleProperty,
@@ -34453,7 +33998,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34490,7 +34035,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.13.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -34841,9 +34386,15 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FlowProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FlowProperty.options]: { id: 40, name: 'options', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [FlowProperty.text]: { id: 41, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [FlowProperty.defaultAgentPtr]: { id: 50, name: 'default_agent_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
+  [FlowProperty.maxAttempts]: { id: 70, name: 'max_attempts', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.retryInterval]: { id: 71, name: 'retry_interval', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.backoff]: { id: 72, name: 'backoff', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.FLOW, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.FLOW, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FlowProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.FLOW, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34867,11 +34418,17 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ActionProperty.options]: { id: 40, name: 'options', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [ActionProperty.position]: { id: 45, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT, NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.inputsPacked]: { id: 55, name: 'inputs_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ActionProperty.maxAttempts]: { id: 70, name: 'max_attempts', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.retryInterval]: { id: 71, name: 'retry_interval', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.backoff]: { id: 72, name: 'backoff', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.ACTION, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.ACTION, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ActionProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.ACTION, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34894,8 +34451,14 @@ export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.text]: { id: 34, name: 'text', component: ObjectType.TRANSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [TransitionProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [TransitionProperty.targetPtr]: { id: 36, name: 'target_ptr', component: ObjectType.TRANSITION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [TransitionProperty.options]: { id: 39, name: 'options', component: ObjectType.TRANSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [TransitionProperty.color]: { id: 60, name: 'color', component: ObjectType.TRANSITION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [TransitionProperty.maxAttempts]: { id: 70, name: 'max_attempts', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.retryInterval]: { id: 71, name: 'retry_interval', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.backoff]: { id: 72, name: 'backoff', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.TRANSITION, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.TRANSITION, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TransitionProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.TRANSITION, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35222,6 +34785,13 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.mainCursorPtr]: { id: 56, name: 'main_cursor_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.text]: { id: 57, name: 'text', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [AgentProperty.color]: { id: 59, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.maxAttempts]: { id: 70, name: 'max_attempts', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.retryInterval]: { id: 71, name: 'retry_interval', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.backoff]: { id: 72, name: 'backoff', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.AGENT, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.AGENT, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.AGENT, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.error]: { id: 82, name: 'error', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
@@ -35278,7 +34848,6 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN, enumType: EnumType.RUN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [RunProperty.rootPtr]: { id: 33, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.options]: { id: 35, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [RunProperty.threadPtr]: { id: 38, name: 'thread_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 62, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -35377,7 +34946,6 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.actionPtr]: { id: 34, name: 'action_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.linkPtr]: { id: 35, name: 'link_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.spanPtr]: { id: 37, name: 'span_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SPAN], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.breakpointSite]: { id: 38, name: 'breakpoint_site', component: ObjectType.INTERRUPTION, enumType: EnumType.BREAKPOINT_SITE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.status]: { id: 40, name: 'status', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.closedAt]: { id: 42, name: 'closed_at', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -36024,41 +35592,12 @@ export const ErrorDataInfo: Record<ErrorProperty, PropertyInfo> = {
   [ErrorProperty.nodesPtr]: { id: 34, name: 'nodes_ptr', component: ObjectType.ERROR, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ErrorProperty.trace]: { id: 35, name: 'trace', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_TRACE },
 }
-export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
-  [RunOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [RunOptionsProperty.maxAttempts]: { id: 30, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.timeout]: { id: 35, name: 'timeout', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.retryInterval]: { id: 40, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.backoff]: { id: 41, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.breakpoints]: { id: 60, name: 'breakpoints', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BREAKPOINT },
-}
 export const RunTraceDataInfo: Record<RunTraceProperty, PropertyInfo> = {
   [RunTraceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_TRACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RunTraceProperty.frames]: { id: 30, name: 'frames', component: ObjectType.RUN_TRACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_FRAME },
 }
 export const RunFrameDataInfo: Record<RunFrameProperty, PropertyInfo> = {
   [RunFrameProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_FRAME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-}
-export const BreakpointDataInfo: Record<BreakpointProperty, PropertyInfo> = {
-  [BreakpointProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BREAKPOINT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [BreakpointProperty.site]: { id: 30, name: 'site', component: ObjectType.BREAKPOINT, enumType: EnumType.BREAKPOINT_SITE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BreakpointProperty.scope]: { id: 31, name: 'scope', component: ObjectType.BREAKPOINT, enumType: EnumType.BREAKPOINT_TARGET, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [BreakpointProperty.action]: { id: 32, name: 'action', component: ObjectType.BREAKPOINT, enumType: EnumType.BREAKPOINT_ACTION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const TextOptionsDataInfo: Record<TextOptionsProperty, PropertyInfo> = {
-  [TextOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TextOptionsProperty.temperature]: { id: 30, name: 'temperature', component: ObjectType.TEXT_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.0, maxValue: 5.0, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-}
-export const AudioOptionsDataInfo: Record<AudioOptionsProperty, PropertyInfo> = {
-  [AudioOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.AUDIO_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-}
-export const ImageOptionsDataInfo: Record<ImageOptionsProperty, PropertyInfo> = {
-  [ImageOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.IMAGE_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-}
-export const VideoOptionsDataInfo: Record<VideoOptionsProperty, PropertyInfo> = {
-  [VideoOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VIDEO_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36210,14 +35749,8 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.SELECTION]: SelectionDataInfo,
   [ObjectType.SELECT_OPTIONS]: SelectOptionsDataInfo,
   [ObjectType.ERROR]: ErrorDataInfo,
-  [ObjectType.RUN_OPTIONS]: RunOptionsDataInfo,
   [ObjectType.RUN_TRACE]: RunTraceDataInfo,
   [ObjectType.RUN_FRAME]: RunFrameDataInfo,
-  [ObjectType.BREAKPOINT]: BreakpointDataInfo,
-  [ObjectType.TEXT_OPTIONS]: TextOptionsDataInfo,
-  [ObjectType.AUDIO_OPTIONS]: AudioOptionsDataInfo,
-  [ObjectType.IMAGE_OPTIONS]: ImageOptionsDataInfo,
-  [ObjectType.VIDEO_OPTIONS]: VideoOptionsDataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.FONT]: FontDataInfo,
   [ObjectType.RECTANGLE]: RectangleDataInfo,
@@ -36489,6 +36022,7 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.CHOICE]: { id: 5030, name: 'CHOICE', text: 'Choice between Options', title: 'Choice', icon: 'fas fa-circle-chevron-down' },
   [BlockType.CLASS]: { id: 5031, name: 'CLASS', text: 'Class', title: 'Class', icon: 'fas fa-shapes' },
   [BlockType.TAG]: { id: 5040, name: 'TAG', text: 'Tag', title: 'Tag', icon: 'fas fa-tag' },
+  [BlockType.FLOW]: { id: 5050, name: 'FLOW', text: 'Link Actions together', title: 'Flow', icon: 'fas fa-diagram-project' },
   [BlockType.KIT]: { id: 5060, name: 'KIT', text: 'Kit of stuff', title: 'Kit', icon: 'fas fa-screwdriver-wrench' },
   [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database of Records', title: 'Database', icon: 'fas fa-database' },
   [BlockType.AGENT]: { id: 5640, name: 'AGENT', text: 'Identity for an AI', title: 'Agent', icon: 'fas fa-robot' },

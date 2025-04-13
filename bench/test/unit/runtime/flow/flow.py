@@ -3,16 +3,13 @@ import asyncio
 from bench.language import (
     Action,
     ActionType,
-    Breakpoint,
-    BreakpointScope,
     ErrorType,
     Flow,
     ProcessStatus,
-    RunOptions,
     TransitionType,
     code,
 )
-from bench.runtime import Interrupted, create_run, make_runner
+from bench.runtime import Interrupted, make_runner
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -153,80 +150,6 @@ async def test_run_flow_yield_cancelled(simulation: Simulation, runtime: Runtime
     runner = await runtime.run_in_runtime(runner.tracked_run, return_error=True)
     assert runner.status == ProcessStatus.FAILED
     assert runner.error and runner.error.type == ErrorType.INTERRUPTION_CANCELLED
-
-
-@simulated_runtime(system=True)
-async def test_run_flow_breakpoint(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Run a Flow with breakpoints all over. Should yield and resume properly."""
-    from bench.builtin import ActionKit
-
-    Flow1 = Flow.new(
-        "Flow1",
-        options=RunOptions(breakpoints=[Breakpoint.before(BreakpointScope.ACTION)]),
-    )
-    Start = Action.new(ActionType.START, "Start")
-    Yield = Action.new(
-        ActionKit.actions.Yield, "Yield", options=RunOptions(breakpoints=[Breakpoint.before()])
-    )
-    Action1 = Action.new(
-        ActionType.CODE,
-        "Action1",
-        code=code("pass"),
-        options=RunOptions(
-            breakpoints=[Breakpoint.before(), Breakpoint.after_completed(), Breakpoint.after()]
-        ),
-    )
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, Yield, Action1, End)
-    StartToYield = Start.connect(
-        TransitionType.MANUAL,
-        Yield,
-        options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_failed()]),
-    )
-    Yield.connect(TransitionType.MANUAL, Action1)
-    Action1ToEnd = Action1.connect(
-        TransitionType.MANUAL,
-        End,
-        options=RunOptions(breakpoints=[Breakpoint.before(), Breakpoint.after_completed()]),
-    )
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    # check that all yield points are hit in order
-    run, _ = create_run(Flow1, status=ProcessStatus.QUEUED, parent=runtime.main_package)
-    await runtime.session.commit()
-    runner = None
-    for yield_point in (
-        Start,
-        StartToYield,
-        Yield,
-        Yield,
-        Action1,
-        Action1,
-        Action1ToEnd,
-        Action1ToEnd,
-        End,
-    ):
-        # run up to yield
-        runner = await runtime.run_in_runtime(run)
-        assert runner.status == ProcessStatus.YIELDED
-        assert runner.interruption and runner.interruption.is_in(yield_point)
-        assert runner.tracked_run
-        run = runner.tracked_run
-
-        # run up to yield again (without handling Interruption)
-        runner = await runtime.run_in_runtime(run)
-        assert runner.status == ProcessStatus.YIELDED
-        assert runner.interruption and runner.interruption.is_in(yield_point)
-        assert runner.tracked_run
-        run = runner.tracked_run
-
-        # handle interruption
-        runner.interruption.complete(_trigger_runtime=False)  # manual
-
-    # run up to completion
-    runner = await runtime.run_in_runtime(run)
-    assert runner.status == ProcessStatus.COMPLETED
 
 
 @simulated_runtime(system=True)

@@ -15,7 +15,6 @@ from bench.language import (
     ModelDeveloper,
     ModelType,
     Runnable,
-    RunOptions,
     Span,
     SpanType,
 )
@@ -57,7 +56,6 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         *,
         runtime: Runtime,
         node: N,
-        options: RunOptions,
         run: RunIn,
         parent: Runner[Runnable] | None = None,
         inputs: CustomObject | None = None,
@@ -67,7 +65,6 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         super().__init__(
             runtime=runtime,
             node=node,
-            options=options,
             run=run,
             parent=parent,
             inputs=inputs,
@@ -128,7 +125,6 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 runtime=self.runtime,
                 node=self.node,
                 model_type=model_type,
-                options=self.options,
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,

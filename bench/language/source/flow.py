@@ -31,7 +31,7 @@ from bench.language.core import (
 from bench.pb2 import FlowData
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Claim, Field, Page, RunOptions, Transition
+    from bench.language import Action, Agent, Claim, Field, Page, Transition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -62,9 +62,6 @@ class Flow(
     type: FlowType = p_regular(30, default=FlowType.ACTION, default_sql=None)
 
     # meta
-    options: Optional["RunOptions"] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
-    )
     text: Optional["Text"] = p_regular(
         41, default=None, require=False, array=False, struct=StructType.TEXT
     )

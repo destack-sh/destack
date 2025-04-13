@@ -1,14 +1,9 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    Struct,
-    StructType,
-    TypeConstraintIn,
     enum_,
-    p_regular,
-    struct_,
 )
 
 if TYPE_CHECKING:
@@ -92,33 +87,3 @@ class ModelType(BuiltinEnum):  # :ModelType
     GOOGLE_GEMINI_2_5_PRO = 410, "Gemini 2.5 Pro", "Gemini 2.5 Pro"
     # deepseek-r
     DEEPSEEK_R_1_0 = 701, "DeepSeek R 1.0", "DeepSeek R 1.0"
-
-
-@struct_(StructType.TEXT_OPTIONS)
-class TextOptions(Struct):
-    """Options for text models (in/out)."""
-
-    temperature: Optional[float] = p_regular(
-        30, constraint=TypeConstraintIn(min_value=0.0, max_value=5.0)
-    )
-
-
-@struct_(StructType.AUDIO_OPTIONS)
-class AudioOptions(Struct):
-    """Options for audio models (in/out)."""
-
-    pass
-
-
-@struct_(StructType.IMAGE_OPTIONS)
-class ImageOptions(Struct):
-    """Options for image models (in/out)."""
-
-    pass
-
-
-@struct_(StructType.VIDEO_OPTIONS)
-class VideoOptions(Struct):
-    """Options for video models (in/out)."""
-
-    pass

@@ -396,7 +396,6 @@ class EnumType(BuiltinEnum):
     RUN_TYPE = 22001
     SPAN_TYPE = 22002
     SESSION_STATUS = 22020
-    CACHE_MODE = 22040
     LOG_TYPE = 22060
     SEVERITY = 22061
     TRIGGER_TYPE = 22030
@@ -413,9 +412,6 @@ class EnumType(BuiltinEnum):
     ERROR_TYPE = 22101
 
     # debugging (22200-22249)
-    BREAKPOINT_SITE = 22200
-    BREAKPOINT_ACTION = 22201
-    BREAKPOINT_TARGET = 22202
     INTERRUPTION_TYPE = 22210
     INTERRUPTION_STATUS = 22211
     INTERRUPTION_RESPONSE = 22212
@@ -603,6 +599,7 @@ class NodeType(BuiltinEnum):
     SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
     LOG = 6030, "Log", "Log", "fas fa-file-alt"
+    # BREAKPOINT?
 
     # orchestration
     PLAN = 6100, "Plan", "Plan with Tasks", "fas fa-list-check"
@@ -857,15 +854,8 @@ class StructType(BuiltinEnum):
 
     # run (12700-13199)
     ERROR = 12700
-    RUN_OPTIONS = 12701
     RUN_TRACE = 12703
     RUN_FRAME = 12704
-    BREAKPOINT = 12740
-    # model
-    TEXT_OPTIONS = 12800
-    AUDIO_OPTIONS = 12801
-    IMAGE_OPTIONS = 12802
-    VIDEO_OPTIONS = 12803
     # action
 
     # space/views (13200-13699)

@@ -18,7 +18,6 @@ from bench.language import (
     ProcessStatus,
     Run,
     Runnable,
-    RunOptions,
     RunType,
     TextLine,
     Transition,
@@ -66,7 +65,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         *,
         runtime: Runtime,
         node: N,
-        options: RunOptions,
         run: RunIn,
         parent: Runner[Runnable] | None = None,
         inputs: CustomObject | None = None,
@@ -76,7 +74,6 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         super().__init__(
             runtime=runtime,
             node=node,
-            options=options,
             run=run,
             parent=parent,
             inputs=inputs,

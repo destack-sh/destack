@@ -601,7 +601,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       </div>
     </div>
 
-    <!-- TODO :UX: autoscroll Chat more smoothly (sometimes it jumps, sometimes it doesn't stick to the bottom, ...) -->
+    <!-- TODO :UX: autoscroll/load Chat more smoothly (sometimes it jumps, sometimes it doesn't stick to the bottom, ...) -->
     <!-- also see https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-anchor/Guide_to_scroll_anchoring -->
 
     <!-- Body -->

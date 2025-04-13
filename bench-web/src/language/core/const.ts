@@ -364,16 +364,8 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.FONT,
   StructType.OFFSET,
   StructType.RECTANGLE,
-  // access
-  StructType.POLICY,
-  StructType.POLICY_RULE,
   // text
   StructType.TEXT,
-  // run
-  StructType.RUN_OPTIONS,
-  StructType.RUN_FRAME,
-  StructType.RUN_TRACE,
-  StructType.BREAKPOINT,
 ];
 export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.BOOLEAN,
