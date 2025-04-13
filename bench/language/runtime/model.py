@@ -42,7 +42,7 @@ class ModelProvider(BuiltinEnum):
     MICROSOFT = 600, "Microsoft", "Microsoft"
     DEEPSEEK = 700, "DeepSeek", "DeepSeek"
     # external providers (20000-)
-    # ...
+    OPENROUTER = 20000, "OpenRouter", "OpenRouter"
 
 
 @enum_(EnumType.MODEL_FAMILY)

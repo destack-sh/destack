@@ -1458,6 +1458,7 @@ enum ModelProvider {
   MODEL_PROVIDER_AMAZON = 500;
   MODEL_PROVIDER_MICROSOFT = 600;
   MODEL_PROVIDER_DEEPSEEK = 700;
+  MODEL_PROVIDER_OPENROUTER = 20000;
 }
 
 // The (implicit) 'type' of Code.
@@ -2856,7 +2857,6 @@ message AgentData {
   optional NodeReferenceData main_plan_ptr = 55;
   optional NodeReferenceData main_cursor_ptr = 56;
   optional TextData text = 57;
-  optional NodeReferenceData implemented_by_ptr = 58;
   optional ColorType color = 59;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3043,7 +3043,6 @@ message PlanData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData implemented_by_ptr = 43;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3084,7 +3083,6 @@ message TaskData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData implemented_by_ptr = 41;
   optional google.protobuf.Timestamp due_at = 52;
   optional TextData text = 60;
   optional NodeReferenceData target_ptr = 62;

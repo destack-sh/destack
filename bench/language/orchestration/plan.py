@@ -1,5 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
-from uuid import UUID
+from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     InlineNode,
@@ -14,7 +13,6 @@ from bench.language.core import (
     NodeType,
     ProcessStatus,
     TextLineIn,
-    p_internal,
     p_node_children,
     p_node_parent,
     text_line,
@@ -23,7 +21,7 @@ from bench.language.core import (
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
-    from bench.language import Error, NodeReference, Page, Run, Task, Thread, Trigger
+    from bench.language import Error, Page, Run, Task, Thread, Trigger
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -45,12 +43,6 @@ class Plan(
     parent: Union["Page", "Thread", "Plan", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.THREAD, NodeType.PLAN, NodeType.RUN
     )
-    implemented_by: Optional["Run"] = p_internal(
-        43, require=False, array=False, references=NodeType.RUN, same_bench=True
-    )
-    if TYPE_CHECKING:
-        implemented_by_ptr: Optional[NodeReference] = None
-        implemented_by_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
 

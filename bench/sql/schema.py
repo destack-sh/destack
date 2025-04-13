@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.13.0"
+VERSION = "2025.04.13.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1413,8 +1413,6 @@ AGENT_TABLE = Table(
         Column("main_plan_ck", PrimitiveType.UUID, is_nullable=True),
         Column("main_cursor_id", PrimitiveType.UUID, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("color", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
@@ -1723,8 +1721,6 @@ PLAN_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
@@ -1778,8 +1774,6 @@ TASK_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("implemented_by_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("due_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("target_id", PrimitiveType.UUID, is_nullable=True),

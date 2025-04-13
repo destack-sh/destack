@@ -77,7 +77,10 @@ class BreakpointAction(BuiltinEnum):
 
 @struct_(StructType.BREAKPOINT)
 class Breakpoint(Struct):
-    """A (conditional) Breakpoint for some Run. Overlapping Breakpoints coalesce."""
+    """
+    A (conditional) Breakpoint for some Run. Overlapping Breakpoints coalesce.
+    NOTE :Architecture: should Breakpoints be Nodes?
+    """
 
     site: BreakpointSite = p_regular(30)
     scope: BreakpointScope = p_regular(31, default=BreakpointScope.SELF)

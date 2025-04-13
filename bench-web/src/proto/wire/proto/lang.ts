@@ -3779,10 +3779,6 @@ export interface AgentData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 58;
-     */
-    implementedByPtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.ColorType color = 59;
      */
     color?: ColorType;
@@ -4478,10 +4474,6 @@ export interface PlanData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 43;
-     */
-    implementedByPtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
     status: ProcessStatus;
@@ -4634,10 +4626,6 @@ export interface TaskData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData definition_ptr = 35;
      */
     definitionPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41;
-     */
-    implementedByPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp due_at = 52;
      */
@@ -12674,7 +12662,11 @@ export enum ModelProvider {
     /**
      * @generated from protobuf enum value: MODEL_PROVIDER_DEEPSEEK = 700;
      */
-    DEEPSEEK = 700
+    DEEPSEEK = 700,
+    /**
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENROUTER = 20000;
+     */
+    OPENROUTER = 20000
 }
 /**
  * The (implicit) 'type' of Code.
@@ -22727,7 +22719,6 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 55, name: "main_plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 56, name: "main_cursor_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 57, name: "text", kind: "message", T: () => TextData },
-            { no: 58, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 59, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
@@ -22843,9 +22834,6 @@ class AgentData$Type extends MessageType$<AgentData> {
                     break;
                 case /* optional symbolx.bench.TextData text */ 57:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 58:
-                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
                     break;
                 case /* optional symbolx.bench.ColorType color */ 59:
                     message.color = reader.int32();
@@ -22991,9 +22979,6 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.TextData text = 57; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 58; */
-        if (message.implementedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(58, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ColorType color = 59; */
         if (message.color !== undefined)
             writer.tag(59, WireType.Varint).int32(message.color);
@@ -24228,7 +24213,6 @@ class PlanData$Type extends MessageType$<PlanData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "error", kind: "message", T: () => ErrorData },
@@ -24325,9 +24309,6 @@ class PlanData$Type extends MessageType$<PlanData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 43:
-                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
                     break;
                 case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
@@ -24452,9 +24433,6 @@ class PlanData$Type extends MessageType$<PlanData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 43; */
-        if (message.implementedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
@@ -24538,7 +24516,6 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "implemented_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 52, name: "due_at", kind: "message", T: () => Timestamp },
             { no: 60, name: "text", kind: "message", T: () => TextData },
             { no: 62, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24645,9 +24622,6 @@ class TaskData$Type extends MessageType$<TaskData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData implemented_by_ptr */ 41:
-                    message.implementedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.implementedByPtr);
                     break;
                 case /* optional google.protobuf.Timestamp due_at */ 52:
                     message.dueAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.dueAt);
@@ -24796,9 +24770,6 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData implemented_by_ptr = 41; */
-        if (message.implementedByPtr)
-            NodeReferenceData.internalBinaryWrite(message.implementedByPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp due_at = 52; */
         if (message.dueAt)
             Timestamp.internalBinaryWrite(message.dueAt, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
@@ -33003,7 +32974,6 @@ export enum AgentProperty {
   mainPlanPtr = 55,
   mainCursorPtr = 56,
   text = 57,
-  implementedByPtr = 58,
   color = 59,
   status = 80,
   duration = 81,
@@ -33226,7 +33196,6 @@ export enum PlanProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  implementedByPtr = 43,
   status = 80,
   duration = 81,
   error = 82,
@@ -33267,7 +33236,6 @@ export enum TaskProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  implementedByPtr = 41,
   dueAt = 52,
   text = 60,
   targetPtr = 62,
@@ -35253,7 +35221,6 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.mainPlanPtr]: { id: 55, name: 'main_plan_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.mainCursorPtr]: { id: 56, name: 'main_cursor_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.text]: { id: 57, name: 'text', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [AgentProperty.implementedByPtr]: { id: 58, name: 'implemented_by_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.color]: { id: 59, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35470,7 +35437,6 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PlanProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.implementedByPtr]: { id: 43, name: 'implemented_by_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.error]: { id: 82, name: 'error', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
@@ -35510,7 +35476,6 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TaskProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.implementedByPtr]: { id: 41, name: 'implemented_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.dueAt]: { id: 52, name: 'due_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.text]: { id: 60, name: 'text', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [TaskProperty.targetPtr]: { id: 62, name: 'target_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -36695,6 +36660,7 @@ export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionIn
   [ModelProvider.AMAZON]: { id: 500, name: 'AMAZON', text: 'Amazon', title: 'Amazon' },
   [ModelProvider.MICROSOFT]: { id: 600, name: 'MICROSOFT', text: 'Microsoft', title: 'Microsoft' },
   [ModelProvider.DEEPSEEK]: { id: 700, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek' },
+  [ModelProvider.OPENROUTER]: { id: 20000, name: 'OPENROUTER', text: 'OpenRouter', title: 'OpenRouter' },
 }
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
