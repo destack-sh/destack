@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.14.0"
+VERSION = "2025.04.14.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -865,7 +865,6 @@ FLOW_TABLE = Table(
         Column("max_retry_interval", PrimitiveType.DURATION, is_nullable=True),
         Column("model_developer", PrimitiveType.INT16, is_nullable=True),
         Column("model_provider", PrimitiveType.INT16, is_nullable=True),
-        Column("model_family", PrimitiveType.INT16, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -911,7 +910,6 @@ ACTION_TABLE = Table(
         Column("max_retry_interval", PrimitiveType.DURATION, is_nullable=True),
         Column("model_developer", PrimitiveType.INT16, is_nullable=True),
         Column("model_provider", PrimitiveType.INT16, is_nullable=True),
-        Column("model_family", PrimitiveType.INT16, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -950,7 +948,6 @@ TRANSITION_TABLE = Table(
         Column("max_retry_interval", PrimitiveType.DURATION, is_nullable=True),
         Column("model_developer", PrimitiveType.INT16, is_nullable=True),
         Column("model_provider", PrimitiveType.INT16, is_nullable=True),
-        Column("model_family", PrimitiveType.INT16, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -1437,7 +1434,6 @@ AGENT_TABLE = Table(
         Column("max_retry_interval", PrimitiveType.DURATION, is_nullable=True),
         Column("model_developer", PrimitiveType.INT16, is_nullable=True),
         Column("model_provider", PrimitiveType.INT16, is_nullable=True),
-        Column("model_family", PrimitiveType.INT16, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),

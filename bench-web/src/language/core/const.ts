@@ -6,9 +6,10 @@ import {
   EnumType,
   INLINE_NODE_TYPES,
   InlineNodeData,
+  INSTANTIABLE_NODE_TYPES,
+  InstantiableNodeData,
   JOINABLE_NODE_TYPES,
   JoinableNodeData,
-  ModelType,
   NodeMode,
   NodeReferenceData,
   NodeType,
@@ -16,30 +17,28 @@ import {
   PrimitiveType,
   PROCESSABLE_NODE_TYPES,
   ProcessableNodeData,
+  ProcessStatus,
   PROPERTY_ENUM_BY_TYPE,
   PropertyInfo,
   PropertyReferenceData,
   Region,
   RESOURCE_NODE_TYPES,
   ResourceNodeData,
-  ProcessStatus,
+  RUNNABLE_NODE_TYPES,
+  RunnableNodeData,
   SOURCE_NODE_TYPES,
   SourceNodeData,
   StructType,
   SUBJECT_NODE_TYPES,
   SubjectNodeData,
+  TEMPLATABLE_NODE_TYPES,
+  TemplatableNodeData,
   TYPE_BASE_NODE_TYPES,
   TypeBaseNodeData,
   ViewDataInfo,
   ViewProperty,
   ViewType,
   type AnyNodeData,
-  RunnableNodeData,
-  RUNNABLE_NODE_TYPES,
-  TemplatableNodeData,
-  InstantiableNodeData,
-  TEMPLATABLE_NODE_TYPES,
-  INSTANTIABLE_NODE_TYPES,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -386,14 +385,6 @@ export const EXPOSED_ANCHORS = [
   Anchor.RIGHT,
   Anchor.BOTTOM,
 ];
-export const EXPOSED_MODEL_TYPES = [
-  // :ModelType
-  ModelType.OPENAI_GPT4_0,
-  ModelType.OPENAI_GPT4_O_MINI,
-  ModelType.OPENAI_O1_MINI,
-  ModelType.OPENAI_O1,
-  ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
-];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
@@ -403,7 +394,6 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
-  [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
   [EnumType.REGION]: EXPOSED_REGIONS,
 };
 

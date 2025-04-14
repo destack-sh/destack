@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Mapping, Union, override
+from typing import TYPE_CHECKING, Union, override
 
 import anthropic
 import structlog
@@ -6,7 +6,7 @@ from anthropic import NOT_GIVEN
 from anthropic import types as anthropic_types
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, download_file_batch
+from bench.language import Code, download_file_batch
 from bench.runtime.core import NotSupportedError
 from bench.utils.utils import get_from_env
 
@@ -34,15 +34,11 @@ tracer = trace.get_tracer(__name__)
 anthropic_client = anthropic.AsyncClient(
     api_key=get_from_env("ANTHROPIC_API_KEY", description="Anthropic API key")
 )
-ANTHROPIC_MODEL_BY_TYPE: Mapping[ModelType, str] = {
-    ModelType.ANTHROPIC_CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20241022",
-    ModelType.ANTHROPIC_CLAUDE_3_7_SONNET: "claude-3-7-sonnet-20250219",
-}
-ANTHROPIC_DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
+ANTHROPIC_DEFAULT_MODEL = "claude-3-7-sonnet-20250219"
 
 
 class AnthropicChatModelRunner(ChatModelRunner):
-    """Compile a Prompt into Anthropic chat messages."""
+    """Run any Anthropic chat model."""
 
     SEPARATOR = "#" * 32  # = exactly 1 token
 
@@ -50,10 +46,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
     async def run(self) -> None:
         from bench.runtime import MACROS, AgentRunner
 
-        model_id = ANTHROPIC_MODEL_BY_TYPE.get(self.model_type)
-        if model_id is None:
-            raise NotSupportedError(f"unsupported model type {self.model_type!r}")
-
+        model_id = self.model_id or ANTHROPIC_DEFAULT_MODEL
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000
         pieces, _ = compile_prompt(prompt=self.prompt, tokenizer=tokenizer, max_tokens=max_tokens)

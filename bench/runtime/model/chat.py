@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, Code, ModelDeveloper, ModelType, Runnable
-from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime
+from bench.language import Agent, Code, Runnable
+from bench.runtime.core import RunIn, Runner, Runtime
 
 from .model import ModelRunner
 from .prompt import Prompt
@@ -26,40 +26,19 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         *,
         runtime: Runtime,
         node: R,
-        model_type: ModelType,
         run: RunIn,
         prompt: Prompt,
+        model_id: str | None = None,
         parent: Runner | None = None,
         agent: Agent | None = None,
     ) -> None:
         super().__init__(
             runtime=runtime,
             node=node,
-            model_type=model_type,
+            model_id=model_id,
             parent=parent,
             run=run,
             agent=agent,
         )
-        self.model_type = model_type
         self.prompt = prompt
         self.code: Code | None = None
-
-
-def get_chat_model_runner_cls(
-    model_developer: ModelDeveloper, model_type: ModelType
-) -> type[ChatModelRunner]:
-    """Get the ChatModelRunner class for the given model type."""
-    from bench.runtime.model import (
-        AnthropicChatModelRunner,
-        GeminiChatModelRunner,
-        OpenAIChatModelRunner,
-    )
-
-    if model_developer == ModelDeveloper.OPENAI:
-        return OpenAIChatModelRunner
-    elif model_developer == ModelDeveloper.ANTHROPIC:
-        return AnthropicChatModelRunner
-    elif model_developer == ModelDeveloper.GOOGLE:
-        return GeminiChatModelRunner
-    else:
-        raise NotSupportedError(f"unsupported model developer {model_developer!r}")

@@ -3705,10 +3705,6 @@ export interface AgentData {
      */
     modelProvider?: ModelProvider;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
-     */
-    modelFamily?: ModelFamily;
-    /**
      * @generated from protobuf field: symbolx.bench.ProcessStatus status = 80;
      */
     status: ProcessStatus;
@@ -5458,10 +5454,6 @@ export interface ActionData {
      * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
      */
     modelProvider?: ModelProvider;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
-     */
-    modelFamily?: ModelFamily;
 }
 /**
  * @generated from protobuf message symbolx.bench.BlockData
@@ -6117,10 +6109,6 @@ export interface FlowData {
      * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
      */
     modelProvider?: ModelProvider;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
-     */
-    modelFamily?: ModelFamily;
 }
 /**
  * @generated from protobuf message symbolx.bench.KitData
@@ -6327,10 +6315,6 @@ export interface TransitionData {
      * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 76;
      */
     modelProvider?: ModelProvider;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ModelFamily model_family = 77;
-     */
-    modelFamily?: ModelFamily;
 }
 /**
  * @generated from protobuf message symbolx.bench.OptionData
@@ -7791,17 +7775,9 @@ export enum EnumType {
      */
     MODEL_DEVELOPER = 22250,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 22251;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 22251;
      */
-    MODEL_TYPE = 22251,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_FAMILY = 22252;
-     */
-    MODEL_FAMILY = 22252,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 22253;
-     */
-    MODEL_PROVIDER = 22253,
+    MODEL_PROVIDER = 22251,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 22300;
      */
@@ -9343,17 +9319,9 @@ export enum BenchType {
      */
     MODEL_DEVELOPER = 22250,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 22251;
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 22251;
      */
-    MODEL_TYPE = 22251,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_FAMILY = 22252;
-     */
-    MODEL_FAMILY = 22252,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 22253;
-     */
-    MODEL_PROVIDER = 22253,
+    MODEL_PROVIDER = 22251,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 22300;
      */
@@ -12090,7 +12058,15 @@ export enum CursorType {
     /**
      * @generated from protobuf enum value: CURSOR_TYPE_DATABASE = 30;
      */
-    DATABASE = 30
+    DATABASE = 30,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_ACTION = 40;
+     */
+    ACTION = 40,
+    /**
+     * @generated from protobuf enum value: CURSOR_TYPE_CUSTOM = 900;
+     */
+    CUSTOM = 900
 }
 /**
  * The status of a Cursor.
@@ -12301,131 +12277,29 @@ export enum ModelDeveloper {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_META = 100;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_META = 1000;
      */
-    META = 100,
+    META = 1000,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_OPENAI = 200;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_OPENAI = 1010;
      */
-    OPENAI = 200,
+    OPENAI = 1010,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_ANTHROPIC = 300;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_ANTHROPIC = 1020;
      */
-    ANTHROPIC = 300,
+    ANTHROPIC = 1020,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_GOOGLE = 400;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_GOOGLE = 1030;
      */
-    GOOGLE = 400,
+    GOOGLE = 1030,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_AMAZON = 500;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_MICROSOFT = 1040;
      */
-    AMAZON = 500,
+    MICROSOFT = 1040,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_MICROSOFT = 600;
+     * @generated from protobuf enum value: MODEL_DEVELOPER_DEEPSEEK = 1050;
      */
-    MICROSOFT = 600,
-    /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_DEEPSEEK = 700;
-     */
-    DEEPSEEK = 700
-}
-/**
- * @generated from protobuf enum symbolx.bench.ModelType
- */
-export enum ModelType {
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_80B = 101;
-     */
-    META_LLAMA_3_1_80B = 101,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_400B = 102;
-     */
-    META_LLAMA_3_1_400B = 102,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_0 = 201;
-     */
-    OPENAI_GPT4_0 = 201,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
-     */
-    OPENAI_GPT4_O_MINI = 202,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_5 = 203;
-     */
-    OPENAI_GPT4_5 = 203,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1 = 220;
-     */
-    OPENAI_O1 = 220,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 221;
-     */
-    OPENAI_O1_MINI = 221,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O3_MINI = 222;
-     */
-    OPENAI_O3_MINI = 222,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
-     */
-    ANTHROPIC_CLAUDE_3_5_SONNET = 301,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_7_SONNET = 302;
-     */
-    ANTHROPIC_CLAUDE_3_7_SONNET = 302,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 400;
-     */
-    GOOGLE_GEMINI_2_0_FLASH = 400,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
-     */
-    GOOGLE_GEMINI_2_0_FLASH_THINKING = 401,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_2_5_PRO = 410;
-     */
-    GOOGLE_GEMINI_2_5_PRO = 410,
-    /**
-     * @generated from protobuf enum value: MODEL_TYPE_DEEPSEEK_R_1_0 = 701;
-     */
-    DEEPSEEK_R_1_0 = 701
-}
-/**
- * @generated from protobuf enum symbolx.bench.ModelFamily
- */
-export enum ModelFamily {
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_META_LLAMA = 100;
-     */
-    META_LLAMA = 100,
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_OPENAI_GPT = 200;
-     */
-    OPENAI_GPT = 200,
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_OPENAI_O = 220;
-     */
-    OPENAI_O = 220,
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_ANTHROPIC_CLAUDE = 300;
-     */
-    ANTHROPIC_CLAUDE = 300,
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_GOOGLE_GEMINI = 400;
-     */
-    GOOGLE_GEMINI = 400,
-    /**
-     * @generated from protobuf enum value: MODEL_FAMILY_DEEPSEEK_R = 700;
-     */
-    DEEPSEEK_R = 700
+    DEEPSEEK = 1050
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelProvider
@@ -12436,37 +12310,21 @@ export enum ModelProvider {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_META = 100;
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 1000;
      */
-    META = 100,
+    OPENAI = 1000,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 200;
+     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 1010;
      */
-    OPENAI = 200,
+    ANTHROPIC = 1010,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 300;
+     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 1020;
      */
-    ANTHROPIC = 300,
+    GOOGLE = 1020,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 400;
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENROUTER = 1030;
      */
-    GOOGLE = 400,
-    /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_AMAZON = 500;
-     */
-    AMAZON = 500,
-    /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_MICROSOFT = 600;
-     */
-    MICROSOFT = 600,
-    /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_DEEPSEEK = 700;
-     */
-    DEEPSEEK = 700,
-    /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_OPENROUTER = 20000;
-     */
-    OPENROUTER = 20000
+    OPENROUTER = 1030
 }
 /**
  * The (implicit) 'type' of Code.
@@ -22121,7 +21979,6 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
             { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
-            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
             { no: 82, name: "error", kind: "message", T: () => ErrorData },
@@ -22257,9 +22114,6 @@ class AgentData$Type extends MessageType$<AgentData> {
                     break;
                 case /* optional symbolx.bench.ModelProvider model_provider */ 76:
                     message.modelProvider = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ModelFamily model_family */ 77:
-                    message.modelFamily = reader.int32();
                     break;
                 case /* symbolx.bench.ProcessStatus status */ 80:
                     message.status = reader.int32();
@@ -22423,9 +22277,6 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.ModelProvider model_provider = 76; */
         if (message.modelProvider !== undefined)
             writer.tag(76, WireType.Varint).int32(message.modelProvider);
-        /* optional symbolx.bench.ModelFamily model_family = 77; */
-        if (message.modelFamily !== undefined)
-            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         /* symbolx.bench.ProcessStatus status = 80; */
         if (message.status !== 0)
             writer.tag(80, WireType.Varint).int32(message.status);
@@ -25699,8 +25550,7 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
             { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
-            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
-            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] }
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] }
         ]);
     }
     create(value?: PartialMessage<ActionData>): ActionData {
@@ -25813,9 +25663,6 @@ class ActionData$Type extends MessageType$<ActionData> {
                 case /* optional symbolx.bench.ModelProvider model_provider */ 76:
                     message.modelProvider = reader.int32();
                     break;
-                case /* optional symbolx.bench.ModelFamily model_family */ 77:
-                    message.modelFamily = reader.int32();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -25921,9 +25768,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.ModelProvider model_provider = 76; */
         if (message.modelProvider !== undefined)
             writer.tag(76, WireType.Varint).int32(message.modelProvider);
-        /* optional symbolx.bench.ModelFamily model_family = 77; */
-        if (message.modelFamily !== undefined)
-            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27128,8 +26972,7 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
             { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
-            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
-            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] }
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] }
         ]);
     }
     create(value?: PartialMessage<FlowData>): FlowData {
@@ -27234,9 +27077,6 @@ class FlowData$Type extends MessageType$<FlowData> {
                 case /* optional symbolx.bench.ModelProvider model_provider */ 76:
                     message.modelProvider = reader.int32();
                     break;
-                case /* optional symbolx.bench.ModelFamily model_family */ 77:
-                    message.modelFamily = reader.int32();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -27336,9 +27176,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.ModelProvider model_provider = 76; */
         if (message.modelProvider !== undefined)
             writer.tag(76, WireType.Varint).int32(message.modelProvider);
-        /* optional symbolx.bench.ModelFamily model_family = 77; */
-        if (message.modelFamily !== undefined)
-            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27575,8 +27412,7 @@ class TransitionData$Type extends MessageType$<TransitionData> {
             { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 73, name: "max_retry_interval", kind: "message", T: () => Duration },
             { no: 75, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
-            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
-            { no: 77, name: "model_family", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelFamily", ModelFamily, "MODEL_FAMILY_"] }
+            { no: 76, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] }
         ]);
     }
     create(value?: PartialMessage<TransitionData>): TransitionData {
@@ -27676,9 +27512,6 @@ class TransitionData$Type extends MessageType$<TransitionData> {
                 case /* optional symbolx.bench.ModelProvider model_provider */ 76:
                     message.modelProvider = reader.int32();
                     break;
-                case /* optional symbolx.bench.ModelFamily model_family */ 77:
-                    message.modelFamily = reader.int32();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -27772,9 +27605,6 @@ class TransitionData$Type extends MessageType$<TransitionData> {
         /* optional symbolx.bench.ModelProvider model_provider = 76; */
         if (message.modelProvider !== undefined)
             writer.tag(76, WireType.Varint).int32(message.modelProvider);
-        /* optional symbolx.bench.ModelFamily model_family = 77; */
-        if (message.modelFamily !== undefined)
-            writer.tag(77, WireType.Varint).int32(message.modelFamily);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31158,8 +30988,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
   [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
-  [EnumType.MODEL_TYPE]: ModelType,
-  [EnumType.MODEL_FAMILY]: ModelFamily,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.ACTION_TYPE]: ActionType,
@@ -31479,8 +31307,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.INTERRUPTION_STATUS]: InterruptionStatus,
   [EnumType.INTERRUPTION_RESPONSE]: InterruptionResponse,
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper,
-  [EnumType.MODEL_TYPE]: ModelType,
-  [EnumType.MODEL_FAMILY]: ModelFamily,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.ACTION_TYPE]: ActionType,
@@ -32110,7 +31936,6 @@ export enum FlowProperty {
   maxRetryInterval = 73,
   modelDeveloper = 75,
   modelProvider = 76,
-  modelFamily = 77,
 }
 
 export enum ActionProperty {
@@ -32145,7 +31970,6 @@ export enum ActionProperty {
   maxRetryInterval = 73,
   modelDeveloper = 75,
   modelProvider = 76,
-  modelFamily = 77,
 }
 
 export enum TransitionProperty {
@@ -32176,7 +32000,6 @@ export enum TransitionProperty {
   maxRetryInterval = 73,
   modelDeveloper = 75,
   modelProvider = 76,
-  modelFamily = 77,
 }
 
 export enum TriggerProperty {
@@ -32520,7 +32343,6 @@ export enum AgentProperty {
   maxRetryInterval = 73,
   modelDeveloper = 75,
   modelProvider = 76,
-  modelFamily = 77,
   status = 80,
   duration = 81,
   error = 82,
@@ -34346,7 +34168,6 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.FLOW, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.FLOW, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FlowProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.FLOW, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34380,7 +34201,6 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.ACTION, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.ACTION, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ActionProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.ACTION, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSITION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34410,7 +34230,6 @@ export const TransitionDataInfo: Record<TransitionProperty, PropertyInfo> = {
   [TransitionProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.TRANSITION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [TransitionProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.TRANSITION, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TransitionProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.TRANSITION, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TransitionProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.TRANSITION, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34742,7 +34561,6 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.maxRetryInterval]: { id: 73, name: 'max_retry_interval', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.AGENT, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.AGENT, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.AGENT, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.error]: { id: 82, name: 'error', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
@@ -36091,6 +35909,8 @@ export const CursorTypeOptionInfo: Partial<Record<CursorType, EnumOptionInfo>> =
   [CursorType.THREAD]: { id: 10, name: 'THREAD', title: 'Thread' },
   [CursorType.PAGE]: { id: 20, name: 'PAGE', title: 'Page' },
   [CursorType.DATABASE]: { id: 30, name: 'DATABASE', title: 'Database' },
+  [CursorType.ACTION]: { id: 40, name: 'ACTION', title: 'Action' },
+  [CursorType.CUSTOM]: { id: 900, name: 'CUSTOM', title: 'Custom' },
 }
 
 export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo>> = {
@@ -36111,41 +35931,20 @@ export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOp
   [InterruptionType.WAIT]: { id: 30, name: 'WAIT', text: 'Wait for a Trigger', title: 'Wait', icon: 'fas fa-hourglass-end' },
 }
 
-export const ModelTypeOptionInfo: Partial<Record<ModelType, EnumOptionInfo>> = {
-  [ModelType.META_LLAMA_3_1_80B]: { id: 101, name: 'META_LLAMA_3_1_80B', text: 'Llama 3.1 80B', title: 'Llama 3.1 80B' },
-  [ModelType.META_LLAMA_3_1_400B]: { id: 102, name: 'META_LLAMA_3_1_400B', text: 'Llama 3.1 400B', title: 'Llama 3.1 400B' },
-  [ModelType.OPENAI_GPT4_0]: { id: 201, name: 'OPENAI_GPT4_0', text: 'GPT-4', title: 'GPT-4' },
-  [ModelType.OPENAI_GPT4_O_MINI]: { id: 202, name: 'OPENAI_GPT4_O_MINI', text: 'GPT-4o-mini', title: 'GPT-4o-mini' },
-  [ModelType.OPENAI_GPT4_5]: { id: 203, name: 'OPENAI_GPT4_5', text: 'GPT-4o-mini', title: 'GPT-4o-mini' },
-  [ModelType.OPENAI_O1]: { id: 220, name: 'OPENAI_O1', text: 'o1', title: 'o1' },
-  [ModelType.OPENAI_O1_MINI]: { id: 221, name: 'OPENAI_O1_MINI', text: 'o1-mini', title: 'o1-mini' },
-  [ModelType.OPENAI_O3_MINI]: { id: 222, name: 'OPENAI_O3_MINI', text: 'o3-mini', title: 'o3-mini' },
-  [ModelType.ANTHROPIC_CLAUDE_3_5_SONNET]: { id: 301, name: 'ANTHROPIC_CLAUDE_3_5_SONNET', text: 'Claude 3.5 Sonnet', title: 'Claude 3.5 Sonnet' },
-  [ModelType.ANTHROPIC_CLAUDE_3_7_SONNET]: { id: 302, name: 'ANTHROPIC_CLAUDE_3_7_SONNET', text: 'Claude 3.7 Sonnet', title: 'Claude 3.7 Sonnet' },
-  [ModelType.GOOGLE_GEMINI_2_0_FLASH]: { id: 400, name: 'GOOGLE_GEMINI_2_0_FLASH', text: 'Gemini 2.0 Flash', title: 'Gemini 2.0 Flash' },
-  [ModelType.GOOGLE_GEMINI_2_0_FLASH_THINKING]: { id: 401, name: 'GOOGLE_GEMINI_2_0_FLASH_THINKING', text: 'Gemini 2.0 Flash Thinking', title: 'Gemini 2.0 Flash Thinking' },
-  [ModelType.GOOGLE_GEMINI_2_5_PRO]: { id: 410, name: 'GOOGLE_GEMINI_2_5_PRO', text: 'Gemini 2.5 Pro', title: 'Gemini 2.5 Pro' },
-  [ModelType.DEEPSEEK_R_1_0]: { id: 701, name: 'DEEPSEEK_R_1_0', text: 'DeepSeek R 1.0', title: 'DeepSeek R 1.0' },
-}
-
-export const ModelFamilyOptionInfo: Partial<Record<ModelFamily, EnumOptionInfo>> = {
-  [ModelFamily.META_LLAMA]: { id: 100, name: 'META_LLAMA', text: 'Llama', title: 'Meta Llama' },
-  [ModelFamily.OPENAI_GPT]: { id: 200, name: 'OPENAI_GPT', text: 'GPT', title: 'OpenAI GPT' },
-  [ModelFamily.OPENAI_O]: { id: 220, name: 'OPENAI_O', text: 'o', title: 'OpenAI o' },
-  [ModelFamily.ANTHROPIC_CLAUDE]: { id: 300, name: 'ANTHROPIC_CLAUDE', text: 'Claude', title: 'Anthropic Claude' },
-  [ModelFamily.GOOGLE_GEMINI]: { id: 400, name: 'GOOGLE_GEMINI', text: 'Gemini', title: 'Google Gemini' },
-  [ModelFamily.DEEPSEEK_R]: { id: 700, name: 'DEEPSEEK_R', text: 'DeepSeek R', title: 'DeepSeek R' },
+export const ModelDeveloperOptionInfo: Partial<Record<ModelDeveloper, EnumOptionInfo>> = {
+  [ModelDeveloper.META]: { id: 1000, name: 'META', text: 'Meta', title: 'Meta', color: ColorType.BLUE, icon: 'fab fa-meta' },
+  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY, icon: 'fas fa-circles-overlap-3' },
+  [ModelDeveloper.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic', color: ColorType.PURPLE, icon: 'fas fa-a' },
+  [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED, icon: 'fab fa-google' },
+  [ModelDeveloper.MICROSOFT]: { id: 1040, name: 'MICROSOFT', text: 'Microsoft', title: 'Microsoft', color: ColorType.BLUE, icon: 'fab fa-microsoft' },
+  [ModelDeveloper.DEEPSEEK]: { id: 1050, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek', color: ColorType.GRAY, icon: 'fas fa-whale' },
 }
 
 export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionInfo>> = {
-  [ModelProvider.META]: { id: 100, name: 'META', text: 'Meta', title: 'Meta' },
-  [ModelProvider.OPENAI]: { id: 200, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI' },
-  [ModelProvider.ANTHROPIC]: { id: 300, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic' },
-  [ModelProvider.GOOGLE]: { id: 400, name: 'GOOGLE', text: 'Google', title: 'Google' },
-  [ModelProvider.AMAZON]: { id: 500, name: 'AMAZON', text: 'Amazon', title: 'Amazon' },
-  [ModelProvider.MICROSOFT]: { id: 600, name: 'MICROSOFT', text: 'Microsoft', title: 'Microsoft' },
-  [ModelProvider.DEEPSEEK]: { id: 700, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek' },
-  [ModelProvider.OPENROUTER]: { id: 20000, name: 'OPENROUTER', text: 'OpenRouter', title: 'OpenRouter' },
+  [ModelProvider.OPENAI]: { id: 1000, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI' },
+  [ModelProvider.ANTHROPIC]: { id: 1010, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic' },
+  [ModelProvider.GOOGLE]: { id: 1020, name: 'GOOGLE', text: 'Google', title: 'Google' },
+  [ModelProvider.OPENROUTER]: { id: 1030, name: 'OPENROUTER', text: 'OpenRouter', title: 'OpenRouter' },
 }
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
@@ -36253,8 +36052,7 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.CURSOR_TYPE]: CursorTypeOptionInfo,
   [EnumType.CURSOR_STATUS]: CursorStatusOptionInfo,
   [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
-  [EnumType.MODEL_TYPE]: ModelTypeOptionInfo,
-  [EnumType.MODEL_FAMILY]: ModelFamilyOptionInfo,
+  [EnumType.MODEL_DEVELOPER]: ModelDeveloperOptionInfo,
   [EnumType.MODEL_PROVIDER]: ModelProviderOptionInfo,
   [EnumType.ACTION_TYPE]: ActionTypeOptionInfo,
   [EnumType.TRANSITION_TYPE]: TransitionTypeOptionInfo,

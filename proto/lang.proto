@@ -87,9 +87,7 @@ enum EnumType {
   ENUM_TYPE_INTERRUPTION_STATUS = 22211;
   ENUM_TYPE_INTERRUPTION_RESPONSE = 22212;
   ENUM_TYPE_MODEL_DEVELOPER = 22250;
-  ENUM_TYPE_MODEL_TYPE = 22251;
-  ENUM_TYPE_MODEL_FAMILY = 22252;
-  ENUM_TYPE_MODEL_PROVIDER = 22253;
+  ENUM_TYPE_MODEL_PROVIDER = 22251;
   ENUM_TYPE_CODE_TYPE = 22300;
   ENUM_TYPE_ACTION_TYPE = 22350;
   ENUM_TYPE_PORT_SIDE = 22352;
@@ -482,9 +480,7 @@ enum BenchType {
   BENCH_TYPE_INTERRUPTION_STATUS = 22211;
   BENCH_TYPE_INTERRUPTION_RESPONSE = 22212;
   BENCH_TYPE_MODEL_DEVELOPER = 22250;
-  BENCH_TYPE_MODEL_TYPE = 22251;
-  BENCH_TYPE_MODEL_FAMILY = 22252;
-  BENCH_TYPE_MODEL_PROVIDER = 22253;
+  BENCH_TYPE_MODEL_PROVIDER = 22251;
   BENCH_TYPE_CODE_TYPE = 22300;
   BENCH_TYPE_ACTION_TYPE = 22350;
   BENCH_TYPE_PORT_SIDE = 22352;
@@ -1292,6 +1288,8 @@ enum CursorType {
   CURSOR_TYPE_THREAD = 10;
   CURSOR_TYPE_PAGE = 20;
   CURSOR_TYPE_DATABASE = 30;
+  CURSOR_TYPE_ACTION = 40;
+  CURSOR_TYPE_CUSTOM = 900;
 }
 
 // The status of a Cursor.
@@ -1357,53 +1355,20 @@ enum InterruptionResponse {
 
 enum ModelDeveloper {
   MODEL_DEVELOPER_UNSPECIFIED = 0;
-  MODEL_DEVELOPER_META = 100;
-  MODEL_DEVELOPER_OPENAI = 200;
-  MODEL_DEVELOPER_ANTHROPIC = 300;
-  MODEL_DEVELOPER_GOOGLE = 400;
-  MODEL_DEVELOPER_AMAZON = 500;
-  MODEL_DEVELOPER_MICROSOFT = 600;
-  MODEL_DEVELOPER_DEEPSEEK = 700;
-}
-
-enum ModelType {
-  MODEL_TYPE_UNSPECIFIED = 0;
-  MODEL_TYPE_META_LLAMA_3_1_80B = 101;
-  MODEL_TYPE_META_LLAMA_3_1_400B = 102;
-  MODEL_TYPE_OPENAI_GPT4_0 = 201;
-  MODEL_TYPE_OPENAI_GPT4_O_MINI = 202;
-  MODEL_TYPE_OPENAI_GPT4_5 = 203;
-  MODEL_TYPE_OPENAI_O1 = 220;
-  MODEL_TYPE_OPENAI_O1_MINI = 221;
-  MODEL_TYPE_OPENAI_O3_MINI = 222;
-  MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 301;
-  MODEL_TYPE_ANTHROPIC_CLAUDE_3_7_SONNET = 302;
-  MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH = 400;
-  MODEL_TYPE_GOOGLE_GEMINI_2_0_FLASH_THINKING = 401;
-  MODEL_TYPE_GOOGLE_GEMINI_2_5_PRO = 410;
-  MODEL_TYPE_DEEPSEEK_R_1_0 = 701;
-}
-
-enum ModelFamily {
-  MODEL_FAMILY_UNSPECIFIED = 0;
-  MODEL_FAMILY_META_LLAMA = 100;
-  MODEL_FAMILY_OPENAI_GPT = 200;
-  MODEL_FAMILY_OPENAI_O = 220;
-  MODEL_FAMILY_ANTHROPIC_CLAUDE = 300;
-  MODEL_FAMILY_GOOGLE_GEMINI = 400;
-  MODEL_FAMILY_DEEPSEEK_R = 700;
+  MODEL_DEVELOPER_META = 1000;
+  MODEL_DEVELOPER_OPENAI = 1010;
+  MODEL_DEVELOPER_ANTHROPIC = 1020;
+  MODEL_DEVELOPER_GOOGLE = 1030;
+  MODEL_DEVELOPER_MICROSOFT = 1040;
+  MODEL_DEVELOPER_DEEPSEEK = 1050;
 }
 
 enum ModelProvider {
   MODEL_PROVIDER_UNSPECIFIED = 0;
-  MODEL_PROVIDER_META = 100;
-  MODEL_PROVIDER_OPENAI = 200;
-  MODEL_PROVIDER_ANTHROPIC = 300;
-  MODEL_PROVIDER_GOOGLE = 400;
-  MODEL_PROVIDER_AMAZON = 500;
-  MODEL_PROVIDER_MICROSOFT = 600;
-  MODEL_PROVIDER_DEEPSEEK = 700;
-  MODEL_PROVIDER_OPENROUTER = 20000;
+  MODEL_PROVIDER_OPENAI = 1000;
+  MODEL_PROVIDER_ANTHROPIC = 1010;
+  MODEL_PROVIDER_GOOGLE = 1020;
+  MODEL_PROVIDER_OPENROUTER = 1030;
 }
 
 // The (implicit) 'type' of Code.
@@ -2765,7 +2730,6 @@ message AgentData {
   optional google.protobuf.Duration max_retry_interval = 73;
   optional ModelDeveloper model_developer = 75;
   optional ModelProvider model_provider = 76;
-  optional ModelFamily model_family = 77;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -3228,7 +3192,6 @@ message ActionData {
   optional google.protobuf.Duration max_retry_interval = 73;
   optional ModelDeveloper model_developer = 75;
   optional ModelProvider model_provider = 76;
-  optional ModelFamily model_family = 77;
 }
 
 message BlockData {
@@ -3405,7 +3368,6 @@ message FlowData {
   optional google.protobuf.Duration max_retry_interval = 73;
   optional ModelDeveloper model_developer = 75;
   optional ModelProvider model_provider = 76;
-  optional ModelFamily model_family = 77;
 }
 
 message KitData {
@@ -3461,7 +3423,6 @@ message TransitionData {
   optional google.protobuf.Duration max_retry_interval = 73;
   optional ModelDeveloper model_developer = 75;
   optional ModelProvider model_provider = 76;
-  optional ModelFamily model_family = 77;
 }
 
 message OptionData {
