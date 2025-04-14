@@ -115,7 +115,6 @@ enum EnumType {
   ENUM_TYPE_THREAD_STATUS = 22502;
   ENUM_TYPE_MESSAGE_TYPE = 22503;
   ENUM_TYPE_MESSAGE_STATUS = 22504;
-  ENUM_TYPE_MESSAGE_PLATFORM = 22505;
   ENUM_TYPE_NOTIFICATION_TYPE = 22506;
   ENUM_TYPE_NOTIFICATION_STATUS = 22507;
 }
@@ -511,7 +510,6 @@ enum BenchType {
   BENCH_TYPE_THREAD_STATUS = 22502;
   BENCH_TYPE_MESSAGE_TYPE = 22503;
   BENCH_TYPE_MESSAGE_STATUS = 22504;
-  BENCH_TYPE_MESSAGE_PLATFORM = 22505;
   BENCH_TYPE_NOTIFICATION_TYPE = 22506;
   BENCH_TYPE_NOTIFICATION_STATUS = 22507;
 }
@@ -1724,14 +1722,6 @@ enum MessageStatus {
   MESSAGE_STATUS_READ = 60;
 }
 
-enum MessagePlatform {
-  MESSAGE_PLATFORM_UNSPECIFIED = 0;
-  MESSAGE_PLATFORM_BENCH = 1;
-  MESSAGE_PLATFORM_WEBHOOK = 10;
-  MESSAGE_PLATFORM_EMAIL = 20;
-  MESSAGE_PLATFORM_SMS = 21;
-}
-
 enum NotificationType {
   NOTIFICATION_TYPE_UNSPECIFIED = 0;
   NOTIFICATION_TYPE_MESSAGE = 100;
@@ -2270,7 +2260,6 @@ message MessageData {
   optional google.protobuf.Value subnode_packed = 29;
   MessageType type = 30;
   optional TextLineData title = 32;
-  MessagePlatform platform = 33;
   optional NodeReferenceData channel_ptr = 34;
   optional NodeReferenceData thread_ptr = 35;
   optional NodeReferenceData scope_ptr = 36;

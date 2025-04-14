@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.13.1"
+VERSION = "2025.04.14.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1200,7 +1200,6 @@ MESSAGE_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16, default="1"),
         Column("title", PrimitiveType.JSON, is_nullable=True),
-        Column("platform", PrimitiveType.INT16, default="1"),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
         Column("thread_id", PrimitiveType.UUID),

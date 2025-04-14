@@ -1790,10 +1790,6 @@ export interface MessageData {
      */
     title?: TextLineData;
     /**
-     * @generated from protobuf field: symbolx.bench.MessagePlatform platform = 33;
-     */
-    platform: MessagePlatform;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData channel_ptr = 34;
      */
     channelPtr?: NodeReferenceData;
@@ -7907,10 +7903,6 @@ export enum EnumType {
      */
     MESSAGE_STATUS = 22504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_PLATFORM = 22505;
-     */
-    MESSAGE_PLATFORM = 22505,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_TYPE = 22506;
      */
     NOTIFICATION_TYPE = 22506,
@@ -9462,10 +9454,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_STATUS = 22504;
      */
     MESSAGE_STATUS = 22504,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_PLATFORM = 22505;
-     */
-    MESSAGE_PLATFORM = 22505,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_TYPE = 22506;
      */
@@ -13549,31 +13537,6 @@ export enum MessageStatus {
      * @generated from protobuf enum value: MESSAGE_STATUS_READ = 60;
      */
     READ = 60
-}
-/**
- * @generated from protobuf enum symbolx.bench.MessagePlatform
- */
-export enum MessagePlatform {
-    /**
-     * @generated from protobuf enum value: MESSAGE_PLATFORM_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MESSAGE_PLATFORM_BENCH = 1;
-     */
-    BENCH = 1,
-    /**
-     * @generated from protobuf enum value: MESSAGE_PLATFORM_WEBHOOK = 10;
-     */
-    WEBHOOK = 10,
-    /**
-     * @generated from protobuf enum value: MESSAGE_PLATFORM_EMAIL = 20;
-     */
-    EMAIL = 20,
-    /**
-     * @generated from protobuf enum value: MESSAGE_PLATFORM_SMS = 21;
-     */
-    SMS = 21
 }
 /**
  * @generated from protobuf enum symbolx.bench.NotificationType
@@ -18362,7 +18325,6 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.MessageType", MessageType, "MESSAGE_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 33, name: "platform", kind: "enum", T: () => ["symbolx.bench.MessagePlatform", MessagePlatform, "MESSAGE_PLATFORM_"] },
             { no: 34, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18388,7 +18350,6 @@ class MessageData$Type extends MessageType$<MessageData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
-        message.platform = 0;
         message.status = 0;
         message.nodesPtr = [];
         if (value !== undefined)
@@ -18447,9 +18408,6 @@ class MessageData$Type extends MessageType$<MessageData> {
                     break;
                 case /* optional symbolx.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
-                    break;
-                case /* symbolx.bench.MessagePlatform platform */ 33:
-                    message.platform = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData channel_ptr */ 34:
                     message.channelPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.channelPtr);
@@ -18562,9 +18520,6 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MessagePlatform platform = 33; */
-        if (message.platform !== 0)
-            writer.tag(33, WireType.Varint).int32(message.platform);
         /* optional symbolx.bench.NodeReferenceData channel_ptr = 34; */
         if (message.channelPtr)
             NodeReferenceData.internalBinaryWrite(message.channelPtr, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -31231,7 +31186,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.THREAD_STATUS]: ThreadStatus,
   [EnumType.MESSAGE_TYPE]: MessageType,
   [EnumType.MESSAGE_STATUS]: MessageStatus,
-  [EnumType.MESSAGE_PLATFORM]: MessagePlatform,
   [EnumType.NOTIFICATION_TYPE]: NotificationType,
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus,
 }
@@ -31553,7 +31507,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.THREAD_STATUS]: ThreadStatus,
   [EnumType.MESSAGE_TYPE]: MessageType,
   [EnumType.MESSAGE_STATUS]: MessageStatus,
-  [EnumType.MESSAGE_PLATFORM]: MessagePlatform,
   [EnumType.NOTIFICATION_TYPE]: NotificationType,
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus,
 }
@@ -32405,7 +32358,6 @@ export enum MessageProperty {
   subnodePacked = 29,
   type = 30,
   title = 32,
-  platform = 33,
   channelPtr = 34,
   threadPtr = 35,
   scopePtr = 36,
@@ -34099,7 +34051,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.mode]: { id: 20, name: 'mode', component: ObjectType.FILE, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FileProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.name]: { id: 31, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -34113,16 +34065,16 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.kind]: { id: 60, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.kind]: { id: 60, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.sha256]: { id: 64, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.aspectRatio]: { id: 67, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.codec]: { id: 68, name: 'codec', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.duration]: { id: 69, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.aspectRatio]: { id: 67, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.codec]: { id: 68, name: 'codec', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.duration]: { id: 69, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.externalUrl]: { id: 70, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.inlineContent]: { id: 71, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.retention]: { id: 80, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -34146,7 +34098,7 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [StreamProperty.mode]: { id: 20, name: 'mode', component: ObjectType.STREAM, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StreamProperty.type]: { id: 30, name: 'type', component: ObjectType.STREAM, enumType: EnumType.STREAM_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.type]: { id: 30, name: 'type', component: ObjectType.STREAM, enumType: EnumType.STREAM_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.name]: { id: 31, name: 'name', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.icon]: { id: 34, name: 'icon', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -34419,7 +34371,7 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ActionProperty.text]: { id: 36, name: 'text', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ActionProperty.position]: { id: 45, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
-  [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+  [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT, NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [ActionProperty.inputsPacked]: { id: 55, name: 'inputs_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ActionProperty.maxAttempts]: { id: 70, name: 'max_attempts', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
@@ -34557,7 +34509,7 @@ export const ChannelDataInfo: Record<ChannelProperty, PropertyInfo> = {
   [ChannelProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.mainPagePtr]: { id: 60, name: 'main_page_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ChannelProperty.mainPlanPtr]: { id: 61, name: 'main_plan_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
-  [ChannelProperty.status]: { id: 80, name: 'status', component: ObjectType.CHANNEL, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ChannelProperty.status]: { id: 80, name: 'status', component: ObjectType.CHANNEL, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.duration]: { id: 81, name: 'duration', component: ObjectType.CHANNEL, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ChannelProperty.error]: { id: 82, name: 'error', component: ObjectType.CHANNEL, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [ChannelProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.CHANNEL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -34600,7 +34552,7 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.mainPagePtr]: { id: 60, name: 'main_page_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.mainPlanPtr]: { id: 61, name: 'main_plan_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.text]: { id: 65, name: 'text', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ThreadProperty.status]: { id: 80, name: 'status', component: ObjectType.THREAD, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ThreadProperty.status]: { id: 80, name: 'status', component: ObjectType.THREAD, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.duration]: { id: 81, name: 'duration', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.error]: { id: 82, name: 'error', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [ThreadProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -34634,7 +34586,6 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [MessageProperty.type]: { id: 30, name: 'type', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.title]: { id: 32, name: 'title', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [MessageProperty.platform]: { id: 33, name: 'platform', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_PLATFORM, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.channelPtr]: { id: 34, name: 'channel_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.threadPtr]: { id: 35, name: 'thread_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.APPLICATION, NodeType.FILE, NodeType.STREAM, NodeType.CHOICE, NodeType.CLASS, NodeType.DATABASE, NodeType.FLOW, NodeType.KIT, NodeType.PAGE, NodeType.ROLE, NodeType.VIEW, NodeType.TAG, NodeType.TASK, NodeType.PLAN, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -34671,7 +34622,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.title]: { id: 32, name: 'title', component: ObjectType.NOTIFICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [NotificationProperty.channelPtr]: { id: 33, name: 'channel_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.threadPtr]: { id: 34, name: 'thread_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.status]: { id: 40, name: 'status', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.status]: { id: 40, name: 'status', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.failedAt]: { id: 42, name: 'failed_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.sentAt]: { id: 43, name: 'sent_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.receivedAt]: { id: 44, name: 'received_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -34792,7 +34743,7 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.modelDeveloper]: { id: 75, name: 'model_developer', component: ObjectType.AGENT, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.modelProvider]: { id: 76, name: 'model_provider', component: ObjectType.AGENT, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.modelFamily]: { id: 77, name: 'model_family', component: ObjectType.AGENT, enumType: EnumType.MODEL_FAMILY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.duration]: { id: 81, name: 'duration', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.error]: { id: 82, name: 'error', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [AgentProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -34862,7 +34813,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.targetPtr]: { id: 76, name: 'target_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE, NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.planPtr]: { id: 77, name: 'plan_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.taskPtr]: { id: 78, name: 'task_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.status]: { id: 80, name: 'status', component: ObjectType.RUN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.status]: { id: 80, name: 'status', component: ObjectType.RUN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 81, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.error]: { id: 82, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [RunProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -34909,7 +34860,7 @@ export const SpanDataInfo: Record<SpanProperty, PropertyInfo> = {
   [SpanProperty.targetPtr]: { id: 76, name: 'target_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE, NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.planPtr]: { id: 77, name: 'plan_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [SpanProperty.taskPtr]: { id: 78, name: 'task_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },
-  [SpanProperty.status]: { id: 80, name: 'status', component: ObjectType.SPAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SpanProperty.status]: { id: 80, name: 'status', component: ObjectType.SPAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.SPAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpanProperty.error]: { id: 82, name: 'error', component: ObjectType.SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [SpanProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.SPAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -34946,7 +34897,7 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.actionPtr]: { id: 34, name: 'action_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.linkPtr]: { id: 35, name: 'link_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TRANSITION], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.spanPtr]: { id: 37, name: 'span_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SPAN], referenceStruct: StructType.NODE_REFERENCE },
-  [InterruptionProperty.status]: { id: 40, name: 'status', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [InterruptionProperty.status]: { id: 40, name: 'status', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.closedAt]: { id: 42, name: 'closed_at', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.text]: { id: 51, name: 'text', component: ObjectType.INTERRUPTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -35005,7 +34956,7 @@ export const PlanDataInfo: Record<PlanProperty, PropertyInfo> = {
   [PlanProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.icon]: { id: 34, name: 'icon', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PlanProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PlanProperty.status]: { id: 80, name: 'status', component: ObjectType.PLAN, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.duration]: { id: 81, name: 'duration', component: ObjectType.PLAN, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PlanProperty.error]: { id: 82, name: 'error', component: ObjectType.PLAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [PlanProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.PLAN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -35052,7 +35003,7 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.clazzPtr]: { id: 70, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.valuePacked]: { id: 71, name: 'value_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TaskProperty.nodesPtr]: { id: 72, name: 'nodes_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.duration]: { id: 81, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.error]: { id: 82, name: 'error', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ERROR },
   [TaskProperty.interruptionPtr]: { id: 83, name: 'interruption_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
@@ -35462,29 +35413,29 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
 }
 export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileInfoProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.name]: { id: 31, name: 'name', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.kind]: { id: 60, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.kind]: { id: 60, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.sha256]: { id: 64, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.aspectRatio]: { id: 67, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.codec]: { id: 68, name: 'codec', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.duration]: { id: 69, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.aspectRatio]: { id: 67, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.codec]: { id: 68, name: 'codec', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.duration]: { id: 69, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.externalUrl]: { id: 70, name: 'external_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.inlineContent]: { id: 71, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.type]: { id: 30, name: 'type', component: ObjectType.ICON, enumType: EnumType.ICON_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: false, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.vscName]: { id: 34, name: 'vsc_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.type]: { id: 30, name: 'type', component: ObjectType.ICON, enumType: EnumType.ICON_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.vscName]: { id: 34, name: 'vsc_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.filePtr]: { id: 35, name: 'file_ptr', component: ObjectType.ICON, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35585,12 +35536,12 @@ export const SelectOptionsDataInfo: Record<SelectOptionsProperty, PropertyInfo> 
 }
 export const ErrorDataInfo: Record<ErrorProperty, PropertyInfo> = {
   [ErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ERROR, enumType: EnumType.ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.ERROR, enumType: EnumType.ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ERROR, enumType: EnumType.ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.ERROR, enumType: EnumType.ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ErrorProperty.nodesPtr]: { id: 34, name: 'nodes_ptr', component: ObjectType.ERROR, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [ErrorProperty.trace]: { id: 35, name: 'trace', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_TRACE },
+  [ErrorProperty.trace]: { id: 35, name: 'trace', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_TRACE },
 }
 export const RunTraceDataInfo: Record<RunTraceProperty, PropertyInfo> = {
   [RunTraceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_TRACE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
