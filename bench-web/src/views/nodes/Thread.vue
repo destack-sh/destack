@@ -84,7 +84,6 @@ defineExpose<ViewExpose>({ self, id, focus });
           hide-metadata
           :tx="() => connection!.tx"
           @navigate="(direction) => emit('navigate', direction)"
-          @click.stop.prevent="nameRef?.focusIdentifier('right')"
         />
         <!-- Beginning -->
         <div v-if="node" class="mt-1.5 px-0.5 text-base text-gray-400">

@@ -184,6 +184,9 @@ const itemRefs = ref<Record<string, HTMLElement>>({});
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: containerRef, overlayEl: selectionOverlayRef });
 
+// TODO :Robustness: remove & restore Threads breaks some stuff (like it won't respond anymore) :RichGraph
+//  (presumably because the search & getr connections get confused.. maybe we should auto-close the thread for now?)
+
 defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: Ref<AnyNodeData[]> }>({
   self,
   total,
