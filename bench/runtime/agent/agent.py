@@ -108,7 +108,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
         model_provider = self.node.model_provider or ModelProvider.OPENAI
         if model_provider == ModelProvider.OPENAI:
-            return OpenAIChatModelRunner, "gpt-4o-2024-11-20"
+            return OpenAIChatModelRunner, "gpt-4.1-2025-04-14"
         elif model_provider == ModelProvider.ANTHROPIC:
             return AnthropicChatModelRunner, "claude-3-7-sonnet-20250219"
         elif model_provider == ModelProvider.GOOGLE:
