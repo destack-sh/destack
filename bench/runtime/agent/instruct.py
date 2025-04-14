@@ -89,7 +89,7 @@ Claims are how you request and get access to Resources and other things (read/wr
 # Threads
 A Thread is a sequence of related Messages to communicate about something.
 Threads have Memberships, any member MAY create Messages.
-You SHOULD title & icon the Thread if unset (~10-40 characters, e.g., "Oil and Gas Business" or "History of Opium").
+You SHOULD title & icon the Thread if unset (~10-40 characters, recognizeable).
 
 # Messages
 You SHOULD use Messages to communicate with Users and other Agents as needed.
@@ -207,7 +207,8 @@ YOU HAVE A {claim.type.name} CLAIM. ACT ACCORDINGLY.
     thread_text = "The Thread you're in (OLDEST first to NEWEST last)"
     if thread.thread.title is None:
         thread_text += """
-You SHOULD title the Thread once there's some sort of topic (ignore greetings).
+You SHOULD title the Thread as soon as you can (you MAY change it later).
+Avoid non-alphanumeric characters and parantheses.
 """
     else:
         thread_text += """

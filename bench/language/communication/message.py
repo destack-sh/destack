@@ -35,6 +35,7 @@ from bench.language.core import (
     timed_node_,
     to_text,
 )
+from bench.language.core.const import UNSET
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
@@ -220,6 +221,13 @@ class Message(
             return data["thread"]
         else:
             return None
+
+    def edit(self, text: TextIn, nodes: list["Node"] = UNSET):
+        """Edit the Message with new Text."""
+        self.text = to_text(text)
+        if nodes is not UNSET:
+            self.nodes = nodes or []
+        self.edited_at = self.active_session._oracle.utc()
 
     @staticmethod
     def new(
