@@ -1,5 +1,4 @@
 import asyncio
-from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated
 
 from bench.builtin.core import class_to_kit
@@ -14,13 +13,6 @@ if TYPE_CHECKING:
 class ICommonKit(ActionRunner if TYPE_CHECKING else object):
     """Common utility Actions for Flows."""
 
-    async def Pass(self) -> None:
-        """
-        Do nothing.
-        ICON: fas fa-forward
-        """
-        pass
-
     async def Fail(self, Message: str, Is_Retryable: bool = True) -> None:
         """
         Fail with an error.
@@ -30,13 +22,6 @@ class ICommonKit(ActionRunner if TYPE_CHECKING else object):
             raise RetryableError(Message)
         else:
             raise NonRetryableError(Message)
-
-    async def Wait(self, delay: timedelta) -> None:
-        """
-        Wait for a given duration.
-        ICON: fas fa-clock
-        """
-        await asyncio.sleep(delay.total_seconds())
 
     async def Yield(self) -> None:
         """

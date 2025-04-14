@@ -50,7 +50,7 @@ from bench.runtime.model import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-from .macro import SEND
+from .macro import SEND, WAIT
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false
@@ -250,3 +250,24 @@ Sure, here's how you make lists in markdown:
 - Item 2
 ```
 """)
+
+
+@example_(ExampleType.SNIPPET, title="Wait for a bit")
+def example_wait_for_a_bit():
+    # user said they'll be right back (check again in 5 seconds)
+    SEND("sure")
+    WAIT(seconds=5)
+
+
+@example_(ExampleType.SNIPPET, title="Count slowly")
+def example_call_an_action():
+    # counting "slowly" from 1 to 5
+    SEND("1")
+    WAIT(seconds=1)
+    SEND("2")
+    WAIT(seconds=1)
+    SEND("3")
+    WAIT(seconds=1)
+    SEND("4")
+    WAIT(seconds=1)
+    SEND("5")

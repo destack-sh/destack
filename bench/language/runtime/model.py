@@ -46,7 +46,7 @@ class ModelFamily(BuiltinEnum):
     # ...
     # external
     # meta
-    META_LLAMA = 100, "Meta Llama", "Llama"
+    META_LLAMA = 100, "Meta Llama", "Llama", "fab fa-meta"
     # openai
     OPENAI_GPT = 200, "OpenAI GPT", "GPT"
     OPENAI_O = 220, "OpenAI o", "o"
