@@ -122,11 +122,12 @@ class ActionPiece(NodePiece[Action]):
     ) -> Generator[Piece, int, None]:
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         alias = prompt.renderer.aliasing.get_or_add(self.node)
+        path = self.node.absolute_path
         inputs_examples_str = tuple(
             f"{f.name}=..." for f in self.node.fields if f.type == FieldType.INPUT
         )
         call_args_str = ", ".join([alias, *inputs_examples_str])
-        rendered_node = f"# call like CALL({call_args_str})\n{rendered_node}"
+        rendered_node = f"# {path}: call like CALL({call_args_str})\n{rendered_node}"
         yield CodePiece(code=rendered_node)
 
 
@@ -158,8 +159,8 @@ class RunPiece(NodePiece[Run]):
         runnable_alias = prompt.renderer.aliasing.get_or_add(runnable)
         run_parts: list[str] = []
         if self.is_last_action:
-            run_parts.append("# THIS IS THE LAST ACTION YOU JUST CALLED")
-        run_parts.append(f"# run of `{runnable_alias}` from {round(ago.total_seconds())}s ago")  # noqa: FURB113
+            run_parts.append(f"# THIS IS THE LAST ACTION YOU JUST CALLED: {alias}")
+        run_parts.append(f"# Run of `{runnable_alias}` from {round(ago.total_seconds())}s ago")  # noqa: FURB113
         run_parts.append(f"# Status: {self.node.status.name}")
         if (duration := self.node.duration) is not None:
             run_parts.append(f"# Duration: {round(duration.total_seconds())}s")

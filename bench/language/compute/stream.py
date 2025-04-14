@@ -7,8 +7,8 @@ from bench.language.core import (
     Resource,
     enum_,
     node_,
-    p_internal,
     p_node_parent,
+    p_regular,
 )
 from bench.pb2.lang_pb2 import StreamData
 
@@ -35,4 +35,4 @@ class Stream(Resource[StreamData]):
 
     parent: Union["Bench", None] = p_node_parent(4, NodeType.BENCH, is_system=True)
 
-    type: StreamType = p_internal(30)
+    type: StreamType = p_regular(30)

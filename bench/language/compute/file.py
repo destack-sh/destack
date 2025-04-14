@@ -486,26 +486,26 @@ class FileBase(BuiltinObject):
     """
 
     # common
-    type: FileType = p_internal(30)
+    type: FileType = p_regular(30)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
 
     # meta
-    kind: FileKind = p_internal(60)
-    mime_type: str | None = p_internal(61, constraint=MIME_TYPE_CONSTRAINT)
-    format: FileFormat | None = p_internal(62, default=None)
-    size: int = p_internal(
+    kind: FileKind = p_regular(60)
+    mime_type: str | None = p_regular(61, constraint=MIME_TYPE_CONSTRAINT)
+    format: FileFormat | None = p_regular(62, default=None)
+    size: int = p_regular(
         63, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
     )
     sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
-    width: Optional[int] = p_internal(65, default=None)
-    height: Optional[int] = p_internal(66, default=None)
-    aspect_ratio: Optional[float] = p_internal(67, default=None)
-    codec: Optional[str] = p_internal(68, default=None)
-    duration: Optional[timedelta] = p_internal(69, default=None)
+    width: int | None = p_regular(65, default=None)
+    height: int | None = p_regular(66, default=None)
+    aspect_ratio: float | None = p_regular(67, default=None)
+    codec: str | None = p_regular(68, default=None)
+    duration: Optional[timedelta] = p_regular(69, default=None)
 
     # content
-    external_url: Optional[str] = p_regular(70, default=None)  # if external
-    inline_content: Optional[bytes] = p_regular(
+    external_url: str | None = p_regular(70, default=None)  # if external
+    inline_content: bytes | None = p_regular(
         71, default=None, constraint=constraint(min_length=1)
     )
     ...  # thumbnail/preview/...?

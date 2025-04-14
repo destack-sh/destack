@@ -315,7 +315,7 @@ class IsSubject(BuiltinObject):
 class IsOwnable(BuiltinObject):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional[Subject] = p_regular(
+    owned_by: Optional[Subject] = p_internal(
         17,
         require=False,
         array=False,
@@ -341,7 +341,7 @@ class IsJoinable(BuiltinObject):
 class IsClaimable(BuiltinObject):
     """A Node that can be claimed with a Claim."""
 
-    claimed_by: Optional["Claim"] = p_regular(
+    claimed_by: Optional["Claim"] = p_internal(
         18, require=False, array=False, references=NodeType.CLAIM, same_bench=True
     )
     if TYPE_CHECKING:
@@ -464,7 +464,7 @@ class IsRuntime(BuiltinObject):
 class IsProcessable(IsRuntime):
     """A Node that can be processed somehow."""
 
-    status: ProcessStatus = p_internal(80, default=ProcessStatus.CREATED)
+    status: ProcessStatus = p_regular(80, default=ProcessStatus.CREATED)
     duration: Optional[timedelta] = p_internal(
         81,
         default=None,

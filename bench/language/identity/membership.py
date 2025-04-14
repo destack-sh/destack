@@ -11,8 +11,8 @@ from bench.language.core import (
     NodeType,
     Subject,
     node_,
-    p_internal,
     p_node_parent,
+    p_regular,
 )
 from bench.language.core.node import PackageNode
 from bench.pb2 import MembershipData
@@ -33,7 +33,7 @@ class Membership(IsInstantiable, IsModal, PackageNode[MembershipData]):
     parent: Union[Joinable, None] = p_node_parent(4, *JOINABLE_NODE_TYPES)
 
     # content
-    member: Subject = p_internal(41, require=True, array=False, references=SUBJECT_NODE_TYPES.tuple)
+    member: Subject = p_regular(41, require=True, array=False, references=SUBJECT_NODE_TYPES.tuple)
     if TYPE_CHECKING:
         member_ptr: NodeReference | None = None
         member_id: UUID | None = None

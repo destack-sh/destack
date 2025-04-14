@@ -52,8 +52,6 @@ class CodeRunner(Runner, ABC):
         outputs: IsType | CustomObject | None = None,
         globals: dict[str, Any] | None = None,
     ) -> None:
-        from bench.runtime.agent.macro import MACROS_BY_NAME
-
         super().__init__(
             runtime=runtime,
             node=node,
@@ -71,7 +69,6 @@ class CodeRunner(Runner, ABC):
             self.aliasing.add(self.node)
         self.combined_globals: dict[str, Any] = {
             **STATIC_CODE_GLOBALS,
-            **MACROS_BY_NAME,
             **(self.aliasing._node_by_alias if self.aliasing else {}),
             **(globals or {}),
         }

@@ -173,7 +173,7 @@ class Message(
     value: Any = p_value_runtime(
         62, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
-    clazz: Optional["Class"] = p_internal(
+    clazz: Optional["Class"] = p_regular(
         63,
         require=False,
         array=False,

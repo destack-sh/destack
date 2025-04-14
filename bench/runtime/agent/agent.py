@@ -97,6 +97,8 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         """Call an Action."""
         self._next_action = AgentTool(run=run)
 
+    # nocheckin: indicate current Agent activity
+
     @tracer.start_as_current_span("agent.think")
     async def _think(self):
         """Prepare the next actions in this Flow (if any)."""

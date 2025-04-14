@@ -69,7 +69,7 @@ class Notification(IsTitled, IsTimed, IsModal, PackageNode[NotificationData]):
     )
 
     # status
-    status: NotificationStatus = p_internal(40, default=NotificationStatus.SENT)
+    status: NotificationStatus = p_regular(40, default=NotificationStatus.SENT)
     failed_at: Optional[datetime] = p_system(42, default=None)
     sent_at: Optional[datetime] = p_system(43, default=None)
     received_at: Optional[datetime] = p_system(44, default=None)

@@ -109,7 +109,7 @@ class Action(
     )
 
     # content
-    code: Optional["Code"] = p_regular(
+    code: Optional["Code"] = p_internal(
         52,
         default=None,
         require=False,

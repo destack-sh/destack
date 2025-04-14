@@ -13,7 +13,6 @@ from bench.language.core import (
     TextLine,
     ValidationError,
     enum_,
-    p_internal,
     p_regular,
     struct_,
 )
@@ -72,12 +71,12 @@ class ErrorType(BuiltinEnum):
 class Error(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
-    kind: ErrorKind = p_internal(30)
-    type: ErrorType = p_internal(31, default=None)
-    title: Optional[str] = p_internal(32, default=None)
-    text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
-    nodes: list["Node"] = p_internal(34, array=True, require=False, references="any")
-    trace: Optional[RunTrace] = p_internal(
+    kind: ErrorKind = p_regular(30)
+    type: ErrorType = p_regular(31, default=None)
+    title: str | None = p_regular(32, default=None)
+    text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
+    nodes: list["Node"] = p_regular(34, array=True, require=False, references="any")
+    trace: Optional[RunTrace] = p_regular(
         35, require=False, array=False, struct=StructType.RUN_TRACE
     )
 

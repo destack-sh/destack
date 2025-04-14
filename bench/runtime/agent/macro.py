@@ -129,7 +129,12 @@ class FunctionMacro(Macro):
     def compile(
         self, prompt: Prompt, tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
-        yield TextPiece(text=f"{self.text}\n{self.name}{self.signature}")
+        code_parts = [f"# {self.name}"]
+        text = "\n".join([f"# {line}" for line in self.text.split("\n")])
+        if self.is_terminal:
+            text += "\n# (MUST be the last line)"
+        code_parts.append(f"{self.name}: {self.signature}")
+        yield CodePiece(code="\n".join(code_parts))
 
     @final
     def bind(self, runner: "AgentRunner") -> Callable:

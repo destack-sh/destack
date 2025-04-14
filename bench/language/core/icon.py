@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from .color import ColorIn, to_color
 from .const import BuiltinEnum, EnumType, NodeType, StructType, enum_
-from .property import p_internal
+from .property import p_regular
 from .struct import Struct, struct_
 
 if TYPE_CHECKING:
@@ -28,16 +28,14 @@ class IconType(BuiltinEnum):
 class Icon(Struct):
     """An icon to be displayed in some view."""
 
-    type: IconType = p_internal(30, default=False)
+    type: IconType = p_regular(30, default=False)
     # content
-    # NOTE :Robustness: emoji's should have a (regex?) constraint, but that's pretty hard
-    #  (we used to have \p{Emoji_Presentation}, but that's too strict)
-    emoji: Optional[str] = p_internal(31, require=False)
-    fa_name: Optional[str] = p_internal(33, require=False)
-    vsc_name: Optional[str] = p_internal(34, require=False)
-    file: Optional["File"] = p_internal(35, require=False, references=NodeType.FILE)
+    emoji: str | None = p_regular(31, require=False)
+    fa_name: str | None = p_regular(33, require=False)
+    vsc_name: str | None = p_regular(34, require=False)
+    file: Optional["File"] = p_regular(35, require=False, references=NodeType.FILE)
     # style
-    color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
+    color: Optional["Color"] = p_regular(40, require=False, array=False, struct=StructType.COLOR)
 
     @staticmethod
     def new(icon: "IconIn", color: ColorIn | None = None) -> "Icon":
