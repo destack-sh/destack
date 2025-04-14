@@ -27,6 +27,7 @@ from bench.runtime.model import (
     ImagePiece,
     Piece,
     Prompt,
+    SeparatorPiece,
     Tokenizer,
     piece_,
     raise_if_none,
@@ -44,12 +45,16 @@ class NodePiece[N: Node](CompoundPiece):
     """Render a Node directly."""
 
     node: N = raise_if_none()
+    prepend_path: bool = True
 
     @override
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
+        alias = prompt.renderer.aliasing.get_or_add(self.node)
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
+        if self.prepend_path:
+            rendered_node = f"# [@{alias}] = {self.node.absolute_path}\n{rendered_node}"
         yield CodePiece(code=rendered_node)
 
 
@@ -106,8 +111,37 @@ class MessagePiece(NodePiece[Message]):
 
 @piece_(NodeType.PAGE)
 class PagePiece(NodePiece[Page]):
-    # nocheckin: show & edit Pages
-    pass
+    @override
+    def compile(
+        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
+    ) -> Generator[Piece, int, None]:
+        yield SeparatorPiece()
+        # header (page)
+        alias = prompt.renderer.aliasing.get_or_add(self.node)
+        rendered_page = prompt.renderer.render_statement(self.node, append=False, format=True)
+        rendered_page = f"""\
+# [@{alias}] = {self.node.absolute_path}
+{rendered_page}
+# Blocks are markdown with their alias prepended like `[@Block1] <line>`.
+# You MAY reference them directly like Blocks by their alias. 
+# When someone asks for content, just quote it and refer to the page (NO aliases).
+"""
+        yield CodePiece(code=rendered_page)
+
+        # blocks
+        block_parts: list[str] = []
+        for block in self.node.blocks:
+            block_alias = prompt.renderer.aliasing.get_or_add(block)
+            if (line := block.line) is not None:
+                block_parts.append(f"[@{block_alias}] {line}")
+            else:
+                # nocheckin: non-text blocks in PagePiece
+                pass
+        rendered_blocks = "\n".join(block_parts)
+        yield CodePiece(code=rendered_blocks)
+
+        # footer (page)
+        yield SeparatorPiece()
 
 
 @piece_(NodeType.PLAN)
@@ -166,15 +200,18 @@ class RunPiece(NodePiece[Run]):
         if (duration := self.node.duration) is not None:
             run_parts.append(f"# Duration: {round(duration.total_seconds())}s")
         if (inputs := self.node.inputs) is not None:
-            run_parts.append(f"# Inputs: {inputs!r}")
+            rendered_inputs = prompt.renderer.render_custom_object(inputs)
+            run_parts.append(f"# Inputs: {rendered_inputs}")
         if (outputs := self.node.outputs) is not None:
-            run_parts.append(f"# Outputs: {outputs!r}")
+            rendered_outputs = prompt.renderer.render_custom_object(outputs)
+            run_parts.append(f"# Outputs: {rendered_outputs}")
         if (error := self.node.error) is not None:
-            run_parts.append(f"# Error: {error!r}")
+            rendered_error = prompt.renderer.render_builtin_object(error)
+            run_parts.append(f"# Error: {rendered_error}")
         run_parts.append(f"{alias} = Run(action={runnable_alias}, ...)")
         yield CodePiece(code="\n".join(run_parts))
 
 
 @piece_()
 class AttemptPiece(NodePiece[Span]):
-    pass
+    prepend_path: bool = False

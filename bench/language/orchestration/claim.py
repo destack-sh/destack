@@ -34,9 +34,10 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.CLAIM_TYPE)
 class ClaimType(BuiltinEnum):
-    SHARED = 20, "Shared", "Shared concurrent access", "fas fa-users"
-    RESERVED = 30, "Reserved", "Shared, but reserved for exclusive use", "fas fa-user-unlock"
-    EXCLUSIVE = 40, "Exclusive", "Exclusive access", "fas fa-lock"
+    READ = 20, "Read", "Shared read access", "fas fa-users"
+    # RESERVED? (read but may promote to write)
+    WRITE = 40, "Write", "Shared write access", "fas fa-lock"
+    # EXCLUSIVE_WRITE?
 
 
 @enum_(EnumType.CLAIM_STATUS)
@@ -127,16 +128,11 @@ class Claim(
         target_template_id: Optional[UUID] = None
 
     @staticmethod
-    def exclusive(name: str, target: Claimable, **kwargs) -> "Claim":
-        claim = Claim(type=ClaimType.EXCLUSIVE, name=name, target=target, **kwargs)
+    def read(name: str, target: Claimable, **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.READ, name=name, target=target, **kwargs)
         return claim
 
     @staticmethod
-    def reserved(name: str, target: Claimable, **kwargs) -> "Claim":
-        claim = Claim(type=ClaimType.RESERVED, name=name, target=target, **kwargs)
-        return claim
-
-    @staticmethod
-    def shared(name: str, target: Claimable, **kwargs) -> "Claim":
-        claim = Claim(type=ClaimType.SHARED, name=name, target=target, **kwargs)
+    def write(name: str, target: Claimable, **kwargs) -> "Claim":
+        claim = Claim(type=ClaimType.WRITE, name=name, target=target, **kwargs)
         return claim

@@ -6,8 +6,6 @@ from opentelemetry import trace
 
 from bench.language import (
     Aliasing,
-    Projection,
-    ProjectOptions,
     Renderer,
     RenderOptions,
     Runnable,
@@ -59,7 +57,6 @@ class Prompt:
         *,
         system_prompt: str,
         aliasing: Aliasing | None = None,
-        projection: Projection | None = None,
         renderer: Renderer | None = None,
         components: list["Piece"] | None = None,
     ):
@@ -68,9 +65,6 @@ class Prompt:
         self.now = session._oracle.utc()
         self.node = node
         self.aliasing = aliasing or Aliasing()
-        self.projection = projection or Projection(
-            supergraph=node._supergraph, options=ProjectOptions()
-        )
         self.renderer = renderer or Renderer(
             options=RenderOptions(scope=node, aliasing=self.aliasing)
         )

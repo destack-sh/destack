@@ -11,7 +11,6 @@ from .link import PortSide, Transition, TransitionType
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
-from .project import Projection, ProjectOptions
 from .render import (
     ACTIVE_ALIASING,
     Aliasing,
@@ -50,8 +49,6 @@ __all__ = [
     "PackageType",
     "Page",
     "PortSide",
-    "ProjectOptions",
-    "Projection",
     "RenderOptions",
     "Renderer",
     "Schedule",

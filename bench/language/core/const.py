@@ -587,6 +587,7 @@ class NodeType(BuiltinEnum):
     INVITE = 5620, "Invite", "Invite to something", "fas fa-user-plus"
     ROLE = 5630, "Role", "Role", "fas fa-user-tag"
     AGENT = 5640, "Agent", "Identity for an AI", "fas fa-robot"
+    # PROFILE? (for User)
     # CHALLENGE?
     # BADGE? POLICY? RULE?
 

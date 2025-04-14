@@ -99,7 +99,7 @@ defineExpose<ViewExpose>({ self, id, commands });
               props: {
                 valueType: makeType({
                   kind: TypeKind.NODE,
-                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER] }),
+                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.PAGE, NodeType.COMPUTER] }),
                 }),
               },
               onApply: (value?: NodeReferenceData) => {
@@ -108,7 +108,7 @@ defineExpose<ViewExpose>({ self, id, commands });
                 createClaim(connection.tx, graph, {
                   claim: {
                     mode: isRunnableNode(node) ? NodeMode.TEMPLATE : NodeMode.MAIN,
-                    type: ClaimType.SHARED,
+                    type: ClaimType.WRITE,
                     packagePtr: (base as ActionData)?.packagePtr,
                     parentPtr: basePtr,
                     targetPtr: isNodeActive(node) ? value : undefined,
