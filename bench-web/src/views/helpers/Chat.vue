@@ -618,7 +618,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         ref="innerScrollRef"
         class="relative flex flex-col focus:outline-none"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
-        :style="{ minHeight: bodyHeight != null ? bodyHeight + 'px' : undefined }"
+        :style="{ minHeight: bodyHeight != null ? bodyHeight - 4 /* WHY -4? */ + 'px' : undefined }"
         @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
       >
         <!-- Top placeholder / general loading state -->
@@ -899,31 +899,10 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     <!-- Input box -->
     <div
       ref="inputContainerRef"
+      class="pt-2"
       :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
       @mousedown="inputRef?.focus?.('right')"
     >
-      <!-- Activity -->
-      <div class="flex h-[24px] w-full flex-row items-center px-3 text-sm text-xs">
-        <template v-if="activeAuthors.length > 0">
-          <!-- Status icon -->
-          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
-            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
-          </span>
-          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
-            <!-- Names -->
-            <div
-              class="cursor-pointer rounded-full decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
-              role="link"
-              :class="i > 0 ? 'ml-1' : ''"
-              @click="author && canvas.goToNode(author.node)"
-            >
-              <span class="font-medium text-gray-900">{{ author.name }}</span>
-            </div>
-            <span v-if="i < activeAuthors.length - 1">, </span>
-          </template>
-        </template>
-      </div>
-
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -1047,8 +1026,26 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </div>
       </div>
       <!-- Footer -->
-      <div class="h-2">
-        <!-- ... -->
+      <!-- Activity -->
+      <div class="flex h-[24px] w-full flex-row items-center px-3 pb-0.5 text-sm text-xs">
+        <template v-if="activeAuthors.length > 0">
+          <!-- Status icon -->
+          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
+            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
+          </span>
+          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
+            <!-- Names -->
+            <div
+              class="cursor-pointer rounded-full decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
+              role="link"
+              :class="i > 0 ? 'ml-1' : ''"
+              @click="author && canvas.goToNode(author.node)"
+            >
+              <span class="font-medium text-gray-900">{{ author.name }}</span>
+            </div>
+            <span v-if="i < activeAuthors.length - 1">, </span>
+          </template>
+        </template>
       </div>
     </div>
   </div>

@@ -77,6 +77,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             outputs=outputs,
             agent=agent,
         )
+        self._received_wake: bool = False
         self._next_action: AgentAction = AgentContinue()
 
     def complete(self):
@@ -85,9 +86,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     def wake(self):
         """Wake the Agent."""
-        # nocheckin: handle waking/resuming AgentRunner while it's running (?)
-        # self._next_action = AgentContinue()
-        pass
+        self._received_wake = True
 
     def wait(self, duration: float):
         """Wait for the Agent."""
@@ -207,15 +206,22 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     async def run(self) -> None:
         # run main loop
-        while True:
+        while not isinstance(self._next_action, AgentComplete):
+            # think
             self._next_action = AgentComplete()
+            self._received_wake = False
             await self._think()
+            received_wake = self._received_wake
+            self._received_wake = False
+
+            # do
             if isinstance(self._next_action, AgentComplete):
-                break
+                if received_wake:
+                    self._next_action = AgentContinue()
             elif isinstance(self._next_action, AgentWait):
                 await self.runtime.oracle.sleep(self._next_action.seconds)
             elif isinstance(self._next_action, AgentContinue):
-                continue
+                pass  # continue
             elif isinstance(self._next_action, AgentTool):
                 await self._call(self._next_action.run)
             else:

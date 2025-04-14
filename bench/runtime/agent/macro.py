@@ -117,7 +117,7 @@ class FunctionMacro(Macro):
         text: str,
         signature: str,
         func: Callable[["AgentRunner"], Callable[..., None]],
-        is_terminal: bool,
+        is_terminal: bool = False,
     ):
         self.name = name
         self.text = text
@@ -132,7 +132,7 @@ class FunctionMacro(Macro):
         code_parts = [f"# {self.name}"]
         text = "\n".join([f"# {line}" for line in self.text.split("\n")])
         if self.is_terminal:
-            text += "\n# (MUST be the last line)"
+            text += f"\n# ({self.name} MAY ONLY be at the end of your response ONCE.)"
         code_parts.append(f"{self.name}: {self.signature}")
         yield CodePiece(code="\n".join(code_parts))
 
@@ -195,7 +195,7 @@ def UPLOAD(file_in: FileIn, name: str, runner: "AgentRunner" = _INJECTED_RUNNER)
     "WAIT",
     """\
 Wait for some time before thinking again. 
-If you expect something to happen soon, just wait for a bit.
+If you expect something to happen soon (<1min), just wait for a bit.
 """,
     signature="(seconds: float = 2) -> None",
     is_terminal=True,
@@ -204,12 +204,15 @@ def WAIT(
     seconds: float = 3,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
+    assert seconds < 60, f"WAIT must be less than 60 seconds: {seconds}"
     runner.wait(seconds)
 
 
 @function_macro_(
     "CALL",
-    "Call an Action as a tool.",
+    """\
+Call an Action as a tool.
+""",
     signature="(action: Action, **inputs) -> None",
     is_terminal=True,
 )

@@ -32,6 +32,7 @@ class ThreadHandle:
     """
     A handle to a Thread at runtime.
     Automatically loads the Thread and its Messages.
+    # TODO :Robustness: ThreadHandle.messages is delayed because search connections are updated from Host only
     """
 
     __slots__ = (
