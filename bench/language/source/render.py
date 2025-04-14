@@ -62,7 +62,7 @@ from .option import Option
 from .page import Page
 
 if TYPE_CHECKING:
-    from bench.language import Claim, Plan, Task, View
+    from bench.language import Claim, Message, Plan, Task, View
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -1008,6 +1008,24 @@ class ClaimRenderer(NodeRenderer["Claim"]):
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Claim.{obj.type.name.lower()}({renderer.render_args(*args)})"
+
+
+@_renderer(NodeType.MESSAGE)
+class MessageRenderer(NodeRenderer["Message"]):
+    @override
+    def _render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: "Message",
+        kwargs: dict[Property, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        # inline text and title
+        args = (
+            rendered_kwargs.pop("text"),
+            renderer.render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Message.new({renderer.render_args(*args)})"
 
 
 #

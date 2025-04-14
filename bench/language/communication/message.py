@@ -65,15 +65,6 @@ class MessageType(BuiltinEnum):
     # also see https://discord.com/developers/docs/resources/message
 
 
-@enum_(EnumType.MESSAGE_PLATFORM)
-class MessagePlatform(BuiltinEnum):
-    BENCH = 1
-    WEBHOOK = 10
-    EMAIL = 20
-    SMS = 21
-    # WHATSAPP, TELEGRAM, SLACK, ...?
-
-
 @enum_(EnumType.MESSAGE_STATUS)
 class MessageStatus(BuiltinEnum):
     DRAFT = 10
@@ -102,7 +93,7 @@ class Message(
         4, NodeType.CHANNEL, NodeType.THREAD, ckless=True
     )
     type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
-    platform: MessagePlatform = p_regular(33, require=True, default=MessagePlatform.BENCH)
+    # platform? source?
     channel: Optional["Channel"] = p_node_ancestor(
         34,
         NodeType.CHANNEL,
@@ -236,14 +227,12 @@ class Message(
         *,
         title: TextLine | None = None,
         owned_by: Optional[Subject] = None,
-        platform: MessagePlatform = MessagePlatform.BENCH,
         scope: Optional["InlineNode"] = None,
         reply_to: Optional["Message"] = None,
         nodes: list["Node"] | None = None,
     ) -> "Message":
         message = Message(
             type=MessageType.REGULAR,
-            platform=platform,
             title=text_line(title) if title is not None else None,
             text=to_text(text) if text is not None else None,
             reply_to=reply_to,
