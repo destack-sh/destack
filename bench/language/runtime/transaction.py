@@ -785,6 +785,7 @@ def edit_graph(
             node = wiring.unpack_builtin_object(
                 node_data, graph=graph, supergraph=supergraph, expect=Node
             )
+            # NOTE :Robustness: should edit_graph ignore new nodes without parents? :RichGraph (like in bench-web)
             if edit_type == EditType.CREATE or node.id not in graph:
                 graph.add(node)
             else:
@@ -893,6 +894,7 @@ def edit_data_graph(
             else:
                 node.ClearField("created_by_ptr")
                 node.ClearField("updated_by_ptr")
+            # NOTE :Robustness: should edit_graph ignore new nodes without parents? :RichGraph (like in bench-web)
             if edit_type == EditType.CREATE or node.id not in graph:
                 graph.add(node)
             else:

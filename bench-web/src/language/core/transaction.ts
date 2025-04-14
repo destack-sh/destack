@@ -679,6 +679,19 @@ export function editGraph(
       node.updatedAt = edit.editedAt;
       node.deletedAt = undefined;
       node.updatedByPtr = edit.subjectPtr;
+      if (
+        node.parentPtr != null &&
+        !graph.has(node.parentPtr) &&
+        (options?.base == null || !options.base.has(node.parentPtr))
+      ) {
+        // NOTE :Robustness: ignoring new nodes with missing parents seems right but may be wonky :RichGraph
+        if (options?.ignoreMissing) {
+          continue;
+        }
+        throw new Error(
+          `missing parent ${describeNode(node.parentPtr)} for ${describeNode(node)} in ${graph.describeSelf()}`,
+        );
+      }
       if (edit.type == EditType.CREATE || !graph.has(node)) {
         graph.add(node);
       } else {

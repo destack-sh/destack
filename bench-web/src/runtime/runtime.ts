@@ -3,12 +3,14 @@ import { makeExpression } from "@/language/core/expression";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { makeNode } from "@/language/core/node";
 import { timesortNode } from "@/language/core/order";
-import { isProcessActive, isProcessPaused } from "@/language/runtime/process";
 import { newChangeId, type Transaction } from "@/language/core/transaction";
+import { isProcessActive, isProcessPaused } from "@/language/runtime/process";
+import { getRunType } from "@/language/runtime/run";
 import { actionToType } from "@/language/source/action";
 import { flowToType } from "@/language/source/flow";
 import {
   ActionData,
+  AgentData,
   ChangeCategory,
   ExpressionType,
   FieldType,
@@ -20,22 +22,20 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  ProcessStatus,
+  RunnableNodeData,
   RunProperty,
   SpanData,
-  ProcessStatus,
   Timestamp,
-  type RunData,
-  RunnableNodeData,
-  AgentData,
   TransitionData,
+  type RunData,
 } from "@/proto/wire";
 import {
   describeNode,
   isNode,
-  makeDefaultObject,
   propertyReference,
   toNodeRef,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { supergraph, useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { benchConnection, benchGraph, space, spaceConnection } from "@/system/space";
@@ -45,7 +45,6 @@ import { log } from "@/utils/log";
 import { computedValue } from "@/utils/ref";
 import { assertNever } from "@protobuf-ts/runtime";
 import { computed, type Ref } from "vue";
-import { getRunType } from "@/language/runtime/run";
 
 /** A reactive Run with all its descendants */
 let treeId = 0;

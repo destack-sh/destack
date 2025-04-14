@@ -58,10 +58,10 @@ class MessageType(BuiltinEnum):
     REGULAR = 1, "Regular", "Standard Message", "fas fa-envelope"
     REPLY = 2, "Reply", "Reply to another Message", "fas fa-reply"
     # FORWARDED = 3, "Forwarded", "Forwarded Message", "fas fa-forward"
-    RUN = 100, "Run", "Begin a Run", "fas fa-play"
-    INTERRUPTION = 110, "Interruption", "Interrupt a Run", "fas fa-hand"
-    # POLL = 130, "Poll", "Poll for a response", "fas fa-ballot"
-    EDIT = 200, "Edited", "Edited the Bench", "fas fa-pencil"
+    JOIN = 10, "Join", "Join a chat", "fas fa-arrow-right-to-bracket"
+    LEAVE = 11, "Leave", "Leave a chat", "fas fa-arrow-left-from-line"
+    THREAD = 20, "Thread", "Nested chat", "fas fa-thread"
+    # RUN, INTERRUPTION, EDIT, STREAM, ...
     # also see https://discord.com/developers/docs/resources/message
 
 

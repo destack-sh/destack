@@ -13493,17 +13493,17 @@ export enum MessageType {
      */
     REPLY = 2,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 100;
+     * @generated from protobuf enum value: MESSAGE_TYPE_JOIN = 10;
      */
-    RUN = 100,
+    JOIN = 10,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_INTERRUPTION = 110;
+     * @generated from protobuf enum value: MESSAGE_TYPE_LEAVE = 11;
      */
-    INTERRUPTION = 110,
+    LEAVE = 11,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_EDIT = 200;
+     * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 20;
      */
-    EDIT = 200
+    THREAD = 20
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageStatus
@@ -33950,7 +33950,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -33987,7 +33987,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -36219,9 +36219,9 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
 export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>> = {
   [MessageType.REGULAR]: { id: 1, name: 'REGULAR', text: 'Standard Message', title: 'Regular', icon: 'fas fa-envelope' },
   [MessageType.REPLY]: { id: 2, name: 'REPLY', text: 'Reply to another Message', title: 'Reply', icon: 'fas fa-reply' },
-  [MessageType.RUN]: { id: 100, name: 'RUN', text: 'Begin a Run', title: 'Run', icon: 'fas fa-play' },
-  [MessageType.INTERRUPTION]: { id: 110, name: 'INTERRUPTION', text: 'Interrupt a Run', title: 'Interruption', icon: 'fas fa-hand' },
-  [MessageType.EDIT]: { id: 200, name: 'EDIT', text: 'Edited the Bench', title: 'Edited', icon: 'fas fa-pencil' },
+  [MessageType.JOIN]: { id: 10, name: 'JOIN', text: 'Join a chat', title: 'Join', icon: 'fas fa-arrow-right-to-bracket' },
+  [MessageType.LEAVE]: { id: 11, name: 'LEAVE', text: 'Leave a chat', title: 'Leave', icon: 'fas fa-arrow-left-from-line' },
+  [MessageType.THREAD]: { id: 20, name: 'THREAD', text: 'Nested chat', title: 'Thread', icon: 'fas fa-thread' },
 }
 
 

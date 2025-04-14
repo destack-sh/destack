@@ -1387,7 +1387,7 @@ export type NodeSuperGraphCallback = (
   callback: any,
 ) => void;
 export type NodeSuperGraphGetOptions = {
-  excludeSecondary?: boolean; 
+  excludeSearch?: boolean;
 };
 
 /**
@@ -1441,7 +1441,7 @@ export class NodeSuperGraph {
         nodeTypes.every((nodeType) => connection.nodeTypes.has(nodeType)),
       );
     }
-    if (options?.excludeSecondary) {
+    if (options?.excludeSearch) {
       connections = connections.filter((connection) => connection.kind != "search");
     }
     return connections;
@@ -1666,7 +1666,7 @@ export class NodeSuperGraph {
     };
     const get = () =>
       keysRef.value != null
-        ? (keysRef.value.map((key) => this.get(key)).filter((n) => n != null) as NodeTypeMapping[T][])
+        ? (keysRef.value.map((key) => this.get(key, options)).filter((n) => n != null) as NodeTypeMapping[T][])
         : [];
     const update = () => {
       unsub();

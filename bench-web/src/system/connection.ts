@@ -239,7 +239,7 @@ function makeConnectionOverlayGraph(
     let edits: EditData[];
     if (event.meta.connectionId == connection.meta.id) {
       // our connection, take all edits
-      edits = event.bufferedEdits;
+      edits = event.bufferedEdits.filter((e) => base.nodeTypes.has(e.nodePtr?.nodeType!));
     } else if (event.meta.connectionId == null) {
       // general connection, take any edits that match our node types
       edits = event.bufferedEdits.filter((e) => base.nodeTypes.has(e.nodePtr?.nodeType!));
@@ -250,7 +250,7 @@ function makeConnectionOverlayGraph(
     if (edits.length > 0) {
       // NOTE :Robustness: we used to have ignoreMissing: event.meta.connectionId != connection.meta.id :RichGraph
       //  (but that doesn't totally work since we now have node types that are sometimes in the loaded graph, sometimes not
-      //   e.g., we have Bench.memberships loaded but not Thread.memberships since Threads are unloaded, so those would be missing)
+      //   e.g., we have Bench.memberships loaded but not Thread.memberships since Threads are unloaded, so those Memberships may be missing)
       editGraph(overlay, edits, { base: base, ignoreMissing: true });
     }
   });
@@ -1160,7 +1160,7 @@ export function useAutoConnection<T extends NodeType = any>(
 } {
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   // restrict to get connections because search connections don't have descendants :BadSearchConnection
-  const { connection } = supergraph.getLinkRef(nodeRef, { excludeSecondary: true });
+  const { connection } = supergraph.getLinkRef(nodeRef, { excludeSearch: true });
   const graph = useConnectionGraphComposite(connection);
   const graphRaw = useConnectionGraphRaw(connection);
   return { graph, graphRaw, connection: new ProxyConnection(connection) };
