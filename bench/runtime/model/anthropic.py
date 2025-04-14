@@ -32,11 +32,10 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-
 anthropic_client = anthropic.AsyncClient(
     api_key=get_from_env("ANTHROPIC_API_KEY", description="Anthropic API key")
 )
-ANTHROPIC_DEFAULT_MODEL = "claude-3-7-sonnet-20250219"
+
 BREAK = "\n"
 SEPARATOR = "#" * 32  # = exactly 1 token
 
@@ -129,8 +128,6 @@ class AnthropicChatModelRunner(ChatModelRunner):
     async def run(self) -> None:
         from bench.runtime import MACROS, AgentRunner
 
-        model_id = self.model_id or ANTHROPIC_DEFAULT_MODEL
-
         # build
         max_tokens = 20_000
         system_prompt, messages, pieces = await build_anthropic_messages(
@@ -150,7 +147,7 @@ class AnthropicChatModelRunner(ChatModelRunner):
         completion = await anthropic_client.messages.create(
             system=system_prompt,
             max_tokens=8192,
-            model=model_id,
+            model=self.model_id,
             messages=messages,
             temperature=NOT_GIVEN,
             stream=True,

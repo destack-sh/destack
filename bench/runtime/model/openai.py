@@ -31,7 +31,7 @@ tracer = trace.get_tracer(__name__)
 openai_client = openai.AsyncClient(
     api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
 )
-OPENAI_DEFAULT_MODEL = "gpt-4o-2024-11-20"
+
 BREAK = "\n"
 SEPARATOR = "#" * 32  # = exactly 1 token
 
@@ -124,7 +124,6 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         # build
         max_tokens = 16_384
-        model_id = self.model_id or OPENAI_DEFAULT_MODEL
         messages, pieces = await build_openai_chat_messages(
             prompt=self.prompt,
             tokenizer=TiktokenTokenizer(),
@@ -141,7 +140,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
         )
         completion = await openai_client.chat.completions.create(
             messages=messages,
-            model=model_id,
+            model=self.model_id,
             max_tokens=max_tokens,
             user=hash_stable_hex(self.runtime.bench.id.int),
             stream=True,

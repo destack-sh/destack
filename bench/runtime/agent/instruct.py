@@ -209,11 +209,13 @@ def build_prompt(
     agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
     thread_text = "The Thread you're in (OLDEST first to NEWEST last)"
     if thread.thread.title is None:
-        thread_text += " (don't forget title/icon if needed)"
+        thread_text += """
+You SHOULD title the Thread a topic has ossified.
+"""
     else:
-        thread_text += (
-            " (you SHOULD NOT change title/icon unless it's early and the topic has clarified)"
-        )
+        thread_text += """
+You SHOULD NOT change title/icon unless it's early and the topic has clarified.
+"""
     if len(agents) <= 1:
         thread_text += """
 You're the only Agent in this Thread. 

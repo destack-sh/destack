@@ -32,7 +32,6 @@ tracer = trace.get_tracer(__name__)
 
 genai.configure(api_key=get_from_env("GEMINI_API_KEY", description="Gemini API key"))
 
-GEMINI_DEFAULT_MODEL = "gemini-2.5-pro-preview-03-25"
 BREAK = "\n"
 SEPARATOR = "#" * 32  # = exactly 1 token
 
@@ -113,8 +112,6 @@ class GoogleChatModelRunner(ChatModelRunner):
     async def run(self) -> None:
         from bench.runtime import MACROS, AgentRunner
 
-        model_id = GEMINI_DEFAULT_MODEL
-
         # build
         max_tokens = 20_000
         system_prompt, messages, pieces = await build_google_chat_messages(
@@ -133,7 +130,7 @@ class GoogleChatModelRunner(ChatModelRunner):
         code_runner = StreamingCodeRunner(
             runner=agent_runner, macros=MACROS, aliasing=self.prompt.aliasing
         )
-        model = genai.GenerativeModel(model_id, system_instruction=system_prompt)
+        model = genai.GenerativeModel(self.model_id, system_instruction=system_prompt)
         completion = await model.generate_content_async(
             messages,
             generation_config=genai.GenerationConfig(temperature=0.1),

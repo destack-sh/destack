@@ -804,6 +804,7 @@ class Runtime:
 
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
+        woke_agents: list[Agent] = []
         for agent in thread.agents:
             cursor = agent.get_cursor(type=CursorType.THREAD)
             if handle.has_new_messages_for(agent, cursor):
@@ -811,17 +812,19 @@ class Runtime:
                 agent_runners = self._runners_by_runnable_id.get(agent.id, ())
                 resumed = False
                 for runner in agent_runners:  # (should only be at most one per now)
-                    if not runner.status.is_terminal:
-                        assert isinstance(runner, AgentRunner), f"unexpected {runner!r}"
+                    if isinstance(runner, AgentRunner) and not runner.status.is_terminal:
                         resumed = True
                         runner.wake()
+                        woke_agents.append(agent)
                 if not resumed:
                     # create new agent run
                     run, _ = create_run(
                         agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
                     )
                     new_runs.append(run)
-        logger.trace("runtime.tick_thread", tick=tick, thread=thread, runs=new_runs)
+        logger.trace(
+            "runtime.tick_thread", tick=tick, thread=thread, runs=new_runs, woke_agents=woke_agents
+        )
 
         # kick off new runs
         if new_runs:
