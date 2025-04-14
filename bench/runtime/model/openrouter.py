@@ -18,7 +18,8 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 openrouter_client = openai.AsyncClient(
-    api_key=get_from_env("OPENROUTER_API_KEY", description="OpenRouter API key")
+    base_url="https://openrouter.ai/api/v1",
+    api_key=get_from_env("OPENROUTER_API_KEY", description="OpenRouter API key"),
 )
 OPENROUTER_DEFAULT_MODEL = "openai/gpt-4o"
 

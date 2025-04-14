@@ -106,6 +106,7 @@ class MessagePiece(NodePiece[Message]):
 
 @piece_(NodeType.PAGE)
 class PagePiece(NodePiece[Page]):
+    # nocheckin: show & edit Pages
     pass
 
 

@@ -28,7 +28,7 @@ class ChatModelRunner[R: Runnable](ModelRunner[R], ABC):
         node: R,
         run: RunIn,
         prompt: Prompt,
-        model_id: str | None = None,
+        model_id: str,
         parent: Runner | None = None,
         agent: Agent | None = None,
     ) -> None:

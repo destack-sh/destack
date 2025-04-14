@@ -12,7 +12,6 @@ from bench.language import (
     CursorType,
     CustomObject,
     IsType,
-    ModelDeveloper,
     ModelProvider,
     Run,
     Runnable,
@@ -98,8 +97,9 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     # nocheckin: indicate current Agent activity
 
-    def _get_model_runner_cls(self) -> tuple[ModelDeveloper, ModelProvider, type[ChatModelRunner]]:
+    def _get_model_runner_cls(self) -> tuple[type[ChatModelRunner], str]:
         """Get the ChatModelRunner class for the given model type."""
+        # TODO :Incomplete: bring your own models/keys (BYOK)
         from bench.runtime.model import (
             AnthropicChatModelRunner,
             GoogleChatModelRunner,
@@ -107,16 +107,15 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             OpenRouterChatModelRunner,
         )
 
-        model_developer = self.node.model_developer or ModelDeveloper.OPENAI
         model_provider = self.node.model_provider or ModelProvider.OPENAI
         if model_provider == ModelProvider.OPENAI:
-            return model_developer, model_provider, OpenAIChatModelRunner
+            return OpenAIChatModelRunner, "gpt-4o-2024-11-20"
         elif model_provider == ModelProvider.ANTHROPIC:
-            return model_developer, model_provider, AnthropicChatModelRunner
+            return AnthropicChatModelRunner, "claude-3-7-sonnet-20250219"
         elif model_provider == ModelProvider.GOOGLE:
-            return model_developer, model_provider, GoogleChatModelRunner
+            return GoogleChatModelRunner, "gemini-2.5-pro-preview-03-25"
         elif model_provider == ModelProvider.OPENROUTER:
-            return model_developer, model_provider, OpenRouterChatModelRunner
+            return OpenRouterChatModelRunner, "openrouter/optimus-alpha"
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
 
@@ -133,7 +132,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             # update thread cursor
             if (cursor := agent.get_cursor(type=CursorType.THREAD)) is None:
                 cursor = Cursor(type=CursorType.THREAD, target=thread, owned_by=agent)
-                thread.cursors.append(cursor)
+                agent.cursors.append(cursor)
             assert cursor.type == CursorType.THREAD
             cursor.status = CursorStatus.THINKING
             if (new_seen_at := self.thread.last_message_at) is not None and (
@@ -149,7 +148,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             )
 
             # run model
-            _, _, model_runner_cls = self._get_model_runner_cls()
+            model_runner_cls, model_id = self._get_model_runner_cls()
             model_runner = model_runner_cls(
                 runtime=self.runtime,
                 node=self.node,
@@ -157,6 +156,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,
                 run=SpanType.AGENT_THINK,
+                model_id=model_id,
             )
             attempt = model_runner.tracked_span
             assert attempt is not None, f"{model_runner!r} has no Span"
@@ -164,7 +164,13 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             try:
                 await self.runtime.run_runner(model_runner)
                 logger.debug(
-                    "agent.think", flow=self.node, runner=self, attempt=attempt, span="current"
+                    "agent.think",
+                    flow=self.node,
+                    runner=self,
+                    model=model_runner,
+                    model_id=model_runner.model_id,
+                    attempt=attempt,
+                    span="current",
                 )
                 retry.on_success()
                 return  # success
