@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, cast, final, overrid
 from bench.language import (
     Action,
     Agent,
+    Block,
     CursorType,
     FileIn,
     Message,
     Node,
+    Page,
     ProcessStatus,
     TextIn,
     Thread,
@@ -121,12 +123,14 @@ class FunctionMacro(Macro):
         signature: str,
         func: Callable[["AgentRunner"], Callable[..., None]],
         is_terminal: bool = False,
+        is_edit: bool = False,
     ):
         self.name = name
         self.text = text
         self.signature = signature
         self.func = func
         self.is_terminal = is_terminal
+        self.is_edit = is_edit
 
     @override
     def compile(
@@ -135,7 +139,9 @@ class FunctionMacro(Macro):
         code_parts = [f"# {self.name}"]
         text = "\n".join([f"# {line}" for line in self.text.split("\n")])
         if self.is_terminal:
-            text += f"\n# ({self.name} MAY ONLY be at the end of your response ONCE.)"
+            text += f"\n# You MAY only USE {self.name} at the end of your response ONCE."
+        if self.is_edit:
+            text += "\n# You MUST have the right access to edit. Refuse otherwise."
         code_parts.append(f"{self.name}: {self.signature}")
         yield CodePiece(code="\n".join(code_parts))
 
@@ -144,10 +150,17 @@ class FunctionMacro(Macro):
         return functools.partial(self.func, runner=runner)  # type: ignore
 
 
-def function_macro_(name: str, text: str, signature: str, is_terminal: bool = False):
+def function_macro_(
+    name: str, text: str, signature: str, is_terminal: bool = False, is_edit: bool = False
+):
     def decorator(func):
         macro = FunctionMacro(
-            name=name, text=text, signature=signature, func=func, is_terminal=is_terminal
+            name=name,
+            text=text,
+            signature=signature,
+            func=func,
+            is_terminal=is_terminal,
+            is_edit=is_edit,
         )
         FUNCTION_MACROS.append(macro)
         _add_macro(macro)
@@ -170,6 +183,7 @@ def FLUSH(*, runner: "AgentRunner" = _INJECTED_RUNNER):
     """\
 Create a Message in the current Thread.
 SHOULD be just one 'paragraph' (use multiple SENDs if needed).
+Returns the Message.
 """,
     signature="(str, *, nodes: list[Node] | None = None, reply_to: Message | None = None) -> Message",
 )
@@ -236,4 +250,24 @@ def CALL(action: Action, runner: "AgentRunner" = _INJECTED_RUNNER, **inputs):
     runner.call(run)
 
 
-# nocheckin: edit Pages
+@function_macro_(
+    "REPLACE_TEXT",
+    """\
+Replace text on a current Page.
+After and before are *exclusive* (if both are unspecified, the whole Page is replaced!).
+Returns the *new* Blocks in order.
+""",
+    signature="(text: str, page: Page, after: Block | None = None, before: Block | None = None) -> tuple[Block, ...]",
+    is_edit=True,
+)
+def REPLACE_TEXT(
+    text: str,
+    page: Page,
+    after: Block | None = None,
+    before: Block | None = None,
+    runner: "AgentRunner" = _INJECTED_RUNNER,
+) -> tuple[Block, ...]:
+    _ = page.remove_text(after, before)
+    blocks = page.add_text(text, after, before)
+    runner.session.stage()
+    return tuple(blocks)

@@ -19,6 +19,7 @@ from bench.language import (
     Agent,
     Bench,
     BenchStatus,
+    Block,
     File,
     Message,
     NodeGraph,
@@ -53,7 +54,7 @@ from bench.runtime.model import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-from .macro import CALL, SEND, WAIT
+from .macro import CALL, REPLACE_TEXT, SEND, WAIT
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false
@@ -271,3 +272,18 @@ Well, you said here on [@Page1]:
 > It's only a test
 """)
     SEND("That's in conflict with what you asked for.")
+
+
+@example_(ExampleType.SNIPPET, title="Write text on a Page")
+def example_write_text_on_a_page(Page1: Page, Block7: Block):
+    REPLACE_TEXT(
+        """\
+# Notes
+- Item 1 *and* more
+- Item 2
+- ...
+""",
+        Page1,
+        after=Block7,
+    )
+    SEND("I've added your notes to [@Page1].")

@@ -16,6 +16,7 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     StructType,
+    Text,
     TextLine,
     TextLineIn,
     TextLineType,
@@ -260,3 +261,12 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
             if node.definition is None:
                 node.definition = block
         return block  # type: ignore
+
+    @staticmethod
+    def from_text(text: Text) -> list["Block"]:
+        """Create a list of Blocks for each line of Text."""
+        blocks: list[Block] = []
+        for line in text.lines:
+            block_type = BlockType(line.type + 10_000)
+            blocks.append(Block.new(block_type, line=line))
+        return blocks

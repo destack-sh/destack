@@ -122,7 +122,7 @@ class PagePiece(NodePiece[Page]):
         rendered_page = f"""\
 # [@{alias}] = {self.node.absolute_path}
 {rendered_page}
-# Blocks are markdown with their alias prepended like `[@Block1] <line>`.
+# Text Blocks are markdown with their alias prepended like `[@Block1] <line>`.
 # You MAY reference them directly like Blocks by their alias. 
 # When someone asks for content, just quote it and refer to the page (NO aliases).
 """

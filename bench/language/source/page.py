@@ -10,13 +10,16 @@ from bench.language.core import (
     LocalNodeList,
     Node,
     NodeType,
+    TextIn,
     TextLineIn,
     node_,
     p_node_children,
     p_node_parent,
     p_regular,
     text_line,
+    to_text,
 )
+from bench.language.source.block import Block
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
@@ -64,6 +67,19 @@ class Page(
             return child_block
         else:
             return super().append(child, move)
+
+    def add_text(
+        self, text: TextIn, after: Optional["Block"] = None, before: Optional["Block"] = None
+    ) -> list[Block]:
+        """Add text to the Page."""
+        text = to_text(text)
+        blocks = Block.from_text(text)
+        self.blocks.extend(*blocks, after=after, before=before)
+        return blocks
+
+    def remove_text(self, after: Optional["Block"] = None, before: Optional["Block"] = None):
+        """Remove text from the Page (between two blocks, exclusive)."""
+        self.blocks.remove_between(after, before)
 
     @staticmethod
     def new(title: "TextLineIn", *nodes: "Block | InlineNode", **kwargs) -> "Page":
