@@ -23,10 +23,10 @@ from .piece import (
     BreakPiece,
     CodePiece,
     CompoundPiece,
-    HeaderPiece,
     ImagePiece,
     LeafPiece,
     Piece,
+    PieceRole,
     RegionPiece,
     SeparatorPiece,
     TextPiece,
@@ -86,14 +86,12 @@ class Prompt:
     def append(self, *pieces: Piece) -> None:
         self.pieces.extend(pieces)
 
-    def header(self, text: str, priority: int = 1) -> None:
-        self.pieces.append(HeaderPiece(text=text, priority=priority))
-
     def region(
         self,
         title: str,
         text: str | None,
         *pieces: Piece,
+        role: PieceRole,
         priority: int = 1,
         insert_breaks: bool = True,
     ) -> None:
@@ -104,17 +102,15 @@ class Prompt:
                 pieces=pieces,
                 priority=priority,
                 insert_breaks=insert_breaks,
+                role=role,
             )
         )
 
-    def break_(self) -> None:
-        self.pieces.append(BreakPiece())
+    def separator(self, *, role: PieceRole) -> None:
+        self.pieces.append(SeparatorPiece(role=role))
 
-    def separator(self) -> None:
-        self.pieces.append(SeparatorPiece())
-
-    def text(self, text: str, priority: int = 1) -> None:
-        self.pieces.append(TextPiece(text=text, priority=priority))
+    def text(self, text: str, *, priority: int = 1, role: PieceRole) -> None:
+        self.pieces.append(TextPiece(text=text, priority=priority, role=role))
 
 
 #
@@ -168,6 +164,8 @@ def compile_prompt(
                 remaining = capacity
                 child = next(gen)
                 while True:
+                    if child.role is None:
+                        child.role = piece.role
                     child_tokens = _estimate_token_count(child, remaining)
                     total += child_tokens
                     remaining -= child_tokens
@@ -226,23 +224,25 @@ def compile_prompt(
         used_tokens = sum(raw_weights[i] for i in selected)
         return selected, used_tokens
 
-    def _flatten_piece(piece: "Piece", capacity: int) -> tuple[list["LeafPiece"], int]:
+    def _flatten_piece(parent: "Piece", capacity: int) -> tuple[list["LeafPiece"], int]:
         """
         Flatten a single piece with the given remaining capacity.
         """
-        if isinstance(piece, LeafPiece):
-            tokens = piece.estimate_tokens(prompt, tokenizer)
+        if isinstance(parent, LeafPiece):
+            tokens = parent.estimate_tokens(prompt, tokenizer)
             if tokens <= capacity:
-                return [piece], tokens
+                return [parent], tokens
             return [], 0
-        elif isinstance(piece, CompoundPiece):
+        elif isinstance(parent, CompoundPiece):
             # compile children with the current capacity
             children = []
             try:
-                gen = piece.compile(prompt, tokenizer, capacity)
+                gen = parent.compile(prompt, tokenizer, capacity)
                 remaining = capacity
                 child = next(gen)
                 while True:
+                    if child.role is None:
+                        child.role = parent.role
                     children.append(child)
                     child_tokens = _estimate_token_count(child, remaining)
                     remaining -= child_tokens
@@ -253,7 +253,7 @@ def compile_prompt(
             sel_indices, _ = _select_pieces(children, capacity)
             return _flatten_pieces(children, capacity, sel_indices)
         else:
-            raise TypeError(f"Unsupported piece type: {type(piece)}")
+            raise TypeError(f"Unsupported piece type: {type(parent)}")
 
     def _flatten_pieces(
         pieces: list["Piece"], capacity: int, selected_indices: list[int]
@@ -276,13 +276,23 @@ def compile_prompt(
     # top level selection and flattening
     top_sel, _ = _select_pieces(prompt.pieces, max_tokens)
     final_leaves, used_tokens = _flatten_pieces(prompt.pieces, max_tokens, top_sel)
+    for piece in final_leaves:
+        assert piece.role is not None, f"piece {piece!r} ({final_leaves.index(piece)}) has no role"
     return final_leaves, used_tokens
 
 
 def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
     """Log the prompt somewhere."""
     prompt_parts: list[str] = []
+    current_role = None
     for piece in pieces:
+        if current_role != piece.role:
+            current_role = piece.role or "????"
+            if current_role == "user":
+                prompt_parts.append(">>>>>>>>> USER >>>>>>>>>")
+            else:
+                prompt_parts.append(f"<<<<<<<< {current_role.upper()} <<<<<<<<")
+
         if isinstance(piece, BreakPiece):
             prompt_parts.append("\n")
         elif isinstance(piece, SeparatorPiece):

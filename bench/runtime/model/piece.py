@@ -1,6 +1,6 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator, Sequence, dataclass_transform, override
+from typing import TYPE_CHECKING, Generator, Literal, Sequence, dataclass_transform, override
 
 import structlog
 from opentelemetry import trace
@@ -53,9 +53,15 @@ def piece_(node_type: NodeType | None = None):
     return wrap
 
 
+PieceRole = Literal["user", "developer"]
+
+
 @dataclasses.dataclass(slots=True)
 class Piece:
+    """A Piece is a single value (a leaf) or a collection of Pieces."""
+
     priority: int = 1
+    role: PieceRole | None = None
 
 
 @piece_()

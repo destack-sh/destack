@@ -5,23 +5,13 @@ from bench.builtin.core import class_to_kit
 from bench.language import InterruptionType, Page
 
 if TYPE_CHECKING:
-    from bench.runtime import ActionRunner, NonRetryableError, RetryableError
+    from bench.runtime import ActionRunner
 
 # ruff: noqa: N802,N803
 
 
 class ICommonKit(ActionRunner if TYPE_CHECKING else object):
     """Common utility Actions for Flows."""
-
-    async def Fail(self, Message: str, Is_Retryable: bool = True) -> None:
-        """
-        Fail with an error.
-        ICON: fas fa-triangle-exclamation
-        """
-        if Is_Retryable:
-            raise RetryableError(Message)
-        else:
-            raise NonRetryableError(Message)
 
     async def Yield(self) -> None:
         """

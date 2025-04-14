@@ -41,6 +41,7 @@ from bench.runtime.model import (
     CodePiece,
     CompoundPiece,
     Piece,
+    PieceRole,
     Prompt,
     SeparatorPiece,
     TextPiece,
@@ -72,6 +73,7 @@ class ExamplePiece(CompoundPiece):
     type: ExampleType = raise_if_none()
     title: str = raise_if_none()
     code: str = raise_if_none()
+    role = "developer"
 
     @override
     def compile(
