@@ -6,7 +6,7 @@ import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language import Aliasing
+from bench.language import ACTIVE_ALIASING, IS_IN_USER_CODE, Aliasing
 from bench.runtime.code import STATIC_CODE_GLOBALS
 
 if TYPE_CHECKING:
@@ -59,7 +59,13 @@ class StreamingCodeRunner:
         """Finish running the code. Raise if there is trailing unexecuted (=invalid) code."""
         if self.pending_code:
             if self._is_valid(self.pending_code):
-                self._execute(self.pending_code)
+                aliasing_token = ACTIVE_ALIASING.set(self.aliasing)
+                in_user_code_token = IS_IN_USER_CODE.set(True)
+                try:
+                    self._execute(self.pending_code)
+                finally:
+                    IS_IN_USER_CODE.reset(in_user_code_token)
+                    ACTIVE_ALIASING.reset(aliasing_token)
                 self.pending_code = ""
             else:
                 raise RuntimeError(f"bad trailing code: {self.pending_code!r}")
