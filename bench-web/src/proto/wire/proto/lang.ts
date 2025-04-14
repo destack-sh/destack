@@ -35889,8 +35889,8 @@ export const TriggerStatusOptionInfo: Partial<Record<TriggerStatus, EnumOptionIn
 }
 
 export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
-  [ClaimType.READ]: { id: 20, name: 'READ', text: 'Shared read access', title: 'Read', icon: 'fas fa-users' },
-  [ClaimType.WRITE]: { id: 40, name: 'WRITE', text: 'Shared write access', title: 'Write', icon: 'fas fa-lock' },
+  [ClaimType.READ]: { id: 20, name: 'READ', text: 'Can read', title: 'Read', color: ColorType.GRAY, icon: 'fas fa-eye' },
+  [ClaimType.WRITE]: { id: 40, name: 'WRITE', text: 'Can write', title: 'Write', color: ColorType.BLUE, icon: 'fas fa-pencil' },
 }
 
 export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {

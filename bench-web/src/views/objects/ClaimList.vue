@@ -81,7 +81,13 @@ defineExpose<ViewExpose>({ self, id, commands });
           (e: DragEvent) => startDraggingIfAllowed(e, claim.targetPtr ?? claim.targetTemplatePtr ?? claim)
         "
       >
-        <Claim :id="claim.id" :node-ptr="toNodeRef(claim)" :prepared-connection="preparedConnection" is-minimal />
+        <Claim
+          :id="claim.id"
+          class="w-full"
+          :node-ptr="toNodeRef(claim)"
+          :prepared-connection="preparedConnection"
+          is-minimal
+        />
       </li>
       <!-- Create -->
       <button
