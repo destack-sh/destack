@@ -1269,9 +1269,8 @@ enum ScheduleFrequency {
 
 enum ClaimType {
   CLAIM_TYPE_UNSPECIFIED = 0;
-  CLAIM_TYPE_SHARED = 20;
-  CLAIM_TYPE_RESERVED = 30;
-  CLAIM_TYPE_EXCLUSIVE = 40;
+  CLAIM_TYPE_READ = 20;
+  CLAIM_TYPE_WRITE = 40;
 }
 
 enum ClaimStatus {

@@ -12000,17 +12000,13 @@ export enum ClaimType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CLAIM_TYPE_SHARED = 20;
+     * @generated from protobuf enum value: CLAIM_TYPE_READ = 20;
      */
-    SHARED = 20,
+    READ = 20,
     /**
-     * @generated from protobuf enum value: CLAIM_TYPE_RESERVED = 30;
+     * @generated from protobuf enum value: CLAIM_TYPE_WRITE = 40;
      */
-    RESERVED = 30,
-    /**
-     * @generated from protobuf enum value: CLAIM_TYPE_EXCLUSIVE = 40;
-     */
-    EXCLUSIVE = 40
+    WRITE = 40
 }
 /**
  * @generated from protobuf enum symbolx.bench.ClaimStatus
@@ -33772,7 +33768,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -33809,7 +33805,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 54, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 55, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 56, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.14.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35893,9 +35889,8 @@ export const TriggerStatusOptionInfo: Partial<Record<TriggerStatus, EnumOptionIn
 }
 
 export const ClaimTypeOptionInfo: Partial<Record<ClaimType, EnumOptionInfo>> = {
-  [ClaimType.SHARED]: { id: 20, name: 'SHARED', text: 'Shared concurrent access', title: 'Shared', icon: 'fas fa-users' },
-  [ClaimType.RESERVED]: { id: 30, name: 'RESERVED', text: 'Shared, but reserved for exclusive use', title: 'Reserved', icon: 'fas fa-user-unlock' },
-  [ClaimType.EXCLUSIVE]: { id: 40, name: 'EXCLUSIVE', text: 'Exclusive access', title: 'Exclusive', icon: 'fas fa-lock' },
+  [ClaimType.READ]: { id: 20, name: 'READ', text: 'Shared read access', title: 'Read', icon: 'fas fa-users' },
+  [ClaimType.WRITE]: { id: 40, name: 'WRITE', text: 'Shared write access', title: 'Write', icon: 'fas fa-lock' },
 }
 
 export const ClaimStatusOptionInfo: Partial<Record<ClaimStatus, EnumOptionInfo>> = {

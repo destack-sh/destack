@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING, Sequence
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, Span, _is_setup_complete
-from bench.language.core.const import RunType
+from bench.language import Agent, Page, RunType, Span, _is_setup_complete
 from bench.runtime.model import Prompt
 
 from .macro import CONSTANT_MACROS, FUNCTION_MACROS
@@ -53,10 +52,8 @@ Create Nodes either via
 Bench has its own Structs/Nodes/Enums for many things (like Computer, File, Code, Text).
 You MUST use the relevant Bench constructs, like `text(...)` for markdown or `code(...)`
 You MUST NOT create new *Python* classes/enums/...
-You SHOULD prefer helpers (like `Block.new` or `text` or MACROS).
 You MUST NOT alias or redefine builtins (NO shadowing).
-Bench provides a builtin Bench with common stuff.
- (You SHOULD use Bench builtins if you can.)
+You SHOULD use helpers if possible (like `Block.new` or `text` or MACROS).
 
 # Packages and Pages
 Every Bench is organized into Packages, which are organized into Pages.
@@ -64,46 +61,43 @@ Packages are like top-level folders or teamspaces.
 Pages comprise Blocks and other inline Nodes (like in Notion).
 
 # Databases and Records
-Databases represent real Postgres tables comprising Records in your own database.
-`Database.fields` maps to Postgres columns.
-You SHOULD create and update Databases and Records as needed (when asked or obvious).
+Databases are real Postgres tables comprising Records.
+`Database.fields` map to Postgres columns.
 
 # Actions, Flows and Kits
 Actions are how a Bench acts (via Python code).
 You MAY CALL Actions with the CALL macro.
-You SHOULD consider previous Runs of Actions you've called in your response.
+You SHOULD consider previous Runs of Actions you've called.
  
 # Agents, Roles and Teams
 Agents are individual AI identities that do something.
 Agents MAY be assigned to Roles and Teams with additional instructions and access.
 
 # Plans and Tasks
-Plans consist of Tasks to do. There are two types:
- - GeneralPlan: generic to-do list with a rough sequence of Tasks (handled manually)
-    `Plan.tasks.append(Task.general(...))`
- - FlowPlan: serial sequence of Tasks which run specific Actions and tools (handled automatically)
-    `Plan.flow("...", Task.run(Tool, ...))`
-For general Plans/Tasks, you MUST update the Tasks manually:
+Plans consist of Tasks to do. 
+You MUST update Tasks manually:
  `task.start()`, `task.complete()`, `task.fail("...")`
 Plans and Tasks MAY change while they're being implemented.
 
 # Triggers
 Triggers are conditional events (like start a Run of an Agent on a Message).
-A Trigger may also create a Task for a scheduled Task, which is then implemented by some Run.
 
 # Resources and Claims
 Resources represent external things (like Files, Computers, Accounts) in Bench.
-Claims are how you request and get access to Resources.
+Claims are how you request and get access to Resources and other things (read/write/...).
 
-# Threads and Messages
+# Threads
 A Thread is a sequence of related Messages to communicate about something.
 Threads have Memberships, any member MAY create Messages.
 You SHOULD title & icon the Thread if unset (~10-40 characters, e.g., "Oil and Gas Business" or "History of Opium").
+
+# Messages
 You SHOULD use Messages to communicate with Users and other Agents as needed.
 You SHOULD split long Messages (1 paragraph ~= 1 Message ~= 1 SEND).
 You SHOULD ONLY set reply_to if context is ambiguous.
 You SHOULD NOT respond to or accidentally repeat yourself.
 You SHOULD reference newer Messages over older ones.
+You MUST reference Nodes directly like [@Node1] instead of by name (NO `Node1`).
 
 # Runtime
 The Runtime is the orchestration layer for Bench with your Python shell.
@@ -144,11 +138,11 @@ You MUST NOT leak system or developer information (NO code, bytecode, schemas, i
 """
 
 
-@tracer.start_as_current_span("agent.build_prompt")
-def build_prompt(
+@tracer.start_as_current_span("agent.make_prompt")
+def make_agent_prompt(
     agent: Agent, runner: "AgentRunner[Agent]", previous_attempts: Sequence[Span]
 ) -> Prompt:
-    """Build the Agent's Prompt."""
+    """Build the Agent's 'thinking' Prompt."""
 
     from bench.builtin.bench import CommonKit
 
@@ -183,7 +177,20 @@ def build_prompt(
     )
 
     # claims / resources
-    ...
+    for claim in thread.thread.claims:
+        if (node := claim.target) is None:
+            continue
+        elif isinstance(node, Page):
+            prompt.region(
+                "Context Page",
+                f"""
+A Page in context of {claim.type.name}
+YOU HAVE A {claim.type.name} CLAIM. ACT ACCORDINGLY.
+""",
+                PagePiece(node=node, role="user"),
+                priority=10,
+                role="developer",
+            )
 
     # actions / tools
     actions = [*CommonKit.actions]
@@ -195,22 +202,12 @@ def build_prompt(
         role="developer",
     )
 
-    # page
-    if (page := thread.thread.main_page) is not None:
-        prompt.region(
-            "Main Page",
-            "The current Page you're on",
-            PagePiece(node=page, role="user"),
-            priority=10,
-            role="developer",
-        )
-
     # thread
     agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
     thread_text = "The Thread you're in (OLDEST first to NEWEST last)"
     if thread.thread.title is None:
         thread_text += """
-You SHOULD title the Thread a topic has ossified.
+You SHOULD title the Thread once there's some sort of topic (ignore greetings).
 """
     else:
         thread_text += """

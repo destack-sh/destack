@@ -1261,9 +1261,8 @@ class ScheduleFrequency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ClaimType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CLAIM_TYPE_UNSPECIFIED: _ClassVar[ClaimType]
-    CLAIM_TYPE_SHARED: _ClassVar[ClaimType]
-    CLAIM_TYPE_RESERVED: _ClassVar[ClaimType]
-    CLAIM_TYPE_EXCLUSIVE: _ClassVar[ClaimType]
+    CLAIM_TYPE_READ: _ClassVar[ClaimType]
+    CLAIM_TYPE_WRITE: _ClassVar[ClaimType]
 
 class ClaimStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2738,9 +2737,8 @@ SCHEDULE_FREQUENCY_DAY: ScheduleFrequency
 SCHEDULE_FREQUENCY_HOUR: ScheduleFrequency
 SCHEDULE_FREQUENCY_MINUTE: ScheduleFrequency
 CLAIM_TYPE_UNSPECIFIED: ClaimType
-CLAIM_TYPE_SHARED: ClaimType
-CLAIM_TYPE_RESERVED: ClaimType
-CLAIM_TYPE_EXCLUSIVE: ClaimType
+CLAIM_TYPE_READ: ClaimType
+CLAIM_TYPE_WRITE: ClaimType
 CLAIM_STATUS_UNSPECIFIED: ClaimStatus
 CLAIM_STATUS_REQUESTED: ClaimStatus
 CLAIM_STATUS_OPEN: ClaimStatus

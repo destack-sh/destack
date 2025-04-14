@@ -15,6 +15,7 @@ from bench.language import (
     EMPTY_SCOPE_DATA,
     NODE_TYPES,
     REGION,
+    Action,
     Agent,
     Bench,
     BenchStatus,
@@ -27,6 +28,7 @@ from bench.language import (
     NullEngine,
     Package,
     PackageType,
+    Page,
     Region,
     Session,
     Thread,
@@ -51,7 +53,7 @@ from bench.runtime.model import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-from .macro import SEND, WAIT
+from .macro import CALL, SEND, WAIT
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false
@@ -254,22 +256,18 @@ Sure, here's how you make lists in markdown:
 """)
 
 
-@example_(ExampleType.SNIPPET, title="Wait for a bit")
-def example_wait_for_a_bit():
-    # user said they'll be right back (check again in 5 seconds)
-    SEND("sure")
-    WAIT(seconds=5)
+@example_(ExampleType.SNIPPET, title="Call an Action")
+def example_call_an_action(Action1: Action):
+    # Action1 should do this
+    CALL(Action1, Arg1="value1", Arg2=True)
 
 
-@example_(ExampleType.SNIPPET, title="Count slowly")
-def example_call_an_action():
-    # counting "slowly" from 1 to 5
-    SEND("1")
-    WAIT(seconds=1)
-    SEND("2")
-    WAIT(seconds=1)
-    SEND("3")
-    WAIT(seconds=1)
-    SEND("4")
-    WAIT(seconds=1)
-    SEND("5")
+@example_(ExampleType.SNIPPET, title="Excerpt from a Page")
+def example_excerpt_from_a_page(Page1: Page):
+    # refer to a Page
+    SEND("""\
+Well, you said here on [@Page1]:
+> This is a test
+> It's only a test
+""")
+    SEND("That's in conflict with what you asked for.")

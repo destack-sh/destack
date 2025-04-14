@@ -22,7 +22,7 @@ from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime, restor
 from bench.runtime.model import ChatModelRunner
 from bench.utils.tenacity import RetryOptions
 
-from .instruct import build_prompt
+from .instruct import make_agent_prompt
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -114,7 +114,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         elif model_provider == ModelProvider.GOOGLE:
             return GoogleChatModelRunner, "gemini-2.5-pro-preview-03-25"
         elif model_provider == ModelProvider.OPENROUTER:
-            return OpenRouterChatModelRunner, "openrouter/optimus-alpha"
+            return OpenRouterChatModelRunner, "openrouter/quasar-alpha"
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
 
@@ -142,7 +142,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             agent.main_cursor = cursor
 
             # make prompt
-            prompt = build_prompt(
+            prompt = make_agent_prompt(
                 agent=self.node, runner=cast(AgentRunner[Agent], self), previous_attempts=attempts
             )
 
