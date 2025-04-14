@@ -23,6 +23,7 @@ from bench.language import (
     CheckOptions,
     Claim,
     ClaimStatus,
+    CursorType,
     CustomObject,
     Error,
     ErrorKind,
@@ -804,7 +805,7 @@ class Runtime:
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
         for agent in thread.agents:
-            cursor = agent.main_cursor
+            cursor = agent.get_cursor(type=CursorType.THREAD)
             if handle.has_new_messages_for(agent, cursor):
                 # try to resume, otherwise create new run
                 agent_runners = self._runners_by_runnable_id.get(agent.id, ())

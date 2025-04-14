@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         Channel,
         Claim,
         Cursor,
+        CursorType,
         Field,
         Page,
         Plan,
@@ -161,6 +162,13 @@ class Agent(
     @cached_property  # :CachedTypeInfo
     def output_type(self) -> "IsType | None":
         return self.to_type_maybe(of="value", field_types=[FieldType.OUTPUT])
+
+    def get_cursor(self, *, type: "CursorType") -> "Cursor | None":
+        """Get a Cursor of the given type."""
+        for cursor in self.cursors:
+            if cursor.type == type:
+                return cursor
+        return None
 
     @staticmethod
     def new(name: str, **kwargs) -> "Agent":

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, cast, final, overrid
 from bench.language import (
     Action,
     Agent,
+    CursorType,
     FileIn,
     Message,
     Node,
@@ -17,15 +18,7 @@ from bench.language import (
     upload_file,
 )
 from bench.runtime.core import create_run
-from bench.runtime.model import (
-    CodePiece,
-    CompoundPiece,
-    Piece,
-    PieceRole,
-    Prompt,
-    TextPiece,
-    Tokenizer,
-)
+from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, Tokenizer
 
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
@@ -190,7 +183,7 @@ def SEND(
     thread = runner.thread.thread
     message = Message.new(text=text, owned_by=runner.agent, nodes=nodes, reply_to=reply_to)
     thread.append(message)
-    if (cursor := runner.node.main_cursor) is not None:
+    if (cursor := runner.node.get_cursor(type=CursorType.THREAD)) is not None:
         cursor.seen_at = message.created_at
     runner.session.stage()
     return message
