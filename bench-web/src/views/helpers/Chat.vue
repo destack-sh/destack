@@ -874,6 +874,9 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           </li>
         </template>
 
+        <!-- Spacer -->
+        <div class="h-[16px] w-full" />
+
         <!-- Loading down 'skeleton' -->
         <div
           v-for="i in LOADING_SKELETON_COUNT"
@@ -899,7 +902,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     <!-- Input box -->
     <div
       ref="inputContainerRef"
-      class="pt-2"
       :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
       @mousedown="inputRef?.focus?.('right')"
     >
@@ -1027,7 +1029,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       </div>
       <!-- Footer -->
       <!-- Activity -->
-      <div class="flex h-[24px] w-full flex-row items-center px-3 pb-0.5 text-sm text-xs">
+      <div class="flex h-[20px] w-full flex-row items-center px-3 text-sm text-xs">
         <template v-if="activeAuthors.length > 0">
           <!-- Status icon -->
           <span class="fas fa-circle-small relative mr-1.5 text-blue-500">

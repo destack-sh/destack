@@ -26,7 +26,7 @@ class ICommonKit(ActionRunner if TYPE_CHECKING else object):
         Multiply two numbers.
         ICON: fas fa-calculator
         """
-        await asyncio.sleep(5)
+        await asyncio.sleep(10)
         return {"Result": A * B}
 
 

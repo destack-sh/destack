@@ -131,10 +131,9 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             retry.on_attempt()
 
             # update thread cursor
-            if (cursor := agent.main_cursor) is None:
+            if (cursor := agent.get_cursor(type=CursorType.THREAD)) is None:
                 cursor = Cursor(type=CursorType.THREAD, target=thread, owned_by=agent)
                 thread.cursors.append(cursor)
-                agent.main_cursor = cursor
             assert cursor.type == CursorType.THREAD
             cursor.status = CursorStatus.THINKING
             if (new_seen_at := self.thread.last_message_at) is not None and (
@@ -142,6 +141,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             ):
                 cursor.seen_at = new_seen_at
             cursor.active_at = self.runtime.oracle.utc()
+            agent.main_cursor = cursor
 
             # make prompt
             prompt = build_prompt(
