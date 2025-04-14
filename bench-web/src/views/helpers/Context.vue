@@ -13,7 +13,6 @@ import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Chat from "@/views/helpers/Chat.vue";
-import Run from "@/views/nodes/Run.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
@@ -91,7 +90,6 @@ const selfRun: Ref<RunData | null> = computed(() => {
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
-const startRef: Ref<InstanceType<typeof Run> | null> = ref(null);
 const headerRef: Ref<HTMLDivElement | null> = ref(null);
 const headerSize = useElementSize(headerRef);
 const bodyHeight = computed(

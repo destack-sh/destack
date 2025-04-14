@@ -99,7 +99,6 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     def _get_model_runner_cls(self) -> tuple[type[ChatModelRunner], str]:
         """Get the ChatModelRunner class for the given model type."""
-        # TODO :Incomplete: bring your own models/keys (BYOK)
         from bench.runtime.model import (
             AnthropicChatModelRunner,
             GoogleChatModelRunner,
@@ -148,6 +147,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             )
 
             # run model
+            # TODO :Incomplete: bring your own models/keys (BYOK)
             model_runner_cls, model_id = self._get_model_runner_cls()
             model_runner = model_runner_cls(
                 runtime=self.runtime,

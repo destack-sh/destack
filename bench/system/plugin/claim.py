@@ -43,8 +43,8 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
             async with self.host.session(commit=True) as session:
                 for claim in pending_claims:
                     # figure out where to add the resource
-                    # TODO :Robustness: moving and reassigning Nodes feels funky?
-                    #  (and assigning ._supergraph directly feels extra funky?)
+                    # TODO :Robustness: moving and reassigning Nodes in ClaimPlugin feels funky?
+                    #  (because ._supergraph is different so we have to shuffle around...)
                     parent = claim.parent
                     assert parent is not None, f"claim {claim!r} has no parent"
                     parent._untrack_rec()

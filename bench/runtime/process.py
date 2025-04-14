@@ -132,8 +132,6 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
 
     @override
     async def run(self, request: RunRequest, headers: Mapping) -> RunResponse:
-        # NOTE :Robustness: Runs may be out of sync with our state because they're pushed separately
-        #  (this should be fixed when we switch to :PullRuns instead of pushing in RunPlugin)
         run_ptrs = [
             wiring.unpack_builtin_object_validate(run_ptr, supergraph=None, expect=NodeReference)
             for run_ptr in request.run_ptrs

@@ -87,7 +87,7 @@ class WritePageTreeWorkload(ClientWorkload[WritePageTreeSpec]):
             assert_graph_equals(
                 self.main_package._graph,
                 host.service.main_package._graph,
-                # NOTE :Robustness: Resources should also be in sync in Runtime?
+                # NOTE :Test: Resources should also be in sync in Runtime?
                 #  (for some reason they're not right now)
                 ignore_node_types=(NodeType.BENCH, *RESOURCE_NODE_TYPES),
             )
