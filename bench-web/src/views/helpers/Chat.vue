@@ -228,7 +228,7 @@ const authorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   }
   return Object.values(authorsPtrById);
 });
-const authors = supergraph.getManyRef(authorsPtr) as Ref<SubjectNodeData[]>;
+const authors = supergraph.getManyRef(authorsPtr, { excludeSearch: true }) as Ref<SubjectNodeData[]>;
 const authorsById: Ref<Record<string, AuthorInfo>> = computed(() =>
   authors.value.reduce(
     (acc, author) => {

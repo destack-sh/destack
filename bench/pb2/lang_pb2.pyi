@@ -1688,9 +1688,9 @@ class MessageType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MESSAGE_TYPE_UNSPECIFIED: _ClassVar[MessageType]
     MESSAGE_TYPE_REGULAR: _ClassVar[MessageType]
     MESSAGE_TYPE_REPLY: _ClassVar[MessageType]
-    MESSAGE_TYPE_RUN: _ClassVar[MessageType]
-    MESSAGE_TYPE_INTERRUPTION: _ClassVar[MessageType]
-    MESSAGE_TYPE_EDIT: _ClassVar[MessageType]
+    MESSAGE_TYPE_JOIN: _ClassVar[MessageType]
+    MESSAGE_TYPE_LEAVE: _ClassVar[MessageType]
+    MESSAGE_TYPE_THREAD: _ClassVar[MessageType]
 
 class MessageStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -3092,9 +3092,9 @@ THREAD_STATUS_CLOSED: ThreadStatus
 MESSAGE_TYPE_UNSPECIFIED: MessageType
 MESSAGE_TYPE_REGULAR: MessageType
 MESSAGE_TYPE_REPLY: MessageType
-MESSAGE_TYPE_RUN: MessageType
-MESSAGE_TYPE_INTERRUPTION: MessageType
-MESSAGE_TYPE_EDIT: MessageType
+MESSAGE_TYPE_JOIN: MessageType
+MESSAGE_TYPE_LEAVE: MessageType
+MESSAGE_TYPE_THREAD: MessageType
 MESSAGE_STATUS_UNSPECIFIED: MessageStatus
 MESSAGE_STATUS_DRAFT: MessageStatus
 MESSAGE_STATUS_SENDING: MessageStatus
