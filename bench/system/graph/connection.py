@@ -574,9 +574,6 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateDa
         pass  # not yet implemented (watch_aggregate errors with not implemented for now)
 
 
-# NOTE :Robustness: restrict caching in global supervisor graph? or ensure there's only ever one?
-
-
 class ConnectionIndex:
     """Connect and cache queries to the graph."""
 

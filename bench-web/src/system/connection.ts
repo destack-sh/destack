@@ -248,7 +248,7 @@ function makeConnectionOverlayGraph(
       edits = event.bufferedEdits.filter((e) => base.has(e.nodePtr!));
     }
     if (edits.length > 0) {
-      // NOTE :Robustness: we used to have ignoreMissing: event.meta.connectionId != connection.meta.id :RichGraph
+      // NOTE :Cleanup: we used to have ignoreMissing: event.meta.connectionId != connection.meta.id :RichGraph
       //  (but that doesn't totally work since we now have node types that are sometimes in the loaded graph, sometimes not
       //   e.g., we have Bench.memberships loaded but not Thread.memberships since Threads are unloaded, so those Memberships may be missing)
       editGraph(overlay, edits, { base: base, ignoreMissing: true });
@@ -640,7 +640,9 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
         // apply edits from stream
-        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
+        // NOTE :Robustness: RemoteGetConnection ignoreMissing is wonky :RichGraph
+        //  (seems to be missing an Agent node in a Thread after we delete and restore the containing Thread..?)
+        editGraph(graph, [...rep.edits, ...rep.cascadedEdits], { ignoreMissing: true });
         this.txBuffer.onAccepted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);

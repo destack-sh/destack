@@ -209,7 +209,7 @@ class Runtime:
 
     def stop(self):
         """Stop the Runtime (drain active Runs)."""
-        # TODO :Robustness: handle Runtime stop better? pause, transfer existing Runs?
+        # NOTE :Robustness: handle Runtime stop better? pause, transfer existing Runs?
         #  (maybe auto-interrupt all active Runners so we can transfer them? :HibernateRuns)
         self.tasks.close()
         self._is_draining = True

@@ -28,8 +28,6 @@ from .context import STATIC_CODE_GLOBALS
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-# NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
-
 
 class CodeRunner(Runner, ABC):
     """Common base for compiling and running code."""

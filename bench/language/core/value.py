@@ -798,7 +798,7 @@ def _object_value_runtime(prop: Property) -> property:
             self._do_set(wired_prop.name, value_packed, track=False)
         else:
             self._do_set(wired_prop.name, {} if wired_prop.is_required else None, track=False)
-        # NOTE :Robustness: is it correct to cache runtime value immediately on set?
+        # NOTE: is it correct to cache runtime value immediately on set?
         self.__dict__[cache_key] = value
 
     return property(_get_value_runtime, _set_value_runtime)
@@ -1168,7 +1168,7 @@ def coerce_custom_object_scalar(
 ) -> CustomObject:
     """Coerces a single object from its dict representation or existing CustomObject."""
     if type(value) is CustomObject:
-        # NOTE :Robustness: not sure if _coerce_object_scalar is correct if given an existing object
+        # NOTE :Cleanup: not sure if _coerce_object_scalar is correct if given an existing object
         return value
     else:
         if value is None:

@@ -234,7 +234,7 @@ class HasOrderKey(Protocol):
     order_key: str
 
 
-# NOTE :Robustness: not sure how to structure type ElementT to have .order_key: str
+# NOTE :Cleanup: not sure how to structure type ElementT to have .order_key: str
 ElementT = Any  # TypeVar("ElementT", bound=HasOrderKey)
 
 

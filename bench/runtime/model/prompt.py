@@ -124,7 +124,7 @@ def compile_prompt(
 ) -> tuple[list["LeafPiece"], int]:
     """
     Compile the prompt into a flat list of LeafPiece objects within the token budget.
-    TODO :Performance :Robustness!: compile_prompt seems inefficient and quite suboptimal
+    TODO :Performance :Robustness: compile_prompt seems inefficient and quite suboptimal
 
     There are two passes:
 

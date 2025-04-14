@@ -73,7 +73,7 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
 
     @override
     async def start(self) -> None:
-        # TODO :Robustness: kill/re-queue abandoned Runs :SystemRecovery
+        # TODO :Cleanup: mark abandoned Runs as dead
         #  (like Runs 'stuck' on dead or since restarted Computers)
         self.tasks.start_queue(self._queue, self._send_op, skip_errors=True)
 

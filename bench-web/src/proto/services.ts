@@ -15,7 +15,7 @@ import {
 import { DateTime, Duration } from "luxon";
 import { computed, shallowRef, triggerRef, type Ref } from "vue";
 
-// NOTE :Robustness: ipv6 on MacOS sometimes causes ERR_NETWORK_CHANGED in chrome, breaking RPC streams.
+// NOTE :Cleanup: ipv6 on MacOS sometimes causes ERR_NETWORK_CHANGED in chrome, breaking RPC streams.
 //  A 'solution' is to disable ipv6, but obviously you have to do that manually as a user:
 //   > networksetup -setv6off "Wi-Fi"
 //  For now this appears to be a rare issue, only on localhost / development.
