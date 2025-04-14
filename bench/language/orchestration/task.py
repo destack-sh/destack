@@ -21,7 +21,6 @@ from bench.language.core import (
     Text,
     TextLineIn,
     coerce_custom_object_scalar,
-    p_internal,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -95,7 +94,7 @@ class Task(
         tool_id: Optional[UUID] = None
 
     # content
-    clazz: Optional["Class"] = p_internal(
+    clazz: Optional["Class"] = p_regular(
         70,
         require=False,
         array=False,

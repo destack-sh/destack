@@ -19,7 +19,6 @@ from bench.language import (
     Flow,
     Message,
     Node,
-    NodeMode,
     NodeReference,
     Option,
     Package,
@@ -35,7 +34,6 @@ from bench.language import (
     format_code,
     render_expression,
     text,
-    text_line,
     to_type,
 )
 from bench.runtime.code import BUILTIN_GLOBALS, STATIC_CODE_GLOBALS
@@ -161,7 +159,7 @@ def test_render_bad_names(session: Session, package: Package):
 
 
 # NOTE :Broken: the multi-line string tests don't work well because of :BadCodeFormatting
-#  (we should be using ruff to format the code but it doesn't have a python API yet)
+#  (we should be using ruff to format the code but it doesn't have a Python API yet :c)
 
 
 @pytest.mark.skip(reason=":BadCodeFormatting")
@@ -196,15 +194,6 @@ def hello_world():
     print("Hello, world!")
 """)
     return {"Code1": Code1, "Code2": Code2}
-
-
-@_render_test
-def test_render_node_mode(session: Session, package: Package):
-    """Node mode should be rendered inline."""
-    Page1 = Page.new(text_line("Page1"))
-    Page2 = Page.new(text_line("Page2"), mode=NodeMode.ARCHIVE)
-    Page3 = Page.new(text_line("Page3"), mode=NodeMode.TEST)
-    return {"Page1": Page1, "Page2": Page2, "Page3": Page3}
 
 
 @_render_test

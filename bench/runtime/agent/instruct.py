@@ -240,7 +240,7 @@ You MAY need to engage with other Agents.
     if previous_tool_runs:
         prompt.region(
             "Previous Runs",
-            "Actions you've previously called",
+            "Actions you've previously CALLed",
             *[
                 RunPiece(node=r, is_last_action=i == len(previous_tool_runs) - 1)
                 for i, r in enumerate(previous_tool_runs)

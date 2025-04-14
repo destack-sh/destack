@@ -19,10 +19,8 @@ from bench.language.core import (
     EnumType,
     FieldType,
     Icon,
-    IsModal,
     IsType,
     Node,
-    NodeMode,
     NodeReference,
     NodeType,
     ObjectType,
@@ -30,6 +28,7 @@ from bench.language.core import (
     PrimitiveType,
     Property,
     PropertyReference,
+    ReferenceKind,
     Resource,
     ScalarValue,
     SomeValue,
@@ -48,7 +47,6 @@ from bench.language.core import (
     text_line_to_markdown,
     text_to_markdown,
 )
-from bench.language.core.const import ReferenceKind
 from bench.language.registry import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.utils.time import timedelta_to_isoformat
 
@@ -74,10 +72,10 @@ tracer = trace.get_tracer(__name__)
 class RenderOptions:
     scope: Node
     aliasing: "Aliasing"
+    include_properties: Mapping[ObjectType, Collection[Property]] | None = None
+    exclude_properties: Mapping[ObjectType, Collection[Property]] | None = None
     node_types: Collection[NodeType] = NODE_TYPES_SET
     inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
-    use_code_paths: bool = True
-    implicit_partials: bool = True
     # formatting
     statement_separator: str = "\n"
     format: bool = True
@@ -291,15 +289,13 @@ class Renderer:
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def render_custom_object(self, value: "CustomObject", implicit_partials: bool = False) -> str:
+    def render_custom_object(self, value: "CustomObject") -> str:
         """Renders single Object into an expression."""
         # collect kwargs
         typ = value._type
         kwargs = _deconstruct_custom_object(value)
         rendered_kwargs = _render_custom_object_kwargs(self, value, kwargs)
-        if value._type.kind == TypeKind.PARTIAL_OBJECT and not (
-            self.options.implicit_partials or implicit_partials
-        ):
+        if value._type.kind == TypeKind.PARTIAL_OBJECT:
             node_cls = (
                 NODE_CLASS_BY_TYPE[cast(NodeType, value._type.bench_type)]
                 if value._type.bench_type
@@ -362,10 +358,12 @@ class Renderer:
         """Renders args into a string."""
         return ", ".join(a for a in args if a is not None)
 
-    def render_builtin_object(self, obj: BuiltinObject) -> str:
+    def render_builtin_object(
+        self, obj: BuiltinObject, options: RenderOptions | None = None
+    ) -> str:
         """Renders the given object into an expression (incl. inlined children for node)."""
         renderer = _get_renderer(obj.metatype)
-        return renderer.render(self, obj)
+        return renderer.render(self, obj, options if options is not None else self.options)
 
     def render_object(self, obj: BuiltinObject | CustomObject):
         """Renders the given objects to a Python expression."""
@@ -408,13 +406,19 @@ class Renderer:
                 return f"{parent_alias}.{parent_child_prop.name}"
         return None
 
-    def render_statement(self, *nodes: Node, append: bool = True, format: bool = False) -> str:
+    def render_statement(
+        self,
+        *nodes: Node,
+        append: bool = True,
+        format: bool = False,
+        options: RenderOptions | None = None,
+    ) -> str:
         """Renders the given objects to a Python block that defines those objects."""
         # render
         rendered_objs: list[str] = []
         current_children: list[str] = []
         for i, node in enumerate(nodes):
-            rendered = self.render_builtin_object(node)
+            rendered = self.render_builtin_object(node, options)
             node_alias = self.aliasing.get_or_add(node)
             assert node_alias is not None, f"no alias for {node!r}"
             rendered_objs.append(f"{node_alias} = {rendered}")
@@ -444,21 +448,31 @@ class Renderer:
 
 
 def _deconstruct_builtin_object(
-    obj: BuiltinObject, *, include_defaults: bool = False
+    obj: BuiltinObject, *, include_defaults: bool = False, options: RenderOptions
 ) -> dict[Property, Any]:
     """Gets the 'content' values for a BuiltinObject."""
     cls = obj._get_effective_cls()
     kwargs: dict[Property, Any] = {}
     # properties
+    if options.include_properties is not None:
+        include_properties = options.include_properties.get(cls.metatype, None)
+    else:
+        include_properties = None
+    if options.exclude_properties is not None:
+        exclude_properties = options.exclude_properties.get(cls.metatype, None)
+    else:
+        exclude_properties = None
     for prop in cls.__properties__.values():
-        if (
+        if exclude_properties is not None and prop in exclude_properties:
+            continue  # exclude
+        elif include_properties is not None and prop not in include_properties:
+            pass  # include
+        elif (
             prop.id is None
-            or (prop.id < 30 and prop.name != "created_by")
+            or prop.is_internal
             or prop.reference_source
             or prop.reference_kind == ReferenceKind.NODE_ANCESTOR
             or prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
-            or prop.is_value_packed
-            or prop.name == "order_key"
         ):
             continue  # ignore internal properties
         prop_value = getattr(obj, prop.name)
@@ -480,8 +494,6 @@ def _deconstruct_builtin_object(
         if prop_value is None:
             continue
         kwargs[prop] = prop_value
-    if isinstance(obj, IsModal) and obj.mode != NodeMode.MAIN:
-        kwargs[obj.get_property("mode")] = obj.mode
     return kwargs
 
 
@@ -609,9 +621,9 @@ def _get_renderer(object_type: ObjectType) -> "BuiltinObjectRenderer":
 class BuiltinObjectRenderer[T: BuiltinObject]:
     """The base renderer for a BuiltinObject."""
 
-    def render(self, renderer: "Renderer", obj: T) -> str:
+    def render(self, renderer: "Renderer", obj: T, options: RenderOptions) -> str:
         """Render the given object to a Python expression (string)."""
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         return f"{obj.__class__.__name__}({renderer.render_kwargs(**rendered_kwargs)})"
 
@@ -630,7 +642,8 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         rendered_kwargs = rendered_kwargs if rendered_kwargs is not None else {}
         for prop in obj.__node_child_properties__.values():
             assert prop.reference_nodes, f"no reference nodes for {prop!r}"
-            if prop.reference_nodes[0] not in renderer.options.inline_node_types:
+            child_node_type = prop.reference_nodes[0]
+            if child_node_type not in renderer.options.inline_node_types:
                 continue
             children = getattr(obj, prop.name)
             if not children:
@@ -652,8 +665,8 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         return f"{obj.__class__.__name__}({renderer.render_kwargs(**rendered_kwargs)})"
 
     @override
-    def render(self, renderer: Renderer, obj: T) -> str:
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+    def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
+        kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
@@ -663,8 +676,8 @@ class PackageNodeRenderer[T: PackageNode](NodeRenderer[T]):
     """The base renderer for a PackageNode."""
 
     @override
-    def render(self, renderer: Renderer, obj: T) -> str:
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+    def render(self, renderer: Renderer, obj: T, options: RenderOptions) -> str:
+        kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         rendered_kwargs = self._render_child_properties(renderer, obj, rendered_kwargs)
         return self._render_constructor(renderer, obj, kwargs, rendered_kwargs)
@@ -789,7 +802,7 @@ class LinkRenderer(PackageNodeRenderer[Transition]):
             rendered_kwargs.pop("target", None)
             rendered_kwargs.pop("name", None)
             args = (
-                f"LinkType.{obj.type.name}",
+                f"TransitionType.{obj.type.name}",
                 target_ref,
                 repr(obj.name),
                 renderer.render_kwargs(**rendered_kwargs) or None,
@@ -956,10 +969,10 @@ class PlanRenderer(NodeRenderer["Plan"]):
 @_renderer(NodeType.TASK)
 class TaskRenderer(NodeRenderer["Task"]):
     @override
-    def render(self, renderer: "Renderer", obj: "Task") -> str:
+    def render(self, renderer: "Renderer", obj: "Task", options: RenderOptions) -> str:
         from bench.language import Task
 
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        kwargs = _deconstruct_builtin_object(obj, options=options)
         target = kwargs.pop(Task.get_property("target"))
         target_str = renderer.render_node_ref(target)
         value = kwargs.pop(Task.get_property("value"))
@@ -1005,11 +1018,11 @@ class ClaimRenderer(NodeRenderer["Claim"]):
 @_renderer(StructType.TYPE)
 class TypeRenderer(BuiltinObjectRenderer[IsType]):
     @override
-    def render(self, renderer: "Renderer", obj: IsType) -> str:
+    def render(self, renderer: "Renderer", obj: IsType, options: RenderOptions) -> str:
         if obj.kind == TypeKind.PARTIAL_OBJECT:
             node_cls, rendered_kwargs = _desconstruct_partial_type(renderer, obj)
             return f"{node_cls.__name__}.partial_type({renderer.render_kwargs(**rendered_kwargs)})"
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+        kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         type_in, rendered_kwargs = _deconstruct_type_in(renderer, obj, rendered_kwargs)
         if type_in is not None:
@@ -1024,8 +1037,8 @@ class TypeRenderer(BuiltinObjectRenderer[IsType]):
 @_renderer(StructType.TYPE_CONSTRAINT)
 class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
     @override
-    def render(self, renderer: "Renderer", obj: TypeConstraint) -> str:
-        kwargs = _deconstruct_builtin_object(obj, include_defaults=False)
+    def render(self, renderer: "Renderer", obj: TypeConstraint, options: RenderOptions) -> str:
+        kwargs = _deconstruct_builtin_object(obj, options=options)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         return f"constraint({renderer.render_kwargs(**rendered_kwargs)})"
 
@@ -1033,14 +1046,14 @@ class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
 @_renderer(StructType.TEXT_LINE)
 class TextLineRenderer(BuiltinObjectRenderer[TextLine]):
     @override
-    def render(self, renderer: "Renderer", obj: TextLine) -> str:
+    def render(self, renderer: "Renderer", obj: TextLine, options: RenderOptions) -> str:
         return f"text_line({text_line_to_markdown(obj, renderer.aliasing)!r})"
 
 
 @_renderer(StructType.TEXT)
 class TextRenderer(BuiltinObjectRenderer[Text]):
     @override
-    def render(self, renderer: "Renderer", obj: Text) -> str:
+    def render(self, renderer: "Renderer", obj: Text, options: RenderOptions) -> str:
         rendered_string = text_to_markdown(obj, renderer.aliasing)
         if "\n" in rendered_string:
             return f'text("""\\\n{rendered_string}\n""")'
@@ -1051,7 +1064,7 @@ class TextRenderer(BuiltinObjectRenderer[Text]):
 @_renderer(StructType.CODE)
 class CodeRenderer(BuiltinObjectRenderer[Code]):
     @override
-    def render(self, renderer: "Renderer", obj: Code) -> str:
+    def render(self, renderer: "Renderer", obj: Code, options: RenderOptions) -> str:
         rendered_string = obj.to_string()
         if "\n" in rendered_string:
             return f'code("""\\\n{rendered_string}\n""")'
@@ -1062,12 +1075,12 @@ class CodeRenderer(BuiltinObjectRenderer[Code]):
 @_renderer(StructType.ICON)
 class IconRenderer(BuiltinObjectRenderer[Icon]):
     @override
-    def render(self, renderer: "Renderer", obj: Icon) -> str:
+    def render(self, renderer: "Renderer", obj: Icon, options: RenderOptions) -> str:
         simplified = reverse_icon(obj)
         if isinstance(simplified, str):
             return f"icon({simplified!r})"
         else:
-            return super().render(renderer, obj)
+            return super().render(renderer, obj, options)
 
 
 #

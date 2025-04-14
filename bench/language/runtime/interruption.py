@@ -119,7 +119,7 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
         span_ptr: Optional[NodeReference] = None
 
     # status
-    status: InterruptionStatus = p_internal(40, default=InterruptionStatus.OPEN)
+    status: InterruptionStatus = p_regular(40, default=InterruptionStatus.OPEN)
     duration: Optional[timedelta] = p_internal(41, require=False, default=None)
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
 

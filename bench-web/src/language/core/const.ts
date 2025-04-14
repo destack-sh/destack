@@ -347,7 +347,6 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.PAGE,
   BlockType.CHOICE,
   BlockType.TASK,
-  BlockType.KIT,
   BlockType.AGENT,
   ...TEXT_BLOCK_TYPES,
 ];
