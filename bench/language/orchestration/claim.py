@@ -21,7 +21,6 @@ from bench.language.core import (
     p_internal,
     p_node_parent,
     p_regular,
-    p_system,
 )
 from bench.pb2 import ClaimData
 from bench.utils.fractional import INTEGER_ZERO
@@ -34,9 +33,9 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.CLAIM_TYPE)
 class ClaimType(BuiltinEnum):
-    READ = 20, "Read", "Shared read access", "fas fa-users"
+    READ = 20, "Read", "Can read", "fas fa-eye", ColorType.GRAY
     # RESERVED? (read but may promote to write)
-    WRITE = 40, "Write", "Shared write access", "fas fa-lock"
+    WRITE = 40, "Write", "Can write", "fas fa-pencil", ColorType.BLUE
     # EXCLUSIVE_WRITE?
 
 
@@ -94,7 +93,7 @@ class Claim(
         NodeType.RUN,
         ckless=True,
     )
-    type: ClaimType = p_system(30, require=True)
+    type: ClaimType = p_regular(30, require=True)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     # status
