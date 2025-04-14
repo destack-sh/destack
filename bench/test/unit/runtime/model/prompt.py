@@ -11,25 +11,27 @@ def test_prompt_compile(session: Session):
     prompt = Prompt(
         subject=agent, session=session, node=flow, system_prompt="You are a helpful assistant."
     )
-    prompt.text("1" * 100)
-    prompt.text("2" * 100, priority=2)
-    prompt.text("3" * 30, priority=10)
-    prompt.text("4" * 30, priority=4)
+    prompt.text("1" * 100, role="user")
+    prompt.text("2" * 100, priority=2, role="user")
+    prompt.text("3" * 30, priority=10, role="user")
+    prompt.text("4" * 30, priority=4, role="user")
     prompt.region(
         "nested",
         None,
-        TextPiece(text="5" * 10, priority=1),
-        TextPiece(text="6" * 10, priority=6),
+        TextPiece(text="5" * 10, priority=1, role="user"),
+        TextPiece(text="6" * 10, priority=6, role="user"),
         RegionPiece(
             title="nested inner",
             pieces=[
-                TextPiece(text="7" * 10, priority=7),
-                TextPiece(text="8" * 10, priority=8),
-                TextPiece(text="9" * 100, priority=9),
+                TextPiece(text="7" * 10, priority=7, role="user"),
+                TextPiece(text="8" * 10, priority=8, role="user"),
+                TextPiece(text="9" * 100, priority=9, role="user"),
             ],
             priority=2,
+            role="user",
         ),
         priority=3,
+        role="user",
     )
 
     # compile

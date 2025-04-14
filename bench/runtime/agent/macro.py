@@ -17,7 +17,15 @@ from bench.language import (
     upload_file,
 )
 from bench.runtime.core import create_run
-from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, TextPiece, Tokenizer
+from bench.runtime.model import (
+    CodePiece,
+    CompoundPiece,
+    Piece,
+    PieceRole,
+    Prompt,
+    TextPiece,
+    Tokenizer,
+)
 
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
@@ -45,6 +53,8 @@ class MacroType(StrEnum):
 
 
 class Macro(CompoundPiece):
+    role = "developer"
+
     def __init__(self, name: str, text: str):
         self.name = name
         self.text = text
