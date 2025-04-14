@@ -36,6 +36,8 @@ class CursorType(BuiltinEnum):
     THREAD = 10, "Thread", None, None, None
     PAGE = 20, "Page", None, None, None
     DATABASE = 30, "Database", None, None, None
+    ACTION = 40, "Action", None, None, None
+    CUSTOM = 900, "Custom", None, None, None
 
 
 @enum_(EnumType.CURSOR_STATUS)

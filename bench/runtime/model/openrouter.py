@@ -26,14 +26,14 @@ from .token import TiktokenTokenizer
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-openai_client = openai.AsyncClient(
-    api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
+openrouter_client = openai.AsyncClient(
+    api_key=get_from_env("OPENROUTER_API_KEY", description="OpenRouter API key")
 )
-OPENAI_DEFAULT_MODEL = "gpt-4o-2024-11-20"
+OPENROUTER_DEFAULT_MODEL = "openai/gpt-4o"
 
 
-class OpenAIChatModelRunner(ChatModelRunner):
-    """Run any OpenAI chat model."""
+class OpenRouterChatModelRunner(ChatModelRunner):
+    """Run any chat model supported by OpenRouter."""
 
     BREAK = "\n"
     SEPARATOR = "#" * 32  # = exactly 1 token
@@ -44,7 +44,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
 
         agent = self.agent
         assert agent is not None, f"{self!r} has no Agent"
-        model_id = self.model_id or OPENAI_DEFAULT_MODEL
+        model_id = self.model_id or OPENROUTER_DEFAULT_MODEL
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 16_384
@@ -110,7 +110,7 @@ class OpenAIChatModelRunner(ChatModelRunner):
             {"role": "developer", "content": self.prompt.system_prompt},
             {"role": "user", "content": content},
         ]
-        completion = await openai_client.chat.completions.create(
+        completion = await openrouter_client.chat.completions.create(
             messages=messages,
             model=model_id,
             max_tokens=max_tokens,

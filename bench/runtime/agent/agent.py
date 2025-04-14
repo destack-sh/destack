@@ -13,14 +13,14 @@ from bench.language import (
     CustomObject,
     IsType,
     ModelDeveloper,
-    ModelType,
+    ModelProvider,
     Run,
     Runnable,
     Span,
     SpanType,
 )
-from bench.runtime.core import RunIn, Runner, Runtime, restore_runner
-from bench.runtime.model import get_chat_model_runner_cls
+from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime, restore_runner
+from bench.runtime.model import ChatModelRunner
 from bench.utils.tenacity import RetryOptions
 
 from .instruct import build_prompt
@@ -98,6 +98,28 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     # nocheckin: indicate current Agent activity
 
+    def _get_model_runner_cls(self) -> tuple[ModelDeveloper, ModelProvider, type[ChatModelRunner]]:
+        """Get the ChatModelRunner class for the given model type."""
+        from bench.runtime.model import (
+            AnthropicChatModelRunner,
+            GoogleChatModelRunner,
+            OpenAIChatModelRunner,
+            OpenRouterChatModelRunner,
+        )
+
+        model_developer = self.node.model_developer or ModelDeveloper.OPENAI
+        model_provider = self.node.model_provider or ModelProvider.OPENAI
+        if model_provider == ModelProvider.OPENAI:
+            return model_developer, model_provider, OpenAIChatModelRunner
+        elif model_provider == ModelProvider.ANTHROPIC:
+            return model_developer, model_provider, AnthropicChatModelRunner
+        elif model_provider == ModelProvider.GOOGLE:
+            return model_developer, model_provider, GoogleChatModelRunner
+        elif model_provider == ModelProvider.OPENROUTER:
+            return model_developer, model_provider, OpenRouterChatModelRunner
+        else:
+            raise NotSupportedError(f"unsupported model provider {model_provider!r}")
+
     @tracer.start_as_current_span("agent.think")
     async def _think(self):
         """Prepare the next actions in this Flow (if any)."""
@@ -127,15 +149,10 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             )
 
             # run model
-            model_developer = ModelDeveloper.OPENAI
-            model_type = ModelType.OPENAI_GPT4_0
-            model_runner_cls = get_chat_model_runner_cls(
-                model_developer=model_developer, model_type=model_type
-            )
+            _, _, model_runner_cls = self._get_model_runner_cls()
             model_runner = model_runner_cls(
                 runtime=self.runtime,
                 node=self.node,
-                model_type=model_type,
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,

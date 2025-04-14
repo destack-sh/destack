@@ -1,8 +1,9 @@
 from .anthropic import AnthropicChatModelRunner
-from .chat import ChatModelRunner, get_chat_model_runner_cls
-from .gemini import GeminiChatModelRunner
+from .chat import ChatModelRunner
+from .google import GoogleChatModelRunner
 from .model import ModelRunner
 from .openai import OpenAIChatModelRunner
+from .openrouter import OpenRouterChatModelRunner
 from .piece import (
     AudioPiece,
     BasicPiece,
@@ -30,12 +31,13 @@ __all__ = [
     "ChatModelRunner",
     "CodePiece",
     "CompoundPiece",
-    "GeminiChatModelRunner",
+    "GoogleChatModelRunner",
     "HeaderPiece",
     "ImagePiece",
     "LeafPiece",
     "ModelRunner",
     "OpenAIChatModelRunner",
+    "OpenRouterChatModelRunner",
     "Piece",
     "Prompt",
     "RegionPiece",
@@ -45,7 +47,6 @@ __all__ = [
     "TiktokenTokenizer",
     "Tokenizer",
     "compile_prompt",
-    "get_chat_model_runner_cls",
     "piece_",
     "raise_if_none",
 ]

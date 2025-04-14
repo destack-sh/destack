@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, Mapping, override
+from typing import TYPE_CHECKING, override
 
 import google.generativeai as genai
 import structlog
 from opentelemetry import trace
 
-from bench.language import Code, ModelType, download_file_batch
+from bench.language import Code, download_file_batch
 from bench.runtime.core import NotSupportedError
 from bench.runtime.model.token import TiktokenTokenizer
 from bench.utils.utils import get_from_env
@@ -30,16 +30,11 @@ tracer = trace.get_tracer(__name__)
 
 genai.configure(api_key=get_from_env("GEMINI_API_KEY", description="Gemini API key"))
 
-GEMINI_MODEL_BY_TYPE: Mapping[ModelType, str] = {
-    ModelType.GOOGLE_GEMINI_2_0_FLASH: "gemini-2.0-flash-exp",
-    ModelType.GOOGLE_GEMINI_2_0_FLASH_THINKING: "gemini-2.0-flash-thinking-exp-01-21",
-    ModelType.GOOGLE_GEMINI_2_5_PRO: "gemini-2.5-pro-exp-03-25",
-}
-GEMINI_DEFAULT_MODEL = ModelType.GOOGLE_GEMINI_2_0_FLASH
+GEMINI_DEFAULT_MODEL = "gemini-2.5-pro-preview-03-25"
 
 
-class GeminiChatModelRunner(ChatModelRunner):
-    """Compile a Prompt into Gemini chat messages."""
+class GoogleChatModelRunner(ChatModelRunner):
+    """Run any Google chat model."""
 
     SEPARATOR = "#" * 32  # = exactly 1 token
 
@@ -47,9 +42,7 @@ class GeminiChatModelRunner(ChatModelRunner):
     async def run(self) -> None:
         from bench.runtime import MACROS, AgentRunner
 
-        model_id = GEMINI_MODEL_BY_TYPE.get(self.model_type)
-        if model_id is None:
-            raise NotSupportedError(f"unsupported model type {self.model_type!r}")
+        model_id = GEMINI_DEFAULT_MODEL
 
         tokenizer = TiktokenTokenizer()
         max_tokens = 20_000

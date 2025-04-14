@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.14.0"
+VERSION = "2025.04.14.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -418,9 +418,7 @@ class EnumType(BuiltinEnum):
 
     # models (22250-22299)
     MODEL_DEVELOPER = 22250
-    MODEL_TYPE = 22251
-    MODEL_FAMILY = 22252
-    MODEL_PROVIDER = 22253
+    MODEL_PROVIDER = 22251
 
     # code (22300-22349)
     CODE_TYPE = 22300

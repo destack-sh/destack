@@ -9,7 +9,7 @@ from .interruption import (
     InterruptionType,
 )
 from .log import Log, LogType, Severity
-from .model import ModelDeveloper, ModelFamily, ModelProvider, ModelType
+from .model import ModelDeveloper, ModelProvider
 from .run import Run
 from .session import Session
 from .span import Span
@@ -42,9 +42,7 @@ __all__ = [
     "Log",
     "LogType",
     "ModelDeveloper",
-    "ModelFamily",
     "ModelProvider",
-    "ModelType",
     "Run",
     "Session",
     "Severity",

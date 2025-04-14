@@ -43,7 +43,6 @@ if TYPE_CHECKING:
         Log,
         Message,
         ModelDeveloper,
-        ModelFamily,
         ModelProvider,
         Node,
         NodeReference,
@@ -592,7 +591,6 @@ class IsRunnable(BuiltinObject):
     # model
     model_developer: Optional["ModelDeveloper"] = p_regular(75)
     model_provider: Optional["ModelProvider"] = p_regular(76)
-    model_family: Optional["ModelFamily"] = p_regular(77)
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
