@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, override
 
 from bench.language import NodeMode, ProcessStatus, Run, Runnable
-from bench.runtime import MemoryCache, Runner, Runtime, create_run
+from bench.runtime import Runner, Runtime, create_run
 from bench.test.simulation.core import Simulation
 
 from .client import ClientWorkload, ClientWorkloadSpec
@@ -22,10 +22,7 @@ class RuntimeWorkload[SpecT: RuntimeWorkloadSpec](ClientWorkload[SpecT], abc.ABC
     @override
     async def prepare_in_session(self):
         self.runtime = Runtime(
-            session=self.session,
-            network=self.simulation.network.network,
-            cache=MemoryCache(self.bench),
-            oracle=self.oracle,
+            session=self.session, network=self.simulation.network.network, oracle=self.oracle
         )
         await self.runtime.start()
 

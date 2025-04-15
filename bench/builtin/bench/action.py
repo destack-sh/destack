@@ -19,6 +19,8 @@ class ICommonKit(ActionRunner if TYPE_CHECKING else object):
         """
         _ = self._trap_interruption(InterruptionType.YIELD)
 
+    # nocheckin: web search action (exa?)
+
 
 CommonKit = class_to_kit(ICommonKit, "Common")
 ActionPage = Page.new("Action", CommonKit)

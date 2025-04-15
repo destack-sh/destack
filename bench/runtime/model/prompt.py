@@ -273,6 +273,11 @@ def compile_prompt(
     return final_leaves, used_tokens
 
 
+#
+# Logging
+#
+
+
 def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
     """Log the prompt somewhere."""
     prompt_parts: list[str] = []

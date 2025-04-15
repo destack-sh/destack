@@ -135,14 +135,14 @@ class GraphLock:
     """
     Locks for synchronizing graph operations.
 
-    NOTE :Performance!: obviously, putting broad locks around graph access is not ideal,
+    TODO :Performance!: obviously, putting broad locks around graph access is not ideal,
      but we have to guarantee absolute order and integrity of any loaded graphs (esp. in Host).
     We must prevent sync failures with non-repeatable reads where a node is edited while being read,
      whether that's in a loaded graph or in a Postgres transaction or whatever.
     For instance, if not locking carefully, it can happen that we read & cache a Connection's Runs
      while simulatenously committing an Edit to that Run, and then the Connection is out of sync and
      maybe even invalid because the commit happened during the read. I can't think of a good way to
-     fix this sort of issue without resorting to locks at some point.)
+     fix this without resorting to locks at *some* level - but it should be *much* more specific.)
     We can probably optimize this by only locking some tighter critical sections
      if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
     We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
