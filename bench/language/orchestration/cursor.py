@@ -19,6 +19,7 @@ from bench.language.core import (
     p_node_parent,
     p_regular,
 )
+from bench.language.core.expression import Expression
 
 if TYPE_CHECKING:
     from bench.language import Agent, Package, Run, Space, Thread
@@ -102,7 +103,11 @@ class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
     focus: Optional[Selection] = p_regular(
         52, default=None, require=False, struct=StructType.SELECTION
     )
-    # query..?
+    filter: Optional[Expression] = p_regular(
+        53, default=None, require=False, struct=StructType.EXPRESSION
+    )
+    sort: list[Expression] = p_regular(54, require=False, array=True, struct=StructType.EXPRESSION)
+    url: Optional[str] = p_regular(55, require=False)
 
     @override
     def __content_str__(self) -> str:

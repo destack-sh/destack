@@ -69,7 +69,7 @@ function createClaim(claimIn: Partial<ClaimData>) {
   }
   const claim = tx.create({
     metatype: NodeType.CLAIM,
-    type: ClaimType.SHARED,
+    type: ClaimType.READ,
     mode: NodeMode.TEMPLATE,
     ...claimIn,
     parentPtr: agentPtr.value,
@@ -99,7 +99,7 @@ function createClaimPopover(e: MouseEvent) {
       }),
     },
     onApply: (value) => {
-      createClaim({ type: ClaimType.SHARED, mode: NodeMode.TEMPLATE, targetTemplatePtr: value });
+      createClaim({ type: ClaimType.READ, mode: NodeMode.TEMPLATE, targetTemplatePtr: value });
     },
   });
 }

@@ -759,11 +759,10 @@ def make_runner(
             agent=agent,
         )
     elif RUN_TYPE == RunType.ACTION:
-        from bench.runtime.flow import ACTION_RUNNER_BY_ACTION_TYPE
+        from bench.runtime.action import get_action_runner
 
         assert isinstance(node, Action), f"expected Action, got {node!r}"
-        runner_cls = ACTION_RUNNER_BY_ACTION_TYPE[node.type]
-        runner = runner_cls(
+        runner = get_action_runner(
             runtime=runtime,
             inputs=inputs,
             outputs=outputs,
@@ -773,11 +772,10 @@ def make_runner(
             agent=agent,
         )
     elif RUN_TYPE == RunType.TRANSITION:
-        from bench.runtime.flow import TRANSITION_RUNNER_BY_TRANSITION_TYPE
+        from bench.runtime.flow import TransitionRunner
 
         assert isinstance(node, Transition), f"expected Link, got {node!r}"
-        runner_cls = TRANSITION_RUNNER_BY_TRANSITION_TYPE[node.type]
-        runner = runner_cls(
+        runner = TransitionRunner(
             runtime=runtime,
             inputs=inputs,
             outputs=outputs,
