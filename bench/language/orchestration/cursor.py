@@ -69,13 +69,14 @@ class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
     """
 
     # meta
-    parent: Union["Package", "Space", "Agent", "Thread", "Run", None] = p_node_parent(
+    parent: Union["Package", "Space", "Agent", "Thread", "Run", "Cursor", None] = p_node_parent(
         4,
         NodeType.PACKAGE,
         NodeType.SPACE,
         NodeType.AGENT,
         NodeType.THREAD,
         NodeType.RUN,
+        NodeType.CURSOR,
         ckless=True,
     )
     type: CursorType = p_regular(30, require=True)
@@ -100,6 +101,7 @@ class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
     focus: Optional[Selection] = p_regular(
         52, default=None, require=False, struct=StructType.SELECTION
     )
+    # query..?
 
     @override
     def __content_str__(self) -> str:

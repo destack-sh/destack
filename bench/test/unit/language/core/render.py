@@ -51,7 +51,7 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         # (line length 96 because it's 100 - 4 for the method indent here)
 
         def _render(defns: Mapping[str, Any]):
-            options = RenderOptions(scope=package, aliasing=Aliasing(), format=True, line_length=96)
+            options = RenderOptions(aliasing=Aliasing(), format=True, line_length=96)
             renderer = Renderer(options)
             statements: list[str] = []
             for obj in defns.values():
@@ -137,27 +137,6 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
     return _inner
 
 
-@_render_test
-def test_render_bad_names(session: Session, package: Package):
-    """Invalid identifiers should be aliased."""
-    _F_1 = Field.member("-F_1", str)
-    _123_field = Field.member("123_field", int)
-    field_with_spaces = Field.member("field with spaces", bool)
-    class1 = Field.member("class", str)
-    field_email_com = Field.member("field@email.com", float)
-    _special_chars_ = Field.member("$special_chars#", int)
-    if_else = Field.member("if-else", bool)
-    return {
-        "_F_1": _F_1,
-        "_123_field": _123_field,
-        "field_with_spaces": field_with_spaces,
-        "class1": class1,
-        "field_email_com": field_email_com,
-        "_special_chars_": _special_chars_,
-        "if_else": if_else,
-    }
-
-
 # NOTE :Broken: the multi-line string tests don't work well because of :BadCodeFormatting
 #  (we should be using ruff to format the code but it doesn't have a Python API yet :c)
 
@@ -215,22 +194,13 @@ def test_render_type_in(session: Session, package: Package):
 
 
 @_render_test
-def test_render_choice(session: Session, package: Package):
-    """Options should be rendered inline."""
-    ShapeType = Choice.new(
-        "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
-    )
-    return {"ShapeType": ShapeType}
-
-
-@_render_test
 def test_render_class(session: Session, package: Package):
     """Message types should be rendered inline."""
-    ShapeType = Choice.new(
-        "ShapeType", Option.new("Circle"), Option.new("Square"), Option.new("Triangle")
+    Choice1 = Choice.new(
+        "Choice1", Option.new("Option1"), Option.new("Option2"), Option.new("Option3")
     )
-    Shape = Class.new("Shape", Field.member("kind", ShapeType), Field.member("is_cool", bool))
-    return {"ShapeType": ShapeType, "Shape": Shape}
+    Class1 = Class.new("Class1", Field.member("field1", Choice1))
+    return {"Choice1": Choice1, "Class1": Class1}
 
 
 @_render_test
@@ -246,11 +216,11 @@ def test_render_field_with_constraint(session: Session, package: Package):
 def test_render_flow_simple(session: Session, package: Package):
     """Flows should create Links with `connect`."""
     Flow1 = Flow.new("Flow1")
-    Start = Action.new(ActionType.START, "Start")
-    End = Action.new(ActionType.END, "End")
-    Flow1.actions.extend(Start, End)
-    Forward1 = Start.connect(TransitionType.REQUIRE, End, "Forward1")
-    return {"Flow1": Flow1, "Start": Start, "End": End, "Forward1": Forward1}
+    Action1 = Action.new(ActionType.START, "Action1")
+    Action2 = Action.new(ActionType.END, "Action2")
+    Flow1.actions.extend(Action1, Action2)
+    Transition1 = Action1.connect(TransitionType.REQUIRE, Action2, "Transition1")
+    return {"Flow1": Flow1, "Action1": Action1, "Action2": Action2, "Transition1": Transition1}
 
 
 def test_render_simple_choice_option_ref(session: Session, package: Package):
@@ -265,7 +235,7 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     Page1.append(Choice1)
     rendered_option = render_expression(
         Choice1.options.Option2,
-        options=RenderOptions(scope=Page1, aliasing=Aliasing()),
+        options=RenderOptions(aliasing=Aliasing()),
         as_ref=True,
     )
     assert rendered_option == "Choice1.options.Option2"

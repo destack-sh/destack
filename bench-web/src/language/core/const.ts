@@ -344,7 +344,6 @@ export const EXPOSED_NODE_TYPES = NODE_TYPES.filter((t) => t != NodeType.SKIP);
 export const EXPOSED_BLOCK_TYPES = [
   BlockType.DATABASE,
   BlockType.PAGE,
-  BlockType.CHOICE,
   BlockType.TASK,
   BlockType.AGENT,
   ...TEXT_BLOCK_TYPES,

@@ -175,6 +175,16 @@ def make_agent_prompt(
         role="developer",
     )
 
+    # actions
+    actions = [*CommonKit.actions]
+    prompt.region(
+        "Actions",
+        "Available Actions (to CALL if needed)",
+        *[ActionPiece(node=a, role="user") for a in actions],
+        priority=20,
+        role="developer",
+    )
+
     # claims / resources
     for claim in thread.thread.claims:
         if (node := claim.target) is None:
@@ -190,16 +200,6 @@ YOU HAVE A {claim.type.name} CLAIM. ACT ACCORDINGLY.
                 priority=10,
                 role="developer",
             )
-
-    # actions / tools
-    actions = [*CommonKit.actions]
-    prompt.region(
-        "Actions",
-        "Available Actions (to CALL if needed)",
-        *[ActionPiece(node=a, role="user") for a in actions],
-        priority=20,
-        role="developer",
-    )
 
     # thread
     agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
@@ -264,8 +264,8 @@ Reflect on the instructions, the context and any errors as you try again.
 
     # agent
     prompt.region(
-        f"Agent (you = {agent_alias})",
-        "This is the Agent you're representing",
+        f"Agent (YOU = {agent_alias})",
+        "This is the Agent YOU're representing",
         AgentPiece(node=agent, role="user"),
         priority=30,
         role="developer",

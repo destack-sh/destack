@@ -95,7 +95,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         """Call an Action."""
         self._next_action = AgentTool(run=run)
 
-    # nocheckin: indicate current Agent activity
+    # nocheckin: indicate current Agent activity/focus/...
 
     def _get_model_runner_cls(self) -> tuple[type[ChatModelRunner], str]:
         """Get the ChatModelRunner class for the given model type."""

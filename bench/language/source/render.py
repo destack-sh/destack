@@ -70,11 +70,11 @@ tracer = trace.get_tracer(__name__)
 
 @dataclass(slots=True)
 class RenderOptions:
-    scope: Node
     aliasing: "Aliasing"
     include_properties: Mapping[ObjectType, Collection[Property]] | None = None
     exclude_properties: Mapping[ObjectType, Collection[Property]] | None = None
     node_types: Collection[NodeType] = NODE_TYPES_SET
+    # NOTE :Cleanup :Architecture: RenderOptions.inline_node_types maybe shouldn't exist?
     inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
     # formatting
     statement_separator: str = "\n"
@@ -107,29 +107,12 @@ class Aliasing:
 
     def add(self, obj: Node | NodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
-        from bench.runtime.code.context import PYTHON_KEYWORDS, STATIC_CODE_GLOBALS
+        from bench.runtime.code import PYTHON_KEYWORDS, STATIC_CODE_GLOBALS
 
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
-        if isinstance(obj, Node):
-            if code_name := getattr(obj, "code_name", None):
-                # proper given name (should be valid python identifier)
-                alias = code_name
-                if not regex.match(r"^[a-zA-Z_]\w+$", alias):
-                    alias = f"{obj.metatype.bench_name}_{alias}"
-                has_given_name = True
-            else:
-                alias = obj.metatype.bench_name
-                has_given_name = False
-        else:
-            alias = obj.node_type.bench_name
-            has_given_name = False
-        if (
-            alias in self._node_by_alias
-            or alias in STATIC_CODE_GLOBALS
-            or alias in PYTHON_KEYWORDS
-            or not has_given_name
-        ):
+        alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
+        if alias in self._node_by_alias or alias in STATIC_CODE_GLOBALS or alias in PYTHON_KEYWORDS:
             # bump digit at end to make alias unique
             count = regex.search(r"\d+$", alias)
             if count is None:
@@ -143,7 +126,7 @@ class Aliasing:
                 or alias in PYTHON_KEYWORDS
             ):
                 count += 1
-                alias = regex.sub(r"\d+$", str(count + 1), alias)
+                alias = regex.sub(r"\d+$", str(count), alias)
         self._alias_by_node_id[cast(UUID, obj.id)] = alias
         self._node_by_alias[alias] = obj
         return alias
@@ -212,14 +195,10 @@ class Renderer:
         self.aliasing = options.aliasing
 
     def __str__(self) -> str:
-        return f"scope={self.scope!r}, aliases={', '.join(self.aliasing._node_by_alias)}"
+        return f"aliases={len(self.aliasing._node_by_alias)}"
 
     def __repr__(self) -> str:
         return f"<Renderer {self}>"
-
-    @property
-    def scope(self) -> Node:
-        return self.options.scope
 
     def render_node_ref(self, node: Node | NodeReference) -> str:
         """Renders a python-valid reference to the given node in this context."""
