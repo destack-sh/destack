@@ -54,7 +54,7 @@ from bench.runtime.model import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-from .macro import CALL, REPLACE_TEXT, SEND, WAIT
+from .macro import ADD_PAGE_TEXT, CALL, REPLACE_PAGE_TEXT, SEND, WAIT
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false
@@ -275,15 +275,20 @@ Well, you said here on [@Page1]:
 
 
 @example_(ExampleType.SNIPPET, title="Write text on a Page")
-def example_write_text_on_a_page(Page1: Page, Block7: Block):
-    REPLACE_TEXT(
+def example_write_text_on_a_page(NotesPage1: Page, Block7: Block):
+    ADD_PAGE_TEXT(
         """\
 # Notes
 - Item 1 *and* more
 - Item 2
 - ...
 """,
-        Page1,
+        NotesPage1,
         after=Block7,
     )
-    SEND("I've added your notes to [@Page1].")
+    SEND("I've added your notes to [@NotesPage1].")
+
+
+@example_(ExampleType.SNIPPET, title="Edit a text line on a Page")
+def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
+    Block7.line = text_line("## New Subtitle")

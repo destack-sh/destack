@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Generator, override
+from typing import TYPE_CHECKING, Generator, Union, override
 
 import structlog
 from opentelemetry import trace
@@ -8,27 +8,27 @@ from bench.language import (
     Agent,
     FieldType,
     File,
-    FileType,
     Message,
     Node,
     NodeType,
     Page,
-    Plan,
     Run,
     Span,
     Thread,
 )
 from bench.runtime.core import ThreadHandle
 from bench.runtime.model import (
-    AudioPiece,
+    PIECE_BY_NODE_TYPE,
     BreakPiece,
     CodePiece,
     CompoundPiece,
-    ImagePiece,
+    FilePiece,
     Piece,
     Prompt,
     SeparatorPiece,
+    TextPiece,
     Tokenizer,
+    get_file_piece,
     piece_,
     raise_if_none,
 )
@@ -38,6 +38,17 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+def _get_node_piece(node: Node) -> Union[FilePiece, "NodePiece"]:
+    """Get the appropriate NodePiece for a Node."""
+    if isinstance(node, File):
+        return get_file_piece(node)
+    elif (piece_cls := PIECE_BY_NODE_TYPE.get(node.metatype)) is not None:
+        assert issubclass(piece_cls, NodePiece)
+        return piece_cls(node=node)
+    else:
+        return NodePiece(node=node)
 
 
 @piece_()
@@ -103,10 +114,7 @@ class MessagePiece(NodePiece[Message]):
         yield CodePiece(code=rendered_node)
         for node in self.node.nodes:
             if isinstance(node, File):
-                if node.type == FileType.IMAGE:
-                    yield ImagePiece(file=node)
-                elif node.type == FileType.AUDIO:
-                    yield AudioPiece(file=node)
+                yield get_file_piece(node)
 
 
 @piece_(NodeType.PAGE)
@@ -121,32 +129,44 @@ class PagePiece(NodePiece[Page]):
         rendered_page = prompt.renderer.render_statement(self.node, append=False, format=True)
         rendered_page = f"""\
 # [@{alias}] = {self.node.absolute_path}
-{rendered_page}
 # Text Blocks are markdown with their alias prepended like `[@Block1] <line>`.
-# You MAY reference them directly like Blocks by their alias. 
-# When someone asks for content, just quote it and refer to the page (NO aliases).
+# You SHOULD use `ADD_PAGE_TEXT` and `REPLACE_PAGE_TEXT` to edit continuous text sections.
+# You MAY reference Blocks directly by their alias (like to `Block7.line = ...`). 
+{rendered_page}
 """
         yield CodePiece(code=rendered_page)
+        yield SeparatorPiece()
 
         # blocks
-        block_parts: list[str] = []
+        text_block_parts: list[str] = []
+
+        def _flush_text_block_parts() -> CodePiece:
+            rendered_blocks = "\n".join(text_block_parts)
+            text_block_parts.clear()
+            return CodePiece(code=rendered_blocks)
+
         for block in self.node.blocks:
             block_alias = prompt.renderer.aliasing.get_or_add(block)
-            if (line := block.line) is not None:
-                block_parts.append(f"[@{block_alias}] {line}")
+            if block.type.is_text:
+                # text block
+                line_str = block.line.to_markdown() if block.line is not None else ""
+                text_block_parts.append(f"[@{block_alias}] {line_str}")
             else:
-                # nocheckin: non-text blocks in PagePiece
-                pass
-        rendered_blocks = "\n".join(block_parts)
-        yield CodePiece(code=rendered_blocks)
+                # node block
+                if text_block_parts:
+                    yield _flush_text_block_parts()
+                if (node := block.node) is not None:
+                    yield _get_node_piece(node)
+                elif (node_ptr := block.node_ptr) is not None:
+                    node_alias = prompt.renderer.aliasing.get_or_add(node_ptr)
+                    yield TextPiece(
+                        text=f"[@{block_alias}] <UNLOADED {node_ptr.node_type.name} NODE: {node_alias}>"
+                    )
+        if text_block_parts:
+            yield _flush_text_block_parts()
 
         # footer (page)
         yield SeparatorPiece()
-
-
-@piece_(NodeType.PLAN)
-class PlanPiece(NodePiece[Plan]):
-    pass
 
 
 @piece_(NodeType.ACTION)

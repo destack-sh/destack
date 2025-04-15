@@ -1,5 +1,4 @@
-import asyncio
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
 
 from bench.builtin.core import class_to_kit
 from bench.language import InterruptionType, Page
@@ -19,15 +18,6 @@ class ICommonKit(ActionRunner if TYPE_CHECKING else object):
         ICON: fas fa-hand
         """
         _ = self._trap_interruption(InterruptionType.YIELD)
-
-    # nocheckin
-    async def Multiply(self, A: int, B: int) -> Annotated[dict[str, int], {"Result": int}]:
-        """
-        Multiply two numbers.
-        ICON: fas fa-calculator
-        """
-        await asyncio.sleep(10)
-        return {"Result": A * B}
 
 
 CommonKit = class_to_kit(ICommonKit, "Common")

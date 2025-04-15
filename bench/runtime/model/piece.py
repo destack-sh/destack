@@ -34,7 +34,7 @@ def raise_if_none():
 # Basic Pieces
 #
 
-_piece_by_node_type: dict[NodeType, type["Piece"]] = {}
+PIECE_BY_NODE_TYPE: dict[NodeType, type["Piece"]] = {}
 
 
 @dataclass_transform(kw_only_default=True)
@@ -47,7 +47,7 @@ def piece_(node_type: NodeType | None = None):
     def wrap(cls: type["Piece"]) -> type["Piece"]:
         piece_cls = dataclasses.dataclass(slots=True)(cls)
         if node_type is not None:
-            _piece_by_node_type[node_type] = piece_cls
+            PIECE_BY_NODE_TYPE[node_type] = piece_cls
         return piece_cls
 
     return wrap
@@ -106,9 +106,12 @@ class CodePiece(LeafPiece):
 
 
 @piece_()
-class ImagePiece(LeafPiece):
+class FilePiece(LeafPiece, ABC):
     file: File = raise_if_none()
 
+
+@piece_()
+class ImagePiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
         assert self.file.type == FileType.IMAGE
@@ -116,16 +119,24 @@ class ImagePiece(LeafPiece):
 
 
 @piece_()
-class AudioPiece(LeafPiece):
-    file: File = raise_if_none()
-
+class AudioPiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
         assert self.file.type == FileType.AUDIO
         return tokenizer.estimate_audio_tokens(self.file)
 
 
-BasicPiece = BreakPiece | SeparatorPiece | TextPiece | CodePiece | ImagePiece | AudioPiece
+def get_file_piece(file: File) -> FilePiece:
+    """Get the appropriate FilePiece for a File."""
+    if file.type == FileType.IMAGE:
+        return ImagePiece(file=file)
+    elif file.type == FileType.AUDIO:
+        return AudioPiece(file=file)
+    else:
+        raise ValueError(f"unsupported file type: {file.type}")
+
+
+BasicPiece = BreakPiece | SeparatorPiece | TextPiece | CodePiece | FilePiece
 
 
 #

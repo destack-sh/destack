@@ -12,7 +12,6 @@ from .piece import (
     AgentPiece,
     AttemptPiece,
     PagePiece,
-    PlanPiece,
     RunPiece,
     ThreadPiece,
 )
@@ -234,14 +233,7 @@ You MAY need to engage with other Agents.
     )
 
     # plan
-    if (plan := run.plan) is not None:
-        prompt.region(
-            "Plan",
-            "The current Plan you're on",
-            PlanPiece(node=plan, role="user"),
-            priority=20,
-            role="developer",
-        )
+    # nocheckin: support Plan
 
     # previous tool Runs
     previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]
