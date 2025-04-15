@@ -290,3 +290,21 @@ def example_write_text_on_a_page(NotesPage1: Page, Block7: Block):
 @example_(ExampleType.SNIPPET, title="Edit a text line on a Page")
 def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
     Block7.line = text_line("## New Subtitle")
+
+
+@example_(ExampleType.SNIPPET, title="Add images to response")
+def example_upload_a_file(File1: File):
+    # pick best images from search
+    images = (
+        File.external("https://example.com/image1.jpg"),
+        File.external("https://example.com/image2.jpg"),
+    )
+    SEND(
+        """\
+Here's what I found:
+
+![Image 1](https://example.com/image1.jpg)
+![Image 2](https://example.com/image2.jpg)
+""",
+        nodes=images,
+    )

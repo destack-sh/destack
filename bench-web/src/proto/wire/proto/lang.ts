@@ -814,9 +814,9 @@ export interface FileInfoData {
      */
     name?: string;
     /**
-     * @generated from protobuf field: symbolx.bench.FileKind kind = 60;
+     * @generated from protobuf field: symbolx.bench.FileSource source = 60;
      */
-    kind: FileKind;
+    source: FileSource;
     /**
      * @generated from protobuf field: optional string mime_type = 61;
      */
@@ -826,9 +826,9 @@ export interface FileInfoData {
      */
     format?: FileFormat;
     /**
-     * @generated from protobuf field: int64 size = 63;
+     * @generated from protobuf field: optional int64 size = 63;
      */
-    size: bigint;
+    size?: bigint;
     /**
      * @generated from protobuf field: optional string sha256 = 64;
      */
@@ -934,6 +934,10 @@ export interface LinkPreviewData {
      * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 64;
      */
     expiresAt?: Timestamp;
+    /**
+     * @generated from protobuf field: repeated string image_urls = 70;
+     */
+    imageUrls: string[];
 }
 /**
  * @generated from protobuf message symbolx.bench.EditContextData
@@ -3448,9 +3452,9 @@ export interface FileData {
      */
     activeAt?: Timestamp;
     /**
-     * @generated from protobuf field: symbolx.bench.FileKind kind = 60;
+     * @generated from protobuf field: symbolx.bench.FileSource source = 60;
      */
-    kind: FileKind;
+    source: FileSource;
     /**
      * @generated from protobuf field: optional string mime_type = 61;
      */
@@ -3460,9 +3464,9 @@ export interface FileData {
      */
     format?: FileFormat;
     /**
-     * @generated from protobuf field: int64 size = 63;
+     * @generated from protobuf field: optional int64 size = 63;
      */
-    size: bigint;
+    size?: bigint;
     /**
      * @generated from protobuf field: optional string sha256 = 64;
      */
@@ -7879,9 +7883,9 @@ export enum EnumType {
      */
     FILE_RETENTION_MODE = 21050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_KIND = 21051;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 21051;
      */
-    FILE_KIND = 21051,
+    FILE_SOURCE = 21051,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 21052;
      */
@@ -7891,13 +7895,13 @@ export enum EnumType {
      */
     FILE_FORMAT = 21053,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 21054;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 21060;
      */
-    ICON_TYPE = 21054,
+    ICON_TYPE = 21060,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 21060;
+     * @generated from protobuf enum value: ENUM_TYPE_LINK_TYPE = 21070;
      */
-    LINK_TYPE = 21060,
+    LINK_TYPE = 21070,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_STREAM_TYPE = 21100;
      */
@@ -9451,9 +9455,9 @@ export enum BenchType {
      */
     FILE_RETENTION_MODE = 21050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_KIND = 21051;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_SOURCE = 21051;
      */
-    FILE_KIND = 21051,
+    FILE_SOURCE = 21051,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 21052;
      */
@@ -9463,13 +9467,13 @@ export enum BenchType {
      */
     FILE_FORMAT = 21053,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_TYPE = 21054;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_TYPE = 21060;
      */
-    ICON_TYPE = 21054,
+    ICON_TYPE = 21060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 21060;
+     * @generated from protobuf enum value: BENCH_TYPE_LINK_TYPE = 21070;
      */
-    LINK_TYPE = 21060,
+    LINK_TYPE = 21070,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_STREAM_TYPE = 21100;
      */
@@ -10543,27 +10547,23 @@ export enum FileRetentionMode {
     TIMED = 3
 }
 /**
- * @generated from protobuf enum symbolx.bench.FileKind
+ * @generated from protobuf enum symbolx.bench.FileSource
  */
-export enum FileKind {
+export enum FileSource {
     /**
-     * @generated from protobuf enum value: FILE_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: FILE_SOURCE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FILE_KIND_DRIVE = 1;
+     * @generated from protobuf enum value: FILE_SOURCE_BENCH = 1;
      */
-    DRIVE = 1,
+    BENCH = 1,
     /**
-     * @generated from protobuf enum value: FILE_KIND_DRIVE_INLINE = 2;
-     */
-    DRIVE_INLINE = 2,
-    /**
-     * @generated from protobuf enum value: FILE_KIND_INLINE = 3;
+     * @generated from protobuf enum value: FILE_SOURCE_INLINE = 3;
      */
     INLINE = 3,
     /**
-     * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 10;
+     * @generated from protobuf enum value: FILE_SOURCE_EXTERNAL = 10;
      */
     EXTERNAL = 10
 }
@@ -16009,10 +16009,10 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 60, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
+            { no: 60, name: "source", kind: "enum", T: () => ["symbolx.bench.FileSource", FileSource, "FILE_SOURCE_"] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
-            { no: 63, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 63, name: "size", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 64, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 65, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 66, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -16032,8 +16032,7 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
-        message.kind = 0;
-        message.size = 0n;
+        message.source = 0;
         if (value !== undefined)
             reflectionMergePartial<FileInfoData>(this, message, value);
         return message;
@@ -16052,8 +16051,8 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
                 case /* optional string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* symbolx.bench.FileKind kind */ 60:
-                    message.kind = reader.int32();
+                case /* symbolx.bench.FileSource source */ 60:
+                    message.source = reader.int32();
                     break;
                 case /* optional string mime_type */ 61:
                     message.mimeType = reader.string();
@@ -16061,7 +16060,7 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
                 case /* optional symbolx.bench.FileFormat format */ 62:
                     message.format = reader.int32();
                     break;
-                case /* int64 size */ 63:
+                case /* optional int64 size */ 63:
                     message.size = reader.int64().toBigInt();
                     break;
                 case /* optional string sha256 */ 64:
@@ -16124,17 +16123,17 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
         /* optional string name = 31; */
         if (message.name !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* symbolx.bench.FileKind kind = 60; */
-        if (message.kind !== 0)
-            writer.tag(60, WireType.Varint).int32(message.kind);
+        /* symbolx.bench.FileSource source = 60; */
+        if (message.source !== 0)
+            writer.tag(60, WireType.Varint).int32(message.source);
         /* optional string mime_type = 61; */
         if (message.mimeType !== undefined)
             writer.tag(61, WireType.LengthDelimited).string(message.mimeType);
         /* optional symbolx.bench.FileFormat format = 62; */
         if (message.format !== undefined)
             writer.tag(62, WireType.Varint).int32(message.format);
-        /* int64 size = 63; */
-        if (message.size !== 0n)
+        /* optional int64 size = 63; */
+        if (message.size !== undefined)
             writer.tag(63, WireType.Varint).int64(message.size);
         /* optional string sha256 = 64; */
         if (message.sha256 !== undefined)
@@ -16200,12 +16199,14 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
             { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "published_at", kind: "message", T: () => Timestamp },
-            { no: 64, name: "expires_at", kind: "message", T: () => Timestamp }
+            { no: 64, name: "expires_at", kind: "message", T: () => Timestamp },
+            { no: 70, name: "image_urls", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<LinkPreviewData>): LinkPreviewData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.imageUrls = [];
         if (value !== undefined)
             reflectionMergePartial<LinkPreviewData>(this, message, value);
         return message;
@@ -16250,6 +16251,9 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
                     break;
                 case /* optional google.protobuf.Timestamp expires_at */ 64:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
+                    break;
+                case /* repeated string image_urls */ 70:
+                    message.imageUrls.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16299,6 +16303,9 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
         /* optional google.protobuf.Timestamp expires_at = 64; */
         if (message.expiresAt)
             Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string image_urls = 70; */
+        for (let i = 0; i < message.imageUrls.length; i++)
+            writer.tag(70, WireType.LengthDelimited).string(message.imageUrls[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21830,10 +21837,10 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
             { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
             { no: 48, name: "active_at", kind: "message", T: () => Timestamp },
-            { no: 60, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
+            { no: 60, name: "source", kind: "enum", T: () => ["symbolx.bench.FileSource", FileSource, "FILE_SOURCE_"] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
-            { no: 63, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 63, name: "size", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 64, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 65, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 66, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -21860,8 +21867,7 @@ class FileData$Type extends MessageType$<FileData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
-        message.kind = 0;
-        message.size = 0n;
+        message.source = 0;
         message.retention = 0;
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
@@ -21965,8 +21971,8 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional google.protobuf.Timestamp active_at */ 48:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
                     break;
-                case /* symbolx.bench.FileKind kind */ 60:
-                    message.kind = reader.int32();
+                case /* symbolx.bench.FileSource source */ 60:
+                    message.source = reader.int32();
                     break;
                 case /* optional string mime_type */ 61:
                     message.mimeType = reader.string();
@@ -21974,7 +21980,7 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional symbolx.bench.FileFormat format */ 62:
                     message.format = reader.int32();
                     break;
-                case /* int64 size */ 63:
+                case /* optional int64 size */ 63:
                     message.size = reader.int64().toBigInt();
                     break;
                 case /* optional string sha256 */ 64:
@@ -22127,17 +22133,17 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional google.protobuf.Timestamp active_at = 48; */
         if (message.activeAt)
             Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FileKind kind = 60; */
-        if (message.kind !== 0)
-            writer.tag(60, WireType.Varint).int32(message.kind);
+        /* symbolx.bench.FileSource source = 60; */
+        if (message.source !== 0)
+            writer.tag(60, WireType.Varint).int32(message.source);
         /* optional string mime_type = 61; */
         if (message.mimeType !== undefined)
             writer.tag(61, WireType.LengthDelimited).string(message.mimeType);
         /* optional symbolx.bench.FileFormat format = 62; */
         if (message.format !== undefined)
             writer.tag(62, WireType.Varint).int32(message.format);
-        /* int64 size = 63; */
-        if (message.size !== 0n)
+        /* optional int64 size = 63; */
+        if (message.size !== undefined)
             writer.tag(63, WireType.Varint).int64(message.size);
         /* optional string sha256 = 64; */
         if (message.sha256 !== undefined)
@@ -31850,7 +31856,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.STORE_TYPE]: StoreType,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
-  [EnumType.FILE_KIND]: FileKind,
+  [EnumType.FILE_SOURCE]: FileSource,
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.ICON_TYPE]: IconType,
@@ -32174,7 +32180,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.STORE_TYPE]: StoreType,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
-  [EnumType.FILE_KIND]: FileKind,
+  [EnumType.FILE_SOURCE]: FileSource,
   [EnumType.FILE_TYPE]: FileType,
   [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.ICON_TYPE]: IconType,
@@ -32556,7 +32562,7 @@ export enum FileProperty {
   suspendedAt = 46,
   decommissionedAt = 47,
   activeAt = 48,
-  kind = 60,
+  source = 60,
   mimeType = 61,
   format = 62,
   size = 63,
@@ -34022,7 +34028,7 @@ export enum FileInfoProperty {
   metatype = 1,
   type = 30,
   name = 31,
-  kind = 60,
+  source = 60,
   mimeType = 61,
   format = 62,
   size = 63,
@@ -34189,6 +34195,7 @@ export enum LinkPreviewProperty {
   attribution = 62,
   publishedAt = 63,
   expiresAt = 64,
+  imageUrls = 70,
 }
 
 export enum ColorProperty {
@@ -34764,7 +34771,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34801,7 +34808,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -34879,10 +34886,10 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.kind]: { id: 60, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.source]: { id: 60, name: 'source', component: ObjectType.FILE, enumType: EnumType.FILE_SOURCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.sha256]: { id: 64, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
@@ -36276,10 +36283,10 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileInfoProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.name]: { id: 31, name: 'name', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.kind]: { id: 60, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.source]: { id: 60, name: 'source', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_SOURCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.size]: { id: 63, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.sha256]: { id: 64, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64, nodeTypes: [], nodeSubtypes: [] }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.width]: { id: 65, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.height]: { id: 66, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
@@ -36429,6 +36436,7 @@ export const LinkPreviewDataInfo: Record<LinkPreviewProperty, PropertyInfo> = {
   [LinkPreviewProperty.attribution]: { id: 62, name: 'attribution', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.publishedAt]: { id: 63, name: 'published_at', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.expiresAt]: { id: 64, name: 'expires_at', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkPreviewProperty.imageUrls]: { id: 70, name: 'image_urls', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

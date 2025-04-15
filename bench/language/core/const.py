@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.15.3"
+VERSION = "2025.04.15.5"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -354,11 +354,11 @@ class EnumType(BuiltinEnum):
 
     # files (21050-21099)
     FILE_RETENTION_MODE = 21050
-    FILE_KIND = 21051
+    FILE_SOURCE = 21051
     FILE_TYPE = 21052
     FILE_FORMAT = 21053
-    ICON_TYPE = 21054
-    LINK_TYPE = 21060
+    ICON_TYPE = 21060
+    LINK_TYPE = 21070
 
     # streams (21100-21149)
     STREAM_TYPE = 21100

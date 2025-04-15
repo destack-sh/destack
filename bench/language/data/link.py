@@ -68,6 +68,7 @@ class LinkPreview(LinkBase, Struct):
     """
 
     title: TextLine | None = p_regular(32, default=None, struct=StructType.TEXT_LINE)
+    image_urls: list[str] = p_regular(70, array=True)
 
 
 @node_(NodeType.LINK, has_subtypes=True)

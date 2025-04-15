@@ -2,13 +2,14 @@ import abc
 import asyncio
 import functools
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any, Callable, Generator, cast, final, override
+from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast, final, override
 
 from bench.language import (
     Action,
     Agent,
     Block,
     CursorType,
+    File,
     FileIn,
     Message,
     Node,
@@ -181,27 +182,26 @@ Create a Message in the current Thread.
 SHOULD be just one 'paragraph' (use multiple SENDs if needed).
 Returns the Message.
 """,
-    signature="(str, *, nodes: list[Node] | None = None, reply_to: Message | None = None) -> Message",
+    signature="(str, *, nodes: Sequence[Node] | None = None, reply_to: Message | None = None) -> Message",
 )
 def SEND(
     text: TextIn,
     *,
-    nodes: list[Node] | None = None,
+    nodes: Sequence[Node] | None = None,
     reply_to: Message | None = None,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
     thread = runner.thread.thread
+    nodes = list(nodes or ())
     message = Message.new(text=text, owned_by=runner.agent, nodes=nodes, reply_to=reply_to)
+    for node in nodes:
+        if node.parent_ptr is None:
+            message.append(node)
     thread.append(message)
     if (cursor := runner.node.get_cursor(type=CursorType.THREAD)) is not None:
         cursor.seen_at = message.created_at
     runner.session.stage()
     return message
-
-
-@function_macro_("UPLOAD", "Upload a File.", signature="(file_in: bytes | Path, name: str) -> File")
-def UPLOAD(file_in: FileIn, name: str, runner: "AgentRunner" = _INJECTED_RUNNER):
-    return upload_file(file_in, name, parent=runner.closest_tracked_run)
 
 
 @function_macro_(

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.15.3"
+VERSION = "2025.04.15.5"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -474,10 +474,10 @@ FILE_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("kind", PrimitiveType.INT16),
+        Column("source", PrimitiveType.INT16),
         Column("mime_type", PrimitiveType.STRING, is_nullable=True),
         Column("format", PrimitiveType.INT32, is_nullable=True),
-        Column("size", PrimitiveType.INT64),
+        Column("size", PrimitiveType.INT64, is_nullable=True),
         Column("sha256", PrimitiveType.STRING, is_nullable=True),
         Column("width", PrimitiveType.INT32, is_nullable=True),
         Column("height", PrimitiveType.INT32, is_nullable=True),
