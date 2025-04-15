@@ -28,6 +28,7 @@ attrs==24.2.0
     # via
     #   aiohttp
     #   jsonschema
+    #   referencing
 authlib==0.15.6
     # via python-twitter-v2
 base58==2.1.1
@@ -111,6 +112,8 @@ duckdb==1.1.1
     # via -r bench/requirements/base.in
 et-xmlfile==2.0.0
     # via openpyxl
+exa-py==1.12.0
+    # via -r bench/requirements/runtime.in
 feedparser==6.0.10
     # via -r bench/requirements/runtime.in
 flatbuffers==24.3.25
@@ -189,11 +192,12 @@ httplib2==0.22.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
-httpx==0.27.0
+httpx==0.28.1
     # via
     #   -r bench/requirements/base.in
     #   anthropic
     #   browserbase
+    #   exa-py
     #   notion-client
     #   openai
 humanfriendly==10.0
@@ -227,8 +231,12 @@ jmespath==1.0.1
     #   botocore
 joblib==1.4.2
     # via nltk
-jsonschema==4.16.0
-    # via -r bench/requirements/runtime.in
+jsonschema==4.23.0
+    # via
+    #   -r bench/requirements/base.in
+    #   -r bench/requirements/runtime.in
+jsonschema-specifications==2024.10.1
+    # via jsonschema
 langcodes==3.3.0
     # via -r bench/requirements/runtime.in
 livekit==0.19.1
@@ -296,7 +304,9 @@ oauthlib==3.2.2
 onnxruntime==1.20.0
     # via magika
 openai==1.59.8
-    # via -r bench/requirements/base.in
+    # via
+    #   -r bench/requirements/base.in
+    #   exa-py
 opencv-python==4.10.0.84
     # via -r bench/requirements/runtime.in
 openpyxl==3.1.5
@@ -394,16 +404,17 @@ pycares==4.5.0
     # via aiodns
 pycparser==2.22
     # via cffi
-pydantic==2.9.2
+pydantic==2.11.3
     # via
     #   -r bench/requirements/runtime.in
     #   anthropic
     #   browserbase
+    #   exa-py
     #   google-genai
     #   google-generativeai
     #   openai
     #   pyairtable
-pydantic-core==2.23.4
+pydantic-core==2.33.1
     # via pydantic
 pydub==0.25.1
     # via -r bench/requirements/runtime.in
@@ -424,12 +435,14 @@ pyparsing==3.2.0
     # via httplib2
 pypdf==5.1.0
     # via -r bench/requirements/runtime.in
-pyrsistent==0.20.0
-    # via jsonschema
 pysocks==1.7.1
     # via sherlock-project
 pytest==8.3.3
-    # via -r bench/requirements/base.in
+    # via
+    #   -r bench/requirements/base.in
+    #   pytest-mock
+pytest-mock==3.14.0
+    # via exa-py
 python-dateutil==2.9.0.post0
     # via
     #   -r bench/requirements/base.in
@@ -454,6 +467,10 @@ pytz==2024.1
     #   pandas
 redis==4.5.4
     # via -r bench/requirements/base.in
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2024.11.6
     # via
     #   -r bench/requirements/base.in
@@ -465,6 +482,7 @@ requests==2.32.3
     #   -r bench/requirements/runtime.in
     #   atlassian-python-api
     #   dropbox
+    #   exa-py
     #   google-api-core
     #   google-genai
     #   google-search-results
@@ -486,6 +504,10 @@ rich==13.9.4
     # via
     #   -r bench/requirements/base.in
     #   typer
+rpds-py==0.24.0
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9
     # via google-auth
 s3transfer==0.10.3
@@ -513,7 +535,6 @@ sniffio==1.3.1
     #   anthropic
     #   anyio
     #   browserbase
-    #   httpx
     #   openai
 sortedcontainers==2.4.0
     # via -r bench/requirements/base.in
@@ -552,6 +573,7 @@ typing-extensions==4.12.2
     # via
     #   anthropic
     #   browserbase
+    #   exa-py
     #   google-generativeai
     #   livekit-agents
     #   openai
@@ -565,8 +587,11 @@ typing-extensions==4.12.2
     #   python-pptx
     #   typer
     #   typing-inspect
+    #   typing-inspection
 typing-inspect==0.9.0
     # via dataclasses-json
+typing-inspection==0.4.0
+    # via pydantic
 tzdata==2024.2
     # via pandas
 tzlocal==5.2

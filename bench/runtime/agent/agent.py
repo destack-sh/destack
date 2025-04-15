@@ -145,6 +145,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             prompt = make_agent_prompt(
                 agent=self.node, runner=cast(AgentRunner[Agent], self), previous_attempts=attempts
             )
+            # nocheckin: fetch prompt references
 
             # run model
             # TODO :Incomplete: bring your own models/keys (BYOK)

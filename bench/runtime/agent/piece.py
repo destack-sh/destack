@@ -185,9 +185,7 @@ class PagePiece(NodePiece[Page]):
 
 @piece_(NodeType.DATABASE)
 class DatabasePiece(NodePiece[Database]):
-    @override
-    def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
-        return ()  # nocheckin
+    pass
 
 
 @piece_(NodeType.ACTION)

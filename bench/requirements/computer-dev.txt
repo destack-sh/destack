@@ -29,6 +29,7 @@ attrs==25.3.0
     #   aiohttp
     #   hypothesis
     #   jsonschema
+    #   referencing
 base58==2.1.1
     # via -r bench/requirements/computer.in
 beautifulsoup4==4.12.3
@@ -180,7 +181,7 @@ httplib2==0.22.0
     # via
     #   google-api-python-client
     #   google-auth-httplib2
-httpx==0.27.0
+httpx==0.28.1
     # via
     #   -r bench/requirements/base.in
     #   anthropic
@@ -222,8 +223,12 @@ jmespath==1.0.1
     #   botocore
 joblib==1.4.2
     # via nltk
-jsonschema==4.16.0
-    # via -r bench/requirements/computer.in
+jsonschema==4.23.0
+    # via
+    #   -r bench/requirements/base.in
+    #   -r bench/requirements/computer.in
+jsonschema-specifications==2024.10.1
+    # via jsonschema
 langcodes==3.3.0
     # via -r bench/requirements/computer.in
 livekit==0.19.1
@@ -439,8 +444,6 @@ pyproject-hooks==1.2.0
     # via build
 pyright==1.1.388
     # via -r bench/requirements/dev.in
-pyrsistent==0.20.0
-    # via jsonschema
 pytest==8.3.3
     # via
     #   -r bench/requirements/base.in
@@ -485,6 +488,10 @@ pyyaml==6.0.2
     #   tach
 redis==4.5.4
     # via -r bench/requirements/base.in
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2024.11.6
     # via
     #   -r bench/requirements/base.in
@@ -500,6 +507,10 @@ rich==13.9.4
     #   -r bench/requirements/base.in
     #   tach
     #   typer
+rpds-py==0.24.0
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9
     # via google-auth
 ruff==0.7.4
@@ -521,7 +532,6 @@ sniffio==1.3.1
     #   anthropic
     #   anyio
     #   browserbase
-    #   httpx
     #   openai
 sortedcontainers==2.4.0
     # via
