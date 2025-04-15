@@ -267,10 +267,10 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
             for node in nodes:
                 self.append(node)
 
-    def remove_between(self, after: V | None = None, before: V | None = None):
-        """Removes all nodes between two nodes (exclusive)."""
+    def between(self, after: V | None = None, before: V | None = None) -> list[V]:
+        """Get all nodes between two nodes (exclusive)."""
         found_after = after is None
-        nodes_to_remove = []
+        nodes = []
         for node in self.nodes:
             if after is not None and after == node:
                 found_after = True
@@ -278,7 +278,12 @@ class LocalNodeList[V: Node](NodeList[V], Sequence[V]):
             if before is not None and before == node:
                 break
             if found_after:
-                nodes_to_remove.append(node)
+                nodes.append(node)
+        return nodes
+
+    def remove_between(self, after: V | None = None, before: V | None = None):
+        """Removes all nodes between two nodes (exclusive)."""
+        nodes_to_remove = self.between(after, before)
         for node in nodes_to_remove:
             self.remove(node)
 

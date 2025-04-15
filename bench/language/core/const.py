@@ -1458,8 +1458,8 @@ class SpanType(BuiltinEnum):
     WAIT = 2, None, None, "fas fa-hourglass-end"
     ACQUIRE = 3, None, None, "fas fa-toolbox"
     CODE = 10, None, None, "fas fa-code"
-    # flow
-    AGENT_THINK = 100, None, None, "fas fa-hexagon-nodes"
+    # agent
+    AGENT_TICK = 100, None, None, "fas fa-hexagon-nodes"
     # action
     # ...
     # application (action)

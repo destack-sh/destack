@@ -5,11 +5,13 @@ from .model import ModelRunner
 from .openai import OpenAIChatModelRunner
 from .openrouter import OpenRouterChatModelRunner
 from .piece import (
+    PIECE_BY_NODE_TYPE,
     AudioPiece,
     BasicPiece,
     BreakPiece,
     CodePiece,
     CompoundPiece,
+    FilePiece,
     HeaderPiece,
     ImagePiece,
     LeafPiece,
@@ -18,6 +20,7 @@ from .piece import (
     RegionPiece,
     SeparatorPiece,
     TextPiece,
+    get_file_piece,
     piece_,
     raise_if_none,
 )
@@ -25,6 +28,7 @@ from .prompt import Prompt, compile_prompt
 from .token import StupidTokenizer, TiktokenTokenizer, Tokenizer
 
 __all__ = [
+    "PIECE_BY_NODE_TYPE",
     "AnthropicChatModelRunner",
     "AudioPiece",
     "BasicPiece",
@@ -32,6 +36,7 @@ __all__ = [
     "ChatModelRunner",
     "CodePiece",
     "CompoundPiece",
+    "FilePiece",
     "GoogleChatModelRunner",
     "HeaderPiece",
     "ImagePiece",
@@ -49,6 +54,7 @@ __all__ = [
     "TiktokenTokenizer",
     "Tokenizer",
     "compile_prompt",
+    "get_file_piece",
     "piece_",
     "raise_if_none",
 ]

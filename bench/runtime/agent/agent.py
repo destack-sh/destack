@@ -118,9 +118,9 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
 
-    @tracer.start_as_current_span("agent.think")
-    async def _think(self):
-        """Prepare the next actions in this Flow (if any)."""
+    @tracer.start_as_current_span("agent.tick")
+    async def _tick(self):
+        """Generate and execute the next Agent tick."""
         attempts: list[Span] = []
         retry = THINK_RETRY_OPTIONS.new(oracle=self.runtime.oracle)
         thread = self.thread.thread
@@ -155,7 +155,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,
-                run=SpanType.AGENT_THINK,
+                run=SpanType.AGENT_TICK,
                 model_id=model_id,
             )
             attempt = model_runner.tracked_span
@@ -233,7 +233,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             # think
             self._next_action = AgentComplete()
             self._received_wake = False
-            await self._think()
+            await self._tick()
             received_wake = self._received_wake
             self._received_wake = False
 

@@ -80,6 +80,14 @@ class BlockType(BuiltinEnum):
     # layout?
     # ROW
 
+    @property
+    def is_node(self) -> bool:
+        return self.id < 10000
+
+    @property
+    def is_text(self) -> bool:
+        return self.id >= 10000
+
 
 # copy NodeType properties to BlockType
 for block_type in BlockType:
@@ -125,7 +133,10 @@ if IS_DEV or IS_TEST:
 
 @node_(NodeType.BLOCK, has_subtypes=True)
 class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
-    """A Block on a Page."""
+    """
+    A Block on a Page.
+    NOTE :Architecture: Block should be IsView (or some subtrait)? Also Page, Flow, Action, ..?
+    """
 
     parent: Union["Page", "Block", None] = p_node_parent(4, NodeType.PAGE, NodeType.BLOCK)
 
