@@ -22,8 +22,13 @@ def _register_builtins():
     global _registered
     from bench.builtin import WebKit
 
-    web = ExaWeb()
-    _register_builtin_action(WebKit.actions.Search, web.Search)
+    for kit, impl_cls in ((WebKit, ExaWeb),):
+        impl = impl_cls()
+        for action in kit.actions:
+            assert action.name is not None, f"{action!r} has no name"
+            method = getattr(impl, action.name, None)
+            assert method is not None, f"{impl.__class__} has no method {action.name!r}"
+            _register_builtin_action(action, method)
 
     _registered = True
 

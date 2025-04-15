@@ -891,7 +891,7 @@ export interface LinkPreviewData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextLineData title = 10;
+     * @generated from protobuf field: optional symbolx.bench.TextLineData title = 32;
      */
     title?: TextLineData;
     /**
@@ -919,9 +919,9 @@ export interface LinkPreviewData {
      */
     thumbnailHeight?: number;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 60;
+     * @generated from protobuf field: optional string content = 60;
      */
-    text?: TextData;
+    content?: string;
     /**
      * @generated from protobuf field: optional string attribution = 62;
      */
@@ -3681,9 +3681,9 @@ export interface LinkData {
      */
     thumbnailHeight?: number;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 60;
+     * @generated from protobuf field: optional string content = 60;
      */
-    text?: TextData;
+    content?: string;
     /**
      * @generated from protobuf field: optional string attribution = 62;
      */
@@ -16190,14 +16190,14 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
     constructor() {
         super("symbolx.bench.LinkPreviewData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 10, name: "title", kind: "message", T: () => TextLineData },
+            { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 50, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 53, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 54, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 55, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 60, name: "text", kind: "message", T: () => TextData },
+            { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "published_at", kind: "message", T: () => Timestamp },
             { no: 64, name: "expires_at", kind: "message", T: () => Timestamp }
@@ -16218,7 +16218,7 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbolx.bench.TextLineData title */ 10:
+                case /* optional symbolx.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
                 case /* optional string url */ 50:
@@ -16239,8 +16239,8 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
                 case /* optional int32 thumbnail_height */ 55:
                     message.thumbnailHeight = reader.int32();
                     break;
-                case /* optional symbolx.bench.TextData text */ 60:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                case /* optional string content */ 60:
+                    message.content = reader.string();
                     break;
                 case /* optional string attribution */ 62:
                     message.attribution = reader.string();
@@ -16266,9 +16266,9 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.TextLineData title = 10; */
+        /* optional symbolx.bench.TextLineData title = 32; */
         if (message.title)
-            TextLineData.internalBinaryWrite(message.title, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
+            TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional string url = 50; */
         if (message.url !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.url);
@@ -16287,9 +16287,9 @@ class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
         /* optional int32 thumbnail_height = 55; */
         if (message.thumbnailHeight !== undefined)
             writer.tag(55, WireType.Varint).int32(message.thumbnailHeight);
-        /* optional symbolx.bench.TextData text = 60; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional string content = 60; */
+        if (message.content !== undefined)
+            writer.tag(60, WireType.LengthDelimited).string(message.content);
         /* optional string attribution = 62; */
         if (message.attribution !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.attribution);
@@ -22236,7 +22236,7 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 53, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 54, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 55, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 60, name: "text", kind: "message", T: () => TextData },
+            { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "published_at", kind: "message", T: () => Timestamp },
             { no: 64, name: "expires_at", kind: "message", T: () => Timestamp }
@@ -22374,8 +22374,8 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional int32 thumbnail_height */ 55:
                     message.thumbnailHeight = reader.int32();
                     break;
-                case /* optional symbolx.bench.TextData text */ 60:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                case /* optional string content */ 60:
+                    message.content = reader.string();
                     break;
                 case /* optional string attribution */ 62:
                     message.attribution = reader.string();
@@ -22512,9 +22512,9 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional int32 thumbnail_height = 55; */
         if (message.thumbnailHeight !== undefined)
             writer.tag(55, WireType.Varint).int32(message.thumbnailHeight);
-        /* optional symbolx.bench.TextData text = 60; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional string content = 60; */
+        if (message.content !== undefined)
+            writer.tag(60, WireType.LengthDelimited).string(message.content);
         /* optional string attribution = 62; */
         if (message.attribution !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.attribution);
@@ -31417,7 +31417,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.STORE]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE, NodeType.CHANNEL],
   [NodeType.COMPUTER]: [NodeType.PACKAGE, NodeType.THREAD, NodeType.PAGE, NodeType.CHANNEL],
   [NodeType.APPLICATION]: [NodeType.PACKAGE, NodeType.COMPUTER, NodeType.PAGE, NodeType.THREAD],
-  [NodeType.FILE]: [NodeType.DATABASE, NodeType.THREAD, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE],
+  [NodeType.FILE]: [NodeType.DATABASE, NodeType.THREAD, NodeType.PACKAGE, NodeType.MESSAGE, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE],
   [NodeType.STREAM]: [NodeType.BENCH],
   [NodeType.LINK]: [NodeType.DATABASE, NodeType.THREAD, NodeType.PACKAGE, NodeType.LINK, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE],
   [NodeType.PACKAGE]: [NodeType.BENCH],
@@ -31491,7 +31491,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DATABASE]: [NodeType.RECORD, NodeType.CHOICE, NodeType.LINK, NodeType.FIELD, NodeType.SKIP, NodeType.EMPTY, NodeType.FILE],
   [NodeType.CHANNEL]: [NodeType.THREAD, NodeType.AGENT, NodeType.LINK, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.SCALER, NodeType.COMPUTER, NodeType.INVITE, NodeType.FILE, NodeType.STORE],
   [NodeType.THREAD]: [NodeType.TEAM, NodeType.CURSOR, NodeType.THREAD, NodeType.CLAIM, NodeType.AGENT, NodeType.LINK, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.MESSAGE, NodeType.SCALER, NodeType.COMPUTER, NodeType.INVITE, NodeType.PLAN, NodeType.FILE, NodeType.STORE, NodeType.RUN, NodeType.APPLICATION],
-  [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.MESSAGE]: [NodeType.FILE, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.NOTIFICATION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
   [NodeType.MEMBERSHIP]: [NodeType.SKIP, NodeType.EMPTY],
@@ -31525,7 +31525,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.STORE]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.PAGE],
   [NodeType.COMPUTER]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.CHANNEL, NodeType.PAGE],
   [NodeType.APPLICATION]: [NodeType.BENCH, NodeType.THREAD, NodeType.PACKAGE, NodeType.COMPUTER, NodeType.CHANNEL, NodeType.PAGE],
-  [NodeType.FILE]: [NodeType.BENCH, NodeType.DATABASE, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE],
+  [NodeType.FILE]: [NodeType.BENCH, NodeType.DATABASE, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.MESSAGE, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE],
   [NodeType.STREAM]: [NodeType.BENCH],
   [NodeType.LINK]: [NodeType.BENCH, NodeType.DATABASE, NodeType.THREAD, NodeType.PACKAGE, NodeType.AGENT, NodeType.LINK, NodeType.CHANNEL, NodeType.RUN, NodeType.PAGE],
   [NodeType.PACKAGE]: [NodeType.BENCH],
@@ -31599,7 +31599,7 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DATABASE]: [NodeType.RECORD, NodeType.CHOICE, NodeType.LINK, NodeType.FIELD, NodeType.OPTION, NodeType.SKIP, NodeType.EMPTY, NodeType.FILE],
   [NodeType.CHANNEL]: [NodeType.FLOW, NodeType.INTERRUPTION, NodeType.ACTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.LINK, NodeType.SKIP, NodeType.EMPTY, NodeType.SCALER, NodeType.MESSAGE, NodeType.LOG, NodeType.TRANSITION, NodeType.PLAN, NodeType.TRIGGER, NodeType.FILE, NodeType.CURSOR, NodeType.STORE, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.FIELD, NodeType.INVITE, NodeType.COMPUTER, NodeType.RUN, NodeType.SPAN, NodeType.APPLICATION],
   [NodeType.THREAD]: [NodeType.FLOW, NodeType.INTERRUPTION, NodeType.ACTION, NodeType.CLAIM, NodeType.THREAD, NodeType.AGENT, NodeType.LINK, NodeType.SKIP, NodeType.EMPTY, NodeType.LOG, NodeType.SCALER, NodeType.MESSAGE, NodeType.TRANSITION, NodeType.PLAN, NodeType.TRIGGER, NodeType.FILE, NodeType.STORE, NodeType.CURSOR, NodeType.TASK, NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.FIELD, NodeType.INVITE, NodeType.COMPUTER, NodeType.RUN, NodeType.SPAN, NodeType.APPLICATION],
-  [NodeType.MESSAGE]: [NodeType.SKIP, NodeType.EMPTY],
+  [NodeType.MESSAGE]: [NodeType.FILE, NodeType.SKIP, NodeType.EMPTY],
   [NodeType.NOTIFICATION]: [NodeType.SKIP, NodeType.EMPTY],
   [NodeType.TEAM]: [NodeType.TEAM, NodeType.MEMBERSHIP, NodeType.SKIP, NodeType.EMPTY, NodeType.INVITE],
   [NodeType.MEMBERSHIP]: [NodeType.SKIP, NodeType.EMPTY],
@@ -32650,7 +32650,7 @@ export enum LinkProperty {
   faviconUrl = 53,
   thumbnailWidth = 54,
   thumbnailHeight = 55,
-  text = 60,
+  content = 60,
   attribution = 62,
   publishedAt = 63,
   expiresAt = 64,
@@ -34178,14 +34178,14 @@ export enum RunFrameProperty {
 
 export enum LinkPreviewProperty {
   metatype = 1,
-  title = 10,
+  title = 32,
   url = 50,
   contentUrl = 51,
   thumbnailUrl = 52,
   faviconUrl = 53,
   thumbnailWidth = 54,
   thumbnailHeight = 55,
-  text = 60,
+  content = 60,
   attribution = 62,
   publishedAt = 63,
   expiresAt = 64,
@@ -34764,7 +34764,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34801,7 +34801,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -34851,7 +34851,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.DATABASE, NodeType.CHANNEL, NodeType.THREAD, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.PAGE, NodeType.DATABASE, NodeType.CHANNEL, NodeType.THREAD, NodeType.MESSAGE, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.benchPtr]: { id: 5, name: 'bench_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.packagePtr]: { id: 9, name: 'package_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.createdAt]: { id: 10, name: 'created_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -34971,7 +34971,7 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.faviconUrl]: { id: 53, name: 'favicon_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.thumbnailWidth]: { id: 54, name: 'thumbnail_width', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.thumbnailHeight]: { id: 55, name: 'thumbnail_height', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.text]: { id: 60, name: 'text', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [LinkProperty.content]: { id: 60, name: 'content', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.attribution]: { id: 62, name: 'attribution', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.publishedAt]: { id: 63, name: 'published_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.expiresAt]: { id: 64, name: 'expires_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -36418,14 +36418,14 @@ export const RunFrameDataInfo: Record<RunFrameProperty, PropertyInfo> = {
 }
 export const LinkPreviewDataInfo: Record<LinkPreviewProperty, PropertyInfo> = {
   [LinkPreviewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK_PREVIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [LinkPreviewProperty.title]: { id: 10, name: 'title', component: ObjectType.LINK_PREVIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
+  [LinkPreviewProperty.title]: { id: 32, name: 'title', component: ObjectType.LINK_PREVIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [LinkPreviewProperty.url]: { id: 50, name: 'url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.contentUrl]: { id: 51, name: 'content_url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.thumbnailUrl]: { id: 52, name: 'thumbnail_url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.faviconUrl]: { id: 53, name: 'favicon_url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.thumbnailWidth]: { id: 54, name: 'thumbnail_width', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.thumbnailHeight]: { id: 55, name: 'thumbnail_height', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.text]: { id: 60, name: 'text', component: ObjectType.LINK_PREVIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [LinkPreviewProperty.content]: { id: 60, name: 'content', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.attribution]: { id: 62, name: 'attribution', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.publishedAt]: { id: 63, name: 'published_at', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkPreviewProperty.expiresAt]: { id: 64, name: 'expires_at', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },

@@ -17,7 +17,6 @@ from bench.language.core import (
     Resource,
     Struct,
     StructType,
-    Text,
     TextLine,
     enum_,
     node_,
@@ -30,7 +29,7 @@ from bench.language.core import (
 from bench.pb2 import LinkData
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Database, Package, Page, Run, Thread
+    from bench.language import Channel, Database, Message, Package, Page, Run, Thread
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -53,7 +52,7 @@ class LinkBase(BuiltinObject):
     favicon_url: str | None = p_regular(53, default=None)
     thumbnail_width: int | None = p_regular(54, default=None)
     thumbnail_height: int | None = p_regular(55, default=None)
-    text: Text | None = p_regular(60, default=None, struct=StructType.TEXT)
+    content: str | None = p_regular(60, default=None)
     attribution: str | None = p_regular(62, default=None)
     published_at: Optional[datetime] = p_system(63)
     expires_at: Optional[datetime] = p_system(64)
@@ -68,7 +67,7 @@ class LinkPreview(LinkBase, Struct):
     A preview of a Link.
     """
 
-    title: TextLine | None = p_regular(10, default=None, struct=StructType.TEXT_LINE)
+    title: TextLine | None = p_regular(32, default=None, struct=StructType.TEXT_LINE)
 
 
 @node_(NodeType.LINK, has_subtypes=True)
@@ -78,18 +77,26 @@ class Link(IsTitled, LinkBase, Resource[LinkData]):
     """
 
     # meta
-    parent: Union["Package", "Page", "Database", "Link", "Channel", "Thread", "Run", None] = (
-        p_node_parent(
-            4,
-            NodeType.PACKAGE,
-            NodeType.PAGE,
-            NodeType.DATABASE,
-            NodeType.LINK,
-            NodeType.CHANNEL,
-            NodeType.THREAD,
-            NodeType.RUN,
-            ckless=True,
-        )
+    parent: Union[
+        "Package",
+        "Page",
+        "Database",
+        "Link",
+        "Channel",
+        "Thread",
+        "Message",
+        "Run",
+        None,
+    ] = p_node_parent(
+        4,
+        NodeType.PACKAGE,
+        NodeType.PAGE,
+        NodeType.DATABASE,
+        NodeType.LINK,
+        NodeType.CHANNEL,
+        NodeType.THREAD,
+        NodeType.RUN,
+        ckless=True,
     )
     type: LinkType = p_regular(30, require=True)
 

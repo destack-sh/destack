@@ -1974,14 +1974,14 @@ message FileInfoData {
 
 message LinkPreviewData {
   ObjectType metatype = 1;
-  optional TextLineData title = 10;
+  optional TextLineData title = 32;
   optional string url = 50;
   optional string content_url = 51;
   optional string thumbnail_url = 52;
   optional string favicon_url = 53;
   optional int32 thumbnail_width = 54;
   optional int32 thumbnail_height = 55;
-  optional TextData text = 60;
+  optional string content = 60;
   optional string attribution = 62;
   optional google.protobuf.Timestamp published_at = 63;
   optional google.protobuf.Timestamp expires_at = 64;
@@ -2738,7 +2738,7 @@ message LinkData {
   optional string favicon_url = 53;
   optional int32 thumbnail_width = 54;
   optional int32 thumbnail_height = 55;
-  optional TextData text = 60;
+  optional string content = 60;
   optional string attribution = 62;
   optional google.protobuf.Timestamp published_at = 63;
   optional google.protobuf.Timestamp expires_at = 64;
