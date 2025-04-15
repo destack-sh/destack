@@ -17,7 +17,7 @@ from .file import (
     upload_file,
     upload_file_batch,
 )
-from .link import Link, LinkType
+from .link import Link, LinkPreview, LinkType
 from .stream import Stream
 
 __all__ = [
@@ -34,6 +34,7 @@ __all__ = [
     "FileRetentionMode",
     "FileType",
     "Link",
+    "LinkPreview",
     "LinkType",
     "Stream",
     "detect_file_format",

@@ -504,11 +504,14 @@ class FileBase(BuiltinObject):
     duration: Optional[timedelta] = p_regular(69, default=None)
 
     # content
-    external_url: str | None = p_regular(70, default=None)  # if external
-    inline_content: bytes | None = p_regular(71, default=None, constraint=constraint(min_length=1))
+    url: str | None = p_regular(70, default=None)  # if external
+    content_url: str | None = p_regular(71, default=None)  # if external
+    thumbnail_url: str | None = p_regular(72, default=None)  # if external
+    favicon_url: str | None = p_regular(73, default=None)
+    thumbnail_width: int | None = p_regular(74, default=None)
+    thumbnail_height: int | None = p_regular(75, default=None)
+    inline_content: bytes | None = p_regular(76, default=None, constraint=constraint(min_length=1))
     ...  # thumbnail/preview/...?
-
-    # multimedia
 
     # cached content
     _original: Optional["File"] = p_runtime(default=None)  # if converted
@@ -602,11 +605,10 @@ class FileBase(BuiltinObject):
         """The file content as base64."""
         return base64.b64encode(self.content).decode("utf-8")
 
-    @property
-    def url(self) -> str:
+    def get_url(self) -> str:
         """The URL to GET the file from."""
-        if self.external_url is not None:
-            return self.external_url
+        if self.url is not None:
+            return self.url
         elif self._cached_get_url is not None:
             return self._cached_get_url
         else:

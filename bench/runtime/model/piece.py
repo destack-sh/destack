@@ -150,9 +150,7 @@ class CompoundPiece(Piece, ABC):
     token_limit: int | None = None
 
     @abstractmethod
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         """Compile the CompoundPiece into other Pieces (basic or compound, must be non-recursive)."""
         raise NotImplementedError(f"{self!r} does not implement compile")
 
@@ -162,9 +160,7 @@ class HeaderPiece(CompoundPiece):
     text: str = raise_if_none()
 
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         yield SeparatorPiece()
         yield TextPiece(text=self.text)
         yield SeparatorPiece()
@@ -175,13 +171,10 @@ class RegionPiece(CompoundPiece):
     title: str = raise_if_none()
     text: str | None = None
     pieces: Sequence[Piece] = raise_if_none()
-    omit_piece: Piece | None = None
     insert_breaks: bool = True
 
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         if self.insert_breaks:
             yield BreakPiece()
         yield SeparatorPiece()
@@ -193,10 +186,6 @@ class RegionPiece(CompoundPiece):
             yield BreakPiece()
         for piece in self.pieces:
             yield piece
-            if remaining_tokens < 10:
-                if self.omit_piece is not None:
-                    yield self.omit_piece
-                break
             if self.insert_breaks:
                 yield BreakPiece()
         yield SeparatorPiece()

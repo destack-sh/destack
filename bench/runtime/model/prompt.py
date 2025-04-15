@@ -1,4 +1,3 @@
-import math
 from typing import TYPE_CHECKING, Sequence
 
 import structlog
@@ -115,162 +114,41 @@ def compile_prompt(
     prompt: Prompt, tokenizer: Tokenizer, max_tokens: int
 ) -> tuple[list["LeafPiece"], int]:
     """
-    Compile the prompt into a flat list of LeafPiece objects within the token budget.
-    TODO :Performance :Robustness: compile_prompt seems inefficient and quite suboptimal
-
-    There are two passes:
-
-    Pass 1: Selection
-      - For a list of sibling pieces, compute each branch's total token cost using
-        a cached estimation method.
-      - If the total tokens required by all siblings is less than max_tokens, select them all.
-      - Otherwise, use a knapsack-style DP (with block scaling) to select a subset
-        (by index) whose total token cost is <= max_tokens (or, more precisely,
-        <= the total required tokens) and whose sum of absolute priorities is maximized.
-
-    Pass 2: Flattening
-      - Recursively flatten each selected piece, sending in the remaining capacity.
-      - For compound pieces, compile their children and run selection/flattening on them.
+    Compile the prompt into a flat list of LeafPiece objects, ignoring token limits.
+    Simply flattens all pieces recursively and computes the total token count.
     """
 
-    _token_cache: dict[tuple[int, int], int] = {}
-
-    def _estimate_token_count(piece: "Piece", capacity: int) -> int:
-        """
-        Estimate the total token count for a piece.
-        For LeafPieces, call its estimate_tokens method.
-        For CompoundPieces, fully expand them (using an "infinite" budget) and sum up.
-        Results are cached (keyed by piece id and capacity).
-        """
-        key = (id(piece), capacity)
-        if key in _token_cache:
-            return _token_cache[key]
+    def _flatten_piece(piece: "Piece") -> Sequence["LeafPiece"]:
+        """Recursively flatten a piece into a list of LeafPiece objects."""
         if isinstance(piece, LeafPiece):
-            result = piece.estimate_tokens(prompt, tokenizer)
-            _token_cache[key] = result
-            return result
+            return (piece,)
         elif isinstance(piece, CompoundPiece):
-            total = 0
+            result = []
             try:
-                gen = piece.compile(prompt, tokenizer, capacity)
-                remaining = capacity
+                gen = piece.compile(prompt, tokenizer)
                 child = next(gen)
                 while True:
                     if child.role is None:
                         child.role = piece.role
-                    child_tokens = _estimate_token_count(child, remaining)
-                    total += child_tokens
-                    remaining -= child_tokens
-                    child = gen.send(remaining)
+                    result.extend(_flatten_piece(child))
+                    child = gen.send(None)
             except StopIteration:
                 pass
-            _token_cache[key] = total
-            return total
+            return result
         else:
             raise TypeError(f"Unsupported piece type: {type(piece)}")
 
-    def _select_pieces(siblings: list["Piece"], capacity: int) -> tuple[list[int], int]:
-        """
-        For a list of sibling pieces, select a subset (by index) whose total token cost
-        is <= capacity and whose sum of absolute priorities is maximized.
+    # flatten all pieces
+    final_leaves = []
+    for piece in prompt.pieces:
+        final_leaves.extend(_flatten_piece(piece))
+    total_tokens = sum(piece.estimate_tokens(prompt, tokenizer) for piece in final_leaves)
 
-        Instead of iterating up to the absolute capacity, we compute the total token count
-        needed by all siblings. If that total is <= capacity, we return all siblings.
-        Otherwise, we compute a dynamic block size to scale weights.
-        """
-        n = len(siblings)
-        raw_weights = [_estimate_token_count(piece, capacity) for piece in siblings]
-        total_required = sum(raw_weights)
-
-        # if all siblings fit within the budget, select all
-        if total_required <= capacity:
-            return list(range(n)), total_required
-
-        values = [piece.priority for piece in siblings]
-        dynamic_block_size = max(1, math.ceil(total_required / capacity))
-        effective_capacity = capacity // dynamic_block_size
-        scaled_weights = [max(1, math.ceil(w / dynamic_block_size)) for w in raw_weights]
-
-        # build DP table: dp[i][w] = max total priority using first i pieces with budget w (in blocks)
-        dp = [[0] * (effective_capacity + 1) for _ in range(n + 1)]
-        keep = [[False] * (effective_capacity + 1) for _ in range(n + 1)]
-        for i in range(1, n + 1):
-            for w in range(effective_capacity + 1):
-                if scaled_weights[i - 1] <= w:
-                    if dp[i - 1][w - scaled_weights[i - 1]] + values[i - 1] > dp[i - 1][w]:
-                        dp[i][w] = dp[i - 1][w - scaled_weights[i - 1]] + values[i - 1]
-                        keep[i][w] = True
-                    else:
-                        dp[i][w] = dp[i - 1][w]
-                else:
-                    dp[i][w] = dp[i - 1][w]
-
-        # reconstruct selected indices in reverse
-        selected = []
-        w = effective_capacity
-        for i in range(n, 0, -1):
-            if keep[i][w]:
-                selected.append(i - 1)
-                w -= scaled_weights[i - 1]
-        selected.sort()  # preserve original order
-        used_tokens = sum(raw_weights[i] for i in selected)
-        return selected, used_tokens
-
-    def _flatten_piece(parent: "Piece", capacity: int) -> tuple[list["LeafPiece"], int]:
-        """
-        Flatten a single piece with the given remaining capacity.
-        """
-        if isinstance(parent, LeafPiece):
-            tokens = parent.estimate_tokens(prompt, tokenizer)
-            if tokens <= capacity:
-                return [parent], tokens
-            return [], 0
-        elif isinstance(parent, CompoundPiece):
-            # compile children with the current capacity
-            children = []
-            try:
-                gen = parent.compile(prompt, tokenizer, capacity)
-                remaining = capacity
-                child = next(gen)
-                while True:
-                    if child.role is None:
-                        child.role = parent.role
-                    children.append(child)
-                    child_tokens = _estimate_token_count(child, remaining)
-                    remaining -= child_tokens
-                    child = gen.send(remaining)
-            except StopIteration:
-                pass
-            # select children pieces using dp
-            sel_indices, _ = _select_pieces(children, capacity)
-            return _flatten_pieces(children, capacity, sel_indices)
-        else:
-            raise TypeError(f"Unsupported piece type: {type(parent)}")
-
-    def _flatten_pieces(
-        pieces: list["Piece"], capacity: int, selected_indices: list[int]
-    ) -> tuple[list["LeafPiece"], int]:
-        """
-        Flatten a list of pieces given selected indices and a capacity budget.
-        """
-        result: list[LeafPiece] = []
-        used = 0
-        for idx, piece in enumerate(pieces):
-            if idx not in selected_indices:
-                continue
-            available = capacity - used
-            flat, used_tokens = _flatten_piece(piece, available)
-            if used_tokens <= available:
-                result.extend(flat)
-                used += used_tokens
-        return result, used
-
-    # top level selection and flattening
-    top_sel, _ = _select_pieces(prompt.pieces, max_tokens)
-    final_leaves, used_tokens = _flatten_pieces(prompt.pieces, max_tokens, top_sel)
+    # ensure all pieces have roles (for safety)
     for piece in final_leaves:
         assert piece.role is not None, f"piece {piece!r} ({final_leaves.index(piece)}) has no role"
-    return final_leaves, used_tokens
+
+    return final_leaves, total_tokens
 
 
 #

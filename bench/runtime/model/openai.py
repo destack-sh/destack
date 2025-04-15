@@ -94,10 +94,8 @@ async def build_openai_chat_messages(
             current_text_pieces.append(piece.code)
         elif isinstance(piece, ImagePiece):
             _flush_text()
-            if piece.file.external_url is not None:
-                current_content.append(
-                    {"type": "image_url", "image_url": {"url": piece.file.external_url}}
-                )
+            if piece.file.url is not None:
+                current_content.append({"type": "image_url", "image_url": {"url": piece.file.url}})
             else:
                 current_content.append(
                     {

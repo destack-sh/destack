@@ -79,9 +79,7 @@ class ExamplePiece(CompoundPiece):
     role = "developer"
 
     @override
-    def compile(
-        self, prompt: Prompt, tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: Prompt, tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         yield SeparatorPiece()
         yield TextPiece(text=f"{self.type.value} Example: {self.title}")
         yield SeparatorPiece()
