@@ -40,7 +40,7 @@ def class_to_kit(
         if method_name.startswith("_"):
             continue
 
-        action = Action.new(ActionType.CODE, name=method_name.replace("_", " ").title())
+        action = Action.new(ActionType.BUILTIN, name=method_name.replace("_", " ").title())
 
         # template
         if template is not None:

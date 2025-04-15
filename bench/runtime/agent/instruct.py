@@ -143,7 +143,7 @@ def make_agent_prompt(
 ) -> Prompt:
     """Build the Agent's 'thinking' Prompt."""
 
-    from bench.builtin.bench import CommonKit
+    from bench.builtin.bench import CommonKit, WebKit
 
     from .example import EXAMPLES
 
@@ -176,7 +176,7 @@ def make_agent_prompt(
     )
 
     # actions
-    actions = [*CommonKit.actions]
+    actions = [*CommonKit.actions, *WebKit.actions]
     prompt.region(
         "Actions",
         "Available Actions (to CALL if needed)",
@@ -203,7 +203,7 @@ YOU HAVE A {claim.type.name} CLAIM. ACT ACCORDINGLY.
 
     # thread
     agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
-    thread_text = "The Thread you're in (OLDEST first to NEWEST last)"
+    thread_text = "The Thread you're in (oldest first to newest last)"
     if thread.thread.title is None:
         thread_text += """
 You SHOULD title the Thread as soon as you can (you MAY change it later).

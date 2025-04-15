@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TYPE_CHECKING, Any, ClassVar, override
+from typing import TYPE_CHECKING, Any, ClassVar, assert_never, override
 
 import structlog
 from opentelemetry import trace
@@ -16,11 +16,14 @@ from bench.language import (
     Span,
     SpanType,
     code,
+    coerce_custom_object_scalar,
 )
 from bench.runtime.core import RunIn, Runner, Runtime, make_runner
 
+from .builtin import get_builtin_action_runner
+
 if TYPE_CHECKING:
-    from .flow import FlowRunner
+    from ..flow.flow import FlowRunner
 
 
 logger = structlog.get_logger(__name__)
@@ -164,10 +167,43 @@ class CodeActionRunner(ActionRunner):
         self.outputs = code_runner.outputs
 
 
-ACTION_RUNNER_BY_ACTION_TYPE: dict[ActionType, type[ActionRunner]] = {
-    # flow
-    ActionType.START: StartActionRunner,
-    ActionType.END: EndActionRunner,
-    ActionType.TOOL: ToolActionRunner,
-    ActionType.CODE: CodeActionRunner,
-}
+class BuiltinActionRunner(ActionRunner):
+    @override
+    async def run(self) -> None:
+        runner = get_builtin_action_runner(self.node)
+        outputs_raw = await runner(**(self.inputs or {}))
+        if self.output_type is not None:
+            self.outputs = coerce_custom_object_scalar(outputs_raw, self.output_type)
+
+
+def get_action_runner(
+    runtime: Runtime,
+    node: Action,
+    run: RunIn,
+    inputs: CustomObject | None = None,
+    outputs: IsType | CustomObject | None = None,
+    parent: Runner | None = None,
+    agent: Agent | None = None,
+) -> ActionRunner:
+    """Get the Runner for the given Action."""
+    if node.type == ActionType.START:
+        runner_cls = StartActionRunner
+    elif node.type == ActionType.END:
+        runner_cls = EndActionRunner
+    elif node.type == ActionType.TOOL:
+        runner_cls = ToolActionRunner
+    elif node.type == ActionType.CODE:
+        runner_cls = CodeActionRunner
+    elif node.type == ActionType.BUILTIN:
+        runner_cls = BuiltinActionRunner
+    else:
+        assert_never(node.type)
+    return runner_cls(
+        runtime=runtime,
+        inputs=inputs,
+        outputs=outputs,
+        run=run,
+        node=node,
+        parent=parent,
+        agent=agent,
+    )

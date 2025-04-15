@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, CustomObject, IsType, RunType, Transition, TransitionType
+from bench.language import Agent, CustomObject, IsType, RunType, Transition
 from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
@@ -43,10 +43,3 @@ class TransitionRunner(Runner[Transition], ABC):
     @override
     async def run(self) -> None:
         pass
-
-
-TRANSITION_RUNNER_BY_TRANSITION_TYPE: dict[TransitionType, type[TransitionRunner]] = {
-    TransitionType.MANUAL: TransitionRunner,
-    TransitionType.DECIDE: TransitionRunner,
-    TransitionType.REQUIRE: TransitionRunner,
-}

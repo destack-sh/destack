@@ -7,7 +7,6 @@ from .dependency import Dependency
 from .field import Field
 from .flow import Flow
 from .kit import Kit
-from .link import PortSide, Transition, TransitionType
 from .option import Option
 from .package import Package, PackageType
 from .page import Page
@@ -25,6 +24,7 @@ from .render import (
 )
 from .schedule import Schedule, ScheduleFrequency
 from .tag import Tag
+from .transition import PortSide, Transition, TransitionType
 from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
 
 __all__ = [

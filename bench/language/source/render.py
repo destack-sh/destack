@@ -57,9 +57,9 @@ from .clazz import Class
 from .database import Database
 from .field import Field
 from .flow import Flow
-from .link import Transition
 from .option import Option
 from .page import Page
+from .transition import Transition
 
 if TYPE_CHECKING:
     from bench.language import Claim, Message, Plan, Task, View

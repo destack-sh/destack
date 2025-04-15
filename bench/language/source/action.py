@@ -67,6 +67,7 @@ class ActionType(BuiltinEnum):
     # action
     TOOL = 100, "Tool", "Delegate to a specific tool", "fas fa-screwdriver-wrench", ColorType.ORANGE
     CODE = 101, "Code", "Run some Code", "fas fa-code", ColorType.ORANGE
+    BUILTIN = 102, "Builtin", "Run a builtin", "fas fa-cogs", ColorType.ORANGE
 
     # containers
     # GROUP, LOOP, ...

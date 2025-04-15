@@ -1,6 +1,16 @@
 from abc import ABC
 from asyncio import Queue
-from typing import ClassVar, Literal, NamedTuple, Sequence, assert_never, cast, override
+from typing import (
+    TYPE_CHECKING,
+    ClassVar,
+    Literal,
+    NamedTuple,
+    Sequence,
+    Union,
+    assert_never,
+    cast,
+    override,
+)
 from uuid import UUID
 
 import structlog
@@ -38,8 +48,10 @@ from bench.runtime.core import (
 )
 from bench.runtime.model import ModelRunner
 
-from .action import ActionRunner
 from .transition import TransitionRunner
+
+if TYPE_CHECKING:
+    from bench.runtime.action import ActionRunner
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -81,7 +93,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             agent=agent,
         )
         self._interrupted_runners: list[Runner] = []
-        self._active_runners_by_id: dict[UUID, TransitionRunner | ActionRunner] = {}
+        self._active_runners_by_id: dict[UUID, Union[TransitionRunner, ActionRunner]] = {}
         self._stop_result: CustomObject | Literal["completed"] | Error | Interruption | None = None
         self._events: Queue[RunnerEvent] = Queue()
         self._active_planning_runner: ModelRunner | None = None
@@ -148,6 +160,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
         title: TextLine | None = None,
     ) -> Run:
         """Run an Action or Link in this Flow."""
+        from bench.runtime.action import ActionRunner
+
         runner = make_runner(
             runtime=self.runtime,
             node=node,
@@ -169,6 +183,8 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     def _resume(self, run: Run | Runner) -> Run:
         """Resume a Run in this Flow."""
+        from bench.runtime.action import ActionRunner
+
         runner = run if isinstance(run, Runner) else self.runtime.restore_runner(run)
         if runner in self._interrupted_runners:
             self._interrupted_runners.remove(runner)
@@ -194,7 +210,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             self._active_runners_by_id.pop(runner.id)
             if not self._is_stopping:
                 if isinstance(runner.node, Action):
-                    self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                    self._tick_action(cast("ActionRunner", runner), runner.node, event)
                 elif isinstance(runner.node, Transition):
                     self._tick_link(cast(TransitionRunner, runner), runner.node, event)
         elif isinstance(event, RunnerFailedEvent):
@@ -202,7 +218,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
             if not self._is_stopping:
                 assert runner.error is not None, f"missing error for {runner!r}"
                 if isinstance(runner.node, Action):
-                    tick = self._tick_action(cast(ActionRunner, runner), runner.node, event)
+                    tick = self._tick_action(cast("ActionRunner", runner), runner.node, event)
                     if not tick.is_handled:
                         self.fail(runner.error)  # fail on unhandled action error
                 elif isinstance(runner.node, Transition):
@@ -210,7 +226,7 @@ class FlowRunner[N: Flow = Flow](Runner[N], ABC):
 
     def _tick_action(
         self,
-        runner: ActionRunner,
+        runner: "ActionRunner",
         action: Action,
         event: RunnerCompletedEvent | RunnerFailedEvent,
     ) -> TickActionResult:

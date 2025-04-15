@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Mapping
 
 from bench.builtin.core import class_to_kit
 from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page
@@ -14,7 +14,7 @@ class IComputer(ABC):
     """A Computer to control."""
 
     @abstractmethod
-    async def Screenshot(self, Self: "Computer") -> Annotated[dict[str, File], {"Image": File}]:
+    async def Screenshot(self, Self: "Computer") -> Annotated[Mapping[str, File], {"Image": File}]:
         """
         Take a screenshot of the current screen
         ICON: fas fa-camera

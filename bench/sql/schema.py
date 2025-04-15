@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.15.0"
+VERSION = "2025.04.15.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -563,6 +563,7 @@ LINK_TABLE = Table(
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
         Column("type", PrimitiveType.INT16),
         Column("name", PrimitiveType.STRING, is_nullable=True),
+        Column("title", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
@@ -578,6 +579,11 @@ LINK_TABLE = Table(
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("url", PrimitiveType.STRING, is_nullable=True),
+        Column("image_id", PrimitiveType.UUID, is_nullable=True),
+        Column("image_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("image_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("image_url", PrimitiveType.STRING, is_nullable=True),
+        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
@@ -1965,6 +1971,9 @@ CURSOR_TABLE = Table(
         Column("target_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
+        Column("filter", PrimitiveType.JSON, is_nullable=True),
+        Column("sort", PrimitiveType.JSON, is_array=True, is_nullable=True),
+        Column("url", PrimitiveType.STRING, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),
