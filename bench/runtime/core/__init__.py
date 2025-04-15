@@ -1,4 +1,3 @@
-from .cache import Cache, MemoryCache, RedisCache
 from .error import (
     AbortedError,
     BenchError,
@@ -35,17 +34,14 @@ from .thread import ThreadHandle
 __all__ = [
     "AbortedError",
     "BenchError",
-    "Cache",
     "CodeInvalidError",
     "IncapableError",
     "Interrupted",
     "InterruptionCancelledError",
     "InvalidValueError",
-    "MemoryCache",
     "ModelFailedError",
     "NonRetryableError",
     "NotSupportedError",
-    "RedisCache",
     "RefusedError",
     "RetryableError",
     "RunImpossibleError",

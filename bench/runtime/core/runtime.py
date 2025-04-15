@@ -46,7 +46,6 @@ from bench.language import (
     Span,
     SpanType,
     Thread,
-    TypeKind,
     ValidationError,
     WatchGetUpdate,
     WatchSearchUpdate,
@@ -60,7 +59,6 @@ from bench.utils.func import group_by
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 
-from .cache import Cache
 from .error import NonRetryableError, RetryableError
 from .runner import (
     Interrupted,
@@ -133,7 +131,6 @@ class Runtime:
         *,
         session: Session,
         network: Network,
-        cache: Cache,
         oracle: Oracle,
         process: "RuntimeProcess | None" = None,
         on_error: Callable[[BaseException], None] | None = None,
@@ -146,7 +143,6 @@ class Runtime:
         self.session_id = session.id
         self.network = network
         self.bench = session.bench
-        self.cache = cache
         self.oracle = oracle
         self.process = process
         self.on_error = on_error
@@ -460,6 +456,7 @@ class Runtime:
         span.status = ProcessStatus.RUNNING
         if runner.is_root and (agent := runner.agent) is not None:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
+            # nocheckin: update Agent's status properly?
             agent.update_from(span)
             thread = runner.thread.thread
             thread.update_from(*thread.agents)
@@ -472,7 +469,6 @@ class Runtime:
             if runner.tracked_span is not None:
                 await self._run_span(runner)
             elif runner.tracked_run is not None:
-                await self._prefetch_context(runner)
                 if runner.status < ProcessStatus.RUNNING:
                     await self._prepare_run(runner)
                 await self._run_run(runner)
@@ -887,51 +883,6 @@ class Runtime:
             run._connection.on_update(lambda _, update: self.on_external_update(update))
             logger.debug("runtime.load_runner", runner=runner, run=run, span="current")
             return runner, run
-
-    @tracer.start_as_current_span("runtime.prefetch_context")
-    async def _prefetch_context(self, runner: Runner):
-        """
-        Load remote Nodes that are (probably) required for the given Runner.
-        TODO :Architecture :Incomplete: unclear which remote Nodes to load for Runs and how
-         (should we only load top level references? Text mentions? expand Messages into Threads?
-           entire Run trees? this seems related to the context/projection stuff in model instruct)
-        NOTE :Robustness: isn't there a race condition in checking & loading Nodes across Runners?
-         (and what if a Node is loaded only because it's loaded by a different concurrent Run?,
-          but then that Run completes, so we unload it again while the other dependent Run runs?)
-        """
-
-        # gather inputs, resources & outputs
-        nodes_ptr_by_id: dict[UUID, NodeReference] = {}
-        for obj in (runner.inputs, runner.outputs):
-            if obj is None:
-                continue
-            # fields
-            for field in obj.fields:
-                if field.kind != TypeKind.NODE and field.kind != TypeKind.BASED_NODE:
-                    continue
-                field_value = cast(Any, obj._do_get(field, _raw=True))
-                if field_value is not None:
-                    if not field.is_list:
-                        nodes_ptr_by_id[field_value.id] = field_value
-                    else:
-                        for node_ptr in field_value:
-                            nodes_ptr_by_id[node_ptr.id] = node_ptr
-        if not nodes_ptr_by_id:
-            return
-
-        # filter missing nodes
-        supergraph = self.session._supergraph
-        missing_nodes_ptr: list[NodeReference] = []
-        for node_ptr in nodes_ptr_by_id.values():
-            node = supergraph.get(node_ptr)
-            if node is None:
-                missing_nodes_ptr.append(node_ptr)
-        if not missing_nodes_ptr:
-            return
-
-        # load missing nodes
-        missing_links = await synchronize_nodes(missing_nodes_ptr)
-        logger.debug("runtime.load_run.missing", nodes=missing_nodes_ptr, links=missing_links)
 
     #
     # Service

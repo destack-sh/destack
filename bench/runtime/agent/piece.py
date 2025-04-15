@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Generator, Union, override
+from typing import TYPE_CHECKING, Generator, Sequence, Union, override
 
 import structlog
 from opentelemetry import trace
@@ -6,10 +6,12 @@ from opentelemetry import trace
 from bench.language import (
     Action,
     Agent,
+    Database,
     FieldType,
     File,
     Message,
     Node,
+    NodeReference,
     NodeType,
     Page,
     Run,
@@ -57,6 +59,10 @@ class NodePiece[N: Node](CompoundPiece):
 
     node: N = raise_if_none()
     prepend_path: bool = True
+
+    def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
+        """Prepare a list of Nodes to load before compilation."""
+        return ()
 
     @override
     def compile(
@@ -120,6 +126,14 @@ class MessagePiece(NodePiece[Message]):
 @piece_(NodeType.PAGE)
 class PagePiece(NodePiece[Page]):
     @override
+    def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
+        missing_inline_nodes: list[NodeReference] = []
+        for block in self.node.blocks:
+            if block.type.is_node and (node_ptr := block.node_ptr) is not None:
+                missing_inline_nodes.append(node_ptr)
+        return missing_inline_nodes
+
+    @override
     def compile(
         self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
     ) -> Generator[Piece, int, None]:
@@ -167,6 +181,13 @@ class PagePiece(NodePiece[Page]):
 
         # footer (page)
         yield SeparatorPiece()
+
+
+@piece_(NodeType.DATABASE)
+class DatabasePiece(NodePiece[Database]):
+    @override
+    def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
+        return ()  # nocheckin
 
 
 @piece_(NodeType.ACTION)

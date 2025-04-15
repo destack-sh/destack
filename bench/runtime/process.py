@@ -17,7 +17,7 @@ from bench.pb2 import (
 )
 from bench.proto import Network, wiring
 from bench.runtime.base import RuntimeServiceBase
-from bench.runtime.core import RedisCache, Runtime
+from bench.runtime.core import Runtime
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
 
@@ -106,11 +106,9 @@ class RuntimeProcess(RuntimeServiceBase, RuntimeBase):
         assert self._session is not None, f"no session for {self!r}"
         assert self._bench is not None, f"no bench for {self!r}"
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
-        cache = RedisCache(bench=self._bench)
         self._runtime = Runtime(
             session=self._session,
             network=self.network,
-            cache=cache,
             oracle=self.oracle,
             process=self,
             on_error=self.on_error,
