@@ -65,9 +65,7 @@ class Prompt:
         self.now = session._oracle.utc()
         self.node = node
         self.aliasing = aliasing or Aliasing()
-        self.renderer = renderer or Renderer(
-            options=RenderOptions(scope=node, aliasing=self.aliasing)
-        )
+        self.renderer = renderer or Renderer(options=RenderOptions(aliasing=self.aliasing))
         self.pieces: list[Piece] = components or []
         self.system_prompt: str = system_prompt
 
