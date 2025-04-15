@@ -274,14 +274,6 @@ class IsType(BuiltinObject):
         base_type_ptr: Optional["NodeReference"] = None
     base_field_types: list["FieldType"] = p_internal(44, require=False, array=True)
     property_field_types: list["FieldType"] = p_internal(45, require=False, array=True)
-    oneof: Union["Field", "Block", None] = p_regular(
-        49,
-        require=False,
-        array=False,
-        default=None,
-        references=(NodeType.FIELD, NodeType.BLOCK),
-        same_bench=True,
-    )
 
     # metadata
     default_packed: Optional[Any] = p_value_packed(50)

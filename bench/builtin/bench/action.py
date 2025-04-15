@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from bench.builtin.core import class_to_kit
-from bench.language import InterruptionType, Page
+from bench.language import InterruptionType, NodeType, Page
 
 if TYPE_CHECKING:
     from bench.runtime import ActionRunner
@@ -19,8 +19,15 @@ class ICommonKit(ActionRunner if TYPE_CHECKING else object):
         """
         _ = self._trap_interruption(InterruptionType.YIELD)
 
+    async def WebSearch(self, query: str, num_results: int = 10) -> None:
+        """
+        Search the web for information.
+        ICON: fas fa-search
+        """
+        pass
+
     # nocheckin: web search action (exa?)
 
 
-CommonKit = class_to_kit(ICommonKit, "Common")
+CommonKit = class_to_kit(ICommonKit, "Common Kit", icon=NodeType.ACTION.icon)
 ActionPage = Page.new("Action", CommonKit)

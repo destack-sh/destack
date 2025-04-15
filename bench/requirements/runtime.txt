@@ -2,20 +2,20 @@
 #    uv pip compile bench/requirements/runtime.in --output-file bench/requirements/runtime.txt
 aiodns==3.2.0
     # via livekit-agents
-aiohappyeyeballs==2.4.4
+aiohappyeyeballs==2.6.1
     # via aiohttp
 aiohttp==3.11.11
     # via
     #   -r bench/requirements/base.in
     #   livekit-agents
     #   livekit-api
-aiosignal==1.3.1
+aiosignal==1.3.2
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
 anthropic==0.43.1
     # via -r bench/requirements/base.in
-anyio==4.6.2.post1
+anyio==4.9.0
     # via
     #   anthropic
     #   browserbase
@@ -24,7 +24,7 @@ anyio==4.6.2.post1
     #   watchfiles
 atlassian-python-api==3.41.16
     # via -r bench/requirements/runtime.in
-attrs==24.2.0
+attrs==25.3.0
     # via
     #   aiohttp
     #   jsonschema
@@ -71,9 +71,9 @@ cffi==1.17.1
     #   cryptography
     #   pycares
     #   pynacl
-charset-normalizer==3.4.0
+charset-normalizer==3.4.1
     # via requests
-click==8.1.7
+click==8.1.8
     # via
     #   black
     #   livekit-agents
@@ -86,7 +86,7 @@ coloredlogs==15.0.1
     # via onnxruntime
 croniter==1.4.1
     # via -r bench/requirements/base.in
-cryptography==43.0.3
+cryptography==44.0.2
     # via
     #   authlib
     #   pyjwt
@@ -94,7 +94,7 @@ dataclasses-json==0.5.14
     # via python-twitter-v2
 dateparser==1.1.8
     # via -r bench/requirements/runtime.in
-deprecated==1.2.14
+deprecated==1.2.18
     # via
     #   atlassian-python-api
     #   opentelemetry-api
@@ -113,22 +113,22 @@ duckdb==1.1.1
 et-xmlfile==2.0.0
     # via openpyxl
 exa-py==1.12.0
-    # via -r bench/requirements/runtime.in
+    # via -r bench/requirements/base.in
 feedparser==6.0.10
     # via -r bench/requirements/runtime.in
-flatbuffers==24.3.25
+flatbuffers==25.2.10
     # via onnxruntime
 frozenlist==1.5.0
     # via
     #   aiohttp
     #   aiosignal
-gitdb==4.0.11
+gitdb==4.0.12
     # via gitpython
 gitpython==3.1.32
     # via -r bench/requirements/runtime.in
 google-ai-generativelanguage==0.6.10
     # via google-generativeai
-google-api-core==2.23.0
+google-api-core==2.24.2
     # via
     #   google-ai-generativelanguage
     #   google-api-python-client
@@ -137,7 +137,7 @@ google-api-python-client==2.151.0
     # via
     #   -r bench/requirements/runtime.in
     #   google-generativeai
-google-auth==2.36.0
+google-auth==2.39.0
     # via
     #   google-ai-generativelanguage
     #   google-api-core
@@ -166,27 +166,27 @@ googleapis-common-protos==1.66.0
     #   opentelemetry-exporter-otlp-proto-grpc
 googlemaps==4.10.0
     # via -r bench/requirements/runtime.in
-grpcio==1.67.1
+grpcio==1.71.0
     # via
     #   -r bench/requirements/runtime.in
     #   google-api-core
     #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
-grpcio-status==1.67.1
+grpcio-status==1.71.0
     # via google-api-core
 grpclib==0.4.7
     # via -r bench/requirements/base.in
 h11==0.14.0
     # via httpcore
-h2==4.1.0
+h2==4.2.0
     # via
     #   grpclib
     #   httpx
-hiredis==3.0.0
+hiredis==3.1.0
     # via redis
-hpack==4.0.0
+hpack==4.1.0
     # via h2
-httpcore==1.0.6
+httpcore==1.0.8
     # via httpx
 httplib2==0.22.0
     # via
@@ -202,7 +202,7 @@ httpx==0.28.1
     #   openai
 humanfriendly==10.0
     # via coloredlogs
-hyperframe==6.0.1
+hyperframe==6.1.0
     # via h2
 idna==3.10
     # via
@@ -214,13 +214,15 @@ importlib-metadata==8.5.0
     # via opentelemetry-api
 inflection==0.5.1
     # via pyairtable
-iniconfig==2.0.0
+iniconfig==2.1.0
     # via pytest
 itsdangerous==2.1.2
     # via -r bench/requirements/runtime.in
 jinja2==3.1.4
-    # via -r bench/requirements/runtime.in
-jiter==0.7.0
+    # via
+    #   -r bench/requirements/runtime.in
+    #   stone
+jiter==0.9.0
     # via
     #   anthropic
     #   openai
@@ -245,9 +247,9 @@ livekit==0.19.1
     #   livekit-agents
 livekit-agents==0.12.8
     # via -r bench/requirements/base.in
-livekit-api==0.8.1
+livekit-api==0.8.2
     # via livekit-agents
-livekit-protocol==0.8.0
+livekit-protocol==0.9.2
     # via
     #   livekit-agents
     #   livekit-api
@@ -264,7 +266,7 @@ markdown-it-py==3.0.0
     # via rich
 markupsafe==3.0.2
     # via jinja2
-marshmallow==3.23.1
+marshmallow==3.26.1
     # via dataclasses-json
 mdurl==0.1.2
     # via markdown-it-py
@@ -276,7 +278,7 @@ mpmath==1.3.0
     # via sympy
 msgpack==1.1.0
     # via -r bench/requirements/runtime.in
-multidict==6.1.0
+multidict==6.4.3
     # via
     #   -r bench/requirements/base.in
     #   -r bench/requirements/runtime.in
@@ -289,7 +291,7 @@ mypy-extensions==1.0.0
     #   typing-inspect
 nltk==3.9.1
     # via -r bench/requirements/runtime.in
-notion-client==2.2.1
+notion-client==2.3.0
     # via -r bench/requirements/runtime.in
 numpy==1.26.4
     # via
@@ -301,7 +303,7 @@ oauthlib==3.2.2
     # via
     #   atlassian-python-api
     #   requests-oauthlib
-onnxruntime==1.20.0
+onnxruntime==1.21.0
     # via magika
 openai==1.59.8
     # via
@@ -350,13 +352,13 @@ pillow==11.0.0
     #   -r bench/requirements/runtime.in
     #   google-genai
     #   python-pptx
-platformdirs==4.3.6
+platformdirs==4.3.7
     # via black
 pluggy==1.5.0
     # via pytest
 ply==3.11
     # via stone
-propcache==0.2.0
+propcache==0.3.1
     # via
     #   aiohttp
     #   yarl
@@ -388,7 +390,7 @@ psycopg==3.2.3
     # via -r bench/requirements/runtime.in
 psycopg-binary==3.2.3
     # via psycopg
-psycopg-pool==3.2.3
+psycopg-pool==3.2.6
     # via psycopg
 pyairtable==2.3.5
     # via -r bench/requirements/runtime.in
@@ -398,9 +400,9 @@ pyasn1==0.6.1
     # via
     #   pyasn1-modules
     #   rsa
-pyasn1-modules==0.4.1
+pyasn1-modules==0.4.2
     # via google-auth
-pycares==4.5.0
+pycares==4.6.0
     # via aiodns
 pycparser==2.22
     # via cffi
@@ -418,11 +420,11 @@ pydantic-core==2.33.1
     # via pydantic
 pydub==0.25.1
     # via -r bench/requirements/runtime.in
-pygithub==2.5.0
+pygithub==2.6.1
     # via -r bench/requirements/runtime.in
-pygments==2.18.0
+pygments==2.19.1
     # via rich
-pyjwt==2.9.0
+pyjwt==2.10.1
     # via
     #   livekit-agents
     #   livekit-api
@@ -431,9 +433,9 @@ pynacl==1.5.0
     # via pygithub
 pypandoc==1.13
     # via -r bench/requirements/runtime.in
-pyparsing==3.2.0
+pyparsing==3.2.3
     # via httplib2
-pypdf==5.1.0
+pypdf==5.4.0
     # via -r bench/requirements/runtime.in
 pysocks==1.7.1
     # via sherlock-project
@@ -452,7 +454,7 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-docx==1.1.2
     # via -r bench/requirements/runtime.in
-python-dotenv==1.0.1
+python-dotenv==1.1.0
     # via
     #   -r bench/requirements/base.in
     #   magika
@@ -494,7 +496,7 @@ requests==2.32.3
     #   requests-oauthlib
     #   sherlock-project
     #   tiktoken
-requests-futures==1.0.1
+requests-futures==1.0.2
     # via sherlock-project
 requests-oauthlib==2.0.0
     # via
@@ -510,7 +512,7 @@ rpds-py==0.24.0
     #   referencing
 rsa==4.9
     # via google-auth
-s3transfer==0.10.3
+s3transfer==0.10.4
     # via boto3
 sentry-sdk==2.2.0
     # via -r bench/requirements/base.in
@@ -520,15 +522,15 @@ shellingham==1.5.4
     # via typer
 sherlock-project==0.15.0
     # via -r bench/requirements/runtime.in
-six==1.16.0
+six==1.17.0
     # via
     #   atlassian-python-api
     #   dropbox
     #   python-dateutil
     #   stone
-slack-sdk==3.33.3
+slack-sdk==3.35.0
     # via -r bench/requirements/runtime.in
-smmap==5.0.1
+smmap==5.0.2
     # via gitdb
 sniffio==1.3.1
     # via
@@ -544,7 +546,7 @@ sqlglot==25.30.0
     # via -r bench/requirements/base.in
 stem==1.8.2
     # via sherlock-project
-stone==3.3.8
+stone==3.3.9
     # via dropbox
 structlog==24.2.0
     # via -r bench/requirements/base.in
@@ -554,7 +556,7 @@ tabulate==0.9.0
     # via magika
 tiktoken==0.9.0
     # via -r bench/requirements/runtime.in
-tqdm==4.67.0
+tqdm==4.67.1
     # via
     #   -r bench/requirements/runtime.in
     #   google-generativeai
@@ -569,7 +571,7 @@ types-protobuf==4.25.0.20240417
     #   livekit-agents
     #   livekit-api
     #   livekit-protocol
-typing-extensions==4.12.2
+typing-extensions==4.13.2
     # via
     #   anthropic
     #   browserbase
@@ -592,13 +594,13 @@ typing-inspect==0.9.0
     # via dataclasses-json
 typing-inspection==0.4.0
     # via pydantic
-tzdata==2024.2
+tzdata==2025.2
     # via pandas
-tzlocal==5.2
+tzlocal==5.3.1
     # via dateparser
 uritemplate==4.1.1
     # via google-api-python-client
-urllib3==2.2.3
+urllib3==2.4.0
     # via
     #   botocore
     #   pyairtable
@@ -609,13 +611,13 @@ uvloop==0.21.0
     # via -r bench/requirements/base.in
 watchfiles==0.24.0
     # via livekit-agents
-websockets==14.1
+websockets==14.2
     # via google-genai
-wrapt==1.16.0
+wrapt==1.17.2
     # via deprecated
-xlsxwriter==3.2.0
+xlsxwriter==3.2.2
     # via python-pptx
-yarl==1.17.1
+yarl==1.19.0
     # via aiohttp
 zipp==3.21.0
     # via importlib-metadata

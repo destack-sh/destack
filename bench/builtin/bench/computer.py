@@ -1,96 +1,81 @@
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated
 
-from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page, upload_file
-from bench.pb2 import (
-    ClickRequest,
-    MoveRequest,
-    PressRequest,
-    ScreenshotRequest,
-    ScrollRequest,
-    ShellCommandRequest,
-    TypeRequest,
-)
+from bench.builtin.core import class_to_kit
+from bench.language import Computer, ComputerType, File, NodeMode, NodeType, Page
 
 if TYPE_CHECKING:
-    from bench.runtime import Runner
-
-
-from bench.builtin.core import class_to_kit
+    pass
 
 # ruff: noqa: N802,N803
 
 
-class IComputer(Runner if TYPE_CHECKING else object):
-    """The basic interface to any sort of a Computer :ComputerKit."""
+class IComputer(ABC):
+    """A Computer to control."""
 
+    @abstractmethod
     async def Screenshot(self, Self: "Computer") -> Annotated[dict[str, File], {"Image": File}]:
         """
         Take a screenshot of the current screen
         ICON: fas fa-camera
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        response = await computer_client.screenshot(ScreenshotRequest())
-        screenshot_timestamp = self.session._oracle.utc().strftime("%Y-%m-%d %H:%M:%S")
-        screenshot = await upload_file(
-            response.image, name=f"Screenshot {screenshot_timestamp}.jpeg", parent=self.tracked_run
-        )
-        return {"Image": screenshot}
+        pass
 
+    @abstractmethod
     async def Click(self, Self: "Computer", X: int, Y: int, Button: str = "left") -> None:
         """
         Click an element
         ICON: fas fa-arrow-pointer
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.click(ClickRequest(x=X, y=Y, button=Button))
+        pass
 
+    @abstractmethod
     async def Double_Click(self, Self: "Computer", X: int, Y: int) -> None:
         """
         Double click an element
         ICON: fas fa-arrow-pointer
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.double_click(ClickRequest(x=X, y=Y))
+        pass
 
+    @abstractmethod
     async def Press(self, Self: "Computer", Keys: list[str]) -> None:
         """
         Press a key
         ICON: fas fa-keyboard
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.press(PressRequest(keys=Keys))
+        pass
 
+    @abstractmethod
     async def Type(self, Self: "Computer", String: str) -> None:
         """
         Type a string on the keyboard
         ICON: fas fa-keyboard
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.type(TypeRequest(text=String))
+        pass
 
+    @abstractmethod
     async def Move(self, Self: "Computer", X: int, Y: int) -> None:
         """
         Move the mouse to a position
         ICON: fas fa-mouse
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.move(MoveRequest(x=X, y=Y))
+        pass
 
+    @abstractmethod
     async def Scroll(self, Self: "Computer", X: int, Y: int, Scroll_X: int, Scroll_Y: int) -> None:
         """
         Scroll the mouse
         ICON: fas fa-mouse
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.scroll(ScrollRequest(x=X, y=Y, scroll_x=Scroll_X, scroll_y=Scroll_Y))
+        pass
 
+    @abstractmethod
     async def Shell(self, Self: "Computer", Command: str) -> None:
         """
         Execute a shell command
         ICON: fas fa-terminal
         """
-        computer_client = await self.thread.get_computer_client(Self)
-        await computer_client.shell(ShellCommandRequest(command=Command))
+        pass
 
 
 ComputerKit = class_to_kit(IComputer, "Computer Kit", icon=NodeType.COMPUTER.icon)

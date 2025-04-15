@@ -113,13 +113,14 @@ class Claim(
         description="The target Node this claim is about.",
     )
     target_template: Optional[Claimable] = p_regular(
-        65,
+        61,
         require=False,
         array=False,
         references=CLAIMABLE_NODE_TYPES.tuple,
         description="The template for a target Node.",
     )
     # target_selection/filter/....?
+    is_hidden: bool = p_regular(65, default=False)
     if TYPE_CHECKING:
         target_ptr: Optional[NodeReference] = None
         target_id: Optional[UUID] = None

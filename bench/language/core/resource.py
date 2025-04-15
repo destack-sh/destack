@@ -131,20 +131,19 @@ class Resource[NodeDataT: AnyNodeData](
     scaler: Optional["Scaler"] = p_system(
         41, require=False, array=False, references=NodeType.SCALER
     )
-    if TYPE_CHECKING:
-        scaler_id: Optional[UUID] = None
-        scaler_ptr: Optional[NodeReference] = None
-
     # status
-    status: ResourceStatus = p_system(50, default=ResourceStatus.PENDING, default_sql=None)
+    status: ResourceStatus = p_system(42, default=ResourceStatus.PENDING, default_sql=None)
     # target
-    activated_at: Optional[datetime] = p_internal(51, default=None)
-    deactivated_at: Optional[datetime] = p_internal(52, default=None)
-    reset_at: Optional[datetime] = p_internal(53, default=None)
-    suspended_at: Optional[datetime] = p_internal(54, default=None)
-    decommissioned_at: Optional[datetime] = p_internal(55, default=None)
+    activated_at: Optional[datetime] = p_internal(43, default=None)
+    deactivated_at: Optional[datetime] = p_internal(44, default=None)
+    reset_at: Optional[datetime] = p_internal(45, default=None)
+    suspended_at: Optional[datetime] = p_internal(46, default=None)
+    decommissioned_at: Optional[datetime] = p_internal(47, default=None)
     # current
-    active_at: Optional[datetime] = p_system(56, default=None)
+    active_at: Optional[datetime] = p_system(48, default=None)
+    if TYPE_CHECKING:
+        scaler_ptr: Optional[NodeReference] = None
+        scaler_id: Optional[UUID] = None
 
     def __content_str__(self):
         return Node.__default_content_str__(self)

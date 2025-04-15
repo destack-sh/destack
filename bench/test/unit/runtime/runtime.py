@@ -32,18 +32,18 @@ def test_make_builtin_package(session: Session) -> None:
     """Make a Builtin package. Make it again and check they're equal."""
     from bench import builtin
 
-    prev_graph = builtin.BuiltinPackage._graph.copy()
+    prev_graph = builtin.BenchPackage._graph.copy()
 
     reload_module(builtin)
 
     from bench import builtin
 
-    assert prev_graph is not builtin.BuiltinPackage._graph
-    assert_graph_equals(prev_graph, builtin.BuiltinPackage._graph)
+    assert prev_graph is not builtin.BenchPackage._graph
+    assert_graph_equals(prev_graph, builtin.BenchPackage._graph)
 
     # print for reference :Builtins
     node_by_path: dict[str, Node] = {}
-    for node in builtin.BuiltinPackage._graph.nodes:
+    for node in builtin.BenchPackage._graph.nodes:
         path = builtin.get_stable_builtin_path(node)
         node_by_path[path] = node
 
@@ -56,7 +56,7 @@ def test_make_builtin_package(session: Session) -> None:
 @simulated_runtime(system=True)
 async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
     """Test the Builtin package."""
-    from bench.builtin import BuiltinPackage as BuiltinPackageRaw
+    from bench.builtin import BenchPackage as BuiltinPackageRaw
     from bench.language import BENCH_BENCH_PACKAGE_PTR
 
     # builtin graph in memory and builtin graph loaded from runtime/bench should be equal

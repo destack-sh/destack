@@ -42,6 +42,7 @@ if TYPE_CHECKING:
         Cursor,
         Field,
         File,
+        Link,
         Membership,
         Message,
         Package,
@@ -131,6 +132,7 @@ class Thread(
     claims: LocalNodeList["Claim"] = p_node_children(NodeType.CLAIM)
     cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
     files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
+    links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
 
     @property
     def container(self) -> "Node | None":

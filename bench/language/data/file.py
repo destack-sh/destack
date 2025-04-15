@@ -505,9 +505,7 @@ class FileBase(BuiltinObject):
 
     # content
     external_url: str | None = p_regular(70, default=None)  # if external
-    inline_content: bytes | None = p_regular(
-        71, default=None, constraint=constraint(min_length=1)
-    )
+    inline_content: bytes | None = p_regular(71, default=None, constraint=constraint(min_length=1))
     ...  # thumbnail/preview/...?
 
     # multimedia
@@ -790,7 +788,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
 @node_(NodeType.FILE, has_subtypes=True)
 class File(Resource[FileData], FileBase):
     """
-    A File stored somewhere (like in a Drive, or externally).
+    A File stored somewhere.
     """
 
     # meta

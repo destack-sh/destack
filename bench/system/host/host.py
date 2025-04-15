@@ -470,13 +470,13 @@ class HostService(GraphServiceBase, HostBase):
         # handle builtin bench
         if self.bench_id == BENCH_ID:
             # sync builtins if we're the builtin bench
-            from bench.builtin import BuiltinPackage, sync_node
+            from bench.builtin import BenchPackage, sync_node
 
             async with self.session(readonly=False) as session:
                 sync_node(
                     parent=self._bench,
                     target=self._main_package,
-                    reference=BuiltinPackage,
+                    reference=BenchPackage,
                     recursive=True,
                 )
                 edits, _ = await session.commit()
@@ -485,14 +485,14 @@ class HostService(GraphServiceBase, HostBase):
                     host=self,
                     bench=self._bench,
                     main_package=self._main_package,
-                    builtin_package=BuiltinPackage,
+                    builtin_package=BenchPackage,
                     edits=len(edits),
                 )
         else:
             # add builtin bench directly to every bench
-            from bench.builtin import BuiltinPackage
+            from bench.builtin import BenchPackage
 
-            BuiltinPackageGraph = BuiltinPackage._graph.copy()
+            BuiltinPackageGraph = BenchPackage._graph.copy()
             BuiltinPackageGraph.supergraph = self._supergraph
             self._supergraph.add_graph(BuiltinPackageGraph)
 
