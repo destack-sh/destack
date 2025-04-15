@@ -245,7 +245,7 @@ You MAY need to engage with other Agents.
                 RunPiece(node=r, is_last_action=i == len(previous_tool_runs) - 1, role="developer")
                 for i, r in enumerate(previous_tool_runs)
             ],
-            priority=30,
+            priority=50,
             role="developer",
         )
 
@@ -258,7 +258,7 @@ You already tried this {len(previous_attempts)} times before.
 Reflect on the instructions, the context and any errors as you try again.
 """,
             *[AttemptPiece(node=a, role="developer") for a in previous_attempts],
-            priority=30,
+            priority=50,
             role="developer",
         )
 
@@ -267,7 +267,7 @@ Reflect on the instructions, the context and any errors as you try again.
         f"Agent (YOU = {agent_alias})",
         "This is the Agent YOU're representing",
         AgentPiece(node=agent, role="user"),
-        priority=30,
+        priority=50,
         role="developer",
     )
 

@@ -65,9 +65,7 @@ class NodePiece[N: Node](CompoundPiece):
         return ()
 
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         alias = prompt.renderer.aliasing.get_or_add(self.node)
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         if self.prepend_path:
@@ -83,9 +81,7 @@ class ThreadPiece(NodePiece[Thread]):
     max_messages: int | None = None
 
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         yield NodePiece(node=self.thread.thread)
         yield BreakPiece()
         messages = list(self.thread.messages)
@@ -99,9 +95,7 @@ class ThreadPiece(NodePiece[Thread]):
 @piece_(NodeType.MESSAGE)
 class MessagePiece(NodePiece[Message]):
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         if created_by_ptr := self.node.created_by_ptr:
             # NOTE :Incomplete: load relevant Users (in ThreadHandle)?
@@ -134,9 +128,7 @@ class PagePiece(NodePiece[Page]):
         return missing_inline_nodes
 
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         yield SeparatorPiece()
         # header (page)
         alias = prompt.renderer.aliasing.get_or_add(self.node)
@@ -191,9 +183,7 @@ class DatabasePiece(NodePiece[Database]):
 @piece_(NodeType.ACTION)
 class ActionPiece(NodePiece[Action]):
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         alias = prompt.renderer.aliasing.get_or_add(self.node)
         path = self.node.absolute_path
@@ -208,9 +198,7 @@ class ActionPiece(NodePiece[Action]):
 @piece_(NodeType.AGENT)
 class AgentPiece(NodePiece[Agent]):
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         rendered_node = prompt.renderer.render_statement(self.node, append=False, format=True)
         if prompt.subject.id == self.node.id:
             self_alias = prompt.renderer.aliasing.get_or_add(self.node)
@@ -223,9 +211,7 @@ class RunPiece(NodePiece[Run]):
     is_last_action: bool = False
 
     @override
-    def compile(
-        self, prompt: "Prompt", tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         alias = prompt.renderer.aliasing.get_or_add(self.node)
         ago = prompt.now - self.node.created_at
         runnable = self.node.runnable

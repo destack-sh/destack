@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.15.1"
+VERSION = "2025.04.15.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -856,6 +856,9 @@ class StructType(BuiltinEnum):
     RUN_TRACE = 12703
     RUN_FRAME = 12704
     # action
+
+    # web (13200-13699)
+    LINK_PREVIEW = 12800
 
     # space/views (13200-13699)
     COLOR = 13200, None, None, "fas fa-palette"

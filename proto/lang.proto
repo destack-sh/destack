@@ -206,6 +206,7 @@ enum StructType {
   STRUCT_TYPE_ERROR = 12700;
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
+  STRUCT_TYPE_LINK_PREVIEW = 12800;
   STRUCT_TYPE_COLOR = 13200;
   STRUCT_TYPE_FONT = 13201;
   STRUCT_TYPE_RECTANGLE = 13202;
@@ -302,6 +303,7 @@ enum ObjectType {
   OBJECT_TYPE_ERROR = 12700;
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
+  OBJECT_TYPE_LINK_PREVIEW = 12800;
   OBJECT_TYPE_COLOR = 13200;
   OBJECT_TYPE_FONT = 13201;
   OBJECT_TYPE_RECTANGLE = 13202;
@@ -398,6 +400,7 @@ enum BenchType {
   BENCH_TYPE_ERROR = 12700;
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
+  BENCH_TYPE_LINK_PREVIEW = 12800;
   BENCH_TYPE_COLOR = 13200;
   BENCH_TYPE_FONT = 13201;
   BENCH_TYPE_RECTANGLE = 13202;
@@ -1960,8 +1963,28 @@ message FileInfoData {
   optional float aspect_ratio = 67;
   optional string codec = 68;
   optional google.protobuf.Duration duration = 69;
-  optional string external_url = 70;
-  optional bytes inline_content = 71;
+  optional string url = 70;
+  optional string content_url = 71;
+  optional string thumbnail_url = 72;
+  optional string favicon_url = 73;
+  optional int32 thumbnail_width = 74;
+  optional int32 thumbnail_height = 75;
+  optional bytes inline_content = 76;
+}
+
+message LinkPreviewData {
+  ObjectType metatype = 1;
+  optional TextLineData title = 10;
+  optional string url = 50;
+  optional string content_url = 51;
+  optional string thumbnail_url = 52;
+  optional string favicon_url = 53;
+  optional int32 thumbnail_width = 54;
+  optional int32 thumbnail_height = 55;
+  optional TextData text = 60;
+  optional string attribution = 62;
+  optional google.protobuf.Timestamp published_at = 63;
+  optional google.protobuf.Timestamp expires_at = 64;
 }
 
 message EditContextData {
@@ -2665,8 +2688,13 @@ message FileData {
   optional float aspect_ratio = 67;
   optional string codec = 68;
   optional google.protobuf.Duration duration = 69;
-  optional string external_url = 70;
-  optional bytes inline_content = 71;
+  optional string url = 70;
+  optional string content_url = 71;
+  optional string thumbnail_url = 72;
+  optional string favicon_url = 73;
+  optional int32 thumbnail_width = 74;
+  optional int32 thumbnail_height = 75;
+  optional bytes inline_content = 76;
   FileRetentionMode retention = 80;
   optional google.protobuf.Timestamp expires_at = 81;
 }
@@ -2705,10 +2733,15 @@ message LinkData {
   optional google.protobuf.Timestamp decommissioned_at = 47;
   optional google.protobuf.Timestamp active_at = 48;
   optional string url = 50;
-  optional NodeReferenceData image_ptr = 51;
-  optional string image_url = 52;
-  optional TextData text = 53;
-  optional google.protobuf.Timestamp expires_at = 60;
+  optional string content_url = 51;
+  optional string thumbnail_url = 52;
+  optional string favicon_url = 53;
+  optional int32 thumbnail_width = 54;
+  optional int32 thumbnail_height = 55;
+  optional TextData text = 60;
+  optional string attribution = 62;
+  optional google.protobuf.Timestamp published_at = 63;
+  optional google.protobuf.Timestamp expires_at = 64;
 }
 
 message StreamData {

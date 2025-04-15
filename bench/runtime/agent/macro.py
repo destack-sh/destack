@@ -73,9 +73,7 @@ class ConstantMacro[T: Any](Macro):
         self._get_value = func
 
     @override
-    def compile(
-        self, prompt: Prompt, tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: Prompt, tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         yield CodePiece(code=f"# {self.text}\n{self.name}: {self.type}")
 
     @final
@@ -133,9 +131,7 @@ class FunctionMacro(Macro):
         self.is_edit = is_edit
 
     @override
-    def compile(
-        self, prompt: Prompt, tokenizer: Tokenizer, remaining_tokens: int
-    ) -> Generator[Piece, int, None]:
+    def compile(self, prompt: Prompt, tokenizer: Tokenizer) -> Generator[Piece, None, None]:
         code_parts = [f"# {self.name}"]
         text = "\n".join([f"# {line}" for line in self.text.split("\n")])
         if self.is_terminal:

@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.15.1"
+VERSION = "2025.04.15.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -484,7 +484,12 @@ FILE_TABLE = Table(
         Column("aspect_ratio", PrimitiveType.FLOAT32, is_nullable=True),
         Column("codec", PrimitiveType.STRING, is_nullable=True),
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
-        Column("external_url", PrimitiveType.STRING, is_nullable=True),
+        Column("url", PrimitiveType.STRING, is_nullable=True),
+        Column("content_url", PrimitiveType.STRING, is_nullable=True),
+        Column("thumbnail_url", PrimitiveType.STRING, is_nullable=True),
+        Column("favicon_url", PrimitiveType.STRING, is_nullable=True),
+        Column("thumbnail_width", PrimitiveType.INT32, is_nullable=True),
+        Column("thumbnail_height", PrimitiveType.INT32, is_nullable=True),
         Column("inline_content", PrimitiveType.BYTES, is_nullable=True),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -579,11 +584,14 @@ LINK_TABLE = Table(
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("url", PrimitiveType.STRING, is_nullable=True),
-        Column("image_id", PrimitiveType.UUID, is_nullable=True),
-        Column("image_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("image_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("image_url", PrimitiveType.STRING, is_nullable=True),
+        Column("content_url", PrimitiveType.STRING, is_nullable=True),
+        Column("thumbnail_url", PrimitiveType.STRING, is_nullable=True),
+        Column("favicon_url", PrimitiveType.STRING, is_nullable=True),
+        Column("thumbnail_width", PrimitiveType.INT32, is_nullable=True),
+        Column("thumbnail_height", PrimitiveType.INT32, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("attribution", PrimitiveType.STRING, is_nullable=True),
+        Column("published_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
