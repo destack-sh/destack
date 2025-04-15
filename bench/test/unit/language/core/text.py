@@ -82,7 +82,9 @@ And then he said $$E = mc^2$$ and $$F = ma$$"""
 
 def test_text_span_link():
     md = """\
-[link](https://example.com) and [another](https://test.com/path?q=123#fragment)"""
+[link](https://example.com) and [another](https://test.com/path?q=123#fragment)
+[Banana - Wikipedia](https://en.wikipedia.org/wiki/Banana)
+"""
     text = markdown_to_text(md)
     assert text.lines[0].spans[0] == TextSpan.new(
         TextSpanType.LINK, content="link", url="https://example.com"
@@ -90,6 +92,9 @@ def test_text_span_link():
     assert text.lines[0].spans[1] == TextSpan.new(TextSpanType.TEXT, " and ")
     assert text.lines[0].spans[2] == TextSpan.new(
         TextSpanType.LINK, content="another", url="https://test.com/path?q=123#fragment"
+    )
+    assert text.lines[1].spans[0] == TextSpan.new(
+        TextSpanType.LINK, content="Banana - Wikipedia", url="https://en.wikipedia.org/wiki/Banana"
     )
 
 
