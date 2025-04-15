@@ -20,16 +20,17 @@ exa = AsyncExa(api_key=EXA_API_KEY)
 class ExaWeb(IWeb if TYPE_CHECKING else object):
     @override
     async def Search(
-        self, Query: str, Content: bool = False, Limit: int = 5
+        self, Query: str, Content: bool = True, Limit: int = 5
     ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
-        response = await exa.search_and_contents(
-            query=Query,
-            num_results=Limit,
-            text=True,
-            extras={
-                "image_links": 3,
-            },
-        )
+        if Content:
+            response = await exa.search_and_contents(
+                query=Query,
+                num_results=Limit,
+                text=True,
+                extras={"image_links": 3},
+            )
+        else:
+            response = await exa.search(query=Query, num_results=Limit)
         results: list[LinkPreview] = []
         for result in response.results:
             if result.published_date:
@@ -38,8 +39,8 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
                 published_at = None
             link = LinkPreview(
                 url=result.url,
-                title=to_text_line(result.title) if result.title else None,
-                text=to_text(result.text) if result.text else None,
+                title=to_text_line(title) if (title := result.title) else None,
+                text=to_text(text) if (text := getattr(result, "text", None)) else None,
                 attribution=result.author,
                 content_url=result.url,
                 favicon_url=result.favicon,

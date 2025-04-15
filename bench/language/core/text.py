@@ -310,7 +310,7 @@ def _parse_color(color: str) -> "ColorType":
 
 
 _marker_pattern = regex.compile(
-    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\|\||\*|\[\^[a-zA-Z0-9]+\]|\[[a-zA-Z]+\]|\[\/[a-zA-Z]+\]|\[@[a-zA-Z0-9_]+\])"
+    r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\|\||\*|\[\^[a-zA-Z0-9]+\]|\[[^[\]]+\]|\[\/[^[\]]+\]|\[@[a-zA-Z0-9_]+\])"
 )
 
 
@@ -374,7 +374,7 @@ def _parse_inline_raw(
         # opening marker: could be a citation, link, or a color marker
         if marker.startswith("[") and marker.endswith("]") and not marker.startswith("[/"):
             if marker.startswith("[^"):
-                # Handle citation markers
+                # citation markers
                 citation_content = marker[2:-1]
                 if pos < len(text) and text[pos] == "(":
                     end_paren = text.find(")", pos)

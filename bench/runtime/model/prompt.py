@@ -115,6 +115,7 @@ def compile_prompt(
 ) -> tuple[list["LeafPiece"], int]:
     """
     Compile the prompt into a flat list of LeafPiece objects, ignoring token limits.
+    TODO :Robustness: handle token limits / prioriy in compile_prompt
     Simply flattens all pieces recursively and computes the total token count.
     """
 
