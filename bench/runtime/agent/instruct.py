@@ -159,7 +159,7 @@ def make_agent_prompt(
     # examples
     prompt.region(
         "Examples",
-        "General examples (contents are unrelated)",
+        "General examples (specifics are unrelated)",
         *EXAMPLES,
         priority=1,
         role="developer",
@@ -168,7 +168,7 @@ def make_agent_prompt(
     # macros
     prompt.region(
         "Macros",
-        "Available MACROS (constants and functions)",
+        "Available MACROS (to use directly if needed)",
         *CONSTANT_MACROS,
         *FUNCTION_MACROS,
         priority=20,
@@ -187,7 +187,7 @@ def make_agent_prompt(
 
     # claims / resources
     for claim in thread.thread.claims:
-        if (node := claim.target) is None:
+        if claim.is_hidden or (node := claim.target) is None:
             continue
         elif isinstance(node, Page):
             prompt.region(

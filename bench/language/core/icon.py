@@ -47,6 +47,8 @@ IconIn = Union[Icon, "File", str]
 
 def to_icon(icon: IconIn, color: ColorIn | None = None) -> Icon:
     """Turn something that could be an Icon into an Icon."""
+    from bench.language import File
+
     color = to_color(color) if color else None
     if isinstance(icon, str):
         if icon.startswith("fa"):

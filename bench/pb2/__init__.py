@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.04.14.1"
+VERSION = "2025.04.15.0"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -34,6 +34,7 @@ AnyNodeData = Union[
     ApplicationData,
     FileData,
     StreamData,
+    LinkData,
     PackageData,
     DependencyData,
     PageData,
@@ -44,10 +45,10 @@ AnyNodeData = Union[
     OptionData,
     TagData,
     FlowData,
+    KitData,
     ActionData,
     TransitionData,
     TriggerData,
-    KitData,
     DatabaseData,
     ChannelData,
     ThreadData,
@@ -127,6 +128,7 @@ BenchNodeData = Union[
     ApplicationData,
     FileData,
     StreamData,
+    LinkData,
     PackageData,
     DependencyData,
     PageData,
@@ -137,10 +139,10 @@ BenchNodeData = Union[
     OptionData,
     TagData,
     FlowData,
+    KitData,
     ActionData,
     TransitionData,
     TriggerData,
-    KitData,
     DatabaseData,
     ChannelData,
     ThreadData,
@@ -164,7 +166,9 @@ BenchNodeData = Union[
     SpaceData,
     RecordData,
 ]
-ResourceNodeData = Union[ScalerData, StoreData, ComputerData, ApplicationData, FileData, StreamData]
+ResourceNodeData = Union[
+    ScalerData, StoreData, ComputerData, ApplicationData, FileData, StreamData, LinkData
+]
 SourceNodeData = Union[
     PackageData,
     DependencyData,
@@ -176,10 +180,10 @@ SourceNodeData = Union[
     OptionData,
     TagData,
     FlowData,
+    KitData,
     ActionData,
     TransitionData,
     TriggerData,
-    KitData,
     DatabaseData,
 ]
 InlineNodeData = Union[
@@ -189,6 +193,7 @@ InlineNodeData = Union[
     ApplicationData,
     FileData,
     StreamData,
+    LinkData,
     PageData,
     ChoiceData,
     ClassData,
@@ -216,10 +221,11 @@ ClaimableNodeData = Union[
     ApplicationData,
     FileData,
     StreamData,
+    LinkData,
     PageData,
     FlowData,
-    ActionData,
     KitData,
+    ActionData,
     DatabaseData,
     AgentData,
     PlanData,
@@ -235,6 +241,7 @@ OwnableNodeData = Union[
     ApplicationData,
     FileData,
     StreamData,
+    LinkData,
     PackageData,
     PageData,
     FlowData,

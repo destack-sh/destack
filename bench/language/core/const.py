@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.14.1"
+VERSION = "2025.04.15.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -358,6 +358,7 @@ class EnumType(BuiltinEnum):
     FILE_TYPE = 21052
     FILE_FORMAT = 21053
     ICON_TYPE = 21054
+    LINK_TYPE = 21060
 
     # streams (21100-21149)
     STREAM_TYPE = 21100
@@ -540,7 +541,7 @@ class NodeType(BuiltinEnum):
     FILE = 2200, "File", "File", "fas fa-file"
     STREAM = 2210, "Stream", "Stream", "fas fa-stream"
     # SECRET?
-    # LINK = 2220
+    LINK = 2250
     # REPOSITORY, SCHEMA, CONNECTION/API, ...?
 
     # finance
@@ -567,10 +568,10 @@ class NodeType(BuiltinEnum):
     OPTION = 5036, "Option", "Option", "far fa-square-check"
     TAG = 5040, "Tag", "Tag", "fas fa-tag"
     FLOW = 5050, "Flow", "Link Actions together", "fas fa-diagram-project"
-    ACTION = 5051, "Action", "Action", "fas fa-step-forward"
-    TRANSITION = 5052, "Transition", "Transition between Nodes", "fas fa-link"
-    TRIGGER = 5053, "Trigger", "Trigger to do something", "fas fa-bolt"
     KIT = 5060, "Kit", "Kit of stuff", "fas fa-screwdriver-wrench"
+    ACTION = 5061, "Action", "Action", "fas fa-step-forward"
+    TRANSITION = 5070, "Transition", "Transition between Nodes", "fas fa-link"
+    TRIGGER = 5080, "Trigger", "Trigger to do something", "fas fa-bolt"
     DATABASE = 5090, "Database", "Database of Records", "fas fa-database"
 
     # communication

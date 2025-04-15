@@ -33,11 +33,12 @@ class CursorType(BuiltinEnum):
     The type of Cursor.
     """
 
-    THREAD = 10, "Thread", None, None, None
-    PAGE = 20, "Page", None, None, None
-    DATABASE = 30, "Database", None, None, None
-    ACTION = 40, "Action", None, None, None
-    CUSTOM = 900, "Custom", None, None, None
+    THREAD = 5510, "Thread", None, None, None
+    PAGE = 5020, "Page", None, None, None
+    DATABASE = 5090, "Database", None, None, None
+    ACTION = 5051, "Action", None, None, None
+    WEB = 10000, "Web", None, None, None
+    CUSTOM = 9000, "Custom", None, None, None
 
 
 @enum_(EnumType.CURSOR_STATUS)

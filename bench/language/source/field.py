@@ -45,8 +45,8 @@ class Field(
     IsTemplatable,
     IsModal,
     IsNamed,
-    PackageNode[FieldData],
     IsType,
+    PackageNode[FieldData],
     _IntoQuery,
 ):
     """

@@ -86,7 +86,7 @@ def class_to_kit(
                 method_body = [line[indent:] if line.strip() else line for line in method_body]
                 method_source = "\n".join(method_body)
             else:
-                method_source = "pass"  # Empty method body
+                method_source = "..."  # empty method body
             action.code = code(method_source)
 
         # inputs

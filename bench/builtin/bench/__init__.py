@@ -2,6 +2,7 @@ from .action import ActionPage, CommonKit
 from .agent import AgentPage, BenchAgent
 from .computer import ComputerKit, ComputerPage, UbuntuComputerTemplate
 from .thread import BlankThread, ThreadPage
+from .web import WebKit
 
 __all__ = [
     "ActionPage",
@@ -13,4 +14,5 @@ __all__ = [
     "ComputerPage",
     "ThreadPage",
     "UbuntuComputerTemplate",
+    "WebKit",
 ]

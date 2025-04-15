@@ -3,6 +3,7 @@ from .compute import *  # noqa: F403
 from .connection import *  # noqa: F403
 from .core import *  # noqa: F403
 from .cosmos import *  # noqa: F403
+from .data import *  # noqa: F403
 from .finance import *  # noqa: F403
 from .identity import *  # noqa: F403
 from .orchestration import *  # noqa: F403
