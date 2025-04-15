@@ -82,10 +82,9 @@ SHA256_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.FILE_KIND)
-class FileKind(BuiltinEnum):
-    DRIVE = 1
-    DRIVE_INLINE = 2
+@enum_(EnumType.FILE_SOURCE)
+class FileSource(BuiltinEnum):
+    BENCH = 1
     INLINE = 3
     EXTERNAL = 10
 
@@ -491,10 +490,10 @@ class FileBase(BuiltinObject):
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
 
     # meta
-    kind: FileKind = p_regular(60)
+    source: FileSource = p_regular(60)
     mime_type: str | None = p_regular(61, constraint=MIME_TYPE_CONSTRAINT)
     format: FileFormat | None = p_regular(62, default=None)
-    size: int = p_regular(
+    size: int | None = p_regular(
         63, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
     )
     sha256: str | None = p_internal(64, constraint=SHA256_CONSTRAINT)
@@ -522,7 +521,9 @@ class FileBase(BuiltinObject):
     _cached_image: Optional[Image.Image] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
-        content_parts = [f"'{self.name}'", humanize_bytes(self.size)]
+        content_parts = [self.source.bench_name, f"'{self.name}'"]
+        if self.size is not None:
+            content_parts.append(humanize_bytes(self.size))
         if self.format:
             content_parts.append(f"{self.type.bench_name}/{self.format.bench_name}")
         else:
@@ -635,7 +636,7 @@ class FileBase(BuiltinObject):
             self.image.save(buffer, format=target_format.name)
             text = buffer.getvalue()
             return FileInfo(
-                kind=FileKind.INLINE,
+                source=FileSource.INLINE,
                 name=self.name,
                 mime_type=target_format.mime_type,
                 type=target_format.type,
@@ -663,7 +664,7 @@ class FileBase(BuiltinObject):
                 )
                 content = text.encode()
                 return FileInfo(
-                    kind=FileKind.INLINE,
+                    source=FileSource.INLINE,
                     name=self.name,
                     mime_type="text/markdown",
                     type=target_format.type,
@@ -684,7 +685,7 @@ class FileBase(BuiltinObject):
                 text = "\n\n".join(pages_text)
                 content = text.encode()
                 return FileInfo(
-                    kind=FileKind.INLINE,
+                    source=FileSource.INLINE,
                     name=self.name,
                     mime_type="text/markdown",
                     type=target_format.type,
@@ -765,7 +766,7 @@ class FileBase(BuiltinObject):
             content = buffer.getvalue()
 
         return FileInfo(
-            kind=FileKind.INLINE,
+            source=FileSource.INLINE,
             name=self.name,
             inline_content=content,
             type=self.type,
@@ -827,6 +828,42 @@ class File(Resource[FileData], FileBase):
 
     __content_str__ = FileBase.__content_str__  # type: ignore
 
+    @staticmethod
+    async def inline(
+        content: bytes,
+        name: str | None = None,
+        mime_type: str | None = None,
+        type: FileType | None = None,
+        format: FileFormat | str | None = None,
+    ) -> "File":
+        """Creates a new inline file."""
+        file, _ = await extract_file_info(
+            content, name=name, mime_type=mime_type, type=type, format=format
+        )
+        return file
+
+    @staticmethod
+    def external(
+        url: str,
+        name: str | None = None,
+        mime_type: str | None = None,
+        type: FileType | None = None,
+        format: FileFormat | str | None = None,
+        width: int | None = None,
+        height: int | None = None,
+    ) -> "File":
+        """Creates a new external file."""
+        file = guess_file_info(
+            url,
+            name=name,
+            mime_type=mime_type,
+            type=type,
+            format=format,
+            width=width,
+            height=height,
+        )
+        return file
+
 
 @tracer.start_as_current_span("file.upload_batch")
 async def upload_file_batch(
@@ -865,9 +902,9 @@ async def upload_file_batch(
         for file, file_content in zip(files, file_contents):
             handle = handles_by_id[str(file.id)]
             with tracer.start_as_current_span("file.upload", attributes={"file": repr(file)}):
-                assert file.kind in (
-                    FileKind.DRIVE,
-                    FileKind.DRIVE_INLINE,
+                assert file.source in (
+                    FileSource.BENCH,
+                    FileSource.INLINE,
                 ), f"unexpected file: {file!r}"
 
                 # POST file to url
@@ -957,7 +994,7 @@ FileIn = Union[str, bytes, Image.Image]
 @tracer.start_as_current_span("file.extract_info")
 async def extract_file_info(  # noqa: RUF029
     file_in: FileIn,
-    name: str,
+    name: str | None = None,
     *,
     mime_type: str | None = None,
     type: FileType | None = None,
@@ -998,13 +1035,13 @@ async def extract_file_info(  # noqa: RUF029
             type = format.type
 
     # add extension if needed
-    if format is not None and "." not in name and format.extension is not None:
+    if format is not None and name is not None and "." not in name and format.extension is not None:
         name = f"{name}.{format.extension}"
 
     size = len(content)
     sha256 = hashlib.sha256(content).hexdigest()
     file = File(
-        kind=FileKind.DRIVE,
+        source=FileSource.BENCH,
         name=name,
         type=type,
         mime_type=mime_type,
@@ -1022,6 +1059,68 @@ async def extract_file_info(  # noqa: RUF029
         file.aspect_ratio = file.width / file.height
 
     return file, content
+
+
+def guess_file_info(
+    file_url: str,
+    name: str | None = None,
+    mime_type: str | None = None,
+    type: FileType | None = None,
+    format: FileFormat | str | None = None,
+    width: int | None = None,
+    height: int | None = None,
+) -> File:
+    """Guesses the file info from the given file URL (without downloading it)."""
+    import os
+    import urllib.parse
+
+    # parse format from extension if not provided
+    if isinstance(format, str):
+        format_str = format.lower()
+        if format_str in FILE_FORMAT_BY_EXTENSION:
+            format = FILE_FORMAT_BY_EXTENSION.get(format_str)
+
+    # find the last valid extension in the URL
+    if format is None:
+        url_parts = file_url.lower().split(".")
+        for i in range(len(url_parts) - 1, 0, -1):
+            ext = url_parts[i]
+            if ext in FILE_FORMAT_BY_EXTENSION:
+                format = FILE_FORMAT_BY_EXTENSION[ext]
+                break
+
+    # get filename from URL path if name not provided
+    if name is None:
+        parsed_url = urllib.parse.urlparse(file_url)
+        name = os.path.basename(parsed_url.path)
+        name = urllib.parse.unquote(name)
+
+    # determine type from format
+    file_format = None
+    if format is not None and isinstance(format, FileFormat):
+        file_format = format
+        if type is None:
+            type = file_format.type
+    elif type is None:
+        type = FileType.GENERIC
+
+    # get mime_type from format if not provided
+    if mime_type is None and file_format is not None:
+        mime_type = file_format.mime_type
+
+    # file
+    file = File(
+        source=FileSource.EXTERNAL,
+        name=name,
+        type=type,
+        mime_type=mime_type,
+        format=file_format,
+        url=file_url,
+        width=width,
+        height=height,
+        aspect_ratio=width / height if width is not None and height is not None else None,
+    )
+    return file
 
 
 @capture_span(tracer, "file.upload", SpanType.FILE_UPLOAD, level=Severity.DEBUG)

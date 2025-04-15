@@ -2,7 +2,7 @@ import io
 
 from PIL import Image
 
-from bench.language import FileFormat, FileIn, FileType, extract_file_info, upload_file
+from bench.language import File, FileFormat, FileIn, FileType, extract_file_info, upload_file
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -76,3 +76,12 @@ async def test_extract_file_info_image(simulation: Simulation, runtime: RuntimeL
     assert file_info.width == 32
     assert file_info.height == 24
     assert file_info.aspect_ratio == 32 / 24
+
+
+@simulated_runtime()
+async def test_file_from_url(simulation: Simulation, runtime: RuntimeLambdaWorkload):  # noqa: RUF029
+    file = File.external(
+        "https://en.wikipedia.org/wiki/ETH_Zurich#/media/File:ETH_Z%C3%BCrich_im_Abendlicht.jpg"
+    )
+    assert file.type == FileType.IMAGE
+    assert file.format == FileFormat.JPEG

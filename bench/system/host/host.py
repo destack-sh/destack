@@ -27,7 +27,7 @@ from bench.language import (
     Engine,
     File,
     FileBase,
-    FileKind,
+    FileSource,
     GraphScope,
     InlineNode,
     IsRuntime,
@@ -721,13 +721,10 @@ class HostService(GraphServiceBase, HostBase):
         handles: list[UploadFilesResponse.UploadHandle] = []
         for file_data in request.files:
             # get drive (from in-memory graph)
-            if (
-                file_data.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE)
-                or not file_data.sha256
-            ):
+            if file_data.source != FileSource.BENCH or not file_data.sha256:
                 raise GRPCError(
                     GRPCStatus.INVALID_ARGUMENT,
-                    f"unexpected file: {file_data!r} (kind={file_data.kind}, sha256={file_data.sha256})",
+                    f"unexpected file: {file_data!r} (source={file_data.source}, sha256={file_data.sha256})",
                 )
             if file_data.parent_ptr.metatype != 0:
                 if file_data.parent_ptr.bench_id != str(self.bench.id):
@@ -796,15 +793,26 @@ class HostService(GraphServiceBase, HostBase):
         # get pre-signed URLs
         handles: list[DownloadFilesResponse.DownloadHandle] = []
         for file in files:
-            if file.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE) or not file.sha256:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file.kind}")
-            bucket = get_drive_bucket(self.bench)
-            file_key = get_file_key(self.bench, file.sha256, file.name)
-            get_url = s3_client.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": bucket, "Key": file_key},
-                ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
-            )
+            if file.source == FileSource.BENCH:
+                if not file.sha256:
+                    raise GRPCError(
+                        GRPCStatus.INVALID_ARGUMENT,
+                        f"cannot download file: {file!r} (no sha256)",
+                    )
+                bucket = get_drive_bucket(self.bench)
+                file_key = get_file_key(self.bench, file.sha256, file.name)
+                get_url = s3_client.generate_presigned_url(
+                    "get_object",
+                    Params={"Bucket": bucket, "Key": file_key},
+                    ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
+                )
+            elif file.source == FileSource.EXTERNAL:
+                get_url = file.url
+            else:
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"cannot download file: {file!r}",
+                )
             handle = DownloadFilesResponse.DownloadHandle(file=file._to_data(), get_url=get_url)
             handles.append(handle)
 

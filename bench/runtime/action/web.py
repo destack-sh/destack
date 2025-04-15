@@ -29,6 +29,7 @@ def _make_link_preview(result: ExaResult | _ExaResult) -> LinkPreview:
         content_url=result.url,
         favicon_url=result.favicon,
         published_at=published_at,
+        image_urls=(result.extras or {}).get("image_links", ()),
     )
     return link
 
@@ -43,7 +44,7 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
                 query=Query,
                 num_results=Limit,
                 text=True,
-                extras={"image_links": 3},
+                extras={"image_links": 10},
             )
         else:
             response = await exa.search(query=Query, num_results=Limit)
@@ -56,7 +57,9 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
     async def Extract(
         self, URLs: list[str]
     ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
-        response = await exa.get_contents(urls=URLs)
+        response = await exa.get_contents(
+            urls=URLs, text=True, livecrawl="fallback", extras={"image_links": 10}
+        )
         previews: list[LinkPreview] = []
         for result in response.results:
             previews.append(_make_link_preview(result))
