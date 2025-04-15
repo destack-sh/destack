@@ -205,26 +205,10 @@ def UPLOAD(file_in: FileIn, name: str, runner: "AgentRunner" = _INJECTED_RUNNER)
 
 
 @function_macro_(
-    "WAIT",
-    """\
-Wait for some time before thinking again. 
-If you expect something to happen soon (<1min), just wait for a bit.
-""",
-    signature="(seconds: float = 2) -> None",
-    is_terminal=True,
-)
-def WAIT(
-    seconds: float = 3,
-    runner: "AgentRunner" = _INJECTED_RUNNER,
-):
-    assert seconds < 60, f"WAIT must be less than 60 seconds: {seconds}"
-    runner.wait(seconds)
-
-
-@function_macro_(
     "CALL",
     """\
 Call an Action as a tool.
+You SHOULD handle results and failures somehow (retry or report).
 """,
     signature="(action: Action, **inputs) -> None",
     is_terminal=True,

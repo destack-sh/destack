@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
+import "./assets/prosemirror.css";
 
 import {
   resetTransactionBuffers,

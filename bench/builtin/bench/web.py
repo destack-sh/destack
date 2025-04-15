@@ -23,5 +23,15 @@ class IWeb(ABC):
         """
         pass
 
+    @abstractmethod
+    async def Extract(
+        self, URLs: list[str]
+    ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
+        """
+        Extract the content of the given URLs.
+        ICON: fas fa-file-code
+        """
+        pass
+
 
 WebKit = class_to_kit(IWeb, "Web Kit", icon=to_icon("fas fa-globe"))

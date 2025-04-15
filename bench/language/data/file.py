@@ -60,6 +60,7 @@ if TYPE_CHECKING:
         Channel,
         Database,
         File,
+        Message,
         Package,
         Page,
         Run,
@@ -794,13 +795,23 @@ class File(Resource[FileData], FileBase):
     """
 
     # meta
-    parent: Union["Package", "Page", "Database", "Channel", "Thread", "Run", None] = p_node_parent(
+    parent: Union[
+        "Package",
+        "Page",
+        "Database",
+        "Channel",
+        "Thread",
+        "Message",
+        "Run",
+        None,
+    ] = p_node_parent(
         4,
         NodeType.PACKAGE,
         NodeType.PAGE,
         NodeType.DATABASE,
         NodeType.CHANNEL,
         NodeType.THREAD,
+        NodeType.MESSAGE,
         NodeType.RUN,
         ckless=True,
     )

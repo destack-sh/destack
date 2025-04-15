@@ -1,7 +1,9 @@
+
 # type: ignore
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
+
 
 
 # -*- coding: utf-8 -*-
@@ -22,25 +24,23 @@ from . import common_pb2 as common__pb2
 from . import lang_pb2 as lang__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\rruntime.proto\x12\rsymbolx.bench\x1a\x0c\x63ommon.proto\x1a\nlang.proto"\xaa\x01\n\x0bWakeRequest\x12,\n\x05scope\x18\x01 \x01(\x0b\x32\x1d.symbolx.bench.GraphScopeData\x12\x36\n\x0c\x63omputer_ptr\x18\x02 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x35\n\x0bthread_ptrs\x18\x03 \x03(\x0b\x32 .symbolx.bench.NodeReferenceData"\x0e\n\x0cWakeResponse"\xdc\x01\n\nRunRequest\x12,\n\x05scope\x18\x01 \x01(\x0b\x32\x1d.symbolx.bench.GraphScopeData\x12\x36\n\x0c\x63omputer_ptr\x18\x02 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x34\n\nthread_ptr\x18\x03 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x32\n\x08run_ptrs\x18\n \x03(\x0b\x32 .symbolx.bench.NodeReferenceData"\r\n\x0bRunResponse2\x8e\x01\n\x07Runtime\x12<\n\x03Run\x12\x19.symbolx.bench.RunRequest\x1a\x1a.symbolx.bench.RunResponse\x12?\n\x04Wake\x12\x1a.symbolx.bench.WakeRequest\x1a\x1b.symbolx.bench.WakeResponse\x1a\x04\x80\xb5\x18\x01\x62\x06proto3'
-)
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rruntime.proto\x12\rsymbolx.bench\x1a\x0c\x63ommon.proto\x1a\nlang.proto\"\xaa\x01\n\x0bWakeRequest\x12,\n\x05scope\x18\x01 \x01(\x0b\x32\x1d.symbolx.bench.GraphScopeData\x12\x36\n\x0c\x63omputer_ptr\x18\x02 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x35\n\x0bthread_ptrs\x18\x03 \x03(\x0b\x32 .symbolx.bench.NodeReferenceData\"\x0e\n\x0cWakeResponse\"\xdc\x01\n\nRunRequest\x12,\n\x05scope\x18\x01 \x01(\x0b\x32\x1d.symbolx.bench.GraphScopeData\x12\x36\n\x0c\x63omputer_ptr\x18\x02 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x34\n\nthread_ptr\x18\x03 \x01(\x0b\x32 .symbolx.bench.NodeReferenceData\x12\x32\n\x08run_ptrs\x18\n \x03(\x0b\x32 .symbolx.bench.NodeReferenceData\"\r\n\x0bRunResponse2\x8e\x01\n\x07Runtime\x12<\n\x03Run\x12\x19.symbolx.bench.RunRequest\x1a\x1a.symbolx.bench.RunResponse\x12?\n\x04Wake\x12\x1a.symbolx.bench.WakeRequest\x1a\x1b.symbolx.bench.WakeResponse\x1a\x04\x80\xb5\x18\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
-_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, "runtime_pb2", _globals)
+_builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'runtime_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
-    DESCRIPTOR._loaded_options = None
-    _globals["_RUNTIME"]._loaded_options = None
-    _globals["_RUNTIME"]._serialized_options = b"\200\265\030\001"
-    _globals["_WAKEREQUEST"]._serialized_start = 59
-    _globals["_WAKEREQUEST"]._serialized_end = 229
-    _globals["_WAKERESPONSE"]._serialized_start = 231
-    _globals["_WAKERESPONSE"]._serialized_end = 245
-    _globals["_RUNREQUEST"]._serialized_start = 248
-    _globals["_RUNREQUEST"]._serialized_end = 468
-    _globals["_RUNRESPONSE"]._serialized_start = 470
-    _globals["_RUNRESPONSE"]._serialized_end = 483
-    _globals["_RUNTIME"]._serialized_start = 486
-    _globals["_RUNTIME"]._serialized_end = 628
+  DESCRIPTOR._loaded_options = None
+  _globals['_RUNTIME']._loaded_options = None
+  _globals['_RUNTIME']._serialized_options = b'\200\265\030\001'
+  _globals['_WAKEREQUEST']._serialized_start=59
+  _globals['_WAKEREQUEST']._serialized_end=229
+  _globals['_WAKERESPONSE']._serialized_start=231
+  _globals['_WAKERESPONSE']._serialized_end=245
+  _globals['_RUNREQUEST']._serialized_start=248
+  _globals['_RUNREQUEST']._serialized_end=468
+  _globals['_RUNRESPONSE']._serialized_start=470
+  _globals['_RUNRESPONSE']._serialized_end=483
+  _globals['_RUNTIME']._serialized_start=486
+  _globals['_RUNTIME']._serialized_end=628
 # @@protoc_insertion_point(module_scope)

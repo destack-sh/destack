@@ -99,7 +99,7 @@ def class_to_kit(
             default_value = None if param.default == inspect.Parameter.empty else param.default
             type_info = parse_py_annotation(cast(Any, param_type), BENCH_CLASS_BY_NAME)
             field = Field.input(
-                name=param_name.replace("_", " ").title(),
+                name=param_name.replace("_", " "),
                 typ=cast(TypeIn, type_info.type),
                 default=default_value,
                 is_list=type_info.is_list,

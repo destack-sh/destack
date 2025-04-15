@@ -54,7 +54,7 @@ from bench.runtime.model import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-from .macro import ADD_PAGE_TEXT, CALL, REPLACE_PAGE_TEXT, SEND, WAIT
+from .macro import ADD_PAGE_TEXT, CALL, SEND
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false

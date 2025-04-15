@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.15.2"
+VERSION = "2025.04.15.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -589,7 +589,7 @@ LINK_TABLE = Table(
         Column("favicon_url", PrimitiveType.STRING, is_nullable=True),
         Column("thumbnail_width", PrimitiveType.INT32, is_nullable=True),
         Column("thumbnail_height", PrimitiveType.INT32, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
+        Column("content", PrimitiveType.STRING, is_nullable=True),
         Column("attribution", PrimitiveType.STRING, is_nullable=True),
         Column("published_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
