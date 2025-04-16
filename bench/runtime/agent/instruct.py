@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Sequence
 import structlog
 from opentelemetry import trace
 
-from bench.language import Agent, Page, RunType, Span, _is_setup_complete
+from bench.language import Action, Agent, Page, RunType, Span, _is_setup_complete
 from bench.runtime.model import Prompt
 
 from .macro import CONSTANT_MACROS, FUNCTION_MACROS
@@ -12,6 +12,7 @@ from .piece import (
     AgentPiece,
     AttemptPiece,
     PagePiece,
+    PlanPiece,
     RunPiece,
     ThreadPiece,
 )
@@ -125,6 +126,7 @@ You SHOULD use MACROS to condense your response as much as possible.
 You SHOULD use relevant Text/markdown formatting.
 Links are automatically detected, but you MAY use `[link](https://example.com)` to alias them.
 You MUST reference Nodes directly like [@Node1] instead of by name (NO `Node1`).
+You CANNOT embed images directly in text (NO ![image](...)).
 
 # Tone and Language
 The general vibe is this is like a casual Discord server with friends.
@@ -181,11 +183,13 @@ def make_agent_prompt(
     )
 
     # actions
-    actions = [*CommonKit.actions, *WebKit.actions]
+    builtin_actions: list[Action] = [*CommonKit.actions, *WebKit.actions]
+    custom_actions: list[Action] = []  # ?
     prompt.region(
         "Actions",
         "Available Actions (to CALL if needed)",
-        *[ActionPiece(node=a, role="user") for a in actions],
+        *[ActionPiece(node=a, role="developer") for a in builtin_actions],
+        *[ActionPiece(node=a, role="user") for a in custom_actions],
         priority=20,
         role="developer",
     )
@@ -199,7 +203,7 @@ def make_agent_prompt(
                 "Context Page",
                 f"""
 A Page in context of {claim.type.name}
-YOU HAVE A {claim.type.name} CLAIM. ACT ACCORDINGLY.
+YOU HAVE A {claim.type.name} CLAIM: "{claim.type.text}".
 """,
                 PagePiece(node=node, role="user"),
                 priority=10,
@@ -238,7 +242,14 @@ You MAY need to engage with other Agents.
     )
 
     # plan
-    # nocheckin: support Plan
+    if (plan := thread.main_plan) is not None:
+        prompt.region(
+            "Plan",
+            "The Plan you're working on (editable)",
+            PlanPiece(node=plan, role="user"),
+            priority=20,
+            role="developer",
+        )
 
     # previous tool Runs
     previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]

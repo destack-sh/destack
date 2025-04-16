@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.16.1"
+VERSION = "2025.04.16.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1848,22 +1848,13 @@ TASK_TABLE = Table(
         Column("claimed_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("mode", PrimitiveType.INT16, default="20"),
         Column("subnode_packed", PrimitiveType.JSON, is_nullable=True),
+        Column("type", PrimitiveType.INT16),
         Column("title", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
         Column("due_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("target_id", PrimitiveType.UUID, is_nullable=True),
-        Column("target_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("target_type", PrimitiveType.INT16, is_nullable=True),
-        Column("target_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("tool_id", PrimitiveType.UUID, is_nullable=True),
-        Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("tool_type", PrimitiveType.INT16, is_nullable=True),
-        Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("is_manual", PrimitiveType.BOOLEAN, default="false"),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("nodes_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_type", PrimitiveType.INT16, is_array=True, is_nullable=True),
