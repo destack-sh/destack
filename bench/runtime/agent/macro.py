@@ -212,13 +212,15 @@ def SEND(
 Call an Action as a tool. Results arrive on on next turn.
 You SHOULD title this call with its main arguments summarized.
  (title = object ONLY, NO verbs!; markdown supported, like "Gemini 2.5" or "symbolx.com")
+If silent, no message about this call will be added (use rarely for quick internal actions)
 """,
-    signature="(action: Action, title: str | None = None, **inputs) -> None",
+    signature="(action: Action, title: str | None = None, silent: bool = False, **inputs) -> None",
     is_terminal=True,
 )
 def CALL(
     action: Action,
     title: TextLineIn | None = None,
+    silent: bool = False,
     runner: "AgentRunner" = _INJECTED_RUNNER,
     **inputs,
 ):
@@ -242,19 +244,20 @@ def CALL(
         inputs=inputs,
         title=title,
     )
+    runner.call(run)
 
     # message about run
-    thread = runner.thread.thread
-    message = Message.new(
-        type=MessageType.RUN,
-        title=title,
-        nodes=[run],
-        run=run,
-        runnable=action,
-        value=inputs,
-    )
-    thread.append(message)
-    runner.call(run)
+    if not silent:
+        thread = runner.thread.thread
+        message = Message.new(
+            type=MessageType.RUN,
+            title=title,
+            nodes=[run],
+            run=run,
+            runnable=action,
+            value=inputs,
+        )
+        thread.append(message)
 
 
 @function_macro_(

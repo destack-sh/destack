@@ -75,7 +75,7 @@ class RenderOptions:
     exclude_properties: Mapping[ObjectType, Collection[Property]] | None = None
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # NOTE :Cleanup :Architecture: RenderOptions.inline_node_types maybe shouldn't exist?
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION, NodeType.TRIGGER)
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION)
     # formatting
     statement_separator: str = "\n"
     format: bool = True
