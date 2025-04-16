@@ -12,15 +12,16 @@ from bench.language import (
     File,
     FileIn,
     Message,
+    MessageType,
     Node,
     Page,
     ProcessStatus,
     TextIn,
+    TextLineIn,
     Thread,
     coerce_custom_object_scalar,
-    upload_file,
+    text_line,
 )
-from bench.language.communication.message import MessageType
 from bench.runtime.core import create_run
 from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, Tokenizer
 
@@ -208,15 +209,25 @@ def SEND(
 @function_macro_(
     "CALL",
     """\
-Call an Action as a tool.
-You SHOULD handle results and failures somehow (retry or report).
-
+Call an Action as a tool. Results arrive on on next turn.
+You SHOULD title this call with its main arguments summarized.
+ (title = object ONLY, NO verbs!; markdown supported, like "Gemini 2.5" or "symbolx.com")
 """,
-    signature="(action: Action, **inputs) -> None",
+    signature="(action: Action, title: str | None = None, **inputs) -> None",
     is_terminal=True,
 )
-def CALL(action: Action, runner: "AgentRunner" = _INJECTED_RUNNER, **inputs):
-    thread = runner.thread.thread
+def CALL(
+    action: Action,
+    title: TextLineIn | None = None,
+    runner: "AgentRunner" = _INJECTED_RUNNER,
+    **inputs,
+):
+    # title
+    if type(title) is str and action.name and title.lower().startswith(action.name.lower()):
+        title = title.split(" ", 1)[1]
+    title = text_line(title) if title is not None else None
+
+    # create run
     agent_run = runner.tracked_run
     assert agent_run is not None, f"no agent run in {runner!r}"
     input_type = action.input_type
@@ -229,9 +240,19 @@ def CALL(action: Action, runner: "AgentRunner" = _INJECTED_RUNNER, **inputs):
         status=ProcessStatus.QUEUED,
         agent=runner.agent,
         inputs=inputs,
+        title=title,
     )
-    # auto-add message?
-    message = Message.new(type=MessageType.RUN, run=run, runnable=action, nodes=[run], value=inputs)
+
+    # message about run
+    thread = runner.thread.thread
+    message = Message.new(
+        type=MessageType.RUN,
+        title=title,
+        nodes=[run],
+        run=run,
+        runnable=action,
+        value=inputs,
+    )
     thread.append(message)
     runner.call(run)
 

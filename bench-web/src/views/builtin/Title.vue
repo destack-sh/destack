@@ -14,6 +14,7 @@ const props = defineProps<
     modelValue?: TextLineData;
     forceLineType?: TextLineType | "inherit";
     placeholder?: string;
+    colorless?: boolean;
     truncate?: boolean;
     isSmall?: boolean;
     hideMentions?: boolean;
@@ -66,6 +67,7 @@ defineExpose({ commands, focus });
     :class="[
       isInput ? 'hover:cursor-text' : '',
       truncate ? 'pm-truncate truncate' : '',
+      colorless ? 'pm-colorless' : '',
       props.forceLineType == 'inherit' ? 'pm-inherit' : isSmall ? 'pm-sm' : 'pm-base',
     ]"
     data-suppress-actions="space.move.left,space.move.right"

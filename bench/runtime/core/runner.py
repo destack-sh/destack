@@ -49,6 +49,7 @@ from bench.language import (
     Span,
     SpanType,
     Task,
+    TextLine,
     Thread,
     Transition,
     Trigger,
@@ -549,6 +550,7 @@ def create_run(
     target: "Message | Task | None" = None,
     trigger: "Trigger | None" = None,
     agent: "Agent | None" = None,
+    title: TextLine | None = None,
     session: "Session | None" = None,
     graph: NodeGraph | None = None,
 ) -> tuple["Run", "Thread"]:
@@ -648,6 +650,7 @@ def create_run(
     run = Run(
         parent=parent,
         type=typ,
+        title=title,
         flow=flow,
         kit=kit,
         action=action,

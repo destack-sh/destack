@@ -1,14 +1,15 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
+import { isProcessableNode } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
-import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/core/transaction";
+import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
+import { isProcessActive, touchProcess } from "@/language/runtime/process";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
-  AnyNodeData,
   ChannelData,
   ColorType,
   ExpressionData,
@@ -24,6 +25,7 @@ import {
   RectangleData,
   SubjectNodeData,
   TextData,
+  TextLineType,
   ThreadData,
   Timestamp,
   ViewData,
@@ -41,18 +43,17 @@ import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
+import Title from "@/views/builtin/Title.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
-import { isProcessableNode } from "@/language/core/const";
-import { isProcessActive, touchProcess } from "@/language/runtime/process";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
-import NodeReference from "@/views/builtin/NodeReference.vue";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
@@ -699,11 +700,11 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           </div>
 
           <li
-            class="group/message max-w-full rounded px-0.5 transition-colors duration-75 hover:bg-gray-100"
+            class="group/message max-w-full rounded px-0.5 transition-colors duration-75"
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-orange-100' : '',
+              isSelected ? 'bg-orange-100' : 'hover:bg-gray-100',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -801,9 +802,20 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 </div>
 
                 <!-- Run -->
-                <div v-if="message.type == MessageType.RUN" class="mb-2 mt-1.5 flex flex-row items-center">
-                  <div class="rounded border bg-gray-100 px-2 py-1.5">
-                    <NodeReference :node-ptr="message.runnablePtr" size="sm" />
+                <div v-if="message.type == MessageType.RUN" class="mb-1.5 mt-1.5 flex flex-row items-center">
+                  <!-- Call -->
+                  <div
+                    class="flex flex-row items-baseline gap-x-1.5 rounded-full border bg-gray-100 py-1 pl-2 pr-3 text-sm"
+                  >
+                    <NodeReference :node-ptr="message.runnablePtr" hide-metadata size="sm" />
+                    <Title
+                      v-if="message.title"
+                      :model-value="message.title"
+                      force-line-type="inherit"
+                      class="text-gray-500"
+                      colorless
+                      is-minimal
+                    />
                   </div>
                 </div>
 

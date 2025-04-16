@@ -287,6 +287,7 @@ REMEMBER:
  - JUST Python code, top level, NO outer ```, JUST code.
  - Users can't see the code, any comments are for YOU only.
  - Split Messages/SENDs into lines/paragraphs.
+ - No 'let me know' or similar preemptive questions. Please.
  - Ignore yourself.
  - Silence/noop is okay.
  - TERMINAL macros come last.
