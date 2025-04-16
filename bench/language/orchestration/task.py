@@ -20,7 +20,6 @@ from bench.language.core import (
     StructType,
     Text,
     TextLineIn,
-    coerce_custom_object_scalar,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -34,7 +33,6 @@ from bench.pb2 import TaskData
 if TYPE_CHECKING:
     from bench.language import (
         Action,
-        Class,
         Error,
         Flow,
         Node,
@@ -94,13 +92,6 @@ class Task(
         tool_id: Optional[UUID] = None
 
     # content
-    clazz: Optional["Class"] = p_regular(
-        70,
-        require=False,
-        array=False,
-        references=NodeType.CLASS,
-        description="The Task class.",
-    )
     value_packed: Any = p_value_packed(71)
     value: Any = p_value_runtime(
         71, type=FieldType.INPUT, typ=lambda self: cast(Task, self).value_type
@@ -147,20 +138,11 @@ class Task(
     def new(
         title: "TextLineIn | None",
         text: "Text | None",
-        clazz: "Class | None",
         is_manual: bool = False,
-        **kwargs,
     ) -> "Task":
-        if clazz is not None:
-            value_type = clazz.to_type_maybe(of="value")
-            value = coerce_custom_object_scalar(kwargs, value_type)
-        else:
-            value = None
         task = Task(
             title=text_line(title) if title is not None else None,
             text=text,
-            clazz=clazz,
-            value=value,
             is_manual=is_manual,
         )
         return task

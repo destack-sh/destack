@@ -20,6 +20,7 @@ from bench.language import (
     coerce_custom_object_scalar,
     upload_file,
 )
+from bench.language.communication.message import MessageType
 from bench.runtime.core import create_run
 from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, Tokenizer
 
@@ -136,9 +137,9 @@ class FunctionMacro(Macro):
         code_parts = [f"# {self.name}"]
         text = "\n".join([f"# {line}" for line in self.text.split("\n")])
         if self.is_terminal:
-            text += f"\n# You MAY only USE {self.name} at the end of your response ONCE."
+            text += f"\n# TERMINAL: You MAY only PUT {self.name} at the end of your response ONCE."
         if self.is_edit:
-            text += "\n# You MUST have the right access to edit. Refuse otherwise."
+            text += "\n# EDIT: You MUST have the appropriate access to do this. Refuse otherwise."
         code_parts.append(f"{self.name}: {self.signature}")
         yield CodePiece(code="\n".join(code_parts))
 
@@ -209,11 +210,13 @@ def SEND(
     """\
 Call an Action as a tool.
 You SHOULD handle results and failures somehow (retry or report).
+
 """,
     signature="(action: Action, **inputs) -> None",
     is_terminal=True,
 )
 def CALL(action: Action, runner: "AgentRunner" = _INJECTED_RUNNER, **inputs):
+    thread = runner.thread.thread
     agent_run = runner.tracked_run
     assert agent_run is not None, f"no agent run in {runner!r}"
     input_type = action.input_type
@@ -227,6 +230,9 @@ def CALL(action: Action, runner: "AgentRunner" = _INJECTED_RUNNER, **inputs):
         agent=runner.agent,
         inputs=inputs,
     )
+    # auto-add message?
+    message = Message.new(type=MessageType.RUN, run=run, runnable=action, nodes=[run], value=inputs)
+    thread.append(message)
     runner.call(run)
 
 

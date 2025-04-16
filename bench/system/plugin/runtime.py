@@ -23,7 +23,6 @@ from bench.language import (
     ResourceStatus,
     Run,
     Session,
-    Text,
     Thread,
     bittuple,
 )
@@ -129,7 +128,7 @@ class RuntimePlugin[N: Node, O: RuntimeOp = RuntimeOp](HostPlugin[N], abc.ABC):
                 kind=ErrorKind.RUNTIME,
                 type=ErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to send",
-                text=Text.from_markdown("Could not reach any available Computer."),
+                text="Could not reach any available Computer.",
             )
             await self._on_failed(op, error)
             log.error(

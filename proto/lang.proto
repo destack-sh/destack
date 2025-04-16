@@ -1683,11 +1683,14 @@ enum ThreadStatus {
 
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
-  MESSAGE_TYPE_REGULAR = 1;
+  MESSAGE_TYPE_DEFAULT = 1;
   MESSAGE_TYPE_JOIN = 10;
   MESSAGE_TYPE_LEAVE = 11;
   MESSAGE_TYPE_THREAD = 20;
-  MESSAGE_TYPE_RUN = 30;
+  MESSAGE_TYPE_RUN = 100;
+  MESSAGE_TYPE_INTERRUPTION = 110;
+  MESSAGE_TYPE_PLAN = 200;
+  MESSAGE_TYPE_TASK = 210;
 }
 
 enum MessageStatus {
@@ -2020,7 +2023,7 @@ message ErrorData {
   ErrorKind kind = 30;
   ErrorType type = 31;
   optional string title = 32;
-  optional TextData text = 33;
+  optional string text = 33;
   repeated NodeReferenceData nodes_ptr = 34;
   optional RunTraceData trace = 35;
 }
@@ -2269,12 +2272,12 @@ message MessageData {
   optional google.protobuf.Timestamp edited_at = 46;
   optional NodeReferenceData reply_to_ptr = 50;
   optional NodeReferenceData forwarded_from_ptr = 51;
-  optional NodeReferenceData run_ptr = 52;
-  optional NodeReferenceData interruption_ptr = 53;
   optional TextData text = 61;
   optional google.protobuf.Value value_packed = 62;
-  optional NodeReferenceData clazz_ptr = 63;
-  repeated NodeReferenceData nodes_ptr = 64;
+  repeated NodeReferenceData nodes_ptr = 63;
+  optional NodeReferenceData run_ptr = 64;
+  optional NodeReferenceData runnable_ptr = 65;
+  optional NodeReferenceData interruption_ptr = 66;
 }
 
 message NotificationData {
@@ -3047,7 +3050,6 @@ message TaskData {
   optional NodeReferenceData target_ptr = 62;
   optional NodeReferenceData tool_ptr = 63;
   bool is_manual = 69;
-  optional NodeReferenceData clazz_ptr = 70;
   optional google.protobuf.Value value_packed = 71;
   repeated NodeReferenceData nodes_ptr = 72;
   ProcessStatus status = 80;

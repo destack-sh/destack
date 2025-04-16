@@ -6,6 +6,8 @@ import structlog
 
 from bench.language.core import (
     INLINE_NODE_TYPES,
+    RUNNABLE_NODE_TYPES,
+    UNSET,
     BuiltinEnum,
     EnumType,
     FieldType,
@@ -19,6 +21,7 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
+    Runnable,
     StructType,
     Subject,
     Text,
@@ -35,13 +38,11 @@ from bench.language.core import (
     timed_node_,
     to_text,
 )
-from bench.language.core.const import UNSET
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
     from bench.language import (
         Channel,
-        Class,
         Interruption,
         NodeReference,
         Package,
@@ -56,13 +57,16 @@ logger = structlog.get_logger(__name__)
 
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
-    REGULAR = 1, "Regular", "Standard Message", "fas fa-envelope"
+    DEFAULT = 1, "Default", "Regular text (and nodes)", "fas fa-envelope"
     # FORWARDED = 3, "Forwarded", "Forwarded Message", "fas fa-forward"
     JOIN = 10, "Join", "Join a chat", "fas fa-arrow-right-to-bracket"
     LEAVE = 11, "Leave", "Leave a chat", "fas fa-arrow-left-from-line"
     THREAD = 20, "Thread", "Thread inside a chat", "fas fa-thread"
-    RUN = 30, "Run", None, "fas fa-play"
-    # RUN, INTERRUPTION, EDIT, STREAM, ...
+    RUN = 100, "Run", None, "fas fa-play"
+    INTERRUPTION = 110, "Interruption", None, "fas fa-times"
+    PLAN = 200, "Plan", None, "fas fa-list-check"
+    TASK = 210, "Task", None, "fas fa-square-check"
+    # EDIT, STREAM, ...
     # also see https://discord.com/developers/docs/resources/message
 
 
@@ -93,7 +97,7 @@ class Message(
     parent: Union["Channel", "Thread", None] = p_node_parent(
         4, NodeType.CHANNEL, NodeType.THREAD, ckless=True
     )
-    type: MessageType = p_regular(30, require=True, default=MessageType.REGULAR)
+    type: MessageType = p_regular(30, require=True, default=MessageType.DEFAULT)
     # platform? source?
     channel: Optional["Channel"] = p_node_ancestor(
         34,
@@ -142,22 +146,6 @@ class Message(
         reply_to_id: Optional[UUID] = None
         forwarded_from_ptr: Optional[NodeReference] = None
         forwarded_from_id: Optional[UUID] = None
-    run: Optional["Run"] = p_regular(
-        52,
-        require=False,
-        array=False,
-        baseless=True,
-        references=NodeType.RUN,
-        description="The Run this Message is about.",
-    )
-    interruption: Optional["Interruption"] = p_regular(
-        53,
-        require=False,
-        array=False,
-        baseless=True,
-        references=NodeType.INTERRUPTION,
-        description="The Interruption this Message is about.",
-    )
 
     # content
     text: Optional["Text"] = p_regular(61, require=False, default=None, struct=StructType.TEXT)
@@ -165,25 +153,46 @@ class Message(
     value: Any = p_value_runtime(
         62, type=FieldType.MEMBER, typ=lambda self: cast("Message", self).value_type
     )
-    clazz: Optional["Class"] = p_regular(
-        63,
-        require=False,
-        array=False,
-        references=NodeType.CLASS,
-        description="The Message class.",
-    )
     nodes: list["Node"] = p_regular(
-        64,
+        63,
         array=True,
         require=False,
         references="any",
         description="The Nodes this Message is about.",
     )
+    run: Optional["Run"] = p_regular(
+        64,
+        require=False,
+        array=False,
+        baseless=True,
+        references=NodeType.RUN,
+        description="The Run this Message is about.",
+    )
+    runnable: Optional[Runnable] = p_regular(
+        65,
+        require=False,
+        array=False,
+        baseless=True,
+        references=RUNNABLE_NODE_TYPES.tuple,
+        description="The Runnable this Message is about.",
+    )
+    interruption: Optional["Interruption"] = p_regular(
+        66,
+        require=False,
+        array=False,
+        baseless=True,
+        references=NodeType.INTERRUPTION,
+        description="The Interruption this Message is about.",
+    )
     if TYPE_CHECKING:
-        clazz_ptr: Optional[NodeReference] = None
-        clazz_id: Optional[UUID] = None
         nodes_ptr: Optional[NodeReference] = None
         nodes_id: Optional[UUID] = None
+        run_ptr: Optional[NodeReference] = None
+        run_id: Optional[UUID] = None
+        runnable_ptr: Optional[NodeReference] = None
+        runnable_id: Optional[UUID] = None
+        interruption_ptr: Optional[NodeReference] = None
+        interruption_id: Optional[UUID] = None
 
     def __content_str__(self) -> str:
         if self.title:
@@ -204,8 +213,10 @@ class Message(
 
     @property
     def value_type(self) -> "IsType | None":
-        class_ = self.clazz
-        return class_.to_type() if class_ is not None else None
+        if (runnable := self.runnable) is not None:
+            return runnable.to_type_maybe(of="value")
+        else:
+            return None
 
     @property
     def base(self):
@@ -233,18 +244,27 @@ class Message(
     def new(
         text: TextIn | None = None,
         *,
+        type: MessageType = MessageType.DEFAULT,
         title: TextLine | None = None,
         owned_by: Optional[Subject] = None,
         scope: Optional["InlineNode"] = None,
         reply_to: Optional["Message"] = None,
         nodes: list["Node"] | None = None,
+        run: Optional["Run"] = None,
+        runnable: Optional[Runnable] = None,
+        interruption: Optional["Interruption"] = None,
+        value: Any = None,
     ) -> "Message":
         message = Message(
-            type=MessageType.REGULAR,
+            type=type,
             title=text_line(title) if title is not None else None,
             text=to_text(text) if text is not None else None,
             reply_to=reply_to,
             owned_by=owned_by,
+            run=run,
+            runnable=runnable,
+            interruption=interruption,
+            value=value,
         )
         if nodes is not None:
             message.nodes = nodes

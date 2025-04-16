@@ -1,10 +1,11 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
     NAME_CONSTRAINT,
     BuiltinEnum,
     EnumType,
+    FieldType,
     IsComputable,
     IsModal,
     IsRunnable,
@@ -120,7 +121,11 @@ class Transition(
     def claims(self) -> tuple["Claim", ...]:
         return ()
 
-    def to_type_maybe(self) -> "IsType | None":
+    def to_type_maybe(
+        self,
+        of: Literal["instance", "value"] = "instance",
+        field_types: list[FieldType] | None = None,
+    ) -> "IsType | None":
         return None
 
     @property

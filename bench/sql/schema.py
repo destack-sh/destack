@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.16.0"
+VERSION = "2025.04.16.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1273,19 +1273,21 @@ MESSAGE_TABLE = Table(
         Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("forwarded_from_id", PrimitiveType.UUID, is_nullable=True),
         Column("forwarded_from_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_id", PrimitiveType.UUID, is_nullable=True),
-        Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
-        Column("interruption_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("clazz_id", PrimitiveType.UUID, is_nullable=True),
-        Column("clazz_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("nodes_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_type", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("nodes_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_base_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("run_id", PrimitiveType.UUID, is_nullable=True),
+        Column("run_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("runnable_id", PrimitiveType.UUID, is_nullable=True),
+        Column("runnable_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("runnable_type", PrimitiveType.INT16, is_nullable=True),
+        Column("runnable_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_id", PrimitiveType.UUID, is_nullable=True),
+        Column("interruption_bench_id", PrimitiveType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1861,8 +1863,6 @@ TASK_TABLE = Table(
         Column("tool_type", PrimitiveType.INT16, is_nullable=True),
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("is_manual", PrimitiveType.BOOLEAN, default="false"),
-        Column("clazz_id", PrimitiveType.UUID, is_nullable=True),
-        Column("clazz_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("nodes_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("nodes_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),

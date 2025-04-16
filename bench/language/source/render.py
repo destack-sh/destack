@@ -1001,7 +1001,7 @@ class MessageRenderer(NodeRenderer["Message"]):
     ) -> str:
         # inline text and title
         args = (
-            rendered_kwargs.pop("text"),
+            rendered_kwargs.pop("text", None),
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Message.new({renderer.render_args(*args)})"

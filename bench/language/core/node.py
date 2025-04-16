@@ -437,10 +437,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         updated_by_ptr: Optional[NodeReference] = None
     # IsModal.mode: 20
 
-    # NOTE :Architecture! :PolyViews: obviously, a better system would store subnodes directly
-    #  (but we can't do that yet because we map properties to Postgres columns,
-    #   so we can't have crazy numbers of subtype-properties unless we pack them like this,
-    #   similarly, our protobuf types would explode if we flatten out subnodes)
+    # NOTE :Architecture! :PolyViews: remove subnode_packed once we have :PolyViews
     subnode_packed: dict[str, dict[str, Any]] | None = p_subnode_packed(29)
 
     # 30-89 for general node/struct properties

@@ -95,8 +95,6 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         """Call an Action."""
         self._next_action = AgentTool(run=run)
 
-    # nocheckin: indicate current Agent activity/focus/...
-
     def _get_model_runner_cls(self) -> tuple[type[ChatModelRunner], str]:
         """Get the ChatModelRunner class for the given model type."""
         from bench.runtime.model import (
@@ -118,9 +116,9 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
 
-    @tracer.start_as_current_span("agent.tick")
-    async def _tick(self):
-        """Generate and execute the next Agent tick."""
+    @tracer.start_as_current_span("agent.turn")
+    async def _turn(self):
+        """Generate and execute the next Agent turn."""
         attempts: list[Span] = []
         retry = THINK_RETRY_OPTIONS.new(oracle=self.runtime.oracle)
         thread = self.thread.thread
@@ -156,7 +154,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,
-                run=SpanType.AGENT_TICK,
+                run=SpanType.AGENT_TURN,
                 model_id=model_id,
             )
             attempt = model_runner.tracked_span
@@ -229,12 +227,13 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             )
 
     async def run(self) -> None:
+        # TODO :Incomplete :UX: indicate current Agent activity/focus/... better
         # run main loop
         while not isinstance(self._next_action, AgentComplete):
             # think
             self._next_action = AgentComplete()
             self._received_wake = False
-            await self._tick()
+            await self._turn()
             received_wake = self._received_wake
             self._received_wake = False
 

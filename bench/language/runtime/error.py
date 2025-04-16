@@ -9,8 +9,6 @@ from bench.language.core import (
     Node,
     Struct,
     StructType,
-    Text,
-    TextLine,
     ValidationError,
     enum_,
     p_regular,
@@ -74,7 +72,7 @@ class Error(Struct, BenchError):
     kind: ErrorKind = p_regular(30)
     type: ErrorType = p_regular(31, default=None)
     title: str | None = p_regular(32, default=None)
-    text: Optional["Text"] = p_regular(33, default=None, struct=StructType.TEXT)
+    text: str | None = p_regular(33, default=None)
     nodes: list["Node"] = p_regular(34, array=True, require=False, references="any")
     trace: Optional[RunTrace] = p_regular(
         35, require=False, array=False, struct=StructType.RUN_TRACE
@@ -102,14 +100,7 @@ class Error(Struct, BenchError):
         title = getattr(e, "title", None) or to_casing(
             e.__class__.__name__, Casing.CAMEL, allow_whitespace=True
         )
-        if isinstance(getattr(e, "text", None), Text):
-            text = getattr(e, "text")
-        elif isinstance(e, SyntaxError):
-            header_line = TextLine.plain(f"Syntax error at line {e.lineno}, column {e.offset}:")
-            code_lines = Text.code(e.args[0])
-            text = Text(lines=[header_line, *code_lines.lines])
-        else:
-            text = Text.plain(str(e))
+        text = str(e)
 
         # kind/type
         if hasattr(e, "run_error_type"):

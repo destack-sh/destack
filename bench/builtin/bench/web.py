@@ -24,7 +24,7 @@ class IWeb(ABC):
         pass
 
     @abstractmethod
-    async def Extract(
+    async def Read(
         self, URLs: list[str]
     ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
         """

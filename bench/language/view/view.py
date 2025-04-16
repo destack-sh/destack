@@ -34,7 +34,9 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-# TODO :Architecture! :PolyViews: make Views properly polymorphic (with their own tables & proto types)
+# TODO :Architecture! :PolyViews: make Views "polymorphic" with their own Nodes & traits
+#  (so each 'type' of View has its own tables & proto types.. also share some traits with
+#   other 'views' like maybe Block/Page/Flow/Action have some view-like traits too)
 
 
 @enum_(EnumType.VIEW_TYPE)
