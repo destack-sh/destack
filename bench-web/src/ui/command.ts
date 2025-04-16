@@ -575,11 +575,18 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
   NodeType.TRANSITION,
   NodeType.THREAD,
   NodeType.MESSAGE,
+  NodeType.MEMBERSHIP,
   ...RUNTIME_NODE_TYPES,
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,
 ];
-export const NON_ARCHIVEABLE_NODE_TYPES = [...ROOT_NODE_TYPES, NodeType.PACKAGE, NodeType.SPAN];
+export const NON_ARCHIVEABLE_NODE_TYPES = [
+  ...ROOT_NODE_TYPES,
+  NodeType.PACKAGE,
+  NodeType.MEMBERSHIP,
+  NodeType.RUN,
+  NodeType.SPAN,
+];
 export const NON_DELETABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,
   NodeType.PACKAGE,

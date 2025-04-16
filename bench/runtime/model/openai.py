@@ -100,7 +100,9 @@ async def build_openai_chat_messages(
                 current_content.append(
                     {
                         "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{piece.file.content_b64}"},
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{piece.file.read_content_b64}"
+                        },
                     }
                 )
         else:

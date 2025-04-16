@@ -80,7 +80,7 @@ const subnodePacked = toRef(props, "subnodePacked");
 
 // node
 const nodePtr = computedValue(() => props.nodePtr);
-const node = supergraph.getRef(nodePtr) as Ref<AnyNodeData>;
+const { node, connection, graph } = supergraph.getLinkRef(nodePtr);
 const channelPtr = computed(() => {
   if (isNode(node.value, NodeType.CHANNEL)) {
     return nodePtr.value;
@@ -92,12 +92,6 @@ const channelPtr = computed(() => {
 const threadPtr = computed(() => {
   if (isNode(node.value, NodeType.THREAD)) {
     return nodePtr.value;
-  }
-  return null;
-});
-const thread = computed(() => {
-  if (isNode(node.value, NodeType.THREAD)) {
-    return node.value;
   }
   return null;
 });
@@ -229,6 +223,7 @@ const authorsPtr: Ref<NodeReferenceData[]> = computed(() => {
   return Object.values(authorsPtrById);
 });
 const authors = supergraph.getManyRef(authorsPtr, { excludeSearch: true }) as Ref<SubjectNodeData[]>;
+// const cursorsPtr = ...
 const authorsById: Ref<Record<string, AuthorInfo>> = computed(() =>
   authors.value.reduce(
     (acc, author) => {
@@ -440,7 +435,9 @@ function submit() {
   });
   touchProcess(tx, thread);
   stickToEnd.value = true;
-  bodyScrollRef.value?.scrollToEnd();
+  nextTick(() => {
+    bodyScrollRef.value?.scrollToEnd();
+  });
 }
 
 function clearDraft() {

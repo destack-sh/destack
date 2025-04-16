@@ -94,7 +94,7 @@ async def build_google_chat_messages(
             mime_type = piece.file.mime_type
             if not mime_type:
                 raise NotSupportedError(f"file {piece.file!r} not supported yet")
-            current_content.append({"mime_type": mime_type, "data": piece.file.content})
+            current_content.append({"mime_type": mime_type, "data": piece.file.read_content()})
         else:
             raise RuntimeError(f"unexpected piece {piece!r}")
 

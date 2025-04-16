@@ -1684,10 +1684,10 @@ enum ThreadStatus {
 enum MessageType {
   MESSAGE_TYPE_UNSPECIFIED = 0;
   MESSAGE_TYPE_REGULAR = 1;
-  MESSAGE_TYPE_REPLY = 2;
   MESSAGE_TYPE_JOIN = 10;
   MESSAGE_TYPE_LEAVE = 11;
   MESSAGE_TYPE_THREAD = 20;
+  MESSAGE_TYPE_RUN = 30;
 }
 
 enum MessageStatus {
@@ -1968,7 +1968,7 @@ message FileInfoData {
   optional string favicon_url = 73;
   optional int32 thumbnail_width = 74;
   optional int32 thumbnail_height = 75;
-  optional bytes inline_content = 76;
+  optional bytes content = 76;
 }
 
 message LinkPreviewData {
@@ -2694,7 +2694,7 @@ message FileData {
   optional string favicon_url = 73;
   optional int32 thumbnail_width = 74;
   optional int32 thumbnail_height = 75;
-  optional bytes inline_content = 76;
+  optional bytes content = 76;
   FileRetentionMode retention = 80;
   optional google.protobuf.Timestamp expires_at = 81;
 }

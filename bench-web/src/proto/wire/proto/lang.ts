@@ -878,9 +878,9 @@ export interface FileInfoData {
      */
     thumbnailHeight?: number;
     /**
-     * @generated from protobuf field: optional bytes inline_content = 76;
+     * @generated from protobuf field: optional bytes content = 76;
      */
-    inlineContent?: Uint8Array;
+    content?: Uint8Array;
 }
 /**
  * @generated from protobuf message symbolx.bench.LinkPreviewData
@@ -3516,9 +3516,9 @@ export interface FileData {
      */
     thumbnailHeight?: number;
     /**
-     * @generated from protobuf field: optional bytes inline_content = 76;
+     * @generated from protobuf field: optional bytes content = 76;
      */
-    inlineContent?: Uint8Array;
+    content?: Uint8Array;
     /**
      * @generated from protobuf field: symbolx.bench.FileRetentionMode retention = 80;
      */
@@ -13676,10 +13676,6 @@ export enum MessageType {
      */
     REGULAR = 1,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_REPLY = 2;
-     */
-    REPLY = 2,
-    /**
      * @generated from protobuf enum value: MESSAGE_TYPE_JOIN = 10;
      */
     JOIN = 10,
@@ -13690,7 +13686,11 @@ export enum MessageType {
     /**
      * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 20;
      */
-    THREAD = 20
+    THREAD = 20,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 30;
+     */
+    RUN = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageStatus
@@ -16025,7 +16025,7 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
             { no: 73, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 76, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
+            { no: 76, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
     create(value?: PartialMessage<FileInfoData>): FileInfoData {
@@ -16099,8 +16099,8 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
                 case /* optional int32 thumbnail_height */ 75:
                     message.thumbnailHeight = reader.int32();
                     break;
-                case /* optional bytes inline_content */ 76:
-                    message.inlineContent = reader.bytes();
+                case /* optional bytes content */ 76:
+                    message.content = reader.bytes();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16171,9 +16171,9 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
         /* optional int32 thumbnail_height = 75; */
         if (message.thumbnailHeight !== undefined)
             writer.tag(75, WireType.Varint).int32(message.thumbnailHeight);
-        /* optional bytes inline_content = 76; */
-        if (message.inlineContent !== undefined)
-            writer.tag(76, WireType.LengthDelimited).bytes(message.inlineContent);
+        /* optional bytes content = 76; */
+        if (message.content !== undefined)
+            writer.tag(76, WireType.LengthDelimited).bytes(message.content);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21853,7 +21853,7 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 73, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 74, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 75, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 76, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 76, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 80, name: "retention", kind: "enum", T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
             { no: 81, name: "expires_at", kind: "message", T: () => Timestamp }
         ]);
@@ -22019,8 +22019,8 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional int32 thumbnail_height */ 75:
                     message.thumbnailHeight = reader.int32();
                     break;
-                case /* optional bytes inline_content */ 76:
-                    message.inlineContent = reader.bytes();
+                case /* optional bytes content */ 76:
+                    message.content = reader.bytes();
                     break;
                 case /* symbolx.bench.FileRetentionMode retention */ 80:
                     message.retention = reader.int32();
@@ -22181,9 +22181,9 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional int32 thumbnail_height = 75; */
         if (message.thumbnailHeight !== undefined)
             writer.tag(75, WireType.Varint).int32(message.thumbnailHeight);
-        /* optional bytes inline_content = 76; */
-        if (message.inlineContent !== undefined)
-            writer.tag(76, WireType.LengthDelimited).bytes(message.inlineContent);
+        /* optional bytes content = 76; */
+        if (message.content !== undefined)
+            writer.tag(76, WireType.LengthDelimited).bytes(message.content);
         /* symbolx.bench.FileRetentionMode retention = 80; */
         if (message.retention !== 0)
             writer.tag(80, WireType.Varint).int32(message.retention);
@@ -32578,7 +32578,7 @@ export enum FileProperty {
   faviconUrl = 73,
   thumbnailWidth = 74,
   thumbnailHeight = 75,
-  inlineContent = 76,
+  content = 76,
   retention = 80,
   expiresAt = 81,
 }
@@ -34044,7 +34044,7 @@ export enum FileInfoProperty {
   faviconUrl = 73,
   thumbnailWidth = 74,
   thumbnailHeight = 75,
-  inlineContent = 76,
+  content = 76,
 }
 
 export enum IconProperty {
@@ -34902,7 +34902,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.faviconUrl]: { id: 73, name: 'favicon_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.thumbnailWidth]: { id: 74, name: 'thumbnail_width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.thumbnailHeight]: { id: 75, name: 'thumbnail_height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.inlineContent]: { id: 76, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.content]: { id: 76, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.retention]: { id: 80, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 81, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -36299,7 +36299,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.faviconUrl]: { id: 73, name: 'favicon_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.thumbnailWidth]: { id: 74, name: 'thumbnail_width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.thumbnailHeight]: { id: 75, name: 'thumbnail_height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.inlineContent]: { id: 76, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.content]: { id: 76, name: 'content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -37094,10 +37094,10 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
 
 export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>> = {
   [MessageType.REGULAR]: { id: 1, name: 'REGULAR', text: 'Standard Message', title: 'Regular', icon: 'fas fa-envelope' },
-  [MessageType.REPLY]: { id: 2, name: 'REPLY', text: 'Reply to another Message', title: 'Reply', icon: 'fas fa-reply' },
   [MessageType.JOIN]: { id: 10, name: 'JOIN', text: 'Join a chat', title: 'Join', icon: 'fas fa-arrow-right-to-bracket' },
   [MessageType.LEAVE]: { id: 11, name: 'LEAVE', text: 'Leave a chat', title: 'Leave', icon: 'fas fa-arrow-left-from-line' },
-  [MessageType.THREAD]: { id: 20, name: 'THREAD', text: 'Nested chat', title: 'Thread', icon: 'fas fa-thread' },
+  [MessageType.THREAD]: { id: 20, name: 'THREAD', text: 'Thread inside a chat', title: 'Thread', icon: 'fas fa-thread' },
+  [MessageType.RUN]: { id: 30, name: 'RUN', title: 'Run', icon: 'fas fa-play' },
 }
 
 

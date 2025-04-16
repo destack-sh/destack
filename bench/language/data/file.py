@@ -510,7 +510,7 @@ class FileBase(BuiltinObject):
     favicon_url: str | None = p_regular(73, default=None)
     thumbnail_width: int | None = p_regular(74, default=None)
     thumbnail_height: int | None = p_regular(75, default=None)
-    inline_content: bytes | None = p_regular(76, default=None, constraint=constraint(min_length=1))
+    content: bytes | None = p_regular(76, default=None)
     ...  # thumbnail/preview/...?
 
     # cached content
@@ -587,34 +587,34 @@ class FileBase(BuiltinObject):
         """Downloads the file to a temporary file."""
         if self._cached_tmp_path is None:
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                tmp_file.write(self.content)
+                tmp_file.write(self.read_content())
             assert isinstance(tmp_file.name, str), f"no path in tmp file {tmp_file!r} for {self!r}"
             self._cached_tmp_path = tmp_file.name
         return self._cached_tmp_path
 
-    @property
-    def content(self) -> bytes:
-        """The file content."""
-        if self.inline_content is not None:
-            return self.inline_content
+    def read_content(self) -> bytes:
+        """The full file content."""
+        if self.content is not None:
+            return self.content
         elif self._cached_content is not None:
             return self._cached_content
         else:
             raise ValueError(f"content not ready for {self!r}")
 
-    @property
-    def content_b64(self) -> str:
-        """The file content as base64."""
-        return base64.b64encode(self.content).decode("utf-8")
+    def read_content_b64(self) -> str:
+        """The full file content as base64."""
+        return base64.b64encode(self.read_content()).decode("utf-8")
 
-    def get_url(self) -> str:
-        """The URL to GET the file from."""
+    def read_url(self) -> str:
+        """The URL to read the file from."""
         if self.url is not None:
             return self.url
         elif self._cached_get_url is not None:
             return self._cached_get_url
+        elif self.content is not None:
+            return f"data:{self.mime_type};base64,{self.read_content_b64()}"
         else:
-            raise ValueError(f"url not ready for {self!r}")
+            raise ValueError(f"read URL not available for {self!r}")
 
     def _clear_cache(self):
         """Clears the cached content and URL."""
@@ -623,7 +623,7 @@ class FileBase(BuiltinObject):
 
     def b64encode(self) -> str:
         """Encodes the file content as base64."""
-        return base64.b64encode(self.content).decode()
+        return base64.b64encode(self.read_content()).decode()
 
     @tracer.start_as_current_span("file.convert")
     async def convert(self, target_format: FileFormat) -> "FileBase":
@@ -645,7 +645,7 @@ class FileBase(BuiltinObject):
                 width=self.width,
                 height=self.height,
                 aspect_ratio=self.aspect_ratio,
-                inline_content=text,
+                content=text,
                 _original=self.original,
             )
         elif self.type == FileType.DOCUMENT:
@@ -670,14 +670,14 @@ class FileBase(BuiltinObject):
                     type=target_format.type,
                     format=target_format,
                     size=len(content),
-                    inline_content=content,
+                    content=content,
                     _original=self.original,
                 )
             elif target_format == FileFormat.MARKDOWN and self.format == FileFormat.PDF:
                 # convert with pypdf
                 import pypdf
 
-                reader = pypdf.PdfReader(io.BytesIO(self.content))
+                reader = pypdf.PdfReader(io.BytesIO(self.read_content()))
                 pages_text: list[str] = []
                 for page in reader.pages:
                     page_text = page.extract_text()
@@ -691,7 +691,7 @@ class FileBase(BuiltinObject):
                     type=target_format.type,
                     format=target_format,
                     size=len(content),
-                    inline_content=content,
+                    content=content,
                     _original=self.original,
                 )
 
@@ -705,7 +705,7 @@ class FileBase(BuiltinObject):
     def text(self) -> str:
         """Gets the text content of the file."""
         if self.type == FileType.TEXT or self.type == FileType.CODE:
-            return self.content.decode()
+            return self.read_content().decode()
         else:
             raise ValueError(f"cannot get text content of {self!r}")
 
@@ -726,7 +726,7 @@ class FileBase(BuiltinObject):
         """Gets the image content of the file."""
         if self.type == FileType.IMAGE:
             if self._cached_image is None:
-                self._cached_image = Image.open(io.BytesIO(self.content))
+                self._cached_image = Image.open(io.BytesIO(self.read_content()))
             return self._cached_image
         else:
             raise ValueError(f"cannot get image content of {self!r}")
@@ -755,7 +755,7 @@ class FileBase(BuiltinObject):
             new_width = width
             new_height = height
             optimized_image = self.image
-            content = self.content
+            content = self.read_content()
 
         # reduce quality until it fits
         quality = 100 - quality_step
@@ -768,7 +768,7 @@ class FileBase(BuiltinObject):
         return FileInfo(
             source=FileSource.INLINE,
             name=self.name,
-            inline_content=content,
+            content=content,
             type=self.type,
             format=FileFormat.JPEG,
             size=len(content),
@@ -830,16 +830,35 @@ class File(Resource[FileData], FileBase):
 
     @staticmethod
     async def inline(
-        content: bytes,
+        content: bytes | str,
         name: str | None = None,
         mime_type: str | None = None,
         type: FileType | None = None,
         format: FileFormat | str | None = None,
     ) -> "File":
         """Creates a new inline file."""
+
+        # inline data from URI (e.g., data:image/png;base64,iVBORw0KGgoAAAAN...)
+        if isinstance(content, str):
+            if content.startswith("data:"):
+                parts = content.split(",", 1)
+                if len(parts) != 2:
+                    raise ValueError(f"invalid data URI: {content!r}")
+                header, encoded_data = parts
+                if ";base64" in header:
+                    content = base64.b64decode(encoded_data)
+                else:
+                    content = encoded_data.encode("utf-8")
+                if mime_type is None and header.startswith("data:"):
+                    mime_type = header[5:].split(";")[0]
+            else:
+                # regular string to bytes
+                content = content.encode("utf-8")
+
         file, _ = await extract_file_info(
             content, name=name, mime_type=mime_type, type=type, format=format
         )
+        file.content = content
         return file
 
     @staticmethod
@@ -988,7 +1007,7 @@ async def download_file_batch(
     return list(files_by_id.values())
 
 
-FileIn = Union[str, bytes, Image.Image]
+FileIn = Union[bytes, Image.Image]
 
 
 @tracer.start_as_current_span("file.extract_info")
@@ -1003,9 +1022,7 @@ async def extract_file_info(  # noqa: RUF029
     """Extracts the metadata from a file."""
     # content
     content: bytes
-    if isinstance(file_in, str):
-        content = file_in.encode()
-    elif isinstance(file_in, (bytes, bytearray, memoryview)):
+    if isinstance(file_in, (bytes, bytearray, memoryview)):
         content = file_in
     elif isinstance(file_in, Image.Image):
         content_io = io.BytesIO()
