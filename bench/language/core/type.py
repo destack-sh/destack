@@ -285,6 +285,7 @@ class IsType(BuiltinObject):
     constraint: Optional["TypeConstraint"] = p_regular(
         55, require=False, array=False, default=None, struct=StructType.TYPE_CONSTRAINT
     )
+    # jsonschema?
 
     # flags
     is_required: bool = p_regular(60, default=False)

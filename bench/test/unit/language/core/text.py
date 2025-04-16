@@ -84,6 +84,7 @@ def test_text_span_link():
     md = """\
 [link](https://example.com) and [another](https://test.com/path?q=123#fragment)
 [Banana - Wikipedia](https://en.wikipedia.org/wiki/Banana)
+https://de.wikipedia.org/wiki/Switzerland like google.com
 """
     text = markdown_to_text(md)
     assert text.lines[0].spans[0] == TextSpan.new(
@@ -95,6 +96,15 @@ def test_text_span_link():
     )
     assert text.lines[1].spans[0] == TextSpan.new(
         TextSpanType.LINK, content="Banana - Wikipedia", url="https://en.wikipedia.org/wiki/Banana"
+    )
+    assert text.lines[2].spans[0] == TextSpan.new(
+        TextSpanType.LINK,
+        content="https://de.wikipedia.org/wiki/Switzerland",
+        url="https://de.wikipedia.org/wiki/Switzerland",
+    )
+    assert text.lines[2].spans[1] == TextSpan.new(TextSpanType.TEXT, " like ")
+    assert text.lines[2].spans[2] == TextSpan.new(
+        TextSpanType.LINK, content="google.com", url="https://google.com"
     )
 
 
@@ -109,7 +119,7 @@ This is a hard break<br>This is another line"""
 
 def test_text_inline_nested():
     md = """\
-this is **bold** and *italic* and ~~strike~~ and `code` and <u>underline</u>.
+this is **bold** and *italic* and ~~strike~~ and `code`.
 also we have [red]red[/red] and [blue]blue[/blue] and [green]green[/green].
 they [yellow]can be *nested, like ~~deeply~~ nested* _and_ ~~combined~~[/yellow]."""
     text = markdown_to_text(md)
@@ -232,7 +242,7 @@ Here is my $$E = mc^2$$ equation, check out [this link](https://example.com) and
 This is a paragraph with **bold** and *italic* formatting""",
         """\
 Normal text with `inline code` and ~~strikethrough~~.
-> This is a blockquote with <u>underlined text</u>[^2]
+> This is a blockquote with *bold text*[^2]
 ! Important callout message""",
         """\
 ```
@@ -242,7 +252,7 @@ def complex_function():
     print(f"Even numbers: {result}")
 ```""",
         """\
-This text has **multiple** *different* ~~formatting~~ <u>styles</u>
+This text has **multiple** *different* ~~formatting~~.
 And **spans multiple** lines with *consistent* formatting""",
         """\
 > This is a multi-line quote

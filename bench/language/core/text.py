@@ -309,9 +309,42 @@ def _parse_color(color: str) -> "ColorType":
         ) from e
 
 
-_marker_pattern = regex.compile(
+_MARKER_PATTERN = regex.compile(
     r"(\$\$|\*\*|~~|`|<u>|<\/u>|<br>|\|\||\*|\[\^[a-zA-Z0-9]+\]|\[[^[\]]+\]|\[\/[^[\]]+\]|\[@[a-zA-Z0-9_]+\])"
 )
+_LINK_PATTERN = regex.compile(
+    r"(?:https?://)?(?:www\.)?(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:/\S*)?"
+)
+
+
+def _parse_inline_raw_urls(text: str, base: Mapping[str, Any]) -> list[TextSpan]:
+    """Extract URLs from text as link spans."""
+    spans = []
+    pos = 0
+
+    while pos < len(text):
+        url_match = _LINK_PATTERN.search(text[pos:])
+        if not url_match:
+            # no more URLs, add remaining text
+            if pos < len(text):
+                spans.append(TextSpan(content=text[pos:], **base))
+            break
+
+        url_start = url_match.start() + pos
+        url_end = url_match.end() + pos
+
+        # add text before URL if any
+        if url_start > pos:
+            spans.append(TextSpan(content=text[pos:url_start], **base))
+
+        # add the URL as a link
+        url_text = text[url_start:url_end]
+        url = url_text if url_text.startswith(("http://", "https://")) else f"https://{url_text}"
+        spans.append(TextSpan(type=TextSpanType.LINK, content=url_text, url=url, **base))
+
+        pos = url_end
+
+    return spans
 
 
 def _parse_inline_raw(
@@ -328,12 +361,26 @@ def _parse_inline_raw(
         base = {}
     spans: list[TextSpan] = []
     while pos < len(text):
-        m = _marker_pattern.search(text, pos)
+        m = _MARKER_PATTERN.search(text, pos)
         if not m:
-            spans.append(TextSpan(content=text[pos:], **base))
+            # Process the remaining text
+            remaining_text = text[pos:]
+            # Only check for URLs if there's a potential match
+            if _LINK_PATTERN.search(remaining_text):
+                spans.extend(_parse_inline_raw_urls(remaining_text, base))
+            else:
+                spans.append(TextSpan(content=remaining_text, **base))
             return spans, len(text)
+
         if m.start() > pos:
-            spans.append(TextSpan(content=text[pos : m.start()], **base))
+            # Handle text segment before the marker
+            segment = text[pos : m.start()]
+            # Only check for URLs if there's a potential match
+            if _LINK_PATTERN.search(segment):
+                spans.extend(_parse_inline_raw_urls(segment, base))
+            else:
+                spans.append(TextSpan(content=segment, **base))
+
         marker = m.group(0)
         pos = m.end()
         # if the marker matches the expected closing marker
@@ -415,17 +462,8 @@ def _parse_inline_raw(
                     sp.color = color
                 spans.extend(inner)
                 continue
-        # <u> marker with explicit closing </u>
-        if marker == "<u>":
-            inner, pos = _parse_inline_raw(
-                text, pos, end_marker="</u>", base=base.copy(), aliasing=aliasing
-            )
-            for sp in inner:
-                sp.is_underline = True
-            spans.extend(inner)
-            continue
         # symmetric markers
-        if marker in {"*", "**", "~~", "`", "||"}:
+        if marker in MARKER_TO_FLAG:
             flag = MARKER_TO_FLAG[marker]
             inner, pos = _parse_inline_raw(
                 text, pos, end_marker=marker, base=base.copy(), aliasing=aliasing
