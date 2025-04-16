@@ -98,6 +98,8 @@ THREAD_QUERY = Thread.include_descendants(
     NodeType.CLAIM,
     NodeType.AGENT,
     NodeType.CURSOR,
+    NodeType.RUN,
+    NodeType.INTERRUPTION,
 )
 
 

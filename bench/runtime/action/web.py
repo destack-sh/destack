@@ -54,7 +54,7 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
         return {"Results": results}
 
     @override
-    async def Extract(
+    async def Read(
         self, URLs: list[str]
     ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
         response = await exa.get_contents(

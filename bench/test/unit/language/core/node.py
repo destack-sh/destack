@@ -14,7 +14,6 @@ from bench.language import (
     BlockType,
     BuiltinObject,
     Choice,
-    Class,
     Client,
     ClientType,
     Code,
@@ -148,11 +147,9 @@ def test_node_pointers_consistency(session: "Session"):
     )
 
     # based pointers
-    class_a_1 = Class.new("Class1")
-    page_a_1.append(class_a_1)
     channel_a = Channel.new("Channel1")
     page_a_1.append(channel_a)
-    message_a = Message(parent=channel_a, clazz=class_a_1)
+    message_a = Message(parent=channel_a)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -170,11 +167,9 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.main_store = package_b.stores.create(name="Store")
     page_b = package_b.pages.create()
     assert page_b.bench_id == bench_b.id
-    class_b_1 = Class.new("Class1")
-    page_b.append(class_b_1)
     channel_b = Channel.new("Channel1")
     page_b.append(channel_b)
-    message_b = Message(parent=channel_b, clazz=class_b_1)
+    message_b = Message(parent=channel_b)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(

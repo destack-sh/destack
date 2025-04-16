@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.16.0"
+VERSION = "2025.04.16.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -1463,7 +1463,7 @@ class SpanType(BuiltinEnum):
     ACQUIRE = 3, None, None, "fas fa-toolbox"
     CODE = 10, None, None, "fas fa-code"
     # agent
-    AGENT_TICK = 100, None, None, "fas fa-hexagon-nodes"
+    AGENT_TURN = 100, None, None, "fas fa-hexagon-nodes"
     # action
     # ...
     # application (action)

@@ -52,6 +52,7 @@ import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 import { isProcessableNode } from "@/language/core/const";
 import { isProcessActive, touchProcess } from "@/language/runtime/process";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
@@ -421,7 +422,7 @@ function submit() {
   // create message
   createMessage(tx, benchGraph, {
     message: {
-      type: replyTo.value != null ? MessageType.REPLY : MessageType.REGULAR,
+      type: MessageType.DEFAULT,
       parentPtr: messageThreadPtr ?? messageChannelPtr,
       ownedByPtr: toNodeRef(currentAuthor.value),
       benchPtr: benchPtr.value,
@@ -781,6 +782,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                   <!-- Edited? -->
                   <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
                 </div>
+
                 <!-- Commands -->
                 <div
                   v-if="!isEditing"
@@ -797,15 +799,26 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                     <IconInline v-bind="command.icon" />
                   </button>
                 </div>
-                <!-- Content -->
+
+                <!-- Run -->
+                <div v-if="message.type == MessageType.RUN" class="mb-2 mt-1.5 flex flex-row items-center">
+                  <div class="rounded border bg-gray-100 px-2 py-1.5">
+                    <NodeReference :node-ptr="message.runnablePtr" size="sm" />
+                  </div>
+                </div>
+
+                <!-- Text -->
                 <Text
-                  v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)"
+                  v-else-if="
+                    !isEditing && message.type == MessageType.DEFAULT && (!isEmpty || message.nodesPtr.length == 0)
+                  "
                   :id="'text-' + message.id"
                   placeholder="Empty message"
                   class="-mt-[2px]"
                   is-minimal
                   :model-value="message.text"
                 />
+
                 <!-- Editing content -->
                 <div v-if="isEditing" class="my-1">
                   <Text
@@ -850,6 +863,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                     </span>
                   </div>
                 </div>
+
                 <!-- Extras -->
                 <!-- NOTE :UX: this should be a proper :FileGallery -->
                 <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">

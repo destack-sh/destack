@@ -1044,9 +1044,9 @@ export interface ErrorData {
      */
     title?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 33;
+     * @generated from protobuf field: optional string text = 33;
      */
-    text?: TextData;
+    text?: string;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 34;
      */
@@ -1907,14 +1907,6 @@ export interface MessageData {
      */
     forwardedFromPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 52;
-     */
-    runPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 53;
-     */
-    interruptionPtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 61;
      */
     text?: TextData;
@@ -1923,13 +1915,21 @@ export interface MessageData {
      */
     valuePacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData clazz_ptr = 63;
-     */
-    clazzPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 64;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 63;
      */
     nodesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 64;
+     */
+    runPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData runnable_ptr = 65;
+     */
+    runnablePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 66;
+     */
+    interruptionPtr?: NodeReferenceData;
 }
 /**
  * @generated from protobuf message symbolx.bench.NotificationData
@@ -4850,10 +4850,6 @@ export interface TaskData {
      * @generated from protobuf field: bool is_manual = 69;
      */
     isManual: boolean;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData clazz_ptr = 70;
-     */
-    clazzPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Value value_packed = 71;
      */
@@ -13672,9 +13668,9 @@ export enum MessageType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_REGULAR = 1;
+     * @generated from protobuf enum value: MESSAGE_TYPE_DEFAULT = 1;
      */
-    REGULAR = 1,
+    DEFAULT = 1,
     /**
      * @generated from protobuf enum value: MESSAGE_TYPE_JOIN = 10;
      */
@@ -13688,9 +13684,21 @@ export enum MessageType {
      */
     THREAD = 20,
     /**
-     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 30;
+     * @generated from protobuf enum value: MESSAGE_TYPE_RUN = 100;
      */
-    RUN = 30
+    RUN = 100,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_INTERRUPTION = 110;
+     */
+    INTERRUPTION = 110,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_PLAN = 200;
+     */
+    PLAN = 200,
+    /**
+     * @generated from protobuf enum value: MESSAGE_TYPE_TASK = 210;
+     */
+    TASK = 210
 }
 /**
  * @generated from protobuf enum symbolx.bench.MessageStatus
@@ -16597,7 +16605,7 @@ class ErrorData$Type extends MessageType$<ErrorData> {
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.ErrorKind", ErrorKind, "ERROR_KIND_"] },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.ErrorType", ErrorType, "ERROR_TYPE_"] },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "text", kind: "message", T: () => TextData },
+            { no: 33, name: "text", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 35, name: "trace", kind: "message", T: () => RunTraceData }
         ]);
@@ -16629,8 +16637,8 @@ class ErrorData$Type extends MessageType$<ErrorData> {
                 case /* optional string title */ 32:
                     message.title = reader.string();
                     break;
-                case /* optional symbolx.bench.TextData text */ 33:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                case /* optional string text */ 33:
+                    message.text = reader.string();
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 34:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -16662,9 +16670,9 @@ class ErrorData$Type extends MessageType$<ErrorData> {
         /* optional string title = 32; */
         if (message.title !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.title);
-        /* optional symbolx.bench.TextData text = 33; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* optional string text = 33; */
+        if (message.text !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.text);
         /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 34; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -18682,12 +18690,12 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 46, name: "edited_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "forwarded_from_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 52, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 53, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "text", kind: "message", T: () => TextData },
             { no: 62, name: "value_packed", kind: "message", T: () => Value },
-            { no: 63, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 64, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 63, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 64, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 65, name: "runnable_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 66, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<MessageData>): MessageData {
@@ -18788,23 +18796,23 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbolx.bench.NodeReferenceData forwarded_from_ptr */ 51:
                     message.forwardedFromPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.forwardedFromPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 52:
-                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 53:
-                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
-                    break;
                 case /* optional symbolx.bench.TextData text */ 61:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional google.protobuf.Value value_packed */ 62:
                     message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional symbolx.bench.NodeReferenceData clazz_ptr */ 63:
-                    message.clazzPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clazzPtr);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 64:
+                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 63:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 64:
+                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData runnable_ptr */ 65:
+                    message.runnablePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runnablePtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 66:
+                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18899,24 +18907,24 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.NodeReferenceData forwarded_from_ptr = 51; */
         if (message.forwardedFromPtr)
             NodeReferenceData.internalBinaryWrite(message.forwardedFromPtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 52; */
-        if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 53; */
-        if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 61; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value value_packed = 62; */
         if (message.valuePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData clazz_ptr = 63; */
-        if (message.clazzPtr)
-            NodeReferenceData.internalBinaryWrite(message.clazzPtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 64; */
+        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 63; */
         for (let i = 0; i < message.nodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 64; */
+        if (message.runPtr)
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData runnable_ptr = 65; */
+        if (message.runnablePtr)
+            NodeReferenceData.internalBinaryWrite(message.runnablePtr, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 66; */
+        if (message.interruptionPtr)
+            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24708,7 +24716,6 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 62, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 63, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 69, name: "is_manual", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 70, name: "clazz_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "value_packed", kind: "message", T: () => Value },
             { no: 72, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
@@ -24824,9 +24831,6 @@ class TaskData$Type extends MessageType$<TaskData> {
                     break;
                 case /* bool is_manual */ 69:
                     message.isManual = reader.bool();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData clazz_ptr */ 70:
-                    message.clazzPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clazzPtr);
                     break;
                 case /* optional google.protobuf.Value value_packed */ 71:
                     message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
@@ -24972,9 +24976,6 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* bool is_manual = 69; */
         if (message.isManual !== false)
             writer.tag(69, WireType.Varint).bool(message.isManual);
-        /* optional symbolx.bench.NodeReferenceData clazz_ptr = 70; */
-        if (message.clazzPtr)
-            NodeReferenceData.internalBinaryWrite(message.clazzPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value value_packed = 71; */
         if (message.valuePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(71, WireType.LengthDelimited).fork(), options).join();
@@ -33159,12 +33160,12 @@ export enum MessageProperty {
   editedAt = 46,
   replyToPtr = 50,
   forwardedFromPtr = 51,
-  runPtr = 52,
-  interruptionPtr = 53,
   text = 61,
   valuePacked = 62,
-  clazzPtr = 63,
-  nodesPtr = 64,
+  nodesPtr = 63,
+  runPtr = 64,
+  runnablePtr = 65,
+  interruptionPtr = 66,
 }
 
 export enum NotificationProperty {
@@ -33574,7 +33575,6 @@ export enum TaskProperty {
   targetPtr = 62,
   toolPtr = 63,
   isManual = 69,
-  clazzPtr = 70,
   valuePacked = 71,
   nodesPtr = 72,
   status = 80,
@@ -34771,7 +34771,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.16.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34808,7 +34808,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.15.5", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.16.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35463,12 +35463,12 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.editedAt]: { id: 46, name: 'edited_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.replyToPtr]: { id: 50, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.forwardedFromPtr]: { id: 51, name: 'forwarded_from_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.runPtr]: { id: 52, name: 'run_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.interruptionPtr]: { id: 53, name: 'interruption_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.text]: { id: 61, name: 'text', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MessageProperty.valuePacked]: { id: 62, name: 'value_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [MessageProperty.clazzPtr]: { id: 63, name: 'clazz_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.nodesPtr]: { id: 64, name: 'nodes_ptr', component: ObjectType.MESSAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.nodesPtr]: { id: 63, name: 'nodes_ptr', component: ObjectType.MESSAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.runPtr]: { id: 64, name: 'run_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.runnablePtr]: { id: 65, name: 'runnable_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.TRANSITION], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.interruptionPtr]: { id: 66, name: 'interruption_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = {
   [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTIFICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -35865,7 +35865,6 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.targetPtr]: { id: 62, name: 'target_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.toolPtr]: { id: 63, name: 'tool_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.isManual]: { id: 69, name: 'is_manual', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.clazzPtr]: { id: 70, name: 'clazz_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLASS], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.valuePacked]: { id: 71, name: 'value_packed', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TaskProperty.nodesPtr]: { id: 72, name: 'nodes_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -36412,7 +36411,7 @@ export const ErrorDataInfo: Record<ErrorProperty, PropertyInfo> = {
   [ErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ERROR, enumType: EnumType.ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.ERROR, enumType: EnumType.ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [ErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ErrorProperty.nodesPtr]: { id: 34, name: 'nodes_ptr', component: ObjectType.ERROR, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [ErrorProperty.trace]: { id: 35, name: 'trace', component: ObjectType.ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_TRACE },
 }
@@ -37093,11 +37092,14 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
 }
 
 export const MessageTypeOptionInfo: Partial<Record<MessageType, EnumOptionInfo>> = {
-  [MessageType.REGULAR]: { id: 1, name: 'REGULAR', text: 'Standard Message', title: 'Regular', icon: 'fas fa-envelope' },
+  [MessageType.DEFAULT]: { id: 1, name: 'DEFAULT', text: 'Regular text (and nodes)', title: 'Default', icon: 'fas fa-envelope' },
   [MessageType.JOIN]: { id: 10, name: 'JOIN', text: 'Join a chat', title: 'Join', icon: 'fas fa-arrow-right-to-bracket' },
   [MessageType.LEAVE]: { id: 11, name: 'LEAVE', text: 'Leave a chat', title: 'Leave', icon: 'fas fa-arrow-left-from-line' },
   [MessageType.THREAD]: { id: 20, name: 'THREAD', text: 'Thread inside a chat', title: 'Thread', icon: 'fas fa-thread' },
-  [MessageType.RUN]: { id: 30, name: 'RUN', title: 'Run', icon: 'fas fa-play' },
+  [MessageType.RUN]: { id: 100, name: 'RUN', title: 'Run', icon: 'fas fa-play' },
+  [MessageType.INTERRUPTION]: { id: 110, name: 'INTERRUPTION', title: 'Interruption', icon: 'fas fa-times' },
+  [MessageType.PLAN]: { id: 200, name: 'PLAN', title: 'Plan', icon: 'fas fa-list-check' },
+  [MessageType.TASK]: { id: 210, name: 'TASK', title: 'Task', icon: 'fas fa-square-check' },
 }
 
 

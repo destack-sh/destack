@@ -17,6 +17,8 @@ export const AUTOLOAD_DESCENDANT_TYPES: Partial<Record<NodeType, NodeType[]>> = 
     NodeType.CLAIM,
     NodeType.AGENT,
     NodeType.THREAD,
+    NodeType.RUN,
+    NodeType.INTERRUPTION,
   ],
 };
 
