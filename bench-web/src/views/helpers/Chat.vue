@@ -714,7 +714,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             :data-node-ck="(message as any).ck"
             :data-node-bench-id="(message as any).benchPtr?.id"
             data-contextmenu-items="chat.message*"
-            @dblclick="isReplyingTo ? stopReplying() : startReplying(message)"
           >
             <!-- Replying to -->
             <div v-if="replyTo != null" class="relative flex max-w-full items-center">
