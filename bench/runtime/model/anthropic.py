@@ -107,7 +107,7 @@ async def build_anthropic_messages(
                     "source": {
                         "type": "base64",
                         "media_type": mime_type,
-                        "data": piece.file.content_b64,
+                        "data": piece.file.read_content_b64(),
                     },
                 }
             )

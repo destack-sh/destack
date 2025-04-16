@@ -508,11 +508,12 @@ class IsProcessable(IsRuntime):
         interruption_ptr: Optional[NodeReference] = None
         interruption_id: Optional[UUID] = None
 
-    def update_from(self, *children: Processable) -> None:
+    def update_status_from(self, *children: Processable) -> None:
         """
-        Update this Node as a container of other Processables.
+        Update this Node as a parent of other Processables.
         """
         if not children:
+            self.status = ProcessStatus.IDLE
             return
 
         # always 'touch' on update
@@ -526,16 +527,13 @@ class IsProcessable(IsRuntime):
             ):
                 self.started_at = child.started_at
 
-        # terminate if marked as should stop and all children are terminated
-        if self.should_stop and all(c.status.is_terminal for c in children):
-            self.terminated_at = now
-
         # status
         if any(c.status.is_bad for c in children):
             self.status = ProcessStatus.FAILING
         elif any(c.status.is_active or c.status.is_interrupted for c in children):
             self.status = ProcessStatus.RUNNING
         elif self.should_stop and all(c.status.is_terminal for c in children):
+            self.terminated_at = now
             self.status = ProcessStatus.COMPLETED
         else:
             self.status = ProcessStatus.IDLE

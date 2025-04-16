@@ -456,10 +456,9 @@ class Runtime:
         span.status = ProcessStatus.RUNNING
         if runner.is_root and (agent := runner.agent) is not None:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
-            # nocheckin: update Agent's status properly?
-            agent.update_from(span)
+            agent.update_status_from(span)
             thread = runner.thread.thread
-            thread.update_from(*thread.agents)
+            thread.update_status_from(*thread.agents)
             self.session.stage(include_runtime=True)
         else:
             self.session.stage()
@@ -535,9 +534,9 @@ class Runtime:
             # commit intermediate session edits
             if runner.is_root and (agent := runner.agent) is not None:
                 assert type(span) is Run, f"unexpected non-Run root: {span!r}"
-                agent.update_from(span)
+                agent.update_status_from(span)
                 thread = runner.thread.thread
-                thread.update_from(*thread.agents)
+                thread.update_status_from(*thread.agents)
                 self.session.stage(include_runtime=True)
             else:
                 self.session.stage(include_runtime=False)

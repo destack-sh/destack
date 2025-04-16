@@ -57,11 +57,11 @@ logger = structlog.get_logger(__name__)
 @enum_(EnumType.MESSAGE_TYPE)
 class MessageType(BuiltinEnum):
     REGULAR = 1, "Regular", "Standard Message", "fas fa-envelope"
-    REPLY = 2, "Reply", "Reply to another Message", "fas fa-reply"
     # FORWARDED = 3, "Forwarded", "Forwarded Message", "fas fa-forward"
     JOIN = 10, "Join", "Join a chat", "fas fa-arrow-right-to-bracket"
     LEAVE = 11, "Leave", "Leave a chat", "fas fa-arrow-left-from-line"
-    THREAD = 20, "Thread", "Nested chat", "fas fa-thread"
+    THREAD = 20, "Thread", "Thread inside a chat", "fas fa-thread"
+    RUN = 30, "Run", None, "fas fa-play"
     # RUN, INTERRUPTION, EDIT, STREAM, ...
     # also see https://discord.com/developers/docs/resources/message
 

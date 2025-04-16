@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.15.5"
+VERSION = "2025.04.16.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -490,7 +490,7 @@ FILE_TABLE = Table(
         Column("favicon_url", PrimitiveType.STRING, is_nullable=True),
         Column("thumbnail_width", PrimitiveType.INT32, is_nullable=True),
         Column("thumbnail_height", PrimitiveType.INT32, is_nullable=True),
-        Column("inline_content", PrimitiveType.BYTES, is_nullable=True),
+        Column("content", PrimitiveType.BYTES, is_nullable=True),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
     ),

@@ -1,3 +1,4 @@
+import base64
 import io
 
 from PIL import Image
@@ -12,6 +13,8 @@ image = Image.new("RGB", (32, 24), color="yellow")
 image_bytes = io.BytesIO()
 image.save(image_bytes, format="PNG")
 IMAGE_BYTES = image_bytes.getvalue()
+IMAGE_B64 = base64.b64encode(IMAGE_BYTES).decode("utf-8")
+IMAGE_B64_URI = f"data:image/png;base64,{IMAGE_B64}"
 
 
 async def _test_upload_and_download_file(
@@ -48,7 +51,7 @@ async def test_markdown_file(simulation: Simulation, runtime: RuntimeLambdaWorkl
 async def test_text_file(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     await _test_upload_and_download_file(
         runtime,
-        "hello world",
+        b"hello world",
         "test.txt",
         FileType.TEXT,
         FileFormat.TXT,
@@ -76,6 +79,16 @@ async def test_extract_file_info_image(simulation: Simulation, runtime: RuntimeL
     assert file_info.width == 32
     assert file_info.height == 24
     assert file_info.aspect_ratio == 32 / 24
+
+
+@simulated_runtime()
+async def test_file_from_data_uri(simulation: Simulation, runtime: RuntimeLambdaWorkload):
+    file = await File.inline(IMAGE_B64_URI)
+    assert file.type == FileType.IMAGE
+    assert file.format == FileFormat.PNG
+    assert file.width == 32
+    assert file.height == 24
+    assert file.aspect_ratio == 32 / 24
 
 
 @simulated_runtime()

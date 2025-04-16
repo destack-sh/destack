@@ -801,19 +801,21 @@ class HostService(GraphServiceBase, HostBase):
                     )
                 bucket = get_drive_bucket(self.bench)
                 file_key = get_file_key(self.bench, file.sha256, file.name)
-                get_url = s3_client.generate_presigned_url(
+                read_url = s3_client.generate_presigned_url(
                     "get_object",
                     Params={"Bucket": bucket, "Key": file_key},
                     ExpiresIn=FILE_DOWNLOAD_URL_EXPIRY,
                 )
+            elif file.source == FileSource.INLINE:
+                read_url = file.read_url()
             elif file.source == FileSource.EXTERNAL:
-                get_url = file.url
+                read_url = file.url
             else:
                 raise GRPCError(
                     GRPCStatus.INVALID_ARGUMENT,
                     f"cannot download file: {file!r}",
                 )
-            handle = DownloadFilesResponse.DownloadHandle(file=file._to_data(), get_url=get_url)
+            handle = DownloadFilesResponse.DownloadHandle(file=file._to_data(), get_url=read_url)
             handles.append(handle)
 
         return DownloadFilesResponse(handles=handles)
