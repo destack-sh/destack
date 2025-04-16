@@ -29,7 +29,7 @@ class IWeb(ABC):
     ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
         """
         Extract the content of the given URLs.
-        ICON: fas fa-file-code
+        ICON: fas fa-globe
         """
         pass
 

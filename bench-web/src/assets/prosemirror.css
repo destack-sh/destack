@@ -1,7 +1,7 @@
 @import url("/node_modules/prosemirror-view/style/prosemirror.css");
 
 /** Basics */
-.pm-text {
+.pm-text:not(.pm-colorless) {
   @apply text-gray-900;
 }
 .pm-text strong {
@@ -260,4 +260,4 @@
   user-select: text; /* let user highlight text */
   -webkit-user-select: text;
   -moz-user-select: text;
-} 
+}
