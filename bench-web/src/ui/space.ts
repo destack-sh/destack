@@ -12,7 +12,6 @@ import {
   unpackSubnode,
 } from "@/language/core/node";
 import { getOrderKey, updateOrder } from "@/language/core/order";
-import { unpackBuiltinObject } from "@/language/core/value";
 import {
   makeEdit,
   makeEditFromSubnode,
@@ -20,7 +19,7 @@ import {
   TransactionOptions,
   type Transaction,
 } from "@/language/core/transaction";
-import { createChannel } from "@/language/source/channel";
+import { unpackBuiltinObject } from "@/language/core/value";
 import { createPage } from "@/language/source/page";
 import { createThread } from "@/language/source/thread";
 import {
@@ -51,7 +50,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { benchConnection, benchGraph, inspectionPtr, pkg, space } from "@/system/space";
-import { CommandContext, Command, declareCommands, getNodesForCommand, NON_DELETABLE_NODE_TYPES } from "@/ui/command";
+import { Command, CommandContext, declareCommands, getNodesForCommand, NON_DELETABLE_NODE_TYPES } from "@/ui/command";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
 import { getNodeIcon, getNodeTitle, toIconMaybe } from "@/ui/icon";
@@ -79,7 +78,6 @@ import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
-import { Action } from "@codemirror/lint";
 import { useActiveElement, useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -346,8 +344,8 @@ export class SpaceCanvas {
     if (baseView != null && !HELPER_VIEW_TYPES.has(baseView.type) && nodePtr != null && !this.isInspected(nodePtr)) {
       this.inspect({ node: nodePtr, view: this.focusedViewPtr.value! });
     }
-    if (this.focusedViewPtr.value != null && focusedView?.focus?.nodesPtr[0]?.id != nodePtr?.id) {
-      this.focusInGraph({ view: this.focusedViewPtr.value, focus: makeSelectionMaybe(nodePtr) });
+    if (this.focusedViewPtr.value != null && focusedView?.focusPtr?.id != nodePtr?.id) {
+      this.focusInGraph({ view: this.focusedViewPtr.value, focusPtr: nodePtr });
     }
   }
 
@@ -392,7 +390,7 @@ export class SpaceCanvas {
     }
 
     // open inspector
-    this.focusInGraph({ focus: makeSelection([inspect.node]), view: view });
+    this.focusInGraph({ focusPtr: nodePtr, view: view });
   }
 
   /**
@@ -419,14 +417,12 @@ export class SpaceCanvas {
 
       // recover view & inspection from views' 'focus' down from focused view
       let viewData = this.getViewData(node);
-      while (!HELPER_VIEW_TYPES.has(viewData?.type!) && (viewData?.focus?.nodesPtr?.length ?? 0) > 0) {
-        if (viewData!.focus!.nodesPtr.some((v) => v.nodeType == NodeType.VIEW)) {
-          const viewPtr = viewData!.focus!.nodesPtr.find((v) => v.nodeType == NodeType.VIEW);
-          viewData = viewPtr != null ? this.getViewData(viewPtr) : null;
+      while (!HELPER_VIEW_TYPES.has(viewData?.type!) && viewData?.focusPtr?.id != null) {
+        if (viewData?.focusPtr?.nodeType == NodeType.VIEW) {
+          viewData = this.getViewData(viewData.focusPtr);
         } else if (!focus.ignoreInspection) {
           // auto-inspect what was previously focused inside this view
-          const node = viewData!.focus!.nodesPtr[0];
-          this.inspect({ node, view: viewData! });
+          this.inspect({ node: viewData!.focusPtr, view: viewData! });
           break;
         }
       }
@@ -446,7 +442,7 @@ export class SpaceCanvas {
       // focus as a general node in the given view
       const node = focus.node as NodeReferenceData | AnyNodeData;
       // focus in graph & then in component
-      this.focusInGraph({ view: focus.view, focus: makeSelection([node]) });
+      this.focusInGraph({ view: focus.view, focusPtr: toNodeRef(node) });
       if (!focus.ignoreInspection) {
         this.inspect({ node, view: focus.view });
       }
@@ -458,13 +454,15 @@ export class SpaceCanvas {
   }
 
   /** Focuses the given view absolutely in the graph. */
-  focusInGraph(focus: { view: SomeView; focus?: SelectionData; parent?: SomeView; resetDown?: boolean }) {
+  focusInGraph(focus: { view: SomeView; focusPtr?: NodeReferenceData | null; parent?: SomeView; resetDown?: boolean }) {
     const tx = this.tx();
 
     // focus the given selection within the view
-    if (focus.focus != null) {
+    if (focus.focusPtr != null) {
       const view = this.getViewData(focus.view)!;
-      if (!deepValueEquals(view.focus, focus.focus)) tx.update(view, { focus: focus.focus }, { debounce: "long" });
+      if (!deepValueEquals(view.focusPtr, focus.focusPtr)) {
+        tx.update(view, { focusPtr: focus.focusPtr }, { debounce: "long" });
+      }
     }
 
     // focus every 'child' in its 'parent' up to space root
@@ -473,10 +471,10 @@ export class SpaceCanvas {
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
     const updated = [];
     while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
-      const childFocus = makeSelection([child]);
-      if (!deepValueEquals(parent.focus, childFocus)) {
-        tx.update(parent, { focus: childFocus }, { debounce: "long" });
-        updated.push(parent, { focus: childFocus });
+      const childFocus = toNodeRef(child);
+      if (!deepValueEquals(parent.focusPtr, childFocus)) {
+        tx.update(parent, { focusPtr: childFocus }, { debounce: "long" });
+        updated.push(parent, { focusPtr: childFocus });
       }
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
@@ -486,8 +484,8 @@ export class SpaceCanvas {
     if (focus.resetDown) {
       const descendants = this.graph.getDescendants(child, { metatypes: [NodeType.VIEW] });
       descendants
-        .filter((v) => v.focus != null)
-        .forEach((v) => tx.update(v, { focus: undefined }, { debounce: "long" }));
+        .filter((v) => v.focusPtr != null)
+        .forEach((v) => tx.update(v, { focusPtr: undefined }, { debounce: "long" }));
     }
   }
 
@@ -515,8 +513,8 @@ export class SpaceCanvas {
 
     // if no anchor is given, try to use existing focus state
     if (anchor == null) {
-      if (viewData?.focus?.nodesPtr?.some((n) => n.nodeType == NodeType.VIEW)) {
-        const child = this.getViewData(viewData.focus.nodesPtr.find((n) => n.nodeType == NodeType.VIEW)!);
+      if (viewData?.focusPtr?.nodeType == NodeType.VIEW) {
+        const child = this.getViewData(viewData.focusPtr);
         if (child != null) {
           // if we have a focus state we must use it, even if it didn't actually focus in the component
           //  (so we 'pretend' there was focus in the component by calling onComponentFocused directly)
@@ -524,7 +522,7 @@ export class SpaceCanvas {
           return true;
         }
       } else {
-        anchor = viewData?.focus?.nodesPtr?.[0];
+        anchor = viewData?.focusPtr;
       }
     }
 
@@ -561,8 +559,8 @@ export class SpaceCanvas {
   /** Restores component focus to the currently absolutely focused element (if possible). */
   restoreComponentFocus(): boolean {
     if (this.space.value == null) throw new Error("no current space");
-    if ((this.space.value?.focus?.nodesPtr?.length ?? 0) > 0) {
-      const view = this.getViewData(this.space.value!.focus!.nodesPtr[0]);
+    if (this.space.value?.focusPtr != null) {
+      const view = this.getViewData(this.space.value!.focusPtr!);
       if (view != null) {
         log.trace("canvas.restoreComponentFocus", view);
         return this.focusInComponent(view);
@@ -800,7 +798,7 @@ export class SpaceCanvas {
       descendants.push(node);
       const children = graph.getChildren(node, NodeType.VIEW);
       if (node.type == ViewType.HISTORY) {
-        const focusedId = node.focus?.nodesPtr[0].id;
+        const focusedId = node.focusPtr?.id;
         if (focusedId != null) {
           const focusedView = children.find((v) => v.id == focusedId);
           if (focusedView != null) {
@@ -864,7 +862,7 @@ export class SpaceCanvas {
 
       // prune history from current focused tab
       if (isNode(parent, NodeType.VIEW) && parent.type == ViewType.HISTORY) {
-        const focusedId = parent.focus?.nodesPtr[0].id;
+        const focusedId = parent.focusPtr?.id;
         const focusedTabIdx = siblings.findIndex((tab) => tab.id == focusedId) ?? -1;
         for (let i = focusedTabIdx + 1; i < siblings.length; i++) {
           tx.delete(siblings[i]);
@@ -900,7 +898,12 @@ export class SpaceCanvas {
       if (view.subnode != null && view.subnodePacked == null) {
         view.subnodePacked = packSubnode(NodeType.VIEW, view.type, view.subnode);
       }
-      for (const property of [ViewProperty.title, ViewProperty.icon, ViewProperty.focus, ViewProperty.subnodePacked]) {
+      for (const property of [
+        ViewProperty.title,
+        ViewProperty.icon,
+        ViewProperty.focusPtr,
+        ViewProperty.subnodePacked,
+      ]) {
         const propertyName = ViewProperty[property];
         if (!deepValueEquals((existing as any)[propertyName], (view as any)[propertyName])) {
           tx.update(existing, { [propertyName]: (view as any)[propertyName] }, { debounce: "tick" });
@@ -951,7 +954,7 @@ export class SpaceCanvas {
         {
           type: ViewType.FLOW,
           nodePtr: toNodeRef(containingFlow),
-          focus: makeSelection([node]),
+          focusPtr: toNodeRef(node),
           ...options?.props,
         },
         { ifPresent: "upsertAndFocus", ...options },
@@ -988,7 +991,7 @@ export class SpaceCanvas {
           {
             type: ViewType.DATABASE,
             nodePtr: toNodeRef(database),
-            focus: makeSelection([node]),
+            focusPtr: toNodeRef(node),
             ...options?.props,
           },
           { ifPresent: "upsertAndFocus", ...options },
@@ -1046,7 +1049,7 @@ export class SpaceCanvas {
         .find((p) => true);
       if (containingPage) {
         const view = this.addView(
-          { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focus: makeSelection(nodePtr), ...options?.props },
+          { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focusPtr: toNodeRef(nodePtr), ...options?.props },
           { ifPresent: "upsertAndFocus", ...options },
         );
         this.inspect({ node: nodePtr, view });
@@ -1269,7 +1272,7 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
   for (const root of roots) {
     tx.delete(root);
   }
-  tx.update(space, { focus: undefined, inspectionPtr: undefined }, { debounce: "long" });
+  tx.update(space, { focusPtr: undefined, inspectionPtr: undefined }, { debounce: "long" });
 }
 
 type ViewLayoutIn = {

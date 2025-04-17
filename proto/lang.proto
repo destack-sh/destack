@@ -3654,8 +3654,8 @@ message ViewData {
   optional Alignment alignment = 65;
   optional TransformData transform = 66;
   optional RectangleConstraintData constraint = 67;
-  optional SelectionData selection = 70;
-  optional SelectionData focus = 71;
+  optional NodeReferenceData focus_ptr = 70;
+  optional SelectionData selection = 71;
   bool is_hidden = 80;
   bool is_disabled = 81;
   bool is_input = 82;

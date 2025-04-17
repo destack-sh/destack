@@ -7136,13 +7136,13 @@ export interface ViewData {
      */
     constraint?: RectangleConstraintData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 70;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData focus_ptr = 70;
+     */
+    focusPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 71;
      */
     selection?: SelectionData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData focus = 71;
-     */
-    focus?: SelectionData;
     /**
      * @generated from protobuf field: bool is_hidden = 80;
      */
@@ -29260,8 +29260,8 @@ class ViewData$Type extends MessageType$<ViewData> {
             { no: 65, name: "alignment", kind: "enum", opt: true, T: () => ["symbolx.bench.Alignment", Alignment, "ALIGNMENT_"] },
             { no: 66, name: "transform", kind: "message", T: () => TransformData },
             { no: 67, name: "constraint", kind: "message", T: () => RectangleConstraintData },
-            { no: 70, name: "selection", kind: "message", T: () => SelectionData },
-            { no: 71, name: "focus", kind: "message", T: () => SelectionData },
+            { no: 70, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 71, name: "selection", kind: "message", T: () => SelectionData },
             { no: 80, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 82, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -29390,11 +29390,11 @@ class ViewData$Type extends MessageType$<ViewData> {
                 case /* optional symbolx.bench.RectangleConstraintData constraint */ 67:
                     message.constraint = RectangleConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
                     break;
-                case /* optional symbolx.bench.SelectionData selection */ 70:
-                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
+                case /* optional symbolx.bench.NodeReferenceData focus_ptr */ 70:
+                    message.focusPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.focusPtr);
                     break;
-                case /* optional symbolx.bench.SelectionData focus */ 71:
-                    message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
+                case /* optional symbolx.bench.SelectionData selection */ 71:
+                    message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
                     break;
                 case /* bool is_hidden */ 80:
                     message.isHidden = reader.bool();
@@ -29525,12 +29525,12 @@ class ViewData$Type extends MessageType$<ViewData> {
         /* optional symbolx.bench.RectangleConstraintData constraint = 67; */
         if (message.constraint)
             RectangleConstraintData.internalBinaryWrite(message.constraint, writer.tag(67, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SelectionData selection = 70; */
+        /* optional symbolx.bench.NodeReferenceData focus_ptr = 70; */
+        if (message.focusPtr)
+            NodeReferenceData.internalBinaryWrite(message.focusPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SelectionData selection = 71; */
         if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SelectionData focus = 71; */
-        if (message.focus)
-            SelectionData.internalBinaryWrite(message.focus, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+            SelectionData.internalBinaryWrite(message.selection, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
         /* bool is_hidden = 80; */
         if (message.isHidden !== false)
             writer.tag(80, WireType.Varint).bool(message.isHidden);
@@ -33183,8 +33183,8 @@ export enum ViewProperty {
   alignment = 65,
   transform = 66,
   constraint = 67,
-  selection = 70,
-  focus = 71,
+  focusPtr = 70,
+  selection = 71,
   isHidden = 80,
   isDisabled = 81,
   isInput = 82,
@@ -34252,7 +34252,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34289,7 +34289,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35428,8 +35428,8 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.alignment]: { id: 65, name: 'alignment', component: ObjectType.VIEW, enumType: EnumType.ALIGNMENT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.transform]: { id: 66, name: 'transform', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TRANSFORM },
   [ViewProperty.constraint]: { id: 67, name: 'constraint', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RECTANGLE_CONSTRAINT },
-  [ViewProperty.selection]: { id: 70, name: 'selection', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [ViewProperty.focus]: { id: 71, name: 'focus', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [ViewProperty.focusPtr]: { id: 70, name: 'focus_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.selection]: { id: 71, name: 'selection', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.isHidden]: { id: 80, name: 'is_hidden', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },

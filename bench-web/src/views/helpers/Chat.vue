@@ -71,7 +71,7 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "selection" | "alignment" | "subnodePacked">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "selection" | "alignment" | "subnodePacked">
   >
 >();
 const emit = defineEmits<ViewEmits>();
@@ -574,7 +574,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 <template>
   <div ref="containerRef" class="relative">
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="benchGraph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus-ptr="focusPtr" :graph="benchGraph" />
 
     <!-- Drop overlay -->
     <div

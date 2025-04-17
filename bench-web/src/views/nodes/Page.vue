@@ -54,7 +54,7 @@ const props = defineProps<
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
-  } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focus" | "isMinimal" | "selection">
+  } & Pick<ViewData, "name" | "icon" | "nodePtr" | "focusPtr" | "isMinimal" | "selection">
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -285,7 +285,7 @@ useEventListener(contentRef, "paste", (event) => {
   if (event.clipboardData == null) return;
   const files = Array.from(event.clipboardData.files);
   if (files.length == 0) return;
-  const focusedBlock = props.focus != null ? graph.get(props.focus.nodesPtr[0]) : null;
+  const focusedBlock = props.focusPtr != null ? graph.get(props.focusPtr) : null;
   if (isNode(focusedBlock, NodeType.BLOCK)) {
     addFiles(files, "before", focusedBlock);
   } else {
@@ -369,7 +369,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
 <template>
   <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">
     <!-- Root header -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph">
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus-ptr="focusPtr" :graph="graph">
       <template #meta>
         <button
           class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"

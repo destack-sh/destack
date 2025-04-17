@@ -17,7 +17,7 @@ const props = defineProps<
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
-  } & Pick<ViewData, "type" | "name" | "title" | "icon" | "orientation" | "focus">
+  } & Pick<ViewData, "type" | "name" | "title" | "icon" | "orientation" | "focusPtr">
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -27,8 +27,8 @@ const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors:
 
 const focusedSplitIdx: Ref<number | null> = computed(() => {
   if (splits.value.length == 0) return null;
-  if (props.focus?.nodesPtr.length ?? 0 > 0) {
-    const focusedId = props.focus!.nodesPtr[0].id;
+  if (props.focusPtr != null) {
+    const focusedId = props.focusPtr.id;
     const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedId);
     return focusedSplitIdx >= 0 ? focusedSplitIdx : 0;
   } else {

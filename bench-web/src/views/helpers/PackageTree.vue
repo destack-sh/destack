@@ -46,7 +46,7 @@ const NODE_TYPES = INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes
 const props = defineProps<
   {
     expandedNodesPtr?: Array<NodeReferenceData>;
-  } & Pick<ViewData, "icon" | "nodePtr" | "size" | "focus" | "selection" | "subnodePacked">
+  } & Pick<ViewData, "icon" | "nodePtr" | "size" | "focusPtr" | "selection" | "subnodePacked">
 >();
 const emit = defineEmits<{ "update:expandedNodesPtr": [Array<NodeReferenceData>] }>();
 
@@ -91,13 +91,13 @@ const { items: expandedItems } = walkDescendantsRef({
   isExpanded,
   includes,
   includesChildren,
-  watchSource: () => [props.focus, props.expandedNodesPtr],
+  watchSource: () => [props.focusPtr, props.expandedNodesPtr],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
 const focusedItem = computed(() => {
-  if (props.focus?.nodesPtr.length ?? 0 > 0) {
-    const focusedId = props.focus!.nodesPtr[0].id;
+  if (props.focusPtr != null) {
+    const focusedId = props.focusPtr.id;
     return expandedItems.value.find((item) => item.node.id == focusedId);
   } else {
     return null;

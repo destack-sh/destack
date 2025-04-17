@@ -17,7 +17,7 @@ const props = defineProps<
     id: string;
     isRoot?: boolean;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
-  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "alignment">>
+  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "alignment">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -54,7 +54,7 @@ defineExpose<ViewExpose>({ self, id, focus });
   <div>
     <!-- Root header -->
     <!-- NOTE :Incomplete: call/videochat with Thread? -->
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="$props.focus" :graph="graph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus-ptr="focusPtr" :graph="graph" />
 
     <!-- Chat -->
     <Chat
@@ -62,7 +62,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       ref="chatRef"
       :alignment="alignment ?? Alignment.END"
       :node-ptr="nodePtr"
-      :focus="props.focus"
+      :focus-ptr="focusPtr"
       :graph="benchGraph"
       :size="{
         width: size?.width,

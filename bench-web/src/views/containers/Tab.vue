@@ -23,7 +23,7 @@ const props = defineProps<
     self: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
-  } & Pick<ViewData, "focus">
+  } & Pick<ViewData, "focusPtr">
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -45,8 +45,8 @@ const tabsNames = computed(() => {
 const focusedTabIdx: Ref<number | null> = computed(() => {
   if (tabs.value.length == 0) {
     return null;
-  } else if ((props.focus?.nodesPtr.length ?? 0) > 0) {
-    const focusedId = props.focus!.nodesPtr[0].id;
+  } else if (props.focusPtr != null) {
+    const focusedId = props.focusPtr.id;
     const focusedTabIdx = tabs.value.findIndex((tab) => tab.id == focusedId);
     return focusedTabIdx >= 0 ? focusedTabIdx : 0;
   } else {
@@ -183,7 +183,7 @@ const commands: Partial<CommandMapKit<"view">> = {
 };
 
 canvas.registerView(self, id);
-defineExpose<ViewExpose>({ self, commands});
+defineExpose<ViewExpose>({ self, commands });
 </script>
 <template>
   <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
