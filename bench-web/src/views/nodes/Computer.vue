@@ -13,7 +13,7 @@ import { toCamelName } from "@/language/core/const";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; isRoot?: boolean } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focus" | "isMinimal">
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "isMinimal">
   >
 >();
 const emit = defineEmits<ViewEmits>();
@@ -38,7 +38,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <div class="flex h-full w-full flex-col bg-white text-gray-900">
-    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus="props.focus" :graph="graph" />
+    <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus-ptr="focusPtr" :graph="graph" />
     <div ref="containerRef" class="relative flex w-full flex-1 items-center justify-center p-[32px]">
       <!-- VNC view -->
       <div

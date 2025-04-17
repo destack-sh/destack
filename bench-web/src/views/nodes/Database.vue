@@ -95,7 +95,7 @@ const props = defineProps<
     paddingY?: number;
     containerGutterWidth?: number;
     isRoot?: boolean;
-  } & Partial<Pick<ViewData, "focus" | "icon" | "nodePtr" | "isInput" | "isInline" | "isMinimal">>
+  } & Partial<Pick<ViewData, "focusPtr" | "icon" | "nodePtr" | "isInput" | "isInline" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -598,7 +598,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       :is-root="isRoot"
       :is-inline="isInline"
       :is-minimal="isMinimal"
-      :focus="props.focus"
+      :focus-ptr="focusPtr"
       :width="rowWidth"
       @navigate="(direction: NavigationDirection) => navigateFromHeader(direction)"
     >

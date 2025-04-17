@@ -55,7 +55,7 @@ const props = defineProps<
     id: string;
     preparedConnection?: PreparedNodeConnection;
     isRoot?: boolean;
-  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focus" | "transform" | "isInline" | "isMinimal">>
+  } & Partial<Pick<ViewData, "icon" | "nodePtr" | "focusPtr" | "transform" | "isInline" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -299,7 +299,7 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
       :is-root="isRoot"
       :is-inline="isInline"
       :is-minimal="isMinimal"
-      :focus="props.focus"
+      :focus-ptr="focusPtr"
       :width="containerSize.width.value - GUTTER_WIDTH * 2"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     >

@@ -92,7 +92,7 @@ watch(
       class=""
       :type="ViewType.WINDOW"
       :self="toNodeRef(window)"
-      :focus="window.focus"
+      :focus-ptr="window.focusPtr"
       :name="window.name"
       :size="mainBox"
       :orientation="Orientation.HORIZONTAL"
