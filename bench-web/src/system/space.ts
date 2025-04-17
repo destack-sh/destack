@@ -74,6 +74,8 @@ export const ownedSpacesInPkg = computed(() =>
 
 // selection
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
+export const containerPtr = computed(() => space.value?.containerPtr);
+export const pagePtr = computed(() => space.value?.pagePtr);
 
 // spaceGraph should point to current space
 watch(

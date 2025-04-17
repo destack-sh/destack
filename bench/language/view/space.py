@@ -47,22 +47,23 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
-    focus: Optional[Selection] = p_regular(
-        70,
-        default=None,
-        require=False,
-        struct=StructType.SELECTION,
-        description="The current main focus.",
-    )
     selection: Optional[Selection] = p_regular(
-        71,
+        70,
         default=None,
         require=False,
         struct=StructType.SELECTION,
         description="The current selection of the Space.",
     )
+    focus: Optional[Node] = p_regular(
+        71,
+        default=None,
+        require=False,
+        array=False,
+        references="any",
+        description="The current main focus.",
+    )
     inspection: Optional[Node] = p_regular(
-        73,
+        72,
         default=None,
         require=False,
         array=False,
@@ -70,7 +71,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         description="The current inspected Node.",
     )
     container: Optional[Node] = p_regular(
-        75,
+        73,
         default=None,
         require=False,
         array=False,
@@ -78,7 +79,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         description="The current 'root' container Node (usually a parent of the inspected Node).",
     )
     page: Optional["Page"] = p_regular(
-        76,
+        74,
         default=None,
         require=False,
         array=False,
@@ -86,7 +87,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         description="The current Page.",
     )
     thread: Optional["Thread"] = p_regular(
-        77,
+        75,
         default=None,
         require=False,
         array=False,
@@ -94,7 +95,7 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
         description="The current main Thread.",
     )
     run: Optional["Run"] = p_regular(
-        78,
+        76,
         default=None,
         require=False,
         array=False,
