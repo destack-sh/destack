@@ -160,7 +160,7 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
     async def _do_provision(self, resource: Scaler):
         self._reconcile_event.set()
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.AVAILABLE  # Scalar is automatically considered up?
+            resource.update_status(ResourceStatus.AVAILABLE)
 
     @override
     async def _do_update(self, resource: Scaler):
@@ -170,4 +170,4 @@ class ScalerProvisioner[WT: Resource](Provisioner[Scaler, Scaler | WT]):
     async def _do_decommission(self, resource: Scaler):
         self._reconcile_event.set()
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.OFFLINE
+            resource.update_status(ResourceStatus.OFFLINE)

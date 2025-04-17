@@ -68,7 +68,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 if resource.target_status.is_extant:
                     if resource.status.is_extant:
                         await self.update(resource)
-                    else:
+                    elif resource.should_retry:
                         await self.provision(resource)
                 elif resource.status.is_extant:
                     await self.decommission(resource)
@@ -103,7 +103,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
                 if resource.target_status.is_extant:
                     if resource.status.is_extant:
                         await self.update(resource)
-                    else:
+                    elif resource.should_retry:
                         await self.provision(resource)
                 elif resource.status.is_extant:
                     await self.decommission(resource)
@@ -139,7 +139,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             )
             self.host.on_error(e)
             async with self.host.session(commit=True):
-                resource.status = ResourceStatus.FAILED
+                resource.update_status(ResourceStatus.RETRYING)
             raise
 
     @abc.abstractmethod
@@ -201,7 +201,7 @@ class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
             )
             self.host.on_error(e)
             async with self.host.session(commit=True):
-                resource.status = ResourceStatus.FAILED
+                resource.update_status(ResourceStatus.FAILED)
             raise
 
     @abc.abstractmethod

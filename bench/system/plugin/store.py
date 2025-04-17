@@ -67,7 +67,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         async with self.host.session(commit=True):
             resource.external_id = neon_project.project_id
             resource.sql_url = neon_project.sql_url
-            resource.status = ResourceStatus.AVAILABLE
+            resource.update_status(ResourceStatus.AVAILABLE)
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -76,7 +76,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.OFFLINE
+            resource.update_status(ResourceStatus.OFFLINE)
 
 
 class LocalhostStoreProvisioner(StoreProvisioner):
@@ -98,7 +98,7 @@ class LocalhostStoreProvisioner(StoreProvisioner):
             sql_url = self.host.global_store.sql_url
             assert sql_url, f"{self.host.global_store!r} has no SQL URL"
             resource.sql_url = f"{sql_url.rsplit('/', 1)[0]}/{resource.external_name}"
-            resource.status = ResourceStatus.AVAILABLE
+            resource.update_status(ResourceStatus.AVAILABLE)
         # migrate it immediately
         await self._do_migrate(resource)
 
