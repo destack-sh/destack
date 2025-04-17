@@ -261,7 +261,7 @@ class HostService(GraphServiceBase, HostBase):
                         client_id, metadata.client_access_token
                     )
             if isinstance(client.parent, User):
-                if client.parent.main_bench_id == self._bench.id:
+                if client.parent.bench_id == self._bench.id:
                     owned = [client.parent, self._bench]  # type: ignore
                 else:
                     owned = [client.parent]  # type: ignore
@@ -337,7 +337,7 @@ class HostService(GraphServiceBase, HostBase):
         from bench.system.plugin import StoreProvisioner
 
         assert bench.status == BenchStatus.RESERVED, f"{bench!r} has unexpected status"
-        assert bench.main_store is not None, f"{bench!r} has no main store"
+        assert bench.store is not None, f"{bench!r} has no main store"
 
         # use temporary session in HostService during setup
         session.parent = bench
@@ -349,7 +349,7 @@ class HostService(GraphServiceBase, HostBase):
             (p for p in provisioners if isinstance(p, StoreProvisioner)), None
         )
         assert store_provisioner is not None, f"{bench!r} has no store provisioner"
-        await store_provisioner.provision(bench.main_store)
+        await store_provisioner.provision(bench.store)
         for provisioner in provisioners:
             provisioner.close()
         await asyncio.gather(*(provisioner.wait_closed() for provisioner in provisioners))
@@ -378,14 +378,14 @@ class HostService(GraphServiceBase, HostBase):
         async with self.global_session() as session:
             # load our bench
             self._bench = await BENCH_QUERY.get(self.bench_ptr, mode="both")
-            assert self._bench.main_store is not None, f"{self._bench!r} has no main store"
-            assert self._bench.main_package is not None, f"{self._bench!r} has no main package"
-            self._main_package = self._bench.main_package
+            assert self._bench.store is not None, f"{self._bench!r} has no main store"
+            assert self._bench.package is not None, f"{self._bench!r} has no main package"
+            self._main_package = self._bench.package
             session.parent = self._bench  # patch in bench for pg context
             session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
             session._engines += (
                 local_pg_engine_from_store(
-                    name=f"pg-local-{self._bench.slug}", store=self._bench.main_store
+                    name=f"pg-local-{self._bench.slug}", store=self._bench.store
                 ),
             )
 
@@ -408,7 +408,7 @@ class HostService(GraphServiceBase, HostBase):
             context=database_plugin.context,
         )
         self._regional_pg_engine = PostgresEngine(
-            name=f"pg-regional-{self._bench.main_store.region.name.lower()}",
+            name=f"pg-regional-{self._bench.store.region.name.lower()}",
             store=self._regional_store,
             bench=self._bench,
             scope=self._scope,
@@ -417,7 +417,7 @@ class HostService(GraphServiceBase, HostBase):
         )
         self._local_pg_engine = PostgresEngine(
             name=f"pg-local-{self._bench.slug}",
-            store=self._bench.main_store,
+            store=self._bench.store,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,

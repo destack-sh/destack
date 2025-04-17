@@ -72,7 +72,7 @@ const identifierKind = computed(() => {
 const iconClass = computed(() => [
   props.size == "sm" ? "text-sm w-5 mr-1" : "",
   props.size == "base" ? "text-base w-5 mr-2" : "",
-  props.size == "title" ? "text-4xl w-8 mr-3.5" : "",
+  props.size == "title" ? "text-5xl w-fit mr-3.5" : "",
   props.size == "inherit" ? "max-w-[1em] mr-[0.3em]" : "",
 ]);
 const identifierClass = computed(() => [
@@ -96,7 +96,7 @@ const identifierWidthMax = computed(() => {
 const verticalClass = computed(() => [
   props.size == "sm" ? "gap-y-0.5" : "",
   props.size == "base" ? "gap-y-1" : "",
-  props.size == "title" ? "gap-y-2" : "",
+  props.size == "title" ? "gap-y-3" : "",
 ]);
 
 function getTx() {

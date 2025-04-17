@@ -23,7 +23,7 @@ from bench.language.source.block import Block
 from bench.pb2 import BlockData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Channel, Package, Thread
+    from bench.language import Block, Package, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,19 +37,18 @@ class Page(
     IsClaimable,
     InlineNode[BlockData],
 ):
-    """A Page of Blocks."""
+    """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""
+
+    # NOTE: :Architecture: maybe some InlineNodes should have their own Page? or is that confusing?
 
     # meta
     parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
-    main_thread: Optional["Thread"] = p_regular(
+    thread: Optional["Thread"] = p_regular(
         38, default=None, require=False, array=False, references=NodeType.THREAD
     )
 
-    # identity, roles, ...?
-
     pages: LocalNodeList["Page"] = p_node_children(NodeType.PAGE)
     blocks: LocalNodeList["Block"] = p_node_children(NodeType.BLOCK)
-    channels: LocalNodeList["Channel"] = p_node_children(NodeType.CHANNEL)
 
     def __content_str__(self):
         return ""

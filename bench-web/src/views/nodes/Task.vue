@@ -9,6 +9,7 @@ import {
   NodeType,
   PrimitiveType,
   TaskData,
+  TaskType,
   TextLineData,
   TypeKind,
   ViewData,
@@ -41,7 +42,7 @@ const state = canvas.registerView(self, id);
 const taskPtr = toRef(props, "nodePtr");
 const { graph, connection } = props.preparedConnection ?? useAutoConnection(taskPtr);
 const task = graph.getRef(taskPtr, { ignoreAncestors: true }) as Ref<TaskData | null>;
-const isManual = computed(() => task.value != null && task.value.isManual);
+const isManual = computed(() => task.value != null && task.value.type == TaskType.MANUAL);
 const isActive = computed(() => task.value != null && isTaskActive(task.value));
 const isTerminal = computed(() => task.value != null && isTaskTerminal(task.value));
 const hasMeta = computed(() => task.value != null && (task.value.dueAt != null || task.value.ownedByPtr != null));

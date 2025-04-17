@@ -65,7 +65,7 @@ async def test_builtin_package(simulation: Simulation, runtime: RuntimeLambdaWor
     BuiltinPackageLoadedGraph = BuiltinPackageLoaded._graph.copy()
     loaded_bench_bench = BuiltinPackageLoaded.parent
     assert loaded_bench_bench is not None
-    if (main_store := loaded_bench_bench.main_store) is not None:
+    if (main_store := loaded_bench_bench.store) is not None:
         BuiltinPackageLoadedGraph.remove(main_store)
     BuiltinPackageLoadedGraph.remove(loaded_bench_bench, recursive=False)
     for node in BuiltinPackageLoaded._graph.nodes:

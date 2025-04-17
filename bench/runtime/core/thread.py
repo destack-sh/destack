@@ -87,7 +87,7 @@ class ThreadHandle:
     @property
     def main_plan(self) -> Plan | None:
         """The Plan (if any)."""
-        return self.thread.main_plan
+        return self.thread.plan
 
     @property
     def messages(self) -> list[Message]:

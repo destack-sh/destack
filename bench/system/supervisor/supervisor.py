@@ -237,19 +237,19 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._create(client)
             session.stage()
-            user.main_handle = user.handles.create(slug=user.slug)
+            user.handle = user.handles.create(slug=user.slug)
             await session.commit()
 
             # immediately create User's main Bench
             if request.activate:
                 bench = await create_default_bench(
-                    main_handle=user.main_handle,
+                    main_handle=user.handle,
                     owned_by=user,
                     region=user.region,
                     session=session,
                     options=self._create_bench_options,
                 )
-                user.main_bench = bench
+                user.bench = bench
                 user.status = UserStatus.ACTIVATED
                 await session.commit()
 
@@ -437,9 +437,9 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
             if owner.slug != request.slug:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug mismatch")
-            assert owner.main_handle is not None, f"{owner!r} has no main handle"
+            assert owner.handle is not None, f"{owner!r} has no main handle"
             bench = await create_default_bench(
-                main_handle=owner.main_handle,
+                main_handle=owner.handle,
                 owned_by=owner,
                 region=region,
                 session=session,
@@ -448,10 +448,10 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
 
             # 'activate' owner
             if isinstance(owner, User) and owner.status != UserStatus.ACTIVATED:
-                owner.main_bench = bench
+                owner.bench = bench
                 owner.status = UserStatus.ACTIVATED
             elif isinstance(owner, Organization) and owner.status != OrganizationStatus.ACTIVATED:
-                owner.main_bench = bench
+                owner.bench = bench
                 owner.status = OrganizationStatus.ACTIVATED
             else:
                 raise RuntimeError(f"unexpected owner/owner status: {owner!r}")

@@ -241,7 +241,7 @@ provideCommands<"user">({
       return isAuthenticated.value;
     },
     command: async () => {
-      if (bench.value?.id == user.value!.mainBenchPtr?.id) {
+      if (bench.value?.id == user.value!.benchPtr?.id) {
         toaster.success({
           icon: "fas fa-home",
           title: "Already home",
@@ -249,7 +249,7 @@ provideCommands<"user">({
           override: "user.navigate.goToHome",
         });
       } else {
-        await goToBench({ bench: user.value!.mainBenchPtr! as TypedNodeReferenceData<NodeType.BENCH> });
+        await goToBench({ bench: user.value!.benchPtr! as TypedNodeReferenceData<NodeType.BENCH> });
       }
     },
   },

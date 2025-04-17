@@ -48,13 +48,18 @@ class BenchStatus(BuiltinEnum):
 @node_(NodeType.BENCH, roots=())
 class Bench(IsOwnable, BenchNode[BenchData]):
     """
-    A Bench is an AI-native operating system for higher order software.
+    A Bench is like a workspace in an OS for higher order software.
     """
 
     parent: None = p_node_parent(4)
-    main_handle: Optional["Handle"] = p_system(
-        31, require=False, array=False, references=NodeType.HANDLE, fk=True
-    )  # not actually optional but Handle.parent = Bench
+    handle: Optional["Handle"] = p_system(
+        31,
+        require=False,
+        array=False,
+        references=NodeType.HANDLE,
+        fk=True,
+        same_bench=True,
+    )
     handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)
     slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
@@ -69,10 +74,10 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     status: BenchStatus = p_system(40, default=BenchStatus.RESERVED)
 
     # content
-    main_store: Optional["Store"] = p_system(
+    store: Optional["Store"] = p_system(
         50, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
     )
-    main_package: Optional["Package"] = p_regular(
+    package: Optional["Package"] = p_regular(
         51,
         require=False,
         array=False,
@@ -81,10 +86,10 @@ class Bench(IsOwnable, BenchNode[BenchData]):
         same_bench=True,
     )
     if TYPE_CHECKING:
-        main_store_id: Optional[UUID] = None
-        main_store_ptr: Optional[NodeReference] = None
-        main_package_id: Optional[UUID] = None
-        main_package_ptr: Optional[NodeReference] = None
+        store_ptr: Optional[NodeReference] = None
+        store_id: Optional[UUID] = None
+        package_ptr: Optional[NodeReference] = None
+        package_id: Optional[UUID] = None
 
     packages: LocalNodeList["Package"] = p_node_children(NodeType.PACKAGE)
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)

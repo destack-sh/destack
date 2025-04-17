@@ -98,8 +98,8 @@ async def make(
                     global_store, (global_pg_engine, regional_pg_engine), REAL_ORACLE
                 ):
                     bench_node = await BENCH_QUERY.get(slug=bench)
-                    assert bench_node.main_store, f"{bench!r} has no main store"
-                    async with pg_connection(bench_node.main_store) as conn:
+                    assert bench_node.store, f"{bench!r} has no main store"
+                    async with pg_connection(bench_node.store) as conn:
                         old_local_schema = await introspect_sql_schema(
                             conn.cursor,
                             include_table_prefixes=(BENCH_TABLE_PREFIX,),
@@ -219,14 +219,14 @@ async def apply(
         ):
             if bench != "*":
                 bench_node = await BENCH_QUERY.get(slug=bench)
-                assert bench_node.main_package, f"{bench!r} has no main package"
-                stores = list(bench_node.main_package.stores)
+                assert bench_node.package, f"{bench!r} has no main package"
+                stores = list(bench_node.package.stores)
             else:
                 benches = await BENCH_QUERY.tolist()
                 stores: list[Store] = []
                 for bench_node in benches:
-                    assert bench_node.main_package, f"{bench_node!r} has no main package"
-                    stores.extend(bench_node.main_package.stores)
+                    assert bench_node.package, f"{bench_node!r} has no main package"
+                    stores.extend(bench_node.package.stores)
     elif area == NodeArea.REGIONAL:
         stores = [regional_store]
     elif area == NodeArea.GLOBAL:

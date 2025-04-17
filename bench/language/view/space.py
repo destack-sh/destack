@@ -24,13 +24,7 @@ from bench.pb2 import SpaceData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Channel,
-        Package,
-        Run,
-        Text,
-        View,
-    )
+    from bench.language import Package, Page, Run, Text, Thread, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,7 +38,7 @@ class SpaceType(BuiltinEnum):
 
 @node_(NodeType.SPACE)
 class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
-    """A Space for someone/something to interact with the Bench using Views."""
+    """A Space for a User to interact with a Bench."""
 
     parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE)
 
@@ -54,19 +48,57 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     focus: Optional[Selection] = p_regular(
-        70, default=None, require=False, struct=StructType.SELECTION
+        70,
+        default=None,
+        require=False,
+        struct=StructType.SELECTION,
+        description="The current main focus.",
     )
     selection: Optional[Selection] = p_regular(
-        71, default=None, require=False, struct=StructType.SELECTION
+        71,
+        default=None,
+        require=False,
+        struct=StructType.SELECTION,
+        description="The current selection of the Space.",
     )
     inspection: Optional[Node] = p_regular(
-        73, default=None, require=False, array=False, references="any"
+        73,
+        default=None,
+        require=False,
+        array=False,
+        references="any",
+        description="The current inspected Node.",
     )
-    channel: Optional["Channel"] = p_regular(
-        75, default=None, require=False, array=False, references=NodeType.CHANNEL
+    container: Optional[Node] = p_regular(
+        75,
+        default=None,
+        require=False,
+        array=False,
+        references="any",
+        description="The current 'root' container Node (usually a parent of the inspected Node).",
+    )
+    page: Optional["Page"] = p_regular(
+        76,
+        default=None,
+        require=False,
+        array=False,
+        references=NodeType.PAGE,
+        description="The current Page.",
+    )
+    thread: Optional["Thread"] = p_regular(
+        77,
+        default=None,
+        require=False,
+        array=False,
+        references=NodeType.THREAD,
+        description="The current main Thread.",
     )
     run: Optional["Run"] = p_regular(
-        77, default=None, require=False, array=False, references=NodeType.RUN
+        78,
+        default=None,
+        require=False,
+        array=False,
+        references=NodeType.RUN,
     )
 
     views: LocalNodeList["View"] = p_node_children(NodeType.VIEW)

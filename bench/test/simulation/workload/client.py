@@ -80,7 +80,7 @@ class ClientWorkload[SpecT: ClientWorkloadSpec](Workload[SpecT], abc.ABC):
                 .select_all()
                 .get(bench_ptr, live=True)
             )
-            main_package = self.bench.main_package
+            main_package = self.bench.package
             assert main_package is not None, f"{self!r} has no main package"
             self.main_package = main_package
             self.session.parent = self.bench  # patch in the session parent

@@ -112,8 +112,8 @@ async def test_user_registration(supervisor: SupervisorClient):
     read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_headers)
     assert len(read_user_rep.nodes) == 3
     assert read_user_rep.nodes[0].user.email == user_email
-    assert read_user_rep.nodes[0].user.main_handle_ptr
-    assert read_user_rep.nodes[0].user.main_handle_ptr.id == read_user_rep.nodes[2].handle.id
+    assert read_user_rep.nodes[0].user.handle_ptr
+    assert read_user_rep.nodes[0].user.handle_ptr.id == read_user_rep.nodes[2].handle.id
     assert read_user_rep.nodes[1].client.device_name == client_device_name
     assert read_user_rep.nodes[2].handle.slug == user_slug
 

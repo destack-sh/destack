@@ -39,7 +39,7 @@ async def create_default_bench(  # noqa: RUF029
     # Bench
     bench = Bench(
         id=options.bench_id or Bench.__id_factory__(),
-        main_handle=main_handle,
+        handle=main_handle,
         slug=main_handle.slug,
         name=main_handle.slug,
         owned_by=owned_by,
@@ -61,7 +61,7 @@ async def create_default_bench(  # noqa: RUF029
     main_package.memberships.append(Membership.new(owned_by, mode=NodeMode.BUILTIN))
     session._create(main_package)
     session.stage()
-    bench.main_package = main_package
+    bench.package = main_package
 
     # main Store
     store = main_package.stores.create(
@@ -70,7 +70,7 @@ async def create_default_bench(  # noqa: RUF029
         name=options.local_store_name,
     )
     session.stage()
-    bench.main_store = store
+    bench.store = store
     session.stage()
 
     if options.create_computer_scaler:

@@ -15,7 +15,6 @@ from bench.language.core import (
     IsTimed,
     IsTitled,
     LocalNodeList,
-    Node,
     NodeReference,
     NodeType,
     RemoteNodeList,
@@ -96,7 +95,7 @@ class Thread(
         scope_id: Optional[UUID] = None
 
     # content
-    main_page: Optional["Page"] = p_regular(
+    page: Optional["Page"] = p_regular(
         60,
         require=False,
         array=False,
@@ -104,7 +103,7 @@ class Thread(
         same_bench=True,
         description="The main or root Page used by this Thread (may be shared).",
     )
-    main_plan: Optional["Plan"] = p_regular(
+    plan: Optional["Plan"] = p_regular(
         61,
         require=False,
         array=False,
@@ -114,11 +113,11 @@ class Thread(
     )
     text: Optional["Text"] = p_regular(65, require=False, default=None, struct=StructType.TEXT)
     if TYPE_CHECKING:
-        main_page_ptr: Optional[NodeReference] = None
-        main_page_id: Optional[UUID] = None
-        main_plan_ptr: Optional[NodeReference] = None
-        main_plan_id: Optional[UUID] = None
-        main_plan_ck: Optional[UUID] = None
+        page_ptr: Optional[NodeReference] = None
+        page_id: Optional[UUID] = None
+        plan_ptr: Optional[NodeReference] = None
+        plan_id: Optional[UUID] = None
+        plan_ck: Optional[UUID] = None
 
     # ...IsProcessable[80-]
 
@@ -134,14 +133,6 @@ class Thread(
     files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
 
-    @property
-    def container(self) -> "Node | None":
-        parent = self.parent
-        if isinstance(parent, Thread):
-            return parent
-        else:
-            return self.channel
-
     @staticmethod
     def new(
         title: TextLineIn | None = None,
@@ -149,8 +140,8 @@ class Thread(
         *,
         channel: "Channel | None" = None,
         scope: Union["InlineNode", "Package", None] = None,
-        main_page: "Page | None" = None,
-        main_plan: "Plan | None" = None,
+        page: "Page | None" = None,
+        plan: "Plan | None" = None,
         **kwargs,
     ) -> "Thread":
         thread = Thread(
@@ -158,8 +149,8 @@ class Thread(
             text=to_text(text) if text is not None else None,
             scope=scope,
             channel=channel,
-            main_page=main_page,
-            main_plan=main_plan,
+            page=page,
+            plan=plan,
             **kwargs,
         )
         return thread

@@ -46,16 +46,16 @@ class Organization(IsSubject, Node[OrganizationData]):
     region: "Region" = p_system(37)
     status: OrganizationStatus = p_system(38)
 
-    main_bench: Optional["Bench"] = p_system(
+    bench: Optional["Bench"] = p_system(
         40, array=False, require=False, references=NodeType.BENCH, fk=True
     )
-    main_handle: Optional["Handle"] = p_system(
+    handle: Optional["Handle"] = p_system(
         41, require=False, array=False, references=NodeType.HANDLE, fk=True
     )
     if TYPE_CHECKING:
-        main_bench_id: Optional[UUID] = None
-        main_bench_ptr: Optional[NodeReference] = None
-        main_handle_id: Optional[UUID] = None
-        main_handle_ptr: Optional[NodeReference] = None
+        bench_id: Optional[UUID] = None
+        bench_ptr: Optional[NodeReference] = None
+        handle_id: Optional[UUID] = None
+        handle_ptr: Optional[NodeReference] = None
 
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
