@@ -121,29 +121,29 @@ class Resource[NodeDataT: AnyNodeData](
     Where applicable, the target state is stored in target_* properties.
     """
 
+    # meta
     parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
         4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, ckless=True
     )
     # ... space for type/name/...
-
-    # meta
-    region: Region = p_system(40, default=REGION, default_sql=None)
+    region: Region = p_system(38, default=REGION, default_sql=None)
     scaler: Optional["Scaler"] = p_system(
-        41, require=False, array=False, references=NodeType.SCALER
+        39, require=False, array=False, references=NodeType.SCALER
     )
-    # status
-    status: ResourceStatus = p_system(42, default=ResourceStatus.PENDING, default_sql=None)
-    # target
-    activated_at: Optional[datetime] = p_internal(43, default=None)
-    deactivated_at: Optional[datetime] = p_internal(44, default=None)
-    reset_at: Optional[datetime] = p_internal(45, default=None)
-    suspended_at: Optional[datetime] = p_internal(46, default=None)
-    decommissioned_at: Optional[datetime] = p_internal(47, default=None)
-    # current
-    active_at: Optional[datetime] = p_system(48, default=None)
     if TYPE_CHECKING:
         scaler_ptr: Optional[NodeReference] = None
         scaler_id: Optional[UUID] = None
+
+    # status
+    status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING, default_sql=None)
+    activated_at: Optional[datetime] = p_internal(41, default=None)
+    deactivated_at: Optional[datetime] = p_internal(42, default=None)
+    reset_at: Optional[datetime] = p_internal(43, default=None)
+    suspended_at: Optional[datetime] = p_internal(44, default=None)
+    decommissioned_at: Optional[datetime] = p_internal(45, default=None)
+    active_at: Optional[datetime] = p_system(46, default=None)
+    failed_at: Optional[datetime] = p_system(47, default=None)
+    failed_attempts: int = p_system(48, default=0)
 
     def __content_str__(self):
         return Node.__default_content_str__(self)
@@ -162,6 +162,13 @@ class Resource[NodeDataT: AnyNodeData](
             if current_value != target_value:
                 target_diff[key] = target_value
         return target_diff
+
+    @property
+    def should_retry(self) -> bool:
+        """Whether this Resource should be retried."""
+        return self.failed_at is None or (
+            self.reset_at is not None and self.reset_at > self.failed_at
+        )
 
     @property
     def target_status(self) -> ResourceStatus:
@@ -186,6 +193,16 @@ class Resource[NodeDataT: AnyNodeData](
     def decommission(self) -> None:
         """Decommission this Resource."""
         self.decommissioned_at = self.active_session._oracle.utc()
+
+    def update_status(self, status: ResourceStatus) -> None:
+        """Set the status of this Resource."""
+        self.status = status
+        if status == ResourceStatus.FAILED or status == ResourceStatus.RETRYING:
+            self.failed_at = self.active_session._oracle.utc()
+            self.failed_attempts += 1
+        elif status.is_extant:
+            self.active_at = self.active_session._oracle.utc()
+            self.failed_attempts = 0
 
     async def wait_until_status(
         self, status: ResourceStatus, timeout: timedelta | None = None

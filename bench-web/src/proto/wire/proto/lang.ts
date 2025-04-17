@@ -2387,41 +2387,49 @@ export interface ComputerData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.Region region = 40;
+     * @generated from protobuf field: symbolx.bench.Region region = 38;
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 39;
      */
     scalerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 40;
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 43;
+     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 41;
      */
     activatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 42;
      */
     deactivatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 43;
      */
     resetAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 44;
      */
     suspendedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 45;
      */
     decommissionedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 46;
      */
     activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
+     */
+    failedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 failed_attempts = 48;
+     */
+    failedAttempts: number;
     /**
      * @generated from protobuf field: string version = 60;
      */
@@ -2556,41 +2564,49 @@ export interface ScalerData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.Region region = 40;
+     * @generated from protobuf field: symbolx.bench.Region region = 38;
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 39;
      */
     scalerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 40;
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 43;
+     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 41;
      */
     activatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 42;
      */
     deactivatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 43;
      */
     resetAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 44;
      */
     suspendedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 45;
      */
     decommissionedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 46;
      */
     activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
+     */
+    failedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 failed_attempts = 48;
+     */
+    failedAttempts: number;
     /**
      * @generated from protobuf field: symbolx.bench.ScalerStrategy strategy = 60;
      */
@@ -2709,41 +2725,49 @@ export interface StoreData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.Region region = 40;
+     * @generated from protobuf field: symbolx.bench.Region region = 38;
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 39;
      */
     scalerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 40;
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 43;
+     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 41;
      */
     activatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 42;
      */
     deactivatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 43;
      */
     resetAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 44;
      */
     suspendedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 45;
      */
     decommissionedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 46;
      */
     activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
+     */
+    failedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 failed_attempts = 48;
+     */
+    failedAttempts: number;
     /**
      * @generated from protobuf field: string version = 60;
      */
@@ -3279,41 +3303,49 @@ export interface FileData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.Region region = 40;
+     * @generated from protobuf field: symbolx.bench.Region region = 38;
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 39;
      */
     scalerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 40;
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 43;
+     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 41;
      */
     activatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 42;
      */
     deactivatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 43;
      */
     resetAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 44;
      */
     suspendedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 45;
      */
     decommissionedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 46;
      */
     activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
+     */
+    failedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 failed_attempts = 48;
+     */
+    failedAttempts: number;
     /**
      * @generated from protobuf field: symbolx.bench.FileSource source = 60;
      */
@@ -3488,41 +3520,49 @@ export interface LinkData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.Region region = 40;
+     * @generated from protobuf field: symbolx.bench.Region region = 38;
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 39;
      */
     scalerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 40;
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 43;
+     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 41;
      */
     activatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 42;
      */
     deactivatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 43;
      */
     resetAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 44;
      */
     suspendedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 45;
      */
     decommissionedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 46;
      */
     activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
+     */
+    failedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 failed_attempts = 48;
+     */
+    failedAttempts: number;
     /**
      * @generated from protobuf field: optional string url = 50;
      */
@@ -3657,41 +3697,49 @@ export interface StreamData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.Region region = 40;
+     * @generated from protobuf field: symbolx.bench.Region region = 38;
      */
     region: Region;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData scaler_ptr = 39;
      */
     scalerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 42;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus status = 40;
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 43;
+     * @generated from protobuf field: optional google.protobuf.Timestamp activated_at = 41;
      */
     activatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp deactivated_at = 42;
      */
     deactivatedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp reset_at = 43;
      */
     resetAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp suspended_at = 44;
      */
     suspendedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp decommissioned_at = 45;
      */
     decommissionedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 46;
      */
     activeAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 47;
+     */
+    failedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int32 failed_attempts = 48;
+     */
+    failedAttempts: number;
 }
 /**
  * @generated from protobuf message symbolx.bench.AgentData
@@ -19536,15 +19584,17 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 43, name: "activated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "deactivated_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "reset_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 39, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 41, name: "activated_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "deactivated_at", kind: "message", T: () => Timestamp },
+            { no: 43, name: "reset_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "suspended_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "decommissioned_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -19566,6 +19616,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
+        message.failedAttempts = 0;
         message.version = "";
         message.cpu = 0;
         message.ram = 0;
@@ -19646,32 +19697,38 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbolx.bench.Region region */ 40:
+                case /* symbolx.bench.Region region */ 38:
                     message.region = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 39:
                     message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
-                case /* symbolx.bench.ResourceStatus status */ 42:
+                case /* symbolx.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp activated_at */ 43:
+                case /* optional google.protobuf.Timestamp activated_at */ 41:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp deactivated_at */ 44:
+                case /* optional google.protobuf.Timestamp deactivated_at */ 42:
                     message.deactivatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deactivatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp reset_at */ 45:
+                case /* optional google.protobuf.Timestamp reset_at */ 43:
                     message.resetAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resetAt);
                     break;
-                case /* optional google.protobuf.Timestamp suspended_at */ 46:
+                case /* optional google.protobuf.Timestamp suspended_at */ 44:
                     message.suspendedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.suspendedAt);
                     break;
-                case /* optional google.protobuf.Timestamp decommissioned_at */ 47:
+                case /* optional google.protobuf.Timestamp decommissioned_at */ 45:
                     message.decommissionedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.decommissionedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 48:
+                case /* optional google.protobuf.Timestamp active_at */ 46:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp failed_at */ 47:
+                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
+                    break;
+                case /* int32 failed_attempts */ 48:
+                    message.failedAttempts = reader.int32();
                     break;
                 case /* string version */ 60:
                     message.version = reader.string();
@@ -19781,33 +19838,39 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 40; */
+        /* symbolx.bench.Region region = 38; */
         if (message.region !== 0)
-            writer.tag(40, WireType.Varint).int32(message.region);
-        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 41; */
+            writer.tag(38, WireType.Varint).int32(message.region);
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 39; */
         if (message.scalerPtr)
-            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ResourceStatus status = 42; */
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp activated_at = 43; */
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp activated_at = 41; */
         if (message.activatedAt)
-            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deactivated_at = 44; */
+            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deactivated_at = 42; */
         if (message.deactivatedAt)
-            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp reset_at = 45; */
+            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp reset_at = 43; */
         if (message.resetAt)
-            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp suspended_at = 46; */
+            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp suspended_at = 44; */
         if (message.suspendedAt)
-            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp decommissioned_at = 47; */
+            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp decommissioned_at = 45; */
         if (message.decommissionedAt)
-            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 48; */
+            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 46; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp failed_at = 47; */
+        if (message.failedAt)
+            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* int32 failed_attempts = 48; */
+        if (message.failedAttempts !== 0)
+            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
         /* string version = 60; */
         if (message.version !== "")
             writer.tag(60, WireType.LengthDelimited).string(message.version);
@@ -19874,15 +19937,17 @@ class ScalerData$Type extends MessageType$<ScalerData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 43, name: "activated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "deactivated_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "reset_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 39, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 41, name: "activated_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "deactivated_at", kind: "message", T: () => Timestamp },
+            { no: 43, name: "reset_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "suspended_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "decommissioned_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "strategy", kind: "enum", T: () => ["symbolx.bench.ScalerStrategy", ScalerStrategy, "SCALER_STRATEGY_"] },
             { no: 61, name: "target_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 62, name: "min_count", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -19900,6 +19965,7 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
+        message.failedAttempts = 0;
         message.strategy = 0;
         message.targetCount = 0;
         message.minCount = 0;
@@ -19980,32 +20046,38 @@ class ScalerData$Type extends MessageType$<ScalerData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbolx.bench.Region region */ 40:
+                case /* symbolx.bench.Region region */ 38:
                     message.region = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 39:
                     message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
-                case /* symbolx.bench.ResourceStatus status */ 42:
+                case /* symbolx.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp activated_at */ 43:
+                case /* optional google.protobuf.Timestamp activated_at */ 41:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp deactivated_at */ 44:
+                case /* optional google.protobuf.Timestamp deactivated_at */ 42:
                     message.deactivatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deactivatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp reset_at */ 45:
+                case /* optional google.protobuf.Timestamp reset_at */ 43:
                     message.resetAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resetAt);
                     break;
-                case /* optional google.protobuf.Timestamp suspended_at */ 46:
+                case /* optional google.protobuf.Timestamp suspended_at */ 44:
                     message.suspendedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.suspendedAt);
                     break;
-                case /* optional google.protobuf.Timestamp decommissioned_at */ 47:
+                case /* optional google.protobuf.Timestamp decommissioned_at */ 45:
                     message.decommissionedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.decommissionedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 48:
+                case /* optional google.protobuf.Timestamp active_at */ 46:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp failed_at */ 47:
+                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
+                    break;
+                case /* int32 failed_attempts */ 48:
+                    message.failedAttempts = reader.int32();
                     break;
                 case /* symbolx.bench.ScalerStrategy strategy */ 60:
                     message.strategy = reader.int32();
@@ -20103,33 +20175,39 @@ class ScalerData$Type extends MessageType$<ScalerData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 40; */
+        /* symbolx.bench.Region region = 38; */
         if (message.region !== 0)
-            writer.tag(40, WireType.Varint).int32(message.region);
-        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 41; */
+            writer.tag(38, WireType.Varint).int32(message.region);
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 39; */
         if (message.scalerPtr)
-            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ResourceStatus status = 42; */
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp activated_at = 43; */
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp activated_at = 41; */
         if (message.activatedAt)
-            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deactivated_at = 44; */
+            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deactivated_at = 42; */
         if (message.deactivatedAt)
-            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp reset_at = 45; */
+            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp reset_at = 43; */
         if (message.resetAt)
-            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp suspended_at = 46; */
+            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp suspended_at = 44; */
         if (message.suspendedAt)
-            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp decommissioned_at = 47; */
+            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp decommissioned_at = 45; */
         if (message.decommissionedAt)
-            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 48; */
+            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 46; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp failed_at = 47; */
+        if (message.failedAt)
+            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* int32 failed_attempts = 48; */
+        if (message.failedAttempts !== 0)
+            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
         /* symbolx.bench.ScalerStrategy strategy = 60; */
         if (message.strategy !== 0)
             writer.tag(60, WireType.Varint).int32(message.strategy);
@@ -20184,15 +20262,17 @@ class StoreData$Type extends MessageType$<StoreData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 43, name: "activated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "deactivated_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "reset_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 39, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 41, name: "activated_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "deactivated_at", kind: "message", T: () => Timestamp },
+            { no: 43, name: "reset_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "suspended_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "decommissioned_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -20208,6 +20288,7 @@ class StoreData$Type extends MessageType$<StoreData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
+        message.failedAttempts = 0;
         message.version = "";
         if (value !== undefined)
             reflectionMergePartial<StoreData>(this, message, value);
@@ -20284,32 +20365,38 @@ class StoreData$Type extends MessageType$<StoreData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbolx.bench.Region region */ 40:
+                case /* symbolx.bench.Region region */ 38:
                     message.region = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 39:
                     message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
-                case /* symbolx.bench.ResourceStatus status */ 42:
+                case /* symbolx.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp activated_at */ 43:
+                case /* optional google.protobuf.Timestamp activated_at */ 41:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp deactivated_at */ 44:
+                case /* optional google.protobuf.Timestamp deactivated_at */ 42:
                     message.deactivatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deactivatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp reset_at */ 45:
+                case /* optional google.protobuf.Timestamp reset_at */ 43:
                     message.resetAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resetAt);
                     break;
-                case /* optional google.protobuf.Timestamp suspended_at */ 46:
+                case /* optional google.protobuf.Timestamp suspended_at */ 44:
                     message.suspendedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.suspendedAt);
                     break;
-                case /* optional google.protobuf.Timestamp decommissioned_at */ 47:
+                case /* optional google.protobuf.Timestamp decommissioned_at */ 45:
                     message.decommissionedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.decommissionedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 48:
+                case /* optional google.protobuf.Timestamp active_at */ 46:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp failed_at */ 47:
+                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
+                    break;
+                case /* int32 failed_attempts */ 48:
+                    message.failedAttempts = reader.int32();
                     break;
                 case /* string version */ 60:
                     message.version = reader.string();
@@ -20401,33 +20488,39 @@ class StoreData$Type extends MessageType$<StoreData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 40; */
+        /* symbolx.bench.Region region = 38; */
         if (message.region !== 0)
-            writer.tag(40, WireType.Varint).int32(message.region);
-        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 41; */
+            writer.tag(38, WireType.Varint).int32(message.region);
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 39; */
         if (message.scalerPtr)
-            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ResourceStatus status = 42; */
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp activated_at = 43; */
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp activated_at = 41; */
         if (message.activatedAt)
-            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deactivated_at = 44; */
+            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deactivated_at = 42; */
         if (message.deactivatedAt)
-            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp reset_at = 45; */
+            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp reset_at = 43; */
         if (message.resetAt)
-            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp suspended_at = 46; */
+            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp suspended_at = 44; */
         if (message.suspendedAt)
-            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp decommissioned_at = 47; */
+            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp decommissioned_at = 45; */
         if (message.decommissionedAt)
-            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 48; */
+            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 46; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp failed_at = 47; */
+        if (message.failedAt)
+            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* int32 failed_attempts = 48; */
+        if (message.failedAttempts !== 0)
+            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
         /* string version = 60; */
         if (message.version !== "")
             writer.tag(60, WireType.LengthDelimited).string(message.version);
@@ -21394,15 +21487,17 @@ class FileData$Type extends MessageType$<FileData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 43, name: "activated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "deactivated_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "reset_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 39, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 41, name: "activated_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "deactivated_at", kind: "message", T: () => Timestamp },
+            { no: 43, name: "reset_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "suspended_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "decommissioned_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "source", kind: "enum", T: () => ["symbolx.bench.FileSource", FileSource, "FILE_SOURCE_"] },
             { no: 61, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
@@ -21433,6 +21528,7 @@ class FileData$Type extends MessageType$<FileData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
+        message.failedAttempts = 0;
         message.source = 0;
         message.retention = 0;
         if (value !== undefined)
@@ -21510,32 +21606,38 @@ class FileData$Type extends MessageType$<FileData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbolx.bench.Region region */ 40:
+                case /* symbolx.bench.Region region */ 38:
                     message.region = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 39:
                     message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
-                case /* symbolx.bench.ResourceStatus status */ 42:
+                case /* symbolx.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp activated_at */ 43:
+                case /* optional google.protobuf.Timestamp activated_at */ 41:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp deactivated_at */ 44:
+                case /* optional google.protobuf.Timestamp deactivated_at */ 42:
                     message.deactivatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deactivatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp reset_at */ 45:
+                case /* optional google.protobuf.Timestamp reset_at */ 43:
                     message.resetAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resetAt);
                     break;
-                case /* optional google.protobuf.Timestamp suspended_at */ 46:
+                case /* optional google.protobuf.Timestamp suspended_at */ 44:
                     message.suspendedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.suspendedAt);
                     break;
-                case /* optional google.protobuf.Timestamp decommissioned_at */ 47:
+                case /* optional google.protobuf.Timestamp decommissioned_at */ 45:
                     message.decommissionedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.decommissionedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 48:
+                case /* optional google.protobuf.Timestamp active_at */ 46:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp failed_at */ 47:
+                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
+                    break;
+                case /* int32 failed_attempts */ 48:
+                    message.failedAttempts = reader.int32();
                     break;
                 case /* symbolx.bench.FileSource source */ 60:
                     message.source = reader.int32();
@@ -21672,33 +21774,39 @@ class FileData$Type extends MessageType$<FileData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 40; */
+        /* symbolx.bench.Region region = 38; */
         if (message.region !== 0)
-            writer.tag(40, WireType.Varint).int32(message.region);
-        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 41; */
+            writer.tag(38, WireType.Varint).int32(message.region);
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 39; */
         if (message.scalerPtr)
-            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ResourceStatus status = 42; */
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp activated_at = 43; */
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp activated_at = 41; */
         if (message.activatedAt)
-            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deactivated_at = 44; */
+            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deactivated_at = 42; */
         if (message.deactivatedAt)
-            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp reset_at = 45; */
+            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp reset_at = 43; */
         if (message.resetAt)
-            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp suspended_at = 46; */
+            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp suspended_at = 44; */
         if (message.suspendedAt)
-            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp decommissioned_at = 47; */
+            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp decommissioned_at = 45; */
         if (message.decommissionedAt)
-            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 48; */
+            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 46; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp failed_at = 47; */
+        if (message.failedAt)
+            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* int32 failed_attempts = 48; */
+        if (message.failedAttempts !== 0)
+            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
         /* symbolx.bench.FileSource source = 60; */
         if (message.source !== 0)
             writer.tag(60, WireType.Varint).int32(message.source);
@@ -21793,15 +21901,17 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 43, name: "activated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "deactivated_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "reset_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 39, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 41, name: "activated_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "deactivated_at", kind: "message", T: () => Timestamp },
+            { no: 43, name: "reset_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "suspended_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "decommissioned_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -21823,6 +21933,7 @@ class LinkData$Type extends MessageType$<LinkData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
+        message.failedAttempts = 0;
         if (value !== undefined)
             reflectionMergePartial<LinkData>(this, message, value);
         return message;
@@ -21901,32 +22012,38 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbolx.bench.Region region */ 40:
+                case /* symbolx.bench.Region region */ 38:
                     message.region = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 39:
                     message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
-                case /* symbolx.bench.ResourceStatus status */ 42:
+                case /* symbolx.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp activated_at */ 43:
+                case /* optional google.protobuf.Timestamp activated_at */ 41:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp deactivated_at */ 44:
+                case /* optional google.protobuf.Timestamp deactivated_at */ 42:
                     message.deactivatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deactivatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp reset_at */ 45:
+                case /* optional google.protobuf.Timestamp reset_at */ 43:
                     message.resetAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resetAt);
                     break;
-                case /* optional google.protobuf.Timestamp suspended_at */ 46:
+                case /* optional google.protobuf.Timestamp suspended_at */ 44:
                     message.suspendedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.suspendedAt);
                     break;
-                case /* optional google.protobuf.Timestamp decommissioned_at */ 47:
+                case /* optional google.protobuf.Timestamp decommissioned_at */ 45:
                     message.decommissionedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.decommissionedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 48:
+                case /* optional google.protobuf.Timestamp active_at */ 46:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp failed_at */ 47:
+                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
+                    break;
+                case /* int32 failed_attempts */ 48:
+                    message.failedAttempts = reader.int32();
                     break;
                 case /* optional string url */ 50:
                     message.url = reader.string();
@@ -22039,33 +22156,39 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 40; */
+        /* symbolx.bench.Region region = 38; */
         if (message.region !== 0)
-            writer.tag(40, WireType.Varint).int32(message.region);
-        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 41; */
+            writer.tag(38, WireType.Varint).int32(message.region);
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 39; */
         if (message.scalerPtr)
-            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ResourceStatus status = 42; */
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp activated_at = 43; */
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp activated_at = 41; */
         if (message.activatedAt)
-            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deactivated_at = 44; */
+            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deactivated_at = 42; */
         if (message.deactivatedAt)
-            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp reset_at = 45; */
+            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp reset_at = 43; */
         if (message.resetAt)
-            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp suspended_at = 46; */
+            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp suspended_at = 44; */
         if (message.suspendedAt)
-            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp decommissioned_at = 47; */
+            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp decommissioned_at = 45; */
         if (message.decommissionedAt)
-            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 48; */
+            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 46; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp failed_at = 47; */
+        if (message.failedAt)
+            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* int32 failed_attempts = 48; */
+        if (message.failedAttempts !== 0)
+            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
         /* optional string url = 50; */
         if (message.url !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.url);
@@ -22132,15 +22255,17 @@ class StreamData$Type extends MessageType$<StreamData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
-            { no: 41, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 43, name: "activated_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "deactivated_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "reset_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "suspended_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "decommissioned_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "active_at", kind: "message", T: () => Timestamp }
+            { no: 38, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
+            { no: 39, name: "scaler_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 41, name: "activated_at", kind: "message", T: () => Timestamp },
+            { no: 42, name: "deactivated_at", kind: "message", T: () => Timestamp },
+            { no: 43, name: "reset_at", kind: "message", T: () => Timestamp },
+            { no: 44, name: "suspended_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "decommissioned_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "active_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<StreamData>): StreamData {
@@ -22152,6 +22277,7 @@ class StreamData$Type extends MessageType$<StreamData> {
         message.type = 0;
         message.region = 0;
         message.status = 0;
+        message.failedAttempts = 0;
         if (value !== undefined)
             reflectionMergePartial<StreamData>(this, message, value);
         return message;
@@ -22227,32 +22353,38 @@ class StreamData$Type extends MessageType$<StreamData> {
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
-                case /* symbolx.bench.Region region */ 40:
+                case /* symbolx.bench.Region region */ 38:
                     message.region = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData scaler_ptr */ 39:
                     message.scalerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scalerPtr);
                     break;
-                case /* symbolx.bench.ResourceStatus status */ 42:
+                case /* symbolx.bench.ResourceStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp activated_at */ 43:
+                case /* optional google.protobuf.Timestamp activated_at */ 41:
                     message.activatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp deactivated_at */ 44:
+                case /* optional google.protobuf.Timestamp deactivated_at */ 42:
                     message.deactivatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deactivatedAt);
                     break;
-                case /* optional google.protobuf.Timestamp reset_at */ 45:
+                case /* optional google.protobuf.Timestamp reset_at */ 43:
                     message.resetAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.resetAt);
                     break;
-                case /* optional google.protobuf.Timestamp suspended_at */ 46:
+                case /* optional google.protobuf.Timestamp suspended_at */ 44:
                     message.suspendedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.suspendedAt);
                     break;
-                case /* optional google.protobuf.Timestamp decommissioned_at */ 47:
+                case /* optional google.protobuf.Timestamp decommissioned_at */ 45:
                     message.decommissionedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.decommissionedAt);
                     break;
-                case /* optional google.protobuf.Timestamp active_at */ 48:
+                case /* optional google.protobuf.Timestamp active_at */ 46:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
+                    break;
+                case /* optional google.protobuf.Timestamp failed_at */ 47:
+                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
+                    break;
+                case /* int32 failed_attempts */ 48:
+                    message.failedAttempts = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -22332,33 +22464,39 @@ class StreamData$Type extends MessageType$<StreamData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.Region region = 40; */
+        /* symbolx.bench.Region region = 38; */
         if (message.region !== 0)
-            writer.tag(40, WireType.Varint).int32(message.region);
-        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 41; */
+            writer.tag(38, WireType.Varint).int32(message.region);
+        /* optional symbolx.bench.NodeReferenceData scaler_ptr = 39; */
         if (message.scalerPtr)
-            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ResourceStatus status = 42; */
+            NodeReferenceData.internalBinaryWrite(message.scalerPtr, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ResourceStatus status = 40; */
         if (message.status !== 0)
-            writer.tag(42, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp activated_at = 43; */
+            writer.tag(40, WireType.Varint).int32(message.status);
+        /* optional google.protobuf.Timestamp activated_at = 41; */
         if (message.activatedAt)
-            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deactivated_at = 44; */
+            Timestamp.internalBinaryWrite(message.activatedAt, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deactivated_at = 42; */
         if (message.deactivatedAt)
-            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp reset_at = 45; */
+            Timestamp.internalBinaryWrite(message.deactivatedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp reset_at = 43; */
         if (message.resetAt)
-            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp suspended_at = 46; */
+            Timestamp.internalBinaryWrite(message.resetAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp suspended_at = 44; */
         if (message.suspendedAt)
-            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp decommissioned_at = 47; */
+            Timestamp.internalBinaryWrite(message.suspendedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp decommissioned_at = 45; */
         if (message.decommissionedAt)
-            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp active_at = 48; */
+            Timestamp.internalBinaryWrite(message.decommissionedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp active_at = 46; */
         if (message.activeAt)
-            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.activeAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp failed_at = 47; */
+        if (message.failedAt)
+            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* int32 failed_attempts = 48; */
+        if (message.failedAttempts !== 0)
+            writer.tag(48, WireType.Varint).int32(message.failedAttempts);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31920,15 +32058,17 @@ export enum ScalerProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  region = 40,
-  scalerPtr = 41,
-  status = 42,
-  activatedAt = 43,
-  deactivatedAt = 44,
-  resetAt = 45,
-  suspendedAt = 46,
-  decommissionedAt = 47,
-  activeAt = 48,
+  region = 38,
+  scalerPtr = 39,
+  status = 40,
+  activatedAt = 41,
+  deactivatedAt = 42,
+  resetAt = 43,
+  suspendedAt = 44,
+  decommissionedAt = 45,
+  activeAt = 46,
+  failedAt = 47,
+  failedAttempts = 48,
   strategy = 60,
   targetCount = 61,
   minCount = 62,
@@ -31960,15 +32100,17 @@ export enum StoreProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  region = 40,
-  scalerPtr = 41,
-  status = 42,
-  activatedAt = 43,
-  deactivatedAt = 44,
-  resetAt = 45,
-  suspendedAt = 46,
-  decommissionedAt = 47,
-  activeAt = 48,
+  region = 38,
+  scalerPtr = 39,
+  status = 40,
+  activatedAt = 41,
+  deactivatedAt = 42,
+  resetAt = 43,
+  suspendedAt = 44,
+  decommissionedAt = 45,
+  activeAt = 46,
+  failedAt = 47,
+  failedAttempts = 48,
   version = 60,
   externalName = 62,
   externalId = 63,
@@ -31998,15 +32140,17 @@ export enum ComputerProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  region = 40,
-  scalerPtr = 41,
-  status = 42,
-  activatedAt = 43,
-  deactivatedAt = 44,
-  resetAt = 45,
-  suspendedAt = 46,
-  decommissionedAt = 47,
-  activeAt = 48,
+  region = 38,
+  scalerPtr = 39,
+  status = 40,
+  activatedAt = 41,
+  deactivatedAt = 42,
+  resetAt = 43,
+  suspendedAt = 44,
+  decommissionedAt = 45,
+  activeAt = 46,
+  failedAt = 47,
+  failedAttempts = 48,
   version = 60,
   externalName = 62,
   externalId = 63,
@@ -32042,15 +32186,17 @@ export enum FileProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  region = 40,
-  scalerPtr = 41,
-  status = 42,
-  activatedAt = 43,
-  deactivatedAt = 44,
-  resetAt = 45,
-  suspendedAt = 46,
-  decommissionedAt = 47,
-  activeAt = 48,
+  region = 38,
+  scalerPtr = 39,
+  status = 40,
+  activatedAt = 41,
+  deactivatedAt = 42,
+  resetAt = 43,
+  suspendedAt = 44,
+  decommissionedAt = 45,
+  activeAt = 46,
+  failedAt = 47,
+  failedAttempts = 48,
   source = 60,
   mimeType = 61,
   format = 62,
@@ -32095,15 +32241,17 @@ export enum StreamProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  region = 40,
-  scalerPtr = 41,
-  status = 42,
-  activatedAt = 43,
-  deactivatedAt = 44,
-  resetAt = 45,
-  suspendedAt = 46,
-  decommissionedAt = 47,
-  activeAt = 48,
+  region = 38,
+  scalerPtr = 39,
+  status = 40,
+  activatedAt = 41,
+  deactivatedAt = 42,
+  resetAt = 43,
+  suspendedAt = 44,
+  decommissionedAt = 45,
+  activeAt = 46,
+  failedAt = 47,
+  failedAttempts = 48,
 }
 
 export enum LinkProperty {
@@ -32130,15 +32278,17 @@ export enum LinkProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  region = 40,
-  scalerPtr = 41,
-  status = 42,
-  activatedAt = 43,
-  deactivatedAt = 44,
-  resetAt = 45,
-  suspendedAt = 46,
-  decommissionedAt = 47,
-  activeAt = 48,
+  region = 38,
+  scalerPtr = 39,
+  status = 40,
+  activatedAt = 41,
+  deactivatedAt = 42,
+  resetAt = 43,
+  suspendedAt = 44,
+  decommissionedAt = 45,
+  activeAt = 46,
+  failedAt = 47,
+  failedAttempts = 48,
   url = 50,
   contentUrl = 51,
   thumbnailUrl = 52,
@@ -34204,15 +34354,17 @@ export const ScalerDataInfo: Record<ScalerProperty, PropertyInfo> = {
   [ScalerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.icon]: { id: 34, name: 'icon', component: ObjectType.SCALER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ScalerProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ScalerProperty.region]: { id: 40, name: 'region', component: ObjectType.SCALER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ScalerProperty.status]: { id: 42, name: 'status', component: ObjectType.SCALER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.activatedAt]: { id: 43, name: 'activated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.deactivatedAt]: { id: 44, name: 'deactivated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.resetAt]: { id: 45, name: 'reset_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ScalerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.region]: { id: 38, name: 'region', component: ObjectType.SCALER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.scalerPtr]: { id: 39, name: 'scaler_ptr', component: ObjectType.SCALER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [ScalerProperty.status]: { id: 40, name: 'status', component: ObjectType.SCALER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.activatedAt]: { id: 41, name: 'activated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.deactivatedAt]: { id: 42, name: 'deactivated_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.resetAt]: { id: 43, name: 'reset_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.suspendedAt]: { id: 44, name: 'suspended_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.decommissionedAt]: { id: 45, name: 'decommissioned_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ScalerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.strategy]: { id: 60, name: 'strategy', component: ObjectType.SCALER, enumType: EnumType.SCALER_STRATEGY, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 2, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.targetCount]: { id: 61, name: 'target_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ScalerProperty.minCount]: { id: 62, name: 'min_count', component: ObjectType.SCALER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, constraint: { minValue: 0, maxValue: 16, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -34243,16 +34395,18 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.icon]: { id: 34, name: 'icon', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [StoreProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.region]: { id: 40, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.status]: { id: 42, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.activatedAt]: { id: 43, name: 'activated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.deactivatedAt]: { id: 44, name: 'deactivated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.resetAt]: { id: 45, name: 'reset_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.region]: { id: 38, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.scalerPtr]: { id: 39, name: 'scaler_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.status]: { id: 40, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.activatedAt]: { id: 41, name: 'activated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.deactivatedAt]: { id: 42, name: 'deactivated_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.resetAt]: { id: 43, name: 'reset_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.suspendedAt]: { id: 44, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.decommissionedAt]: { id: 45, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34280,16 +34434,18 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.icon]: { id: 34, name: 'icon', component: ObjectType.COMPUTER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ComputerProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.region]: { id: 40, name: 'region', component: ObjectType.COMPUTER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.status]: { id: 42, name: 'status', component: ObjectType.COMPUTER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.activatedAt]: { id: 43, name: 'activated_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.deactivatedAt]: { id: 44, name: 'deactivated_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.resetAt]: { id: 45, name: 'reset_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.region]: { id: 38, name: 'region', component: ObjectType.COMPUTER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.scalerPtr]: { id: 39, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [ComputerProperty.status]: { id: 40, name: 'status', component: ObjectType.COMPUTER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.activatedAt]: { id: 41, name: 'activated_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.deactivatedAt]: { id: 42, name: 'deactivated_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.resetAt]: { id: 43, name: 'reset_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.suspendedAt]: { id: 44, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.decommissionedAt]: { id: 45, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -34323,15 +34479,17 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FILE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FileProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.region]: { id: 40, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.status]: { id: 42, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.activatedAt]: { id: 43, name: 'activated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.deactivatedAt]: { id: 44, name: 'deactivated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.resetAt]: { id: 45, name: 'reset_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.region]: { id: 38, name: 'region', component: ObjectType.FILE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.scalerPtr]: { id: 39, name: 'scaler_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.status]: { id: 40, name: 'status', component: ObjectType.FILE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.activatedAt]: { id: 41, name: 'activated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.deactivatedAt]: { id: 42, name: 'deactivated_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.resetAt]: { id: 43, name: 'reset_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.suspendedAt]: { id: 44, name: 'suspended_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.decommissionedAt]: { id: 45, name: 'decommissioned_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.source]: { id: 60, name: 'source', component: ObjectType.FILE, enumType: EnumType.FILE_SOURCE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 61, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.format]: { id: 62, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
@@ -34375,15 +34533,17 @@ export const StreamDataInfo: Record<StreamProperty, PropertyInfo> = {
   [StreamProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StreamProperty.icon]: { id: 34, name: 'icon', component: ObjectType.STREAM, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [StreamProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StreamProperty.region]: { id: 40, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [StreamProperty.status]: { id: 42, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.activatedAt]: { id: 43, name: 'activated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.deactivatedAt]: { id: 44, name: 'deactivated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.resetAt]: { id: 45, name: 'reset_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StreamProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.region]: { id: 38, name: 'region', component: ObjectType.STREAM, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.scalerPtr]: { id: 39, name: 'scaler_ptr', component: ObjectType.STREAM, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [StreamProperty.status]: { id: 40, name: 'status', component: ObjectType.STREAM, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.activatedAt]: { id: 41, name: 'activated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.deactivatedAt]: { id: 42, name: 'deactivated_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.resetAt]: { id: 43, name: 'reset_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.suspendedAt]: { id: 44, name: 'suspended_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.decommissionedAt]: { id: 45, name: 'decommissioned_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StreamProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STREAM, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34409,15 +34569,17 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.icon]: { id: 34, name: 'icon', component: ObjectType.LINK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [LinkProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.region]: { id: 40, name: 'region', component: ObjectType.LINK, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.scalerPtr]: { id: 41, name: 'scaler_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.status]: { id: 42, name: 'status', component: ObjectType.LINK, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.activatedAt]: { id: 43, name: 'activated_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.deactivatedAt]: { id: 44, name: 'deactivated_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.resetAt]: { id: 45, name: 'reset_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.region]: { id: 38, name: 'region', component: ObjectType.LINK, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1000, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.scalerPtr]: { id: 39, name: 'scaler_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
+  [LinkProperty.status]: { id: 40, name: 'status', component: ObjectType.LINK, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.activatedAt]: { id: 41, name: 'activated_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.deactivatedAt]: { id: 42, name: 'deactivated_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.resetAt]: { id: 43, name: 'reset_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.suspendedAt]: { id: 44, name: 'suspended_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.decommissionedAt]: { id: 45, name: 'decommissioned_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.url]: { id: 50, name: 'url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.contentUrl]: { id: 51, name: 'content_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.thumbnailUrl]: { id: 52, name: 'thumbnail_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },

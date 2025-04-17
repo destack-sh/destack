@@ -117,7 +117,7 @@ async def make_local_runtime_computer(
             )
             session._create(client)
         computer.client = client
-        computer.status = ResourceStatus.AVAILABLE
+        computer.update_status(ResourceStatus.AVAILABLE)
         computer.grpc_url = local_computer_url
 
         client_env = {

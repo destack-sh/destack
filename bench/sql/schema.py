@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.17.3"
+VERSION = "2025.04.17.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -271,6 +271,8 @@ SCALER_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_attempts", PrimitiveType.INT32, default="0"),
         Column("strategy", PrimitiveType.INT16),
         Column("target_count", PrimitiveType.INT32, default="0"),
         Column("min_count", PrimitiveType.INT32, default="0"),
@@ -322,6 +324,8 @@ STORE_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_attempts", PrimitiveType.INT32, default="0"),
         Column("version", PrimitiveType.STRING),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
@@ -371,6 +375,8 @@ COMPUTER_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_attempts", PrimitiveType.INT32, default="0"),
         Column("version", PrimitiveType.STRING),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
@@ -426,6 +432,8 @@ FILE_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_attempts", PrimitiveType.INT32, default="0"),
         Column("source", PrimitiveType.INT16),
         Column("mime_type", PrimitiveType.STRING, is_nullable=True),
         Column("format", PrimitiveType.INT32, is_nullable=True),
@@ -489,6 +497,8 @@ STREAM_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_attempts", PrimitiveType.INT32, default="0"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )
@@ -535,6 +545,8 @@ LINK_TABLE = Table(
         Column("suspended_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("decommissioned_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("failed_attempts", PrimitiveType.INT32, default="0"),
         Column("url", PrimitiveType.STRING, is_nullable=True),
         Column("content_url", PrimitiveType.STRING, is_nullable=True),
         Column("thumbnail_url", PrimitiveType.STRING, is_nullable=True),
