@@ -203,15 +203,6 @@ class Message(
             return "<empty>"
 
     @property
-    def container(self) -> "Node | None":
-        if (thread := self.thread) is not None:
-            return thread
-        elif (channel := self.channel) is not None:
-            return channel
-        else:
-            return self.parent
-
-    @property
     def value_type(self) -> "IsType | None":
         if (runnable := self.runnable) is not None:
             return runnable.to_type_maybe(of="value")

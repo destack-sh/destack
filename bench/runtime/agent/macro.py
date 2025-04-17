@@ -210,11 +210,10 @@ def SEND(
     "CALL",
     """\
 Call an Action as a tool. Results arrive on on next turn.
-You SHOULD title this call with its main arguments summarized.
- (title = object ONLY, NO verbs!; markdown supported, like "Gemini 2.5" or "symbolx.com")
-If silent, no message about this call will be added (use rarely for quick internal actions)
+You SHOULD title this call with its main argument(s) summarized
+ (e.g., for web search title = query, for reading a page title = [@Page], ...)
 """,
-    signature="(action: Action, title: str | None = None, silent: bool = False, **inputs) -> None",
+    signature="(action: Action, title: str | None = None, **inputs) -> None",
     is_terminal=True,
 )
 def CALL(

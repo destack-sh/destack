@@ -19,7 +19,7 @@ class IWeb(ABC):
     ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
         """
         Search the web for the given query.
-        ICON: fas fa-globe
+        ICON: fas fa-magnifying-glass
         """
         pass
 

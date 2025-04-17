@@ -1166,7 +1166,7 @@ async def upload_file(
         if session._runtime is not None and (runner := session._runtime.active_runner) is not None:
             parent = runner.thread.thread
         else:
-            package = bench.main_package if bench is not None else None
+            package = bench.package if bench is not None else None
             if package is None:
                 raise ValueError(f"no Package to upload file {name!r} to in {session!r}")
             parent = package

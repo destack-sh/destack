@@ -178,7 +178,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         async with self.session():
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
-            self._main_package = self._bench.main_package
+            self._main_package = self._bench.package
             self._session.parent = self._bench
             # NOTE: bench bench is not live because it only ever changes on Host restart
             #  (in which case we auto-reconnect and get the new stuff anyway)

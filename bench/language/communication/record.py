@@ -10,7 +10,6 @@ from bench.language.core import (
     IsNamed,
     IsOwnable,
     IsType,
-    Node,
     NodeType,
     PackageNode,
     StructType,
@@ -63,8 +62,7 @@ class Record(
         36, require=True, references=NodeType.BLOCK, description="The Database this Record is from."
     )
 
-    # page? (tie Record to a Page for a Notion-like experience in some Databases)
-    # task? (tie Record to a Task)
+    # target: Page/Task/...? (tie Record to a Page for a Notion-like experience in some Databases)
     # ... general Record 'tying'?
 
     # value
@@ -85,10 +83,6 @@ class Record(
             return str(value)
         else:
             return ""
-
-    @property
-    def container(self) -> "Node | None":
-        return self.database
 
     @property
     def value_type(self) -> "IsType | None":

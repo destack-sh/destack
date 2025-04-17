@@ -54,8 +54,8 @@ async def shell(
             bench_node = (
                 await Bench.include_descendants(Package, Store).select_all().get(slug=bench)
             )
-            assert bench_node.main_store is not None, f"{bench!r} has no main store"
-            store = bench_node.main_store
+            assert bench_node.store is not None, f"{bench!r} has no main store"
+            store = bench_node.store
     else:
         raise ValueError(f"invalid area: {area!r}")
 

@@ -8,21 +8,19 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     IsSubject,
-    LocalNodeList,
     NodeReference,
     NodeType,
     Resource,
     enum_,
     node_,
     p_kernel,
-    p_node_children,
     p_regular,
     p_system,
 )
 from bench.pb2 import ComputerData
 
 if TYPE_CHECKING:
-    from bench.language import Application, Client
+    from bench.language import Client
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -66,8 +64,6 @@ class Computer(IsSubject, Resource[ComputerData]):
     width: int = p_system(75, default=1280, default_sql=None)
     height: int = p_system(76, default=960, default_sql=None)
     # is_headless?
-
-    applications: LocalNodeList["Application"] = p_node_children(NodeType.APPLICATION)
 
     @staticmethod
     def new(type: ComputerType, name: str, **kwargs) -> "Computer":

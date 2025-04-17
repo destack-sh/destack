@@ -81,7 +81,7 @@ class ComputerHandle:
             )
             # add connection url if we have a runtime :SimulatedNetwork
             grpc_url = f"simulation://{runtime.id}:0" if runtime else None
-            package = bench.main_package
+            package = bench.package
             assert package is not None, f"no main package for {bench!r}"
             computer = Computer(
                 parent=package,

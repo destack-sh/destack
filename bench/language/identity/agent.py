@@ -84,7 +84,7 @@ class Agent(
     outputs: "CustomObject | None" = p_value_runtime(
         51, type=FieldType.OUTPUT, typ=lambda self: cast("Agent", self).output_type
     )
-    main_page: Optional["Page"] = p_regular(
+    page: Optional["Page"] = p_regular(
         54,
         require=False,
         array=False,
@@ -92,7 +92,7 @@ class Agent(
         same_bench=True,
         description="The main or root Page used by this Agent (may be shared).",
     )
-    main_plan: Optional["Plan"] = p_regular(
+    plan: Optional["Plan"] = p_regular(
         55,
         require=False,
         array=False,
@@ -100,7 +100,7 @@ class Agent(
         same_bench=True,
         description="The main Plan to consider in this Agent (may be on the Page).",
     )
-    main_cursor: Optional["Cursor"] = p_regular(
+    cursor: Optional["Cursor"] = p_regular(
         56,
         require=False,
         array=False,
@@ -111,12 +111,12 @@ class Agent(
     text: Optional["Text"] = p_regular(57, default=None, struct=StructType.TEXT)
     color: ColorType | None = p_regular(59)
     if TYPE_CHECKING:
-        main_page_ptr: Optional[NodeReference] = None
-        main_page_id: Optional[UUID] = None
-        main_plan_ptr: Optional[NodeReference] = None
-        main_plan_id: Optional[UUID] = None
-        main_cursor_ptr: Optional[NodeReference] = None
-        main_cursor_id: Optional[UUID] = None
+        page_ptr: Optional[NodeReference] = None
+        page_id: Optional[UUID] = None
+        plan_ptr: Optional[NodeReference] = None
+        plan_id: Optional[UUID] = None
+        cursor_ptr: Optional[NodeReference] = None
+        cursor_id: Optional[UUID] = None
 
     # ...IsProcessable[80-]
 

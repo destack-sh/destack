@@ -56,12 +56,12 @@ class Client(IsNamed, Node[ClientData]):
     )
     seen_at: Optional[datetime] = p_system(51, default=None)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
-    main_cursor: Optional["Cursor"] = p_regular(
+    cursor: Optional["Cursor"] = p_regular(
         55, default=None, require=False, references=NodeType.CURSOR, fk=True
     )
     if TYPE_CHECKING:
-        main_cursor_id: Optional[UUID] = None
-        main_cursor_ptr: Optional[NodeReference] = None
+        cursor_id: Optional[UUID] = None
+        cursor_ptr: Optional[NodeReference] = None
 
     # details
     device_type: Optional[str] = p_regular(40, default=None)

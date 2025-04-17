@@ -633,7 +633,7 @@ function nodeItemFromNode(
       if (i > 0 && isNode(ancestor.node, NodeType.BENCH) && isNode(ancestors[i - 1].node, NodeType.PACKAGE)) {
         const pkg = ancestors[i - 1].node;
         const bench = ancestor.node;
-        if (bench.mainPackagePtr?.id == pkg.id) {
+        if (bench.packagePtr?.id == pkg.id) {
           pathParts.push(ancestor.title);
         } else {
           pathParts.push(`${ancestor.title}:${ancestors[i - 1].title}`);

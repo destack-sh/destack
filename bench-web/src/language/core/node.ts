@@ -144,7 +144,7 @@ export function makeNode<T extends NodeType>(
       }
       if (nodeIn.metatype == NodeType.PACKAGE) {
         (node as PackageData).packagePtr = toNodeRef(node);
-      } else if (!("packagePtr" in nodeIn) || nodeIn.packagePtr == null) {
+      } else if (nodeIn.metatype != NodeType.BENCH && (!("packagePtr" in nodeIn) || nodeIn.packagePtr == null)) {
         throw new Error(`missing packagePtr to make sub-package node ${NodeType[nodeIn.metatype]}`);
       }
     } else {

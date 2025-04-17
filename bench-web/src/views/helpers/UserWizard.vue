@@ -90,7 +90,7 @@ async function submit() {
           { name: name.value, slug: slug.value, email: email.value, region: region.value },
           password.value,
         );
-        await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
+        await goToBench({ bench: user.benchPtr as TypedNodeReferenceData<NodeType.BENCH> });
         await fireCommandById("space.create.page");
       } finally {
         isCreating.value = false;
@@ -98,8 +98,8 @@ async function submit() {
     } else if (stage.value == UserWizardViewStage.LOG_IN) {
       const { user } = await logIn({ slug: slug.value }, password.value);
       // if we're outside a Bench and have a Bench, go home
-      if (user.mainBenchPtr != null && benchPtr.value == null) {
-        await goToBench({ bench: user.mainBenchPtr as TypedNodeReferenceData<NodeType.BENCH> });
+      if (user.benchPtr != null && benchPtr.value == null) {
+        await goToBench({ bench: user.benchPtr as TypedNodeReferenceData<NodeType.BENCH> });
       }
     } else {
       throw new Error(`unexpected registration stage: ${stage.value}`);

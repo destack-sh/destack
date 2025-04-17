@@ -120,7 +120,7 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
             slug="main",
             _supergraph=supergraph,
         )
-        bench.main_package = main_package
+        bench.package = main_package
         user = User(
             status=UserStatus.REGISTERED,
             region=Region.ZURICH,
@@ -132,7 +132,7 @@ def _make_example_bench() -> tuple[Bench, Package, Session, User]:
             _session=session,
         )
         supergraph._root_ptr = user.to_ref()
-        return bench, bench.main_package, session, user
+        return bench, bench.package, session, user
     finally:
         ACTIVE_SESSION.reset(token)
 

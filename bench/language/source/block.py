@@ -44,7 +44,6 @@ _type = type
 class BlockType(BuiltinEnum):
     # NOTE: see NodeType
     COMPUTER = 2100
-    APPLICATION = 2110
     FILE = 2200
     PAGE = 5020
     CHOICE = 5030
@@ -189,11 +188,6 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
                 return parent
             parent = parent.parent
         return None
-
-    @property
-    def container(self) -> "Page | None":
-        """The container of this Block."""
-        return self.page
 
     @property
     def name(self) -> str | None:

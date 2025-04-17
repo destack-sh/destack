@@ -946,7 +946,7 @@ export class AgentLayout extends NodeLayout<NodeType.AGENT> {
 
 export class BenchLayout extends NodeLayout<NodeType.BENCH> {
   make() {
-    this.section("Members", [{ type: "membership-list", title: undefined, delegatePtr: this.node.mainPackagePtr }], {});
+    this.section("Members", [{ type: "membership-list", title: undefined, delegatePtr: this.node.packagePtr }], {});
   }
 }
 

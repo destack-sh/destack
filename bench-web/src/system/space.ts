@@ -157,7 +157,7 @@ export async function goToBench(go: {
   const graph = new NodeGraph({ scope, nodeTypes: new Set([NodeType.PACKAGE]) });
   graph.extend(...nodes.map(unwrapSomeNode));
   const bench = graph.roots[0] as BenchData;
-  const packagePtr = bench.mainPackagePtr!;
+  const packagePtr = bench.packagePtr!;
   local.setBench({
     pkg: typeNodeReference(NodeType.PACKAGE, packagePtr),
     space: typeNodeReferenceMaybe(NodeType.SPACE, go.space),

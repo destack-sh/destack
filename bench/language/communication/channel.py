@@ -43,10 +43,10 @@ class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, Inlin
     # type: ChannelType? (text, voice, etc.)
 
     # content
-    main_page: Optional["Page"] = p_regular(
+    page: Optional["Page"] = p_regular(
         60, require=False, array=False, references=NodeType.PAGE, same_bench=True
     )
-    main_plan: Optional["Plan"] = p_regular(
+    plan: Optional["Plan"] = p_regular(
         61, require=False, array=False, references=NodeType.PLAN, same_bench=True
     )
 

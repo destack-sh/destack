@@ -304,7 +304,7 @@ async def test_crud_node_pointers(omni_session: Session):
         session._create(client)
         await session.flush()
         session.parent = bench  # patch in the session parent
-        bench.main_store = store
+        bench.store = store
         await session.commit()
         bench._untrack_rec()
 

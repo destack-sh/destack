@@ -137,7 +137,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             ):
                 cursor.seen_at = new_seen_at
             cursor.active_at = self.runtime.oracle.utc()
-            agent.main_cursor = cursor
+            agent.cursor = cursor
 
             # make prompt
             prompt = make_agent_prompt(

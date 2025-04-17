@@ -689,11 +689,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             parent = parent.parent
         return False
 
-    @property
-    def container(self) -> "Node | None":
-        """The logical 'container' of this Node (may be the parent or something else)."""
-        return self.parent
-
     def iter_descendants(self, recursive: bool = False) -> Iterable["Node"]:
         """Iterate over all descendants of this node."""
         for child_type in CHILD_NODE_TYPES[self.metatype]:
@@ -1488,15 +1483,6 @@ class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
                 return parent
             parent = parent.parent
         return None
-
-    @property
-    def container(self) -> "Node | None":
-        if (parent := self.parent) is not None:
-            return parent
-        elif (bench := self.bench) is not None:
-            return bench
-        else:
-            return None
 
     @override
     def delete(self, _now: datetime | None = None):

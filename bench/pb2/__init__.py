@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.04.16.2"
+VERSION = "2025.04.17.2"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -31,7 +31,6 @@ AnyNodeData = Union[
     ScalerData,
     StoreData,
     ComputerData,
-    ApplicationData,
     FileData,
     StreamData,
     LinkData,
@@ -126,7 +125,6 @@ BenchNodeData = Union[
     ScalerData,
     StoreData,
     ComputerData,
-    ApplicationData,
     FileData,
     StreamData,
     LinkData,
@@ -167,9 +165,7 @@ BenchNodeData = Union[
     SpaceData,
     RecordData,
 ]
-ResourceNodeData = Union[
-    ScalerData, StoreData, ComputerData, ApplicationData, FileData, StreamData, LinkData
-]
+ResourceNodeData = Union[ScalerData, StoreData, ComputerData, FileData, StreamData, LinkData]
 SourceNodeData = Union[
     PackageData,
     DependencyData,
@@ -191,7 +187,6 @@ InlineNodeData = Union[
     ScalerData,
     StoreData,
     ComputerData,
-    ApplicationData,
     FileData,
     StreamData,
     LinkData,
@@ -219,7 +214,6 @@ ClaimableNodeData = Union[
     ScalerData,
     StoreData,
     ComputerData,
-    ApplicationData,
     FileData,
     StreamData,
     LinkData,
@@ -239,7 +233,6 @@ OwnableNodeData = Union[
     ScalerData,
     StoreData,
     ComputerData,
-    ApplicationData,
     FileData,
     StreamData,
     LinkData,
