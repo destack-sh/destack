@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.17.2"
+VERSION = "2025.04.17.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -2016,8 +2016,12 @@ SPACE_TABLE = Table(
         Column("name", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("selection", PrimitiveType.JSON, is_nullable=True),
+        Column("focus_id", PrimitiveType.UUID, is_nullable=True),
+        Column("focus_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("focus_type", PrimitiveType.INT16, is_nullable=True),
+        Column("focus_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("focus_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_type", PrimitiveType.INT16, is_nullable=True),

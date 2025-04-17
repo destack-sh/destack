@@ -6971,31 +6971,31 @@ export interface SpaceData {
      */
     orderKey: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData focus = 70;
-     */
-    focus?: SelectionData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 71;
+     * @generated from protobuf field: optional symbolx.bench.SelectionData selection = 70;
      */
     selection?: SelectionData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData inspection_ptr = 73;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData focus_ptr = 71;
+     */
+    focusPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData inspection_ptr = 72;
      */
     inspectionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData container_ptr = 75;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData container_ptr = 73;
      */
     containerPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData page_ptr = 76;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData page_ptr = 74;
      */
     pagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 77;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 75;
      */
     threadPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 78;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 76;
      */
     runPtr?: NodeReferenceData;
 }
@@ -29020,13 +29020,13 @@ class SpaceData$Type extends MessageType$<SpaceData> {
             { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "text", kind: "message", T: () => TextData },
             { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 70, name: "focus", kind: "message", T: () => SelectionData },
-            { no: 71, name: "selection", kind: "message", T: () => SelectionData },
-            { no: 73, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 75, name: "container_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 76, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 77, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 78, name: "run_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 70, name: "selection", kind: "message", T: () => SelectionData },
+            { no: 71, name: "focus_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 72, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 73, name: "container_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 74, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 75, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 76, name: "run_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SpaceData>): SpaceData {
@@ -29102,25 +29102,25 @@ class SpaceData$Type extends MessageType$<SpaceData> {
                 case /* string order_key */ 33:
                     message.orderKey = reader.string();
                     break;
-                case /* optional symbolx.bench.SelectionData focus */ 70:
-                    message.focus = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.focus);
-                    break;
-                case /* optional symbolx.bench.SelectionData selection */ 71:
+                case /* optional symbolx.bench.SelectionData selection */ 70:
                     message.selection = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.selection);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData inspection_ptr */ 73:
+                case /* optional symbolx.bench.NodeReferenceData focus_ptr */ 71:
+                    message.focusPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.focusPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData inspection_ptr */ 72:
                     message.inspectionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.inspectionPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData container_ptr */ 75:
+                case /* optional symbolx.bench.NodeReferenceData container_ptr */ 73:
                     message.containerPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.containerPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData page_ptr */ 76:
+                case /* optional symbolx.bench.NodeReferenceData page_ptr */ 74:
                     message.pagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pagePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 77:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 75:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 78:
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 76:
                     message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
                     break;
                 default:
@@ -29192,27 +29192,27 @@ class SpaceData$Type extends MessageType$<SpaceData> {
         /* string order_key = 33; */
         if (message.orderKey !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbolx.bench.SelectionData focus = 70; */
-        if (message.focus)
-            SelectionData.internalBinaryWrite(message.focus, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SelectionData selection = 71; */
+        /* optional symbolx.bench.SelectionData selection = 70; */
         if (message.selection)
-            SelectionData.internalBinaryWrite(message.selection, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData inspection_ptr = 73; */
+            SelectionData.internalBinaryWrite(message.selection, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData focus_ptr = 71; */
+        if (message.focusPtr)
+            NodeReferenceData.internalBinaryWrite(message.focusPtr, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData inspection_ptr = 72; */
         if (message.inspectionPtr)
-            NodeReferenceData.internalBinaryWrite(message.inspectionPtr, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData container_ptr = 75; */
+            NodeReferenceData.internalBinaryWrite(message.inspectionPtr, writer.tag(72, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData container_ptr = 73; */
         if (message.containerPtr)
-            NodeReferenceData.internalBinaryWrite(message.containerPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData page_ptr = 76; */
+            NodeReferenceData.internalBinaryWrite(message.containerPtr, writer.tag(73, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData page_ptr = 74; */
         if (message.pagePtr)
-            NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData thread_ptr = 77; */
+            NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(74, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 75; */
         if (message.threadPtr)
-            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(77, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 78; */
+            NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(75, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 76; */
         if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(78, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -33213,13 +33213,13 @@ export enum SpaceProperty {
   name = 31,
   text = 32,
   orderKey = 33,
-  focus = 70,
-  selection = 71,
-  inspectionPtr = 73,
-  containerPtr = 75,
-  pagePtr = 76,
-  threadPtr = 77,
-  runPtr = 78,
+  selection = 70,
+  focusPtr = 71,
+  inspectionPtr = 72,
+  containerPtr = 73,
+  pagePtr = 74,
+  threadPtr = 75,
+  runPtr = 76,
 }
 
 export enum RecordProperty {
@@ -34252,7 +34252,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34289,7 +34289,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.suspendedAt]: { id: 46, name: 'suspended_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.decommissionedAt]: { id: 47, name: 'decommissioned_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.activeAt]: { id: 48, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35457,13 +35457,13 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.selection]: { id: 71, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.inspectionPtr]: { id: 73, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.containerPtr]: { id: 75, name: 'container_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.pagePtr]: { id: 76, name: 'page_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.threadPtr]: { id: 77, name: 'thread_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.runPtr]: { id: 78, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.selection]: { id: 70, name: 'selection', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
+  [SpaceProperty.focusPtr]: { id: 71, name: 'focus_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.inspectionPtr]: { id: 72, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.containerPtr]: { id: 73, name: 'container_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.pagePtr]: { id: 74, name: 'page_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.threadPtr]: { id: 75, name: 'thread_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.runPtr]: { id: 76, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RECORD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -466,10 +466,10 @@ class View(
     ...  # scroll/...
 
     # behavior
-    selection: Optional[Selection] = p_regular(
-        70, default=None, require=False, struct=StructType.SELECTION
+    focus: Optional[Node] = p_regular(
+        70, default=None, require=False, array=False, references="any"
     )
-    focus: Optional[Selection] = p_regular(
+    selection: Optional[Selection] = p_regular(
         71, default=None, require=False, struct=StructType.SELECTION
     )
     ...  # actions/effects/...

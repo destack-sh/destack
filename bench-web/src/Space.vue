@@ -4,9 +4,9 @@ import { renderTextLine } from "@/language/core/text";
 import { NodeType, Orientation, ViewType } from "@/proto/wire";
 import { isNode, toNodeRef } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
-import { bench, inspectionPtr, spaceConnection, spaceGraph } from "@/system/space";
+import { bench, containerPtr, inspectionPtr, pagePtr, spaceConnection, spaceGraph } from "@/system/space";
 import { IS_IN_ALT_MODE } from "@/ui/command";
-import { getNodeIcon } from "@/ui/icon";
+import { getNodeTitle } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { IS_DRAGGING, IS_DRAGGING_OR_SELECTING } from "@/ui/layout";
 import { hasActivePopover, pushDefaultContextMenu } from "@/ui/popover";
@@ -34,30 +34,27 @@ const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true);
 onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
-const inspectedNode = supergraph.getRef(inspectionPtr);
-const inspectedNodeTitle = computed(() => {
-  const node = inspectedNode.value;
-  if (isNode(node, NodeType.CHANNEL)) {
-    return `#${node.name}`;
-  } else if (isNode(node, NodeType.VIEW)) {
-    return node.title ?? node.name;
-  } else if ((node as any)?.title != null) {
-    return renderTextLine((node as any).title);
-  } else {
-    return (node as any)?.slug ?? (node as any)?.name;
-  }
-});
-const inspectedNodeIcon = computed(() => {
-  const node = inspectedNode.value;
-  return node != null ? getNodeIcon(node) : undefined;
-});
+const inspection = supergraph.getRef(inspectionPtr);
+const container = supergraph.getRef(containerPtr);
+const page = supergraph.getRef(pagePtr);
+
 const browserTitle = useTitle();
 watch(
-  [bench, inspectedNode],
+  [bench, inspection],
   () => {
     const benchPostfix = bench.value == null ? "Bench" : bench.value?.name;
-    const nodeTitle = inspectedNodeTitle.value;
-    browserTitle.value = nodeTitle ? `${nodeTitle} · ${benchPostfix}` : `${benchPostfix}`;
+    const titleParts = [];
+    if (inspection.value != null) {
+      titleParts.push(getNodeTitle(inspection.value));
+    }
+    if (container.value != null) {
+      titleParts.push(getNodeTitle(container.value));
+    }
+    if (page.value != null) {
+      titleParts.push(getNodeTitle(page.value));
+    }
+    titleParts.push(benchPostfix);
+    browserTitle.value = titleParts.filter((t) => t != null).join(" · ");
   },
   { immediate: true },
 );

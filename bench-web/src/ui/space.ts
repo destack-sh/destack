@@ -372,7 +372,6 @@ export class SpaceCanvas {
   inspect(inspect: {
     node: AnyNodeData | NodeReferenceData;
     view?: SomeView | ViewComponent | ComponentInstance<any> | HTMLElement | SVGElement | undefined;
-    focus?: "target" | "detail";
   }): void {
     log.trace("canvas.inspect", inspect);
 
@@ -393,14 +392,7 @@ export class SpaceCanvas {
     }
 
     // open inspector
-    const focus = inspect.focus ?? "target";
-    if (focus == "target") {
-      this.focusInGraph({ focus: makeSelection([inspect.node]), view: view });
-    } else if (focus == "detail") {
-      this.addView({ type: ViewType.OBJECT }, { ifPresent: "focus" });
-    } else {
-      assertNever(focus);
-    }
+    this.focusInGraph({ focus: makeSelection([inspect.node]), view: view });
   }
 
   /**
