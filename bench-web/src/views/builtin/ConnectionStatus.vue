@@ -98,7 +98,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                   </span>
                   <template v-if="isDeveloperMode">
                     <!-- Receive (status & toggle) -->
-                    <button class="rounded-sm px-1 hover:bg-amber-200" @click="connection.togglePaused()">
+                    <button class="rounded-sm px-1 hover:bg-yellow-200" @click="connection.togglePaused()">
                       <i
                         :class="
                           connection.isConnecting.value
@@ -110,7 +110,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                       />
                     </button>
                     <!-- Send (toggle) -->
-                    <button class="rounded-sm px-1 hover:bg-amber-200" @click="connection.txBuffer.togglePaused()">
+                    <button class="rounded-sm px-1 hover:bg-yellow-200" @click="connection.txBuffer.togglePaused()">
                       <i
                         class="fas fa-up"
                         :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"

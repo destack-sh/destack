@@ -146,7 +146,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       })
     "
     :disabled="isDisabled || !isInput"
-    class="group flex w-full flex-row items-center rounded-sm border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-amber-700"
+    class="group flex w-full flex-row items-center rounded-sm border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-yellow-700"
   >
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->

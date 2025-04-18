@@ -238,7 +238,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             class="group/node relative mx-3 flex max-w-full flex-row items-center rounded-sm px-1.5 transition-colors duration-75 hover:cursor-pointer"
             :class="[
               canvas.isSelected(thread)
-                ? 'bg-amber-400/20'
+                ? 'bg-yellow-400/20'
                 : canvas.isHighlighted(thread)
                   ? 'bg-gray-100'
                   : 'hover:bg-gray-100',

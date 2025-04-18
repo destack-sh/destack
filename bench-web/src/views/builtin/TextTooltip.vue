@@ -64,7 +64,7 @@ const formatCommands: FormatCommand[] = [
           group: 'text.format',
         }"
         class="rounded-sm px-1 py-0.5 hover:bg-gray-100"
-        :class="[command.isChecked() ? 'text-amber-700' : '']"
+        :class="[command.isChecked() ? 'text-yellow-700' : '']"
         @mousedown.stop.prevent="command.toggle()"
       >
         <IconInline class="w-5 text-center" v-bind="command.icon" />
