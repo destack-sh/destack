@@ -20,7 +20,7 @@ import {
 } from "@/proto/wire/";
 import { describeNode, isNode, isNodeRef, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection } from "@/system/connection";
-import { bench, canvas, pkg } from "@/system/space";
+import { bench, canvas, inspectionPtr, pkg } from "@/system/space";
 import { type CommandMapKit } from "@/ui/command";
 import { isDragging, isSelecting, startSelectingIfAllowed, useMultiDropZone, useSelectionZone } from "@/ui/drag";
 import { IconInline, makeIcon } from "@/ui/icon";
@@ -172,7 +172,7 @@ const {
       prevState.selection.eq(newState.selection)
     );
 
-    // update iinspection
+    // update inspection
     if (selectionChanged && newState.selection) {
       const { from } = newState.selection;
       const $from = newState.doc.resolve(from);
@@ -180,8 +180,8 @@ const {
       if (node && node.attrs.blockPtr) {
         const blockPtr = node.attrs.blockPtr;
         const block = graph.getMaybe(blockPtr);
-        if (block) {
-          canvas.inspect({ node: block });
+        if (block && inspectionPtr.value?.id != block.id) {
+          canvas.inspect({ node: block, view: vueInstance });
         }
       }
     }
