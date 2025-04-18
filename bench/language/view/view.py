@@ -4,7 +4,6 @@ from uuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    InlineNode,
     IsClaimable,
     IsModal,
     IsNamed,
@@ -14,6 +13,7 @@ from bench.language.core import (
     Node,
     NodeReference,
     NodeType,
+    PageNode,
     PrimitiveType,
     Selection,
     Struct,
@@ -414,7 +414,7 @@ class View(
     IsNamed,
     IsOwnable,
     IsClaimable,
-    InlineNode[ViewData],
+    PageNode[ViewData],
 ):
     """A View is a graphical interface in a Bench."""
 

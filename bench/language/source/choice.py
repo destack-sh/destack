@@ -2,7 +2,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
-    InlineNode,
     IsModal,
     IsNamed,
     IsTemplatable,
@@ -10,6 +9,7 @@ from bench.language.core import (
     IsTypeBase,
     LocalNodeList,
     NodeType,
+    PageNode,
     Type,
     TypeKind,
     node_,
@@ -30,7 +30,7 @@ class Choice(
     IsModal,
     IsNamed,
     IsTypeBase,
-    InlineNode[ChoiceData],
+    PageNode[ChoiceData],
 ):
     """A Choice of Options."""
 

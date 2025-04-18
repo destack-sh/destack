@@ -1,5 +1,5 @@
 import { supergraph } from "@/globals";
-import { isInlineNode, toCamelName } from "@/language/core/const";
+import { isPageNode, toCamelName } from "@/language/core/const";
 import { type ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -17,8 +17,8 @@ import {
   BlockData,
   BlockType,
   FieldType,
-  INLINE_NODE_TYPES,
-  InlineNodeData,
+  PAGE_NODE_TYPES,
+  PageNodeData,
   NodeReferenceData,
   NodeType,
   PageData,
@@ -34,7 +34,7 @@ export function createBlock(
   graph: ReadNodeGraph,
   options: {
     block: Partial<NodeIn<NodeType.BLOCK>>;
-    node?: InlineNodeData | Partial<NodeIn<any>>;
+    node?: PageNodeData | Partial<NodeIn<any>>;
     anchor: "before" | "after" | "inside";
     target: BlockData | PageData;
   },
@@ -83,12 +83,12 @@ export function createBlock(
     line,
     orderKey,
   });
-  if (INLINE_NODE_TYPES.includes(options.block.type as unknown as NodeType) && options.block.nodePtr == null) {
+  if (PAGE_NODE_TYPES.includes(options.block.type as unknown as NodeType) && options.block.nodePtr == null) {
     if (options.node?.id != null) {
       block.nodePtr = toNodeRef(options.node as AnyNodeData);
     } else {
       // new inline node
-      const node = createInlineNode(tx, graph, {
+      const node = createPageNode(tx, graph, {
         node: {
           metatype: block.type,
           ...options.node,
@@ -104,12 +104,12 @@ export function createBlock(
   return block;
 }
 
-/** Create an InlineNode for a Block. */
-export function createInlineNode(
+/** Create an PageNode for a Block. */
+export function createPageNode(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: { node: Partial<NodeIn<any>> },
-): InlineNodeData {
+): PageNodeData {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
@@ -140,17 +140,17 @@ export function createInlineNode(
 }
 
 /** Unwrap a Block into its inner source node, if it has one. */
-export function unwrapBlockDefinition(block: BlockData): InlineNodeData | undefined {
+export function unwrapBlockDefinition(block: BlockData): PageNodeData | undefined {
   if (block.nodePtr == null) return undefined;
   const node = supergraph.get(block.nodePtr);
-  if (!isInlineNode(node)) {
+  if (!isPageNode(node)) {
     return undefined; // may be other node type
   }
   return node;
 }
 
-/** Unwrap an InlineNode into its Block. */
-export function unwrapInlineNode(node: InlineNodeData): BlockData | undefined {
+/** Unwrap an PageNode into its Block. */
+export function unwrapPageNode(node: PageNodeData): BlockData | undefined {
   if (node.definitionPtr == null) return undefined;
   const block = supergraph.getOrError(node.definitionPtr);
   return block as BlockData;

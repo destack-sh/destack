@@ -13,7 +13,7 @@ from .const import (
     Region,
     enum_,
 )
-from .node import InlineNode, Node, NodeReference, node_component_
+from .node import Node, NodeReference, PageNode, node_component_
 from .property import p_internal, p_node_parent, p_system
 from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
 
@@ -113,7 +113,7 @@ class ResourceStatus(BuiltinEnum):
 
 @node_component_()
 class Resource[NodeDataT: AnyNodeData](
-    IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, InlineNode[NodeDataT]
+    IsModal, IsInstantiable, IsOwnable, IsNamed, IsClaimable, PageNode[NodeDataT]
 ):
     """
     A Resource in a Bench.

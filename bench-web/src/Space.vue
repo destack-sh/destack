@@ -34,9 +34,9 @@ const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => true);
 onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
-const inspection = supergraph.getRef(inspectionPtr);
-const container = supergraph.getRef(containerPtr);
-const page = supergraph.getRef(pagePtr);
+const { node: inspection, graph: inspectionGraph } = supergraph.getLinkRef(inspectionPtr);
+const { node: container, graph: containerGraph } = supergraph.getLinkRef(containerPtr);
+const { node: page, graph: pageGraph } = supergraph.getLinkRef(pagePtr);
 
 const browserTitle = useTitle();
 watch(
@@ -50,7 +50,12 @@ watch(
     if (container.value != null && container.value?.id != inspection.value?.id) {
       titleParts.push(getNodeTitle(container.value));
     }
-    if (page.value != null && page.value?.id != container.value?.id) {
+    if (
+      page.value != null &&
+      page.value?.id != container.value?.id &&
+      container.value != null &&
+      containerGraph.value?.getAncestors(container.value).some((n) => n.id == page.value?.id)
+    ) {
       titleParts.push(getNodeTitle(page.value));
     }
     titleParts.push(benchPostfix);

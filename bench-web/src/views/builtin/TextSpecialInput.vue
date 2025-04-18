@@ -2,12 +2,12 @@
 import { canvas } from "@/globals";
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { newChangeId } from "@/language/core/transaction";
-import { createInlineNode } from "@/language/source/block";
+import { createPageNode } from "@/language/source/block";
 import {
   BenchType,
   BlockType,
   ColorShade,
-  InlineNodeData,
+  PageNodeData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -195,13 +195,13 @@ function apply(item: SearchItem) {
       const block = graph.get(lineNode.attrs.blockPtr);
       if (!isNode(block, NodeType.BLOCK)) throw new Error("block not found");
       // create inline node
-      const node = createInlineNode(tx, graph, {
+      const node = createPageNode(tx, graph, {
         node: {
           metatype: blockType as unknown as ObjectType,
           parentPtr: toNodeRef(page),
           packagePtr: page.packagePtr,
           definitionPtr: toNodeRef(block),
-        } satisfies Partial<InlineNodeData>,
+        } satisfies Partial<PageNodeData>,
       });
       tx.update(block, { type: blockType, nodePtr: toNodeRef(node) });
       deleteSelf();

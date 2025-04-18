@@ -3,7 +3,7 @@
  */
 
 import { supergraph } from "@/globals";
-import { isInlineNode, isInstantiableNode, isTemplatableNode, toCamelName } from "@/language/core/const";
+import { isPageNode, isInstantiableNode, isTemplatableNode, toCamelName } from "@/language/core/const";
 import { getNextSibling, isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/core/graph";
 import { updateOrder } from "@/language/core/order";
 import { JsonValue, packBuiltinObjectProperty, unpackBuiltinObjectProperty } from "@/language/core/value";
@@ -491,7 +491,7 @@ export function cloneNode<T extends AnyNodeData>(
           _oldNodeByOldId: oldNodeByOldId,
         });
       }
-    } else if (isInlineNode(oldNode) && oldNode.definitionPtr != null) {
+    } else if (isPageNode(oldNode) && oldNode.definitionPtr != null) {
       // for inline source nodes, also clone the block definition
       const block = supergraph.getOrError(oldNode.definitionPtr) as BlockData;
       cloneNode(tx, graph, block, {
@@ -762,11 +762,11 @@ export function moveNode(
     if (source?.definitionPtr?.id == node.id) {
       tx.move(source, { parentPtr }, { debounce: options.debounce ?? "tick" });
     }
-  } else if (isInlineNode(node)) {
+  } else if (isPageNode(node)) {
     if (node.definitionPtr != null) {
       // for inline source nodes, also move the block definition
       let block = supergraph.getOrError(node.definitionPtr) as BlockData;
-      if (isInlineNode(target) && target.definitionPtr != null) {
+      if (isPageNode(target) && target.definitionPtr != null) {
         target = supergraph.getOrError(target.definitionPtr) as BlockData;
       }
       if (!PARENT_NODE_TYPES[NodeType.BLOCK].includes(parentPtr.nodeType)) {

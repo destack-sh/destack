@@ -74,8 +74,8 @@ class RenderOptions:
     include_properties: Mapping[ObjectType, Collection[Property]] | None = None
     exclude_properties: Mapping[ObjectType, Collection[Property]] | None = None
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    # NOTE :Cleanup :Architecture: RenderOptions.inline_node_types maybe shouldn't exist?
-    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION)
+    # NOTE :Cleanup :Architecture: RenderOptions.PAGE_NODE_types maybe shouldn't exist?
+    PAGE_NODE_types: Collection[NodeType] = (NodeType.FIELD, NodeType.OPTION)
     # formatting
     statement_separator: str = "\n"
     format: bool = True
@@ -204,7 +204,7 @@ class Renderer:
         """Renders a python-valid reference to the given node in this context."""
         if (
             isinstance(node, Node)
-            and node.metatype in self.options.inline_node_types
+            and node.metatype in self.options.PAGE_NODE_types
             and "name" in node.__properties__
         ):
             # refer named inlined children from parent
@@ -622,7 +622,7 @@ class NodeRenderer[T: Node](BuiltinObjectRenderer[T]):
         for prop in obj.__node_child_properties__.values():
             assert prop.reference_nodes, f"no reference nodes for {prop!r}"
             child_node_type = prop.reference_nodes[0]
-            if child_node_type not in renderer.options.inline_node_types:
+            if child_node_type not in renderer.options.PAGE_NODE_types:
                 continue
             children = getattr(obj, prop.name)
             if not children:

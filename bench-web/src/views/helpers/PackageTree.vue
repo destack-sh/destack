@@ -5,7 +5,7 @@ import { cloneNode, getRootNodes, moveNode } from "@/language/core/node";
 import { newChangeId } from "@/language/core/transaction";
 import {
   CHILD_NODE_TYPES,
-  INLINE_NODE_TYPES,
+  PAGE_NODE_TYPES,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -41,7 +41,7 @@ import { computed, ref, type Ref } from "vue";
 const DEPTH_OFFSET = 16;
 const ITEM_HEIGHT = 30;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const NODE_TYPES = INLINE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n) && n != NodeType.THREAD);
+const NODE_TYPES = PAGE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n) && n != NodeType.THREAD);
 
 const props = defineProps<
   {

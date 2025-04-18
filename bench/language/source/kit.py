@@ -2,8 +2,7 @@ import typing
 from typing import Optional, Union
 
 from bench.language.core import (
-    INLINE_NODE_TYPES,
-    InlineNode,
+    PAGE_NODE_TYPES,
     IsClaimable,
     IsModal,
     IsNamed,
@@ -11,6 +10,7 @@ from bench.language.core import (
     IsTemplatable,
     LocalNodeList,
     NodeType,
+    PageNode,
     StructType,
     node_,
     p_node_children,
@@ -33,7 +33,7 @@ class Kit(
     IsClaimable,
     IsModal,
     IsNamed,
-    InlineNode[KitData],
+    PageNode[KitData],
 ):
     """
     A Kit of Actions for a Node.
@@ -41,8 +41,8 @@ class Kit(
 
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
 
-    target: Optional["InlineNode"] = p_regular(
-        40, require=False, array=False, references=INLINE_NODE_TYPES.tuple
+    target: Optional["PageNode"] = p_regular(
+        40, require=False, array=False, references=PAGE_NODE_TYPES.tuple
     )
     text: Optional["Text"] = p_regular(
         41, default=None, require=False, array=False, struct=StructType.TEXT

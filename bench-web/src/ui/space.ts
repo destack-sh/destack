@@ -1,6 +1,6 @@
 import { canvas, supergraph } from "@/globals";
 import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
-import { getBaseFromNode, HELPER_VIEW_TYPES, isInlineNode, ROOT_VIEW_TYPES, toCamelName } from "@/language/core/const";
+import { getBaseFromNode, HELPER_VIEW_TYPES, isPageNode, ROOT_VIEW_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/core/graph";
 import {
   cloneNode,
@@ -401,7 +401,7 @@ export class SpaceCanvas {
         const { node, graph } = link;
         const ancestors = graph.getAncestors(node, { includeSelf: true });
         const page = ancestors.find((n) => isNode(n, NodeType.PAGE));
-        const container = ancestors.find((n) => isInlineNode(n));
+        const container = ancestors.find((n) => isPageNode(n));
         const thread = ancestors.find((n) => isNode(n, NodeType.THREAD));
         if (container != null && container.id != space.containerPtr?.id) {
           update.containerPtr = toNodeRef(container);
@@ -1068,7 +1068,7 @@ export class SpaceCanvas {
     if (
       isNode(node, NodeType.PAGE) ||
       isNode(node, NodeType.BLOCK) ||
-      (isInlineNode(node) && node.definitionPtr != null)
+      (isPageNode(node) && node.definitionPtr != null)
     ) {
       const containingPage = graph
         .getAncestors(nodePtr, { metatypes: [NodeType.PAGE], includeSelf: !options?.skipSelf })

@@ -737,7 +737,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if clone_parent is None and not detach:
                 clone_parent = self.parent
             if isinstance(self, Block):
-                if isinstance(node := self.node, InlineNode) and node.definition_id == self.id:
+                if isinstance(node := self.node, PageNode) and node.definition_id == self.id:
                     assert clone_parent is not None, f"cannot clone detached {self!r}"
                     cloned_node = node.clone(
                         reset=reset,
@@ -750,7 +750,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     cast(Block, clone).node_ptr = cloned_node.to_ref()
                     cloned_node.definition_ptr = clone.to_ref()
                     attach_node(cloned_node, clone_parent, clone_parent._graph, create=False)
-            elif isinstance(self, InlineNode) and (definition := self.definition) is not None:
+            elif isinstance(self, PageNode) and (definition := self.definition) is not None:
                 assert clone_parent is not None, f"cannot clone detached {self!r}"
                 cloned_node = definition.clone(
                     reset=reset,
@@ -760,7 +760,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     _is_nested=True,
                     _ignore_definition=True,
                 )
-                cast(InlineNode, clone).definition_ptr = cloned_node.to_ref()
+                cast(PageNode, clone).definition_ptr = cloned_node.to_ref()
                 cloned_node.node_ptr = clone.to_ref()
                 attach_node(cloned_node, clone_parent, clone_parent._graph, create=False)
 
@@ -1449,8 +1449,8 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
 
 
 @node_component_()
-class InlineNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
-    """A Node that can be defined 'inline' on a Block/Page."""
+class PageNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
+    """A Node that can be defined 'inline' on a Page."""
 
     parent: Union["Page", None] = p_node_parent(4, NodeType.PAGE)
     # name: 31

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { ReadNodeGraph } from "@/language/core/graph";
 import type { NodeReferenceData, PackageData, PageData } from "@/proto/wire";
-import { INLINE_NODE_TYPES, NodeType } from "@/proto/wire";
+import { PAGE_NODE_TYPES, NodeType } from "@/proto/wire";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
 import NodeReference from "@/views/builtin/NodeReference.vue";
@@ -14,7 +14,7 @@ const props = defineProps<{
   graph: ReadNodeGraph;
 }>();
 
-const METATYPES = [...INLINE_NODE_TYPES, NodeType.THREAD];
+const METATYPES = [...PAGE_NODE_TYPES, NodeType.THREAD];
 
 const ancestorsFocus = props.graph.getAncestorsRef(toRef(props, "focus"), { includeSelf: true, metatypes: METATYPES });
 const ancestorsSelf = props.graph.getAncestorsRef(toRef(props, "container"), {

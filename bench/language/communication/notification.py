@@ -14,7 +14,6 @@ from bench.language.core import (
     PackageNode,
     StructType,
     enum_,
-    p_internal,
     p_node_parent,
     p_regular,
     p_system,

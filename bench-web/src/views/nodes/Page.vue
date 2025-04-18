@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isInlineNode } from "@/language/core/const";
+import { isPageNode } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { isTextLineEmpty, STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
@@ -227,7 +227,7 @@ const { activeDropZone } = useMultiDropZone({
     if (targetId == null) return; // need target
     // unwrap into blocks
     let targetNode = graph.getOrError({ id: targetId });
-    if (isInlineNode(targetNode) && targetNode.definitionPtr != null) {
+    if (isPageNode(targetNode) && targetNode.definitionPtr != null) {
       targetNode = graph.getOrError(targetNode.definitionPtr);
     }
 

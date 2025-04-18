@@ -1,4 +1,4 @@
-import { isInlineNode, TYPE_NODE_TYPES } from "@/language/core/const";
+import { isPageNode, TYPE_NODE_TYPES } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import { cloneNode, moveNode } from "@/language/core/node";
 import { getOrderKey } from "@/language/core/order";
@@ -9,7 +9,7 @@ import {
   BenchType,
   FieldData,
   FieldType,
-  InlineNodeData,
+  PageNodeData,
   NodeReferenceData,
   NodeType,
   RUNNABLE_NODE_TYPES,
@@ -26,7 +26,7 @@ export function createField(
   options: {
     field?: Partial<FieldData>;
     anchor: "before" | "above" | "after" | "below" | "inside" | "start" | "end" | "center";
-    target: FieldData | ActionData | InlineNodeData;
+    target: FieldData | ActionData | PageNodeData;
   },
 ): FieldData {
   // eslint-disable-next-line prefer-const
@@ -39,7 +39,7 @@ export function createField(
   let type: FieldType;
   let kind: TypeKind | null = fieldIn?.kind ?? null;
   let siblings: FieldData[];
-  if (isInlineNode(target)) {
+  if (isPageNode(target)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
     parentPtr = toNodeRef(target);
@@ -165,7 +165,7 @@ export function useFieldList(options: {
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
   fieldType: Ref<FieldType>;
-  base: Ref<InlineNodeData | ActionData | null>;
+  base: Ref<PageNodeData | ActionData | null>;
 }) {
   const { graph, txFactory, fieldType, base } = options;
 
@@ -176,7 +176,7 @@ export function useFieldList(options: {
       node = graph.getOrError(node);
       if (isNode(node, NodeType.FIELD)) {
         return true;
-      } else if (isInlineNode(node) && TYPE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
+      } else if (isPageNode(node) && TYPE_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
         return true;
       } else {
         return false;

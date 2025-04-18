@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    InlineNode,
     IsInstantiable,
     IsJoinable,
     IsModal,
@@ -10,6 +9,7 @@ from bench.language.core import (
     LocalNodeList,
     NodeReference,
     NodeType,
+    PageNode,
     node_,
     p_node_ancestor,
     p_node_children,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 @node_(NodeType.TEAM, roots=(NodeType.ORGANIZATION,))
-class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, InlineNode[TeamData]):
+class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
     """
     A Team of Users or Identities.
     """

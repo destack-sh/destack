@@ -30721,7 +30721,7 @@ export type AnyStructDataType = typeof ContextData | typeof EditContextData | ty
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | KitData | ActionData | TransitionData | TriggerData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | CursorData | ViewData | SpaceData | RecordData
 export type ClaimableNodeData = ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PageData | FlowData | KitData | ActionData | DatabaseData | AgentData | PlanData | TaskData | ViewData | RecordData
 export type FieldBaseNodeData = ClassData | FlowData | ActionData | DatabaseData | AgentData
-export type InlineNodeData = ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PageData | ChoiceData | ClassData | TagData | FlowData | KitData | DatabaseData | ChannelData | ThreadData | TeamData | RoleData | AgentData | PlanData | TaskData | ViewData
+export type PageNodeData = ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PageData | ChoiceData | ClassData | TagData | FlowData | KitData | DatabaseData | ChannelData | ThreadData | TeamData | RoleData | AgentData | PlanData | TaskData | ViewData
 export type JoinableNodeData = PackageData | ChannelData | ThreadData | TeamData
 export type OwnableNodeData = BenchData | ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PackageData | PageData | FlowData | KitData | DatabaseData | ThreadData | MessageData | AgentData | PlanData | TaskData | ClaimData | CursorData | ViewData | SpaceData | RecordData
 export type TemplatableNodeData = ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | KitData | ActionData | TransitionData | TriggerData | DatabaseData | ChannelData | ThreadData | TeamData | MembershipData | RoleData | AgentData | PlanData | TaskData | ClaimData | ViewData | SpaceData
@@ -30808,7 +30808,7 @@ export const GLOBAL_NODE_TYPES: NodeType[] = [
   NodeType.ORGANIZATION,
   NodeType.CLIENT,
 ];
-export const INLINE_NODE_TYPES: NodeType[] = [
+export const PAGE_NODE_TYPES: NodeType[] = [
   NodeType.SCALER,
   NodeType.STORE,
   NodeType.COMPUTER,

@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Literal
 
 from bench.language.core import (
     FieldType,
-    InlineNode,
     IsClaimable,
     IsFieldBase,
     IsInstantiable,
@@ -13,6 +12,7 @@ from bench.language.core import (
     IsType,
     LocalNodeList,
     NodeType,
+    PageNode,
     RecordNodeList,
     TypeKind,
     node_,
@@ -35,7 +35,7 @@ class Database(
     IsOwnable,
     IsClaimable,
     IsFieldBase,
-    InlineNode[DatabaseData],
+    PageNode[DatabaseData],
 ):
     """A Database of Records."""
 

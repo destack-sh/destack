@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    InlineNode,
     IsInstantiable,
     IsJoinable,
     IsModal,
@@ -11,6 +10,7 @@ from bench.language.core import (
     IsProcessable,
     LocalNodeList,
     NodeType,
+    PageNode,
     RemoteNodeList,
     enum_,
     p_node_children,
@@ -33,7 +33,7 @@ class ChannelStatus(BuiltinEnum):
 
 
 @timed_node_(NodeType.CHANNEL)
-class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, InlineNode[ChannelData]):
+class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageNode[ChannelData]):
     """
     A Channel for communcating with Messages and Threads.
     """

@@ -26,11 +26,11 @@ def get_stable_builtin_path(node: Node) -> str:
         path_key = current._ident
         if path_key is None:
             if isinstance(current, Block):
-                inline_node = current.node
-                assert inline_node is not None, f"block {current!r} has no inline node"
-                inline_ident = inline_node._ident
-                assert inline_ident is not None, f"inline node {inline_node!r} has no ident"
-                path_key = f"Block[{inline_ident}]"
+                PAGE_NODE = current.node
+                assert PAGE_NODE is not None, f"block {current!r} has no inline node"
+                page_ident = PAGE_NODE._ident
+                assert page_ident is not None, f"inline node {PAGE_NODE!r} has no ident"
+                path_key = f"Block[{page_ident}]"
             elif isinstance(current, Membership):
                 member = current.member
                 member_ident = member._ident

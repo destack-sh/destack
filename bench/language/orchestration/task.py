@@ -6,7 +6,6 @@ from uuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    InlineNode,
     IsClaimable,
     IsInstantiable,
     IsModal,
@@ -17,6 +16,7 @@ from bench.language.core import (
     IsType,
     NodeList,
     NodeType,
+    PageNode,
     ProcessStatus,
     StructType,
     Text,
@@ -60,7 +60,7 @@ class Task(
     IsModal,
     IsTitled,
     IsInstantiable,
-    InlineNode[TaskData],
+    PageNode[TaskData],
 ):
     """A Task to accomplish something."""
 
