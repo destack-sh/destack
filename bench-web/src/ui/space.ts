@@ -142,7 +142,6 @@ export class SpaceCanvas {
 
     // respond to 'unmanaged' input from browser
     // active element
-    watch(activeElement, () => console.log("activeElement", activeElement.value));
     watch(activeElement, () => {
       if (
         activeElement.value != null &&
@@ -387,11 +386,33 @@ export class SpaceCanvas {
     if (view == null) {
       throw new Error(`no view for ${inspect.view}`);
     }
+
+    // update inspection
     if (inspectionPtr.value?.id != nodePtr.id) {
+      const link = supergraph.getLink(nodePtr);
       const space = this.graph.getOrError(this.spacePtr.value!);
-      this.tx().update(space, { inspectionPtr: nodePtr }, { debounce: "long" });
+      const update: Partial<SpaceData> = { inspectionPtr: nodePtr };
+
+      // update containerPtr/pagePtr/threadPtr
+      if (link != null) {
+        const { node, graph } = link;
+        const ancestors = graph.getAncestors(node);
+        const page = ancestors.find((n) => isNode(n, NodeType.PAGE));
+        const container = ancestors.find((n) => isInlineNode(n));
+        const thread = ancestors.find((n) => isNode(n, NodeType.THREAD));
+        if (container != null && container.id != space.containerPtr?.id) {
+          update.containerPtr = toNodeRef(container);
+        }
+        if (page != null && page.id != space.pagePtr?.id) {
+          update.pagePtr = toNodeRef(page);
+        }
+        if (thread != null && thread.id != space.threadPtr?.id) {
+          update.threadPtr = toNodeRef(thread);
+        }
+      }
+
+      this.tx().update(space, update, { debounce: "long" });
     }
-    console.log("inspect", { nodePtr, view }); // nocheckin: set containerPtr/pagePtr
 
     // open inspector
     this.focusInGraph({ focusPtr: nodePtr, view: view });
@@ -1278,7 +1299,13 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
   }
   tx.update(
     space,
-    { focusPtr: undefined, inspectionPtr: undefined, containerPtr: undefined, pagePtr: undefined },
+    {
+      focusPtr: undefined,
+      inspectionPtr: undefined,
+      containerPtr: undefined,
+      pagePtr: undefined,
+      threadPtr: undefined,
+    },
     { debounce: "long" },
   );
 }
