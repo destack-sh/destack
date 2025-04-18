@@ -72,9 +72,10 @@ export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),
 );
 
-// selection
+// global pointers
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
 export const containerPtr = computed(() => space.value?.containerPtr);
+export const threadPtr = computed(() => space.value?.threadPtr);
 export const pagePtr = computed(() => space.value?.pagePtr);
 
 // spaceGraph should point to current space

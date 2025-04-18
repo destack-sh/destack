@@ -192,7 +192,7 @@ defineExpose<ViewExpose>({ self, commands });
       id="tabHeader"
       ref="columnHeaderRef"
       data-contextmenu-items="view.navigate*close*frame*,view.layout*"
-      class="scrollbar-none relative flex w-full flex-row bg-gray-100 select-none"
+      class="scrollbar-hidden relative flex w-full flex-row bg-gray-100 select-none"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay

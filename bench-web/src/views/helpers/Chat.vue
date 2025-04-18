@@ -25,11 +25,10 @@ import {
   RectangleData,
   SubjectNodeData,
   TextData,
-  TextLineType,
   ThreadData,
   Timestamp,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
@@ -40,7 +39,7 @@ import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CON
 import { startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/ui/drag";
 import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { getNodeColor } from "@/ui/style";
-import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtin/NodeReference.vue";
@@ -58,9 +57,7 @@ import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
 const MIN_AUTOSCROLL_INTERVAL_MILLISECONDS = 500;
-const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const MESSAGE_HEIGHT_MIN = 28;
-const MESSAGE_MAX_TIME_DELTA_SECONDS = 5 * 60; // 5 minutes
+const MESSAGE_GROUP_TIME_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 52;
 const GUTTER_WIDTH = 30;
 
@@ -272,7 +269,7 @@ const messageViews = computed(() => {
       isStartOfGroup =
         message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
         Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
-          MESSAGE_MAX_TIME_DELTA_SECONDS;
+          MESSAGE_GROUP_TIME_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
     }
     const isEmpty = message.text == null || isTextEmpty(message.text);
@@ -635,7 +632,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               v-for="i in LOADING_SKELETON_COUNT"
               ref="topPlaceholderRef"
               :key="i"
-              class="mb-2 mt-3 flex animate-pulse flex-row"
+              class="mt-3 mb-2 flex animate-pulse flex-row"
               :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
             >
               <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
@@ -704,7 +701,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-amber-200' : 'hover:bg-gray-100',
+              isSelected ? 'bg-amber-100' : 'hover:bg-gray-100',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -718,7 +715,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <div v-if="replyTo != null" class="relative flex max-w-full items-center">
               <!-- 'Line' (supposed to go from avatar to the author with a bend) -->
               <div
-                class="absolute top-2 h-4 w-7 rounded-sm rounded-b-none rounded-r-none border-l-2 border-t-2"
+                class="absolute top-2 h-4 w-7 rounded-sm rounded-r-none rounded-b-none border-t-2 border-l-2"
                 :style="{ left: MESSAGE_SIDE_WIDTH / 2 - 3 + 'px' }"
               />
               <!-- Spacing for side -->
@@ -787,7 +784,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 <!-- Commands -->
                 <div
                   v-if="!isEditing"
-                  class="absolute -right-2 top-0 z-10 flex -translate-y-[80%] flex-row rounded-lg border border-gray-200 bg-white opacity-0 transition-opacity duration-75 group-hover/message:opacity-100"
+                  class="absolute top-0 -right-2 z-10 flex -translate-y-[80%] flex-row rounded-lg border border-gray-200 bg-white opacity-0 transition-opacity duration-75 group-hover/message:opacity-100"
                 >
                   <button
                     v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
@@ -802,10 +799,10 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 </div>
 
                 <!-- Run -->
-                <div v-if="message.type == MessageType.RUN" class="mb-1.5 mt-1.5 flex flex-row items-center">
+                <div v-if="message.type == MessageType.RUN" class="mt-1.5 mb-1.5 flex flex-row items-center">
                   <!-- Call -->
                   <div
-                    class="flex flex-row items-baseline gap-x-1.5 rounded-full border bg-gray-100 py-1 pl-2 pr-3 text-sm"
+                    class="flex flex-row items-baseline gap-x-1.5 rounded-full border bg-gray-100 py-1 pr-3 pl-2 text-sm"
                   >
                     <NodeReference :node-ptr="message.runnablePtr" hide-metadata size="sm" />
                     <Title
@@ -859,10 +856,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                   <div v-if="isEditing" class="mt-0.5 flex-row text-xs text-gray-400">
                     <span>
                       escape to
-                      <a
-                        href="#"
-                        class="text-amber-700 underline-offset-2 hover:underline"
-                        @click.stop="stopEditing()"
+                      <a href="#" class="text-amber-700 underline-offset-2 hover:underline" @click.stop="stopEditing()"
                         >cancel</a
                       >
                     </span>
@@ -878,7 +872,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 
                 <!-- Extras -->
                 <!-- NOTE :UX: this should be a proper :FileGallery -->
-                <div v-if="filesPtr.length > 0" class="mb-2 mt-1.5 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">
+                <div v-if="filesPtr.length > 0" class="mt-1.5 mb-2 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">
                   <File
                     v-for="filePtr in filesPtr"
                     :id="'file-' + filePtr.id"
@@ -905,7 +899,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           v-if="!isAtEnd && isEnabled"
           ref="bottomPlaceholderRef"
           :key="i"
-          class="mx-5 mb-2 mt-3 flex animate-pulse flex-row"
+          class="mx-5 mt-3 mb-2 flex animate-pulse flex-row"
         >
           <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
             <div class="h-8 w-8 rounded-full bg-gray-100"></div>
@@ -953,7 +947,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 
       <!-- Main box -->
       <div
-        class="relative flex flex-row rounded-sm border border-gray-200 px-2 pb-2 pt-3"
+        class="relative flex flex-row rounded-sm border border-gray-200 px-2 pt-3 pb-2"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <!-- Left -->
@@ -1000,7 +994,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               />
               <!-- Remove -->
               <button
-                class="absolute right-0 top-0 -translate-y-1/2 translate-x-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-75 hover:bg-gray-600"
+                class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-75 hover:bg-gray-600"
                 @click.stop="removeFiles([file])"
               >
                 <i class="fas fa-xmark" />

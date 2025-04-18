@@ -396,7 +396,7 @@ export class SpaceCanvas {
       // update containerPtr/pagePtr/threadPtr
       if (link != null) {
         const { node, graph } = link;
-        const ancestors = graph.getAncestors(node);
+        const ancestors = graph.getAncestors(node, { includeSelf: true});
         const page = ancestors.find((n) => isNode(n, NodeType.PAGE));
         const container = ancestors.find((n) => isInlineNode(n));
         const thread = ancestors.find((n) => isNode(n, NodeType.THREAD));

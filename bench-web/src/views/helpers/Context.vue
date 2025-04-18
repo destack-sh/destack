@@ -57,10 +57,6 @@ const target = computed(() => {
   }
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
-const targetType = computed(() => targetPtr.value?.nodeType);
-const targetPropertiesEnum = computed(() =>
-  targetType.value != null ? (PROPERTY_ENUM_BY_TYPE[targetType.value] ?? {}) : {},
-);
 const scope = computed(() => {
   if (delegate.value != null) {
     return delegate.value;
@@ -68,22 +64,6 @@ const scope = computed(() => {
     return parent.value;
   } else {
     return inspection.value;
-  }
-});
-
-// run
-const containingRun: Ref<RunData | null> = computed(() => {
-  if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
-    return runtime.focusedRun;
-  } else {
-    return null;
-  }
-});
-const selfRun: Ref<RunData | null> = computed(() => {
-  if (nodePtr.value != null && runtime.focusedRun != null && runtime.focusedRunTree.hasBase(nodePtr.value)) {
-    return runtime.focusedRunTree.getLastActiveRun({ id: nodePtr.value.id });
-  } else {
-    return null;
   }
 });
 
@@ -105,7 +85,7 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="mx-2 flex shrink-0 flex-row items-center gap-x-1 rounded-sm py-1.5 pl-2.5 pr-2.5"
+      class="mx-2 flex shrink-0 flex-row items-center gap-x-1 rounded-sm py-1.5 pr-2.5 pl-2.5"
       :style="{
         height: `${BAR_HEADER_HEIGHT}px`,
       }"

@@ -16,7 +16,7 @@ import {
 import { describeNode, propertyReference, TypedNodeReferenceData } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
-import { canvas } from "@/system/space";
+import { canvas, threadPtr } from "@/system/space";
 import { CONTEXT_COMMANDS_BY_TYPE, fireCommandById, getCommand } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
@@ -208,7 +208,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               text: 'Create Thread',
               shortcuts: getCommand('space.create.thread').shortcuts,
             }"
-            class="ml-auto cursor-pointer rounded-sm text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
+            class="ml-auto cursor-pointer rounded-sm text-gray-400 opacity-0 transition-colors duration-75 group-hover/thread-group:opacity-100 hover:bg-gray-100 hover:text-gray-700"
             @click="fireCommandById('space.create.thread')"
           >
             <span class="fas fa-plus w-5 text-center" />
@@ -242,6 +242,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
                 : canvas.isHighlighted(thread)
                   ? 'bg-gray-100'
                   : 'hover:bg-gray-100',
+              threadPtr?.id == thread.id ? 'bg-gray-100' : '',
             ]"
             :data-node-type="thread.metatype"
             :data-node-id="thread.id"
@@ -263,7 +264,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             <Title
               :model-value="(thread as any).title"
               :force-line-type="TextLineType.PARAGRAPH"
-              class="max-w-full select-none truncate"
+              class="max-w-full truncate select-none"
               truncate
               is-small
               :placeholder="toCamelName(NodeType, thread.metatype)"
