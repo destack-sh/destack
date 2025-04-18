@@ -441,7 +441,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           <!-- NOTE :Cleanup: turn dragging anchor into prosemirror plugin?  -->
           <div
             v-if="activeDropZone"
-            class="z-40 h-[4px] bg-orange-400"
+            class="z-40 h-[4px] bg-primary-400"
             :class="activeDropAnchorPosition.y > 0 ? 'fixed' : 'absolute'"
             :style="{
               top: activeDropAnchorPosition.y > 0 ? activeDropAnchorPosition.y - 2 + 'px' : undefined,

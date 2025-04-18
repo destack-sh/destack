@@ -247,7 +247,7 @@ defineExpose<ViewExpose & { select: () => void }>({
       <!-- Add to list-->
       <button
         v-else-if="!isDisabled"
-        class="hover:text-pgrayrimary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
+        class="hover:text-primary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
         aria-hidden
         tabindex="-1"
         @click.stop="(addNewValue(), $nextTick(() => inputRef?.focus()))"

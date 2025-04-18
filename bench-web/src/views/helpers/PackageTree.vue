@@ -237,7 +237,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
               ? 'border-gray-400'
               : 'border-transparent',
             canvas.isSelected(node)
-              ? 'bg-orange-400/20'
+              ? 'bg-primary-400/20'
               : isFocused(node) || canvas.isHighlighted(node)
                 ? 'bg-gray-100'
                 : 'hover:bg-gray-100',

@@ -910,7 +910,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             class="flex-shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900 transition-colors duration-150"
             :class="[
               x > 0 ? 'border-l' : '',
-              isSelectedCell(record, column) ? 'bg-orange-400/20' : canvas.isInspected(record) ? 'bg-gray-100' : '',
+              isSelectedCell(record, column) ? 'bg-primary-400/20' : canvas.isInspected(record) ? 'bg-gray-100' : '',
               column.isName && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
