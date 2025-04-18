@@ -53,14 +53,14 @@ defineExpose<ViewExpose>({ self, id });
     class="flex items-center gap-x-1.5 rounded-sm transition-colors duration-150"
     :class="[
       !isMinimal ? 'border px-1 py-1' : '',
-      isSelected ? 'border-gray-400 bg-yellow-100' : '',
+      isSelected ? 'border-gray-400 bg-amber-200' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
     ]"
     :style="{}"
   >
     <!-- Icon (as big square if not minimal) -->
-    <div v-if="!isMinimal" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-yellow-400">
+    <div v-if="!isMinimal" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-amber-400">
       <IconInline v-bind="getNodeIcon(target ?? claim)" class="rounded-sm text-center text-lg text-gray-800" />
     </div>
 
@@ -75,7 +75,7 @@ defineExpose<ViewExpose>({ self, id });
         <!-- Button -->
         <template #trigger="{ isOpen, toggle }">
           <button
-            class="rounded-sm border px-1 text-gray-900 transition-colors duration-75 hover:bg-gray-200"
+            class="cursor-pointer rounded-sm border px-1 text-gray-900 transition-colors duration-75 hover:bg-gray-200"
             :style="{
               backgroundColor: getColorHex(ClaimTypeOptionInfo[claim.type]?.color ?? ColorType.GRAY, ColorShade.S200),
               borderColor: getColorHex(ClaimTypeOptionInfo[claim.type]?.color ?? ColorType.GRAY, ColorShade.S300),
@@ -91,7 +91,7 @@ defineExpose<ViewExpose>({ self, id });
         </template>
         <!-- Options -->
         <template #content="{ close }">
-          <ul class="w-[140px] rounded-sm border border-gray-200 bg-white px-2 py-1.5 shadow-sm shadow-xs shadow-gray-300">
+          <ul class="w-[140px] rounded-sm border border-gray-200 bg-white px-2 py-1.5 shadow-sm shadow-gray-300">
             <li
               v-for="option in getEnumOptions(EnumType.CLAIM_TYPE)"
               :key="option.value"

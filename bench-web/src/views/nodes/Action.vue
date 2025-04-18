@@ -75,16 +75,16 @@ const commands: Partial<CommandMapKit<"space">> & CommandMapKit<"action"> = {
   },
 };
 
-defineExpose<ViewExpose>({ self, id, commands});
+defineExpose<ViewExpose>({ self, id, commands });
 </script>
 <template>
   <div
     v-if="action"
     ref="containerRef"
-    class="group/action flex flex-row items-center gap-x-2.5 rounded-sm border px-1 py-1 outline outline-2 transition-colors duration-150"
+    class="group/action flex flex-row items-center gap-x-2.5 rounded-sm border px-1 py-1 outline-2 transition-colors duration-150"
     :class="[
       flowCtx != null ? '' : 'relative',
-      isSelected ? 'border-gray-400 bg-yellow-100' : '',
+      isSelected ? 'border-gray-400 bg-amber-200' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
       lastRun != null && isProcessActive(lastRun) ? '' : 'outline-transparent',
@@ -161,7 +161,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <!-- Metadata -->
         <NodeMetadata :node="action" size="sm" />
         <!-- Controls/Meta -->
-        <div class="ml-auto flex flex-row pl-2 pr-1.5">
+        <div class="ml-auto flex flex-row pr-1.5 pl-2">
           <!-- Run status -->
           <button v-if="lastRun != null" class="rounded-sm hover:bg-gray-100" aria-hidden>
             <ProcessStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
@@ -200,11 +200,11 @@ defineExpose<ViewExpose>({ self, id, commands});
     <!-- Floating Menu -->
     <div
       class="absolute flex flex-row gap-x-1.5"
-      :class="[flowCtx != null ? '-left-5 top-0 -translate-x-1' : 'right-0 top-0']"
+      :class="[flowCtx != null ? 'top-0 -left-5 -translate-x-1' : 'top-0 right-0']"
     >
       <button
         aria-hidden
-        class="text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover/action:opacity-100 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
+        class="text-gray-400 opacity-0 transition-colors duration-75 group-hover/action:opacity-100 hover:text-gray-700 data-[popover=true]:text-gray-700 data-[popover=true]:opacity-100"
         @click="(e) => pushDefaultMenu('main', action!, e)"
       >
         <i class="fas fa-ellipsis-vertical w-5 text-center" />

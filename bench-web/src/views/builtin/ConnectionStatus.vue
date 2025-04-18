@@ -17,7 +17,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
     <template #trigger="{ toggle }">
       <!-- Current status -->
       <button
-        class="select-none rounded-sm border-2 px-1 py-1 transition-colors"
+        class="cursor-pointer rounded-sm border-2 px-1 py-1 transition-colors select-none"
         :class="
           connections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
             ? 'border-warning-600'
@@ -61,7 +61,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                 <!-- Expand/collapse -->
                 <button
                   v-if="isDeveloperMode"
-                  class="mr-2 text-gray-400 hover:text-gray-700"
+                  class="mr-2 cursor-pointer text-gray-400 hover:text-gray-700"
                   @click="expandedConnectionId = expandedConnectionId == connection.id ? null : connection.id"
                 >
                   <i
@@ -72,7 +72,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                   />
                 </button>
                 <!-- Metadata -->
-                <span class="h-fit rounded-sm bg-secondary-100 px-2 font-semibold text-secondary-900">
+                <span class="bg-secondary-100 text-secondary-900 h-fit rounded-sm px-2 font-semibold">
                   {{ connection.kind }}
                 </span>
                 <span class="ml-2 truncate font-semibold">{{ connection.name }}</span>
@@ -98,7 +98,10 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                   </span>
                   <template v-if="isDeveloperMode">
                     <!-- Receive (status & toggle) -->
-                    <button class="rounded-sm px-1 hover:bg-yellow-200" @click="connection.togglePaused()">
+                    <button
+                      class="cursor-pointer rounded-sm px-1 hover:bg-amber-200"
+                      @click="connection.togglePaused()"
+                    >
                       <i
                         :class="
                           connection.isConnecting.value
@@ -110,7 +113,10 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                       />
                     </button>
                     <!-- Send (toggle) -->
-                    <button class="rounded-sm px-1 hover:bg-yellow-200" @click="connection.txBuffer.togglePaused()">
+                    <button
+                      class="cursor-pointer rounded-sm px-1 hover:bg-amber-200"
+                      @click="connection.txBuffer.togglePaused()"
+                    >
                       <i
                         class="fas fa-up"
                         :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"

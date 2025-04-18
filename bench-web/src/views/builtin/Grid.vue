@@ -106,7 +106,7 @@ defineExpose<ViewExpose>({ self, id });
     </div>
     <!-- Add element button -->
     <button
-      class="group/action flex w-full flex-row items-center gap-x-2.5 rounded-sm border border-dashed border-gray-200 px-1 py-1 text-left transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100"
+      class="group/action flex w-full cursor-pointer flex-row items-center gap-x-2.5 rounded-sm border border-dashed border-gray-200 px-1 py-1 text-left transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100"
       :style="{ height: props.elementSize.height + 'px' }"
       @click.stop.prevent="(e) => emit('create', e)"
     >

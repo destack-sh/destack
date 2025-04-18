@@ -313,7 +313,7 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
         <!-- Add action -->
         <button
           ref="createActionRef"
-          class="group/button rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+          class="group/button cursor-pointer rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
           :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
           @click="
             (e) =>
@@ -343,26 +343,26 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
         <div v-if="style == 'page'" class="flex flex-row items-center gap-x-0.5">
           <!-- Zoom -->
           <button
-            class="rounded-sm py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="() => flowCtx.zoom('out', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-minus w-5 text-center" />
           </button>
           <button
-            class="rounded-sm py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom(1.0, flowCtx.centerVec!, 1)"
           >
             {{ Math.round(viewport.scale * 100) }}%
           </button>
           <button
-            class="rounded-sm py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.zoom('in', flowCtx.centerVec!, 10)"
           >
             <i class="fas fa-plus w-5 text-center" />
           </button>
           <!-- Auto/Reset -->
           <button
-            class="rounded-sm px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm px-0.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click="flowCtx.resetViewport()"
           >
             <i class="fas fa-arrows-to-dot w-5 text-center" />

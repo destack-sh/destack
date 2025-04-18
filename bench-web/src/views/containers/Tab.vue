@@ -192,7 +192,7 @@ defineExpose<ViewExpose>({ self, commands });
       id="tabHeader"
       ref="columnHeaderRef"
       data-contextmenu-items="view.navigate*close*frame*,view.layout*"
-      class="scrollbar-none relative flex w-full select-none flex-row bg-gray-100"
+      class="scrollbar-none relative flex w-full flex-row bg-gray-100 select-none"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
@@ -204,7 +204,7 @@ defineExpose<ViewExpose>({ self, commands });
         v-for="(tab, i) in tabs"
         :ref="(ref) => (ref != null ? (tabsRef[tab.id] = ref as HTMLElement) : delete tabsRef[tab.id])"
         :key="tab.id"
-        class="group relative flex h-full max-w-52 select-none flex-row items-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full max-w-52 flex-row items-center border-r border-gray-200 px-2.5 whitespace-nowrap select-none hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
           i == focusedTabIdx ? 'bg-white text-gray-900' : 'border-b',
@@ -228,7 +228,7 @@ defineExpose<ViewExpose>({ self, commands });
         <span class="truncate" :class="[tabsNames[i] == tab.name ? 'italic' : '']">{{ tabsNames[i] }}</span>
         <!-- Close tab -->
         <button
-          class="ml-1.5 group-hover:text-gray-400"
+          class="ml-1.5 cursor-pointer group-hover:text-gray-400"
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"
         >
@@ -237,7 +237,7 @@ defineExpose<ViewExpose>({ self, commands });
         <!-- Drop indicator -->
         <div
           v-if="activeHeaderDropZone?.targetId == tab.id"
-          class="absolute z-10 h-full w-1 bg-yellow-500"
+          class="absolute z-10 h-full w-1 bg-amber-500"
           :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
       </div>
@@ -246,7 +246,7 @@ defineExpose<ViewExpose>({ self, commands });
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
-        class="absolute left-0 z-10 h-full w-1 bg-yellow-700"
+        class="absolute left-0 z-10 h-full w-1 bg-amber-700"
       />
     </Scroll>
     <!-- Tab body -->
@@ -271,7 +271,7 @@ defineExpose<ViewExpose>({ self, commands });
       />
       <div
         v-else-if="focusedTabIdx != null"
-        class="flex h-full w-full flex-col justify-center bg-danger-300 text-center"
+        class="bg-danger-300 flex h-full w-full flex-col justify-center text-center"
       >
         <!-- missing view -->
         <span v-if="IS_DEV || IS_DEVELOPER_MODE" class="font-mono font-semibold">

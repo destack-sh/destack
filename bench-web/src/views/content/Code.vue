@@ -218,7 +218,7 @@ defineExpose<ViewExpose>({ self, id, commands });
   @apply rounded-sm border border-transparent px-0.5 py-0.5;
 }
 .code .cm-editor .cm-tooltip > ul > li[aria-selected] {
-  @apply text-yellow-700;
+  @apply text-amber-700;
 }
 .code .cm-editor .cm-completionMatchedText {
   @apply font-semibold underline underline-offset-3;

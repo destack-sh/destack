@@ -208,7 +208,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               text: 'Create Thread',
               shortcuts: getCommand('space.create.thread').shortcuts,
             }"
-            class="ml-auto rounded-sm text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
+            class="ml-auto cursor-pointer rounded-sm text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
             @click="fireCommandById('space.create.thread')"
           >
             <span class="fas fa-plus w-5 text-center" />
@@ -238,7 +238,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             class="group/node relative mx-3 flex max-w-full flex-row items-center rounded-sm px-1.5 transition-colors duration-75 hover:cursor-pointer"
             :class="[
               canvas.isSelected(thread)
-                ? 'bg-yellow-400/20'
+                ? 'bg-amber-400/20'
                 : canvas.isHighlighted(thread)
                   ? 'bg-gray-100'
                   : 'hover:bg-gray-100',

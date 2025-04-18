@@ -146,7 +146,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       })
     "
     :disabled="isDisabled || !isInput"
-    class="group flex w-full flex-row items-center rounded-sm border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-yellow-700"
+    class="group flex w-full cursor-pointer flex-row items-center rounded-sm border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-amber-700"
   >
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
@@ -184,7 +184,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             },
           ]"
           :key="type"
-          class="rounded-sm px-1.5 py-0.5 font-medium transition-colors duration-75 enabled:hover:bg-gray-100"
+          class="cursor-pointer rounded-sm px-1.5 py-0.5 font-medium transition-colors duration-75 enabled:hover:bg-gray-100"
           :class="[type == iconType ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-700']"
           @click.stop.prevent="((iconType = type), queryRef?.focus())"
         >
@@ -233,7 +233,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             })
           "
           :disabled="isDisabled || !isInput"
-          class="rounded-sm px-0.5 enabled:hover:bg-gray-100"
+          class="cursor-pointer rounded-sm px-0.5 enabled:hover:bg-gray-100"
         >
           <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
         </button>

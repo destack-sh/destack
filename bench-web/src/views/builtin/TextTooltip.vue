@@ -18,13 +18,17 @@ type FormatCommand = {
 
 function makeCommand(mark: TextMarkType, commandId: CommandBuiltinId, icon: string): FormatCommand {
   const command = getCommand(commandId);
-  const pmCommand = markFormatCommand(mark, () => props.view, () => true);
+  const pmCommand = markFormatCommand(
+    mark,
+    () => props.view,
+    () => true,
+  );
   return {
     id: mark,
     icon: makeIcon(icon),
     command,
     isChecked: () => pmCommand.isChecked(),
-    toggle: () => pmCommand.command() ,
+    toggle: () => pmCommand.command(),
   };
 }
 
@@ -63,8 +67,8 @@ const formatCommands: FormatCommand[] = [
           shortcuts: command.command.shortcuts,
           group: 'text.format',
         }"
-        class="rounded-sm px-1 py-0.5 hover:bg-gray-100"
-        :class="[command.isChecked() ? 'text-yellow-700' : '']"
+        class="cursor-pointer rounded-sm px-1 py-0.5 hover:bg-gray-100"
+        :class="[command.isChecked() ? 'text-amber-700' : '']"
         @mousedown.stop.prevent="command.toggle()"
       >
         <IconInline class="w-5 text-center" v-bind="command.icon" />

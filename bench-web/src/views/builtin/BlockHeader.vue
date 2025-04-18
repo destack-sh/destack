@@ -59,14 +59,14 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
     <button
       v-if="hasCanvas"
       v-tooltip="{ small: true, text: 'Open in full' }"
-      class="rounded-sm px-1 text-base text-gray-400 opacity-0 transition-opacity duration-75 hover:bg-gray-100 hover:text-gray-700 group-focus-within/block-line:opacity-100 group-hover/block-line:opacity-100 group-hover/block:opacity-100"
+      class="cursor-pointer rounded-sm px-1 text-base text-gray-400 opacity-0 transition-opacity duration-75 group-focus-within/block-line:opacity-100 group-hover/block:opacity-100 group-hover/block-line:opacity-100 hover:bg-gray-100 hover:text-gray-700"
       @click="() => canvas.goToNode(node!)"
     >
       <i class="fas fa-arrow-up-right" />
     </button>
 
     <!-- Right slot -->
-    <div class="ml-auto flex flex-row items-center gap-x-2 mr-0.5">
+    <div class="mr-0.5 ml-auto flex flex-row items-center gap-x-2">
       <slot name="right" />
     </div>
   </div>
