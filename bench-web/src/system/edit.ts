@@ -1,5 +1,5 @@
 import { canvas } from "@/globals";
-import { toCamelName } from "@/language/core/const";
+import { HELPER_VIEW_TYPES, toCamelName } from "@/language/core/const";
 import type { ReadNodeGraph } from "@/language/core/graph";
 import {
   getTransactionBuffer,
@@ -19,7 +19,7 @@ import {
   Timestamp,
   ViewData,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, describeEdit, unwrapSomeNode } from "@/proto/wiring";
+import { EMPTY_SCOPE, describeEdit } from "@/proto/wiring";
 import { provideCommands } from "@/ui/command";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -29,6 +29,8 @@ import { watch } from "vue";
  * A stack of edits for undo/redo.
  * NOTE :UX: use the edit logs for cross-device undo/redo?
  * NOTE :UX: don't 'freeze' original debounced edits so that quick undo/redo is merged into one edit?
+ * TODO :UX: keep more information per change/edit so we can undo/redo more elegantly (inspection, current focus, ...)
+ * TODO :UX: isolate edit stacks per container/page/thread/..?
  *  (not sure how that would work.. maybe keep a separate stack for debounced not-yet-committed edits?)
  * */
 class EditStack {
@@ -52,18 +54,41 @@ class EditStack {
     return this._undoIndex < this._editStack.length;
   }
 
+  _onDid(direction: "undo" | "redo", edits: EditData[]) {
+    // remove container views with removed nodes
+    if (edits.some((e) => e.type === EditType.ARCHIVE || e.type === EditType.DELETE || e.type === EditType.ERASE)) {
+      const views = canvas.views;
+      const tx = canvas.tx();
+      for (const e of edits) {
+        if (e.type === EditType.ARCHIVE || e.type === EditType.DELETE || e.type === EditType.ERASE) {
+          const viewsOfNode = views.filter((v) => v.nodePtr?.id == e.nodePtr?.id && !HELPER_VIEW_TYPES.has(v.type));
+          for (const view of viewsOfNode) {
+            tx.archive(view);
+          }
+          if (canvas.inspection?.id == e.nodePtr?.id) {
+            tx.update(canvas.space.value!, { inspectionPtr: undefined });
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Apply the inverse of the last edit to the stack. Noop if impossible.
    * If there are multiple successive edits belonging to the same change, all of them are un-done.
    */
   undo() {
-    if (this._undoIndex <= 0) return;
+    if (this._undoIndex <= 0) {
+      return;
+    }
     // accumulate edits from same change (edits are in reverse order)
     const originalEdits: EditData[] = [this._editStack[this._undoIndex - 1]];
     if (originalEdits[0].changeKey != null) {
       for (let i = this._undoIndex - 2; i >= 0; i--) {
         const edit = this._editStack[i];
-        if (edit.changeKey != originalEdits[0].changeKey) break;
+        if (edit.changeKey != originalEdits[0].changeKey) {
+          break;
+        }
         originalEdits.push(edit);
       }
     }
@@ -84,10 +109,13 @@ class EditStack {
       // apply in same connection as original edits
       const buffer = getTransactionBuffer(originalEdit.scope ?? EMPTY_SCOPE);
       const connectionId = this._connectionIdByEdit[originalEdit.id!];
-      if (connectionId == null) throw new Error(`missing connection for ${describeEdit(originalEdit)}`);
+      if (connectionId == null) {
+        throw new Error(`missing connection for ${describeEdit(originalEdit)}`);
+      }
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
       buffer.tx.stopDebounce(originalEdit.nodePtr?.id!); // 'freeze' any pending edits
     }
+    this._onDid("undo", undoEdits);
     log.trace("edit.undo", { originalEdits, undoEdits, undoIndex: this._undoIndex });
   }
 
@@ -96,14 +124,18 @@ class EditStack {
    * If there are multiple successive edits belonging to the same change, all of them are re-done.
    */
   redo() {
-    if (this._undoIndex >= this._editStack.length) return;
+    if (this._undoIndex >= this._editStack.length) {
+      return;
+    }
     // accumulate edits from same change
     // ('edits' are the *original* edits in original order)
     const edits: EditData[] = [this._editStack[this._undoIndex]];
     if (edits[0].changeKey != null) {
       for (let i = this._undoIndex + 1; i < this._editStack.length; i++) {
         const edit = this._editStack[i];
-        if (edit.changeKey != edits[0].changeKey) break;
+        if (edit.changeKey != edits[0].changeKey) {
+          break;
+        }
         edits.push(edit);
       }
     }
@@ -123,10 +155,13 @@ class EditStack {
       // apply in same connection as original edits
       const buffer = getTransactionBuffer(edit.scope ?? EMPTY_SCOPE);
       const connectionId = this._connectionIdByEdit[edit.id!];
-      if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
+      if (connectionId == null) {
+        throw new Error(`missing connection for ${describeEdit(edit)}`);
+      }
       buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
       buffer.tx.stopDebounce(edit.nodePtr?.id!); // 'freeze' any pending edits
     }
+    this._onDid("redo", redoEdits);
     log.trace("edit.redo", { edits, redoEdits, undoIndex: this._undoIndex });
   }
 
@@ -166,16 +201,16 @@ class EditStack {
 }
 
 // one edit stack for all bench tx buffers
-// NOTE :UX: we currently only have one shared edit stack, should probably be per view root?
+// NOTE :UX: we currently only have one shared edit stack, should probably be per container/page/thread/...?
 const editStack = new EditStack((e) => e.category != ChangeCategory.SPACE && e.category != ChangeCategory.RUNTIME);
-const editStackSubs: Array<() => void> = [];
+const _editStackSubs: Array<() => void> = [];
 watch(
   txBuffers,
   () => {
-    editStackSubs.forEach((sub) => sub());
+    _editStackSubs.forEach((sub) => sub());
     Object.values(txBuffers.value).forEach((buffer) => {
       const sub = editStack.subscribeToBuffer(buffer);
-      editStackSubs.push(sub);
+      _editStackSubs.push(sub);
     });
   },
   { immediate: true },
