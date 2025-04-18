@@ -704,7 +704,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-orange-100' : 'hover:bg-gray-100',
+              isSelected ? 'bg-primary-100' : 'hover:bg-gray-100',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -1051,7 +1051,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       </div>
       <!-- Footer -->
       <!-- Activity -->
-      <div class="flex h-[20px] w-full flex-row items-center px-3 text-sm text-xs">
+      <div class="flex h-[20px] w-full flex-row items-center px-3 text-xs">
         <template v-if="activeAuthors.length > 0">
           <!-- Status icon -->
           <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
