@@ -84,7 +84,7 @@ defineExpose<ViewExpose>({ self, id, commands});
     class="group/action flex flex-row items-center gap-x-2.5 rounded-sm border px-1 py-1 outline outline-2 transition-colors duration-150"
     :class="[
       flowCtx != null ? '' : 'relative',
-      isSelected ? 'border-gray-400 bg-amber-100' : '',
+      isSelected ? 'border-gray-400 bg-yellow-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
       lastRun != null && isProcessActive(lastRun) ? '' : 'outline-transparent',

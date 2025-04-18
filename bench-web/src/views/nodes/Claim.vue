@@ -53,7 +53,7 @@ defineExpose<ViewExpose>({ self, id });
     class="flex items-center gap-x-1.5 rounded-sm transition-colors duration-150"
     :class="[
       !isMinimal ? 'border px-1 py-1' : '',
-      isSelected ? 'border-gray-400 bg-amber-100' : '',
+      isSelected ? 'border-gray-400 bg-yellow-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
     ]"

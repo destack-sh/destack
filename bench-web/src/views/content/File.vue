@@ -101,7 +101,7 @@ async function onFileSelected(files: File[]) {
       pkg: pkg.value,
       parent: (props.parent as PageData | DatabaseData | undefined) ?? pkg.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
-      compress: props.isIcon ? 'icon' : true,
+      compress: props.isIcon ? "icon" : true,
     });
     await upload.value.completion.wait();
     if (upload.value.file.value == null) throw new Error("missing file in upload");
@@ -181,7 +181,7 @@ defineExpose<ViewExpose>({
       :class="[
         isMinimal ? '' : 'border px-2.5 py-1',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
-        isInDropZone ? 'border-gray-400 outline outline-1 outline-gray-400' : 'border-gray-200 hover:border-gray-200',
+        isInDropZone ? 'border-gray-400 outline-1 outline-gray-400' : 'border-gray-200 hover:border-gray-200',
         isMinimal && optimisticValue == null && !isInDropZone ? 'opacity-0 hover:opacity-100' : '',
       ]"
       @click.stop="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
@@ -212,7 +212,7 @@ defineExpose<ViewExpose>({
       </span>
       <span
         v-else
-        class="select-none transition-colors duration-75"
+        class="transition-colors duration-75 select-none"
         :class="[isInDropZone ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-700']"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
@@ -223,7 +223,7 @@ defineExpose<ViewExpose>({
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"
-          class="px-0.5 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+          class="px-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-700"
           @click.stop="emit('update:modelValue', undefined)"
         >
           <i class="fas fa-xmark" />
@@ -244,13 +244,13 @@ defineExpose<ViewExpose>({
         !isMinimal ? 'border px-2.5 py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
         isInDropZone
-          ? 'border-gray-400 text-gray-700 outline outline-2 outline-gray-400'
+          ? 'border-gray-400 text-gray-700 outline-2 outline-gray-400'
           : 'border-gray-200 text-gray-400 hover:border-gray-200',
       ]"
       @click.stop="fileInputRef?.click?.()"
     >
       <span
-        class="select-none transition-colors duration-75"
+        class="transition-colors duration-75 select-none"
         :class="isMinimal && !isInDropZone ? 'opacity-0 group-hover:opacity-100' : ''"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
@@ -267,7 +267,7 @@ defineExpose<ViewExpose>({
         !isMinimal && !INLINABLE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
-        isInDropZone ? 'border-gray-700 outline outline-2 outline-gray-700' : '',
+        isInDropZone ? 'border-gray-700 outline-2 outline-gray-700' : '',
         !isPopover && !isLightbox ? 'cursor-pointer' : '',
       ]"
       data-suppress-drag="select"
@@ -389,7 +389,7 @@ defineExpose<ViewExpose>({
         <!-- Meta/Controls -->
         <div
           v-if="!isMinimal && INLINABLE_FILE_TYPES.includes(optimisticValue?.type)"
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded-sm border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
+          class="absolute top-0 right-0 m-1 flex flex-row justify-end gap-x-1 rounded-sm border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
           <span v-if="optimisticValue?.format" class="text-gray-700">

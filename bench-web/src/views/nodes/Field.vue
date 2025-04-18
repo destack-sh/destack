@@ -49,7 +49,7 @@ defineExpose<ViewExpose>({ self, id, commands});
     :class="[
       !isMinimal ? 'w-fit border' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isSelected ? 'border-gray-400 bg-amber-400/20' : 'border-gray-200 hover:bg-gray-100',
+      isSelected ? 'border-gray-400 bg-yellow-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
     ]"
     data-suppress-drag="select"

@@ -237,7 +237,7 @@ defineExpose<ViewExpose>({ self, commands });
         <!-- Drop indicator -->
         <div
           v-if="activeHeaderDropZone?.targetId == tab.id"
-          class="absolute z-10 h-full w-1 bg-amber-500"
+          class="absolute z-10 h-full w-1 bg-yellow-500"
           :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
       </div>
@@ -246,7 +246,7 @@ defineExpose<ViewExpose>({ self, commands });
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
-        class="absolute left-0 z-10 h-full w-1 bg-amber-700"
+        class="absolute left-0 z-10 h-full w-1 bg-yellow-700"
       />
     </Scroll>
     <!-- Tab body -->
