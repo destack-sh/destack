@@ -93,7 +93,7 @@ const absoluteStyle = computed(() => {
       class="group/toast relative flex flex-row items-center gap-x-1 rounded-2xl border border-gray-300 bg-white shadow-xs"
     >
       <!-- Icon -->
-      <div class="shrink-0 pl-3.5 pr-1.5">
+      <div class="shrink-0 pr-1.5 pl-3.5">
         <IconInline
           v-bind="toast.icon ?? ICON_BY_TOAST_LEVEL[toast.level]"
           class="w-5 text-center text-lg text-gray-700"
@@ -105,8 +105,8 @@ const absoluteStyle = computed(() => {
       <!-- Main -->
       <div class="max-w-full min-w-0 py-1.5">
         <!-- Header -->
-        <div class="flex flex-row max-w-full">
-          <span class="font-medium text-gray-700 truncate">{{ toast.title }}</span>
+        <div class="flex max-w-full flex-row">
+          <span class="truncate font-medium text-gray-700">{{ toast.title }}</span>
         </div>
         <!-- Content -->
         <p v-if="toast.text" class="max-w-full truncate text-gray-400">
@@ -115,7 +115,7 @@ const absoluteStyle = computed(() => {
       </div>
       <!-- Dismiss -->
       <button
-        class="right-3 ml-auto h-full shrink-0 border-gray-300 py-3 pl-1 pr-3.5 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
+        class="right-3 ml-auto h-full shrink-0 cursor-pointer border-gray-300 py-3 pr-3.5 pl-1 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
         <i class="fas fa-xmark" />

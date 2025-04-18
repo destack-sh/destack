@@ -287,7 +287,7 @@ defineExpose<ViewExpose>({
       <!-- Clear button -->
       <button
         v-if="!isDisabled && isInput && !valueType?.isRequired"
-        class="ml-auto text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
+        class="ml-auto cursor-pointer text-gray-400 opacity-0 transition-colors duration-75 group-hover:opacity-100 hover:text-gray-700"
         @click.stop="clear"
       >
         <i class="fas fa-xmark" />
@@ -310,7 +310,7 @@ defineExpose<ViewExpose>({
 
   <div v-else class="" :style="{ width: width + 'px' }">
     <!-- Inline Picker -->
-    <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
+    <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mt-2 mb-1' : ''">
       <!-- Date/Time Input -->
       <div class="flex flex-row items-center gap-2">
         <!-- Date -->
@@ -319,7 +319,7 @@ defineExpose<ViewExpose>({
           ref="dateInputRef"
           :value="dateString"
           type="text"
-          class="min-w-0 flex-1 rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-hidden ring-0 focus:border-gray-400 focus:ring-0"
+          class="min-w-0 flex-1 rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm ring-0 outline-hidden focus:border-gray-400 focus:ring-0"
           :placeholder="'YYYY/MM/DD'"
           @input="(e) => setDateString((e.target as HTMLInputElement).value)"
         />
@@ -329,7 +329,7 @@ defineExpose<ViewExpose>({
           ref="timeInputRef"
           :value="timeString"
           type="text"
-          class="min-w-0 flex-1 rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-hidden ring-0 focus:border-gray-400 focus:ring-0"
+          class="min-w-0 flex-1 rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm ring-0 outline-hidden focus:border-gray-400 focus:ring-0"
           placeholder="HH:MM"
           @input="(e) => setTimeString((e.target as HTMLInputElement).value)"
         />
@@ -339,13 +339,16 @@ defineExpose<ViewExpose>({
       <div v-if="unit !== 'Time'" class="flex flex-col gap-2">
         <!-- Month Navigation -->
         <div class="mx-2 flex items-center justify-between">
-          <button class="text-gray-600 hover:text-gray-900" @click="goToPreviousPeriod">
+          <button class="cursor-pointer text-gray-600 hover:text-gray-900" @click="goToPreviousPeriod">
             <i class="fas fa-chevron-left" />
           </button>
-          <button class="rounded-sm px-1 font-medium hover:bg-gray-100" @click="currentMonth = DateTime.now()">
+          <button
+            class="cursor-pointer rounded-sm px-1 font-medium hover:bg-gray-100"
+            @click="currentMonth = DateTime.now()"
+          >
             {{ currentMonth.toFormat("LLLL yyyy") }}
           </button>
-          <button class="text-gray-600 hover:text-gray-900" @click="goToNextPeriod">
+          <button class="cursor-pointer text-gray-600 hover:text-gray-900" @click="goToNextPeriod">
             <i class="fas fa-chevron-right" />
           </button>
         </div>
@@ -358,7 +361,7 @@ defineExpose<ViewExpose>({
           <button
             v-for="day in weeks.flat()"
             :key="day.toISO()!"
-            class="h-8 w-full rounded-sm text-sm transition-colors duration-75"
+            class="h-8 w-full cursor-pointer rounded-sm text-sm transition-colors duration-75"
             :class="[
               isSamePeriod(day) ? 'text-gray-900' : 'text-gray-400',
               isSelected(day) ? 'bg-gray-100 font-bold text-gray-900' : 'hover:bg-gray-100',

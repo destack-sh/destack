@@ -76,7 +76,7 @@ defineExpose<ViewExpose>({ self, id });
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'section.header' }"
             aria-hidden
-            class="mt-1 rounded-sm px-1 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
+            class="mt-1 cursor-pointer rounded-sm px-1 text-gray-400 group-hover/section-header:text-gray-700 hover:bg-gray-100"
             @click.stop="
               (e) => {
                 action.action(e);
@@ -175,7 +175,7 @@ defineExpose<ViewExpose>({ self, id });
           <div v-else-if="row.type == 'line'" class="relative my-0.5 h-px w-full bg-gray-200">
             <span
               v-if="row.text"
-              class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400"
+              class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-xs text-gray-400"
               >{{ row.text }}</span
             >
           </div>

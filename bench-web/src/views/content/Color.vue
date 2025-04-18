@@ -67,7 +67,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       })
     "
     :disabled="isDisabled || !isInput"
-    class="group flex w-full flex-row items-center rounded-sm border border-gray-200 px-2 py-1 hover:border-gray-200 data-[popover=true]:border-gray-200"
+    class="group flex w-full cursor-pointer flex-row items-center rounded-sm border border-gray-200 px-2 py-1 hover:border-gray-200 data-[popover=true]:border-gray-200"
   >
     <!-- TODO :Incomplete: Color.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
@@ -85,7 +85,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       <!-- Clear -->
       <button
         v-if="modelValue != null && !valueType?.isRequired"
-        class="mr-2 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+        class="mr-2 cursor-pointer text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-700"
         @click.stop="emit('update:modelValue', undefined)"
       >
         <i class="fas fa-xmark" />
@@ -101,7 +101,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       :key="i"
       v-tooltip="{ title: getColorTitle(color), showDelay: 200, hideDelay: 100, small: true }"
       :disabled="isDisabled || !isInput"
-      class="rounded-sm border border-transparent px-1 py-0.5 outline-hidden hover:border-gray-200 hover:bg-gray-100 focus:ring-0 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
+      class="cursor-pointer rounded-sm border border-transparent px-1 py-0.5 outline-hidden hover:border-gray-200 hover:bg-gray-100 focus:ring-0 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
       :data-selected="color == modelValue?.type"
       :data-active="color == activeResultId"
       @click.stop.prevent="fire(color)"

@@ -616,7 +616,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               {{ findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!) }}
             </span>
             <button
-              class="ml-1.5 text-gray-400 opacity-0 transition-colors duration-150 group-hover:opacity-100"
+              class="ml-1.5 cursor-pointer text-gray-400 opacity-0 transition-colors duration-150 group-hover:opacity-100"
               @click="() => sorts.splice(i, 1)"
             >
               <i class="fas fa-xmark" />
@@ -633,12 +633,12 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           :class="numSelectedRows > 0 ? 'opacity-100' : 'pointer-events-none opacity-0'"
           data-suppress-drag="both"
         >
-          <button class="h-full px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
+          <button class="h-full cursor-pointer px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
             {{ numSelectedRows }} selected
           </button>
           <button
             v-tooltip="{ title: 'Duplicate', small: true }"
-            class="w-8 border-x py-0.5 text-gray-700 hover:bg-gray-100"
+            class="w-8 cursor-pointer border-x py-0.5 text-gray-700 hover:bg-gray-100"
             :disabled="numSelectedRows == 0"
             @click.stop="fireCommandById('space.edit.duplicate', { nodes: selectedRecords })"
           >
@@ -646,7 +646,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           </button>
           <button
             v-tooltip="{ title: 'Delete', small: true }"
-            class="w-8 py-0.5 text-gray-700 hover:bg-gray-100"
+            class="w-8 cursor-pointer py-0.5 text-gray-700 hover:bg-gray-100"
             :disabled="numSelectedRows == 0"
             @click.stop="fireCommandById('space.edit.delete', { nodes: selectedRecords })"
           >
@@ -661,7 +661,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         </div>
         <!-- Add field -->
         <button
-          class="group/button rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+          class="group/button cursor-pointer rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
           :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
           @click="
             (e: MouseEvent) => {
@@ -693,7 +693,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         <!-- Add record -->
         <button
           v-if="style == 'page'"
-          class="group/button rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+          class="group/button cursor-pointer rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
           :class="isMinimal ? 'text-gray-400 hover:text-gray-700' : ''"
           @click="() => createRecord()"
         >
@@ -752,7 +752,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           >
             <!-- Selection checkbox -->
             <button
-              class="flex h-4 w-4 items-center rounded-sm border border-gray-200 bg-white px-[1px] transition-colors duration-75"
+              class="flex h-4 w-4 cursor-pointer items-center rounded-sm border border-gray-200 bg-white px-[1px] transition-colors duration-75"
               :class="selectedRecords.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
               @click="() => (isAllSelectedRows ? state.deselect() : state.select(records))"
             >
@@ -842,7 +842,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <!-- Empty columns -->
           <button
             v-if="columns.length == 0"
-            class="flex w-full flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
+            class="flex w-full cursor-pointer flex-row items-center justify-center border-b text-gray-400 hover:bg-gray-100"
             :style="{
               height: `${ROW_HEIGHT_MIN}px`,
               width: isMinimal ? undefined : `calc(100% - ${ROW_COMMANDS_WIDTH}px)`,
@@ -880,14 +880,14 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           >
             <!-- Controls -->
             <button
-              class="rounded-sm text-gray-400 opacity-0 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700 group-hover/row:opacity-100"
+              class="cursor-pointer rounded-sm text-gray-400 opacity-0 transition-colors duration-150 group-hover/row:opacity-100 hover:bg-gray-100 hover:text-gray-700"
               @click="(e) => (setSelectionRow(record, true, false), pushDefaultMenu('main', record, e))"
             >
               <i class="fas fa-ellipsis-vertical w-5 text-center" />
             </button>
             <!-- Selection checkbox -->
             <button
-              class="flex h-4 w-4 items-center rounded-sm border border-gray-200 bg-white px-[1px] transition-colors duration-150"
+              class="flex h-4 w-4 cursor-pointer items-center rounded-sm border border-gray-200 bg-white px-[1px] transition-colors duration-150"
               :class="selectedRecords.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100'"
               @click="() => setSelectionRow(record, !isSelectedRow(record), shiftKey ?? false)"
             >
@@ -910,7 +910,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             class="shrink-0 cursor-pointer overflow-hidden border-b border-gray-200 text-gray-900 transition-colors duration-150"
             :class="[
               x > 0 ? 'border-l' : '',
-              isSelectedCell(record, column) ? 'bg-yellow-400/20' : canvas.isInspected(record) ? 'bg-gray-100' : '',
+              isSelectedCell(record, column) ? 'bg-amber-100' : canvas.isInspected(record) ? 'bg-gray-100' : '',
               column.isName && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
@@ -993,7 +993,10 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           class="flex flex-row items-center justify-center text-center"
           :style="{ paddingLeft: `${ROW_COMMANDS_WIDTH}px`, height: `${ROW_HEIGHT_MIN}px` }"
         >
-          <button class="h-full w-full px-3 text-left text-gray-400 hover:bg-gray-100" @click="createRecord()">
+          <button
+            class="h-full w-full cursor-pointer px-3 text-left text-gray-400 hover:bg-gray-100"
+            @click="createRecord()"
+          >
             <i class="fas fa-plus mr-1.5" />
             <span class="">Record</span>
           </button>

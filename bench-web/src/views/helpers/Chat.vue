@@ -704,7 +704,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-yellow-100' : 'hover:bg-gray-100',
+              isSelected ? 'bg-amber-200' : 'hover:bg-gray-100',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -861,7 +861,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                       escape to
                       <a
                         href="#"
-                        class="text-yellow-700 underline-offset-2 hover:underline"
+                        class="text-amber-700 underline-offset-2 hover:underline"
                         @click.stop="stopEditing()"
                         >cancel</a
                       >
@@ -869,7 +869,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                     •
                     <span>
                       enter to
-                      <a href="#" class="text-yellow-700 underline-offset-2 hover:underline" @click.stop="submitEdit()"
+                      <a href="#" class="text-amber-700 underline-offset-2 hover:underline" @click.stop="submitEdit()"
                         >save</a
                       >
                     </span>

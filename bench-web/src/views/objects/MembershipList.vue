@@ -78,7 +78,7 @@ defineExpose<ViewExpose>({ self, id, commands });
       </li>
       <!-- Create -->
       <button
-        class="h-[30px] rounded-sm px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] cursor-pointer rounded-sm px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e: MouseEvent) => {
             const button = (e.target as HTMLElement).closest('button')!;

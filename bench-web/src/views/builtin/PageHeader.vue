@@ -62,7 +62,7 @@ defineExpose<Partial<ViewExpose> & { focusIdentifier: (anchor: FocusAnchor) => v
               onApply: (newIcon) => connection.tx.update(node!, { icon: newIcon }),
             })
           "
-          class="rounded-full px-1.5 py-0.5 text-gray-400 opacity-0 transition-colors hover:bg-gray-100 group-focus-within/title:opacity-100 group-hover/title:opacity-100"
+          class="cursor-pointer rounded-full px-1.5 py-0.5 text-gray-400 opacity-0 transition-colors group-focus-within/title:opacity-100 group-hover/title:opacity-100 hover:bg-gray-100"
         >
           <i class="fas fa-face-smile mr-1.5 text-gray-400" />
           <span>{{ node.icon == null ? "Add icon" : "Change icon" }}</span>

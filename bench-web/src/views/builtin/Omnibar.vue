@@ -200,7 +200,7 @@ defineExpose({ isActive, open });
   >
     <div
       v-if="isActive"
-      class="fixed left-0 top-0 z-50 flex h-screen w-screen justify-center bg-gray-700/20"
+      class="fixed top-0 left-0 z-50 flex h-screen w-screen justify-center bg-gray-700/20"
       data-outside-view="true"
       @keydown.esc.exact.prevent="() => close()"
       @click.stop.prevent="isActive = false"
@@ -226,13 +226,13 @@ defineExpose({ isActive, open });
         >
           <!-- Header (pr is +2px for inset scroll track) -->
           <div
-            class="flex w-full flex-row items-center gap-x-2 border-b border-gray-200 pl-[18px] pr-[18px] text-sm text-gray-900"
+            class="flex w-full flex-row items-center gap-x-2 border-b border-gray-200 pr-[18px] pl-[18px] text-sm text-gray-900"
             :style="{ height: PANEL_HEADER_HEIGHT + 'px' }"
           >
             <!-- Icon -->
             <i class="fas fa-magnifying-glass w-5 text-center text-base text-gray-500" />
             <!-- Mode -->
-            <span v-if="mode != 'bench'" class="select-none font-semibold">
+            <span v-if="mode != 'bench'" class="font-semibold select-none">
               {{ toCasing(mode, Casing.CAMEL) }}
             </span>
             <!-- Query -->
@@ -241,14 +241,14 @@ defineExpose({ isActive, open });
               v-model="query"
               type="text"
               :placeholder="TEXT_BY_MODE[mode] + '...'"
-              class="h-full w-full border-0 bg-transparent p-0 text-base placeholder-gray-500 outline-hidden ring-0 focus:ring-0"
+              class="h-full w-full border-0 bg-transparent p-0 text-base placeholder-gray-500 ring-0 outline-hidden focus:ring-0"
               @keydown.enter.stop.prevent="go"
               @keydown.down.stop.prevent="select(1)"
               @keydown.up.stop.prevent="select(-1)"
               @keydown.delete="query.length > 0 || (mode = 'bench')"
             />
             <!-- Close -->
-            <button class="ml-auto" @click="() => close()">
+            <button class="ml-auto cursor-pointer" @click="() => close()">
               <Shortcut class="text-gray-700" shortcut="esc" />
             </button>
           </div>
@@ -265,7 +265,7 @@ defineExpose({ isActive, open });
             }"
           >
             <!-- Results -->
-            <ul v-if="results.length > 0" class="flex w-full select-none flex-col px-2 py-1 text-gray-900">
+            <ul v-if="results.length > 0" class="flex w-full flex-col px-2 py-1 text-gray-900 select-none">
               <template v-for="(item, i) in results" :key="i">
                 <!-- Category -->
                 <div
@@ -282,7 +282,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
                   :data-selected="item.itemId === activeResultLocalId"
-                  class="my-0.5 flex w-full flex-row items-center rounded-sm border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
+                  class="my-0.5 flex w-full cursor-pointer flex-row items-center rounded-sm border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
                   @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->

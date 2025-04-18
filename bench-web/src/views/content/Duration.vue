@@ -153,7 +153,7 @@ defineExpose<ViewExpose>({
       <!-- Clear button -->
       <button
         v-if="!isDisabled && isInput"
-        class="ml-auto text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
+        class="ml-auto cursor-pointer text-gray-400 opacity-0 transition-colors duration-75 group-hover:opacity-100 hover:text-gray-700"
         @click.stop="clear"
       >
         <i class="fas fa-xmark" />
@@ -172,13 +172,13 @@ defineExpose<ViewExpose>({
 
   <div v-else class="flex flex-col gap-2" :style="{ width: width + 'px' }">
     <!-- Inline Editor -->
-    <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mb-1 mt-2' : ''">
+    <div class="flex flex-col gap-2" :class="isPopover ? 'mx-2 mt-2 mb-1' : ''">
       <!-- Quick presets -->
       <div class="flex flex-wrap gap-1">
         <button
           v-for="preset in presets"
           :key="preset.label"
-          class="rounded-sm bg-gray-100 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-200"
+          class="cursor-pointer rounded-sm bg-gray-100 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-200"
           @click="selectPreset(preset)"
         >
           {{ preset.label }}
@@ -190,13 +190,13 @@ defineExpose<ViewExpose>({
         ref="queryRef"
         :value="durationString"
         type="text"
-        class="w-full rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-hidden ring-0 focus:border-gray-400 focus:ring-0"
+        class="w-full rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm ring-0 outline-hidden focus:border-gray-400 focus:ring-0"
         placeholder="e.g. 1h 30m, 2d, 1y"
         @input="(e) => setDurationString((e.target as HTMLInputElement).value)"
       />
 
       <!-- Preview -->
-      <div v-if="duration" class="text-center text-sm italic text-gray-400">
+      <div v-if="duration" class="text-center text-sm text-gray-400 italic">
         "{{ formatDuration(duration, { format: "long" }) }}"
       </div>
     </div>

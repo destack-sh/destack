@@ -317,7 +317,7 @@ defineExpose<ViewExpose>({
     <!-- Add -->
     <button
       v-if="!isDisabled && isInput && valueType?.isList"
-      class="mr-2 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+      class="mr-2 cursor-pointer text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-700"
     >
       <i class="fas fa-plus" />
     </button>
@@ -330,7 +330,7 @@ defineExpose<ViewExpose>({
       <!-- Clear -->
       <button
         v-if="hasValue && !valueType?.isRequired"
-        class="mr-2 text-gray-400 opacity-0 transition-colors duration-75 hover:text-gray-700 group-hover:opacity-100"
+        class="mr-2 cursor-pointer text-gray-400 opacity-0 transition-colors duration-75 group-hover:opacity-100 hover:text-gray-700"
         @click.stop="clear"
       >
         <i class="fas fa-xmark" />
@@ -351,7 +351,7 @@ defineExpose<ViewExpose>({
       v-tooltip="{ icon: (item as any).icon, title: item.title, text: item.text, group: 'picker' }"
       :data-selected="isSelected(item)"
       :disabled="props.isDisabled"
-      class="group flex-1 shrink-0 truncate rounded-sm px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-xs"
+      class="group flex-1 shrink-0 cursor-pointer truncate rounded-sm px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-xs"
       @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
     >
       <IconInline v-if="(item as any).icon" v-bind="(item as any).icon" class="w-5" />
@@ -369,7 +369,7 @@ defineExpose<ViewExpose>({
     <div
       class="flex flex-row flex-wrap items-center gap-y-1.5 px-2.5 py-1"
       :class="[
-        isPopover ? 'mx-2 mb-0.5 mt-1.5 rounded-sm border border-gray-200 bg-gray-100' : 'border-b border-gray-200',
+        isPopover ? 'mx-2 mt-1.5 mb-0.5 rounded-sm border border-gray-200 bg-gray-100' : 'border-b border-gray-200',
       ]"
     >
       <!-- Current value -->
@@ -377,7 +377,7 @@ defineExpose<ViewExpose>({
         <button
           v-for="(v, i) in currentItems"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded-sm bg-gray-100 px-1"
+          class="mr-2 flex flex-row cursor-pointer items-center rounded-sm bg-gray-100 px-1"
         >
           <NodeReference v-if="v.metatype == 'node'" size="sm" is-light :node="v.node!" />
           <template v-else>
@@ -387,7 +387,7 @@ defineExpose<ViewExpose>({
           <!-- Deselect -->
           <button
             v-if="!isDisabled && isInput"
-            class="ml-1.5 text-gray-400 transition-colors duration-75 hover:text-gray-700"
+            class="ml-1.5 cursor-pointer text-gray-400 transition-colors duration-75 hover:text-gray-700"
             @click.stop="deselect(i)"
           >
             <i class="fas fa-xmark" />
@@ -406,7 +406,7 @@ defineExpose<ViewExpose>({
           ref="queryRef"
           v-model="query"
           type="text"
-          class="ml-2 w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-hidden ring-0 focus:ring-0"
+          class="ml-2 w-full border-0 bg-transparent p-0 placeholder-gray-500 ring-0 outline-hidden focus:ring-0"
           :placeholder="placeholder ?? `Select ${facetName ?? '???'}`"
           @keydown.enter.stop.prevent="activeResultId && select(activeResultId)"
           @keydown.up.stop.prevent="focus('previous')"
@@ -427,7 +427,7 @@ defineExpose<ViewExpose>({
       <ul
         v-if="results.length > 0"
         class="flex max-w-full flex-col py-0.5"
-        :class="[isPopover ? 'mx-2 mb-1 mt-0.5' : '']"
+        :class="[isPopover ? 'mx-2 mt-0.5 mb-1' : '']"
         :style="{ maxWidth: `${width}px` }"
       >
         <template v-for="item in results" :key="item.id">
@@ -435,7 +435,7 @@ defineExpose<ViewExpose>({
           <li
             :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
             role="menuitem"
-            class="mb-[1px] mr-0.5 mt-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-1.5 hover:bg-gray-100"
+            class="mt-[1px] mr-0.5 mb-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-1.5 hover:bg-gray-100"
             :class="[isActive(item) ? 'bg-gray-100' : '']"
             :data-selected="isSelected(item)"
             :data-active="isActive(item)"
@@ -451,10 +451,10 @@ defineExpose<ViewExpose>({
               }"
             />
             <span v-else class="mr-1.5 w-6 shrink-0 text-gray-700" />
-            <span class="max-w-full select-none truncate">
+            <span class="max-w-full truncate select-none">
               <span class="truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Checked -->
-              <i v-if="isSelected(item)" class="fas fa-check shrink-0 pl-2 pr-1 text-gray-700" />
+              <i v-if="isSelected(item)" class="fas fa-check shrink-0 pr-1 pl-2 text-gray-700" />
             </span>
             <!-- Metadata -->
             <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />

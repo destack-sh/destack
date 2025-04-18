@@ -223,13 +223,13 @@ defineExpose<ViewExpose>({
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"
-          class="px-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-700"
+          class="cursor-pointer px-0.5 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-700"
           @click.stop="emit('update:modelValue', undefined)"
         >
           <i class="fas fa-xmark" />
         </button>
         <!-- Select -->
-        <button class="px-0.5 text-gray-400 hover:text-gray-700" @click.stop="fileInputRef?.click()">
+        <button class="cursor-pointer px-0.5 text-gray-400 hover:text-gray-700" @click.stop="fileInputRef?.click()">
           <i class="fas fa-caret-down" />
         </button>
       </div>
@@ -405,7 +405,7 @@ defineExpose<ViewExpose>({
           <!-- Focus -->
           <button
             v-if="!isDisabled"
-            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="openFile()"
           >
             <i class="fas fa-expand" />
@@ -413,7 +413,7 @@ defineExpose<ViewExpose>({
           <!-- Replace -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="fileInputRef?.click()"
           >
             <i class="fas fa-shuffle" />
@@ -421,7 +421,7 @@ defineExpose<ViewExpose>({
           <!-- Remove -->
           <button
             v-if="isInput && !isDisabled && !valueType?.isRequired"
-            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="emit('update:modelValue', null)"
           >
             <i class="fas fa-xmark" />

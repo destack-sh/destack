@@ -382,12 +382,12 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData, innerAnch
 defineExpose<ViewExpose>({ self, commands, focus });
 </script>
 <template>
-  <div class="flex w-full select-none flex-col bg-white text-gray-900" :class="[page ? '' : 'h-full']">
+  <div class="flex w-full flex-col bg-white text-gray-900 select-none" :class="[page ? '' : 'h-full']">
     <!-- Root header -->
     <RootHeader v-if="isRoot" :self="self" :node-ptr="nodePtr" :focus-ptr="focusPtr" :graph="graph">
       <template #meta>
         <button
-          class="text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          class="cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-gray-700"
           @click="(e) => pushDefaultMenu('main', page!, e)"
         >
           <i class="fas fa-ellipsis-vertical w-5 text-center" />
@@ -407,7 +407,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
     >
       <div
         ref="contentRef"
-        class="flex min-h-full flex-col focus:outline-hidden focus:ring-0"
+        class="flex min-h-full flex-col focus:ring-0 focus:outline-hidden"
         :class="[IS_DRAGGING_OR_SELECTING ? 'cursor-default select-none' : '']"
         :style="{ minHeight: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) + 'px' }"
       >
@@ -441,7 +441,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           <!-- NOTE :Cleanup: turn dragging anchor into prosemirror plugin?  -->
           <div
             v-if="activeDropZone"
-            class="z-40 h-[4px] bg-yellow-400"
+            class="z-40 h-[4px] bg-amber-400"
             :class="activeDropAnchorPosition.y > 0 ? 'fixed' : 'absolute'"
             :style="{
               top: activeDropAnchorPosition.y > 0 ? activeDropAnchorPosition.y - 2 + 'px' : undefined,
@@ -476,7 +476,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
               BlockType.DATABASE,
             ]"
             data-suppress-drag="both"
-            class="rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-400 transition-colors duration-300 hover:bg-gray-100 hover:text-gray-900 group-hover/footer:text-gray-700"
+            class="cursor-pointer rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-400 transition-colors duration-300 group-hover/footer:text-gray-700 hover:bg-gray-100 hover:text-gray-900"
             @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
           >
             <IconInline

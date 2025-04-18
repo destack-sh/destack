@@ -37,7 +37,7 @@ defineExpose<ViewExpose>({ self, id });
     />
     <button
       v-tooltip="{ title: () => (modelValue?.isRequired ? 'Required' : 'Optional'), small: true, group: 'type' }"
-      class="h-[30px] rounded-sm rounded-l-none border border-l-0 border-gray-200 px-0.5 text-gray-900 transition-colors duration-75 hover:bg-gray-100"
+      class="h-[30px] cursor-pointer rounded-sm rounded-l-none border border-l-0 border-gray-200 px-0.5 text-gray-900 transition-colors duration-75 hover:bg-gray-100"
       :class="[supportsList ? 'rounded-r-none' : '']"
       @click="emit('update:modelValue', { ...modelValue, isRequired: !modelValue?.isRequired })"
     >
@@ -46,7 +46,7 @@ defineExpose<ViewExpose>({ self, id });
     <button
       v-if="supportsList"
       v-tooltip="{ title: () => (modelValue?.isList ? 'List' : 'Scalar'), small: true, group: 'type' }"
-      class="border-l-none h-[30px] rounded-sm rounded-l-none border border-l-0 border-gray-200 px-0.5 text-gray-900 transition-colors duration-75 hover:bg-gray-100"
+      class="border-l-none h-[30px] cursor-pointer rounded-sm rounded-l-none border border-l-0 border-gray-200 px-0.5 text-gray-900 transition-colors duration-75 hover:bg-gray-100"
       @click="emit('update:modelValue', { ...modelValue, isList: !modelValue?.isList })"
     >
       <span class="w-5 text-center" :class="modelValue?.isList ? 'fas fa-list' : 'fas fa-1'" />

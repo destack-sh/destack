@@ -171,7 +171,7 @@ function close(popover: PopoverInstance | undefined) {
           <!-- Remove -->
           <button
             v-if="popoverValues[popover.id] != null"
-            class="ml-auto rounded-sm px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="ml-auto cursor-pointer rounded-sm px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click.stop="() => (popover.onApply?.(undefined), close(popover))"
           >
             <span>Remove</span>

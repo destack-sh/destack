@@ -100,7 +100,7 @@ const commands: Partial<CommandMapKit<"list">> = {
   }),
 };
 
-defineExpose<ViewExpose>({ self, id, commands});
+defineExpose<ViewExpose>({ self, id, commands });
 </script>
 <template>
   <div
@@ -111,7 +111,7 @@ defineExpose<ViewExpose>({ self, id, commands});
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
         (since it's not a move, but a sort of 'copy', and that's how we telegraph it elsewhere) -->
     <!-- Drop indicator -->
-    <div v-if="activeDropZone" class="absolute right-1 top-1 text-gray-400">
+    <div v-if="activeDropZone" class="absolute top-1 right-1 text-gray-400">
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
     <ul
@@ -160,7 +160,7 @@ defineExpose<ViewExpose>({ self, id, commands});
       </li>
       <!-- Create -->
       <button
-        class="h-[30px] rounded-sm px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] cursor-pointer rounded-sm px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e) => {
             const button = (e.target as HTMLElement).closest('button')!;
