@@ -922,8 +922,9 @@ enum PrimitiveType {
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
   FIELD_TYPE_MEMBER = 10;
-  FIELD_TYPE_INPUT = 20;
-  FIELD_TYPE_OUTPUT = 30;
+  FIELD_TYPE_VARIABLE = 20;
+  FIELD_TYPE_INPUT = 30;
+  FIELD_TYPE_OUTPUT = 40;
 }
 
 // The 'kind' of a Type.

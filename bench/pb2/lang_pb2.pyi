@@ -918,6 +918,7 @@ class FieldType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FIELD_TYPE_UNSPECIFIED: _ClassVar[FieldType]
     FIELD_TYPE_MEMBER: _ClassVar[FieldType]
+    FIELD_TYPE_VARIABLE: _ClassVar[FieldType]
     FIELD_TYPE_INPUT: _ClassVar[FieldType]
     FIELD_TYPE_OUTPUT: _ClassVar[FieldType]
 
@@ -2490,6 +2491,7 @@ PRIMITIVE_TYPE_TIME: PrimitiveType
 PRIMITIVE_TYPE_DURATION: PrimitiveType
 FIELD_TYPE_UNSPECIFIED: FieldType
 FIELD_TYPE_MEMBER: FieldType
+FIELD_TYPE_VARIABLE: FieldType
 FIELD_TYPE_INPUT: FieldType
 FIELD_TYPE_OUTPUT: FieldType
 TYPE_KIND_UNSPECIFIED: TypeKind

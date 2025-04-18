@@ -142,6 +142,7 @@ export class SpaceCanvas {
 
     // respond to 'unmanaged' input from browser
     // active element
+    watch(activeElement, () => console.log("activeElement", activeElement.value));
     watch(activeElement, () => {
       if (
         activeElement.value != null &&
@@ -383,11 +384,14 @@ export class SpaceCanvas {
     } else {
       view = this.focusedView;
     }
-    if (view == null) throw new Error(`no view for ${inspect.view}`);
+    if (view == null) {
+      throw new Error(`no view for ${inspect.view}`);
+    }
     if (inspectionPtr.value?.id != nodePtr.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
       this.tx().update(space, { inspectionPtr: nodePtr }, { debounce: "long" });
     }
+    console.log("inspect", { nodePtr, view }); // nocheckin: set containerPtr/pagePtr
 
     // open inspector
     this.focusInGraph({ focusPtr: nodePtr, view: view });
@@ -1272,7 +1276,11 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
   for (const root of roots) {
     tx.delete(root);
   }
-  tx.update(space, { focusPtr: undefined, inspectionPtr: undefined }, { debounce: "long" });
+  tx.update(
+    space,
+    { focusPtr: undefined, inspectionPtr: undefined, containerPtr: undefined, pagePtr: undefined },
+    { debounce: "long" },
+  );
 }
 
 type ViewLayoutIn = {

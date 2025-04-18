@@ -10997,13 +10997,17 @@ export enum FieldType {
      */
     MEMBER = 10,
     /**
-     * @generated from protobuf enum value: FIELD_TYPE_INPUT = 20;
+     * @generated from protobuf enum value: FIELD_TYPE_VARIABLE = 20;
      */
-    INPUT = 20,
+    VARIABLE = 20,
     /**
-     * @generated from protobuf enum value: FIELD_TYPE_OUTPUT = 30;
+     * @generated from protobuf enum value: FIELD_TYPE_INPUT = 30;
      */
-    OUTPUT = 30
+    INPUT = 30,
+    /**
+     * @generated from protobuf enum value: FIELD_TYPE_OUTPUT = 40;
+     */
+    OUTPUT = 40
 }
 /**
  * The 'kind' of a Type.
@@ -36442,8 +36446,9 @@ export const PrimitiveTypeOptionInfo: Partial<Record<PrimitiveType, EnumOptionIn
 
 export const FieldTypeOptionInfo: Partial<Record<FieldType, EnumOptionInfo>> = {
   [FieldType.MEMBER]: { id: 10, name: 'MEMBER', text: 'Member of an object', title: 'Member', icon: 'fas objects-columns' },
-  [FieldType.INPUT]: { id: 20, name: 'INPUT', text: 'fas fa-arrow-down', title: 'Input to a runnable' },
-  [FieldType.OUTPUT]: { id: 30, name: 'OUTPUT', text: 'fas fa-arrow-up', title: 'Output from a runnable' },
+  [FieldType.VARIABLE]: { id: 20, name: 'VARIABLE', text: 'Variable', title: 'Variable', icon: 'fas fa-arrow-down' },
+  [FieldType.INPUT]: { id: 30, name: 'INPUT', text: 'fas fa-arrow-down', title: 'Input to a runnable' },
+  [FieldType.OUTPUT]: { id: 40, name: 'OUTPUT', text: 'fas fa-arrow-up', title: 'Output from a runnable' },
 }
 
 export const TypeFormatOptionInfo: Partial<Record<TypeFormat, EnumOptionInfo>> = {
