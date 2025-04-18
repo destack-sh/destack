@@ -602,7 +602,7 @@ function createLineHandleDom(node: PmNode): HTMLElement {
     const button = document.createElement("button");
     button.className = "line-handle-button";
     const span = document.createElement("span");
-    span.className = icon;
+    span.className = icon + " cursor-pointer";
     button.appendChild(span);
     return button;
   }

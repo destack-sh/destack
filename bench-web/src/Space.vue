@@ -47,14 +47,14 @@ watch(
     if (inspection.value != null) {
       titleParts.push(getNodeTitle(inspection.value));
     }
-    if (container.value != null) {
+    if (container.value != null && container.value?.id != inspection.value?.id) {
       titleParts.push(getNodeTitle(container.value));
     }
-    if (page.value != null) {
+    if (page.value != null && page.value?.id != container.value?.id) {
       titleParts.push(getNodeTitle(page.value));
     }
     titleParts.push(benchPostfix);
-    browserTitle.value = titleParts.filter((t) => t != null).join(" · ");
+    browserTitle.value = titleParts.filter((t) => (t ?? "").length > 0).join(" · ");
   },
   { immediate: true },
 );
@@ -76,7 +76,7 @@ watch(
   <!-- Space -->
   <div
     ref="spaceRef"
-    class="select-none overflow-hidden bg-white text-sm"
+    class="overflow-hidden bg-white text-sm select-none"
     :class="[
       IS_DRAGGING_OR_SELECTING || hasActivePopover ? 'select-none' : '',
       IS_DRAGGING ? 'pointer-events-none' : '',

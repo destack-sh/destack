@@ -326,7 +326,7 @@ export class SpaceCanvas {
       this.focusedViewPtr.value = null;
     }
 
-    // update focus
+    // update components
     this.focusedViewComponent.value = component;
     const componentsById: Record<string, ViewComponent> = {};
     const viewComponents = collectViewComponentsUp(component);
@@ -337,9 +337,12 @@ export class SpaceCanvas {
     this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
     const focusedView = this.graph.getMaybe(this.focusedViewPtr.value);
 
-    // update root/inspection/base
-    const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
-    const baseView = this.graph.getMaybe(getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]));
+    // update inspection/focus
+    const baseView = this.graph.getMaybe(
+      getViewComponentPtrMaybe(
+        viewComponents[viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES)) - 1],
+      ),
+    );
     const nodePtr = this.getNodeAt(element as HTMLElement);
     if (baseView != null && !HELPER_VIEW_TYPES.has(baseView.type) && nodePtr != null && !this.isInspected(nodePtr)) {
       this.inspect({ node: nodePtr, view: this.focusedViewPtr.value! });
@@ -396,7 +399,7 @@ export class SpaceCanvas {
       // update containerPtr/pagePtr/threadPtr
       if (link != null) {
         const { node, graph } = link;
-        const ancestors = graph.getAncestors(node, { includeSelf: true});
+        const ancestors = graph.getAncestors(node, { includeSelf: true });
         const page = ancestors.find((n) => isNode(n, NodeType.PAGE));
         const container = ancestors.find((n) => isInlineNode(n));
         const thread = ancestors.find((n) => isNode(n, NodeType.THREAD));
@@ -485,7 +488,7 @@ export class SpaceCanvas {
     // focus the given selection within the view
     if (focus.focusPtr != null) {
       const view = this.getViewData(focus.view)!;
-      if (!deepValueEquals(view.focusPtr, focus.focusPtr)) {
+      if (view.focusPtr?.id != focus.focusPtr?.id) {
         tx.update(view, { focusPtr: focus.focusPtr }, { debounce: "long" });
       }
     }
@@ -494,12 +497,10 @@ export class SpaceCanvas {
     let child = this.getViewData(focus.view);
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
-    const updated = [];
     while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
       const childFocus = toNodeRef(child);
-      if (!deepValueEquals(parent.focusPtr, childFocus)) {
+      if (parent.focusPtr?.id != childFocus.id) {
         tx.update(parent, { focusPtr: childFocus }, { debounce: "long" });
-        updated.push(parent, { focusPtr: childFocus });
       }
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;

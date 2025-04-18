@@ -17,6 +17,7 @@ defineExpose({
 </script>
 <template>
   <div v-if="isActive" class="flex flex-row gap-x-1 px-1">
+    <!-- History -->
     <button
       v-tooltip="{
         group: 'history',
@@ -26,7 +27,7 @@ defineExpose({
       }"
       class="cursor-pointer rounded-sm px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoBackward.value"
-      @click="history?.go(-1)"
+      @click.stop.prevent="history?.go(-1)"
     >
       <i class="fas fa-arrow-left" />
     </button>
@@ -39,7 +40,7 @@ defineExpose({
       }"
       class="cursor-pointer rounded-sm px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoForward.value"
-      @click="history?.go(1)"
+      @click.stop.prevent="history?.go(1)"
     >
       <i class="fas fa-arrow-right" />
     </button>
