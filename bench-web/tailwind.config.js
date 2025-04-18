@@ -81,5 +81,4 @@ export default {
       },
     },
   },
-  plugins: [aspectRatio, typography, containerQueries],
 };
