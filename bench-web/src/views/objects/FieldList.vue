@@ -103,11 +103,7 @@ const commands: Partial<CommandMapKit<"list">> = {
 defineExpose<ViewExpose>({ self, id, commands });
 </script>
 <template>
-  <div
-    ref="containerRef"
-    class="relative"
-    :class="[activeDropZone != null ? 'outline outline-2 outline-gray-400' : '']"
-  >
+  <div ref="containerRef" class="relative" :class="[activeDropZone != null ? 'outline-2 outline-gray-400' : '']">
     <!-- NOTE :UX: field type drop outline should be dotted if dragged is not a field
         (since it's not a move, but a sort of 'copy', and that's how we telegraph it elsewhere) -->
     <!-- Drop indicator -->

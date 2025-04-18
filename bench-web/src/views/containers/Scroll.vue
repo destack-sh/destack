@@ -163,7 +163,7 @@ defineExpose<
     <!-- Scroll area -->
     <div
       ref="containerRef"
-      class="scrollbar-none relative overscroll-auto focus:outline-hidden"
+      class="scrollbar-hidden relative overscroll-auto focus:outline-hidden"
       :class="[
         orientation == Orientation.HORIZONTAL ? 'overflow-y-hidden overflow-x-scroll' : '',
         orientation == Orientation.VERTICAL ? 'overflow-x-hidden overflow-y-scroll' : '',

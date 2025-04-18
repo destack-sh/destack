@@ -43,9 +43,8 @@ import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useEventListener } from "@vueuse/core";
 import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, type Ref } from "vue";
 
-const MIN_BLOCK_WIDTH = 500;
-const MAX_BLOCK_WIDTH = 800;
-const MIN_GUTTER_WIDTH = 60;
+const MAX_BLOCK_WIDTH = 720;
+const MIN_GUTTER_WIDTH = 30;
 const MIN_FOOTER_PADDING = 200;
 
 const props = defineProps<
@@ -84,9 +83,10 @@ const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(nu
 
 // size block/gutter horizontally (try to fit both until min block width)
 const widths = computed(() => {
-  // divide space between block and gutter up to target gutter width
-  const blockWidth = Math.min(MAX_BLOCK_WIDTH, Math.max(MIN_BLOCK_WIDTH, props.size.width - MIN_GUTTER_WIDTH * 2));
-  const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - blockWidth) / 2);
+  // always respect MIN_GUTTER_WIDTH first
+  const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - MAX_BLOCK_WIDTH) / 2);
+  // calculate block width with the remaining space
+  const blockWidth = Math.min(MAX_BLOCK_WIDTH, props.size.width - gutterWidth * 2);
   return { block: blockWidth, gutter: gutterWidth };
 });
 const isEmpty = computed(

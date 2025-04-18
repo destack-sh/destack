@@ -17,7 +17,7 @@ import {
 import { toNodeRef } from "@/proto/wiring";
 import { packagePtr } from "@/system/client";
 import { useAutoConnection } from "@/system/connection";
-import { canvas } from "@/system/space";
+import { canvas, pagePtr } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
 import {
   isDragging,
@@ -242,6 +242,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
                 ? 'bg-gray-100'
                 : 'hover:bg-gray-100',
             isDragging(node) ? 'opacity-50' : '',
+            pagePtr?.id == node.id ? 'bg-gray-100' : '',
           ]"
           :style="{
             paddingLeft: 6 + depth * DEPTH_OFFSET + 'px',
@@ -280,27 +281,27 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           <!-- Name -->
           <span
             v-if="(node as any).name != null && (node as any).name != ''"
-            class="max-w-full select-none truncate"
+            class="max-w-full truncate select-none"
             v-html="(node as any).name"
           />
           <Title
             v-else-if="(node as any).title != null"
             :model-value="(node as any).title"
             :force-line-type="TextLineType.PARAGRAPH"
-            class="max-w-full select-none truncate"
+            class="max-w-full truncate select-none"
             truncate
             is-small
             :placeholder="toCamelName(NodeType, node.metatype)"
           />
           <span
             v-else
-            class="max-w-full select-none truncate text-gray-400"
+            class="max-w-full truncate text-gray-400 select-none"
             v-html="toCamelName(NodeType, node.metatype)"
           />
           <!-- Metadata -->
           <NodeMetadata class="ml-1.5" size="sm" :node="node" />
           <!-- Meta -->
-          <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[7px]">
+          <div class="ml-auto flex flex-row gap-x-1 pr-[7px] pl-3">
             <!-- ... -->
           </div>
           <!-- ... -->

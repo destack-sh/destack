@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 /* tailwind v3 compatibility (border default is now currentcolor in v4) */
 @layer base {
@@ -15,21 +15,36 @@
   position: relative;
 
   &::before {
-    @apply absolute border-l-2 border-t-2 border-gray-900;
-    content: '';
+    @apply absolute border-t-2 border-l-2 border-gray-900;
+    content: "";
     top: 0;
     left: 0;
     width: 8px;
     height: 8px;
   }
   &::after {
-    @apply absolute border-b-2 border-r-2 border-gray-900;
-    content: '';
+    @apply absolute border-r-2 border-b-2 border-gray-900;
+    content: "";
     bottom: 0;
     right: 0;
     width: 8px;
     height: 8px;
   }
+}
+
+@theme {
+  /* neutral as gray */
+  --color-gray-50: oklch(0.985 0 0);
+  --color-gray-100: oklch(0.97 0 0);
+  --color-gray-200: oklch(0.922 0 0);
+  --color-gray-300: oklch(0.87 0 0);
+  --color-gray-400: oklch(0.708 0 0);
+  --color-gray-500: oklch(0.556 0 0);
+  --color-gray-600: oklch(0.439 0 0);
+  --color-gray-700: oklch(0.371 0 0);
+  --color-gray-800: oklch(0.269 0 0);
+  --color-gray-900: oklch(0.205 0 0);
+  --color-gray-950: oklch(0.145 0 0);
 }
 
 @layer utilities {
@@ -39,12 +54,12 @@
     scrollbar-gutter: overlay;
   }
 
-  /* hide scrollbar with .scrollbar-none */
-  .scrollbar-none {
+  /* hide scrollbar with .scrollbar-hidden */
+  .scrollbar-hidden {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  .scrollbar-none::-webkit-scrollbar {
+  .scrollbar-hidden::-webkit-scrollbar {
     display: none;
   }
 
@@ -53,39 +68,10 @@
     background-color: #fcd34d;
   }
 
-  .caret-transparent {
-    caret-color: transparent;
-  }
-
   /* marks are bold+underline by default */
   mark {
     background-color: transparent;
     color: inherit;
     font-weight: bold;
-  }
-
-  .mark-bold mark {
-    font-weight: bold;
-  }
-
-  .mark-semibold mark {
-    font-weight: 600;
-  }
-
-  .mark-underlined mark {
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .mark-primary mark {
-    background-color: #fcd34d;
-    font-weight: normal;
-    text-decoration: none;
-  }
-
-  .mark-secondary mark {
-    background-color: #bae6fd;
-    font-weight: normal;
-    text-decoration: none;
   }
 }

@@ -80,7 +80,6 @@ import { getViewComponent } from "@/views/registry";
 import { MaybeElement, useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, Ref, shallowRef, toRef } from "vue";
 
-const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const COMMAND_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const ROW_HEIGHT_MIN = 32;
 const ROW_HEIGHT_MAX = 200;
@@ -607,11 +606,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
         <!-- TODO :UX: Incomplete: filter/sort Database/Table view properly -->
         <!-- (this should of course be Expression views) -->
         <template v-if="style == 'page'">
-          <div
-            v-for="(sort, i) in sorts.length > 0 ? sorts : [DEFAULT_SORT]"
-            :key="i"
-            class="group rounded-full px-2 py-0.5 hover:bg-gray-100"
-          >
+          <div v-for="(sort, i) in sorts" :key="i" class="group rounded-full px-2 py-0.5 hover:bg-gray-100">
             <span class="text-gray-900">
               {{ findColumn(sort)?.title ?? getPropertyTitle(DEFAULT_SORT.propertyPtr!) }}
             </span>
