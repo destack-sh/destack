@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { isInlineNode, isRunnableNode, isSourceNode, toCamelName } from "@/language/core/const";
+import { isPageNode, isRunnableNode, isSourceNode, toCamelName } from "@/language/core/const";
 import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewData } from "@/proto/wire";
 import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
@@ -41,7 +41,7 @@ const target = computed(() => {
   return container.value ?? inspection.value;
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
-const scope = computed(() => container.value ?? page.value);
+const scope = computed(() => container.value);
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -119,6 +119,9 @@ defineExpose<ViewExpose>({ self });
           v-bind="state.getChildState('scroll.detail', { nodePtr: targetPtr, isInput: true, isMinimal: false })"
           data-contextmenu="ignore"
         />
+
+        <!-- Chat -->
+        <!-- nocheckin: Chat -->
       </div>
 
       <!-- Selection overlay -->

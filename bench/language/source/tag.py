@@ -2,11 +2,11 @@ import typing
 from typing import Union
 
 from bench.language.core import (
-    InlineNode,
     IsModal,
     IsNamed,
     IsTemplatable,
     NodeType,
+    PageNode,
     node_,
     p_node_parent,
 )
@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:
 
 
 @node_(NodeType.TAG)
-class Tag(IsTemplatable, IsModal, IsNamed, InlineNode[TagData]):
+class Tag(IsTemplatable, IsModal, IsNamed, PageNode[TagData]):
     """
     A Tag to tag other Nodes.
     """

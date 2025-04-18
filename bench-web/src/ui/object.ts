@@ -46,7 +46,7 @@ import {
   TypeConstraintProperty,
   TypeData,
   TypeKind,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, makeStruct } from "@/proto/wiring";
 import { useAutoConnection } from "@/system/connection";
@@ -559,69 +559,6 @@ export abstract class NodeLayout<T extends NodeType> extends BaseObjectLayout {
     };
     return row;
   }
-
-  /** Inline object row */
-  rowObjectInline(
-    propertyId: number,
-    valueType: TypeIdentity,
-    options?: { title?: string | false; subtitle?: string; isComputable?: boolean; isFullWidth?: boolean },
-  ): Row[] {
-    const { prop, propName, path } = this.getProperty(propertyId);
-
-    // fields
-    let fields: FieldData[];
-    if (valueType?.baseTypePtr == null || valueType?.baseTypePtr?.id == this.node?.id) {
-      fields = this.fields;
-    } else if (valueType?.baseTypePtr?.id == this.delegate?.id) {
-      fields = this.delegateFields;
-    } else {
-      fields = []; // missing delegate, just ignore (probably waiting)
-    }
-    fields = fields.filter((field) => {
-      if (valueType.baseFieldTypes != null && !valueType.baseFieldTypes.includes(field.type)) return false;
-      return true;
-    });
-
-    // rows
-    const valuePacked = this.isPartial ? this.valuePacked : (this.node as any)?.[propName];
-    const rows = this.rowFieldsInline(
-      valuePacked ?? {},
-      fields,
-      (field, newValue) => {
-        const fieldKey = getStorageKey(field);
-        const newFieldValuePacked = packValue(newValue, field);
-        const fieldValuePacked = this.isPartial
-          ? this.valuePacked?.[fieldKey]
-          : (this.node as any)?.[propName]?.[fieldKey];
-
-        if (this.isPartial) {
-          this.update(
-            { [fieldKey]: newFieldValuePacked },
-            { ...getTransactionOptionsForType(field), path: [fieldKey] },
-          );
-        } else {
-          const operations: EditOperationData[] = [
-            {
-              metatype: ObjectType.EDIT_OPERATION,
-              type: newValue == null ? EditOperationType.CLEAR : EditOperationType.SET,
-              path: [...path.map((p) => p.toString()), fieldKey],
-              newValuePacked: newFieldValuePacked,
-              oldValuePacked: fieldValuePacked,
-            },
-          ];
-          this.update(operations, getTransactionOptionsForType(field));
-        }
-      },
-      options,
-    );
-
-    // default to fields list
-    if (!this.isPartial && rows.length == 0) {
-      return [{ type: "fields-list", fieldType: valueType.baseFieldTypes?.[0] ?? FieldType.MEMBER }];
-    }
-
-    return rows;
-  }
 }
 
 export class ChoiceLayout extends NodeLayout<NodeType.CHOICE> {
@@ -873,33 +810,6 @@ export class TransitionLayout extends NodeLayout<NodeType.TRANSITION> {
   }
 }
 
-export class RecordLayout extends NodeLayout<NodeType.RECORD> {
-  make() {
-    const commonRows: Row[] = [];
-    if (this.isPartial) {
-      // select block
-      commonRows.push(this.rowProperty(RecordProperty.databasePtr, { title: "Database", isComputable: true }));
-      // NOTE :Incomplete: generalize SourceNode partial NodeLayout properties?
-      commonRows.push(this.rowProperty(RecordProperty.name, { isComputable: true }));
-    }
-    if (this.node.databasePtr != null) {
-      // value
-      commonRows.push(
-        ...this.rowObjectInline(
-          RecordProperty.valuePacked,
-          makeType({
-            kind: TypeKind.CUSTOM_OBJECT,
-            baseFieldTypes: [FieldType.MEMBER],
-            baseTypePtr: this.node.databasePtr,
-          }),
-          { isComputable: this.isPartial },
-        ),
-      );
-    }
-    this.section(undefined, commonRows);
-  }
-}
-
 export class ChannelLayout extends NodeLayout<NodeType.CHANNEL> {
   make() {
     this.section(undefined, []);
@@ -1022,7 +932,6 @@ const NODE_LAYOUT_BY_TYPE = {
   [NodeType.ACTION]: ActionLayout,
   [NodeType.KIT]: KitLayout,
   [NodeType.TRANSITION]: TransitionLayout,
-  [NodeType.RECORD]: RecordLayout,
   [NodeType.FIELD]: FieldLayout,
   [NodeType.CHANNEL]: ChannelLayout,
   [NodeType.THREAD]: ThreadLayout,

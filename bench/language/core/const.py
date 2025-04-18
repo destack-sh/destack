@@ -726,7 +726,7 @@ USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT
 # NOTE: these traits should also be in trait.py but we need the constants in property.py
 #  (which also depends on trait.py, and we can't have a circular dependency)
 BASED_NODE_TYPES = bittuple(NodeType.RECORD, NodeType.MESSAGE, NodeType.RUN)
-INLINE_NODE_TYPES = bittuple(
+PAGE_NODE_TYPES = bittuple(
     *RESOURCE_NODE_TYPES,
     NodeType.CHOICE,
     NodeType.CLASS,

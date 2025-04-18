@@ -5,7 +5,6 @@ from uuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
-    InlineNode,
     IsModal,
     IsNamed,
     IsTemplatable,
@@ -15,6 +14,7 @@ from bench.language.core import (
     NodeSubtypeStub,
     NodeType,
     PackageNode,
+    PageNode,
     StructType,
     Text,
     TextLine,
@@ -208,7 +208,7 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
         super().delete(_now=_now)
         # also delete linked Node (if any)
         if (
-            isinstance(node := self.node, InlineNode)
+            isinstance(node := self.node, PageNode)
             and node.definition_id == self.id
             and not node.is_deleted
         ):
@@ -219,20 +219,20 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
         super().restore(_now=_now)
         # also restore linked Node (if any)
         if (
-            isinstance(node := self.node, InlineNode)
+            isinstance(node := self.node, PageNode)
             and node.definition_id == self.id
             and node.is_deleted
         ):
             node.restore(_now=_now)
 
-    def get_inline_node_as[T: InlineNode](self, node_cls: _type[T]) -> T:
+    def get_node_as[T: PageNode](self, node_cls: _type[T]) -> T:
         """Get the Inline Node as a specific type (error if wrong type)."""
         if not isinstance((node := self.node), node_cls):
             raise TypeError(f"{self!r} has no {node_cls.__name__} (node={node!r})")
         return node  # type: ignore
 
     @staticmethod
-    def wrap(node: InlineNode) -> "Block":
+    def wrap(node: PageNode) -> "Block":
         """Wrap a Node as a Block."""
         try:
             block_type = BlockType(node.metatype)
@@ -262,7 +262,7 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
         # make
         block = Block(type=typ, node=node, **kwargs)  # type: ignore
         # set the node definition for inline source nodes
-        if isinstance(node, InlineNode):
+        if isinstance(node, PageNode):
             if node.definition is None:
                 node.definition = block
         return block  # type: ignore

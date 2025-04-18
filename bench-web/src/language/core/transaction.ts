@@ -1,6 +1,6 @@
 import { supergraph } from "@/globals";
 import { BENCH_ID, SYSTEM_ID } from "@/language/core/builtin";
-import { isInlineNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
+import { isPageNode, NODE_SUBTYPE_PACKED_KEY } from "@/language/core/const";
 import { PartialNode, type ReadNodeGraph, type WriteNodeGraph } from "@/language/core/graph";
 import { makeNode, NodeIn } from "@/language/core/node";
 import { getPropertyType, TypeIdentity } from "@/language/core/type";
@@ -440,7 +440,7 @@ export class TransactionBuilder implements Transaction {
       if (source?.definitionPtr?.id == node.id) {
         tx._addSimpleEdit(editType, source, null);
       }
-    } else if (isInlineNode(node) && node.definitionPtr != null) {
+    } else if (isPageNode(node) && node.definitionPtr != null) {
       // for inline source nodes, also handle the block definition
       const block = supergraph.getOrError(node.definitionPtr) as BlockData;
       tx._addSimpleEdit(editType, block, null);
@@ -469,7 +469,7 @@ export class TransactionBuilder implements Transaction {
       if (source?.definitionPtr?.id == node.id) {
         tx._addSimpleEdit(editType, source, null);
       }
-    } else if (isInlineNode(node) && node.definitionPtr != null) {
+    } else if (isPageNode(node) && node.definitionPtr != null) {
       // for inline source nodes, also handle the block definition
       const block = supergraph.getOrError(node.definitionPtr) as BlockData;
       tx._addSimpleEdit(editType, block, null);

@@ -113,16 +113,16 @@ def attach_node[N: "Node"](
 
     # move inline node and its definition together
     if move:
-        from bench.language import Block, InlineNode
+        from bench.language import Block, PageNode
 
         if isinstance(node, Block):
             if (
-                isinstance(inner_node := node.node, InlineNode)
+                isinstance(inner_node := node.node, PageNode)
                 and inner_node.definition_id == node.id
                 and inner_node.parent_id != parent.id
             ):
                 attach_node(inner_node, parent, graph, move=True)
-        elif isinstance(node, InlineNode):
+        elif isinstance(node, PageNode):
             if (block := node.definition) is not None and block.parent_id != parent.id:
                 attach_node(block, parent, graph, move=True)
 

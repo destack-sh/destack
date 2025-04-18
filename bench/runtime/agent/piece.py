@@ -123,11 +123,11 @@ class MessagePiece(NodePiece[Message]):
 class PagePiece(NodePiece[Page]):
     @override
     def prefetch(self, prompt: "Prompt") -> Sequence[Node | NodeReference]:
-        missing_inline_nodes: list[NodeReference] = []
+        missing_PAGE_NODEs: list[NodeReference] = []
         for block in self.node.blocks:
             if block.type.is_node and (node_ptr := block.node_ptr) is not None:
-                missing_inline_nodes.append(node_ptr)
-        return missing_inline_nodes
+                missing_PAGE_NODEs.append(node_ptr)
+        return missing_PAGE_NODEs
 
     @override
     def compile(self, prompt: "Prompt", tokenizer: Tokenizer) -> Generator[Piece, None, None]:

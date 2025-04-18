@@ -2,10 +2,9 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    INLINE_NODE_TYPES,
+    PAGE_NODE_TYPES,
     BuiltinEnum,
     EnumType,
-    InlineNode,
     IsInstantiable,
     IsJoinable,
     IsModal,
@@ -17,6 +16,7 @@ from bench.language.core import (
     LocalNodeList,
     NodeReference,
     NodeType,
+    PageNode,
     RemoteNodeList,
     StructType,
     Text,
@@ -68,7 +68,7 @@ class Thread(
     IsModal,
     IsRuntime,
     IsInstantiable,
-    InlineNode[ThreadData],
+    PageNode[ThreadData],
 ):
     """
     A Thread for communicating with Messages.
@@ -85,8 +85,8 @@ class Thread(
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["InlineNode", "Package", None] = p_regular(
-        41, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
+    scope: Union["PageNode", "Package", None] = p_regular(
+        41, require=False, references=(*PAGE_NODE_TYPES, NodeType.PACKAGE)
     )
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
@@ -139,7 +139,7 @@ class Thread(
         text: TextIn | None = None,
         *,
         channel: "Channel | None" = None,
-        scope: Union["InlineNode", "Package", None] = None,
+        scope: Union["PageNode", "Package", None] = None,
         page: "Page | None" = None,
         plan: "Plan | None" = None,
         **kwargs,

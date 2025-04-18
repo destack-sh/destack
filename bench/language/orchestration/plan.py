@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
-    InlineNode,
     IsClaimable,
     IsInstantiable,
     IsModal,
@@ -11,6 +10,7 @@ from bench.language.core import (
     IsTitled,
     LocalNodeList,
     NodeType,
+    PageNode,
     ProcessStatus,
     TextLineIn,
     p_node_children,
@@ -35,7 +35,7 @@ class Plan(
     IsModal,
     IsInstantiable,
     IsTitled,
-    InlineNode[PlanData],
+    PageNode[PlanData],
 ):
     """A Plan for something expressed as a sequence of Tasks."""
 

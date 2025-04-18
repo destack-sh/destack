@@ -1,5 +1,5 @@
 <script lang="tsx" setup>
-import { INLINE_NODE_TYPES, ObjectType, Orientation } from "@/proto/wire";
+import { PAGE_NODE_TYPES, ObjectType, Orientation } from "@/proto/wire";
 import { packagePtr } from "@/system/client";
 import { benchGraph, canvas, hasLocalPkg } from "@/system/space";
 import { OMNIBAR_MODES, addCommand, fireCommand, type CommandBuiltinId, type OmnibarMode } from "@/ui/command";
@@ -51,7 +51,7 @@ const indices = computed(() => {
     indices["Bench"] = graphIndex({
       id: "bench",
       graph: benchGraph,
-      metatypes: [...INLINE_NODE_TYPES],
+      metatypes: [...PAGE_NODE_TYPES],
       roots: [benchGraph.getOrError(packagePtr.value)],
       skipDepth: 1,
       // only search deeply if in bench search specifically

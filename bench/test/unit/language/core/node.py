@@ -246,23 +246,23 @@ async def test_clone_with_cross_references(simulation: Simulation, runtime: Runt
     # cloning an inline node should be consistent with its definition counterpart
     choice_block_clone = choice_block.clone()
     assert choice_block_clone.node is not choice
-    assert choice_block_clone.get_inline_node_as(Choice).definition is choice_block_clone
+    assert choice_block_clone.get_node_as(Choice).definition is choice_block_clone
     # other way around
     flow_clone = flow.clone()
     assert flow_clone.definition is not None
     assert flow_clone.definition is not flow_block
-    assert flow_clone.definition.get_inline_node_as(Flow) is flow_clone
+    assert flow_clone.definition.get_node_as(Flow) is flow_clone
 
     # references should be consistent within new subtree
     page_clone = page.clone()
-    flow_clone = page_clone.blocks.Flow.get_inline_node_as(Flow)
+    flow_clone = page_clone.blocks.Flow.get_node_as(Flow)
     assert flow_clone is not None
-    choice_clone = page_clone.blocks.Letter.get_inline_node_as(Choice)
+    choice_clone = page_clone.blocks.Letter.get_node_as(Choice)
     assert choice_clone is not None
     action_clone = flow_clone.actions.Action
     assert action_clone is not None
     assert action_clone.fields.Choice.base_type == choice_clone
-    database_clone = page_clone.blocks.Database.get_inline_node_as(Database)
+    database_clone = page_clone.blocks.Database.get_node_as(Database)
     assert database_clone is not None
     await runtime.commit()
 
@@ -311,11 +311,11 @@ async def test_instance_with_cross_references(
 
     # references should be consistent within new subtree
     page_instance = page.instance()
-    flow_instance = page_instance.blocks.Flow.get_inline_node_as(Flow)
+    flow_instance = page_instance.blocks.Flow.get_node_as(Flow)
     assert flow_instance is not None
     assert flow_instance is not flow
     assert flow_instance.template is flow
-    choice_instance = page_instance.blocks.Letter.get_inline_node_as(Choice)
+    choice_instance = page_instance.blocks.Letter.get_node_as(Choice)
     assert choice_instance is not None
     assert choice_instance is not choice
     assert choice_instance.template is choice
@@ -324,7 +324,7 @@ async def test_instance_with_cross_references(
     assert action_instance is not action
     assert action_instance.template is action
     assert action_instance.fields.Choice.base_type == choice_instance
-    database_instance = page_instance.blocks.Database.get_inline_node_as(Database)
+    database_instance = page_instance.blocks.Database.get_node_as(Database)
     assert database_instance is not None
     assert database_instance is not database
     assert database_instance.template is database

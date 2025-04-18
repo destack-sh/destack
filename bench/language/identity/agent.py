@@ -6,7 +6,6 @@ from bench.language.core import (
     ColorType,
     CustomObject,
     FieldType,
-    InlineNode,
     IsClaimable,
     IsComputable,
     IsFieldBase,
@@ -22,6 +21,7 @@ from bench.language.core import (
     LocalNodeList,
     NodeReference,
     NodeType,
+    PageNode,
     StructType,
     TypeKind,
     node_,
@@ -62,7 +62,7 @@ class Agent(
     IsProcessable,
     IsSubject,
     IsNamed,
-    InlineNode[AgentData],
+    PageNode[AgentData],
 ):
     """
     An Agent is an autonomous entity that creates and implements Plans and Tasks.

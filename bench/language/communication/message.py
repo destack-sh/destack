@@ -5,13 +5,12 @@ from uuid import UUID
 import structlog
 
 from bench.language.core import (
-    INLINE_NODE_TYPES,
+    PAGE_NODE_TYPES,
     RUNNABLE_NODE_TYPES,
     UNSET,
     BuiltinEnum,
     EnumType,
     FieldType,
-    InlineNode,
     IsBased,
     IsModal,
     IsOwnable,
@@ -21,6 +20,7 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
+    PageNode,
     Runnable,
     StructType,
     Subject,
@@ -115,8 +115,8 @@ class Message(
         wire=True,
         is_bench_implicit=True,
     )
-    scope: Union["InlineNode", "Package"] = p_regular(
-        36, require=False, references=(*INLINE_NODE_TYPES, NodeType.PACKAGE)
+    scope: Union["PageNode", "Package"] = p_regular(
+        36, require=False, references=(*PAGE_NODE_TYPES, NodeType.PACKAGE)
     )
     if TYPE_CHECKING:
         channel_id: Optional[UUID] = None
@@ -238,7 +238,7 @@ class Message(
         type: MessageType = MessageType.DEFAULT,
         title: TextLine | None = None,
         owned_by: Optional[Subject] = None,
-        scope: Optional["InlineNode"] = None,
+        scope: Optional["PageNode"] = None,
         reply_to: Optional["Message"] = None,
         nodes: list["Node"] | None = None,
         run: Optional["Run"] = None,

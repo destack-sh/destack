@@ -70,7 +70,6 @@ def _complete_bench_setup():
     from bench.language import (
         BuiltinObject,
         CustomObject,
-        InlineNode,
         IsBased,
         IsClaimable,
         IsFieldBase,
@@ -84,6 +83,7 @@ def _complete_bench_setup():
         IsTimed,
         IsTypeBase,
         Node,
+        PageNode,
         Struct,
     )
     from bench.language.core import (
@@ -250,7 +250,7 @@ def _complete_bench_setup():
     if IS_DEV:
         # check that node type collections are consistent with their respective base classes
         for base_cls, node_types_tuple in [
-            (InlineNode, const.INLINE_NODE_TYPES.tuple),
+            (PageNode, const.PAGE_NODE_TYPES.tuple),
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),
             (IsInstantiable, const.INSTANTIABLE_NODE_TYPES.tuple),
             (IsTemplatable, const.TEMPLATABLE_NODE_TYPES.tuple),

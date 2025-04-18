@@ -183,7 +183,7 @@ SourceNodeData = Union[
     TriggerData,
     DatabaseData,
 ]
-InlineNodeData = Union[
+PageNodeData = Union[
     ScalerData,
     StoreData,
     ComputerData,

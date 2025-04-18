@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union, overload
 
 from bench.language.core import (
-    InlineNode,
     IsClaimable,
     IsModal,
     IsOwnable,
@@ -10,6 +9,7 @@ from bench.language.core import (
     LocalNodeList,
     Node,
     NodeType,
+    PageNode,
     TextIn,
     TextLineIn,
     node_,
@@ -35,11 +35,11 @@ class Page(
     IsTitled,
     IsOwnable,
     IsClaimable,
-    InlineNode[BlockData],
+    PageNode[BlockData],
 ):
     """A Page of Blocks laying out rich Text, data, logic, resources -- anything software needs."""
 
-    # NOTE: :Architecture: maybe some InlineNodes should have their own Page? or is that confusing?
+    # NOTE: :Architecture: maybe some PageNodes should have their own Page? or is that confusing?
 
     # meta
     parent: Union["Package", "Page", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.PAGE)
@@ -54,12 +54,12 @@ class Page(
         return ""
 
     @overload
-    def append(self, child: InlineNode, move: bool = False) -> "Block": ...
+    def append(self, child: PageNode, move: bool = False) -> "Block": ...
     @overload
     def append[T: Node](self, child: T, move: bool = False) -> T: ...
     def append[T: Node](self, child: T, move: bool = False) -> "T | Block":
-        if not move and isinstance(child, InlineNode):
-            # wrap InlineNodes into Blocks
+        if not move and isinstance(child, PageNode):
+            # wrap PageNodes into Blocks
             child_block = child.to_block()
             self.blocks.append(child_block)
             super().append(child, move)
@@ -86,7 +86,7 @@ class Page(
             self.blocks.remove(block)
 
     @staticmethod
-    def new(title: "TextLineIn", *nodes: "Block | InlineNode", **kwargs) -> "Page":
+    def new(title: "TextLineIn", *nodes: "Block | PageNode", **kwargs) -> "Page":
         page = Page(title=text_line(title), **kwargs)
         for node in nodes:
             page.append(node)

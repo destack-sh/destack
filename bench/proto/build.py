@@ -26,7 +26,7 @@ from bench.language import (
     FILE_FORMAT_BY_EXTENSION,
     FILE_FORMAT_BY_MIME_TYPE,
     GLOBAL_NODE_TYPES,
-    INLINE_NODE_TYPES,
+    PAGE_NODE_TYPES,
     INSTANTIABLE_NODE_TYPES,
     JOINABLE_NODE_TYPES,
     LOCAL_NODE_TYPES,
@@ -58,7 +58,7 @@ from bench.language import (
     VERSION,
     BenchNode,
     EnumType,
-    InlineNode,
+    PageNode,
     Node,
     Property,
     Resource,
@@ -254,7 +254,7 @@ AnyObjectData = AnyNodeData | AnyStructData
 BenchNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode)])}]
 ResourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource)])}]
 SourceNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source])}]
-InlineNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode)])}]
+PageNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PageNode)])}]
 SubjectNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES])}]
 JoinableNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES])}]
 TypeBaseNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TYPE_BASE_NODE_TYPES])}]
@@ -784,7 +784,7 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("COMMUNICATION_NODE_TYPES", COMMUNICATION_NODE_TYPES),
         ("COSMOS_NODE_TYPES", COSMOS_NODE_TYPES),
         ("GLOBAL_NODE_TYPES", GLOBAL_NODE_TYPES),
-        ("INLINE_NODE_TYPES", INLINE_NODE_TYPES),
+        ("PAGE_NODE_TYPES", PAGE_NODE_TYPES),
         ("INSTANTIABLE_NODE_TYPES", INSTANTIABLE_NODE_TYPES),
         ("LOCAL_NODE_TYPES", LOCAL_NODE_TYPES),
         ("PUBLIC_NODE_TYPES", PUBLIC_NODE_TYPES),
@@ -824,7 +824,7 @@ export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' fo
 export type BenchNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, BenchNode))}
 export type ClaimableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in CLAIMABLE_NODE_TYPES)}
 export type FieldBaseNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in FIELD_BASE_NODE_TYPES)}
-export type InlineNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, InlineNode))}
+export type PageNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, PageNode))}
 export type JoinableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in JOINABLE_NODE_TYPES)}
 export type OwnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in OWNABLE_NODE_TYPES)}
 export type TemplatableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in TEMPLATABLE_NODE_TYPES)}

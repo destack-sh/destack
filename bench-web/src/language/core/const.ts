@@ -4,8 +4,8 @@ import {
   BlockType,
   EmptyProperty,
   EnumType,
-  INLINE_NODE_TYPES,
-  InlineNodeData,
+  PAGE_NODE_TYPES,
+  PageNodeData,
   INSTANTIABLE_NODE_TYPES,
   InstantiableNodeData,
   JOINABLE_NODE_TYPES,
@@ -74,8 +74,8 @@ export function isSourceNodeType(nodeType: NodeType): boolean {
   return nodeType >= 5000 && nodeType < 5500;
 }
 
-export function isInlineNodeType(nodeType: NodeType): boolean {
-  return INLINE_NODE_TYPES.includes(nodeType);
+export function isPageNodeType(nodeType: NodeType): boolean {
+  return PAGE_NODE_TYPES.includes(nodeType);
 }
 
 export function isTypeBaseNodeType(nodeType: NodeType): boolean {
@@ -121,9 +121,9 @@ export function isJoinableNode(node: any): node is JoinableNodeData {
   else return isJoinableNodeType(node.metatype as unknown as NodeType);
 }
 
-export function isInlineNode(node: any): node is InlineNodeData {
+export function isPageNode(node: any): node is PageNodeData {
   if (node == null || typeof node != "object") return false;
-  else return isInlineNodeType(node.metatype as unknown as NodeType);
+  else return isPageNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isTypeBaseNode(node: any): node is TypeBaseNodeData {

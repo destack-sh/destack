@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { InlineNodeData, NodeReferenceData, NodeType, SelectionData } from "@/proto/wire";
+import { PageNodeData, NodeReferenceData, NodeType, SelectionData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection } from "@/system/connection";
 import BlockHeader from "@/views/builtin/BlockHeader.vue";
@@ -10,7 +10,7 @@ import { computed, ref, Ref } from "vue";
 
 const props = defineProps<{
   self?: TypedNodeReferenceData<NodeType.VIEW>;
-  node: InlineNodeData | undefined | null;
+  node: PageNodeData | undefined | null;
   nodePtr: NodeReferenceData;
   preparedConnection: PreparedNodeConnection;
   isRoot?: boolean;

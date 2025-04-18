@@ -6,7 +6,6 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     FieldType,
-    InlineNode,
     IsClaimable,
     IsComputable,
     IsFieldBase,
@@ -19,6 +18,7 @@ from bench.language.core import (
     LocalNodeList,
     NodeReference,
     NodeType,
+    PageNode,
     StructType,
     Text,
     TypeKind,
@@ -54,7 +54,7 @@ class Flow(
     IsNamed,
     IsRunnable,
     IsFieldBase,
-    InlineNode[FlowData],
+    PageNode[FlowData],
 ):
     """A Flow orchestrates a sequence of steps (like Actions)."""
 
