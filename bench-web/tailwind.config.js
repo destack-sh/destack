@@ -1,8 +1,3 @@
-import colors from "tailwindcss/colors";
-import aspectRatio from "@tailwindcss/aspect-ratio";
-import typography from "@tailwindcss/typography";
-import containerQueries from "@tailwindcss/container-queries";
-
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{vue,js,ts,jsx,tsx}"],
@@ -56,20 +51,6 @@ export default {
         "-2xs": { max: "399px" },
         "-3xs": { max: "319px" },
         "-4xs": { max: "239px" },
-      },
-      textUnderlineOffset: {
-        3: "3px",
-      },
-      colors: {
-        primary: colors.amber,
-        secondary: colors.sky,
-        accent: colors.orange,
-        gray: colors.stone,
-        canvas: colors.stone,
-        success: colors.lime,
-        hint: colors.sky,
-        warning: colors.yellow,
-        danger: colors.red,
       },
       transitionProperty: {
         // extend 'colors' to include opacity
