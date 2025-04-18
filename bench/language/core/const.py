@@ -1398,9 +1398,9 @@ class FieldType(BuiltinEnum):
     """The type of a Field within its Block. Overlaps with ObjectKind."""
 
     MEMBER = 10, "Member", "Member of an object", "fas objects-columns"
-    INPUT = 20, "Input to a runnable", "fas fa-arrow-down"
-    OUTPUT = 30, "Output from a runnable", "fas fa-arrow-up"
-    # VARIABLE?
+    VARIABLE = 20, "Variable", "Variable", "fas fa-arrow-down"
+    INPUT = 30, "Input to a runnable", "fas fa-arrow-down"
+    OUTPUT = 40, "Output from a runnable", "fas fa-arrow-up"
 
 
 @enum_(EnumType.TIME_INTERVAL)

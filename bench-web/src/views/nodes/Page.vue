@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { isInlineNode, toCamelName } from "@/language/core/const";
+import { isInlineNode } from "@/language/core/const";
 import { isDescendantOf } from "@/language/core/graph";
 import { cloneNode, moveNode, NodeIn } from "@/language/core/node";
 import { isTextLineEmpty, STANDARD_TEXT_LINE_TYPES } from "@/language/core/text";
-import { uploadFile } from "@/language/resource/file";
 import { newChangeId } from "@/language/core/transaction";
+import { uploadFile } from "@/language/resource/file";
 import { createBlock } from "@/language/source/block";
 import {
   BlockData,
@@ -166,12 +166,27 @@ const {
   parentComponent: vueInstance,
   pageContext,
   onPmTransaction: (view, prevState, newState) => {
-    // auto deselect nodes if anything was edited by the user
     const selectionChanged = !(
       prevState &&
       prevState.doc.eq(newState.doc) &&
       prevState.selection.eq(newState.selection)
     );
+
+    // update iinspection
+    if (selectionChanged && newState.selection) {
+      const { from } = newState.selection;
+      const $from = newState.doc.resolve(from);
+      const node = $from.node();
+      if (node && node.attrs.blockPtr) {
+        const blockPtr = node.attrs.blockPtr;
+        const block = graph.getMaybe(blockPtr);
+        if (block) {
+          canvas.inspect({ node: block });
+        }
+      }
+    }
+
+    // auto deselect nodes if anything was edited by the user
     if (selectionChanged && !isSelecting()) {
       canvas.deselect();
     }
