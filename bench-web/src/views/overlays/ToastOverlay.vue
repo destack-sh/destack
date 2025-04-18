@@ -90,10 +90,10 @@ const absoluteStyle = computed(() => {
       :style="{
         width: TOAST_WIDTH + 'px',
       }"
-      class="group/toast relative flex flex-row items-center gap-x-1 rounded-2xl border border-gray-300 bg-white shadow-sm"
+      class="group/toast relative flex flex-row items-center gap-x-1 rounded-2xl border border-gray-300 bg-white shadow-xs"
     >
       <!-- Icon -->
-      <div class="flex-shrink-0 pl-3.5 pr-1.5">
+      <div class="shrink-0 pl-3.5 pr-1.5">
         <IconInline
           v-bind="toast.icon ?? ICON_BY_TOAST_LEVEL[toast.level]"
           class="w-5 text-center text-lg text-gray-700"
@@ -115,7 +115,7 @@ const absoluteStyle = computed(() => {
       </div>
       <!-- Dismiss -->
       <button
-        class="right-3 ml-auto h-full flex-shrink-0 border-gray-300 py-3 pl-1 pr-3.5 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
+        class="right-3 ml-auto h-full shrink-0 border-gray-300 py-3 pl-1 pr-3.5 text-gray-400 opacity-40 transition-colors duration-75 group-hover/toast:opacity-100"
         @click="toaster.dismiss(toast)"
       >
         <i class="fas fa-xmark" />

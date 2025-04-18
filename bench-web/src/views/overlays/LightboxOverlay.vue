@@ -40,7 +40,7 @@ const bodySize = useElementSize(bodyRef);
   >
     <div
       v-if="lightbox != null"
-      class="fixed left-0 top-0 z-80 flex h-screen w-screen flex-col items-center justify-center bg-gray-700/80 px-12 backdrop-blur-sm"
+      class="fixed left-0 top-0 z-80 flex h-screen w-screen flex-col items-center justify-center bg-gray-700/80 px-12 backdrop-blur-xs"
       data-outside-view="true"
       @click.stop.prevent="() => clearLightbox()"
       @keydown.esc="() => clearLightbox()"
@@ -48,7 +48,7 @@ const bodySize = useElementSize(bodyRef);
       <!-- Header -->
       <div ref="headerRef" class="fixed top-10 z-70 my-1 flex w-full flex-row justify-center px-12">
         <!-- Info (left) -->
-        <div class="rounded px-3 py-1">
+        <div class="rounded-sm px-3 py-1">
           <NodeReference class="text-white" :node="lightbox.node" is-light is-minimal is-icon-light size="title" />
         </div>
       </div>

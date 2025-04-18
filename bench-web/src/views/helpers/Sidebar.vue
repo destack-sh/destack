@@ -60,14 +60,14 @@ defineExpose<ViewExpose>({ self });
   <div class="flex h-full w-full flex-col">
     <!-- Bench Header -->
     <div
-      class="flex max-w-full flex-shrink-0 flex-col gap-x-2"
+      class="flex max-w-full shrink-0 flex-col gap-x-2"
       :style="{
         minHeight: `${BAR_HEADER_HEIGHT}px`,
       }"
     >
       <!-- Bench button -->
       <div
-        class="mx-2.5 my-1.5 flex cursor-pointer flex-row items-center truncate rounded px-2 transition-colors duration-75 hover:bg-gray-100"
+        class="mx-2.5 my-1.5 flex cursor-pointer flex-row items-center truncate rounded-sm px-2 transition-colors duration-75 hover:bg-gray-100"
         :data-node-id="bench?.id"
         :data-node-type="bench?.metatype"
         :style="{
@@ -125,7 +125,7 @@ defineExpose<ViewExpose>({ self });
               ] as CommandBuiltinId[]
             ).map(getCommand)"
             :key="command.id"
-            class="group/button mx-3 flex flex-row items-center truncate rounded border border-transparent px-1.5 py-[4px] transition-colors duration-75 hover:bg-gray-100"
+            class="group/button mx-3 flex flex-row items-center truncate rounded-sm border border-transparent px-1.5 py-[4px] transition-colors duration-75 hover:bg-gray-100"
             :style="{}"
             @click="fireCommand(command)"
           >
@@ -155,7 +155,7 @@ defineExpose<ViewExpose>({ self });
                 text: 'Create Page',
                 shortcuts: getCommand('space.create.page').shortcuts,
               }"
-              class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/package-tree:opacity-100"
+              class="ml-auto rounded-sm text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/package-tree:opacity-100"
               @click="fireCommandById('space.create.page')"
             >
               <span class="fas fa-plus w-5 text-center" />
@@ -207,7 +207,7 @@ defineExpose<ViewExpose>({ self });
             placement: 'top-left',
           })
         "
-        class="mx-3 flex flex-row items-center rounded py-1 pl-1.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
+        class="mx-3 flex flex-row items-center rounded-sm py-1 pl-1.5 pr-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
         @click="user == null && fireCommandById('user.security.login')"
       >
         <AvatarInline

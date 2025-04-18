@@ -129,7 +129,7 @@ defineExpose<ViewExpose>({ self, focus });
     <!-- Already working, just waiting for Bench -->
     <i class="fas fa-spinner-third animate-spin text-gray-400" />
   </div>
-  <div v-else class="mx-auto mt-[16%] h-fit min-w-80 max-w-96 rounded px-9 py-7 text-gray-900">
+  <div v-else class="mx-auto mt-[16%] h-fit min-w-80 max-w-96 rounded-sm px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
       <h2 class="text-2xl font-semibold">{{ title }}</h2>

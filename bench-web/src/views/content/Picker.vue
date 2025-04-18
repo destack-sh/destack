@@ -283,7 +283,7 @@ defineExpose<ViewExpose>({
     "
     role="button"
     :disabled="props.isDisabled || !props.isInput"
-    class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
+    class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded-sm border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
     :class="[!isMinimal ? 'border px-2.5 py-1' : '']"
   >
     <!-- NOTE :Incomplete: Picker.isDisabled/... -->
@@ -294,7 +294,7 @@ defineExpose<ViewExpose>({
       <button
         v-for="(v, i) in currentItems"
         :key="i"
-        class="mr-2 flex flex-row items-center gap-x-1.5 rounded"
+        class="mr-2 flex flex-row items-center gap-x-1.5 rounded-sm"
         :class="[valueType?.isList ? 'bg-gray-100 px-1' : '', v.status == 'pending' ? 'animate-pulse' : '']"
       >
         <NodeReference v-if="v.metatype == 'node'" size="sm" is-light :node="v.node!" />
@@ -324,7 +324,7 @@ defineExpose<ViewExpose>({
     <!-- Controls -->
     <div
       v-if="!isDisabled && isInput"
-      class="ml-auto flex-shrink-0 pl-1.5 transition-colors duration-75"
+      class="ml-auto shrink-0 pl-1.5 transition-colors duration-75"
       :class="isMinimal ? 'opacity-0 group-hover:opacity-100' : ''"
     >
       <!-- Clear -->
@@ -341,7 +341,7 @@ defineExpose<ViewExpose>({
 
   <div
     v-else-if="variant == PickerVariant.MULTI_TOGGLE"
-    class="flex h-7 w-full flex-row items-center justify-between gap-x-1 truncate rounded bg-gray-100 px-0.5"
+    class="flex h-7 w-full flex-row items-center justify-between gap-x-1 truncate rounded-sm bg-gray-100 px-0.5"
   >
     <!-- Inline Multi-Toggle -->
     <!-- Inline choice -->
@@ -351,7 +351,7 @@ defineExpose<ViewExpose>({
       v-tooltip="{ icon: (item as any).icon, title: item.title, text: item.text, group: 'picker' }"
       :data-selected="isSelected(item)"
       :disabled="props.isDisabled"
-      class="group flex-1 flex-shrink-0 truncate rounded px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
+      class="group flex-1 shrink-0 truncate rounded-sm px-0.5 py-0.5 text-center font-medium shadow-gray-200 hover:bg-gray-200 hover:text-gray-800 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-xs"
       @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
     >
       <IconInline v-if="(item as any).icon" v-bind="(item as any).icon" class="w-5" />
@@ -369,7 +369,7 @@ defineExpose<ViewExpose>({
     <div
       class="flex flex-row flex-wrap items-center gap-y-1.5 px-2.5 py-1"
       :class="[
-        isPopover ? 'mx-2 mb-0.5 mt-1.5 rounded border border-gray-200 bg-gray-100' : 'border-b border-gray-200',
+        isPopover ? 'mx-2 mb-0.5 mt-1.5 rounded-sm border border-gray-200 bg-gray-100' : 'border-b border-gray-200',
       ]"
     >
       <!-- Current value -->
@@ -377,7 +377,7 @@ defineExpose<ViewExpose>({
         <button
           v-for="(v, i) in currentItems"
           :key="i"
-          class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
+          class="mr-2 flex flex-row items-center rounded-sm bg-gray-100 px-1"
         >
           <NodeReference v-if="v.metatype == 'node'" size="sm" is-light :node="v.node!" />
           <template v-else>
@@ -406,7 +406,7 @@ defineExpose<ViewExpose>({
           ref="queryRef"
           v-model="query"
           type="text"
-          class="ml-2 w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
+          class="ml-2 w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-hidden ring-0 focus:ring-0"
           :placeholder="placeholder ?? `Select ${facetName ?? '???'}`"
           @keydown.enter.stop.prevent="activeResultId && select(activeResultId)"
           @keydown.up.stop.prevent="focus('previous')"
@@ -435,7 +435,7 @@ defineExpose<ViewExpose>({
           <li
             :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
             role="menuitem"
-            class="mb-[1px] mr-0.5 mt-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded border border-transparent px-1.5 hover:bg-gray-100"
+            class="mb-[1px] mr-0.5 mt-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-1.5 hover:bg-gray-100"
             :class="[isActive(item) ? 'bg-gray-100' : '']"
             :data-selected="isSelected(item)"
             :data-active="isActive(item)"
@@ -445,16 +445,16 @@ defineExpose<ViewExpose>({
             <IconInline
               v-if="(item as any).icon"
               v-bind="(item as any).icon"
-              class="mr-1.5 w-6 flex-shrink-0 rounded-md py-1 text-center text-gray-900"
+              class="mr-1.5 w-6 shrink-0 rounded-md py-1 text-center text-gray-900"
               :style="{
                 backgroundColor: item.color != null ? getColorHex(item.color, ColorShade.S300) : undefined,
               }"
             />
-            <span v-else class="mr-1.5 w-6 flex-shrink-0 text-gray-700" />
+            <span v-else class="mr-1.5 w-6 shrink-0 text-gray-700" />
             <span class="max-w-full select-none truncate">
               <span class="truncate" v-html="item.titleMarked ?? item.title" />
               <!-- Checked -->
-              <i v-if="isSelected(item)" class="fas fa-check flex-shrink-0 pl-2 pr-1 text-gray-700" />
+              <i v-if="isSelected(item)" class="fas fa-check shrink-0 pl-2 pr-1 text-gray-700" />
             </span>
             <!-- Metadata -->
             <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />

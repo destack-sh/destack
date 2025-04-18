@@ -208,7 +208,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               text: 'Create Thread',
               shortcuts: getCommand('space.create.thread').shortcuts,
             }"
-            class="ml-auto rounded text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
+            class="ml-auto rounded-sm text-gray-400 opacity-0 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700 group-hover/thread-group:opacity-100"
             @click="fireCommandById('space.create.thread')"
           >
             <span class="fas fa-plus w-5 text-center" />
@@ -218,7 +218,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
         <!-- Empty state for Today -->
         <div
           v-if="group.title === 'Today' && group.threads.length === 0"
-          class="mx-2 flex flex-row items-center rounded px-2 text-sm text-gray-400 transition-colors duration-75 hover:cursor-pointer hover:bg-gray-100"
+          class="mx-2 flex flex-row items-center rounded-sm px-2 text-sm text-gray-400 transition-colors duration-75 hover:cursor-pointer hover:bg-gray-100"
           role="button"
           :style="{
             height: `${ITEM_HEIGHT}px`,
@@ -235,10 +235,10 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
             v-for="thread in group.threads"
             :ref="(ref?: any) => (ref != null ? (itemRefs[thread.id] = ref) : delete itemRefs[thread.id])"
             :key="thread.id"
-            class="group/node relative mx-3 flex max-w-full flex-row items-center rounded px-1.5 transition-colors duration-75 hover:cursor-pointer"
+            class="group/node relative mx-3 flex max-w-full flex-row items-center rounded-sm px-1.5 transition-colors duration-75 hover:cursor-pointer"
             :class="[
               canvas.isSelected(thread)
-                ? 'bg-primary-400/20'
+                ? 'bg-amber-400/20'
                 : canvas.isHighlighted(thread)
                   ? 'bg-gray-100'
                   : 'hover:bg-gray-100',

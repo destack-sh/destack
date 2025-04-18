@@ -66,7 +66,7 @@ const textClass = computed(() => [
       :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
     />
     <!-- File metadata -->
-    <span v-if="isNode(node, NodeType.FILE)" class="ml-0.5 flex-shrink-0 text-xs text-gray-400">
+    <span v-if="isNode(node, NodeType.FILE)" class="ml-0.5 shrink-0 text-xs text-gray-400">
       {{ humanizeBytes(Number(node.size)) }}
     </span>
     <!-- Run metadata -->

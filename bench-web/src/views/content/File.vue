@@ -177,7 +177,7 @@ defineExpose<ViewExpose>({
       v-if="!isInline"
       ref="containerRef"
       role="button"
-      class="group flex w-full items-center truncate rounded transition-all duration-75 data-[popover=true]:border-gray-200"
+      class="group flex w-full items-center truncate rounded-sm transition-all duration-75 data-[popover=true]:border-gray-200"
       :class="[
         isMinimal ? '' : 'border px-2.5 py-1',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
@@ -201,7 +201,7 @@ defineExpose<ViewExpose>({
         >
           {{ optimisticValue.name ?? "???" }}
         </a>
-        <span class="ml-1.5 flex-shrink-0 text-xs text-gray-400">
+        <span class="ml-1.5 shrink-0 text-xs text-gray-400">
           {{ humanizeBytes(Number(optimisticValue.size)) }}
         </span>
         <!-- Uploading -->
@@ -219,7 +219,7 @@ defineExpose<ViewExpose>({
         <span>Upload {{ facetName }}</span>
       </span>
       <!-- Controls -->
-      <div v-if="!isDisabled && isInput" class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1 pl-1.5">
+      <div v-if="!isDisabled && isInput" class="ml-auto flex shrink-0 flex-row items-center gap-x-1 pl-1.5">
         <!-- Clear -->
         <button
           v-if="modelValue != null && !valueType?.isRequired"
@@ -239,7 +239,7 @@ defineExpose<ViewExpose>({
     <div
       v-else-if="optimisticValue == null"
       ref="containerRef"
-      class="group flex h-full w-full cursor-pointer flex-col justify-center rounded text-center transition-all duration-75"
+      class="group flex h-full w-full cursor-pointer flex-col justify-center rounded-sm text-center transition-all duration-75"
       :class="[
         !isMinimal ? 'border px-2.5 py-1' : '',
         isMinimal && isInDropZone ? 'bg-gray-100' : '',
@@ -262,7 +262,7 @@ defineExpose<ViewExpose>({
     <div
       v-else
       ref="containerRef"
-      class="group relative flex h-full w-full flex-col justify-center rounded border-gray-200"
+      class="group relative flex h-full w-full flex-col justify-center rounded-sm border-gray-200"
       :class="[
         !isMinimal && !INLINABLE_FILE_TYPES.includes(optimisticValue.type) ? 'border bg-gray-100 px-2 py-1.5' : '',
         !isMinimal && !optimisticValue ? 'py-1' : '',
@@ -287,7 +287,7 @@ defineExpose<ViewExpose>({
         v-if="optimisticValue.type == FileType.IMAGE && cachedUrl != null"
         :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
-        class="rounded object-contain object-center"
+        class="rounded-sm object-contain object-center"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -300,7 +300,7 @@ defineExpose<ViewExpose>({
         :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         controls
-        class="rounded"
+        class="rounded-sm"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -312,7 +312,7 @@ defineExpose<ViewExpose>({
         :src="cachedUrl"
         :alt="optimisticValue?.name ?? '???'"
         controls
-        class="rounded object-contain object-center"
+        class="rounded-sm object-contain object-center"
         :style="{
           maxWidth: size?.width != null ? `${size.width}px` : undefined,
           maxHeight: size?.height != null ? `${size.height - 8}px` : undefined,
@@ -339,7 +339,7 @@ defineExpose<ViewExpose>({
       >
         <!-- Icon -->
         <div
-          class="rounded px-2 py-1"
+          class="rounded-sm px-2 py-1"
           :style="{
             backgroundColor: getColorHex(
               FileTypeOptionInfo[optimisticValue.type]?.color ?? ColorType.GRAY,
@@ -377,7 +377,7 @@ defineExpose<ViewExpose>({
       <div
         v-if="!isLightbox"
         class="absolute top-0 w-full"
-        :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors duration-75' : ''"
+        :class="upload?.isActive?.value ? 'h-full bg-white/50 transition-colors duration-75' : ''"
       >
         <!-- Upload progress -->
         <div v-if="upload != null && upload.isActive.value" class="absolute top-0 w-full">
@@ -389,7 +389,7 @@ defineExpose<ViewExpose>({
         <!-- Meta/Controls -->
         <div
           v-if="!isMinimal && INLINABLE_FILE_TYPES.includes(optimisticValue?.type)"
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded-sm border border-gray-200 bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover:text-gray-700 group-hover:opacity-100"
         >
           <!-- Format -->
           <span v-if="optimisticValue?.format" class="text-gray-700">
@@ -405,7 +405,7 @@ defineExpose<ViewExpose>({
           <!-- Focus -->
           <button
             v-if="!isDisabled"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="openFile()"
           >
             <i class="fas fa-expand" />
@@ -413,7 +413,7 @@ defineExpose<ViewExpose>({
           <!-- Replace -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="fileInputRef?.click()"
           >
             <i class="fas fa-shuffle" />
@@ -421,7 +421,7 @@ defineExpose<ViewExpose>({
           <!-- Remove -->
           <button
             v-if="isInput && !isDisabled && !valueType?.isRequired"
-            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+            class="rounded-sm px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @click="emit('update:modelValue', null)"
           >
             <i class="fas fa-xmark" />

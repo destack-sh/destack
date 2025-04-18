@@ -124,7 +124,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       <template #right="{ style }">
         <!-- Create Claim -->
         <button
-          class="group/button rounded px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
+          class="group/button rounded-sm px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-700"
           :class="style == 'block' ? 'opacity-0 group-hover/block:opacity-100 group-hover/header:opacity-100' : ''"
           @click.stop.prevent="createClaimPopover"
         >

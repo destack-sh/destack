@@ -45,11 +45,11 @@ defineExpose<ViewExpose>({ self, id, commands});
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex items-center gap-x-1.5 rounded pr-2 transition-colors duration-75"
+    class="flex items-center gap-x-1.5 rounded-sm pr-2 transition-colors duration-75"
     :class="[
       !isMinimal ? 'w-fit border' : '',
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      isSelected ? 'border-gray-400 bg-primary-400/20' : 'border-gray-200 hover:bg-gray-100',
+      isSelected ? 'border-gray-400 bg-amber-400/20' : 'border-gray-200 hover:bg-gray-100',
       !isSelected && (isInspected || isHighlighted) ? 'bg-gray-100' : '',
     ]"
     data-suppress-drag="select"

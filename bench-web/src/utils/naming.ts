@@ -78,7 +78,7 @@ const NOUNS = [
   "lake",
   "sunset",
   "pine",
-  "shadow",
+  "shadow-sm",
   "leaf",
   "dawn",
   "glitter",

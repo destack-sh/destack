@@ -33,7 +33,7 @@ defineExpose<ViewExpose>({ self, id });
   <component
     :is="getViewComponent(valueView.type)"
     v-if="valueType != null && valueView?.type != null && hasViewComponent(valueView.type)"
-    class="ml-auto flex-shrink-0"
+    class="ml-auto shrink-0"
     v-bind="{ isInput: true, size: props.size, valueType, ...valueView }"
     :model-value="modelValue"
     :prepared-connection="props.preparedConnection"

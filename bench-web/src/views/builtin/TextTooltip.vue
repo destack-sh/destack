@@ -49,7 +49,7 @@ const formatCommands: FormatCommand[] = [
   >
     <div
       v-if="visible && tick >= 0 /* react to tick */"
-      class="flex w-fit flex-row items-center rounded border border-gray-200 bg-white px-1 py-1"
+      class="flex w-fit flex-row items-center rounded-sm border border-gray-200 bg-white px-1 py-1"
       :style="{ height: `${height}px` }"
       @click.stop.prevent
       @mousedown.stop.prevent
@@ -63,8 +63,8 @@ const formatCommands: FormatCommand[] = [
           shortcuts: command.command.shortcuts,
           group: 'text.format',
         }"
-        class="rounded px-1 py-0.5 hover:bg-gray-100"
-        :class="[command.isChecked() ? 'text-primary-700' : '']"
+        class="rounded-sm px-1 py-0.5 hover:bg-gray-100"
+        :class="[command.isChecked() ? 'text-amber-700' : '']"
         @mousedown.stop.prevent="command.toggle()"
       >
         <IconInline class="w-5 text-center" v-bind="command.icon" />

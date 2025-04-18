@@ -91,7 +91,7 @@ defineExpose<ViewExpose>({ self, id });
       <!-- Drop indicator -->
       <div
         v-if="activeDropZone?.targetId === element.id"
-        class="absolute z-10 rounded bg-gray-400"
+        class="absolute z-10 rounded-sm bg-gray-400"
         :class="[activeDropZone.anchor === 'start' ? '-left-[6px]' : '-right-[6px]', 'top-0 h-full w-1']"
       />
       <slot
@@ -106,11 +106,11 @@ defineExpose<ViewExpose>({ self, id });
     </div>
     <!-- Add element button -->
     <button
-      class="group/action flex w-full flex-row items-center gap-x-2.5 rounded border border-dashed border-gray-200 px-1 py-1 text-left transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100"
+      class="group/action flex w-full flex-row items-center gap-x-2.5 rounded-sm border border-dashed border-gray-200 px-1 py-1 text-left transition-colors duration-150 hover:border-gray-400 hover:bg-gray-100"
       :style="{ height: props.elementSize.height + 'px' }"
       @click.stop.prevent="(e) => emit('create', e)"
     >
-      <div class="flex h-10 w-10 items-center justify-center rounded bg-gray-100">
+      <div class="flex h-10 w-10 items-center justify-center rounded-sm bg-gray-100">
         <i class="fas fa-plus text-lg text-gray-400 transition-colors duration-150 group-hover/action:text-gray-700" />
       </div>
       <div class="flex flex-1 flex-col">

@@ -93,7 +93,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         >
           <div v-if="computer != null && !vncRef?.isConnected" class="absolute left-0 top-0 flex w-full justify-center">
             <div
-              class="flex flex-row items-center rounded rounded-t-none border border-t-0 px-2 py-1"
+              class="flex flex-row items-center rounded-sm rounded-t-none border border-t-0 px-2 py-1"
               :style="{
                 backgroundColor: getColorHex(ResourceStatusOptionInfo[computer.status]!.color!, ColorShade.S100),
                 borderColor: getColorHex(ResourceStatusOptionInfo[computer.status]!.color!, ColorShade.S200),

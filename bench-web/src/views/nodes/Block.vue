@@ -178,7 +178,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
     />
-    <div v-else class="rounded border border-red-500 bg-red-100 text-center font-semibold text-red-900">
+    <div v-else class="rounded-sm border border-red-500 bg-red-100 text-center font-semibold text-red-900">
       <span>No View for {{ toCamelName(BlockType, block.type) }} Block</span>
     </div>
   </div>

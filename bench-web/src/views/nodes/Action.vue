@@ -81,10 +81,10 @@ defineExpose<ViewExpose>({ self, id, commands});
   <div
     v-if="action"
     ref="containerRef"
-    class="group/action flex flex-row items-center gap-x-2.5 rounded border px-1 py-1 outline outline-2 transition-colors duration-150"
+    class="group/action flex flex-row items-center gap-x-2.5 rounded-sm border px-1 py-1 outline outline-2 transition-colors duration-150"
     :class="[
       flowCtx != null ? '' : 'relative',
-      isSelected ? 'border-gray-400 bg-primary-100' : '',
+      isSelected ? 'border-gray-400 bg-amber-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
       lastRun != null && isProcessActive(lastRun) ? '' : 'outline-transparent',
@@ -115,7 +115,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         })
       "
       v-tooltip="{ small: true, text: `Change icon` }"
-      class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded hover:cursor-pointer hover:saturate-200"
+      class="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm hover:cursor-pointer hover:saturate-200"
       :style="{
         backgroundColor: getNodeColorHex(action, ColorShade.S400),
       }"
@@ -123,7 +123,7 @@ defineExpose<ViewExpose>({ self, id, commands});
       <IconInline
         ref="iconRef"
         v-bind="getNodeIcon(action, { base: tool })"
-        class="rounded text-center text-lg text-gray-800"
+        class="rounded-sm text-center text-lg text-gray-800"
       />
     </div>
 
@@ -140,7 +140,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <NativeInput
           id="name"
           ref="nameRef"
-          class="flex-shrink-0 font-medium transition-colors duration-150"
+          class="shrink-0 font-medium transition-colors duration-150"
           :placeholder="toCamelName(ActionType, action.type)"
           is-input
           is-minimal
@@ -153,7 +153,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <!-- Link (if tool) -->
         <button
           v-if="tool"
-          class="rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          class="rounded-sm text-gray-400 hover:bg-gray-100 hover:text-gray-700"
           @click.stop="canvas.goToNode(tool)"
         >
           <i class="fas fa-arrow-up-right" />
@@ -163,7 +163,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <!-- Controls/Meta -->
         <div class="ml-auto flex flex-row pl-2 pr-1.5">
           <!-- Run status -->
-          <button v-if="lastRun != null" class="rounded hover:bg-gray-100" aria-hidden>
+          <button v-if="lastRun != null" class="rounded-sm hover:bg-gray-100" aria-hidden>
             <ProcessStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
           </button>
         </div>
@@ -213,7 +213,7 @@ defineExpose<ViewExpose>({ self, id, commands});
 
     <!-- NOTE :UX: show last action output/error here? -->
   </div>
-  <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
+  <div v-else ref="containerRef" class="rounded-sm border border-gray-200 bg-white">
     <!-- Should never be rendered by containing flow -->
   </div>
 </template>
