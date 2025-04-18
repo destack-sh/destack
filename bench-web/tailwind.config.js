@@ -1,7 +1,7 @@
 import colors from "tailwindcss/colors";
-import aspectRatio from '@tailwindcss/aspect-ratio';
-import typography from '@tailwindcss/typography';
-import containerQueries from '@tailwindcss/container-queries';
+import aspectRatio from "@tailwindcss/aspect-ratio";
+import typography from "@tailwindcss/typography";
+import containerQueries from "@tailwindcss/container-queries";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -23,15 +23,7 @@ export default {
       "inset-xl": "inset 0 8px 0 0 rgba(0, 0, 0, 0.1)",
     },
     fontFamily: {
-      sans: [
-        "ui-sans-serif",
-        "-apple-system",
-        "BlinkMacSystemFont",
-        "Segoe UI",
-        "Helvetica",
-        "Arial",
-        "sans-serif",
-      ],
+      sans: ["ui-sans-serif", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Helvetica", "Arial", "sans-serif"],
       serif: ["Georgia", "Cambria", "Times New Roman", "Times", "serif"],
       mono: ["Droid Sans Mono", "monospace"],
     },
@@ -89,30 +81,5 @@ export default {
       },
     },
   },
-  variants: {
-    extend: {
-      backgroundColor: ["not-focus", "not-focus-within"],
-      borderColor: ["not-focus", "not-focus-within"],
-      textColor: ["not-focus", "not-focus-within"],
-    },
-  },
-  plugins: [
-    aspectRatio,
-    typography,
-    containerQueries,
-    
-    // not-focus variants
-    function ({ addVariant, e }) {
-      addVariant("not-focus", ({ modifySelectors, separator }) => {
-        modifySelectors(({ className }) => {
-          return `.${e(`not-focus${separator}${className}`)}:not(:focus)`;
-        });
-      });
-      addVariant("not-focus-within", ({ modifySelectors, separator }) => {
-        modifySelectors(({ className }) => {
-          return `.${e(`not-focus-within${separator}${className}`)}:not(:focus-within)`;
-        });
-      });
-    },
-  ],
+  plugins: [aspectRatio, typography, containerQueries],
 };
