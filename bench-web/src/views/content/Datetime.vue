@@ -271,7 +271,7 @@ defineExpose<ViewExpose>({
     "
     role="button"
     :disabled="isDisabled || !isInput"
-    class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
+    class="group flex w-full flex-row items-center gap-x-1.5 rounded-sm border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
     :class="[!isMinimal ? 'border px-2 py-1' : '']"
   >
     <!-- Dropdown Button -->
@@ -319,7 +319,7 @@ defineExpose<ViewExpose>({
           ref="dateInputRef"
           :value="dateString"
           type="text"
-          class="min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
+          class="min-w-0 flex-1 rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-hidden ring-0 focus:border-gray-400 focus:ring-0"
           :placeholder="'YYYY/MM/DD'"
           @input="(e) => setDateString((e.target as HTMLInputElement).value)"
         />
@@ -329,7 +329,7 @@ defineExpose<ViewExpose>({
           ref="timeInputRef"
           :value="timeString"
           type="text"
-          class="min-w-0 flex-1 rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
+          class="min-w-0 flex-1 rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-hidden ring-0 focus:border-gray-400 focus:ring-0"
           placeholder="HH:MM"
           @input="(e) => setTimeString((e.target as HTMLInputElement).value)"
         />
@@ -342,7 +342,7 @@ defineExpose<ViewExpose>({
           <button class="text-gray-600 hover:text-gray-900" @click="goToPreviousPeriod">
             <i class="fas fa-chevron-left" />
           </button>
-          <button class="rounded px-1 font-medium hover:bg-gray-100" @click="currentMonth = DateTime.now()">
+          <button class="rounded-sm px-1 font-medium hover:bg-gray-100" @click="currentMonth = DateTime.now()">
             {{ currentMonth.toFormat("LLLL yyyy") }}
           </button>
           <button class="text-gray-600 hover:text-gray-900" @click="goToNextPeriod">
@@ -358,7 +358,7 @@ defineExpose<ViewExpose>({
           <button
             v-for="day in weeks.flat()"
             :key="day.toISO()!"
-            class="h-8 w-full rounded text-sm transition-colors duration-75"
+            class="h-8 w-full rounded-sm text-sm transition-colors duration-75"
             :class="[
               isSamePeriod(day) ? 'text-gray-900' : 'text-gray-400',
               isSelected(day) ? 'bg-gray-100 font-bold text-gray-900' : 'hover:bg-gray-100',

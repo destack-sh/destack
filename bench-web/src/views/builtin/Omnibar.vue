@@ -200,7 +200,7 @@ defineExpose({ isActive, open });
   >
     <div
       v-if="isActive"
-      class="fixed left-0 top-0 z-50 flex h-screen w-screen justify-center bg-gray-700 bg-opacity-20"
+      class="fixed left-0 top-0 z-50 flex h-screen w-screen justify-center bg-gray-700/20"
       data-outside-view="true"
       @keydown.esc.exact.prevent="() => close()"
       @click.stop.prevent="isActive = false"
@@ -215,7 +215,7 @@ defineExpose({ isActive, open });
         <div
           v-if="isActive /* trigger inner transition */"
           ref="containerRef"
-          class="fixed z-60 h-fit rounded border border-gray-400 bg-white text-sm opacity-100 transition-transform duration-75"
+          class="fixed z-60 h-fit rounded-sm border border-gray-400 bg-white text-sm opacity-100 transition-transform duration-75"
           :style="{
             top: box.top + 40 + 'px',
             width: PANEL_WIDTH + 'px',
@@ -241,7 +241,7 @@ defineExpose({ isActive, open });
               v-model="query"
               type="text"
               :placeholder="TEXT_BY_MODE[mode] + '...'"
-              class="h-full w-full border-0 bg-transparent p-0 text-base placeholder-gray-500 outline-none ring-0 focus:ring-0"
+              class="h-full w-full border-0 bg-transparent p-0 text-base placeholder-gray-500 outline-hidden ring-0 focus:ring-0"
               @keydown.enter.stop.prevent="go"
               @keydown.down.stop.prevent="select(1)"
               @keydown.up.stop.prevent="select(-1)"
@@ -282,7 +282,7 @@ defineExpose({ isActive, open });
                   :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
                   :data-selected="item.itemId === activeResultLocalId"
-                  class="my-0.5 flex w-full flex-row items-center rounded border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
+                  class="my-0.5 flex w-full flex-row items-center rounded-sm border border-transparent px-2 py-1 transition-colors duration-75 hover:bg-gray-100 data-[selected=true]:bg-gray-100"
                   @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->
@@ -303,7 +303,7 @@ defineExpose({ isActive, open });
                   <!-- Metadata -->
                   <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />
                   <!-- Secondary (shortcut, last edited, etc.) -->
-                  <span class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-2">
+                  <span class="ml-auto flex shrink-0 flex-row items-center gap-x-2">
                     <Shortcut
                       v-if="item.metatype == 'command' && (item.shortcuts?.length ?? 0) > 0"
                       class="text-gray-700"

@@ -61,7 +61,7 @@ defineExpose<ViewExpose>({ self, id, commands });
 </script>
 <template>
   <div ref="containerRef" class="relative">
-    <ul class="flex flex-col rounded">
+    <ul class="flex flex-col rounded-sm">
       <!-- Claims -->
       <li
         v-for="claim in claims"
@@ -91,7 +91,7 @@ defineExpose<ViewExpose>({ self, id, commands });
       </li>
       <!-- Create -->
       <button
-        class="h-[30px] rounded px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] rounded-sm px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e: MouseEvent) => {
             const button = (e.target as HTMLElement).closest('button')!;

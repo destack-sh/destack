@@ -33,25 +33,25 @@ defineExpose<ViewExpose>({ self, id, focus: () => inputRef.value, interact: () =
       v-if="!isMinimal"
       role="switch"
       :disabled="isDisabled || !isInput"
-      class="relative inline-flex h-5 w-12 flex-shrink-0 cursor-pointer rounded border transition-colors duration-75 ease-in-out focus:outline-none"
+      class="relative inline-flex h-5 w-12 shrink-0 cursor-pointer rounded-sm border transition-colors duration-75 ease-in-out focus:outline-hidden"
       :class="modelValue ? 'border-gray-700 bg-gray-700' : 'border-gray-200 bg-gray-100'"
       @click.stop="toggle"
     >
       <span
-        class="inline-block h-[18px] w-5 transform rounded-sm border border-gray-200 bg-white transition duration-75 ease-in-out"
+        class="inline-block h-[18px] w-5 transform rounded-xs border border-gray-200 bg-white transition duration-75 ease-in-out"
         :class="modelValue ? 'translate-x-[26px]' : 'translate-x-0'"
       />
     </button>
     <!-- Checkbox -->
     <button
       v-else
-      class="flex h-5 w-5 flex-row items-center justify-center rounded border bg-white px-[1px] py-[1px] transition-colors duration-75"
+      class="flex h-5 w-5 flex-row items-center justify-center rounded-sm border bg-white px-[1px] py-[1px] transition-colors duration-75"
       :class="modelValue ? 'border-gray-700' : 'border-gray-200'"
       :disabled="isDisabled || !isInput"
       @click.stop="toggle"
     >
       <span
-        class="inline-block h-full w-full rounded transition-colors duration-75"
+        class="inline-block h-full w-full rounded-sm transition-colors duration-75"
         :class="modelValue ? 'bg-gray-700' : ''"
       />
     </button>

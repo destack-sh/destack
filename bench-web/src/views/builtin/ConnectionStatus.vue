@@ -17,7 +17,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
     <template #trigger="{ toggle }">
       <!-- Current status -->
       <button
-        class="select-none rounded border-2 px-1 py-1 transition-colors"
+        class="select-none rounded-sm border-2 px-1 py-1 transition-colors"
         :class="
           connections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
             ? 'border-warning-600'
@@ -36,7 +36,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
     <template #content="{ close }">
       <!-- Individual connections -->
       <!-- (will probably move this to a Connections View (maybe keep summary on hover)) -->
-      <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-200 bg-white text-gray-900">
+      <div v-outside.click.stop="close" class="p z-50 rounded-sm border border-gray-200 bg-white text-gray-900">
         <!-- Header -->
         <div class="my-1 flex flex-row border-b border-gray-200 px-3 py-1">
           <span class="font-semibold">Connections</span>
@@ -72,7 +72,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                   />
                 </button>
                 <!-- Metadata -->
-                <span class="h-fit rounded bg-secondary-100 px-2 font-semibold text-secondary-900">
+                <span class="h-fit rounded-sm bg-secondary-100 px-2 font-semibold text-secondary-900">
                   {{ connection.kind }}
                 </span>
                 <span class="ml-2 truncate font-semibold">{{ connection.name }}</span>
@@ -86,7 +86,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                     <span class="mr-2"> e={{ connection.epoch }} </span>
                   </template>
                   <!-- Connected (status) -->
-                  <span class="rounded px-1">
+                  <span class="rounded-sm px-1">
                     <i
                       class="fas"
                       :class="
@@ -98,7 +98,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                   </span>
                   <template v-if="isDeveloperMode">
                     <!-- Receive (status & toggle) -->
-                    <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
+                    <button class="rounded-sm px-1 hover:bg-amber-200" @click="connection.togglePaused()">
                       <i
                         :class="
                           connection.isConnecting.value
@@ -110,7 +110,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                       />
                     </button>
                     <!-- Send (toggle) -->
-                    <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
+                    <button class="rounded-sm px-1 hover:bg-amber-200" @click="connection.txBuffer.togglePaused()">
                       <i
                         class="fas fa-up"
                         :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"

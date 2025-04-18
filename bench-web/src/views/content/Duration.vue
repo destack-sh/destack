@@ -137,7 +137,7 @@ defineExpose<ViewExpose>({
     "
     role="button"
     :disabled="isDisabled || !isInput"
-    class="group flex w-full flex-row items-center gap-x-1.5 rounded border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
+    class="group flex w-full flex-row items-center gap-x-1.5 rounded-sm border-gray-200 hover:border-gray-200 data-[popover=true]:border-gray-200"
     :class="[!isMinimal ? 'border px-2 py-1' : '']"
   >
     <!-- Dropdown -->
@@ -178,7 +178,7 @@ defineExpose<ViewExpose>({
         <button
           v-for="preset in presets"
           :key="preset.label"
-          class="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-200"
+          class="rounded-sm bg-gray-100 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-200"
           @click="selectPreset(preset)"
         >
           {{ preset.label }}
@@ -190,7 +190,7 @@ defineExpose<ViewExpose>({
         ref="queryRef"
         :value="durationString"
         type="text"
-        class="w-full rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-none ring-0 focus:border-gray-400 focus:ring-0"
+        class="w-full rounded-sm border border-gray-200 bg-gray-100 px-2 py-1 text-sm outline-hidden ring-0 focus:border-gray-400 focus:ring-0"
         placeholder="e.g. 1h 30m, 2d, 1y"
         @input="(e) => setDurationString((e.target as HTMLInputElement).value)"
       />

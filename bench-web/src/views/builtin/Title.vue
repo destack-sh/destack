@@ -63,7 +63,7 @@ defineExpose({ commands, focus });
 <template>
   <div
     ref="textRef"
-    class="pm-text pm-compact pm-paddingless relative inline-block rounded"
+    class="pm-text pm-compact pm-paddingless relative inline-block rounded-sm"
     :class="[
       isInput ? 'hover:cursor-text' : '',
       truncate ? 'pm-truncate truncate' : '',

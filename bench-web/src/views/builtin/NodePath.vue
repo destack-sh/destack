@@ -34,7 +34,7 @@ const selfIndex = computed(() => path.value.findIndex((node) => node.id == props
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
-        class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100"
+        class="flex cursor-pointer flex-row items-center rounded-sm px-0.5 hover:bg-gray-100"
         :class="[i > 0 ? 'ml-1' : '', i > selfIndex && selfIndex != -1 ? 'text-gray-400' : 'text-gray-900']"
         role="button"
         :data-node-id="node.id"

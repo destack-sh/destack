@@ -24,7 +24,7 @@ defineExpose({
         title: 'Go back',
         commands: ['view.history.goBackward'] as CommandBuiltinId[],
       }"
-      class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
+      class="rounded-sm px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoBackward.value"
       @click="history?.go(-1)"
     >
@@ -37,7 +37,7 @@ defineExpose({
         title: 'Go forward',
         commands: ['view.history.goForward'] as CommandBuiltinId[],
       }"
-      class="rounded px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
+      class="rounded-sm px-0.5 py-0.5 text-gray-400 enabled:text-gray-700 enabled:hover:bg-gray-100"
       :disabled="!history?.canGoForward.value"
       @click="history?.go(1)"
     >

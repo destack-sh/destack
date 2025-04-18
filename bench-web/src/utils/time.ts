@@ -94,7 +94,7 @@ export type FormatDurationOptions = {
 /**
  * Formats a duration into a human readable string.
  * Like:
- * - short: 3.7s, 48m, 2d, 1w, 3y (rounded to nearest unit)
+ * - short: 3.7s, 48m, 2d, 1w, 3y (rounded-sm to nearest unit)
  * - regular: 1 sec 30 msec, 48 min, 2 days 4 hrs, 1 wk 2 days, 3 yr 6 mo (all non-zero parts)
  * - long: 1 second 30 milliseconds, 48 minutes, 2 days 4 hours, 1 week 2 days, 3 years 6 months (all non-zero parts)
  */

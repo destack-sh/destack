@@ -159,7 +159,7 @@ defineExpose({
         })
       "
       v-bind="getNodeIcon(node)"
-      class="rounded text-center data-[popover=true]:bg-gray-100"
+      class="rounded-sm text-center data-[popover=true]:bg-gray-100"
       :class="[
         ...iconClass,
         isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '',
@@ -174,7 +174,7 @@ defineExpose({
         v-if="!isNested && isInput && identifierKind == 'name'"
         id="identifier"
         ref="identifierRef"
-        class="flex-shrink-0 rounded text-gray-900"
+        class="shrink-0 rounded-sm text-gray-900"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
         :class="identifierClass"
         :placeholder="nodeTypeName"
@@ -218,7 +218,7 @@ defineExpose({
       <!-- Metadata -->
       <NodeMetadata
         v-if="!isMinimal && !hideMetadata"
-        class="ml-1 flex-shrink-0"
+        class="ml-1 shrink-0"
         :size="size"
         :node="node"
         :is-light="isLight"
@@ -236,7 +236,7 @@ defineExpose({
         class="w-5 text-center text-gray-400"
         v-bind="makeIcon(NodeTypeOptionInfo[nodePtr?.nodeType!]?.icon ?? 'fas fa-exclamation-triangle')"
       />
-      <div class="ml-1 h-2 w-20 rounded bg-gray-100" />
+      <div class="ml-1 h-2 w-20 rounded-sm bg-gray-100" />
     </template>
     <!-- Node not found (show id in dev mode) -->
     <template v-else-if="IS_DEVELOPER_MODE">

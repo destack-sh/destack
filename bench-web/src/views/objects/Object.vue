@@ -57,7 +57,7 @@ defineExpose<ViewExpose>({ self, id });
       <!-- Section header -->
       <div
         v-if="section.title"
-        class="group/section-header relative mx-1 flex flex-row items-center rounded px-3"
+        class="group/section-header relative mx-1 flex flex-row items-center rounded-sm px-3"
         :style="{ height: `${SECTION_HEADER_HEIGHT}px` }"
       >
         <!-- Title -->
@@ -76,7 +76,7 @@ defineExpose<ViewExpose>({ self, id });
             :key="action.title"
             v-tooltip="{ title: action.title, small: true, group: 'section.header' }"
             aria-hidden
-            class="mt-1 rounded px-1 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
+            class="mt-1 rounded-sm px-1 text-gray-400 hover:bg-gray-100 group-hover/section-header:text-gray-700"
             @click.stop="
               (e) => {
                 action.action(e);
@@ -111,7 +111,7 @@ defineExpose<ViewExpose>({ self, id });
 
           <!-- Body -->
           <!-- Fields -->
-          <div v-if="row.type == 'fields-list'" class="w-full rounded border border-gray-200 px-1 py-1">
+          <div v-if="row.type == 'fields-list'" class="w-full rounded-sm border border-gray-200 px-1 py-1">
             <FieldList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
@@ -120,7 +120,7 @@ defineExpose<ViewExpose>({ self, id });
               is-minimal
             />
           </div>
-          <div v-else-if="row.type == 'claims-list'" class="w-full rounded border border-gray-200 px-1 py-1">
+          <div v-else-if="row.type == 'claims-list'" class="w-full rounded-sm border border-gray-200 px-1 py-1">
             <ClaimList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
@@ -128,7 +128,7 @@ defineExpose<ViewExpose>({ self, id });
               is-minimal
             />
           </div>
-          <div v-else-if="row.type == 'membership-list'" class="w-full rounded border border-gray-200 px-1 py-1">
+          <div v-else-if="row.type == 'membership-list'" class="w-full rounded-sm border border-gray-200 px-1 py-1">
             <MembershipList
               :id="row.title ?? `type-${i}`"
               :orientation="Orientation.VERTICAL"
@@ -143,7 +143,7 @@ defineExpose<ViewExpose>({ self, id });
               (row.type == 'view' || row.type == 'property' || row.type == 'field') && hasViewComponent(row.viewType)
             "
             :id="i + '.' + row.viewType + '.value'"
-            :class="['ml-auto flex-shrink-0', row.isFullWidth ? '' : 'text-right']"
+            :class="['ml-auto shrink-0', row.isFullWidth ? '' : 'text-right']"
             :style="{ width: row.isFullWidth ? '100%' : 'calc(90% - 100px)', minHeight: ROW_HEIGHT_MIN + 'px' }"
             v-bind="row.viewProps"
             :model-value="row.read()"

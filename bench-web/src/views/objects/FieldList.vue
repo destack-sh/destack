@@ -115,7 +115,7 @@ defineExpose<ViewExpose>({ self, id, commands});
       {{ toCamelName(FieldType, props.fieldType) }}
     </div>
     <ul
-      class="flex gap-x-2 rounded"
+      class="flex gap-x-2 rounded-sm"
       :class="[isHorizontal ? 'flex-row' : 'flex-col']"
       @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
     >
@@ -129,7 +129,7 @@ defineExpose<ViewExpose>({ self, id, commands});
         <!-- Drop indicator -->
         <div
           v-if="activeDropZone?.targetId == field.id"
-          class="absolute z-10 rounded bg-gray-400"
+          class="absolute z-10 rounded-sm bg-gray-400"
           :class="[
             isHorizontal ? 'h-full w-1' : 'h-1 w-full',
             activeDropZone?.anchor == 'start'
@@ -160,7 +160,7 @@ defineExpose<ViewExpose>({ self, id, commands});
       </li>
       <!-- Create -->
       <button
-        class="h-[30px] rounded px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
+        class="h-[30px] rounded-sm px-2.5 text-left text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
         @click="
           (e) => {
             const button = (e.target as HTMLElement).closest('button')!;

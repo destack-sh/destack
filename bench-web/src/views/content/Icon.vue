@@ -146,7 +146,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       })
     "
     :disabled="isDisabled || !isInput"
-    class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-primary-700"
+    class="group flex w-full flex-row items-center rounded-sm border border-gray-200 px-2 py-1 enabled:hover:border-gray-200 data-[popover=true]:border-gray-200 data-[popover=true]:text-amber-700"
   >
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
@@ -184,7 +184,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             },
           ]"
           :key="type"
-          class="rounded px-1.5 py-0.5 font-medium transition-colors duration-75 enabled:hover:bg-gray-100"
+          class="rounded-sm px-1.5 py-0.5 font-medium transition-colors duration-75 enabled:hover:bg-gray-100"
           :class="[type == iconType ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-700']"
           @click.stop.prevent="((iconType = type), queryRef?.focus())"
         >
@@ -193,20 +193,20 @@ defineExpose<ViewExpose>({ self, id, focus });
         <!-- Remove -->
         <button
           v-if="modelValue != null"
-          class="ml-auto rounded px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          class="ml-auto rounded-sm px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
           @click="apply(undefined)"
         >
           <span>Remove</span>
         </button>
       </div>
       <!-- Input -->
-      <div class="flex flex-row items-center rounded bg-gray-100 px-1.5 py-1">
+      <div class="flex flex-row items-center rounded-sm bg-gray-100 px-1.5 py-1">
         <!-- Query -->
         <input
           ref="queryRef"
           v-model="query"
           type="text"
-          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0 disabled:cursor-default"
+          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-hidden ring-0 focus:ring-0 disabled:cursor-default"
           :disabled="iconType == IconType.FILE"
           :placeholder="
             iconType == IconType.FILE ? undefined : `Search ${iconType == IconType.EMOJI ? 'Emojis' : 'Icons'}...`
@@ -233,7 +233,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             })
           "
           :disabled="isDisabled || !isInput"
-          class="rounded px-0.5 enabled:hover:bg-gray-100"
+          class="rounded-sm px-0.5 enabled:hover:bg-gray-100"
         >
           <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
         </button>
@@ -298,7 +298,7 @@ defineExpose<ViewExpose>({ self, id, focus });
                 small: true,
               } as TooltipInfo
             "
-            class="select-none rounded border border-transparent hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
+            class="select-none rounded-sm border border-transparent hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
             :class="item.icon?.faName != null ? 'py-1 text-sm ' + item.icon.faName : 'text-xl'"
             role="menuitem"
             :data-selected="isSelected(item)"

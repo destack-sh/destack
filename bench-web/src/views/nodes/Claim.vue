@@ -50,18 +50,18 @@ defineExpose<ViewExpose>({ self, id });
   <div
     v-if="claim"
     ref="claimRef"
-    class="flex items-center gap-x-1.5 rounded transition-colors duration-150"
+    class="flex items-center gap-x-1.5 rounded-sm transition-colors duration-150"
     :class="[
       !isMinimal ? 'border px-1 py-1' : '',
-      isSelected ? 'border-gray-400 bg-primary-100' : '',
+      isSelected ? 'border-gray-400 bg-amber-100' : '',
       !isSelected && (isInspected || isHighlighted) ? 'border-gray-400 bg-gray-100' : '',
       !(isSelected || isInspected || isHighlighted) ? 'border-gray-200 bg-white' : '',
     ]"
     :style="{}"
   >
     <!-- Icon (as big square if not minimal) -->
-    <div v-if="!isMinimal" class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-yellow-400">
-      <IconInline v-bind="getNodeIcon(target ?? claim)" class="rounded text-center text-lg text-gray-800" />
+    <div v-if="!isMinimal" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-yellow-400">
+      <IconInline v-bind="getNodeIcon(target ?? claim)" class="rounded-sm text-center text-lg text-gray-800" />
     </div>
 
     <!-- TODO :Incomplete: show/control? actual Claim status somehow (what about Entitlements?) -->
@@ -75,7 +75,7 @@ defineExpose<ViewExpose>({ self, id });
         <!-- Button -->
         <template #trigger="{ isOpen, toggle }">
           <button
-            class="rounded border px-1 text-gray-900 transition-colors duration-75 hover:bg-gray-200"
+            class="rounded-sm border px-1 text-gray-900 transition-colors duration-75 hover:bg-gray-200"
             :style="{
               backgroundColor: getColorHex(ClaimTypeOptionInfo[claim.type]?.color ?? ColorType.GRAY, ColorShade.S200),
               borderColor: getColorHex(ClaimTypeOptionInfo[claim.type]?.color ?? ColorType.GRAY, ColorShade.S300),
@@ -91,12 +91,12 @@ defineExpose<ViewExpose>({ self, id });
         </template>
         <!-- Options -->
         <template #content="{ close }">
-          <ul class="w-[140px] rounded border border-gray-200 bg-white px-2 py-1.5 shadow shadow-sm shadow-gray-300">
+          <ul class="w-[140px] rounded-sm border border-gray-200 bg-white px-2 py-1.5 shadow-sm shadow-xs shadow-gray-300">
             <li
               v-for="option in getEnumOptions(EnumType.CLAIM_TYPE)"
               :key="option.value"
               role="button"
-              class="flex h-[30px] flex-row items-center justify-start rounded px-1.5 transition-colors hover:bg-gray-100"
+              class="flex h-[30px] flex-row items-center justify-start rounded-sm px-1.5 transition-colors hover:bg-gray-100"
               @click="() => (connection.tx.update(claim!, { type: option.value }), close())"
             >
               <IconInline v-bind="option.icon" class="mr-1.5 w-5 text-center text-gray-900" />

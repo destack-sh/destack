@@ -149,7 +149,7 @@ defineExpose<ViewExpose & { select: () => void }>({
 <template>
   <div
     v-if="isInput"
-    class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded transition-colors duration-75 hover:border-gray-200"
+    class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm transition-colors duration-75 hover:border-gray-200"
     :class="[
       isDisabled ? 'bg-gray-100 text-gray-700' : !isMinimal ? 'bg-white text-gray-900' : 'text-gray-900',
       !isMinimal ? 'select-text border border-gray-200 px-2 py-0.5 outline-1 focus-within:outline' : '',
@@ -167,7 +167,7 @@ defineExpose<ViewExpose & { select: () => void }>({
         :placeholder="placeholder"
         spellcheck="false"
         :type="inputType"
-        class="max-w-full flex-1 truncate border-0 bg-transparent p-0 outline-none ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
+        class="max-w-full flex-1 truncate border-0 bg-transparent p-0 outline-hidden ring-0 transition-colors duration-75 placeholder:text-gray-400 focus:ring-0"
         :class="[
           TEXT_DIRECTION_BY_ALIGNMENT[alignment ?? Alignment.START] ?? '',
           validationError != null ? 'text-danger-600' : '',
@@ -206,7 +206,7 @@ defineExpose<ViewExpose & { select: () => void }>({
       <!-- Clear -->
       <button
         v-if="!isMinimal && !isDisabled && !valueType?.isRequired && hasValue"
-        class="ml-auto pl-1 text-gray-400 opacity-0 outline-none transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
+        class="ml-auto pl-1 text-gray-400 opacity-0 outline-hidden transition-colors duration-75 hover:text-gray-700 focus:ring-0 group-hover:opacity-100"
         aria-hidden
         tabindex="-1"
         @click.stop="clear"
@@ -216,7 +216,7 @@ defineExpose<ViewExpose & { select: () => void }>({
     </template>
     <template v-else>
       <!-- List -->
-      <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1 hover:text-gray-700">
+      <div v-for="(v, i) in values" :key="i" class="rounded-sm bg-gray-100 px-1 hover:text-gray-700">
         <span class="truncate">{{ v }}</span>
         <!-- Remove -->
         <button
@@ -236,7 +236,7 @@ defineExpose<ViewExpose & { select: () => void }>({
         :value="currentValue"
         spellcheck="false"
         :type="inputType"
-        class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-gray-700 focus:ring-0"
+        class="rounded-sm border-0 bg-gray-100 p-0 px-1 outline-hidden ring-0 hover:text-gray-700 focus:ring-0"
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :size="isMinimal ? size : undefined"
         :disabled="isDisabled"
@@ -247,7 +247,7 @@ defineExpose<ViewExpose & { select: () => void }>({
       <!-- Add to list-->
       <button
         v-else-if="!isDisabled"
-        class="hover:text-primary-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
+        class="hover:text-amber-700 mr-2 self-center text-gray-400 opacity-0 group-hover:opacity-100"
         aria-hidden
         tabindex="-1"
         @click.stop="(addNewValue(), $nextTick(() => inputRef?.focus()))"
@@ -258,7 +258,7 @@ defineExpose<ViewExpose & { select: () => void }>({
   </div>
   <div
     v-else
-    class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-gray-400 focus-within:outline hover:border-gray-200"
+    class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded-sm text-gray-700 outline-1 outline-gray-400 focus-within:outline hover:border-gray-200"
     :class="[!isMinimal ? 'select-text border border-gray-200 px-2 py-1' : '']"
   >
     <!-- Read-only -->
@@ -275,7 +275,7 @@ defineExpose<ViewExpose & { select: () => void }>({
     </template>
     <template v-else>
       <!-- List -->
-      <div v-for="(v, i) in values" :key="i" class="truncate rounded bg-gray-100 px-1">{{ v }}</div>
+      <div v-for="(v, i) in values" :key="i" class="truncate rounded-sm bg-gray-100 px-1">{{ v }}</div>
     </template>
   </div>
 </template>

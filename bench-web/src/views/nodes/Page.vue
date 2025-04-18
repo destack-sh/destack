@@ -407,7 +407,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
     >
       <div
         ref="contentRef"
-        class="flex min-h-full flex-col focus:outline-none focus:ring-0"
+        class="flex min-h-full flex-col focus:outline-hidden focus:ring-0"
         :class="[IS_DRAGGING_OR_SELECTING ? 'cursor-default select-none' : '']"
         :style="{ minHeight: size.height - (isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0) + 'px' }"
       >
@@ -430,7 +430,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
         <!-- Text/Blocks -->
         <div
           ref="textRef"
-          class="pm-text pm-base stealth relative mx-auto rounded hover:cursor-text"
+          class="pm-text pm-base stealth relative mx-auto rounded-sm hover:cursor-text"
           :class="[IS_DRAGGING_OR_SELECTING ? 'pm-inactive' : '']"
           data-suppress-actions="space.move.left,space.move.right"
           :style="{
@@ -441,7 +441,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           <!-- NOTE :Cleanup: turn dragging anchor into prosemirror plugin?  -->
           <div
             v-if="activeDropZone"
-            class="z-40 h-[4px] bg-primary-400"
+            class="z-40 h-[4px] bg-amber-400"
             :class="activeDropAnchorPosition.y > 0 ? 'fixed' : 'absolute'"
             :style="{
               top: activeDropAnchorPosition.y > 0 ? activeDropAnchorPosition.y - 2 + 'px' : undefined,

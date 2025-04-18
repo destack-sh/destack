@@ -144,7 +144,7 @@ function close(popover: PopoverInstance | undefined) {
         v-if="popover?.kind == 'menu'"
         :ref="(el) => registerContainerRef(popover, el)"
         :key="popover.id"
-        class="pointer-events-auto absolute z-70 shadow-sm shadow-gray-300"
+        class="pointer-events-auto absolute z-70 shadow-xs shadow-gray-300"
         :style="{
           width: popover.width != null ? popover.width + 'px' : '',
           height: popover.height != null ? popover.height + 'px' : '',
@@ -157,7 +157,7 @@ function close(popover: PopoverInstance | undefined) {
       <div
         v-else-if="popover?.kind == 'view'"
         :ref="(el) => registerContainerRef(popover, el)"
-        class="pointer-events-auto absolute z-70 flex flex-col rounded border border-gray-200 bg-white text-gray-900 shadow-sm shadow-gray-300"
+        class="pointer-events-auto absolute z-70 flex flex-col rounded-sm border border-gray-200 bg-white text-gray-900 shadow-xs shadow-gray-300"
         :style="{
           width: popover.props?.size?.width != null ? popover.props.size.width + 'px' : '',
           height: popover.props?.size?.height != null ? popover.props.size.height + 'px' : '',
@@ -171,7 +171,7 @@ function close(popover: PopoverInstance | undefined) {
           <!-- Remove -->
           <button
             v-if="popoverValues[popover.id] != null"
-            class="ml-auto rounded px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="ml-auto rounded-sm px-1.5 py-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
             @click.stop="() => (popover.onApply?.(undefined), close(popover))"
           >
             <span>Remove</span>

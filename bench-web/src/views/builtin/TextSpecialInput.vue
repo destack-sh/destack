@@ -253,7 +253,7 @@ useFloating({
 defineExpose<Partial<ViewExpose>>({ focus });
 </script>
 <template>
-  <div class="relative inline rounded bg-gray-100 px-0.5 py-1.5 font-normal" @focusout="$nextTick(closeSelf)">
+  <div class="relative inline rounded-sm bg-gray-100 px-0.5 py-1.5 font-normal" @focusout="$nextTick(closeSelf)">
     <!-- Input container -->
     <div ref="inputContainerRef" class="inline">
       <!-- Type -->
@@ -261,7 +261,7 @@ defineExpose<Partial<ViewExpose>>({ focus });
       <!-- Input -->
       <span
         ref="inputRef"
-        class="inline-block outline-none"
+        class="inline-block outline-hidden"
         contenteditable="true"
         @keydown.escape.stop.prevent="closeSelf"
         @keydown.up.stop.prevent="select('up')"
@@ -308,7 +308,7 @@ defineExpose<Partial<ViewExpose>>({ focus });
       <div
         v-if="results.length > 0"
         ref="popoverRef"
-        class="absolute z-70 rounded border border-gray-200 bg-white text-sm shadow-sm shadow-gray-300"
+        class="absolute z-70 rounded-sm border border-gray-200 bg-white text-sm shadow-xs shadow-gray-300"
         :style="{
           width: `${WIDTH}px`,
         }"
@@ -333,7 +333,7 @@ defineExpose<Partial<ViewExpose>>({ focus });
               <li
                 :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
                 role="menuitem"
-                class="flex max-w-full cursor-pointer flex-row items-center rounded px-2 py-1 hover:bg-gray-100"
+                class="flex max-w-full cursor-pointer flex-row items-center rounded-sm px-2 py-1 hover:bg-gray-100"
                 :class="[activeResultId == item.id ? 'bg-gray-100' : '']"
                 :data-active="activeResultId == item.id"
                 @click.prevent="apply(item)"
@@ -342,12 +342,12 @@ defineExpose<Partial<ViewExpose>>({ focus });
                 <IconInline
                   v-if="(item as any).icon"
                   v-bind="(item as any).icon"
-                  class="mr-1.5 w-6 flex-shrink-0 rounded-md py-1 text-gray-700"
+                  class="mr-1.5 w-6 shrink-0 rounded-md py-1 text-gray-700"
                   :style="{
                     backgroundColor: item.color != null ? getColorHex(item.color, ColorShade.S300) : undefined,
                   }"
                 />
-                <span v-else class="mr-1.5 w-6 flex-shrink-0 text-gray-700" />
+                <span v-else class="mr-1.5 w-6 shrink-0 text-gray-700" />
                 <span class="max-w-full select-none truncate" v-html="item.titleMarked ?? item.title" />
                 <!-- Metadata -->
                 <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />

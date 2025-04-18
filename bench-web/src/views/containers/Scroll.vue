@@ -159,11 +159,11 @@ defineExpose<
 });
 </script>
 <template>
-  <div class="group/scroll relative focus:outline-none">
+  <div class="group/scroll relative focus:outline-hidden">
     <!-- Scroll area -->
     <div
       ref="containerRef"
-      class="scrollbar-none relative overscroll-auto focus:outline-none"
+      class="scrollbar-none relative overscroll-auto focus:outline-hidden"
       :class="[
         orientation == Orientation.HORIZONTAL ? 'overflow-y-hidden overflow-x-scroll' : '',
         orientation == Orientation.VERTICAL ? 'overflow-x-hidden overflow-y-scroll' : '',
@@ -201,7 +201,7 @@ defineExpose<
     >
       <div
         v-if="area.isOverflown.value"
-        class="absolute z-40 rounded transition-colors duration-150"
+        class="absolute z-40 rounded-sm transition-colors duration-150"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
           trackIsAlwaysVisible

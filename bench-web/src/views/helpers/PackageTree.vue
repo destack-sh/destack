@@ -231,13 +231,13 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           :data-node-id="node.id"
           :data-node-ck="(node as any).ck"
           :data-node-bench-id="(node as any).benchPtr?.id"
-          class="group/node relative mx-3 flex max-w-full flex-row items-center rounded border transition-colors duration-75 hover:cursor-pointer"
+          class="group/node relative mx-3 flex max-w-full flex-row items-center rounded-sm border transition-colors duration-75 hover:cursor-pointer"
           :class="[
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-gray-400'
               : 'border-transparent',
             canvas.isSelected(node)
-              ? 'bg-primary-400/20'
+              ? 'bg-amber-400/20'
               : isFocused(node) || canvas.isHighlighted(node)
                 ? 'bg-gray-100'
                 : 'hover:bg-gray-100',
@@ -257,7 +257,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-            class="absolute z-10 h-1 rounded bg-gray-400"
+            class="absolute z-10 h-1 rounded-sm bg-gray-400"
             :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[2px]']"
             :style="{
               left: 8 + depth * DEPTH_OFFSET + 'px',
@@ -265,13 +265,13 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
             }"
           />
           <!-- Icon/Expand button -->
-          <button class="group/icon relative mr-1 flex-shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
+          <button class="group/icon relative mr-1 shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
             <IconInline
               v-bind="getNodeIcon(node)"
               class="w-5 text-center transition-colors duration-75 group-hover/node:opacity-0"
             />
             <span
-              class="absolute left-0 w-5 rounded bg-gray-100 text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
+              class="absolute left-0 w-5 rounded-sm bg-gray-100 text-gray-400 opacity-0 transition-all duration-75 group-hover/node:opacity-100"
               :class="isExpanded(node) ? 'rotate-90' : 'rotate-9'"
             >
               <i class="fas fa-chevron-right" />

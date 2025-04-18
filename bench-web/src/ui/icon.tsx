@@ -159,7 +159,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   }
 
   // invalid icon
-  return <span class="fas fa-xmark rounded-sm border border-red-400 text-red-400" />;
+  return <span class="fas fa-xmark rounded-xs border border-red-400 text-red-400" />;
 };
 IconInline.props = [
   "emoji",

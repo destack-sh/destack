@@ -190,33 +190,35 @@ defineExpose<ViewExpose>({ self, id, commands });
     data-contextmenu-items="code.*"
     data-suppress-actions="space.move.left,space.move.right"
     data-suppress-drag="both"
-    class="code relative rounded hover:cursor-text"
+    class="code relative rounded-sm hover:cursor-text"
     :class="[
       !isMinimal
         ? 'border border-gray-200 px-1 py-[4px] focus-within:border-gray-400 not-focus-within:hover:border-gray-200'
         : '',
-      isInDropZone ? 'outline-dotted outline-2 outline-gray-400' : '',
+      isInDropZone ? 'outline-2 outline-gray-400 outline-dotted' : '',
     ]"
   >
     <!-- ... -->
   </div>
 </template>
 <style>
+@import "@/assets/index.css";
+
 /* Code */
 .code .cm-editor .cm-content {
-  @apply rounded py-0 font-mono;
+  @apply rounded-sm py-0 font-mono;
 }
 .code .cm-editor.cm-focused {
   @apply outline-0;
 }
 .code .cm-editor .cm-tooltip {
-  @apply overflow-hidden rounded border border-gray-200 bg-white p-1 font-mono text-gray-900;
+  @apply overflow-hidden rounded-sm border border-gray-200 bg-white p-1 font-mono text-gray-900;
 }
 .code .cm-editor .cm-tooltip > ul > li {
-  @apply rounded border border-transparent px-0.5 py-0.5;
+  @apply rounded-sm border border-transparent px-0.5 py-0.5;
 }
 .code .cm-editor .cm-tooltip > ul > li[aria-selected] {
-  @apply text-primary-700;
+  @apply text-amber-700;
 }
 .code .cm-editor .cm-completionMatchedText {
   @apply font-semibold underline underline-offset-3;

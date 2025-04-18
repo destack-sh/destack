@@ -590,7 +590,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <i
             v-for="icon in ['fas fa-file-word -rotate-12', 'fas fa-file-image', 'fas fa-file-vector rotate-12']"
             :key="icon"
-            :class="[icon, 'rounded bg-white text-3xl text-gray-700']"
+            :class="[icon, 'rounded-sm bg-white text-3xl text-gray-700']"
           />
         </div>
         <!-- Text -->
@@ -615,7 +615,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       <!-- Messages -->
       <ul
         ref="innerScrollRef"
-        class="relative flex flex-col focus:outline-none"
+        class="relative flex flex-col focus:outline-hidden"
         :class="[props.alignment == Alignment.END ? 'justify-end' : '']"
         :style="{ minHeight: bodyHeight != null ? bodyHeight - 4 /* WHY -4? */ + 'px' : undefined }"
         @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
@@ -642,8 +642,8 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 <div class="h-8 w-8 rounded-full bg-gray-100"></div>
               </div>
               <div class="flex flex-1 flex-col">
-                <div class="mb-1.5 h-2 w-20 rounded bg-gray-100" />
-                <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
+                <div class="mb-1.5 h-2 w-20 rounded-sm bg-gray-100" />
+                <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded-sm bg-gray-100" />
               </div>
             </div>
           </div>
@@ -692,19 +692,19 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             class="relative mb-2 flex items-center"
             :style="{ marginLeft: GUTTER_WIDTH - 4 + 'px', marginRight: GUTTER_WIDTH - 4 + 'px' }"
           >
-            <div class="flex-grow border-t border-gray-200" />
-            <div class="mx-4 flex-shrink text-sm text-gray-400">
+            <div class="grow border-t border-gray-200" />
+            <div class="mx-4 shrink text-sm text-gray-400">
               {{ formatAbsoluteDate(message.createdAt!, { prefer: "date" }) }}
             </div>
-            <div class="flex-grow border-t border-gray-200"></div>
+            <div class="grow border-t border-gray-200"></div>
           </div>
 
           <li
-            class="group/message max-w-full rounded px-0.5 transition-colors duration-75"
+            class="group/message max-w-full rounded-sm px-0.5 transition-colors duration-75"
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-primary-100' : 'hover:bg-gray-100',
+              isSelected ? 'bg-amber-100' : 'hover:bg-gray-100',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -718,13 +718,13 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <div v-if="replyTo != null" class="relative flex max-w-full items-center">
               <!-- 'Line' (supposed to go from avatar to the author with a bend) -->
               <div
-                class="absolute top-2 h-4 w-7 rounded rounded-b-none rounded-r-none border-l-2 border-t-2"
+                class="absolute top-2 h-4 w-7 rounded-sm rounded-b-none rounded-r-none border-l-2 border-t-2"
                 :style="{ left: MESSAGE_SIDE_WIDTH / 2 - 3 + 'px' }"
               />
               <!-- Spacing for side -->
               <div class="" :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" />
               <!-- Author -->
-              <span class="flex-shrink-0 text-gray-700">@{{ replyTo.author?.name ?? "???" }}</span>
+              <span class="shrink-0 text-gray-700">@{{ replyTo.author?.name ?? "???" }}</span>
               <!-- Preview -->
               <span
                 v-if="replyTo.message.text"
@@ -736,10 +736,10 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             </div>
 
             <!-- Body -->
-            <div class="flex flex-row rounded transition-colors duration-75">
+            <div class="flex flex-row rounded-sm transition-colors duration-75">
               <!-- Side -->
               <div
-                class="flex-shrink-0 text-center"
+                class="shrink-0 text-center"
                 :class="[isStartOfGroup ? 'mt-1' : 'mt-0.5']"
                 :style="{
                   width: MESSAGE_SIDE_WIDTH + 'px',
@@ -793,7 +793,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                     v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
                     :key="command.id"
                     v-tooltip="{ small: true, title: command.title, group: 'message' }"
-                    class="cursor-pointer rounded px-1.5 py-0.5 text-gray-400 transition-colors duration-75 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
+                    class="cursor-pointer rounded-sm px-1.5 py-0.5 text-gray-400 transition-colors duration-75 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
                     :disabled="command.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
                     @click.stop.prevent="fireCommand(command, { nodes: [message] })"
                   >
@@ -861,7 +861,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                       escape to
                       <a
                         href="#"
-                        class="text-primary-700 underline-offset-2 hover:underline"
+                        class="text-amber-700 underline-offset-2 hover:underline"
                         @click.stop="stopEditing()"
                         >cancel</a
                       >
@@ -869,7 +869,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                     •
                     <span>
                       enter to
-                      <a href="#" class="text-primary-700 underline-offset-2 hover:underline" @click.stop="submitEdit()"
+                      <a href="#" class="text-amber-700 underline-offset-2 hover:underline" @click.stop="submitEdit()"
                         >save</a
                       >
                     </span>
@@ -911,8 +911,8 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <div class="h-8 w-8 rounded-full bg-gray-100"></div>
           </div>
           <div class="flex flex-1 flex-col">
-            <div class="mb-1.5 h-2 w-20 rounded bg-gray-100" />
-            <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded bg-gray-100" />
+            <div class="mb-1.5 h-2 w-20 rounded-sm bg-gray-100" />
+            <div v-for="j in Math.max(1, i % 3)" :key="j" class="my-[3px] h-[20px] rounded-sm bg-gray-100" />
           </div>
         </div>
 
@@ -930,7 +930,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
-        class="flex w-full flex-row items-baseline rounded rounded-b-none border border-b-0 border-gray-200 bg-gray-100 px-2.5 py-1"
+        class="flex w-full flex-row items-baseline rounded-sm rounded-b-none border border-b-0 border-gray-200 bg-gray-100 px-2.5 py-1"
         role="button"
       >
         <span class="text-gray-700">Replying to</span>
@@ -953,7 +953,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 
       <!-- Main box -->
       <div
-        class="relative flex flex-row rounded border border-gray-200 px-2 pb-2 pt-3"
+        class="relative flex flex-row rounded-sm border border-gray-200 px-2 pb-2 pt-3"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <!-- Left -->

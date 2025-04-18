@@ -30,7 +30,7 @@ const props = defineProps<{
     />
     <NodeReference v-else-if="nodePtr" :node-ptr="nodePtr" hide-metadata size="sm" />
     <!-- Meta & Controls -->
-    <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
+    <div class="ml-auto flex shrink-0 flex-row items-center gap-x-1.5 pl-1">
       <slot name="meta" />
     </div>
   </div>
