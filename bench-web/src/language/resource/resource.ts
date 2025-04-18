@@ -36,7 +36,7 @@ function isResourceCommandEnabled(
   statusPredicate: (status: ResourceStatus) => boolean,
 ): boolean {
   const nodes = getNodesForCommand(command, context, isResourceNode).nodes;
-  return nodes.every((n) => statusPredicate((n as ResourceNodeData).status));
+  return nodes.length > 0 && nodes.every((n) => statusPredicate((n as ResourceNodeData).status));
 }
 
 // resource

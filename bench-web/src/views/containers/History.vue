@@ -3,7 +3,7 @@ import { supergraph } from "@/globals";
 import { LOADED_PACKAGE_NODE_TYPES } from "@/language/core/const";
 import { NodeType, RectangleData, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { benchGraph, canvas, spaceGraph } from "@/system/space";
+import { canvas, spaceGraph } from "@/system/space";
 import { CommandMapKit } from "@/ui/command";
 import { HISTORY_STATE_KEY, HistoryState } from "@/ui/view";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -30,7 +30,7 @@ const focusedViewIdx: Ref<number | null> = computed(() => {
   } else if (props.focusPtr != null) {
     const focusedId = props.focusPtr.id;
     const focusedTabIdx = views.value.findIndex((tab) => tab.id == focusedId);
-    return focusedTabIdx >= 0 ? focusedTabIdx : 0;
+    return focusedTabIdx >= 0 ? focusedTabIdx : views.value.length - 1;
   } else {
     return 0;
   }
@@ -76,7 +76,7 @@ const commands: Partial<CommandMapKit<"view">> = {
   "view.history.goForward": () => history.go(1),
 };
 
-defineExpose<ViewExpose>({ self, commands});
+defineExpose<ViewExpose>({ self, commands });
 </script>
 <template>
   <div class="h-full w-full">

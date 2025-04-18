@@ -4,7 +4,7 @@ import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewD
 import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas, containerPtr, inspectionPtr, pagePtr } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -34,38 +34,14 @@ const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
 
 // node
-const nodePtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
-const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(nodePtr);
-const isNodeRunnable = computed(() => inspection.value != null && isRunnableNode(inspection.value));
-const parentPtr = computed(() => inspection.value?.parentPtr);
-const { node: parent, connection: parentConnection } = supergraph.getLinkRef(parentPtr);
-const delegatePtr = computed(() => {
-  if (isNode(inspection.value, NodeType.BLOCK)) {
-    return inspection.value.nodePtr;
-  } else {
-    return null;
-  }
-});
-const { node: delegate, connection: delegateConnection } = supergraph.getLinkRef(delegatePtr);
+const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(inspectionPtr);
+const { node: container, connection: containerConnection } = supergraph.getLinkRef(containerPtr);
+const { node: page, connection: pageConnection } = supergraph.getLinkRef(pagePtr);
 const target = computed(() => {
-  if (delegate.value != null) {
-    return delegate.value;
-  } else if (isNode(inspection.value, NodeType.BLOCK) && inspection.value.type >= BlockType.PARAGRAPH) {
-    return parent.value;
-  } else {
-    return inspection.value;
-  }
+  return container.value ?? inspection.value;
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
-const scope = computed(() => {
-  if (delegate.value != null) {
-    return delegate.value;
-  } else if (isSourceNode(inspection.value) && !isInlineNode(inspection.value)) {
-    return parent.value;
-  } else {
-    return inspection.value;
-  }
-});
+const scope = computed(() => container.value ?? page.value);
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
