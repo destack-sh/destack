@@ -4,7 +4,7 @@ import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewD
 import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { runtime } from "@/runtime/runtime";
 import { supergraph } from "@/system/connection";
-import { canvas, containerPtr, inspectionPtr, pagePtr } from "@/system/space";
+import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
@@ -13,6 +13,7 @@ import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Chat from "@/views/helpers/Chat.vue";
+import Thread from "@/views/nodes/Thread.vue";
 import SomeObject from "@/views/objects/Object.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize } from "@vueuse/core";
@@ -42,6 +43,11 @@ const target = computed(() => {
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
 const scope = computed(() => container.value);
+
+// state (should be in ContextView?)
+type Mode = "Detail" | "Chat"; // log, context, memberships/invites, ...?
+const AVAILABLE_MODES: Mode[] = ["Detail", "Chat"] as const;
+const mode = ref<Mode>("Detail");
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -92,8 +98,17 @@ defineExpose<ViewExpose>({ self });
     </div>
 
     <!-- Header -->
-    <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-2" :style="{}">
+    <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-1" :style="{}">
       <!-- ... -->
+      <button
+        v-for="m in AVAILABLE_MODES"
+        :key="m"
+        class="cursor-pointer rounded-sm px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100"
+        :class="[mode == m ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
+        @click="mode = m"
+      >
+        <span>{{ m }}</span>
+      </button>
     </div>
 
     <!-- Content -->
@@ -113,15 +128,23 @@ defineExpose<ViewExpose>({ self });
       >
         <!-- Detail -->
         <SomeObject
+          v-if="mode == 'Detail'"
           id="detail"
           :node-ptr="targetPtr"
           is-input
           v-bind="state.getChildState('scroll.detail', { nodePtr: targetPtr, isInput: true, isMinimal: false })"
           data-contextmenu="ignore"
         />
-
         <!-- Chat -->
-        <!-- nocheckin: Chat -->
+        <Thread
+          v-else-if="mode == 'Chat'"
+          id="chat"
+          :node-ptr="threadPtr"
+          :size="{
+            width: size?.width,
+            height: bodyHeight,
+          }"
+        />
       </div>
 
       <!-- Selection overlay -->

@@ -104,13 +104,13 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             OpenRouterChatModelRunner,
         )
 
-        model_provider = self.node.model_provider or ModelProvider.OPENAI
+        model_provider = self.node.model_provider or ModelProvider.GOOGLE
         if model_provider == ModelProvider.OPENAI:
             return OpenAIChatModelRunner, "gpt-4.1-2025-04-14"
         elif model_provider == ModelProvider.ANTHROPIC:
             return AnthropicChatModelRunner, "claude-3-7-sonnet-20250219"
         elif model_provider == ModelProvider.GOOGLE:
-            return GoogleChatModelRunner, "gemini-2.5-pro-preview-03-25"
+            return GoogleChatModelRunner, "gemini-2.5-flash-preview-04-17"
         elif model_provider == ModelProvider.OPENROUTER:
             return OpenRouterChatModelRunner, "openrouter/quasar-alpha"
         else:

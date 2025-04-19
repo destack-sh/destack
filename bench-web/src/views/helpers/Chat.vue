@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
+import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
 import { isProcessableNode } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { useSubnodeProperty } from "@/language/core/node";
@@ -7,6 +8,7 @@ import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/te
 import { newChangeId } from "@/language/core/transaction";
 import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
 import { isProcessActive, touchProcess } from "@/language/runtime/process";
+import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
@@ -28,7 +30,7 @@ import {
   ThreadData,
   Timestamp,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
@@ -412,21 +414,30 @@ function submit() {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Submit" } });
   }
-  const messageChannelPtr = channelPtr.value ?? undefined;
-  const messageThreadPtr = threadPtr.value ?? undefined;
-  if (messageThreadPtr == null) throw new Error("no thread");
-  const thread = supergraph.getOrError(messageThreadPtr) as ThreadData;
+  let thread: ThreadData;
+  if (threadPtr.value == null) {
+    thread = createThread(tx, benchGraph, {
+      thread: {
+        parentPtr: toNodeRef(pkg.value!),
+        packagePtr: toNodeRef(pkg.value!),
+      },
+      members: [BENCH_BENCH_AGENT_PTR, "user"],
+    });
+    tx.update(space.value, { threadPtr: toNodeRef(thread) }); // not sure if this is right?
+  } else {
+    thread = supergraph.getOrError(threadPtr.value) as ThreadData;
+  }
 
   // create message
   createMessage(tx, benchGraph, {
     message: {
       type: MessageType.DEFAULT,
-      parentPtr: messageThreadPtr ?? messageChannelPtr,
+      parentPtr: toNodeRef(thread),
       ownedByPtr: toNodeRef(currentAuthor.value),
       benchPtr: benchPtr.value,
       packagePtr: packagePtr.value!,
-      channelPtr: messageChannelPtr,
-      threadPtr: messageThreadPtr ?? undefined,
+      channelPtr: channelPtr.value ?? undefined,
+      threadPtr: toNodeRef(thread),
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
       text,
@@ -627,7 +638,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           leave-from-class="opacity-100"
           leave-to-class="opacity-0"
         >
-          <div v-if="(!isAtStart && isEnabled) || node == null">
+          <div v-if="isEnabled && (!isAtStart || node == null)">
             <div
               v-for="i in LOADING_SKELETON_COUNT"
               ref="topPlaceholderRef"

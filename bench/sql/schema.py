@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.17.4"
+VERSION = "2025.04.19.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1165,10 +1165,6 @@ THREAD_TABLE = Table(
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_id", PrimitiveType.UUID, is_nullable=True),
         Column("channel_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("scope_id", PrimitiveType.UUID, is_nullable=True),
-        Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("scope_type", PrimitiveType.INT16, is_nullable=True),
-        Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("page_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_ck", PrimitiveType.UUID, is_nullable=True),

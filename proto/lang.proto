@@ -2351,7 +2351,6 @@ message ThreadData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData channel_ptr = 40;
-  optional NodeReferenceData scope_ptr = 41;
   optional NodeReferenceData page_ptr = 60;
   optional NodeReferenceData plan_ptr = 61;
   optional TextData text = 65;

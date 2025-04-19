@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, assert_never, override
 
 import google.generativeai as genai
 import structlog
@@ -69,7 +69,13 @@ async def build_google_chat_messages(
 
     def _flush_content() -> None:
         if current_role and current_content:
-            messages.append({"role": current_role, "parts": tuple(current_content)})  # type: ignore
+            if current_role == "user":
+                google_role = "user"
+            elif current_role == "developer":
+                google_role = "model"
+            else:
+                assert_never(current_role)
+            messages.append({"role": google_role, "parts": tuple(current_content)})  # type: ignore
             current_content.clear()
 
     for piece in pieces:
@@ -137,7 +143,7 @@ class GoogleChatModelRunner(ChatModelRunner):
             stream=True,
         )
         async for chunk in completion:
-            if chunk.text:
+            if len(chunk.parts) > 0 and chunk.text:
                 code_runner.add(chunk.text)
         code_runner.complete()
         if LOG_PROMPTS:

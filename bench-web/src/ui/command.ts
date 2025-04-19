@@ -165,6 +165,7 @@ export const COMMAND_BUILTIN_IDS = [
   "developer.test.developerMode",
   "developer.test.retryAllFailed",
   "developer.test.addEmptyView",
+  "developer.test.resetFocus",
   "developer.toast.success",
   "developer.toast.info",
   "developer.toast.debug",
