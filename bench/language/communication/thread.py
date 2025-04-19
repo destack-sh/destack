@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    PAGE_NODE_TYPES,
     BuiltinEnum,
     EnumType,
     IsInstantiable,
@@ -85,14 +84,9 @@ class Thread(
         same_bench=True,
         references=NodeType.CHANNEL,
     )
-    scope: Union["PageNode", "Package", None] = p_regular(
-        41, require=False, references=(*PAGE_NODE_TYPES, NodeType.PACKAGE)
-    )
     if TYPE_CHECKING:
         channel_ptr: Optional[NodeReference] = None
         channel_id: Optional[UUID] = None
-        scope_ptr: Optional[NodeReference] = None
-        scope_id: Optional[UUID] = None
 
     # content
     page: Optional["Page"] = p_regular(
@@ -139,7 +133,6 @@ class Thread(
         text: TextIn | None = None,
         *,
         channel: "Channel | None" = None,
-        scope: Union["PageNode", "Package", None] = None,
         page: "Page | None" = None,
         plan: "Plan | None" = None,
         **kwargs,
@@ -147,7 +140,6 @@ class Thread(
         thread = Thread(
             title=to_text_line(title) if title is not None else None,
             text=to_text(text) if text is not None else None,
-            scope=scope,
             channel=channel,
             page=page,
             plan=plan,

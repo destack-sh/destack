@@ -33,12 +33,6 @@ const channelPtr = computed(() => {
   else return null;
 });
 const channel = supergraph.getRef(channelPtr) as Ref<ChannelData | null>;
-const scopePtr = computed(() => {
-  if (node.value == null) return null;
-  if (isNode(node.value, NodeType.THREAD)) return node.value.scopePtr;
-  else return null;
-});
-const scope = supergraph.getRef(scopePtr);
 
 // view
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
@@ -92,7 +86,6 @@ defineExpose<ViewExpose>({ self, id, focus });
             {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???"
             }}<span v-if="isNode(node, NodeType.THREAD) && channel != null">
               in #{{ (channel as ChannelData)?.name ?? "???" }}</span
-            ><span v-if="(scope as any)?.name != null"> on {{ (scope as any).name }}</span
             >.
           </span>
         </div>

@@ -64,6 +64,27 @@ export const DEBUG_COMMANDS = provideCommands<"debug">({
       canvas.addView({ type: ViewType.EMPTY, name, title: name });
     },
   },
+  "developer.test.resetFocus": {
+    isEnabled: isDeveloperMode,
+    icon: "fas fa-mouse-pointer",
+    title: "Reset Focus",
+    text: "Reset the focus to the root",
+    command: () => {
+      const space = canvas.space.value;
+      if (space == null) return;
+      canvas.tx().update(
+        space,
+        {
+          focusPtr: undefined,
+          inspectionPtr: undefined,
+          containerPtr: undefined,
+          pagePtr: undefined,
+          threadPtr: undefined,
+        },
+        { debounce: "long" },
+      );
+    },
+  },
   // toast
   "developer.toast.info": {
     isEnabled: isDeveloperMode,
