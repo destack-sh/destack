@@ -802,7 +802,9 @@ class Runtime:
         # ensure all Agent runs are active if they should be
         new_runs: list[Run] = []
         woke_agents: list[Agent] = []
-        for agent in thread.agents:
+        for membership in thread.memberships:
+            if not isinstance(agent := membership.member, Agent):
+                continue
             cursor = agent.get_cursor(type=CursorType.THREAD)
             if handle.has_new_messages_for(agent, cursor):
                 # try to resume, otherwise create new run

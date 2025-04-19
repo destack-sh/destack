@@ -17,7 +17,7 @@ class ModelDeveloper(BuiltinEnum):
     # ...
     # external
     META = 1000, "Meta", "Meta", "fab fa-meta", ColorType.BLUE
-    OPENAI = 1010, "OpenAI", "OpenAI", "fas fa-circles-overlap-3", ColorType.GRAY
+    OPENAI = 1010, "OpenAI", "OpenAI", "fas fa-o", ColorType.GRAY
     ANTHROPIC = 1020, "Anthropic", "Anthropic", "fas fa-a", ColorType.PURPLE
     GOOGLE = 1030, "Google", "Google", "fab fa-google", ColorType.RED
     MICROSOFT = 1040, "Microsoft", "Microsoft", "fab fa-microsoft", ColorType.BLUE
