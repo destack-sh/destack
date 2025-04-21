@@ -502,18 +502,10 @@ class RunView(View):
     inputs_packed: Any = p_value_packed(101)
 
 
-# subnodes (10000-20000)
-
-# objects (20000-30000)
-
-
 @subnode_(ViewType.OBJECT)
 class ObjectView(View):
     expanded_sections: list[str] = p_regular(100, array=True)
     collapsed_sections: list[str] = p_regular(101, array=True)
-
-
-# helpers (30000-40000)
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)
@@ -548,31 +540,17 @@ class SidebarView(View):
     )
 
 
+@enum_(EnumType.CONTEXT_MODE)
+class ContextMode(BuiltinEnum):
+    """The mode of a Context view."""
+
+    DETAIL = 1
+    CHAT = 2
+
+
 @subnode_(ViewType.CONTEXT)
-class ContextView(View): ...
-
-
-#
-# Organization (40000-41000)
-#
-
-# collections (40300-40400)
-
-
-#
-# Style (41000-42000)
-#
-
-# navigation (41000-41100)
-# illustration (41100-41200)
-# graphing (41200-41300)
-
-
-#
-# Action (42000-43000)
-#
-
-# controls (42000-42100)
+class ContextView(View):
+    context_mode: ContextMode | None = p_regular(100)
 
 
 @enum_(EnumType.BUTTON_VARIANT)
@@ -585,17 +563,6 @@ class ButtonVariant(BuiltinEnum):
 @subnode_(ViewType.BUTTON)
 class ButtonView(View):
     variant: ButtonVariant | None = p_regular(100)
-
-
-#
-# Content (45000-)
-#
-
-# numeric (45000-45100)
-
-# stringy (45100-45200)
-
-# selection (45200-45300)
 
 
 @enum_(EnumType.PICKER_VARIANT)
@@ -618,6 +585,3 @@ class DatetimeView(View):
 @subnode_(ViewType.ICON)
 class IconView(View):
     include_color: bool | None = p_regular(100, default=None)
-
-
-# file (45300-45400)

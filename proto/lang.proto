@@ -108,6 +108,7 @@ enum EnumType {
   ENUM_TYPE_USER_WIZARD_STAGE = 22411;
   ENUM_TYPE_BUTTON_VARIANT = 22415;
   ENUM_TYPE_PICKER_VARIANT = 22416;
+  ENUM_TYPE_CONTEXT_MODE = 22417;
   ENUM_TYPE_USER_STATUS = 22450;
   ENUM_TYPE_ORGANIZATION_STATUS = 22451;
   ENUM_TYPE_CHANNEL_STATUS = 22500;
@@ -505,6 +506,7 @@ enum BenchType {
   BENCH_TYPE_USER_WIZARD_STAGE = 22411;
   BENCH_TYPE_BUTTON_VARIANT = 22415;
   BENCH_TYPE_PICKER_VARIANT = 22416;
+  BENCH_TYPE_CONTEXT_MODE = 22417;
   BENCH_TYPE_USER_STATUS = 22450;
   BENCH_TYPE_ORGANIZATION_STATUS = 22451;
   BENCH_TYPE_CHANNEL_STATUS = 22500;
@@ -1649,6 +1651,13 @@ enum PickerVariant {
   PICKER_VARIANT_MULTI_TOGGLE = 1;
   PICKER_VARIANT_DROPDOWN = 2;
   PICKER_VARIANT_DROPDOWN_LARGE = 3;
+}
+
+// The mode of a Context view.
+enum ContextMode {
+  CONTEXT_MODE_UNSPECIFIED = 0;
+  CONTEXT_MODE_DETAIL = 1;
+  CONTEXT_MODE_CHAT = 2;
 }
 
 enum UserStatus {
@@ -3707,6 +3716,7 @@ message SidebarViewData {
 
 // A View is a graphical interface in a Bench.
 message ContextViewData {
+  optional ContextMode context_mode = 100;
 }
 
 // A View is a graphical interface in a Bench.

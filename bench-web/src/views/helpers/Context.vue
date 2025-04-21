@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import { isPageNode, isRunnableNode, isSourceNode, toCamelName } from "@/language/core/const";
-import { BlockType, NodeType, Orientation, PROPERTY_ENUM_BY_TYPE, RunData, ViewData } from "@/proto/wire";
-import { isNode, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
-import { runtime } from "@/runtime/runtime";
+import { toCamelName } from "@/language/core/const";
+import { getEnumOptions } from "@/language/core/enum";
+import { useSubnodeProperty } from "@/language/core/node";
+import { EnumType, ContextMode, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -33,6 +33,7 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
+const subnodePacked = toRef(props, "subnodePacked");
 
 // node
 const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(inspectionPtr);
@@ -45,9 +46,7 @@ const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value)
 const scope = computed(() => container.value);
 
 // state (should be in ContextView?)
-type Mode = "Detail" | "Chat"; // log, context, memberships/invites, ...?
-const AVAILABLE_MODES: Mode[] = ["Detail", "Chat"] as const;
-const mode = ref<Mode>("Detail");
+const mode = useSubnodeProperty(NodeType.VIEW, ViewType.CONTEXT, subnodePacked, "contextMode");
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -98,16 +97,22 @@ defineExpose<ViewExpose>({ self });
     </div>
 
     <!-- Header -->
-    <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-1" :style="{}">
+    <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-1 pt-1 pb-2" :style="{}">
       <!-- ... -->
       <button
-        v-for="m in AVAILABLE_MODES"
-        :key="m"
+        v-for="m in getEnumOptions(EnumType.CONTEXT_MODE)"
+        :key="m.value"
         class="cursor-pointer rounded-sm px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100"
-        :class="[mode == m ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
-        @click="mode = m"
+        :class="[mode == m.value ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
+        @click="
+          state.update({
+            metatype: NodeType.VIEW,
+            type: ViewType.CONTEXT,
+            subnode: { contextMode: m.value },
+          })
+        "
       >
-        <span>{{ m }}</span>
+        <span>{{ m.title }}</span>
       </button>
     </div>
 
@@ -128,7 +133,7 @@ defineExpose<ViewExpose>({ self });
       >
         <!-- Detail -->
         <SomeObject
-          v-if="mode == 'Detail'"
+          v-if="mode == ContextMode.DETAIL"
           id="detail"
           :node-ptr="targetPtr"
           is-input
@@ -137,7 +142,7 @@ defineExpose<ViewExpose>({ self });
         />
         <!-- Chat -->
         <Thread
-          v-else-if="mode == 'Chat'"
+          v-else-if="mode == ContextMode.CHAT"
           id="chat"
           :node-ptr="threadPtr"
           :size="{

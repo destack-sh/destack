@@ -120,6 +120,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_USER_WIZARD_STAGE: _ClassVar[EnumType]
     ENUM_TYPE_BUTTON_VARIANT: _ClassVar[EnumType]
     ENUM_TYPE_PICKER_VARIANT: _ClassVar[EnumType]
+    ENUM_TYPE_CONTEXT_MODE: _ClassVar[EnumType]
     ENUM_TYPE_USER_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_ORGANIZATION_STATUS: _ClassVar[EnumType]
     ENUM_TYPE_CHANNEL_STATUS: _ClassVar[EnumType]
@@ -517,6 +518,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_USER_WIZARD_STAGE: _ClassVar[BenchType]
     BENCH_TYPE_BUTTON_VARIANT: _ClassVar[BenchType]
     BENCH_TYPE_PICKER_VARIANT: _ClassVar[BenchType]
+    BENCH_TYPE_CONTEXT_MODE: _ClassVar[BenchType]
     BENCH_TYPE_USER_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_ORGANIZATION_STATUS: _ClassVar[BenchType]
     BENCH_TYPE_CHANNEL_STATUS: _ClassVar[BenchType]
@@ -1630,6 +1632,12 @@ class PickerVariant(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PICKER_VARIANT_DROPDOWN: _ClassVar[PickerVariant]
     PICKER_VARIANT_DROPDOWN_LARGE: _ClassVar[PickerVariant]
 
+class ContextMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CONTEXT_MODE_UNSPECIFIED: _ClassVar[ContextMode]
+    CONTEXT_MODE_DETAIL: _ClassVar[ContextMode]
+    CONTEXT_MODE_CHAT: _ClassVar[ContextMode]
+
 class UserStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     USER_STATUS_UNSPECIFIED: _ClassVar[UserStatus]
@@ -1807,6 +1815,7 @@ ENUM_TYPE_ALIGNMENT: EnumType
 ENUM_TYPE_USER_WIZARD_STAGE: EnumType
 ENUM_TYPE_BUTTON_VARIANT: EnumType
 ENUM_TYPE_PICKER_VARIANT: EnumType
+ENUM_TYPE_CONTEXT_MODE: EnumType
 ENUM_TYPE_USER_STATUS: EnumType
 ENUM_TYPE_ORGANIZATION_STATUS: EnumType
 ENUM_TYPE_CHANNEL_STATUS: EnumType
@@ -2192,6 +2201,7 @@ BENCH_TYPE_ALIGNMENT: BenchType
 BENCH_TYPE_USER_WIZARD_STAGE: BenchType
 BENCH_TYPE_BUTTON_VARIANT: BenchType
 BENCH_TYPE_PICKER_VARIANT: BenchType
+BENCH_TYPE_CONTEXT_MODE: BenchType
 BENCH_TYPE_USER_STATUS: BenchType
 BENCH_TYPE_ORGANIZATION_STATUS: BenchType
 BENCH_TYPE_CHANNEL_STATUS: BenchType
@@ -3028,6 +3038,9 @@ PICKER_VARIANT_UNSPECIFIED: PickerVariant
 PICKER_VARIANT_MULTI_TOGGLE: PickerVariant
 PICKER_VARIANT_DROPDOWN: PickerVariant
 PICKER_VARIANT_DROPDOWN_LARGE: PickerVariant
+CONTEXT_MODE_UNSPECIFIED: ContextMode
+CONTEXT_MODE_DETAIL: ContextMode
+CONTEXT_MODE_CHAT: ContextMode
 USER_STATUS_UNSPECIFIED: UserStatus
 USER_STATUS_INVITED: UserStatus
 USER_STATUS_RESERVED: UserStatus
@@ -6856,8 +6869,10 @@ class SidebarViewData(_message.Message):
     def __init__(self, expanded_package_nodes_ptr: _Optional[_Iterable[_Union[NodeReferenceData, _Mapping]]] = ...) -> None: ...
 
 class ContextViewData(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("context_mode",)
+    CONTEXT_MODE_FIELD_NUMBER: _ClassVar[int]
+    context_mode: ContextMode
+    def __init__(self, context_mode: _Optional[_Union[ContextMode, str]] = ...) -> None: ...
 
 class ButtonViewData(_message.Message):
     __slots__ = ("variant",)
