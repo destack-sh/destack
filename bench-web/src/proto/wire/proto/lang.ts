@@ -7289,6 +7289,10 @@ export interface SidebarViewData {
  * @generated from protobuf message symbolx.bench.ContextViewData
  */
 export interface ContextViewData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ContextMode context_mode = 100;
+     */
+    contextMode?: ContextMode;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -8035,6 +8039,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_PICKER_VARIANT = 22416;
      */
     PICKER_VARIANT = 22416,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CONTEXT_MODE = 22417;
+     */
+    CONTEXT_MODE = 22417,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 22450;
      */
@@ -9595,6 +9603,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PICKER_VARIANT = 22416;
      */
     PICKER_VARIANT = 22416,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT_MODE = 22417;
+     */
+    CONTEXT_MODE = 22417,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 22450;
      */
@@ -13461,6 +13473,25 @@ export enum PickerVariant {
      * @generated from protobuf enum value: PICKER_VARIANT_DROPDOWN_LARGE = 3;
      */
     DROPDOWN_LARGE = 3
+}
+/**
+ * The mode of a Context view.
+ *
+ * @generated from protobuf enum symbolx.bench.ContextMode
+ */
+export enum ContextMode {
+    /**
+     * @generated from protobuf enum value: CONTEXT_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CONTEXT_MODE_DETAIL = 1;
+     */
+    DETAIL = 1,
+    /**
+     * @generated from protobuf enum value: CONTEXT_MODE_CHAT = 2;
+     */
+    CHAT = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.UserStatus
@@ -29955,7 +29986,9 @@ export const SidebarViewData = new SidebarViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ContextViewData$Type extends MessageType$<ContextViewData> {
     constructor() {
-        super("symbolx.bench.ContextViewData", []);
+        super("symbolx.bench.ContextViewData", [
+            { no: 100, name: "context_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.ContextMode", ContextMode, "CONTEXT_MODE_"] }
+        ]);
     }
     create(value?: PartialMessage<ContextViewData>): ContextViewData {
         const message = globalThis.Object.create((this.messagePrototype!));
@@ -29964,9 +29997,28 @@ class ContextViewData$Type extends MessageType$<ContextViewData> {
         return message;
     }
     internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ContextViewData): ContextViewData {
-        return target ?? this.create();
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.ContextMode context_mode */ 100:
+                    message.contextMode = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
     internalBinaryWrite(message: ContextViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.ContextMode context_mode = 100; */
+        if (message.contextMode !== undefined)
+            writer.tag(100, WireType.Varint).int32(message.contextMode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -31579,6 +31631,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
   [EnumType.BUTTON_VARIANT]: ButtonVariant,
   [EnumType.PICKER_VARIANT]: PickerVariant,
+  [EnumType.CONTEXT_MODE]: ContextMode,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
   [EnumType.CHANNEL_STATUS]: ChannelStatus,
@@ -31901,6 +31954,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
   [EnumType.BUTTON_VARIANT]: ButtonVariant,
   [EnumType.PICKER_VARIANT]: PickerVariant,
+  [EnumType.CONTEXT_MODE]: ContextMode,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
   [EnumType.CHANNEL_STATUS]: ChannelStatus,
@@ -33441,7 +33495,7 @@ export enum SidebarViewProperty {
 }
 
 export enum ContextViewProperty {
-
+  contextMode = 100,
 }
 
 export enum ButtonViewProperty {
@@ -34398,7 +34452,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.19.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34437,7 +34491,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.17.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.19.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35687,7 +35741,7 @@ export const SidebarViewDataInfo: Record<SidebarViewProperty, PropertyInfo> = {
   [SidebarViewProperty.expandedPackageNodesPtr]: { id: 100, name: 'expanded_package_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20205, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
 }
 export const ContextViewDataInfo: Record<ContextViewProperty, PropertyInfo> = {
-
+  [ContextViewProperty.contextMode]: { id: 100, name: 'context_mode', component: ObjectType.VIEW, componentSubtype: 20206, enumType: EnumType.CONTEXT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ButtonViewDataInfo: Record<ButtonViewProperty, PropertyInfo> = {
   [ButtonViewProperty.variant]: { id: 100, name: 'variant', component: ObjectType.VIEW, componentSubtype: 32001, enumType: EnumType.BUTTON_VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -36599,7 +36653,7 @@ export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOp
 
 export const ModelDeveloperOptionInfo: Partial<Record<ModelDeveloper, EnumOptionInfo>> = {
   [ModelDeveloper.META]: { id: 1000, name: 'META', text: 'Meta', title: 'Meta', color: ColorType.BLUE, icon: 'fab fa-meta' },
-  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY, icon: 'fas fa-circles-overlap-3' },
+  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY, icon: 'fas fa-o' },
   [ModelDeveloper.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic', color: ColorType.PURPLE, icon: 'fas fa-a' },
   [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED, icon: 'fab fa-google' },
   [ModelDeveloper.MICROSOFT]: { id: 1040, name: 'MICROSOFT', text: 'Microsoft', title: 'Microsoft', color: ColorType.BLUE, icon: 'fab fa-microsoft' },
