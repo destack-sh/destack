@@ -104,7 +104,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             OpenRouterChatModelRunner,
         )
 
-        model_provider = self.node.model_provider or ModelProvider.GOOGLE
+        model_provider = self.node.model_provider or ModelProvider.OPENAI
         if model_provider == ModelProvider.OPENAI:
             return OpenAIChatModelRunner, "gpt-4.1-2025-04-14"
         elif model_provider == ModelProvider.ANTHROPIC:
