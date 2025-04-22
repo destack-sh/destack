@@ -305,11 +305,16 @@ export class FlowContext {
         this.transitions.value
           .filter((transition) => this.transitionsStates.value[transition.id] == null)
           .forEach(
-            (transition) => ((this.transitionsStates.value[transition.id] = new TransitionState(this, transition)), triggerRef(this.transitionsStates)),
+            (transition) => (
+              (this.transitionsStates.value[transition.id] = new TransitionState(this, transition)),
+              triggerRef(this.transitionsStates)
+            ),
           );
         Object.keys(this.transitionsStates.value)
           .filter((transitionId) => !transitionsIds.includes(transitionId))
-          .forEach((transitionId) => (delete this.transitionsStates.value[transitionId], triggerRef(this.transitionsStates)));
+          .forEach(
+            (transitionId) => (delete this.transitionsStates.value[transitionId], triggerRef(this.transitionsStates)),
+          );
       },
       { immediate: true },
     );
@@ -939,7 +944,8 @@ export class FlowContext {
       return "Cannot connect to ending Action.";
     } else if (
       this.transitions.value.some(
-        (transition) => transition.sourcePtr?.id == sourcePort.parent.id && transition.targetPtr?.id == targetPort.parent.id,
+        (transition) =>
+          transition.sourcePtr?.id == sourcePort.parent.id && transition.targetPtr?.id == targetPort.parent.id,
       )
     ) {
       return "Cannot connect same two Actions.";
@@ -1009,7 +1015,7 @@ export class FlowContext {
                   tx,
                 });
               }
-              canvas.inspect({ node: action, view: this.view.value });
+              canvas.inspect({ node: action, view: this.view.value, graph: this.graph });
             },
           });
           return;
@@ -1017,11 +1023,12 @@ export class FlowContext {
 
         const canConnect = this.canPortsConnect(sourcePort, targetPort);
         const existingTransition = this.transitions.value.find(
-          (transition) => transition.sourcePtr?.id == sourcePort.parent.id && transition.targetPtr?.id == targetPort.parent.id,
+          (transition) =>
+            transition.sourcePtr?.id == sourcePort.parent.id && transition.targetPtr?.id == targetPort.parent.id,
         );
         if (existingTransition) {
           // already connected
-          canvas.inspect({ node: existingTransition, view: this.view.value });
+          canvas.inspect({ node: existingTransition, view: this.view.value, graph: this.graph });
         } else if (canConnect === true) {
           // connect it up
           log.trace("flow.drag.connect", { from: sourcePort, to: targetPort });
@@ -1031,7 +1038,7 @@ export class FlowContext {
             source: sourcePort,
             target: targetPort,
           });
-          canvas.inspect({ node: transition, view: this.view.value });
+          canvas.inspect({ node: transition, view: this.view.value, graph: this.graph });
         } else {
           // nothing to do?
           toaster.error({
@@ -1088,7 +1095,8 @@ export class FlowContext {
 
   /** Gets the transitions connected to the given port. */
   getTransitionsAtPort(action: ActionData, side: PortSide): TransitionData[] {
-    if (side == PortSide.INCOMING) return this.transitions.value.filter((transition) => transition.targetPtr?.id == action.id);
+    if (side == PortSide.INCOMING)
+      return this.transitions.value.filter((transition) => transition.targetPtr?.id == action.id);
     else return this.transitions.value.filter((transition) => transition.sourcePtr?.id == action.id);
   }
 
@@ -1230,7 +1238,7 @@ export class FlowContext {
       parentPtr,
       packagePtr,
     });
-    canvas.inspect({ node: action, view: this.view.value });
+    canvas.inspect({ node: action, view: this.view.value, graph: this.graph });
     return action;
   }
 
@@ -1273,7 +1281,7 @@ export class FlowContext {
       sourcePtr: toNodeRef(source.parent),
       targetPtr: toNodeRef(target.parent),
     });
-    canvas.inspect({ node: transition, view: this.view.value });
+    canvas.inspect({ node: transition, view: this.view.value, graph: this.graph });
     return transition;
   }
 }

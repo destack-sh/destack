@@ -373,6 +373,7 @@ export class SpaceCanvas {
   inspect(inspect: {
     node: AnyNodeData | NodeReferenceData;
     view?: SomeView | ViewComponent | ComponentInstance<any> | HTMLElement | SVGElement | undefined;
+    graph?: ReadNodeGraph;
   }): void {
     log.trace("canvas.inspect", inspect);
 
@@ -392,14 +393,16 @@ export class SpaceCanvas {
 
     // update inspection
     if (inspectionPtr.value?.id != nodePtr.id) {
-      const link = supergraph.getLink(nodePtr);
+      const graph = inspect.graph ?? supergraph.getLink(nodePtr)?.graph;
       const space = this.graph.getOrError(this.spacePtr.value!);
       const update: Partial<SpaceData> = { inspectionPtr: nodePtr };
 
       // update containerPtr/pagePtr/threadPtr
-      if (link != null) {
-        const { node, graph } = link;
-        const ancestors = graph.getAncestors(node, { includeSelf: true });
+      if (graph != null) {
+        const ancestors = graph.getAncestors(nodePtr, { includeSelf: true });
+        if (ancestors.length == 0 && isNode(inspect.node)) {
+          ancestors.push(inspect.node); // doesn't exist, just try this node directly
+        }
         const page = ancestors.find((n) => isNode(n, NodeType.PAGE));
         const container = ancestors.find((n) => isPageNode(n));
         const thread = ancestors.find((n) => isNode(n, NodeType.THREAD));
@@ -985,7 +988,7 @@ export class SpaceCanvas {
         },
         { ifPresent: "upsertAndFocus", ...options },
       );
-      this.inspect({ node: nodePtr, view });
+      this.inspect({ node: nodePtr, view, graph });
       return;
     }
 
@@ -999,7 +1002,7 @@ export class SpaceCanvas {
         { type: ViewType.KIT, nodePtr: toNodeRef(node), ...options?.props },
         { ifPresent: "upsertAndFocus", ...options },
       );
-      this.inspect({ node: nodePtr, view });
+      this.inspect({ node: nodePtr, view, graph });
       return;
     }
 
@@ -1032,35 +1035,35 @@ export class SpaceCanvas {
           { ifPresent: "upsertAndFocus", ...options },
         );
       }
-      this.inspect({ node: nodePtr, view });
+      this.inspect({ node: nodePtr, view, graph });
       return;
     }
 
     // open chat
     if (isNode(node, NodeType.MESSAGE) || isNode(node, NodeType.THREAD) || isNode(node, NodeType.CHANNEL)) {
-      let inspectPtr: NodeReferenceData | undefined;
-      let threadPtr: NodeReferenceData | undefined;
-      let channelPtr: NodeReferenceData;
+      let inspectPtr: AnyNodeData | NodeReferenceData | undefined;
+      let threadPtr: AnyNodeData | NodeReferenceData | undefined;
+      let channelPtr: AnyNodeData | NodeReferenceData | undefined;
       if (isNode(node, NodeType.MESSAGE)) {
-        inspectPtr = nodePtr;
+        inspectPtr = node;
         threadPtr = node.threadPtr;
         channelPtr = node.channelPtr!;
       } else if (isNode(node, NodeType.THREAD)) {
-        inspectPtr = nodePtr;
-        threadPtr = nodePtr;
+        inspectPtr = node;
+        threadPtr = node;
         channelPtr = node.channelPtr!;
       } else if (isNode(node, NodeType.CHANNEL)) {
-        inspectPtr = nodePtr;
+        inspectPtr = node;
         threadPtr = undefined;
-        channelPtr = nodePtr;
+        channelPtr = node;
       } else {
         assertNever(node);
       }
       const view = this.addView(
-        { type: ViewType.THREAD, nodePtr: threadPtr ?? channelPtr },
+        { type: ViewType.THREAD, nodePtr: toNodeRef(threadPtr ?? channelPtr) },
         { ifPresent: "upsertAndFocus", ...options },
       );
-      this.inspect({ node: inspectPtr, view });
+      this.inspect({ node: inspectPtr, view, graph });
       return;
     }
 
@@ -1078,7 +1081,7 @@ export class SpaceCanvas {
           { type: ViewType.PAGE, nodePtr: toNodeRef(containingPage), focusPtr: toNodeRef(nodePtr), ...options?.props },
           { ifPresent: "upsertAndFocus", ...options },
         );
-        this.inspect({ node: nodePtr, view });
+        this.inspect({ node: nodePtr, view, graph });
         return;
       }
     }
@@ -1109,7 +1112,7 @@ export class SpaceCanvas {
         { type: ViewType.COMPUTER, nodePtr: toNodeRef(node) },
         { ifPresent: "upsertAndFocus", ...options },
       );
-      this.inspect({ node: nodePtr, view });
+      this.inspect({ node: nodePtr, view, graph });
       return;
     }
 
@@ -1727,7 +1730,7 @@ declareCommands<"space">({
   "space.create.page": {
     title: "Create Page",
     icon: "far fa-file",
-    text: "Create a new page",
+    text: "Create a new Page",
     shortcuts: ["ctrl+n"],
     command: () => {
       const page = createPage(benchConnection.tx, benchGraph, { anchor: "inside", target: pkg.value!, page: {} });
@@ -1737,7 +1740,7 @@ declareCommands<"space">({
   "space.create.thread": {
     title: "Create Thread",
     icon: "fas fa-reel",
-    text: "Create a new thread",
+    text: "Create a new Thread",
     shortcuts: ["ctrl+t"],
     command: () => {
       const thread = createThread(benchConnection.tx, benchGraph, {
@@ -1747,7 +1750,7 @@ declareCommands<"space">({
         },
         members: [BENCH_BENCH_AGENT_PTR, "user"],
       });
-      canvas.goToNode(thread);
+      canvas.goToNode(thread, { graph: benchGraph });
     },
   },
 });
@@ -1758,13 +1761,13 @@ declareCommands<"view">({
   "view.history.goBackward": {
     icon: "fas fa-chevron-left",
     title: "Go Back",
-    text: "Go back to the previous view",
+    text: "Go back to the previous View",
     shortcuts: ["mod+shift+backspace"],
   },
   "view.history.goForward": {
     icon: "fas fa-chevron-right",
     title: "Go Forward",
-    text: "Go forward to the next view",
+    text: "Go forward to the next View",
     shortcuts: ["mod+shift+enter"],
   },
   // navigate

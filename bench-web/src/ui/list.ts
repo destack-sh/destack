@@ -63,7 +63,7 @@ export function useNodeListCommands<T extends NodeType>(options: {
             canvas.focus({ node: nextItem, view: self.value });
           }
           canvas.select([nextItem]);
-          canvas.inspect({ node: nextItem, view: self.value });
+          canvas.inspect({ node: nextItem, view: self.value, graph });
         }
       },
     },
@@ -79,7 +79,7 @@ export function useNodeListCommands<T extends NodeType>(options: {
             canvas.focus({ node: nextItem, view: self.value });
           }
           canvas.select([nextItem]);
-          canvas.inspect({ node: nextItem, view: self.value });
+          canvas.inspect({ node: nextItem, view: self.value, graph });
         }
       },
     },
@@ -117,11 +117,11 @@ export function useNodeListCommands<T extends NodeType>(options: {
         if (items.length > 1 && canvas.inspection?.id == list.value[end]?.id) {
           // shrinking up
           canvas.select(list.value.slice(start, end));
-          if (list.value[end - 1] != null) canvas.inspect({ node: list.value[end - 1], view: self.value });
+          if (list.value[end - 1] != null) canvas.inspect({ node: list.value[end - 1], view: self.value, graph });
         } else if (start > 0) {
           // expanding up
           canvas.select(list.value.slice(start - 1, end + 1));
-          if (list.value[start - 1] != null) canvas.inspect({ node: list.value[start - 1], view: self.value });
+          if (list.value[start - 1] != null) canvas.inspect({ node: list.value[start - 1], view: self.value, graph });
         }
       },
     },
@@ -133,11 +133,11 @@ export function useNodeListCommands<T extends NodeType>(options: {
         if (items.length > 1 && canvas.inspection?.id == list.value[start]?.id) {
           // shrinking down
           canvas.select(list.value.slice(start + 1, end + 1));
-          if (list.value[start + 1] != null) canvas.inspect({ node: list.value[start + 1], view: self.value });
+          if (list.value[start + 1] != null) canvas.inspect({ node: list.value[start + 1], view: self.value, graph });
         } else if (end < list.value.length - 1) {
           // expanding down
           canvas.select(list.value.slice(start, end + 2));
-          if (list.value[end + 1] != null) canvas.inspect({ node: list.value[end + 1], view: self.value });
+          if (list.value[end + 1] != null) canvas.inspect({ node: list.value[end + 1], view: self.value, graph });
         }
       },
     },
@@ -149,7 +149,7 @@ export function useNodeListCommands<T extends NodeType>(options: {
         const { items } = getItems(ctx);
         const node = create?.("before", items[0]);
         canvas.select([node]);
-        canvas.inspect({ node, view: self.value });
+        canvas.inspect({ node, view: self.value, graph });
       },
     },
     "list.create.below": {
@@ -159,7 +159,7 @@ export function useNodeListCommands<T extends NodeType>(options: {
         const { items } = getItems(ctx);
         const node = create?.("after", items[items.length - 1]);
         canvas.select([node]);
-        canvas.inspect({ node, view: self.value });
+        canvas.inspect({ node, view: self.value, graph });
       },
     },
   };
