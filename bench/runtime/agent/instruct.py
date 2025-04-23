@@ -171,6 +171,7 @@ def make_agent_prompt(
     agent_alias = prompt.aliasing.get_or_add(agent)
 
     # system...?
+    # nocheckin: Node layout/properties
 
     # examples
     prompt.region(

@@ -1,6 +1,5 @@
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal, Optional, Union
-from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
@@ -15,7 +14,6 @@ from bench.language.core import (
     IsTemplatable,
     IsType,
     LocalNodeList,
-    NodeReference,
     NodeType,
     PageNode,
     StructType,
@@ -63,18 +61,6 @@ class Flow(
     text: Optional["Text"] = p_regular(
         41, default=None, require=False, array=False, struct=StructType.TEXT
     )
-
-    # auth
-    default_agent: Optional["Agent"] = p_regular(
-        50,
-        require=False,
-        array=False,
-        references=NodeType.AGENT,
-        description="The default Agent to use for this Flow.",
-    )
-    if TYPE_CHECKING:
-        default_agent_ptr: Optional[NodeReference] = None
-        default_agent_id: Optional[UUID] = None
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     transitions: LocalNodeList["Transition"] = p_node_children(NodeType.TRANSITION)
