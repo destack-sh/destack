@@ -2101,9 +2101,9 @@ export interface RecordData {
      */
     subnodePacked?: JsonValue;
     /**
-     * @generated from protobuf field: optional string name = 31;
+     * @generated from protobuf field: optional symbolx.bench.TextLineData title = 32;
      */
-    name?: string;
+    title?: TextLineData;
     /**
      * @generated from protobuf field: optional string order_key = 33;
      */
@@ -12832,9 +12832,13 @@ export enum ViewType {
      */
     TEXT = 35102,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 35103;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT_LINE = 35103;
      */
-    CODE = 35103,
+    TEXT_LINE = 35103,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 35110;
+     */
+    CODE = 35110,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 35201;
      */
@@ -19088,7 +19092,7 @@ class RecordData$Type extends MessageType$<RecordData> {
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
             { no: 29, name: "subnode_packed", kind: "message", T: () => Value },
-            { no: 31, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "text", kind: "message", T: () => TextData },
@@ -19155,8 +19159,8 @@ class RecordData$Type extends MessageType$<RecordData> {
                 case /* optional google.protobuf.Value subnode_packed */ 29:
                     message.subnodePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
-                case /* optional string name */ 31:
-                    message.name = reader.string();
+                case /* optional symbolx.bench.TextLineData title */ 32:
+                    message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
                 case /* optional string order_key */ 33:
                     message.orderKey = reader.string();
@@ -19230,9 +19234,9 @@ class RecordData$Type extends MessageType$<RecordData> {
         /* optional google.protobuf.Value subnode_packed = 29; */
         if (message.subnodePacked !== undefined)
             Value.internalBinaryWrite(Value.fromJson(message.subnodePacked), writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* optional string name = 31; */
-        if (message.name !== undefined)
-            writer.tag(31, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.TextLineData title = 32; */
+        if (message.title)
+            TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional string order_key = 33; */
         if (message.orderKey !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
@@ -33424,7 +33428,7 @@ export enum RecordProperty {
   claimedByPtr = 18,
   mode = 20,
   subnodePacked = 29,
-  name = 31,
+  title = 32,
   orderKey = 33,
   icon = 34,
   text = 35,
@@ -34442,7 +34446,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.19.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34481,7 +34485,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.19.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -35678,7 +35682,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.RECORD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.mode]: { id: 20, name: 'mode', component: ObjectType.RECORD, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RecordProperty.name]: { id: 31, name: 'name', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 0, maxLength: 128, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
+  [RecordProperty.title]: { id: 32, name: 'title', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [RecordProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.icon]: { id: 34, name: 'icon', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [RecordProperty.text]: { id: 35, name: 'text', component: ObjectType.RECORD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -36371,6 +36375,8 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
 
 export const StructTypeOptionInfo: Partial<Record<StructType, EnumOptionInfo>> = {
   [StructType.TEXT]: { id: 12000, name: 'TEXT', icon: 'fas fa-text' },
+  [StructType.TEXT_LINE]: { id: 12001, name: 'TEXT_LINE', icon: 'fas fa-text' },
+  [StructType.TEXT_SPAN]: { id: 12002, name: 'TEXT_SPAN', icon: 'fas fa-text' },
   [StructType.CODE]: { id: 12100, name: 'CODE', icon: 'fas fa-code' },
   [StructType.COLOR]: { id: 13200, name: 'COLOR', icon: 'fas fa-palette' },
   [StructType.FONT]: { id: 13201, name: 'FONT', icon: 'fas fa-font' },
@@ -36712,7 +36718,8 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.SLIDER]: { id: 35002, name: 'SLIDER', text: 'Slider view', title: 'Slider', icon: 'fas fa-slider' },
   [ViewType.STRING]: { id: 35101, name: 'STRING', text: 'String view', title: 'String', icon: 'fas fa-font-case' },
   [ViewType.TEXT]: { id: 35102, name: 'TEXT', text: 'Text view', title: 'Text', icon: 'fas fa-text' },
-  [ViewType.CODE]: { id: 35103, name: 'CODE', text: 'Code view', title: 'Code', icon: 'fas fa-code' },
+  [ViewType.TEXT_LINE]: { id: 35103, name: 'TEXT_LINE', text: 'Text line view', title: 'Text line', icon: 'fas fa-text' },
+  [ViewType.CODE]: { id: 35110, name: 'CODE', text: 'Code view', title: 'Code', icon: 'fas fa-code' },
   [ViewType.TOGGLE]: { id: 35201, name: 'TOGGLE', text: 'Toggle view', title: 'Toggle', icon: 'fas fa-square-check' },
   [ViewType.PICKER]: { id: 35202, name: 'PICKER', text: 'Picker view', title: 'Picker', icon: 'fas fa-caret-circle-down' },
   [ViewType.COLOR]: { id: 35203, name: 'COLOR', text: 'Color view', title: 'Color', icon: 'fas fa-palette' },

@@ -21,7 +21,7 @@ import { TooltipInfo } from "@/ui/tooltip";
 import { focusInElement } from "@/ui/view";
 import { IS_DEVELOPER_MODE } from "@/utils/globals";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
-import Title from "@/views/builtin/Title.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { FocusAnchor, NavigationDirection, ViewEmits } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -47,7 +47,7 @@ const props = defineProps<{
 const emit = defineEmits<ViewEmits>();
 
 const iconRef = ref<InstanceType<typeof Icon> | null>(null);
-const identifierRef = ref<InstanceType<typeof NativeInput | typeof Title> | null>(null);
+const identifierRef = ref<InstanceType<typeof NativeInput | typeof TextLine> | null>(null);
 
 let node: Ref<AnyNodeData | null | undefined>;
 let connection: Ref<ConnectionBase<any, any> | null | undefined> | null;
@@ -186,7 +186,7 @@ defineExpose({
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
         @mousedown.stop="true /* keep inner focus */"
       />
-      <Title
+      <TextLine
         v-else-if="identifierKind == 'title'"
         id="identifier"
         ref="identifierRef"

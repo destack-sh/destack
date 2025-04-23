@@ -31,7 +31,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
-import Title from "@/views/builtin/Title.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { type FocusAnchor, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
@@ -284,7 +284,7 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
             class="max-w-full truncate select-none"
             v-html="(node as any).name"
           />
-          <Title
+          <TextLine
             v-else-if="(node as any).title != null"
             :model-value="(node as any).title"
             :force-line-type="TextLineType.PARAGRAPH"

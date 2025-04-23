@@ -295,11 +295,14 @@ def example_edit_a_text_line_on_a_page(NotesPage1: Page, Block7: Block):
     Block7.line = text_line("## New Subtitle")
 
 
-@example_(ExampleType.SNIPPET, title="Database definition")
-def example_database_definition(Database1: Database):
-    Database1 = Database.new("Database", Field.member("Age", int))
+@example_(ExampleType.SNIPPET, title="Database simple CRM definition")
+def example_database_definition(Page1: Page):
+    # basic CRM database (Record.title is builtin)
+    Database1 = Database.new("Person", Field.member("Age", int))
+    Page1.append(Database1)
     Record1 = Database1.records.create(name="Florian", Age=27)
     Record2 = Database1.records.create(name="John", Age=30)
+    SEND("I've created [@Database1] and added these people.")
 
 
 # nocheckin: database examples / page nodes

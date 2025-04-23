@@ -46,7 +46,7 @@ import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
-import Title from "@/views/builtin/Title.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -816,7 +816,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                     class="flex flex-row items-baseline gap-x-1.5 rounded-full border bg-gray-100 py-1 pr-3 pl-2 text-sm"
                   >
                     <NodeReference :node-ptr="message.runnablePtr" hide-metadata size="sm" />
-                    <Title
+                    <TextLine
                       v-if="message.title"
                       :model-value="message.title"
                       force-line-type="inherit"

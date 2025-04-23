@@ -7,8 +7,8 @@ from bench.language.core import (
     IsBased,
     IsClaimable,
     IsModal,
-    IsNamed,
     IsOwnable,
+    IsTitled,
     IsType,
     NodeType,
     PackageNode,
@@ -43,7 +43,7 @@ class Record(
     IsModal,
     IsOwnable,
     IsClaimable,
-    IsNamed,
+    IsTitled,
     PackageNode[RecordData],
 ):
     """
