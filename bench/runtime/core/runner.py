@@ -237,9 +237,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
             else:
                 tracked_run = cast(Run, run)
             self.id = tracked_run.id
-            # Run and Runner *must* share the same objects (so we can apply computed values)
-            # get objects from Run (Node may copy them if they're from a different parent,
-            #  like when we re-use a Flow's inputs for the StartAction.inputs)
             self.inputs = tracked_run.inputs
             self.tracked_run = tracked_run
             self.tracked_span = None
@@ -634,8 +631,6 @@ def create_run(
         raise RuntimeError(f"no Thread for {node!r}")
 
     # create agent (and auto-instance)
-    if agent is None and flow is not None:
-        agent = flow.default_agent
     if agent is None:
         from bench.builtin import BenchAgent
 
@@ -647,6 +642,8 @@ def create_run(
         thread.memberships.append(membership)
 
     # build run
+    if mode == NodeMode.BUILTIN:
+        mode = NodeMode.MAIN  # Runs cannot be 'builtin'
     run = Run(
         parent=parent,
         type=typ,

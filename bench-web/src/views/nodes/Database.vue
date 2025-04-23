@@ -927,7 +927,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               (event) => {
                 // interact with / focus cell component
                 const componentEl = cellComponentRefs[getCellId(record, column)];
-                console.log(event, componentEl); // nocheckin
                 if (componentEl != null) {
                   if (componentEl.interact != null) {
                     componentEl.interact();
