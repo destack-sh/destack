@@ -146,7 +146,8 @@ class ViewType(BuiltinEnum):
     # stringy (35100-35200)
     STRING = 35101, "String", "String view", "fas fa-font-case"
     TEXT = 35102, "Text", "Text view", "fas fa-text"
-    CODE = 35103, "Code", "Code view", "fas fa-code"
+    TEXT_LINE = 35103, "Text line", "Text line view", "fas fa-text"
+    CODE = 35110, "Code", "Code view", "fas fa-code"
     # JSON = 35104, "JSON", "JSON view", "fas fa-brackets-curly"
 
     # selection (35200-35300)

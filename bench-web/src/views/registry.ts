@@ -83,6 +83,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   // stringy
   [ViewType.STRING]: () => import("@/views/content/NativeInput.vue"),
   [ViewType.TEXT]: () => import("@/views/content/Text.vue"),
+  [ViewType.TEXT_LINE]: () => import("@/views/content/TextLine.vue"),
   [ViewType.CODE]: () => import("@/views/content/Code.vue"),
 
   // selection

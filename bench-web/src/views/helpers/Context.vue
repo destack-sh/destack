@@ -128,7 +128,7 @@ defineExpose<ViewExpose>({ self });
       <div
         ref="bodyRef"
         :style="{
-          minHeight: `${bodyHeight - 10 /* not entirely sure why, the Scroll component seems to have some padding/border? */}px`,
+          minHeight: `${bodyHeight}px`,
         }"
       >
         <!-- Detail -->

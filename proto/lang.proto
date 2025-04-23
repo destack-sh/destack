@@ -1466,7 +1466,8 @@ enum ViewType {
   VIEW_TYPE_SLIDER = 35002;
   VIEW_TYPE_STRING = 35101;
   VIEW_TYPE_TEXT = 35102;
-  VIEW_TYPE_CODE = 35103;
+  VIEW_TYPE_TEXT_LINE = 35103;
+  VIEW_TYPE_CODE = 35110;
   VIEW_TYPE_TOGGLE = 35201;
   VIEW_TYPE_PICKER = 35202;
   VIEW_TYPE_COLOR = 35203;
@@ -2330,7 +2331,7 @@ message RecordData {
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
   optional google.protobuf.Value subnode_packed = 29;
-  optional string name = 31;
+  optional TextLineData title = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional TextData text = 35;

@@ -23,7 +23,7 @@ import { getNodeIcon, IconInline } from "@/ui/icon";
 import { getColorHex } from "@/ui/style";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { getNow, TimeUpdateInterval } from "@/utils/time";
-import Title from "@/views/builtin/Title.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { DateTime } from "luxon";
@@ -261,7 +261,7 @@ defineExpose<Omit<ViewExpose, "id"> & { total: Ref<number | undefined>; roots: R
               class="mr-1 w-5 text-center text-gray-700 transition-colors duration-75"
             />
             <!-- Name -->
-            <Title
+            <TextLine
               :model-value="(thread as any).title"
               :force-line-type="TextLineType.PARAGRAPH"
               class="max-w-full truncate select-none"

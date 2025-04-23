@@ -838,8 +838,8 @@ class StructType(BuiltinEnum):
 
     # text (12000-12099)
     TEXT = 12000, None, None, "fas fa-text"
-    TEXT_LINE = 12001
-    TEXT_SPAN = 12002
+    TEXT_LINE = 12001, None, None, "fas fa-text"
+    TEXT_SPAN = 12002, None, None, "fas fa-text"
 
     # code (12100-12199)
     CODE = 12100, None, None, "fas fa-code"

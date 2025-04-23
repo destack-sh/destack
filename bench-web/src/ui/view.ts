@@ -198,6 +198,7 @@ export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
   [BenchType.CODE]: ViewType.CODE,
   [BenchType.TEXT]: ViewType.TEXT,
+  [BenchType.TEXT_LINE]: ViewType.TEXT_LINE,
   [BenchType.FILE]: ViewType.FILE,
   [BenchType.COLOR]: ViewType.COLOR,
   [BenchType.TYPE]: ViewType.TYPE,

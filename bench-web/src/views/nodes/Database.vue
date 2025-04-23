@@ -331,7 +331,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
     columns.push(column);
   }
 
-  for (const propertyId of [RecordProperty.name] as RecordProperty[]) {
+  for (const propertyId of [RecordProperty.title] as RecordProperty[]) {
     // :RichColumns
     const property = propertyInfo(NodeType.RECORD, propertyId);
     const propertyType = getPropertyType(property);
@@ -346,7 +346,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isInspected: false,
       isHighlighted: false,
-      isName: propertyId == RecordProperty.name,
+      isName: propertyId == RecordProperty.title,
     });
   }
   for (const field of fields.value) {

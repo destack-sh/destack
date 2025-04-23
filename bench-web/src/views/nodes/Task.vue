@@ -2,7 +2,6 @@
 import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { isTaskActive, isTaskTerminal, toggleTaskStatus } from "@/language/runtime/task";
 import {
-  BenchType,
   ColorShade,
   ColorType,
   NodeReferenceData,
@@ -13,7 +12,7 @@ import {
   TextLineData,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
@@ -22,7 +21,7 @@ import { pushPopover } from "@/ui/popover";
 import { getColorHex, getRunColorHex } from "@/ui/style";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
-import Title from "@/views/builtin/Title.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Datetime from "@/views/content/Datetime.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
@@ -69,7 +68,7 @@ defineExpose<ViewExpose>({ self, id, focus });
   <div v-if="task" class="group/task flex flex-row items-start gap-x-2">
     <!-- Status -->
     <button
-      class="ml-1 mt-0.5 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-500 bg-white p-[1px] transition-colors duration-75"
+      class="mt-0.5 ml-1 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-500 bg-white p-[1px] transition-colors duration-75"
       :style="{
         borderColor:
           fillState != 'empty'
@@ -96,7 +95,7 @@ defineExpose<ViewExpose>({ self, id, focus });
     <!-- Body -->
     <div class="w-full">
       <!-- Title -->
-      <Title
+      <TextLine
         ref="nameRef"
         class="w-full text-base"
         is-minimal
