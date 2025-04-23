@@ -144,8 +144,8 @@ class GoogleChatModelRunner(ChatModelRunner):
         )
         async for chunk in completion:
             if len(chunk.parts) > 0 and chunk.text:
-                code_runner.add(chunk.text)
-        code_runner.complete()
+                code_runner.add_and_execute(chunk.text)
+        code_runner.complete_and_execute()
         if LOG_PROMPTS:
             log_completion(code_runner.code)
         self.code = Code.from_string(code_runner.code or "pass", language="python")

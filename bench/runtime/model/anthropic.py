@@ -155,8 +155,8 @@ class AnthropicChatModelRunner(ChatModelRunner):
         async for chunk in completion:
             if chunk.type == "content_block_delta" and chunk.delta.type == "text":
                 chunk_content = chunk.delta.text
-                code_runner.add(chunk_content)
-        code_runner.complete()
+                code_runner.add_and_execute(chunk_content)
+        code_runner.complete_and_execute()
         if LOG_PROMPTS:
             log_completion(code_runner.code)
         self.code = Code.from_string(code_runner.code or "pass", language="python")

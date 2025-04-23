@@ -302,10 +302,10 @@ def example_database_definition(Page1: Page):
     Page1.append(Database1)
     Record1 = Database1.records.create(name="Florian", Age=27)
     Record2 = Database1.records.create(name="John", Age=30)
-    SEND("I've created [@Database1] and added these people.")
+    # reference directly by alias
+    SEND("I've created [@Database1] and added [@Record1] and [@Record2].")
 
 
-# nocheckin: support locals in Text mentions/aliasing (above: Database1 should work automatically)
 # nocheckin: database examples / page nodes
 
 
@@ -316,12 +316,4 @@ def example_upload_external_files():
         File.external("https://example.com/image1.jpg"),
         File.external("https://example.com/image2.jpg"),
     )
-    SEND(
-        """\
-Here's what I found:
-
-![Image 1](https://example.com/image1.jpg)
-![Image 2](https://example.com/image2.jpg)
-""",
-        nodes=images,
-    )
+    SEND("Yeah, here's what that looks like:", nodes=images)

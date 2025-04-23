@@ -91,6 +91,7 @@ class Aliasing:
     def __init__(self):
         self._alias_by_node_id: dict[UUID, str] = {}
         self._node_by_alias: dict[str, Node | NodeReference] = {}
+        self._node_by_id: dict[UUID, Node | NodeReference] = {}
 
     def __str__(self) -> str:
         return ", ".join(self._node_by_alias)
@@ -103,32 +104,46 @@ class Aliasing:
         aliasing = Aliasing()
         aliasing._alias_by_node_id = self._alias_by_node_id.copy()
         aliasing._node_by_alias = self._node_by_alias.copy()
+        aliasing._node_by_id = self._node_by_id.copy()
         return aliasing
 
-    def add(self, obj: Node | NodeReference) -> str:
+    def add(self, obj: Node | NodeReference, alias: str | None = None) -> str:
         """Adds the given nodes to the context of this renderer."""
         from bench.runtime.code import PYTHON_KEYWORDS, STATIC_CODE_GLOBALS
 
+        # bail if already assigned
         if obj.id in self._alias_by_node_id:
-            return self._alias_by_node_id[obj.id]  # already assigned
-        alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
-        if alias in self._node_by_alias or alias in STATIC_CODE_GLOBALS or alias in PYTHON_KEYWORDS:
-            # bump digit at end to make alias unique
-            count = regex.search(r"\d+$", alias)
-            if count is None:
-                alias = f"{alias}1"
-                count = 1
-            else:
-                count = int(count.group())
-            while (
+            if alias is not None:
+                # ensure alias is set if explicitly given
+                self._node_by_alias[alias] = obj
+            return self._alias_by_node_id[obj.id]
+
+        # make new unique alias if needed
+        if alias is None:
+            alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.node_type.bench_name
+            if (
                 alias in self._node_by_alias
                 or alias in STATIC_CODE_GLOBALS
                 or alias in PYTHON_KEYWORDS
             ):
-                count += 1
-                alias = regex.sub(r"\d+$", str(count), alias)
-        self._alias_by_node_id[cast(UUID, obj.id)] = alias
+                # bump digit at end to make alias unique
+                count = regex.search(r"\d+$", alias)
+                if count is None:
+                    alias = f"{alias}1"
+                    count = 1
+                else:
+                    count = int(count.group())
+                while (
+                    alias in self._node_by_alias
+                    or alias in STATIC_CODE_GLOBALS
+                    or alias in PYTHON_KEYWORDS
+                ):
+                    count += 1
+                    alias = regex.sub(r"\d+$", str(count), alias)
+
+        self._alias_by_node_id[obj.id] = alias
         self._node_by_alias[alias] = obj
+        self._node_by_id[obj.id] = obj
         return alias
 
     def get(self, node: Node | NodeReference | UUID) -> str | None:
@@ -162,16 +177,26 @@ class Aliasing:
         return self.get(node) is not None
 
     def resolve(self, name: str) -> Node | NodeReference | None:
-        """Resolves the given name to a node."""
-        return self._node_by_alias.get(name)
+        """Resolves the given name to a node. Also attempts to interpret name as an id."""
+        if (node := self._node_by_alias.get(name)) is not None:
+            # resolve by name
+            return node
+        else:
+            # resolve by id
+            try:
+                name_as_uuid = UUID(name)
+                return self._node_by_id.get(name_as_uuid)
+            except ValueError:
+                return None
 
     @staticmethod
     def new(aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
         """Create a new Aliasing registry from a mapping of aliases to nodes."""
         aliasing = Aliasing()
         for alias, node in aliases.items():
-            aliasing._alias_by_node_id[cast(UUID, node.id)] = alias
+            aliasing._alias_by_node_id[node.id] = alias
             aliasing._node_by_alias[alias] = node
+            aliasing._node_by_id[node.id] = node
         return aliasing
 
 

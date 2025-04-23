@@ -6,7 +6,7 @@ import regex
 import structlog
 from opentelemetry import trace
 
-from bench.language import ACTIVE_ALIASING, IS_IN_USER_CODE, Aliasing
+from bench.language import ACTIVE_ALIASING, IS_IN_USER_CODE, Aliasing, Node, NodeReference
 from bench.runtime.code import STATIC_CODE_GLOBALS
 
 if TYPE_CHECKING:
@@ -32,10 +32,15 @@ class StreamingCodeRunner:
 
     @tracer.start_as_current_span("streaming_code_runner.execute")
     def _execute(self, code: str) -> None:
-        """Execute code."""
+        """Execute code. Automatically add any new globals to the aliasing."""
         try:
-            exec(code, self.globals)
+            glbls_copy = self.globals.copy()
+            exec(code, glbls_copy)
             logger.trace("streaming_code_runner.execute", code=code, span="current")
+            for name, value in glbls_copy.items():
+                if name not in self.globals and isinstance(value, (Node, NodeReference)):
+                    self.aliasing.add(value, alias=name)
+                    self.globals[name] = value
         except Exception as e:
             logger.error("streaming_code_runner.error", code=code, span="current", exc_info=e)
             raise
@@ -47,7 +52,7 @@ class StreamingCodeRunner:
         except Exception:
             return False
 
-    def add(self, new_code: str) -> None:
+    def add_and_execute(self, new_code: str) -> None:
         """Adds code and executes it (if complete & valid)."""
         self.code += new_code
         self.pending_code += new_code
@@ -55,7 +60,7 @@ class StreamingCodeRunner:
             self._execute(self.pending_code)
             self.pending_code = ""
 
-    def complete(self) -> None:
+    def complete_and_execute(self) -> None:
         """Finish running the code. Raise if there is trailing unexecuted (=invalid) code."""
         if self.pending_code:
             if self._is_valid(self.pending_code):
