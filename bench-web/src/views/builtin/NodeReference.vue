@@ -240,11 +240,11 @@ defineExpose({
       />
       <div class="ml-1 h-2 w-20 rounded-sm bg-gray-100" />
     </template>
-    <!-- Node not found (show id in dev mode) -->
+    <!-- Node not found (full ptr in dev mode) -->
     <template v-else-if="IS_DEVELOPER_MODE">
       <span class="text-gray-400">{{ toCamelName(NodeType, nodePtr?.nodeType) }} [{{ nodePtr?.id }}]</span>
     </template>
-    <!-- Node not found (show not found) -->
+    <!-- Node not found (generic not found for regular users) -->
     <template v-else>
       <IconInline
         class="w-5 text-center text-gray-400"

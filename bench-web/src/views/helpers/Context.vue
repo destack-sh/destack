@@ -20,8 +20,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
-const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
-const FOOTER_HEIGHT = 0;
+const HEADER_HEIGHT = 36;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
@@ -51,11 +50,7 @@ const mode = useSubnodeProperty(NodeType.VIEW, ViewType.CONTEXT, subnodePacked, 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
-const headerRef: Ref<HTMLDivElement | null> = ref(null);
-const headerSize = useElementSize(headerRef);
-const bodyHeight = computed(
-  () => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - headerSize.height.value - FOOTER_HEIGHT,
-);
+const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
@@ -97,7 +92,12 @@ defineExpose<ViewExpose>({ self });
     </div>
 
     <!-- Header -->
-    <div ref="headerRef" class="mx-3 flex flex-row items-center gap-x-1 pt-1 pb-2" :style="{}">
+    <div
+      class="mx-3 flex flex-row items-center gap-x-1"
+      :style="{
+        height: `${HEADER_HEIGHT}px`,
+      }"
+    >
       <!-- ... -->
       <button
         v-for="m in getEnumOptions(EnumType.CONTEXT_MODE)"
@@ -127,8 +127,9 @@ defineExpose<ViewExpose>({ self });
     >
       <div
         ref="bodyRef"
+        class="w-full"
         :style="{
-          minHeight: `${bodyHeight}px`,
+          minHeight: `${bodyHeight - 10 /* mystery offset? */}px`,
         }"
       >
         <!-- Detail -->
@@ -137,11 +138,9 @@ defineExpose<ViewExpose>({ self });
           id="detail"
           :node-ptr="targetPtr"
           is-input
-          v-bind="state.getChildState('scroll.detail', { nodePtr: targetPtr, isInput: true, isMinimal: false })"
           data-contextmenu="ignore"
         />
         <!-- Chat -->
-        <!-- nocheckin: fix Context Thread sizing -->
         <Thread
           v-else-if="mode == ContextMode.CHAT"
           id="chat"
