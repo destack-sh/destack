@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import functools
+from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast, final, override
 
@@ -107,6 +108,16 @@ def THREAD(runner: "AgentRunner") -> Thread:
     thread = runner.thread.thread
     assert thread is not None, f"no thread in {runner!r}"
     return thread
+
+
+@constant_macro_("TODAY", "The current date (without time).", "date")
+def TODAY(runner: "AgentRunner") -> date:
+    return runner.runtime.oracle.utc().date()
+
+
+@constant_macro_("NOW", "The current date and time.", "datetime")
+def NOW(runner: "AgentRunner") -> datetime:
+    return runner.runtime.oracle.utc()
 
 
 #

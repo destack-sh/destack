@@ -3127,7 +3127,7 @@ message RunData {
   RunType type = 30;
   optional TextLineData title = 32;
   optional NodeReferenceData root_ptr = 33;
-  NodeReferenceData thread_ptr = 38;
+  optional NodeReferenceData thread_ptr = 38;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value outputs_packed = 62;
   optional TextData text = 65;
@@ -3430,7 +3430,6 @@ message FlowData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional TextData text = 41;
-  optional NodeReferenceData default_agent_ptr = 50;
   optional int32 max_attempts = 70;
   optional google.protobuf.Duration retry_interval = 71;
   optional float backoff = 72;
