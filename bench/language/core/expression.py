@@ -369,7 +369,7 @@ def coerce_conditional(
             key, op = arg, ConditionalType.EQUALS
 
         # map key into field/property
-        target: Field | Property | None = None
+        target = None
         if prop := node_cls.__properties__.get(key):
             target = prop
         elif base_type is not None and (field := base_type.get_child(Field, key)):

@@ -839,7 +839,7 @@ def validate_context(subject: PolicySubject, context: IsRuntime, edits: Sequence
         if not context.computer_ptr or context.computer_ptr.id != subject.computer_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,
-                f"bad computer context for {subject!r}: {context.computer!r}",
+                f"bad computer context for {subject!r}: {context.computer_ptr!r}",
             )
 
 

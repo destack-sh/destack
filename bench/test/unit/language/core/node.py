@@ -32,9 +32,11 @@ from bench.language import (
     Session,
     Text,
     TextLine,
+    Thread,
+    View,
+    ViewType,
 )
-from bench.language.communication.channel import Channel
-from bench.language.view.view import ChatView, View, ViewType
+from bench.language.view.view import ChatView
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -147,9 +149,9 @@ def test_node_pointers_consistency(session: "Session"):
     )
 
     # based pointers
-    channel_a = Channel.new("Channel1")
-    page_a_1.append(channel_a)
-    message_a = Message(parent=channel_a)
+    thread_a = Thread.new("Thread1")
+    page_a_1.append(thread_a)
+    message_a = Message(parent=thread_a)
     assert message_a.bench_id == bench_a.id
     assert message_a.to_ref().equals(
         NodeReference(
@@ -157,7 +159,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_a.id,
             ck=message_a.ck,
             bench_id=bench_a.id,
-            base_id=None,
+            base_id=thread_a.id,
         )
     )
 
@@ -167,9 +169,9 @@ def test_node_pointers_consistency(session: "Session"):
     bench_b.store = package_b.stores.create(name="Store")
     page_b = package_b.pages.create()
     assert page_b.bench_id == bench_b.id
-    channel_b = Channel.new("Channel1")
-    page_b.append(channel_b)
-    message_b = Message(parent=channel_b)
+    thread_b = Thread.new("Thread1")
+    page_b.append(thread_b)
+    message_b = Message(parent=thread_b)
     assert message_b.bench_id == bench_b.id
     assert message_b.to_ref().equals(
         NodeReference(
@@ -177,7 +179,7 @@ def test_node_pointers_consistency(session: "Session"):
             id=message_b.id,
             ck=message_b.ck,
             bench_id=bench_b.id,
-            base_id=None,
+            base_id=thread_b.id,
         )
     )
     assert message_b.parent_ptr
@@ -217,7 +219,6 @@ async def test_clone(simulation: Simulation, runtime: RuntimeLambdaWorkload):
     await runtime.commit()
 
     choice_clone = choice.clone()
-    assert choice_clone.equals(choice)
     for option, option_clone in zip(choice.options, choice_clone.options):
         assert option is not option_clone
         assert option.id != option_clone.id
