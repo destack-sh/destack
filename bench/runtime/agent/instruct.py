@@ -275,13 +275,14 @@ def make_agent_prompt(
 
     # claims / resources
     for claim in thread.thread.claims:
+        claim_name = prompt.aliasing.get_or_add(claim)
         if claim.is_hidden or (node := claim.target) is None:
             continue
         elif isinstance(node, Page):
             prompt.region(
-                "Context Page",
+                "Page",
                 f"""
-A Page in context of {claim.type.name}
+A Page via Claim {claim_name}
 YOU HAVE A {claim.type.name} CLAIM: "{claim.type.text}".
 """,
                 PagePiece(node=node, role="user"),

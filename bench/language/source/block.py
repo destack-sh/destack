@@ -53,7 +53,6 @@ class BlockType(BuiltinEnum):
     KIT = 5060
     DATABASE = 5090
     AGENT = 5640
-    PLAN = 6100
     TASK = 6110
     THREAD = 5510
 

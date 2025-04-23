@@ -547,6 +547,7 @@ class ContextMode(BuiltinEnum):
 
     DETAIL = 1
     CHAT = 2
+    # LOG, ...
 
 
 @subnode_(ViewType.CONTEXT)
