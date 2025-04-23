@@ -431,7 +431,6 @@ defineExpose<ViewExpose>({ self, commands, focus });
         <div
           ref="textRef"
           class="pm-text pm-base stealth relative mx-auto rounded-sm hover:cursor-text"
-          :class="[IS_DRAGGING_OR_SELECTING ? 'pm-inactive' : '']"
           data-suppress-actions="space.move.left,space.move.right"
           :style="{
             width: widths.block + 'px',

@@ -71,6 +71,7 @@ class Thread(
 ):
     """
     A Thread for communicating with Messages.
+    Threads may be nested to organize conversations and work.
     """
 
     # meta

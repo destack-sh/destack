@@ -71,7 +71,7 @@ import {
 import { assertNever } from "@/utils/functools";
 import HistoryNavigator from "@/views/builtin/HistoryNavigator.vue";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
-import InlineHeader from "@/views/builtin/InlineHeader.vue";
+import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
@@ -190,7 +190,7 @@ const {
 //
 
 const historyRef: Ref<InstanceType<typeof HistoryNavigator> | null> = ref(null);
-const headerRef: Ref<InstanceType<typeof InlineHeader> | null> = ref(null);
+const headerRef: Ref<InstanceType<typeof InlinePageHeader> | null> = ref(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const columnHeaderRef: Ref<HTMLDivElement | null> = ref(null);
 const bodyRef: Ref<HTMLDivElement | null> = ref(null);
@@ -593,7 +593,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
     @mousedown="(e: MouseEvent) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Header -->
-    <InlineHeader
+    <InlinePageHeader
       ref="headerRef"
       :self="self"
       :node="database"
@@ -701,7 +701,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           <span class="">Record</span>
         </button>
       </template>
-    </InlineHeader>
+    </InlinePageHeader>
 
     <!-- Body outer wrapper (scroll horizontally, and vertically if not compact) -->
     <Scroll

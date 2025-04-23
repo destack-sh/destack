@@ -141,6 +141,7 @@ defineExpose<ViewExpose>({ self });
           data-contextmenu="ignore"
         />
         <!-- Chat -->
+        <!-- nocheckin: fix Context Thread sizing -->
         <Thread
           v-else-if="mode == ContextMode.CHAT"
           id="chat"
