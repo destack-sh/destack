@@ -6,7 +6,6 @@ from bench.language.core import (
     IsNamed,
     IsTemplatable,
     IsType,
-    IsTypeBase,
     LocalNodeList,
     NodeType,
     PageNode,
@@ -29,7 +28,6 @@ class Choice(
     IsTemplatable,
     IsModal,
     IsNamed,
-    IsTypeBase,
     PageNode[ChoiceData],
 ):
     """A Choice of Options."""

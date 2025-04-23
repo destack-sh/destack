@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.19.0"
+VERSION = "2025.04.23.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -779,6 +779,7 @@ FIELD_TABLE = Table(
         Column("base_type_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_type_type", PrimitiveType.INT16, is_nullable=True),
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("base_type_base_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_field_types", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("property_field_types", PrimitiveType.INT16, is_array=True, is_nullable=True),
         Column("default_packed", PrimitiveType.JSON, is_nullable=True),
@@ -798,6 +799,7 @@ OPTION_TABLE = Table(
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("package_id", PrimitiveType.UUID),
         Column("created_at", PrimitiveType.DATETIME),

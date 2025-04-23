@@ -72,7 +72,6 @@ def _complete_bench_setup():
         CustomObject,
         IsBased,
         IsClaimable,
-        IsFieldBase,
         IsInstantiable,
         IsJoinable,
         IsOwnable,
@@ -81,7 +80,6 @@ def _complete_bench_setup():
         IsSubject,
         IsTemplatable,
         IsTimed,
-        IsTypeBase,
         Node,
         PageNode,
         Struct,
@@ -261,8 +259,6 @@ def _complete_bench_setup():
             (IsOwnable, trait.OWNABLE_NODE_TYPES.tuple),
             (IsProcessable, trait.PROCESSABLE_NODE_TYPES.tuple),
             (IsRunnable, trait.RUNNABLE_NODE_TYPES.tuple),
-            (IsFieldBase, trait.FIELD_BASE_NODE_TYPES.tuple),
-            (IsTypeBase, trait.TYPE_BASE_NODE_TYPES.tuple),
             (IsTimed, trait.TIMED_NODE_TYPES.tuple),
         ]:
             actual_node_types = [

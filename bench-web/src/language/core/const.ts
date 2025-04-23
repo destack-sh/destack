@@ -33,8 +33,6 @@ import {
   SubjectNodeData,
   TEMPLATABLE_NODE_TYPES,
   TemplatableNodeData,
-  TYPE_BASE_NODE_TYPES,
-  TypeBaseNodeData,
   ViewDataInfo,
   ViewProperty,
   ViewType,
@@ -76,10 +74,6 @@ export function isSourceNodeType(nodeType: NodeType): boolean {
 
 export function isPageNodeType(nodeType: NodeType): boolean {
   return PAGE_NODE_TYPES.includes(nodeType);
-}
-
-export function isTypeBaseNodeType(nodeType: NodeType): boolean {
-  return TYPE_BASE_NODE_TYPES.includes(nodeType);
 }
 
 export function isSubjectNodeType(nodeType: NodeType): boolean {
@@ -124,11 +118,6 @@ export function isJoinableNode(node: any): node is JoinableNodeData {
 export function isPageNode(node: any): node is PageNodeData {
   if (node == null || typeof node != "object") return false;
   else return isPageNodeType(node.metatype as unknown as NodeType);
-}
-
-export function isTypeBaseNode(node: any): node is TypeBaseNodeData {
-  if (node == null || typeof node != "object") return false;
-  else return isTypeBaseNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isProcessableNode(node: any): node is ProcessableNodeData {

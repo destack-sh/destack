@@ -86,7 +86,7 @@ from .property import (
     p_system,
 )
 from .struct import Struct, struct_
-from .trait import SUBJECT_NODE_TYPES, IsBased, IsInstantiable, IsModal, Subject, TypeBaseNode
+from .trait import SUBJECT_NODE_TYPES, IsBased, IsInstantiable, IsModal, Subject
 from .validation import on_invalid_raise
 
 if TYPE_CHECKING:
@@ -1202,6 +1202,33 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         for child in children:
             self.append(child, move=move)
 
+    def get_children[N: Node = Node](
+        self, node_type: NodeType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Gets the children of this Node."""
+        if isinstance(node_type, type):
+            node_type = node_type.metatype
+        children = self._graph.get_descendants(self, node_type=node_type, recursive=False)
+        return cast(Sequence[N], children)
+
+    def get_child[N: Node = Node](self, node_type: NodeType | type[N], key: str) -> N | None:
+        """Gets a specific child of this Node."""
+        if isinstance(node_type, type):
+            node_type = node_type.metatype
+        for child in self._graph.get_descendants(self, node_type=node_type, recursive=False):
+            if child.code_name == key or getattr(child, "name", None) == key:
+                return cast(N, child)
+        return None
+
+    def get_descendants[N: Node = Node](
+        self, node_type: NodeType | type[N] | None = None
+    ) -> Sequence[N]:
+        """Gets the descendants of this Node."""
+        if isinstance(node_type, type):
+            node_type = node_type.metatype
+        descendants = self._graph.get_descendants(self, node_type=node_type, recursive=True)
+        return cast(Sequence[N], descendants)
+
     def _move_to_graph(self, graph: NodeGraph):
         """Moves this Node and its descendants to a new graph."""
         moved = self._graph.get_descendants(self, recursive=True)  # type: ignore
@@ -1258,7 +1285,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls,
         type: int | None = None,
         *,
-        base_type: "TypeBaseNode | None" = None,
+        base_type: "Node | None" = None,
         field_types: list[FieldType] | None = None,
     ) -> "Type":
         """Creates a Type object for a partial Node."""
@@ -1291,7 +1318,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         cls,
         type: int | None = None,
         *,
-        base_type: "TypeBaseNode | None" = None,
+        base_type: "Node | None" = None,
         field_types: list[FieldType] | None = None,
         **kwargs: Any,
     ) -> "CustomObject":
@@ -1300,7 +1327,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         from .value import coerce_custom_object_scalar
 
         if base_type is None and issubclass(cls, IsBased):
-            base_type = cast(TypeBaseNode, cls.get_base_from_partial(kwargs))
+            base_type = cls.get_base_from_partial(kwargs)
 
         typ = cls.partial_type(type, base_type=base_type, field_types=field_types)
         if cls is not Node:

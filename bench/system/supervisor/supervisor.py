@@ -14,6 +14,7 @@ from bench.language import (
     Client,
     ClientType,
     Handle,
+    Node,
     NodeArea,
     NodeReference,
     NodeType,
@@ -22,7 +23,6 @@ from bench.language import (
     PolicySubject,
     Region,
     Store,
-    TypeBaseNode,
     User,
     UserStatus,
     bittuple,
@@ -151,7 +151,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
                 raise RuntimeError(f"unexpected client: {client!r}")
 
     @override
-    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
+    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> Node | None:
         raise RuntimeError("supervisor does not support database-level requests")
 
     #

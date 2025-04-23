@@ -35,7 +35,7 @@ class ChannelStatus(BuiltinEnum):
 @timed_node_(NodeType.CHANNEL)
 class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageNode[ChannelData]):
     """
-    A Channel for communcating with Messages and Threads.
+    A Channel for organizing Messages and Threads.
     """
 
     # meta

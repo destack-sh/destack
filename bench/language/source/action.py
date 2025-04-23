@@ -9,7 +9,6 @@ from bench.language.core import (
     FieldType,
     IsClaimable,
     IsComputable,
-    IsFieldBase,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -84,7 +83,6 @@ class Action(
     IsInstantiable,
     IsNamed,
     IsModal,
-    IsFieldBase,
     IsRunnable,
     PackageNode[ActionData],
 ):

@@ -33,7 +33,6 @@ from .node import Node, NodeReference
 from .object import Property, PropertyReference
 from .property import p_regular, p_value_packed, p_value_runtime
 from .struct import Struct, struct_
-from .trait import FieldBaseNode, TypeBaseNode
 from .value import unpack_proto_json
 
 if TYPE_CHECKING:
@@ -339,7 +338,7 @@ class AggregationResult(Struct):
 def coerce_conditional(
     *,
     node_cls: type[Node],
-    base_type: Optional["TypeBaseNode"],
+    base_type: Optional["Node"],
     expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
 ) -> Expression | None:
@@ -347,6 +346,8 @@ def coerce_conditional(
     Coerce a conditional expression from either the given expression or kwargs.
     Useful for basic Django-style querying (with optional __<op>, but no relation support yet).
     """
+    from bench.language import Field, Property
+
     if expr is not None and kwargs:
         raise TypeError(f"cannot specify both {expr} and {kwargs}")
     if expr is not None:
@@ -371,7 +372,7 @@ def coerce_conditional(
         target: Field | Property | None = None
         if prop := node_cls.__properties__.get(key):
             target = prop
-        elif base_type is not None and (field := cast(FieldBaseNode, base_type).fields.get(key)):
+        elif base_type is not None and (field := base_type.get_child(Field, key)):
             target = field
         if target is None:
             raise TypeError(f"{node_cls!r} has no attribute {key!r} in {base_type!r}")
@@ -385,8 +386,8 @@ def coerce_conditional(
         clauses.append(
             Expression(
                 type=op,
-                property=target if type(target) is Property else None,
-                field=target if not isinstance(target, Property) else None,
+                property=target if isinstance(target, Property) else None,
+                field=target if isinstance(target, Field) else None,
                 value=value,
             )
         )
@@ -399,7 +400,7 @@ def coerce_conditional(
 def coerce_sort(
     *,
     node_cls: type[Node],
-    base_type: Optional["TypeBaseNode"],
+    base_type: Optional["Node"],
     expr: "Sequence[Expression | str | Field | Property] | Expression | str | Field | Property | None",
     args: Sequence[str],
 ) -> Optional[list[Expression]]:
@@ -441,9 +442,7 @@ def coerce_sort(
             target = None
             if prop := node_cls.__properties__.get(field_key):
                 target = prop
-            elif base_type is not None and (
-                field := cast(FieldBaseNode, base_type).fields.get(field_key)
-            ):
+            elif base_type is not None and (field := base_type.get_child(Field, field_key)):
                 target = field
             if target is None:
                 raise AttributeError(f"{node_cls!r} has no attribute {item!r} in {base_type!r}")

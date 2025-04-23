@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
     FieldType,
-    IsFieldBase,
     IsModal,
     IsNamed,
     IsTemplatable,
@@ -29,7 +28,6 @@ class Class(
     IsTemplatable,
     IsModal,
     IsNamed,
-    IsFieldBase,
     PageNode[BlockData],
 ):
     """A Class with Fields."""

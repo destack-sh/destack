@@ -5,7 +5,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language.core import TYPE_BASE_NODE_TYPES, Node, NodeReference
+from bench.language.core import Node, NodeReference
 from bench.language.registry import NODE_CLASS_BY_TYPE
 from bench.utils.func import group_by
 
@@ -17,7 +17,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
-    from bench.language import TypeBaseNode
+    pass
 
 
 class NodeLink:
@@ -27,7 +27,7 @@ class NodeLink:
     Useful when we get a Node from one source and the need to make it live after the fact.
     """
 
-    def __init__(self, nodes: Sequence[Node | NodeReference], base: "TypeBaseNode | None") -> None:
+    def __init__(self, nodes: Sequence[Node | NodeReference], base: "Node | None") -> None:
         assert len(nodes) > 0, f"no nodes to link for {self!r}"
         self.nodes = nodes
         self.base = base
@@ -115,8 +115,8 @@ async def synchronize_nodes(nodes: Sequence[Node | NodeReference]) -> Sequence[N
     for (_, link_base_id), link_nodes_ptr in nodes_by_type_and_base.items():
         # base
         if link_base_id is not None:
-            base = cast("TypeBaseNode | None", supergraph.get(link_base_id))
-            if base is None or base.metatype not in TYPE_BASE_NODE_TYPES:
+            base = supergraph.get(link_base_id)
+            if base is None:
                 raise ValueError(f"missing base {link_base_id!r} for {link_nodes_ptr!r}")
         else:
             base = None

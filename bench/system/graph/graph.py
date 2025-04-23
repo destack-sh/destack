@@ -51,7 +51,6 @@ from bench.language import (
     QueryType,
     SelectOptions,
     Session,
-    TypeBaseNode,
     ValidationError,
     bittuple,
     edit_data_graph,
@@ -265,7 +264,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
         asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
     @abc.abstractmethod
-    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> TypeBaseNode | None:
+    async def resolve_request_base(self, node_ptr: UUID | NodeReference) -> Node | None:
         """Resolve a database pointer from a request message."""
         ...
 

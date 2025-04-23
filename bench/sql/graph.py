@@ -65,7 +65,6 @@ from bench.language import (
     ReferenceKind,
     SelectOptions,
     SortType,
-    TypeBaseNode,
     TypeKind,
     bittuple,
     get_default_query_filter,
@@ -346,7 +345,7 @@ def _compile_expression_ref(
     node_type: NodeType,
     node_cls: type[Node],
     node_table: Table,
-    base_type: TypeBaseNode | None,
+    base_type: Node | None,
     expr: Expression,
 ) -> SqlNode:
     prop = expr.property
@@ -365,7 +364,7 @@ def _pg_lower_conditional(
     node_type: NodeType,
     node_cls: type[Node],
     node_table: Table,
-    base_type: TypeBaseNode | None,
+    base_type: Node | None,
     cond: Expression,
 ) -> Expression:
     """'Lowers' a conditional expression to a form that can be compiled to SQL."""
@@ -400,7 +399,7 @@ def _pg_compile_conditional(
     node_type: NodeType,
     node_cls: type[Node],
     node_table: Table,
-    base_type: TypeBaseNode | None,
+    base_type: Node | None,
     cond: Expression,
 ) -> SqlNode:
     cond = _pg_lower_conditional(node_type, node_cls, node_table, base_type, cond)
@@ -476,7 +475,7 @@ def _pg_compile_sort(
     node_type: NodeType,
     node_cls: type[Node],
     node_table: Table,
-    base_type: TypeBaseNode | None,
+    base_type: Node | None,
     sort: Expression,
 ) -> SqlNode:
     field_ref = _compile_expression_ref(node_type, node_cls, node_table, base_type, sort)
@@ -488,7 +487,7 @@ def _pg_compile_sorts(
     node_type: NodeType,
     node_cls: type[Node],
     node_table: Table,
-    base_type: TypeBaseNode | None,
+    base_type: Node | None,
     sorts: list[Expression],
 ) -> sql.Composed:
     return sqljoin(
@@ -826,7 +825,7 @@ def _pg_unpack_node_data_row(
     node_type: NodeType,
     node_cls: type[Node],
     node_table: Table,
-    base_type: TypeBaseNode | None,
+    base_type: Node | None,
     selected_fields: Sequence[Field],
     row: Mapping[str, Any],
 ) -> AnyNodeData:

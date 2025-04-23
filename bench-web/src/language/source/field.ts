@@ -14,6 +14,7 @@ import {
   NodeType,
   RUNNABLE_NODE_TYPES,
   TypeKind,
+  AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 import { DragContent, MultiAnchor } from "@/ui/drag";
@@ -26,7 +27,7 @@ export function createField(
   options: {
     field?: Partial<FieldData>;
     anchor: "before" | "above" | "after" | "below" | "inside" | "start" | "end" | "center";
-    target: FieldData | ActionData | PageNodeData;
+    target: AnyNodeData;
   },
 ): FieldData {
   // eslint-disable-next-line prefer-const
@@ -165,7 +166,7 @@ export function useFieldList(options: {
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
   fieldType: Ref<FieldType>;
-  base: Ref<PageNodeData | ActionData | null>;
+  base: Ref<AnyNodeData | null>;
 }) {
   const { graph, txFactory, fieldType, base } = options;
 
