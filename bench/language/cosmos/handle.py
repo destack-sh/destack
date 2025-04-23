@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 @node_(NodeType.HANDLE, roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH))
 class Handle(BenchNode[HandleData]):
-    """A Bench @handle. Can only be created/edited by the system."""
+    """A Bench @handle."""
 
     parent: Union["User", "Organization", "Bench"] = p_node_parent(
         4, NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH

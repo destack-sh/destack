@@ -24,7 +24,7 @@ from .piece import (
     piece_,
     raise_if_none,
 )
-from .prompt import Prompt, compile_prompt
+from .prompt import Prompt, compile_prompt, log_completion, log_prompt
 from .token import StupidTokenizer, TiktokenTokenizer, Tokenizer
 
 __all__ = [
@@ -55,6 +55,8 @@ __all__ = [
     "Tokenizer",
     "compile_prompt",
     "get_file_piece",
+    "log_completion",
+    "log_prompt",
     "piece_",
     "raise_if_none",
 ]

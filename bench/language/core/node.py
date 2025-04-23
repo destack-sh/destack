@@ -1,4 +1,3 @@
-import abc
 import functools
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -344,7 +343,7 @@ def timed_node_(
 
 
 @node_component_()
-class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
+class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     """
     A Node with properties and an identity.
     Conceptually, all Nodes live together happily in a single giant supergraph.
@@ -1446,7 +1445,7 @@ class NodeSubtypeStub[NodeT: Node]:
 
 
 @node_component_()
-class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
+class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT]):
     """A Node inside a Bench."""
 
     bench: "Bench | None" = p_node_ancestor_with_self(
@@ -1462,7 +1461,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 
 
 @node_component_()
-class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
+class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT]):
     """A Node in a Package."""
 
     package: "Package | None" = p_node_ancestor_with_self(

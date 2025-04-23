@@ -44,8 +44,6 @@ async def build_openai_chat_messages(
     """
 
     pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
-    if LOG_PROMPTS:
-        log_prompt(prompt, pieces)
 
     # download media
     files_to_download = [

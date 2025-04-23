@@ -1,5 +1,33 @@
 from bench.language import Agent, Flow, Session
-from bench.runtime.model import Prompt, RegionPiece, StupidTokenizer, TextPiece, compile_prompt
+from bench.runtime.agent import make_node_layout_hierarchy
+from bench.runtime.model import (
+    Prompt,
+    RegionPiece,
+    StupidTokenizer,
+    TextPiece,
+    compile_prompt,
+    log_prompt,
+)
+
+
+def test_make_node_layout_hierarchy(session: Session):
+    # setup
+    flow = Flow.new("Flow")
+    agent = Agent.new("Agent")
+
+    pieces = make_node_layout_hierarchy()
+    prompt = Prompt(
+        subject=agent, session=session, node=flow, system_prompt="You are a helpful assistant."
+    )
+    prompt.region(
+        "Nodes",
+        "Nodes, their properties and traits",
+        *pieces,
+        priority=1,
+        role="developer",
+    )
+    pieces, _ = compile_prompt(prompt=prompt, tokenizer=StupidTokenizer(), max_tokens=1_000_000)
+    log_prompt(prompt, pieces)
 
 
 def test_prompt_compile(session: Session):
