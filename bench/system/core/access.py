@@ -24,7 +24,7 @@ from bench.utils.oracle import Oracle
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-PASSWORD_MIN_LENGTH = 4 if IS_TEST or IS_DEV else 8  # characters
+PASSWORD_MIN_LENGTH = 2 if IS_TEST or IS_DEV else 8  # characters
 PASSWORD_MAX_LENGTH = 128  # characters
 SALT_LENGTH = 16  # bytes
 SCRYPT_N = 2**15  # iterations count

@@ -749,7 +749,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                     )
                     cast(Block, clone).node_ptr = cloned_node.to_ref()
                     cloned_node.definition_ptr = clone.to_ref()
-                    attach_node(cloned_node, clone_parent, clone_parent._graph, create=False)
             elif isinstance(self, PageNode) and (definition := self.definition) is not None:
                 assert clone_parent is not None, f"cannot clone detached {self!r}"
                 cloned_node = definition.clone(
@@ -762,7 +761,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 )
                 cast(PageNode, clone).definition_ptr = cloned_node.to_ref()
                 cloned_node.node_ptr = clone.to_ref()
-                attach_node(cloned_node, clone_parent, clone_parent._graph, create=False)
 
         # clone children and append to self (recursive)
         if recursive:
