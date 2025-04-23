@@ -1361,14 +1361,16 @@ class ModelDeveloper(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_DEVELOPER_GOOGLE: _ClassVar[ModelDeveloper]
     MODEL_DEVELOPER_MICROSOFT: _ClassVar[ModelDeveloper]
     MODEL_DEVELOPER_DEEPSEEK: _ClassVar[ModelDeveloper]
+    MODEL_DEVELOPER_XAI: _ClassVar[ModelDeveloper]
 
 class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MODEL_PROVIDER_UNSPECIFIED: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_OPENROUTER: _ClassVar[ModelProvider]
     MODEL_PROVIDER_OPENAI: _ClassVar[ModelProvider]
     MODEL_PROVIDER_ANTHROPIC: _ClassVar[ModelProvider]
     MODEL_PROVIDER_GOOGLE: _ClassVar[ModelProvider]
-    MODEL_PROVIDER_OPENROUTER: _ClassVar[ModelProvider]
+    MODEL_PROVIDER_XAI: _ClassVar[ModelProvider]
 
 class CodeType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2829,11 +2831,13 @@ MODEL_DEVELOPER_ANTHROPIC: ModelDeveloper
 MODEL_DEVELOPER_GOOGLE: ModelDeveloper
 MODEL_DEVELOPER_MICROSOFT: ModelDeveloper
 MODEL_DEVELOPER_DEEPSEEK: ModelDeveloper
+MODEL_DEVELOPER_XAI: ModelDeveloper
 MODEL_PROVIDER_UNSPECIFIED: ModelProvider
+MODEL_PROVIDER_OPENROUTER: ModelProvider
 MODEL_PROVIDER_OPENAI: ModelProvider
 MODEL_PROVIDER_ANTHROPIC: ModelProvider
 MODEL_PROVIDER_GOOGLE: ModelProvider
-MODEL_PROVIDER_OPENROUTER: ModelProvider
+MODEL_PROVIDER_XAI: ModelProvider
 CODE_TYPE_UNSPECIFIED: CodeType
 CODE_TYPE_SNIPPET: CodeType
 CODE_TYPE_SCRIPT: CodeType
