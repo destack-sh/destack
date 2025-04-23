@@ -30,6 +30,7 @@ import {
   PropertyInfo,
   RecordData,
   RecordProperty,
+  TextLineType,
   TypeKind,
   ViewData,
   ViewType,
@@ -263,7 +264,7 @@ function getColumnPadding(
   // calibrated against ROW_HEIGHT to ensure all types look center-aligned at the default height
   if (viewType == ViewType.TOGGLE) {
     return { paddingTop: 5, paddingBottom: 0 };
-  } else if (viewType == ViewType.TEXT || viewType == ViewType.FILE) {
+  } else if (viewType == ViewType.TEXT || viewType == ViewType.TEXT_LINE || viewType == ViewType.FILE) {
     return { paddingTop: 3, paddingBottom: 2 };
   } else if (viewType == ViewType.NUMBER || viewType == ViewType.STRING) {
     return { paddingTop: 6, paddingBottom: 2 };
@@ -299,7 +300,7 @@ type ColumnView = {
   isInspected: boolean;
   isHighlighted: boolean;
   isSelected: boolean;
-  isName: boolean;
+  isTitle: boolean;
   paddingTop: number;
   paddingBottom: number;
 } & ColumnContent;
@@ -310,7 +311,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
   function column(
     columnIn: Pick<
       ColumnView,
-      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isName"
+      "id" | "icon" | "title" | "type" | "isInput" | "isHighlighted" | "isInspected" | "isTitle"
     > &
       ColumnContent,
   ) {
@@ -329,13 +330,14 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isSelected: false,
     };
     columns.push(column);
+    return column;
   }
 
   for (const propertyId of [RecordProperty.title] as RecordProperty[]) {
     // :RichColumns
     const property = propertyInfo(NodeType.RECORD, propertyId);
     const propertyType = getPropertyType(property);
-    column({
+    const c = column({
       id: propertyId.toString(),
       icon: getTypeIcon(propertyType),
       title: getPropertyTitle(property),
@@ -346,8 +348,11 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isInspected: false,
       isHighlighted: false,
-      isName: propertyId == RecordProperty.title,
+      isTitle: propertyId == RecordProperty.title,
     });
+    if (propertyType.benchType == BenchType.TEXT_LINE) {
+      c.viewProps.forceLineType = TextLineType.PARAGRAPH;
+    }
   }
   for (const field of fields.value) {
     column({
@@ -361,7 +366,7 @@ const columns: Ref<ColumnView[]> = computed(() => {
       isInput: true,
       isHighlighted: canvas.isHighlighted(field),
       isInspected: canvas.isInspected(field),
-      isName: false,
+      isTitle: false,
     });
   }
 
@@ -906,7 +911,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             :class="[
               x > 0 ? 'border-l' : '',
               isSelectedCell(record, column) ? 'bg-amber-100' : canvas.isInspected(record) ? 'bg-gray-100' : '',
-              column.isName && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
+              column.isTitle && record.icon != null ? 'flex flex-row items-center gap-x-1.5 px-2' : 'px-2',
             ]"
             :style="{
               width: `${column.width}px`,
@@ -922,16 +927,20 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               (event) => {
                 // interact with / focus cell component
                 const componentEl = cellComponentRefs[getCellId(record, column)];
+                console.log(event, componentEl); // nocheckin
                 if (componentEl != null) {
-                  if (componentEl?.interact != null) componentEl.interact();
-                  else focusInElement(componentEl as unknown as MaybeElement);
+                  if (componentEl.interact != null) {
+                    componentEl.interact();
+                  } else {
+                    focusInElement(componentEl as unknown as MaybeElement);
+                  }
                 }
               }
             "
           >
             <!-- Inline title icon -->
             <IconInline
-              v-if="column.isName && record.icon != null"
+              v-if="column.isTitle && record.icon != null"
               ref="iconRef"
               v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
               v-menu="

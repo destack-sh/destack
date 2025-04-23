@@ -180,7 +180,7 @@ defineExpose({
         :placeholder="nodeTypeName"
         :is-input="!isNested && isInput"
         is-minimal
-        :value-type="identifierKind == 'name' ? NAME_TYPE : TITLE_TYPE"
+        :value-type="NAME_TYPE"
         :model-value="(node as any).name"
         @update:model-value="(newValue) => getTx().update(node!, { name: newValue as string }, { debounce: 'long' })"
         @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
