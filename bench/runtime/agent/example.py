@@ -305,8 +305,8 @@ def example_database_definition(Database1: Database):
 # nocheckin: database examples / page nodes
 
 
-@example_(ExampleType.SNIPPET, title="Add images to response")
-def example_upload_a_file(File1: File):
+@example_(ExampleType.SNIPPET, title="Add external images to response")
+def example_upload_external_files():
     # pick best images from search
     images = (
         File.external("https://example.com/image1.jpg"),

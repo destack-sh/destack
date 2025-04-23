@@ -8,7 +8,6 @@ from bench.language.core import (
     FieldType,
     IsClaimable,
     IsComputable,
-    IsFieldBase,
     IsModal,
     IsNamed,
     IsOwnable,
@@ -53,7 +52,6 @@ class Flow(
     IsModal,
     IsNamed,
     IsRunnable,
-    IsFieldBase,
     PageNode[FlowData],
 ):
     """A Flow orchestrates a sequence of steps (like Actions)."""

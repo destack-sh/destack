@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Literal
 from bench.language.core import (
     FieldType,
     IsClaimable,
-    IsFieldBase,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -34,7 +33,6 @@ class Database(
     IsNamed,
     IsOwnable,
     IsClaimable,
-    IsFieldBase,
     PageNode[DatabaseData],
 ):
     """A Database of Records."""

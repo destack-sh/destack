@@ -31,6 +31,7 @@ from bench.language import (
     GraphScope,
     IsRuntime,
     MemoryEngine,
+    Node,
     NodeArea,
     NodeDataGraph,
     NodeGraph,
@@ -44,7 +45,6 @@ from bench.language import (
     Query,
     Session,
     Store,
-    TypeBaseNode,
     User,
     bittuple,
     edit_data_graph,
@@ -291,13 +291,13 @@ class HostService(GraphServiceBase, HostBase):
         return subject
 
     @override
-    async def resolve_request_base(self, node_ptr: NodeReference | UUID) -> TypeBaseNode | None:
+    async def resolve_request_base(self, node_ptr: NodeReference | UUID) -> Node | None:
         base_id = node_ptr.id if isinstance(node_ptr, NodeReference) else node_ptr
         assert base_id, f"no base id in {node_ptr!r}"
         node = self.main_package._graph.get(base_id)
         if not isinstance(node, PageNode):
             return None
-        return cast(TypeBaseNode, node)
+        return node
 
     def get_provisioners(self: "HostService", bench: Bench) -> list["Provisioner"]:
         """Gets all available provisioners for the Bench in *this* environment"""

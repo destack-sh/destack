@@ -29,9 +29,7 @@ if TYPE_CHECKING:
         Bench,
         BenchNode,
         Channel,
-        Choice,
         Claim,
-        Class,
         Client,
         Computer,
         Cursor,
@@ -162,17 +160,6 @@ PROCESSABLE_NODE_TYPES = bittuple(
     NodeType.SPAN,
 )
 
-FieldBaseNode = Union["Agent", "Flow", "Action", "Class", "Database"]
-FIELD_BASE_NODE_TYPES = bittuple(
-    NodeType.AGENT,
-    NodeType.FLOW,
-    NodeType.ACTION,
-    NodeType.CLASS,
-    NodeType.DATABASE,
-)
-
-TypeBaseNode = Union[FieldBaseNode, "Choice"]
-TYPE_BASE_NODE_TYPES = bittuple(*FIELD_BASE_NODE_TYPES, NodeType.CHOICE)
 
 Timed = Union[
     "Message",
@@ -396,20 +383,6 @@ class IsTitled(BuiltinObject):
     """A Node with a rich title."""
 
     title: Optional["TextLine"] = p_regular(32, struct=StructType.TEXT_LINE)
-
-
-@object_()
-class IsTypeBase(BuiltinObject):
-    """A Node that can be a Type base."""
-
-    pass
-
-
-@object_()
-class IsFieldBase(IsTypeBase):
-    """A Node that can be a Field base."""
-
-    pass
 
 
 @object_()

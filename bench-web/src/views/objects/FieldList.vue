@@ -3,16 +3,7 @@ import { toCamelName } from "@/language/core/const";
 import { packSubnode } from "@/language/core/node";
 import { makeType, TypeIdentity } from "@/language/core/type";
 import { createField, useFieldList } from "@/language/source/field";
-import {
-  BenchType,
-  FieldType,
-  NodeType,
-  Orientation,
-  PickerVariant,
-  TypeBaseNodeData,
-  ViewData,
-  ViewType,
-} from "@/proto/wire";
+import { BenchType, FieldType, NodeType, Orientation, PickerVariant, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -54,7 +45,7 @@ const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({}
 
 const basePtr = computed(() => props.nodePtr);
 const { graph, connection } = props.preparedConnection ?? useAutoConnection(basePtr);
-const base = graph.getRef(basePtr, { ignoreAncestors: props.self == null }) as Ref<TypeBaseNodeData | null>;
+const base = graph.getRef(basePtr, { ignoreAncestors: props.self == null });
 const allFields = graph.getChildrenRef(base, NodeType.FIELD);
 const fields = computed(() => allFields.value.filter((f) => f.type == props.fieldType));
 

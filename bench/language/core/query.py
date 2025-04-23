@@ -33,10 +33,9 @@ from .const import (
     active_session,
 )
 from .expression import Expression, coerce_conditional
-from .node import NODE_CLASS_BY_TYPE, Node, NodeReference, TypeBaseNode
+from .node import NODE_CLASS_BY_TYPE, Node, NodeReference
 from .property import Property, p_regular
 from .struct import Struct, struct_
-from .trait import FieldBaseNode
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -240,7 +239,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         # root
         type: QueryType,
         node_type: NodeType,
-        base_type: Optional["TypeBaseNode"] = None,
+        base_type: Optional["Node"] = None,
         roots: Optional[list["NodeReference"]] = None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
@@ -451,12 +450,15 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         return clone
 
     def select_all(self) -> "Query[NodeT, NodeDataT]":
-        """Includes all properties/fields in the results."""
+        """Includes all properties/Fields in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.select_all_properties = True
-        if self._base_type is not None and self._base_type.metatype != NodeType.CHOICE:
-            clone._select.select_fields = list(cast(FieldBaseNode, self._base_type).fields)
+        if self._base_type is not None:
+            clone._select.select_fields = cast(
+                list[Field],
+                self._base_type._graph.get_descendants(self._base_type, NodeType.FIELD),
+            )
         else:
             clone._select.select_fields = []
         return clone

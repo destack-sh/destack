@@ -35,27 +35,18 @@ from .const import (
     is_node_type,
     is_struct_type,
 )
-from .node import Node, NodeReference, TypeBaseNode
+from .node import Node, NodeReference
 from .object import BuiltinObject, get_tk_b64_from_ck, object_
 from .property import Property, p_internal, p_regular, p_runtime, p_value_packed, p_value_runtime
 from .struct import Struct, struct_
-from .trait import TYPE_BASE_NODE_TYPES, FieldBaseNode
 from .validation import TypeConstraintIn
 from .value import SomeValue
 
 if typing.TYPE_CHECKING:
     from bench.language import (
-        Action,
-        Agent,
-        Block,
-        Choice,
-        Class,
-        Database,
         Expression,
         Field,
         FileType,
-        Flow,
-        Transition,
     )
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -266,8 +257,8 @@ class IsType(BuiltinObject):
     kind: TypeKind = p_internal(40)
     primitive_type: Optional[PrimitiveType] = p_regular(41, default=None)
     bench_type: Optional[BenchType] = p_regular(42, default=None)
-    base_type: Union[TypeBaseNode, None] = p_regular(
-        43, array=False, require=False, default=None, references=TYPE_BASE_NODE_TYPES.tuple
+    base_type: Optional["Node"] = p_regular(
+        43, array=False, require=False, default=None, references="any"
     )
     if TYPE_CHECKING:
         base_type_id: Optional[UUID] = None
@@ -347,13 +338,6 @@ class IsType(BuiltinObject):
             py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, self.primitive_type))
             assert py_type is not None, f"{self!r} does not have a python type"
             return py_type(*args, **kwargs)
-        elif self.kind == TypeKind.BASED_NODE:
-            if self.bench_type == NodeType.FIELD:
-                assert self.base_type is not None, f"missing base type for {self!r}"
-                field = cast(FieldBaseNode, self.base_type).fields.get(*args, **kwargs)
-                if field is None:
-                    raise ValueError(f"no field {args!r} in {self.base_type!r}")
-                return field
         elif self.kind == TypeKind.CUSTOM_OBJECT or self.kind == TypeKind.PARTIAL_OBJECT:
             from .value import coerce_custom_object_scalar
 
@@ -415,8 +399,10 @@ class IsType(BuiltinObject):
 
     @property
     def _base_fields(self) -> Sequence["Field"]:
-        if (base_type := self.base_type) is not None and base_type.metatype != NodeType.CHOICE:
-            return cast(FieldBaseNode, base_type).fields
+        if (base_type := self.base_type) is not None:
+            return cast(
+                Sequence["Field"], base_type._graph.get_descendants(base_type, NodeType.FIELD)
+            )
         else:
             return ()
 
@@ -470,15 +456,8 @@ class Type(Struct, IsType):
 
 TypeIn = Union[
     "IsType",
-    "Block",
-    "Database",
-    "Class",
-    "Choice",
-    "Flow",
-    "Agent",
+    "Node",
     "BuiltinEnum",
-    "Transition",
-    "Action",
     "PrimitiveType",
     "BenchType",
     "TypeFormat",
