@@ -44,7 +44,7 @@ import { useEventListener } from "@vueuse/core";
 import { computed, getCurrentInstance, nextTick, ref, shallowRef, toRef, watch, type Ref } from "vue";
 
 const MAX_BLOCK_WIDTH = 720;
-const MIN_GUTTER_WIDTH = 30;
+const MIN_GUTTER_WIDTH = 60;
 const MIN_FOOTER_PADDING = 200;
 
 const props = defineProps<
@@ -460,7 +460,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
 
         <!-- Footer -->
         <div
-          class="group/footer mx-auto flex flex-row justify-center gap-x-2.5 py-8"
+          class="group/footer mx-auto flex flex-row flex-wrap justify-center gap-x-2.5 gap-y-1.5 py-8"
           :style="{
             width: widths.block + 'px',
           }"
@@ -476,7 +476,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
               BlockType.DATABASE,
             ]"
             data-suppress-drag="both"
-            class="cursor-pointer rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-400 transition-colors duration-300 group-hover/footer:text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+            class="flex cursor-pointer items-center truncate rounded-2xl border border-gray-200 px-2 py-0.5 text-gray-400 transition-colors duration-300 group-hover/footer:text-gray-700 hover:bg-gray-100 hover:text-gray-900"
             @click.stop="() => createAndFocusBlock({ type: blockType as any }, 'inside', page!)"
           >
             <IconInline

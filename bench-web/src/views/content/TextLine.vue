@@ -58,12 +58,16 @@ const commands: Partial<CommandMapKit<"space">> = {
   ...textActions,
 };
 
-defineExpose({ commands, focus });
+function interact() {
+  focus();
+}
+
+defineExpose({ commands, focus, interact });
 </script>
 <template>
   <div
     ref="textRef"
-    class="pm-text pm-compact pm-paddingless relative inline-block rounded-sm"
+    class="pm-text pm-compact pm-paddingless relative rounded-sm"
     :class="[
       isInput ? 'hover:cursor-text' : '',
       truncate ? 'pm-truncate truncate' : '',
