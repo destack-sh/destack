@@ -1,6 +1,6 @@
 from .agent import AgentRunner
 from .example import EXAMPLES
-from .instruct import get_system_prompt, make_agent_prompt
+from .instruct import get_system_prompt, make_agent_prompt, make_node_layout_hierarchy
 from .macro import (
     CONSTANT_MACROS,
     FUNCTION_MACROS,
@@ -23,4 +23,5 @@ __all__ = [
     "Macro",
     "get_system_prompt",
     "make_agent_prompt",
+    "make_node_layout_hierarchy",
 ]

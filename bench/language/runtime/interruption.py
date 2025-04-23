@@ -84,7 +84,7 @@ class InterruptionResponse(BuiltinEnum):
 
 @timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
 class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
-    """An Interruption in the execution of a Run."""
+    """An Interruption in the processing or execution of something."""
 
     # meta
     parent: Optional["Run"] = p_node_parent(4, NodeType.RUN)

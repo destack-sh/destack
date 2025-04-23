@@ -48,7 +48,7 @@ class BenchStatus(BuiltinEnum):
 @node_(NodeType.BENCH, roots=())
 class Bench(IsOwnable, BenchNode[BenchData]):
     """
-    A Bench is like a workspace in an OS for higher order software.
+    A Bench is the OS for personal software.
     """
 
     parent: None = p_node_parent(4)

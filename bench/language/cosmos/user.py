@@ -39,7 +39,7 @@ class UserStatus(BuiltinEnum):
 
 @node_(NodeType.USER, roots=())
 class User(IsSubject, Node[UserData]):
-    """A User."""
+    """A User is a human using Bench."""
 
     slug: Optional[str] = p_system(31, unique=True)  # must match main handle
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)

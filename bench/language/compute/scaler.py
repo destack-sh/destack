@@ -29,7 +29,7 @@ class ScalerStrategy(BuiltinEnum):
 @node_(NodeType.SCALER, has_subtypes=True)
 class Scaler(Resource[ScalerData]):
     """
-    A Scaler is a static Resource that automatically scales a dynamic Resource.
+    A Scaler automatically scales another Resource.
     """
 
     type: ScalerType = p_system(30)
