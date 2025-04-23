@@ -78,7 +78,7 @@ const iconClass = computed(() => [
 const identifierClass = computed(() => [
   props.size == "sm" ? ["text-sm", props.isLight ? "" : "font-medium"] : "",
   props.size == "base" ? ["text-base", props.isLight ? "" : "font-medium"] : "",
-  props.size == "title" ? ["text-4xl", props.isLight ? "font-medium" : "font-bold"] : "",
+  props.size == "title" ? ["text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
 const metadataClass = computed(() => [
@@ -224,6 +224,8 @@ defineExpose({
         :is-light="isLight"
         :class="metadataClass"
       />
+      <!-- Slot for right -->
+      <slot name="right" />
     </div>
   </div>
   <div

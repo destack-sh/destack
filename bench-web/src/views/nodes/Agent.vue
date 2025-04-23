@@ -20,7 +20,7 @@ import { canvas } from "@/system/space";
 import { ACTION_SIZE, FLOW_GRID_STEP } from "@/ui/flow";
 import { generateOrderKey } from "@/utils/fractional";
 import Grid from "@/views/builtin/Grid.vue";
-import InlineHeader from "@/views/builtin/InlineHeader.vue";
+import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Claim from "@/views/nodes/Claim.vue";
 import { useElementSize } from "@vueuse/core";
@@ -50,7 +50,7 @@ const claims = graph.getChildrenRef(agentPtr, NodeType.CLAIM);
 
 const containerRef = ref<HTMLElement | null>(null);
 const containerSize = useElementSize(containerRef);
-const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
+const headerRef = ref<InstanceType<typeof InlinePageHeader> | null>(null);
 const gridRef = ref<ComponentPublicInstance<typeof Grid> | null>(null);
 
 function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
@@ -108,7 +108,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <div ref="containerRef">
-    <InlineHeader
+    <InlinePageHeader
       ref="headerRef"
       :self="self"
       :node="agent"
@@ -132,7 +132,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           <span class="">Claim</span>
         </button>
       </template>
-    </InlineHeader>
+    </InlinePageHeader>
 
     <!-- Claim grid -->
     <Grid

@@ -36,7 +36,7 @@ import {
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
-import InlineHeader from "@/views/builtin/InlineHeader.vue";
+import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { NavigationDirection, type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
@@ -64,7 +64,7 @@ const state = canvas.registerView(self, id);
 
 // view
 const containerRef = ref<HTMLElement | null>(null);
-const headerRef: Ref<InstanceType<typeof InlineHeader> | null> = ref(null);
+const headerRef: Ref<InstanceType<typeof InlinePageHeader> | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 const createActionRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -290,7 +290,7 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
     @mousedown="(e) => startSelectingIfAllowed(selectionZoneContainer, e)"
   >
     <!-- Header -->
-    <InlineHeader
+    <InlinePageHeader
       ref="headerRef"
       :self="self"
       :node="flow"
@@ -369,7 +369,7 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
           </button>
         </div>
       </template>
-    </InlineHeader>
+    </InlinePageHeader>
 
     <!-- Canvas -->
     <div

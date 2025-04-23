@@ -21,7 +21,7 @@ import { canvas } from "@/system/space";
 import { ACTION_SIZE } from "@/ui/flow";
 import { generateOrderKey } from "@/utils/fractional";
 import Grid from "@/views/builtin/Grid.vue";
-import InlineHeader from "@/views/builtin/InlineHeader.vue";
+import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import Action from "@/views/nodes/Action.vue";
 import { useElementSize } from "@vueuse/core";
@@ -51,7 +51,7 @@ const actions = graph.getChildrenRef(nodePtr, NodeType.ACTION);
 // view
 const containerRef = ref<HTMLElement | null>(null);
 const containerSize = useElementSize(containerRef);
-const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
+const headerRef = ref<InstanceType<typeof InlinePageHeader> | null>(null);
 const gridRef = ref<ComponentPublicInstance<typeof Grid> | null>(null);
 
 function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
@@ -110,7 +110,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 <template>
   <div ref="containerRef" class="">
     <!-- Header -->
-    <InlineHeader
+    <InlinePageHeader
       v-if="nodePtr"
       ref="headerRef"
       :self="self"
@@ -138,7 +138,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           <span class="">Action</span>
         </button>
       </template>
-    </InlineHeader>
+    </InlinePageHeader>
 
     <!-- Action grid -->
     <Grid

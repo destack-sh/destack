@@ -305,6 +305,7 @@ def example_database_definition(Page1: Page):
     SEND("I've created [@Database1] and added these people.")
 
 
+# nocheckin: support locals in Text mentions/aliasing (above: Database1 should work automatically)
 # nocheckin: database examples / page nodes
 
 

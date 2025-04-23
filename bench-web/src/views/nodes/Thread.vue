@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
 import { toCamelName } from "@/language/core/const";
-import { Alignment, ChannelData, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
-import { isNode, TypedNodeReferenceData } from "@/proto/wiring";
+import { Alignment, NodeType, Orientation, RectangleData, ViewData } from "@/proto/wire";
+import { TypedNodeReferenceData } from "@/proto/wiring";
 import { benchGraph, canvas } from "@/system/space";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Chat from "@/views/helpers/Chat.vue";
-import { computed, Ref, ref, toRef } from "vue";
+import { Ref, ref, toRef } from "vue";
 
 const props = defineProps<
   {
@@ -27,12 +27,6 @@ const state = canvas.registerView(self, id);
 // state
 const nodePtr = toRef(props, "nodePtr");
 const { node, connection, graph } = supergraph.getLinkRef(nodePtr);
-const channelPtr = computed(() => {
-  if (node.value == null) return null;
-  if (isNode(node.value, NodeType.THREAD)) return node.value.channelPtr;
-  else return null;
-});
-const channel = supergraph.getRef(channelPtr) as Ref<ChannelData | null>;
 
 // view
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
@@ -70,7 +64,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         <NodeReference
           v-if="node"
           ref="nameRef"
-          class="mt-3 w-full px-0.5"
+          class="group/title mt-3 w-full px-0.5"
           :orientation="Orientation.VERTICAL"
           size="title"
           :node="node"
@@ -78,15 +72,24 @@ defineExpose<ViewExpose>({ self, id, focus });
           hide-metadata
           :tx="() => connection!.tx"
           @navigate="(direction) => emit('navigate', direction)"
-        />
+        >
+          <!-- Meta -->
+          <template #right>
+            <button
+              v-if="!isRoot"
+              v-tooltip="{ small: true, text: 'Open in full' }"
+              class="ml-2 cursor-pointer rounded-sm px-1 text-2xl text-gray-400 opacity-0 transition-opacity duration-75 group-focus-within/title:opacity-100 group-hover/title:opacity-100 hover:bg-gray-100 hover:text-gray-700"
+              @click="() => canvas.goToNode(node!)"
+            >
+              <i class="fas fa-arrow-up-right" />
+            </button>
+          </template>
+        </NodeReference>
         <!-- Beginning -->
         <div v-if="node" class="mt-1.5 px-0.5 text-base text-gray-400">
           <span>
             This is the beginning of this
-            {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???"
-            }}<span v-if="isNode(node, NodeType.THREAD) && channel != null">
-              in #{{ (channel as ChannelData)?.name ?? "???" }}</span
-            >.
+            {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???" }}.
           </span>
         </div>
       </template>

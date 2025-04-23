@@ -3,7 +3,7 @@ import { NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import InlineHeader from "@/views/builtin/InlineHeader.vue";
+import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";
 import { FocusAnchor, NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, ref, toRef } from "vue";
 
@@ -25,7 +25,7 @@ const preparedConnection = props.preparedConnection ?? useAutoConnection(choiceP
 const { graph, connection } = preparedConnection;
 const choice = graph.getRef(choicePtr);
 
-const headerRef = ref<InstanceType<typeof InlineHeader> | null>(null);
+const headerRef = ref<InstanceType<typeof InlinePageHeader> | null>(null);
 
 function focus(anchor: FocusAnchor | NodeReferenceData = "bottom") {
   headerRef.value?.focus?.(anchor ?? "top");
@@ -35,7 +35,7 @@ defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
   <div>
-    <InlineHeader
+    <InlinePageHeader
       ref="headerRef"
       :self="self"
       :node="choice"

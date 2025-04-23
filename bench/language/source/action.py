@@ -87,7 +87,8 @@ class Action(
     PackageNode[ActionData],
 ):
     """
-    A unit of work to do, usually expressed with Code, some Flow or some other tool.
+    An implementation of a unit of work, usually expressed with Code or some tool.
+    May defer to a builtin or some other service in a separate system.
     """
 
     parent: Union["Flow", "Kit", None] = p_node_parent(4, NodeType.FLOW, NodeType.KIT)
