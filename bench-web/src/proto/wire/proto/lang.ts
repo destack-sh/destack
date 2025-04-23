@@ -5109,7 +5109,7 @@ export interface RunData {
      */
     rootPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData thread_ptr = 38;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData thread_ptr = 38;
      */
     threadPtr?: NodeReferenceData;
     /**
@@ -6250,10 +6250,6 @@ export interface FlowData {
      * @generated from protobuf field: optional symbolx.bench.TextData text = 41;
      */
     text?: TextData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData default_agent_ptr = 50;
-     */
-    defaultAgentPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional int32 max_attempts = 70;
      */
@@ -25326,7 +25322,7 @@ class RunData$Type extends MessageType$<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData root_ptr */ 33:
                     message.rootPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.rootPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData thread_ptr */ 38:
+                case /* optional symbolx.bench.NodeReferenceData thread_ptr */ 38:
                     message.threadPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.threadPtr);
                     break;
                 case /* optional google.protobuf.Value inputs_packed */ 61:
@@ -25476,7 +25472,7 @@ class RunData$Type extends MessageType$<RunData> {
         /* optional symbolx.bench.NodeReferenceData root_ptr = 33; */
         if (message.rootPtr)
             NodeReferenceData.internalBinaryWrite(message.rootPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData thread_ptr = 38; */
+        /* optional symbolx.bench.NodeReferenceData thread_ptr = 38; */
         if (message.threadPtr)
             NodeReferenceData.internalBinaryWrite(message.threadPtr, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Value inputs_packed = 61; */
@@ -27563,7 +27559,6 @@ class FlowData$Type extends MessageType$<FlowData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 41, name: "text", kind: "message", T: () => TextData },
-            { no: 50, name: "default_agent_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 71, name: "retry_interval", kind: "message", T: () => Duration },
             { no: 72, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -27652,9 +27647,6 @@ class FlowData$Type extends MessageType$<FlowData> {
                     break;
                 case /* optional symbolx.bench.TextData text */ 41:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData default_agent_ptr */ 50:
-                    message.defaultAgentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.defaultAgentPtr);
                     break;
                 case /* optional int32 max_attempts */ 70:
                     message.maxAttempts = reader.int32();
@@ -27752,9 +27744,6 @@ class FlowData$Type extends MessageType$<FlowData> {
         /* optional symbolx.bench.TextData text = 41; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData default_agent_ptr = 50; */
-        if (message.defaultAgentPtr)
-            NodeReferenceData.internalBinaryWrite(message.defaultAgentPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         /* optional int32 max_attempts = 70; */
         if (message.maxAttempts !== undefined)
             writer.tag(70, WireType.Varint).int32(message.maxAttempts);
@@ -32584,7 +32573,6 @@ export enum FlowProperty {
   icon = 34,
   definitionPtr = 35,
   text = 41,
-  defaultAgentPtr = 50,
   maxAttempts = 70,
   retryInterval = 71,
   backoff = 72,
@@ -34864,7 +34852,6 @@ export const FlowDataInfo: Record<FlowProperty, PropertyInfo> = {
   [FlowProperty.icon]: { id: 34, name: 'icon', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [FlowProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.text]: { id: 41, name: 'text', component: ObjectType.FLOW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [FlowProperty.defaultAgentPtr]: { id: 50, name: 'default_agent_ptr', component: ObjectType.FLOW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [FlowProperty.maxAttempts]: { id: 70, name: 'max_attempts', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.retryInterval]: { id: 71, name: 'retry_interval', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isRuntime: true, isWired: true, isStored: true },
   [FlowProperty.backoff]: { id: 72, name: 'backoff', component: ObjectType.FLOW, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1, nodeTypes: [], nodeSubtypes: [] }, isRuntime: true, isWired: true, isStored: true },
@@ -35319,7 +35306,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.type]: { id: 30, name: 'type', component: ObjectType.RUN, enumType: EnumType.RUN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [RunProperty.rootPtr]: { id: 33, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.threadPtr]: { id: 38, name: 'thread_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.threadPtr]: { id: 38, name: 'thread_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.inputsPacked]: { id: 61, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.outputsPacked]: { id: 62, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunProperty.text]: { id: 65, name: 'text', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },

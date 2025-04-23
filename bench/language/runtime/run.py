@@ -75,9 +75,9 @@ class Run(
     root: "Run | None" = p_node_ancestor(
         33, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
-    thread: "Thread" = p_internal(
+    thread: Optional["Thread"] = p_internal(
         38,
-        require=True,
+        require=False,
         array=False,
         references=NodeType.THREAD,
         same_bench=True,

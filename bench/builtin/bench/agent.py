@@ -27,6 +27,5 @@ You SHOULD NOT try to have the last word (e.g., just shut up instead of saying y
     ),
 )
 
-# nocheckin: builtin nodes don't seem to delete properly? also icons don't update?
 AgentPage = Page.new("Agent")
 AgentPage.extend(BenchAgent)
