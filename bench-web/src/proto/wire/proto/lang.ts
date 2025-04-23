@@ -12515,7 +12515,11 @@ export enum ModelDeveloper {
     /**
      * @generated from protobuf enum value: MODEL_DEVELOPER_DEEPSEEK = 1050;
      */
-    DEEPSEEK = 1050
+    DEEPSEEK = 1050,
+    /**
+     * @generated from protobuf enum value: MODEL_DEVELOPER_XAI = 1060;
+     */
+    XAI = 1060
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelProvider
@@ -12526,21 +12530,25 @@ export enum ModelProvider {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 1000;
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENROUTER = 1000;
      */
-    OPENAI = 1000,
+    OPENROUTER = 1000,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 1010;
+     * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 1010;
      */
-    ANTHROPIC = 1010,
+    OPENAI = 1010,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 1020;
+     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 1020;
      */
-    GOOGLE = 1020,
+    ANTHROPIC = 1020,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_OPENROUTER = 1030;
+     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 1030;
      */
-    OPENROUTER = 1030
+    GOOGLE = 1030,
+    /**
+     * @generated from protobuf enum value: MODEL_PROVIDER_XAI = 1040;
+     */
+    XAI = 1040
 }
 /**
  * The (implicit) 'type' of Code.
@@ -36654,13 +36662,15 @@ export const ModelDeveloperOptionInfo: Partial<Record<ModelDeveloper, EnumOption
   [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED, icon: 'fab fa-google' },
   [ModelDeveloper.MICROSOFT]: { id: 1040, name: 'MICROSOFT', text: 'Microsoft', title: 'Microsoft', color: ColorType.BLUE, icon: 'fab fa-microsoft' },
   [ModelDeveloper.DEEPSEEK]: { id: 1050, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek', color: ColorType.GRAY, icon: 'fas fa-whale' },
+  [ModelDeveloper.XAI]: { id: 1060, name: 'XAI', text: 'XAI', title: 'XAI', color: ColorType.GRAY, icon: 'fas fa-x' },
 }
 
 export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionInfo>> = {
-  [ModelProvider.OPENAI]: { id: 1000, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI' },
-  [ModelProvider.ANTHROPIC]: { id: 1010, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic' },
-  [ModelProvider.GOOGLE]: { id: 1020, name: 'GOOGLE', text: 'Google', title: 'Google' },
-  [ModelProvider.OPENROUTER]: { id: 1030, name: 'OPENROUTER', text: 'OpenRouter', title: 'OpenRouter' },
+  [ModelProvider.OPENROUTER]: { id: 1000, name: 'OPENROUTER', text: 'OpenRouter', title: 'OpenRouter' },
+  [ModelProvider.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI' },
+  [ModelProvider.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic' },
+  [ModelProvider.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google' },
+  [ModelProvider.XAI]: { id: 1040, name: 'XAI', text: 'XAI', title: 'XAI' },
 }
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {

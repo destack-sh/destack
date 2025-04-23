@@ -111,8 +111,8 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             return AnthropicChatModelRunner, "claude-3-7-sonnet-20250219"
         elif model_provider == ModelProvider.GOOGLE:
             return GoogleChatModelRunner, "gemini-2.5-flash-preview-04-17"
-        elif model_provider == ModelProvider.OPENROUTER:
-            return OpenRouterChatModelRunner, "openrouter/quasar-alpha"
+        elif model_provider == ModelProvider.XAI:
+            return OpenRouterChatModelRunner, "x-ai/grok-3-beta"
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
 

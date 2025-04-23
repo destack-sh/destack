@@ -22,6 +22,7 @@ class ModelDeveloper(BuiltinEnum):
     GOOGLE = 1030, "Google", "Google", "fab fa-google", ColorType.RED
     MICROSOFT = 1040, "Microsoft", "Microsoft", "fab fa-microsoft", ColorType.BLUE
     DEEPSEEK = 1050, "DeepSeek", "DeepSeek", "fas fa-whale", ColorType.GRAY
+    XAI = 1060, "XAI", "XAI", "fas fa-x", ColorType.GRAY
 
 
 @enum_(EnumType.MODEL_PROVIDER)
@@ -29,7 +30,8 @@ class ModelProvider(BuiltinEnum):
     # internal
     # ...
     # external
-    OPENAI = 1000, "OpenAI", "OpenAI"
-    ANTHROPIC = 1010, "Anthropic", "Anthropic"
-    GOOGLE = 1020, "Google", "Google"
-    OPENROUTER = 1030, "OpenRouter", "OpenRouter"
+    OPENROUTER = 1000, "OpenRouter", "OpenRouter"
+    OPENAI = 1010, "OpenAI", "OpenAI"
+    ANTHROPIC = 1020, "Anthropic", "Anthropic"
+    GOOGLE = 1030, "Google", "Google"
+    XAI = 1040, "XAI", "XAI"
