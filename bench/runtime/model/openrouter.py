@@ -64,8 +64,8 @@ class OpenRouterChatModelRunner(ChatModelRunner):
         async for chunk in completion:
             if chunk.choices and chunk.choices[0].delta.content:
                 chunk_content = chunk.choices[0].delta.content
-                code_runner.add(chunk_content)
+                code_runner.add_and_execute(chunk_content)
         if LOG_PROMPTS:
             log_completion(code_runner.code)
-        code_runner.complete()
+        code_runner.complete_and_execute()
         self.code = Code.from_string(code_runner.code or "pass", language="python")

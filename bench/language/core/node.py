@@ -1484,7 +1484,7 @@ class PageNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
     icon: Optional["Icon"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.ICON
     )
-    definition: "Block | None" = p_regular(
+    definition: "Block | None" = p_internal(
         35,
         require=False,
         array=False,

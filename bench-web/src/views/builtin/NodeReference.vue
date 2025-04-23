@@ -242,7 +242,9 @@ defineExpose({
     </template>
     <!-- Node not found (full ptr in dev mode) -->
     <template v-else-if="IS_DEVELOPER_MODE">
-      <span class="text-gray-400">{{ toCamelName(NodeType, nodePtr?.nodeType) }} [{{ nodePtr?.id }}]</span>
+      <span class="text-gray-400"
+        >{{ nodePtr?.nodeType != null ? toCamelName(NodeType, nodePtr?.nodeType) : "Node" }} [{{ nodePtr?.id }}]</span
+      >
     </template>
     <!-- Node not found (generic not found for regular users) -->
     <template v-else>
