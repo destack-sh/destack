@@ -31,7 +31,9 @@ tracer = trace.get_tracer(__name__)
 class ComputerService(ServiceBase, ComputerBase):
     kind = ServiceKind.INTERNAL
 
-    def __init__(self, id: str, network: Network, oracle: Oracle, computer_id: UUID, display: str):
+    def __init__(
+        self, id: str, network: Network, oracle: Oracle, computer_id: UUID, display: str | None
+    ):
         super().__init__(id=id, logger=logger, tracer=tracer, network=network, oracle=oracle)
         self.computer_id = computer_id
         self.display = display
@@ -41,11 +43,14 @@ class ComputerService(ServiceBase, ComputerBase):
         """Execute a shell command and return stdout, stderr, and return code"""
         try:
             logger.trace("computer.shell.start", cmd=cmd)
+            env = {**os.environ}
+            if self.display:
+                env["DISPLAY"] = f":{self.display}"
             proc = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                env={**os.environ, "DISPLAY": f":{self.display}"},
+                env=env,
             )
             stdout, stderr = await proc.communicate()
             stdout = stdout.decode()
@@ -89,6 +94,10 @@ class ComputerService(ServiceBase, ComputerBase):
         except Exception as e:
             self.logger.error("computer.exec.error", program=program, args=args, exc_info=e)
             raise
+
+    #
+    # Desktop
+    #
 
     async def screenshot(self, request: ScreenshotRequest, headers: Mapping) -> ScreenshotResponse:
         """Take a screenshot of the current screen"""
@@ -144,6 +153,10 @@ class ComputerService(ServiceBase, ComputerBase):
             clicks = abs(request.scroll_x)
             await self._execute_cmd("xdotool", "click", "--repeat", str(clicks), direction)
         return Empty()
+
+    #
+    # Terminal
+    #
 
     async def shell(self, request: ShellCommandRequest, headers: Mapping) -> ShellCommandResponse:
         """Execute a shell command and return its output"""

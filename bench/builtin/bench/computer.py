@@ -10,8 +10,20 @@ if TYPE_CHECKING:
 # ruff: noqa: N802,N803
 
 
-class IComputer(ABC):
-    """A Computer to control."""
+class IComputerTerminal(ABC):
+    """A Computer terminal to control."""
+
+    @abstractmethod
+    async def Shell(self, Self: "Computer", Command: str) -> None:
+        """
+        Execute a shell command
+        ICON: fas fa-terminal
+        """
+        pass
+
+
+class IComputerDesktop(ABC):
+    """A Computer desktop to control."""
 
     @abstractmethod
     async def Screenshot(self, Self: "Computer") -> Annotated[Mapping[str, File], {"Image": File}]:
@@ -69,17 +81,22 @@ class IComputer(ABC):
         """
         pass
 
-    @abstractmethod
-    async def Shell(self, Self: "Computer", Command: str) -> None:
-        """
-        Execute a shell command
-        ICON: fas fa-terminal
-        """
-        pass
 
-
-ComputerKit = class_to_kit(IComputer, "Computer Kit", icon=NodeType.COMPUTER.icon)
-UbuntuComputerTemplate = Computer(
-    name="Ubuntu Computer", type=ComputerType.UBUNTU, mode=NodeMode.TEMPLATE
+ComputerTerminalKit = class_to_kit(
+    IComputerTerminal, "Computer Terminal Kit", icon=NodeType.COMPUTER.icon
 )
-ComputerPage = Page.new("Computer", UbuntuComputerTemplate, ComputerKit)
+ComputerDesktopKit = class_to_kit(
+    IComputerDesktop, "Computer Desktop Kit", icon=NodeType.COMPUTER.icon
+)
+UbuntuComputerTemplate = Computer(
+    name="Ubuntu Desktop", type=ComputerType.UBUNTU, mode=NodeMode.TEMPLATE
+)
+UbuntuHeadlessComputerTemplate = Computer(
+    name="Ubuntu Terminal",
+    type=ComputerType.UBUNTU,
+    mode=NodeMode.TEMPLATE,
+    is_headless=True,
+)
+ComputerPage = Page.new(
+    "Computer", UbuntuComputerTemplate, UbuntuHeadlessComputerTemplate, ComputerTerminalKit
+)

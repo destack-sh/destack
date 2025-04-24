@@ -67,4 +67,4 @@ ENV VERSION=$VERSION
 EXPOSE 5432
 EXPOSE 80
 
-CMD ["/start.sh"]
+CMD ["/start.sh"] 

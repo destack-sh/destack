@@ -2439,6 +2439,10 @@ export interface ComputerData {
      */
     externalId?: string;
     /**
+     * @generated from protobuf field: optional string image_id = 64;
+     */
+    imageId?: string;
+    /**
      * @generated from protobuf field: optional string grpc_url = 65;
      */
     grpcUrl?: string;
@@ -2466,6 +2470,10 @@ export interface ComputerData {
      * @generated from protobuf field: int32 height = 76;
      */
     height: number;
+    /**
+     * @generated from protobuf field: bool is_headless = 77;
+     */
+    isHeadless: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.ScalerData
@@ -11132,10 +11140,6 @@ export enum BlockType {
      */
     AGENT = 5640,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_PLAN = 6100;
-     */
-    PLAN = 6100,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_TASK = 6110;
      */
     TASK = 6110,
@@ -19630,13 +19634,15 @@ class ComputerData$Type extends MessageType$<ComputerData> {
             { no: 60, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 64, name: "image_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 65, name: "grpc_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 66, name: "vnc_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 69, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 70, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 71, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 75, name: "width", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 76, name: "height", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
+            { no: 76, name: "height", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 77, name: "is_headless", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ComputerData>): ComputerData {
@@ -19654,6 +19660,7 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         message.ram = 0;
         message.width = 0;
         message.height = 0;
+        message.isHeadless = false;
         if (value !== undefined)
             reflectionMergePartial<ComputerData>(this, message, value);
         return message;
@@ -19771,6 +19778,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                 case /* optional string external_id */ 63:
                     message.externalId = reader.string();
                     break;
+                case /* optional string image_id */ 64:
+                    message.imageId = reader.string();
+                    break;
                 case /* optional string grpc_url */ 65:
                     message.grpcUrl = reader.string();
                     break;
@@ -19791,6 +19801,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
                     break;
                 case /* int32 height */ 76:
                     message.height = reader.int32();
+                    break;
+                case /* bool is_headless */ 77:
+                    message.isHeadless = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -19912,6 +19925,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* optional string external_id = 63; */
         if (message.externalId !== undefined)
             writer.tag(63, WireType.LengthDelimited).string(message.externalId);
+        /* optional string image_id = 64; */
+        if (message.imageId !== undefined)
+            writer.tag(64, WireType.LengthDelimited).string(message.imageId);
         /* optional string grpc_url = 65; */
         if (message.grpcUrl !== undefined)
             writer.tag(65, WireType.LengthDelimited).string(message.grpcUrl);
@@ -19933,6 +19949,9 @@ class ComputerData$Type extends MessageType$<ComputerData> {
         /* int32 height = 76; */
         if (message.height !== 0)
             writer.tag(76, WireType.Varint).int32(message.height);
+        /* bool is_headless = 77; */
+        if (message.isHeadless !== false)
+            writer.tag(77, WireType.Varint).bool(message.isHeadless);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -32192,6 +32211,7 @@ export enum ComputerProperty {
   version = 60,
   externalName = 62,
   externalId = 63,
+  imageId = 64,
   grpcUrl = 65,
   vncUrl = 66,
   clientPtr = 69,
@@ -32199,6 +32219,7 @@ export enum ComputerProperty {
   ram = 71,
   width = 75,
   height = 76,
+  isHeadless = 77,
 }
 
 export enum FileProperty {
@@ -34442,7 +34463,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -34481,9 +34502,10 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.grpcUrl]: { id: 65, name: 'grpc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.vncUrl]: { id: 66, name: 'vnc_url', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.clientPtr]: { id: 69, name: 'client_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
@@ -34491,6 +34513,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.ram]: { id: 71, name: 'ram', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, default: 1.0, constraint: { minValue: 0.1, maxValue: 256.0, stepValue: 0.1, nodeTypes: [], nodeSubtypes: [] }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.width]: { id: 75, name: 'width', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 1280, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.height]: { id: 76, name: 'height', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 960, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.isHeadless]: { id: 77, name: 'is_headless', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -36502,7 +36525,6 @@ export const BlockTypeOptionInfo: Partial<Record<BlockType, EnumOptionInfo>> = {
   [BlockType.KIT]: { id: 5060, name: 'KIT', text: 'Kit of stuff', title: 'Kit', icon: 'fas fa-screwdriver-wrench' },
   [BlockType.DATABASE]: { id: 5090, name: 'DATABASE', text: 'Database of Records', title: 'Database', icon: 'fas fa-database' },
   [BlockType.AGENT]: { id: 5640, name: 'AGENT', text: 'Identity for an AI', title: 'Agent', icon: 'fas fa-robot' },
-  [BlockType.PLAN]: { id: 6100, name: 'PLAN', text: 'Plan with Tasks', title: 'Plan', icon: 'fas fa-list-check' },
   [BlockType.TASK]: { id: 6110, name: 'TASK', text: 'Task', title: 'Task', icon: 'far fa-square-check' },
   [BlockType.THREAD]: { id: 5510, name: 'THREAD', text: 'Thread', title: 'Thread', icon: 'fas fa-reel' },
   [BlockType.PARAGRAPH]: { id: 10001, name: 'PARAGRAPH', text: 'Plain paragraph', title: 'Paragraph', icon: 'fas fa-align-left' },

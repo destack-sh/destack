@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.23.1"
+VERSION = "2025.04.24.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -380,6 +380,7 @@ COMPUTER_TABLE = Table(
         Column("version", PrimitiveType.STRING),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
+        Column("image_id", PrimitiveType.STRING, is_nullable=True),
         Column("grpc_url", PrimitiveType.STRING, is_nullable=True),
         Column("vnc_url", PrimitiveType.STRING, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
@@ -387,6 +388,7 @@ COMPUTER_TABLE = Table(
         Column("ram", PrimitiveType.FLOAT32),
         Column("width", PrimitiveType.INT32),
         Column("height", PrimitiveType.INT32),
+        Column("is_headless", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

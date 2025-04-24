@@ -1,0 +1,105 @@
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
+LABEL org.opencontainers.image.description="Bench Headless"
+
+#
+# OS
+#
+
+# install libraries (only essential ones, removed GUI packages)
+RUN apt-get update && apt-get install -y \
+    cmake \
+    curl \
+    g++ \
+    gcc \
+    gfortran \
+    git \
+    liblapack-dev \
+    libopenblas-dev \
+    libpq-dev \
+    libxml2-dev \
+    libxslt-dev \
+    libzbar-dev \
+    netcat-openbsd \
+    pkg-config \
+    postgresql-client \
+    software-properties-common \
+    sudo \
+    unzip \
+    wget && \
+    curl -fsSL https://get.docker.com -o /tmp/get-docker.sh && \
+    chmod 700 /tmp/get-docker.sh && \
+    /tmp/get-docker.sh
+
+# install Python 3.13
+RUN add-apt-repository ppa:deadsnakes/ppa \
+ && apt-get update \
+ && apt-get install -y python3.13 python3.13-dev \
+ && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.13 
+
+# cleanup
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# install uv globally
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && mv /root/.local/bin/uv /usr/local/bin/ && rm /uv-installer.sh
+ENV PATH="/usr/local/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+#
+# Users
+#
+
+RUN useradd -ms /bin/bash bench-system && \
+    useradd -ms /bin/bash bench-user && \
+    echo "bench-user ALL=(root) NOPASSWD: /usr/bin/apt-get install *, /usr/bin/apt-get update" >> /etc/sudoers
+RUN chown -R bench-system:bench-system /home/bench-system
+RUN chown -R bench-user:bench-user /home/bench-user
+
+#
+# Python packages (installed system-wide by privileged user)
+#
+
+COPY --chown=bench-system:bench-system bench/requirements/computer.txt bench/requirements.txt
+RUN uv pip install --system --python python3.13 --no-cache -r bench/requirements.txt
+
+#
+# Bench
+#
+
+# copy source code (privileged only)
+COPY --chown=bench-system:bench-system bench.py /home/bench-system/
+COPY --chown=bench-system:bench-system pyproject.toml /home/bench-system/
+COPY --chown=bench-system:bench-system version /home/bench-system/
+COPY --chown=bench-system:bench-system bench/ /home/bench-system/bench/
+# prune unnecessary files
+RUN rm -rf /home/bench-system/bench/system /home/bench-system/bench/test /home/bench-system/bench/runtime
+RUN find /home/bench-system/bench/ -type f -name 'test_*.py' -delete
+RUN chmod -R 700 /home/bench-system
+
+#
+# Startup
+#
+
+# startup script (simplified for headless operation)
+RUN cat <<'EOF' > /start.sh
+#!/bin/sh
+# system
+su bench-system -s /bin/bash -m -c "python3.13 /home/bench-system/bench.py serve computer 0.0.0.0 5432"
+EOF
+RUN chmod +x /start.sh
+
+# (start as root, but we switch to users in start script)
+USER root 
+WORKDIR /home/bench-system
+
+CMD ["/start.sh"]
+
+ARG GIT_COMMIT
+ARG VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION
+
+EXPOSE 5432 

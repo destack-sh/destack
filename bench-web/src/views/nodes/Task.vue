@@ -109,7 +109,7 @@ defineExpose<ViewExpose>({ self, id, focus });
       />
       <!-- Metadata -->
       <!-- Owner -->
-      <button
+      <!-- <button
         class="inline-flex flex-row items-center gap-x-1.5 rounded-sm bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         :class="[
           hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
@@ -142,9 +142,9 @@ defineExpose<ViewExpose>({ self, id, focus });
         <i v-if="!task.ownedByPtr" class="fas fa-user" :class="task.ownedByPtr ? 'text-gray-700' : 'text-gray-400'" />
         <NodeReference v-if="task.ownedByPtr" :node-ptr="task.ownedByPtr" size="sm" />
         <span v-else class="text-gray-400">owner</span>
-      </button>
+      </button> -->
       <!-- Due -->
-      <button
+      <!-- <button
         class="inline-flex flex-row items-center gap-x-1.5 rounded-sm bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         :class="[
           hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
@@ -174,7 +174,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         <i class="fas fa-calendar-days" :class="task.dueAt ? 'text-gray-700' : 'text-gray-400'" />
         <Datetime v-if="task.dueAt" id="datetime" :model-value="task.dueAt" is-minimal />
         <span v-else class="text-gray-400">due</span>
-      </button>
+      </button> -->
       <!-- Triggers -->
       <!-- ... -->
     </div>
