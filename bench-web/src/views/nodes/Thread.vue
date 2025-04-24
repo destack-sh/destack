@@ -81,7 +81,7 @@ const alignment = computed(() => props.alignment ?? Alignment.END);
 
 // state
 const nodePtr = toRef(props, "nodePtr");
-const { node, connection, graph } = supergraph.getLinkRef(nodePtr);
+const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
 
 //
 // Messages
