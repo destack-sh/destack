@@ -94,9 +94,6 @@ function createActionPopover(e: MouseEvent) {
     offset: "referenceWidth",
     props: {
       valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-      subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-        variant: PickerVariant.DROPDOWN_LARGE,
-      }),
     },
     onApply: (value) => {
       createAction({ type: value });

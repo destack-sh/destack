@@ -14,7 +14,7 @@ import {
   PortSide,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
@@ -60,7 +60,6 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
 
 // view
 const containerRef = ref<HTMLElement | null>(null);
@@ -82,8 +81,6 @@ const flowCtx = new FlowContext({
   spaceTx: () => canvas.tx().with({ category: ChangeCategory.SPACE }),
   graph: graph,
   tx: () => connection.tx,
-  update: state.update,
-  view: state.baseViewRef,
   transform: toRef(props, "transform"),
   containerRef: bodyRef,
   actionRefs: actionRefs,
@@ -94,7 +91,10 @@ const flow = flowCtx.flow;
 const actions = flowCtx.actions;
 const transitions = flowCtx.transitions;
 const fields = flowCtx.fields;
-const actionsAndTransitions: Ref<(ActionData | TransitionData)[]> = computed(() => [...actions.value, ...transitions.value]);
+const actionsAndTransitions: Ref<(ActionData | TransitionData)[]> = computed(() => [
+  ...actions.value,
+  ...transitions.value,
+]);
 
 const viewport = flowCtx.viewport;
 
@@ -178,7 +178,6 @@ const implementedActions: Partial<CommandMapKit<"flow" | "space" | "runtime">> =
         title: "Add Action",
         props: {
           valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
         },
         onApply: (value) => {
           flowCtx.createAction({ parent: flow.value!, action: { type: value } });
@@ -200,7 +199,6 @@ const implementedActions: Partial<CommandMapKit<"flow" | "space" | "runtime">> =
         title: "Add Action",
         props: {
           valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
         },
         onApply: (value) => {
           const tx = flowCtx.tx.with({ change: { key: newChangeId(), title: "Split Transition" } });
@@ -266,7 +264,10 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
       return actionRefs.value[anchor.id!].$el;
     } else if (transitionRefs.value[anchor.id!] != null) {
       const transitionState = flowCtx.transitionsStates.value[anchor.id!];
-      if (transitionState.transition.value != null && !flowCtx.isInViewport({ kind: "transition", transition: transitionState.transition.value })) {
+      if (
+        transitionState.transition.value != null &&
+        !flowCtx.isInViewport({ kind: "transition", transition: transitionState.transition.value })
+      ) {
         flowCtx.panToCenter({ kind: "transition", transition: transitionState.transition.value! });
       }
       return transitionRefs.value[anchor.id!].$el;
@@ -327,9 +328,6 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
                 offset: 'referenceWidth',
                 props: {
                   valueType: makeType({ kind: TypeKind.ENUM, benchType: BenchType.ACTION_TYPE }),
-                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-                    variant: PickerVariant.DROPDOWN_LARGE,
-                  }),
                 },
                 onApply: (value) => {
                   flowCtx.createAction({ parent: flow!, action: { type: value } });
@@ -481,7 +479,9 @@ defineExpose<ViewExpose>({ self, id, commands: implementedActions, focus });
           <Transition
             v-for="transition in transitions"
             :id="transition.id"
-            :ref="(ref: any) => (ref != null ? (transitionRefs[transition.id] = ref) : delete transitionRefs[transition.id])"
+            :ref="
+              (ref: any) => (ref != null ? (transitionRefs[transition.id] = ref) : delete transitionRefs[transition.id])
+            "
             :key="transition.id"
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeRef(transition)"

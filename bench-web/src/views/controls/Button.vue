@@ -5,18 +5,15 @@ import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
-import { useSubnodeProperty } from "@/language/core/node";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "isDisabled" | "isLoading" | "subnodePacked">
+  { self?: TypedNodeReferenceData<NodeType.VIEW>; id: string; variant?: ButtonVariant } & Partial<
+    Pick<ViewData, "name" | "title" | "icon" | "isDisabled" | "isLoading">
   >
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const subnodePacked = toRef(props, "subnodePacked");
-const variant = useSubnodeProperty(NodeType.VIEW, ViewType.BUTTON, subnodePacked, "variant");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const classByVariant: Ref<Partial<Record<ButtonVariant, string[]>>> = computed(() => ({
@@ -58,6 +55,6 @@ defineExpose<ViewExpose>({ self, id, focus: () => buttonRef.value });
       :shade="ColorShade.S900"
       :class="title ? 'mr-1.5' : ''"
     />
-    <span v-if="title" class="select-none font-semibold">{{ title }}</span>
+    <span v-if="title" class="font-semibold select-none">{{ title }}</span>
   </button>
 </template>

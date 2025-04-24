@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { isNodeType, toCamelName } from "@/language/core/const";
-import { useSubnodeProperty } from "@/language/core/node";
 import { getConstrainedTypeName } from "@/language/core/type";
 import {
   ColorShade,
@@ -47,19 +46,14 @@ const props = defineProps<
     placeholder?: string;
     isPopover?: boolean;
     index?: SearchIndex<any>;
+    variant?: PickerVariant;
   } & Partial<
-    Pick<
-      ViewData,
-      "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled" | "isMinimal" | "subnodePacked"
-    >
+    Pick<ViewData, "name" | "title" | "icon" | "valueType" | "isInput" | "isInline" | "isDisabled" | "isMinimal">
   >
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
-const subnodePacked = toRef(props, "subnodePacked");
-const variant = useSubnodeProperty(NodeType.VIEW, ViewType.PICKER, subnodePacked, "variant");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const query: Ref<string> = ref("");
@@ -377,7 +371,7 @@ defineExpose<ViewExpose>({
         <button
           v-for="(v, i) in currentItems"
           :key="i"
-          class="mr-2 flex flex-row cursor-pointer items-center rounded-sm bg-gray-100 px-1"
+          class="mr-2 flex cursor-pointer flex-row items-center rounded-sm bg-gray-100 px-1"
         >
           <NodeReference v-if="v.metatype == 'node'" size="sm" is-light :node="v.node!" />
           <template v-else>

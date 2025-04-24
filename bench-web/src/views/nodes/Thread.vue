@@ -1,10 +1,8 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { toCamelName } from "@/language/core/const";
 import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
-import { isProcessableNode } from "@/language/core/const";
+import { isProcessableNode, toCamelName } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
-import { useSubnodeProperty } from "@/language/core/node";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { newChangeId } from "@/language/core/transaction";
 import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
@@ -17,7 +15,6 @@ import {
   ColorType,
   ExpressionData,
   ExpressionType,
-  FileData,
   IconData,
   MessageData,
   MessageProperty,
@@ -30,8 +27,7 @@ import {
   TextData,
   ThreadData,
   Timestamp,
-  ViewData,
-  ViewType,
+  ViewData
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
@@ -43,8 +39,8 @@ import { startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/
 import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
-import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
+import NodeReference from "@/views/builtin/NodeReference.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
 import Run from "@/views/builtin/Run.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -55,7 +51,6 @@ import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
-import NodeReference from "@/views/builtin/NodeReference.vue";
 
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
@@ -71,7 +66,9 @@ const props = defineProps<
     id: string;
     isRoot?: boolean;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
-  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "alignment" | "subnodePacked">>
+  } & Partial<
+    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "alignment" | "isMinimal" | "subnodePacked">
+  >
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
@@ -307,9 +304,9 @@ const replyTo = computed(() => {
 });
 
 // draft
-const draftText = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftText");
-const draftNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftNodesPtr");
-const draftReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftReplyToPtr");
+const draftText: Ref<TextData | null> = ref(null);
+const draftNodesPtr: Ref<NodeReferenceData[]> = ref([]);
+const draftReplyTo: Ref<NodeReferenceData | null> = ref(null);
 const draftNodes = supergraph.getManyRef(draftNodesPtr);
 
 //
@@ -387,7 +384,7 @@ function submitEdit() {
 
 function submit() {
   const text = trimText(draftText.value ?? emptyText());
-  if (isTextEmpty(text) && draftNodesPtr?.value.length == 0) return; // don't create empty messages
+  if (isTextEmpty(text) && draftNodesPtr?.value?.length == 0) return; // don't create empty messages
   if (benchPtr.value == null) throw new Error("no bench");
   if (space.value == null) throw new Error("no space");
   if (currentAuthor.value == null) throw new Error("no current author");
@@ -419,7 +416,7 @@ function submit() {
       benchPtr: benchPtr.value,
       packagePtr: packagePtr.value!,
       threadPtr: toNodeRef(thread),
-      replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
+      replyToPtr: replyTo.value != null ? (draftReplyTo.value ?? undefined) : undefined,
       nodesPtr: draftNodesPtr.value,
       text,
     },
@@ -432,49 +429,31 @@ function submit() {
 }
 
 function clearDraft() {
-  state.update(
-    {
-      metatype: NodeType.VIEW,
-      type: ViewType.THREAD,
-      subnode: { draftText: undefined, draftNodesPtr: [], draftReplyToPtr: undefined },
-    },
-    { debounce: "tick" },
-  );
+  draftText.value = null;
+  draftNodesPtr.value = [];
+  draftReplyTo.value = null;
 }
 
 function startReplying(message: MessageData) {
-  state.update(
-    { metatype: NodeType.VIEW, type: ViewType.THREAD, subnode: { draftReplyToPtr: toNodeRef(message) } },
-    { debounce: "tick" },
-  );
+  draftReplyTo.value = toNodeRef(message);
   nextTick(() => {
     inputRef.value?.focus?.();
   });
 }
 
 function stopReplying() {
-  state.update(
-    { metatype: NodeType.VIEW, type: ViewType.THREAD, subnode: { draftReplyToPtr: undefined } },
-    { debounce: "tick" },
-  );
+  draftReplyTo.value = null;
 }
 
 function addNodes(nodePtrs: NodeReferenceData[]) {
-  state.update({
-    metatype: NodeType.VIEW,
-    type: ViewType.THREAD,
-    subnode: {
-      draftNodesPtr: [...(draftNodesPtr.value ?? []).filter((n) => !nodePtrs.some((n2) => n2.id == n.id)), ...nodePtrs],
-    },
-  });
+  draftNodesPtr.value = [
+    ...(draftNodesPtr.value ?? []).filter((n) => !nodePtrs.some((n2) => n2.id == n.id)),
+    ...nodePtrs,
+  ];
 }
 
 function removeNodes(nodePtrs: (NodeReferenceData | AnyNodeData)[]) {
-  state.update({
-    metatype: NodeType.VIEW,
-    type: ViewType.THREAD,
-    subnode: { draftNodesPtr: draftNodesPtr.value?.filter((n) => !nodePtrs.some((n2) => n2.id == n.id)) },
-  });
+  draftNodesPtr.value = draftNodesPtr.value?.filter((n) => !nodePtrs.some((n2) => n2.id == n.id));
 }
 
 async function addFiles(files: FileList | File[]) {
@@ -645,17 +624,9 @@ defineExpose<ViewExpose>({ self, id, focus });
           </div>
         </Transition>
 
-        <!-- Empty Chat -->
-        <div
-          v-if="!isEnabled && messageViews.length == 0"
-          class=""
-          :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
-        >
-          <!-- Empty? -->
-        </div>
         <!-- Beginning of Chat -->
         <div
-          v-else-if="isAtStart"
+          v-if="isAtStart && !isMinimal"
           class="mb-2"
           :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
         >
@@ -733,7 +704,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-amber-100' : 'hover:bg-gray-50',
+              isSelected ? 'bg-amber-100' : '',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -918,7 +889,7 @@ defineExpose<ViewExpose>({ self, id, focus });
                   v-if="message.nodesPtr.length > 0"
                   class="mt-1.5 mb-2 flex flex-row flex-wrap items-start gap-x-2 gap-y-2"
                 >
-                  <template v-for="nodePtr in message.nodesPtr" :key="nodePtr.id">
+                  <template v-for="nodePtr in nodesPtr" :key="nodePtr.id">
                     <File
                       v-if="nodePtr.nodeType == NodeType.FILE"
                       :id="'file-' + nodePtr.id"
@@ -1072,13 +1043,11 @@ defineExpose<ViewExpose>({ self, id, focus });
               placeholder="Message..."
               suppress-enter
               suppress-drop
-              :model-value="draftText"
+              :model-value="draftText!"
               @update:model-value="
-                (value) =>
-                  state.update(
-                    { metatype: NodeType.VIEW, type: ViewType.THREAD, subnode: { draftText: value } },
-                    { debounce: 'long' },
-                  )
+                (value) => {
+                  draftText = value;
+                }
               "
               @keydown.enter="
                 (e: KeyboardEvent) => {

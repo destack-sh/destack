@@ -676,9 +676,6 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 offset: 'referenceWidth',
                 props: {
                   valueType: makeType({ benchType: BenchType.TYPE }),
-                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-                    variant: PickerVariant.DROPDOWN_LARGE,
-                  }),
                 },
                 onApply: (typeInfo: TypeIdentity) => {
                   createField(connection.tx, graph, { anchor: 'inside', target: database!, field: typeInfo });

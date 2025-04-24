@@ -161,7 +161,6 @@ defineExpose<ViewExpose>({ self, id, commands });
               offset: 'referenceWidth',
               props: {
                 valueType: makeType({ benchType: BenchType.TYPE }),
-                subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.DROPDOWN_LARGE }),
                 // @ts-expect-error index is only for Picker props
                 index: typeIndex({ id: 'type', graph }),
               },

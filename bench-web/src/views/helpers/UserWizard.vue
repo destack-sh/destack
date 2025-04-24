@@ -26,15 +26,13 @@ import Button from "@/views/controls/Button.vue";
 import { computed, ref, toRef, watchEffect, type Ref } from "vue";
 
 const props = defineProps<
-  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title" | "subnodePacked">
+  { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title">
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
 
-const subnode = useSubnode(NodeType.VIEW, ViewType.USER_WIZARD, toRef(props, "subnodePacked"));
-const stage = computed(() => subnode.value?.stage ?? UserWizardViewStage.LOG_IN);
+const stage = ref<UserWizardViewStage>(UserWizardViewStage.LOG_IN);
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
@@ -61,19 +59,9 @@ function clear() {
 
 function switchStage() {
   if (stage.value == UserWizardViewStage.LOG_IN) {
-    state.update({
-      metatype: NodeType.VIEW,
-      type: ViewType.USER_WIZARD,
-      title: "Sign up",
-      subnode: { stage: UserWizardViewStage.SIGN_UP },
-    });
+    stage.value = UserWizardViewStage.SIGN_UP;
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
-    state.update({
-      metatype: NodeType.VIEW,
-      type: ViewType.USER_WIZARD,
-      title: "Log in",
-      subnode: { stage: UserWizardViewStage.LOG_IN },
-    });
+    stage.value = UserWizardViewStage.LOG_IN;
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);
   }
@@ -221,7 +209,6 @@ defineExpose<ViewExpose>({ self, focus });
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
         :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up' : 'Log in'"
         class="mt-2 w-full"
-        :subnode-packed="packSubnode(NodeType.VIEW, ViewType.BUTTON, { variant: ButtonVariant.SECONDARY })"
         @click="() => switchStage()"
       />
     </div>

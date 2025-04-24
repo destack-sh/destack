@@ -94,9 +94,6 @@ function createClaimPopover(e: MouseEvent) {
         kind: TypeKind.NODE,
         constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER] }),
       }),
-      subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, {
-        variant: PickerVariant.DROPDOWN_LARGE,
-      }),
     },
     onApply: (value) => {
       createClaim({ type: ClaimType.READ, mode: NodeMode.TEMPLATE, targetTemplatePtr: value });

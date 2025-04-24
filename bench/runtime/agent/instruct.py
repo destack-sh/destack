@@ -307,9 +307,9 @@ YOU HAVE A {claim.type.name} CLAIM: "{claim.type.text}".
     # thread
     agents = [m.member for m in thread.thread.memberships if isinstance(m.member, Agent)]
     thread_text = "The Thread you're in (oldest first to newest last)"
-    if thread.thread.title is None:
+    if thread.thread.title is None or thread.thread.title.is_empty:
         thread_text += """
-You SHOULD title the Thread as soon as you can (you MAY change it later).
+You SHOULD title this Thread as soon as possible (you MAY change it later).
 Avoid non-alphanumeric characters and parantheses.
 """
     else:
