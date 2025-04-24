@@ -61,6 +61,7 @@ const CHUNK_SIZE = 80;
 const MIN_AUTOSCROLL_INTERVAL_MILLISECONDS = 500;
 const MESSAGE_GROUP_TIME_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 52;
+const MESSAGE_MAX_LINES = 60;
 const GUTTER_WIDTH = 30;
 
 const props = defineProps<
@@ -237,6 +238,7 @@ const authorsById: Ref<Record<string, AuthorInfo>> = computed(() =>
 const activeAuthors = computed(() => Object.values(authorsById.value).filter((a) => a.isActive));
 
 // messages
+const expandedMessageIds = ref<string[]>([]);
 type MessageView = {
   idx: number;
   message: MessageData;
@@ -251,6 +253,7 @@ type MessageView = {
   isEditing: boolean;
   isReplyingTo: boolean;
   isSelected: boolean;
+  isOverflowing: boolean;
 };
 const messageViews = computed(() => {
   const views: MessageView[] = [];
@@ -279,6 +282,10 @@ const messageViews = computed(() => {
     const isEditing = editingPtr.value?.id == message.id;
     const isReplyingTo = draftReplyTo.value?.id == message.id;
     const isSelected = canvas.isSelected(message);
+    const isOverflowing =
+      message.text != null &&
+      message.text.lines.length > MESSAGE_MAX_LINES &&
+      !expandedMessageIds.value.includes(message.id);
     const richMessage: MessageView = {
       idx: i,
       message,
@@ -292,6 +299,7 @@ const messageViews = computed(() => {
       isEditing,
       isReplyingTo,
       isSelected,
+      isOverflowing,
       replyTo: null, // fill later
     };
     views.push(richMessage);
@@ -690,6 +698,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             isEditing,
             isSelected,
             isReplyingTo,
+            isOverflowing,
           } in messageViews"
           v-if="node != null"
           :key="message.id"
@@ -828,16 +837,34 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 </div>
 
                 <!-- Text -->
-                <Text
+                <div
                   v-else-if="
                     !isEditing && message.type == MessageType.DEFAULT && (!isEmpty || message.nodesPtr.length == 0)
                   "
-                  :id="'text-' + message.id"
-                  placeholder="Empty message"
-                  class="-mt-[2px]"
-                  is-minimal
-                  :model-value="message.text"
-                />
+                  class="relative"
+                >
+                  <Text
+                    :id="'text-' + message.id"
+                    placeholder="Empty message"
+                    class="-mt-[2px]"
+                    :style="{
+                      overflow: isOverflowing ? 'hidden' : undefined,
+                      maxHeight: isOverflowing ? MESSAGE_MAX_LINES + 'em' : undefined,
+                    }"
+                    is-minimal
+                    :model-value="message.text"
+                  />
+                  <!-- Expand button -->
+                  <button
+                    v-if="isOverflowing"
+                    class="absolute right-0 bottom-0 left-0 z-10 mt-1.5 flex w-full cursor-pointer flex-row items-center justify-center rounded-sm border border-gray-200 bg-white transition-colors duration-75 hover:bg-gray-100"
+                    @click="expandedMessageIds.push(message.id)"
+                  >
+                    <span class="px-1.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100">
+                      <i class="fas fa-chevron-down" />
+                    </span>
+                  </button>
+                </div>
 
                 <!-- Editing content -->
                 <div v-if="isEditing" class="my-1">
