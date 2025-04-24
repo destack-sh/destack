@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Union, assert_never, cast
+from datetime import date
+from typing import NamedTuple, Union, assert_never, cast
 
 import structlog
 from opentelemetry import trace
@@ -55,6 +56,12 @@ class AgentTool:
 AgentAction = Union[AgentComplete, AgentWait, AgentContinue, AgentTool]
 
 
+class ModelRunnerInfo(NamedTuple):
+    cls: type[ChatModelRunner]
+    model_id: str
+    knowledge_cutoff: date
+
+
 class AgentRunner[N: Agent = Agent](Runner[N]):
     def __init__(
         self,
@@ -95,7 +102,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         """Call an Action."""
         self._next_action = AgentTool(run=run)
 
-    def _get_model_runner_cls(self) -> tuple[type[ChatModelRunner], str]:
+    def _get_model_runner(self) -> ModelRunnerInfo:
         """Get the ChatModelRunner class for the given model type."""
         from bench.runtime.model import (
             AnthropicChatModelRunner,
@@ -106,13 +113,29 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
         model_provider = self.node.model_provider or ModelProvider.OPENAI
         if model_provider == ModelProvider.OPENAI:
-            return OpenAIChatModelRunner, "gpt-4.1-2025-04-14"
+            return ModelRunnerInfo(
+                cls=OpenAIChatModelRunner,
+                model_id="gpt-4.1-2025-04-14",
+                knowledge_cutoff=date(2024, 6, 1),
+            )
         elif model_provider == ModelProvider.ANTHROPIC:
-            return AnthropicChatModelRunner, "claude-3-7-sonnet-20250219"
+            return ModelRunnerInfo(
+                cls=AnthropicChatModelRunner,
+                model_id="claude-3-7-sonnet-20250219",
+                knowledge_cutoff=date(2024, 10, 1),
+            )
         elif model_provider == ModelProvider.GOOGLE:
-            return GoogleChatModelRunner, "gemini-2.5-flash-preview-04-17"
+            return ModelRunnerInfo(
+                cls=GoogleChatModelRunner,
+                model_id="gemini-2.5-flash-preview-04-17",
+                knowledge_cutoff=date(2025, 1, 1),
+            )
         elif model_provider == ModelProvider.XAI:
-            return OpenRouterChatModelRunner, "x-ai/grok-3-beta"
+            return ModelRunnerInfo(
+                cls=OpenRouterChatModelRunner,
+                model_id="x-ai/grok-3-beta",
+                knowledge_cutoff=date(2025, 4, 14),
+            )
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
 
@@ -140,22 +163,25 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             agent.cursor = cursor
 
             # make prompt
+            model_runner_info = self._get_model_runner()
             prompt = make_agent_prompt(
-                agent=self.node, runner=cast(AgentRunner[Agent], self), previous_attempts=attempts
+                agent=self.node,
+                runner=cast(AgentRunner[Agent], self),
+                previous_attempts=attempts,
+                knowledge_cutoff=model_runner_info.knowledge_cutoff,
             )
             # nocheckin: fetch prompt/piece references (Files/Links?/Databases/...)
 
             # run model
             # TODO :Incomplete: bring your own models/keys (BYOK)
-            model_runner_cls, model_id = self._get_model_runner_cls()
-            model_runner = model_runner_cls(
+            model_runner = model_runner_info.cls(
                 runtime=self.runtime,
                 node=self.node,
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,
                 run=SpanType.AGENT_TURN,
-                model_id=model_id,
+                model_id=model_runner_info.model_id,
             )
             attempt = model_runner.tracked_span
             assert attempt is not None, f"{model_runner!r} has no Span"
