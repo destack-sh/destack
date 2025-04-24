@@ -16,7 +16,7 @@ const props = defineProps<
     id: string;
     size: Required<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
-  } & Pick<ViewData, "icon" | "focusPtr" | "subnodePacked">
+  } & Pick<ViewData, "icon" | "focusPtr" >
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");

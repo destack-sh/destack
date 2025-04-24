@@ -1,20 +1,18 @@
 <script lang="ts" setup>
-import { packSubnode } from "@/language/core/node";
-import { makeType } from "@/language/core/type";
 import { newChangeId } from "@/language/core/transaction";
+import { makeType } from "@/language/core/type";
 import {
   ActionData,
   AnyNodeData,
   BenchType,
   ChangeCategory,
-  TransitionData,
   NodeReferenceData,
   NodeType,
-  PickerVariant,
   PortSide,
+  TransitionData,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
@@ -28,10 +26,10 @@ import {
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP,
   FlowContext,
-  TRANSITION_WIDTH,
-  TransitionPath,
   pathToSvg,
   SELF_TRANSITION_CONNECTION_DISTANCE,
+  TRANSITION_WIDTH,
+  TransitionPath,
 } from "@/ui/flow";
 import { PopoverInfoIn } from "@/ui/popover";
 import { lengthVector2, subVector2, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";

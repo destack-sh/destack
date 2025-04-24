@@ -47,7 +47,6 @@ from bench.language import (
     STRUCT_CLASSES,
     STRUCT_TYPES,
     SUBJECT_NODE_TYPES,
-    SUBNODE_CLASSES,
     TEMPLATABLE_NODE_TYPES,
     TIMED_NODE_TYPES,
     TYPE_CONSTRAINT_BY_FORMAT,
@@ -56,7 +55,6 @@ from bench.language import (
     VERSION,
     BenchNode,
     EnumType,
-    Node,
     PageNode,
     Property,
     Resource,
@@ -386,35 +384,6 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
         node_mapping_parts.append(f"  [NodeType.{node_t.name}]: {node_cls.__name__}Data,\n")
     node_mapping_parts.append("}\n")
     node_mapping_str = "".join(node_mapping_parts)
-    # node subtype mappings (per base node)
-    subnode_mappings_parts: list[str] = []
-    for node_cls in NODE_CLASSES:
-        if not node_cls.__has_subtypes__ or not node_cls.__subclass_by_subtype__:
-            continue
-        subtype_prop = node_cls.__subtype_base_property__
-        assert subtype_prop is not None
-        subtype_enum = ENUM_CLASS_BY_TYPE[subtype_prop.enum_type]  # type: ignore
-        subnode_mapping_parts = [
-            f"export type {node_cls.__name__}Subtype = {' | '.join(cls.__name__ + 'Data' for cls in node_cls.__subclass_by_subtype__.values())};\n",
-            f"export interface {node_cls.__name__}SubtypeMapping extends Record<{subtype_enum.__name__}, {node_cls.__name__}Subtype> {{\n",
-        ]
-        for subtype, subnode_cls in node_cls.__subclass_by_subtype__.items():
-            subnode_mapping_parts.append(
-                f"  [{subtype_enum.__name__}.{subtype.name}]: {subnode_cls.__name__}Data,\n"
-            )
-        subnode_mapping_parts.append("}\n")
-        subnode_mappings_parts.append("".join(subnode_mapping_parts))
-    subnode_base_mapping_parts = [
-        "export interface NodeSubtypeMapping extends Record<NodeType, object> {\n"
-    ]
-    for node_cls in NODE_CLASSES:
-        if node_cls.__has_subtypes__ and node_cls.__subclass_by_subtype__:
-            subnode_base_mapping_parts.append(
-                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__name__}SubtypeMapping,\n"
-            )
-    subnode_base_mapping_parts.append("}\n")
-    subnode_mappings_parts.append("".join(subnode_base_mapping_parts))
-    subnode_mappings_str = "\n".join(subnode_mappings_parts)
 
     # combined node/struct mappings
     any_mapping_parts = [
@@ -436,12 +405,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
     # property enum for each class
     property_enums_parts: list[str] = []
-    for cls in chain(NODE_CLASSES, SUBNODE_CLASSES, STRUCT_CLASSES):
+    for cls in chain(NODE_CLASSES, STRUCT_CLASSES):
         props_strs: list[str] = []
-        if issubclass(cls, Node) and cls.__subtype__:
-            properties = [p for p in cls.__subtype_extra_properties__.values() if p.is_wired]
-        else:
-            properties = list(cls.__wired_properties__.values())
+        properties = list(cls.__wired_properties__.values())
         for prop in sorted(properties, key=lambda p: p.id):
             ts_name = to_casing(prop.name, Casing.CAMEL)
             ts_name = ts_name[0].lower() + ts_name[1:]
@@ -469,30 +435,6 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
             + "}\n"
         )
         property_enum_maps_final_parts.append(property_enum_map_str)
-    # property enum maps for subnodes
-    for node_cls in NODE_CLASSES:
-        if not node_cls.__has_subtypes__:
-            continue
-        property_enum_map_parts: list[str] = [
-            f"export const {node_cls.metatype.name}_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<{node_cls.__name__}Type, any>> = {{\n"
-        ]
-        for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():
-            property_enum_map_parts.append(
-                f"  [{node_cls.__name__}Type.{subnode_type.name}]: {subnode_cls.__name__}Property,\n"
-            )
-        property_enum_map_parts.append("}\n")
-        property_enum_maps_final_parts.append("".join(property_enum_map_parts))
-    # property enum map into subnode maps
-    property_enum_map_parts: list[str] = [
-        "export const PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<NodeType, Record<any, any>>> = {\n"
-    ]
-    for node_cls in NODE_CLASSES:
-        if node_cls.__has_subtypes__:
-            property_enum_map_parts.append(
-                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.metatype.name}_PROPERTY_ENUM_BY_SUBTYPE,\n"
-            )
-    property_enum_map_parts.append("}\n")
-    property_enum_maps_final_parts.append("".join(property_enum_map_parts))
     property_enum_maps_final_str = "\n".join(property_enum_maps_final_parts)
 
     object_info_type_str = """
@@ -541,12 +483,9 @@ export type PropertyInfo = {
 }
     """
     type_info_definitions_parts = []
-    for bench_cls in chain(NODE_CLASSES, SUBNODE_CLASSES, STRUCT_CLASSES):
+    for bench_cls in chain(NODE_CLASSES, STRUCT_CLASSES):
         prop_infos_strs: list[str] = []
-        if issubclass(bench_cls, Node) and bench_cls.__subtype__:
-            properties = list(bench_cls.__subtype_extra_properties__.values())
-        else:
-            properties = list(bench_cls.__properties__.values())
+        properties = list(bench_cls.__properties__.values())
         for prop in sorted(properties, key=lambda p: p.id or 0):
             if not prop.is_wired:
                 continue
@@ -556,8 +495,6 @@ export type PropertyInfo = {
                 "name": repr(prop.name),
                 "component": f"ObjectType.{bench_cls.metatype.name}",
             }
-            if issubclass(bench_cls, Node) and bench_cls.__subtype__:
-                prop_info_parts["componentSubtype"] = f"{bench_cls.__subtype__.value}"
             if prop.reference_kind:
                 kind = "reference"
             elif prop.enum_type:
@@ -637,44 +574,7 @@ export type PropertyInfo = {
             f"  [ObjectType.{bench_cls.metatype.name}]: {bench_cls.__name__}DataInfo,\n"
         )
     object_type_info_map_parts.append("}\n")
-    # subnode property info mappings
-    subnode_type_info_maps: list[str] = []
-    for node_cls in NODE_CLASSES:
-        if node_cls.__has_subtypes__:
-            subnode_type_info_parts: list[str] = [
-                f"export const {node_cls.__name__}SubtypePropertyInfo: Partial<Record<{node_cls.__name__}Type, Record<any, PropertyInfo>>> = {{\n"
-            ]
-            for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():
-                subnode_type_info_parts.append(
-                    f"  [{node_cls.__name__}Type.{subnode_type.name}]: {subnode_cls.__name__}DataInfo,\n"
-                )
-            subnode_type_info_parts.append("}\n")
-            subnode_type_info_maps.append("".join(subnode_type_info_parts))
-    subnode_type_info_maps.append(
-        "export const PROPERTY_INFOS_BY_SUBTYPE: Partial<Record<NodeType, Record<any, Record<any, PropertyInfo>>>> = {\n"
-    )
-    for node_cls in NODE_CLASSES:
-        if node_cls.__has_subtypes__:
-            subnode_type_info_maps.append(
-                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__name__}SubtypePropertyInfo,\n"
-            )
-    subnode_type_info_maps.append("}\n")
-    object_info_map_str = (
-        "".join(object_type_info_map_parts) + "\n" + "".join(subnode_type_info_maps)
-    )
-
-    # node subtype keys
-    node_subtype_info_parts: list[str] = []
-    for node_cls in NODE_CLASSES:
-        if node_cls.__subtype_base_property__:
-            node_subtype_info_parts.append(
-                f"  [NodeType.{node_cls.metatype.name}]: {node_cls.__subtype_base_property__.id},"
-            )
-    node_subtype_info_str = f"""
-export const NODE_SUBTYPE_PROPERTY_ID: Partial<Record<NodeType, number>> = {{
-{'\n'.join(node_subtype_info_parts)}
-}}
-"""
+    object_info_map_str = "".join(object_type_info_map_parts)
 
     # enum options
     enum_option_info_type_str = """
@@ -843,7 +743,6 @@ export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_
 // Type mappings
 {struct_mapping_str}
 {node_mapping_str}
-{subnode_mappings_str}
 {object_mapping_str}
 {enum_mapping_str}
 
@@ -861,7 +760,6 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_type_str}
 {object_info_definitions_str}
 {object_info_map_str}
-{node_subtype_info_str}
 // Enum options
 {enum_option_info_type_str}
 {enum_option_info_str}

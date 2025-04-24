@@ -153,7 +153,6 @@ describe("merge nodes", () => {
     metatype: NodeType.FLOW,
     packagePtr: toNodeRef(pkg),
     name: "Block1",
-    subnodePacked: { fruity: 3, fluffy: false },
   });
 
   test("merge", () => {
@@ -171,16 +170,9 @@ describe("merge nodes", () => {
     // changes in setPaths should be applied (and irrelevant setPaths should be ignored)
     const overlay3 = structuredClone(base1);
     overlay3.name = "Overlay3";
-    overlay3.subnodePacked = { fruity: 4, fluffy: true };
-    (overlay3 as any).setPaths = [
-      [FlowProperty.name.toString()],
-      [FlowProperty.subnodePacked.toString(), "fluffy"],
-      [FlowProperty.subnodePacked.toString(), "bold", "italic"],
-    ];
+    (overlay3 as any).setPaths = [[FlowProperty.name.toString()]];
     const merged3 = mergeNode(base1, overlay3) as FlowData;
     expect(merged3.name).toEqual("Overlay3");
-    expect((merged3.subnodePacked as any).fruity).toEqual(3); // not in setPaths
-    expect((merged3.subnodePacked as any).fluffy).toEqual(true); // in setPaths
   });
 });
 

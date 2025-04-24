@@ -4,20 +4,15 @@ import {
   decodeTypeIdentity,
   describeTypeIdentity,
   encodeTypeIdentity,
-  getFieldType,
   getPropertyType,
   type TypeIdentity,
 } from "@/language/core/type";
 import {
   DateTime,
-  FieldType,
-  NODE_SUBTYPE_PROPERTY_ID,
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
-  PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
   PropertyInfo,
@@ -212,7 +207,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
 export function getPartialObjectType(
   type: TypeIdentity,
   valuePacked: Record<string, JsonValue>,
-): { nodeType: NodeType | null; subtype: number | null } {
+): { nodeType: NodeType | null } {
   // node type
   let nodeType: NodeType | null = null;
   if (type.kind == TypeKind.PARTIAL_OBJECT) {
@@ -226,24 +221,7 @@ export function getPartialObjectType(
     }
   }
 
-  // subtype
-  let subtype: number | null = null;
-  if (nodeType != null) {
-    const subtypePropertyId = NODE_SUBTYPE_PROPERTY_ID[nodeType];
-    if (subtypePropertyId != null) {
-      subtype = valuePacked[subtypePropertyId.toString()] as number;
-      if (
-        subtype == null ||
-        (type.propertyFieldTypes && !type.propertyFieldTypes.includes(NODE_SUBTYPE_PROPERTY_ID[nodeType]!))
-      ) {
-        if (type.constraint?.nodeSubtypes?.length) {
-          subtype = type.constraint.nodeSubtypes[0];
-        }
-      }
-    }
-  }
-
-  return { nodeType, subtype };
+  return { nodeType };
 }
 
 /** Gets the properties for a custom object (from type or current value for partials). */
@@ -252,21 +230,11 @@ export function getCustomObjectProperties(type: TypeIdentity, valuePacked: Recor
     let properties: PropertyInfo[] = [];
 
     // node
-    const { nodeType, subtype } = getPartialObjectType(type, valuePacked);
+    const { nodeType } = getPartialObjectType(type, valuePacked);
     if (nodeType == null) return [];
     const nodeProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
     for (const prop of Object.values(nodeProperties)) {
       properties.push(prop);
-    }
-
-    // subtype
-    if (subtype != null) {
-      const subtypeProperties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype];
-      if (subtypeProperties != null) {
-        for (const prop of Object.values(subtypeProperties)) {
-          properties.push(prop);
-        }
-      }
     }
 
     // assemble properties
@@ -376,73 +344,6 @@ export function unpackCustomObject(
   }
 
   return value;
-}
-
-const PROPERTY_NAME_BY_FIELD_TYPE: Partial<Record<FieldType, string>> = {
-  [FieldType.INPUT]: "inputsPacked",
-  [FieldType.OUTPUT]: "outputsPacked",
-  [FieldType.MEMBER]: "valuePacked",
-};
-
-/** Builds a partial node from a packed partial node value. */
-export function unpackPartialNode(
-  valuePacked: any,
-  nodeType: NodeType,
-  subtype: number | null | undefined,
-): { node: Partial<AnyNodeData>; subnode: any } {
-  const node = { metatype: nodeType as unknown as ObjectType } as Partial<AnyNodeData>;
-  if (subtype != null) {
-    (node as any).type = subtype;
-  }
-  const subnode: any = {};
-  const properties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
-  const propertiesEnum = PROPERTY_ENUM_BY_TYPE[nodeType]!;
-  const subtypeProperties = subtype != null ? PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[subtype] : null;
-  const subtypePropertiesEnum =
-    subtype != null && subtypeProperties != null ? PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[subtype]! : null;
-  for (const key in valuePacked) {
-    const keyParts = key.split(".");
-    if (keyParts.length == 1) {
-      // node
-      const propId = Number(keyParts[0]);
-      if (!Number.isNaN(propId)) {
-        // property
-        const prop = properties[propId];
-        const propName = propertiesEnum[prop.id];
-        const propType = getPropertyType(prop);
-        const propValue = unpackValue(valuePacked[key], propType);
-        (node as any)[propName] = propValue;
-      } else {
-        // field
-        const fieldType = getFieldType(keyParts[0]);
-        const propName = PROPERTY_NAME_BY_FIELD_TYPE[fieldType!];
-        if (propName != null) {
-          const fieldIdentity = decodeTypeIdentity(keyParts[0].slice(CK_LENGTH_B64 + 1));
-          const fieldValue = unpackValue(valuePacked[key], fieldIdentity);
-          if ((node as any)[propName] == null) {
-            (node as any)[propName] = {};
-          }
-          (node as any)[propName][keyParts[0]] = fieldValue;
-        }
-      }
-    } else if (keyParts.length == 2) {
-      // subtype
-      if (subtype == null || subtypeProperties == null || keyParts[0] != subtype.toString()) {
-        continue; // ignore irrelevant subtype
-      }
-      const propId = Number(keyParts[1]);
-      if (!Number.isNaN(propId)) {
-        // subtype property
-        const prop = subtypeProperties[propId];
-        const propName = subtypePropertiesEnum[prop.id];
-        const propType = getPropertyType(prop);
-        subnode[propName] = unpackValue(valuePacked[key], propType);
-      } else {
-        // subtype field not needed yet?
-      }
-    }
-  }
-  return { node, subnode };
 }
 
 /**

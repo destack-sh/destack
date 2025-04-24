@@ -206,7 +206,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           ref="queryRef"
           v-model="query"
           type="text"
-          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-hidden ring-0 focus:ring-0 disabled:cursor-default"
+          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 ring-0 outline-hidden focus:ring-0 disabled:cursor-default"
           :disabled="iconType == IconType.FILE"
           :placeholder="
             iconType == IconType.FILE ? undefined : `Search ${iconType == IconType.EMOJI ? 'Emojis' : 'Icons'}...`
@@ -250,13 +250,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           is-inline
           is-input
           is-icon
-          :value-type="
-            makeType({
-              kind: TypeKind.NODE,
-              benchType: BenchType.FILE,
-              constraint: makeTypeConstraint({ nodeSubtypes: [FileType.IMAGE] }),
-            })
-          "
+          :value-type="makeType({ kind: TypeKind.NODE, benchType: BenchType.FILE })"
           :model-value="modelValue?.filePtr"
           @update:model-value="
             (filePtr) => {
@@ -298,7 +292,7 @@ defineExpose<ViewExpose>({ self, id, focus });
                 small: true,
               } as TooltipInfo
             "
-            class="select-none rounded-sm border border-transparent hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
+            class="rounded-sm border border-transparent select-none hover:cursor-pointer hover:border-gray-200 hover:bg-gray-100 data-[active=true]:border-gray-200 data-[active=true]:bg-gray-100"
             :class="item.icon?.faName != null ? 'py-1 text-sm ' + item.icon.faName : 'text-xl'"
             role="menuitem"
             :data-selected="isSelected(item)"

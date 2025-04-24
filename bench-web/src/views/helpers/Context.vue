@@ -3,19 +3,12 @@ import { getEnumOptions } from "@/language/core/enum";
 import { ContextMode, EnumType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
-import {
-  canvas,
-  containerPtr,
-  inspectionPtr,
-  pagePtr,
-  threadPtr
-} from "@/system/space";
+import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import Chat from "@/views/helpers/Chat.vue";
 import Thread from "@/views/nodes/Thread.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, nextTick, ref, Ref, toRef } from "vue";
@@ -25,7 +18,7 @@ const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
     ViewData,
-    "name" | "title" | "icon" | "nodePtr" | "size" | "subnodePacked"
+    "name" | "title" | "icon" | "nodePtr" | "size"
   >
 >();
 const emit = defineEmits<ViewEmits>();
@@ -52,7 +45,6 @@ const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
-const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
 
 defineExpose<ViewExpose>({ self });
 </script>

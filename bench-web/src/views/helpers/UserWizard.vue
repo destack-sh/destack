@@ -1,15 +1,12 @@
 <script lang="ts" setup>
-import { packSubnode, useSubnode } from "@/language/core/node";
 import { makeType } from "@/language/core/type";
 import {
   BenchType,
-  ButtonVariant,
   NodeType,
   Region,
   UserWizardViewStage,
   ViewData,
-  ViewType,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
@@ -23,7 +20,7 @@ import { type FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/commo
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";
 import Button from "@/views/controls/Button.vue";
-import { computed, ref, toRef, watchEffect, type Ref } from "vue";
+import { ref, toRef, watchEffect, type Ref } from "vue";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title">

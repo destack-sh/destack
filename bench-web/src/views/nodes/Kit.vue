@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { makeNodeName, packSubnode } from "@/language/core/node";
-import { makeType } from "@/language/core/type";
+import { makeNodeName } from "@/language/core/node";
 import { newChangeId } from "@/language/core/transaction";
+import { makeType } from "@/language/core/type";
 import {
   ActionData,
   ActionType,
@@ -10,10 +10,9 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PickerVariant,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";

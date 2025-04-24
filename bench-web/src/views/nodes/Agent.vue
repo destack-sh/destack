@@ -1,23 +1,20 @@
 <script lang="ts" setup>
-import { packSubnode } from "@/language/core/node";
-import { makeType, makeTypeConstraint } from "@/language/core/type";
 import { newChangeId } from "@/language/core/transaction";
+import { makeType, makeTypeConstraint } from "@/language/core/type";
 import {
-  BenchType,
   ClaimData,
   ClaimType,
   NodeMode,
   NodeReferenceData,
   NodeType,
-  PickerVariant,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { ACTION_SIZE, FLOW_GRID_STEP } from "@/ui/flow";
+import { FLOW_GRID_STEP } from "@/ui/flow";
 import { generateOrderKey } from "@/utils/fractional";
 import Grid from "@/views/builtin/Grid.vue";
 import InlinePageHeader from "@/views/builtin/InlinePageHeader.vue";

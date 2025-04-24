@@ -1,23 +1,17 @@
 import math
-from datetime import datetime
 from typing import cast
 
 import pytest
-import pytz
 from hypothesis import HealthCheck, given, settings
 
 from bench.language import (
     Action,
     ActionType,
-    Block,
     BuiltinObject,
-    Channel,
-    Class,
     CustomObject,
     Field,
     FieldType,
     Flow,
-    Message,
     Node,
     NodeType,
     Package,
@@ -30,7 +24,6 @@ from bench.language import (
     pack_builtin_object,
     pack_builtin_object_data,
     pack_custom_object,
-    text_line,
     unpack_builtin_object,
     unpack_builtin_object_data,
     unpack_custom_object,
@@ -65,51 +58,6 @@ def test_custom_object_with_builtin_properties(session: Session, package: Packag
     obj_packed = pack_custom_object(obj, Flow1Output)
     obj_unpacked = unpack_custom_object(obj_packed, Flow1Output, supergraph=session._supergraph)
     assert obj_unpacked.equals(obj)
-
-
-def test_partial_node_message(session: Session, package: Package) -> None:
-    """Create, update, pack/unpack a partial Message node."""
-    message_type = Class.new(
-        "MyMessage",
-        Field.member("Field1", int),
-        Field.member("Field2", Block),
-        Field.member("Field3", bool),
-        Field.member("Field4", datetime),
-    )
-    Channel1 = Channel.new("Channel1")
-    typ = Type(kind=TypeKind.PARTIAL_OBJECT, bench_type=NodeType.MESSAGE, base_type=message_type)
-    obj = CustomObject.new({}, typ)
-
-    # should be init to empty/default values for Message
-    assert obj.id is None
-    assert obj.type is Message.get_property("type").default
-    assert obj.clazz is None
-    assert obj.Field1 is None
-    assert obj.Field4 is None
-    assert obj.channel is None
-    # set/get values on value and properties
-    obj.Field1 = 42
-    obj.title = text_line("My New Message")
-    obj.clazz = message_type
-    obj.Field4 = datetime(2024, 1, 1, tzinfo=pytz.utc)
-    obj.channel = Channel1
-    assert obj.Field1 == 42
-    assert obj.clazz == message_type
-    assert obj.title == text_line("My New Message")
-    assert obj.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
-    assert obj.channel == Channel1
-    # pack/unpack
-    obj_packed = pack_custom_object(obj, typ)
-    obj_unpacked = unpack_custom_object(obj_packed, typ, supergraph=session._supergraph)
-    assert obj_unpacked.equals(obj)
-
-    # turn into full node
-    full_obj = Message.from_partial(obj)
-    assert full_obj.id is not None
-    assert full_obj.title == text_line("My New Message")
-    assert full_obj.value
-    assert full_obj.value.Field1 == 42
-    assert full_obj.value.Field4 == datetime(2024, 1, 1, tzinfo=pytz.utc)
 
 
 def test_partial_node_generic(session: Session, package: Package) -> None:

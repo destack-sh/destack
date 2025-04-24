@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 property_ = property
 
 
-@node_(NodeType.FIELD, has_subtypes=True)
+@node_(NodeType.FIELD)
 class Field(
     IsInstantiable,
     IsTemplatable,

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
@@ -23,7 +23,6 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_value_packed,
     struct_,
 )
 from bench.pb2 import ViewData
@@ -406,7 +405,7 @@ class RectangleConstraint(Struct):
 #
 
 
-@node_(NodeType.VIEW, has_subtypes=True)
+@node_(NodeType.VIEW)
 class View(
     IsTemplatable,
     IsModal,
@@ -424,7 +423,6 @@ class View(
     # meta
     type: ViewType = p_regular(30, require=True, primitive_type=PrimitiveType.INT32)
     title: Optional[str] = p_regular(32, require=False)
-    subviews_packed: dict[str, Any] | None = p_value_packed(39)
 
     # content
     value_type: Optional["Type"] = p_regular(

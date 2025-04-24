@@ -3,7 +3,6 @@ import dataclasses
 from collections.abc import Mapping
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -51,7 +50,6 @@ from .const import (
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
-    BuiltinEnum,
     EnumType,
     NodeType,
     ObjectType,
@@ -250,12 +248,10 @@ class CustomObject(Mapping[str, Any]):
                     key.value_packed_ptr, Property
                 ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
                 key = key.value_packed_ptr
-            storage_key = key.subtype_key or key.key
             typ = key.type_info
         else:
-            storage_key = key.key
             typ = key
-        return storage_key, typ
+        return key.key, typ
 
     def _get_storage_key(self, key: "Field | Property") -> str:
         if isinstance(key, Property):
@@ -264,14 +260,10 @@ class CustomObject(Mapping[str, Any]):
                     key.value_packed_ptr, Property
                 ), f"unexpected {key.value_packed_ptr!r} for {key!r} in {self!r}"
                 key = key.value_packed_ptr
-            storage_key = key.subtype_key or key.key
-        else:
-            storage_key = key.key
-        return storage_key
+        return key.key
 
     def _do_get(self, key: "Field | Property", _raw: bool = False) -> SomeValue:
-        storage_key = self._get_storage_key(key)
-        value = self._value.get(storage_key)
+        value = self._value.get(key.key)
         if value is None:
             default = key.default
             if default is not UNSET:  # may be unset in Property.default
@@ -455,13 +447,13 @@ class CustomObject(Mapping[str, Any]):
                 ):
                     continue  # ignore irrelevant properties
                 if prop.is_value_packed:
-                    prop_key = prop.subtype_key or prop.key
+                    prop_key = prop.key
                     assert (
                         type(prop.value_runtime_ptr) is Property
                     ), f"bad value_packed_ptr for {prop!r}: {prop.value_packed_ptr!r}"
                     prop = prop.value_runtime_ptr
                 else:
-                    prop_key = prop.subtype_key or prop.key
+                    prop_key = prop.key
                 if self._value.get(prop_key) is None:
                     prop_value = getattr(obj, prop.name)
                     if obj.is_set(prop, prop_value):
@@ -633,7 +625,7 @@ def patch_node_from_partial(node: "Node", partial_node: "CustomObject", track: b
 
 def get_partial_object_type(
     typ: "IsType | TypeIdentity", value: Mapping[str, JsonValue | SomeValue]
-) -> tuple[NodeType | None, type["Node"], int | None, type["Node"] | None]:
+) -> tuple[NodeType | None, type["Node"]]:
     """
     Gets the actual partial object type as specified in the type/value.
     Works for packed and unpacked values.
@@ -655,20 +647,7 @@ def get_partial_object_type(
         bench_type = None
         node_cls = Node
 
-    # subtype
-    subtype = None
-    subtype_cls = None
-    if node_cls.__subtype_base_property__ is not None:
-        subtype = cast(int | None, value.get("type"))
-        if subtype is None:
-            subtype = cast(int | None, value.get("30"))
-        if subtype is None:
-            if typ.constraint is not None and typ.constraint.node_subtypes:
-                subtype = typ.constraint.node_subtypes[0]
-        if subtype is not None:
-            subtype_cls = node_cls.__subclass_by_subtype__.get(cast(BuiltinEnum, subtype))
-
-    return bench_type, node_cls, subtype, subtype_cls
+    return bench_type, node_cls
 
 
 def get_custom_object_properties(
@@ -677,15 +656,8 @@ def get_custom_object_properties(
     """Gets all the custom object properties available in this value."""
     if typ.kind == TypeKind.PARTIAL_OBJECT:
         # get properties for actual type
-        _, node_cls, _, subtype_cls = get_partial_object_type(typ, value)
-        if subtype_cls is not None:
-            properties = chain(
-                subtype_cls.__subtype_extra_original_properties__.values(),
-                node_cls.__original_properties__.values(),
-            )
-        else:
-            properties = node_cls.__original_properties__.values()
-        return properties
+        _, node_cls = get_partial_object_type(typ, value)
+        return node_cls.__original_properties__.values()
     else:
         # nothing
         return ()
@@ -700,11 +672,8 @@ def get_custom_object_property(
     prop = None
     if typ.kind == TypeKind.PARTIAL_OBJECT:
         # check properties for actual type
-        _, node_cls, _, subtype_cls = get_partial_object_type(typ, value_packed)
-        if subtype_cls is not None:
-            prop = subtype_cls.__subtype_extra_original_properties__.get(name)
-        if prop is None:
-            prop = node_cls.__original_properties__.get(name)
+        _, node_cls = get_partial_object_type(typ, value_packed)
+        prop = node_cls.__original_properties__.get(name)
 
     return prop
 
@@ -1181,8 +1150,7 @@ def coerce_custom_object_scalar(
     obj = CustomObject.new(value={}, typ=typ, supergraph=supergraph)
     properties = get_custom_object_properties(typ, value)
     for prop in properties:
-        prop_key = prop.subtype_key or prop.key
-        prop_value = value.pop(prop_key, None)
+        prop_value = value.pop(prop.key, None)
         if prop_value is None:
             prop_value = value.pop(prop.name, None)
         if prop_value is not None:
@@ -1555,23 +1523,22 @@ def pack_custom_object(value: CustomObject, typ: "IsType | TypeIdentity") -> dic
 
     # properties
     for prop in get_custom_object_properties(typ, _value):
-        storage_key = prop.subtype_key or prop.key
-        prop_value = cast(SomeValue, _value.get(storage_key))
+        prop_value = cast(SomeValue, _value.get(prop.key))
         if prop_value is None:
             continue
         elif prop.is_value_packed:
             assert (
                 type(prop_value) is CustomObject
             ), f"unexpected {prop_value!r} for {prop!r} in {value!r}"
-            value_packed[storage_key] = pack_custom_object(prop_value, prop_value._type)
+            value_packed[prop.key] = pack_custom_object(prop_value, prop_value._type)
         elif not prop.is_list:
-            value_packed[storage_key] = pack_value_scalar(
+            value_packed[prop.key] = pack_value_scalar(
                 cast(ScalarValue, prop_value), prop.type_info
             )
         else:  # scalar list
             assert isinstance(prop_value, list), f"{prop_value!r} is not a list, expected {prop!r}"
             prop_typ = prop.type_info
-            value_packed[storage_key] = [
+            value_packed[prop.key] = [
                 pack_value_scalar(element, prop_typ) for element in prop_value
             ]
 
@@ -1623,8 +1590,7 @@ def unpack_custom_object(
 
     # properties
     for prop in get_custom_object_properties(typ, value_packed):
-        storage_key = prop.subtype_key or prop.key
-        prop_value_packed = value_packed.get(storage_key)
+        prop_value_packed = value_packed.get(prop.key)
         if prop_value_packed is None:
             continue
         elif prop.is_value_packed:
@@ -1652,7 +1618,7 @@ def unpack_custom_object(
                 unpack_value_scalar(element, prop_typ, supergraph=supergraph)
                 for element in prop_value_packed
             ]
-        value[storage_key] = prop_value
+        value[prop.key] = prop_value
 
     return CustomObject.new(
         value=value,

@@ -43,12 +43,7 @@ const ITEM_HEIGHT = 30;
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const NODE_TYPES = PAGE_NODE_TYPES.filter((n) => !RESOURCE_NODE_TYPES.includes(n) && n != NodeType.THREAD);
 
-const props = defineProps<
-  {
-    expandedNodesPtr?: Array<NodeReferenceData>;
-  } & Pick<ViewData, "icon" | "nodePtr" | "size" | "focusPtr" | "selection" | "subnodePacked">
->();
-const emit = defineEmits<{ "update:expandedNodesPtr": [Array<NodeReferenceData>] }>();
+const props = defineProps<{} & Pick<ViewData, "icon" | "nodePtr" | "size" | "focusPtr" | "selection">>();
 
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const containerSize = useElementSize(containerRef);
@@ -65,17 +60,17 @@ const { graph, connection } = useAutoConnection(rootPtr);
 // Visible subtree
 //
 
+const expandedNodesPtr = ref<NodeReferenceData[]>([]);
+
 function isExpanded(node: AnyNodeData | NodeReferenceData) {
-  return props.expandedNodesPtr?.some((ptr) => ptr.id == node.id) ?? false;
+  return expandedNodesPtr.value.some((ptr) => ptr.id == node.id) ?? false;
 }
 function toggleExpanded(node: AnyNodeData | NodeReferenceData) {
-  let expandedNodesPtr: Array<NodeReferenceData> = props.expandedNodesPtr ?? [];
-  if (expandedNodesPtr.some((ptr) => ptr.id == node.id)) {
-    expandedNodesPtr = expandedNodesPtr.filter((ptr) => ptr.id != node.id);
+  if (expandedNodesPtr.value.some((ptr) => ptr.id == node.id)) {
+    expandedNodesPtr.value = expandedNodesPtr.value.filter((ptr) => ptr.id != node.id);
   } else {
-    expandedNodesPtr.push(toNodeRef(node));
+    expandedNodesPtr.value = [...expandedNodesPtr.value, toNodeRef(node)];
   }
-  emit("update:expandedNodesPtr", expandedNodesPtr);
 }
 
 function includes(node: AnyNodeData) {
@@ -91,7 +86,7 @@ const { items: expandedItems } = walkDescendantsRef({
   isExpanded,
   includes,
   includesChildren,
-  watchSource: () => [props.focusPtr, props.expandedNodesPtr],
+  watchSource: () => [props.focusPtr, expandedNodesPtr.value],
 });
 const expandedNodesRefs: Ref<Record<string, HTMLElement>> = ref({});
 
@@ -266,7 +261,11 @@ defineExpose<Omit<ViewExpose, "id" | "self">>({ commands, focus });
             }"
           />
           <!-- Icon/Expand button -->
-          <button class="group/icon relative mr-1 shrink-0" aria-hidden @click.stop="() => toggleExpanded(node)">
+          <button
+            class="group/icon relative mr-1 shrink-0 cursor-pointer"
+            aria-hidden
+            @click.stop="() => toggleExpanded(node)"
+          >
             <IconInline
               v-bind="getNodeIcon(node)"
               class="w-5 text-center transition-colors duration-75 group-hover/node:opacity-0"

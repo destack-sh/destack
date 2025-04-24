@@ -201,13 +201,6 @@ def generate_proto_schema(
     proto_types.append(map_builtin_object_to_proto(Node, proto_types_cache, alias="BaseNode"))
     for node_cls in NODE_CLASS_BY_TYPE.values():
         proto_types.append(map_builtin_object_to_proto(node_cls, proto_types_cache))
-        if node_cls.__has_subtypes__:
-            for subnode_type, subnode_cls in node_cls.__subclass_by_subtype__.items():
-                proto_types.append(
-                    map_object_subtype_to_proto(
-                        subnode_cls, proto_types_cache, subtype=subnode_type
-                    )
-                )
     # additional types
     for cls in FINAL_BENCH_CLASSES:
         if cls not in proto_types_cache:

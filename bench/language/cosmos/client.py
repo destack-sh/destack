@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), has_subtypes=True)
+@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH))
 class Client(IsNamed, Node[ClientData]):
     """A Client to connect with the system."""
 

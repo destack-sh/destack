@@ -2,29 +2,13 @@ import { canvas, supergraph } from "@/globals";
 import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
 import { getBaseFromNode, HELPER_VIEW_TYPES, isPageNode, ROOT_VIEW_TYPES, toCamelName } from "@/language/core/const";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/core/graph";
-import {
-  cloneNode,
-  cloneNodes,
-  generateNodeName,
-  makeNode,
-  NodeIn,
-  packSubnode,
-  unpackSubnode,
-} from "@/language/core/node";
+import { cloneNode, cloneNodes, generateNodeName, makeNode, NodeIn } from "@/language/core/node";
 import { getOrderKey, updateOrder } from "@/language/core/order";
-import {
-  makeEdit,
-  makeEditFromSubnode,
-  newChangeId,
-  TransactionOptions,
-  type Transaction,
-} from "@/language/core/transaction";
-import { unpackBuiltinObject } from "@/language/core/value";
+import { newChangeId, TransactionOptions, type Transaction } from "@/language/core/transaction";
 import { createPage } from "@/language/source/page";
 import { createThread } from "@/language/source/thread";
 import {
   BlockType,
-  ChangeCategory,
   NodeMode,
   NodeReferenceData,
   NodeType,
@@ -68,7 +52,6 @@ import {
   isViewComponent,
   isViewComponentIn,
   makeSelection,
-  makeSelectionMaybe,
 } from "@/ui/view";
 import { isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
@@ -105,9 +88,6 @@ type OpenViewOptions = {
 
 export const NODE_REF_CONTEXT_KEY = Symbol("nodeRefContext");
 export const activeElement = useActiveElement();
-
-const SUBVIEWS_PROPERTY_ID = propertyInfo(ObjectType.VIEW, ViewProperty.subviewsPacked).id;
-const SUBVIEWS_PROPERTY_KEY = SUBVIEWS_PROPERTY_ID.toString();
 
 /**
  * Canvas for Views and their components in a Space.
@@ -879,12 +859,7 @@ export class SpaceCanvas {
       return existing;
     } else if (options?.ifPresent == "upsertAndFocus") {
       log.trace("canvas.addView.upsertAndFocus", view, { existing, options });
-      for (const property of [
-        ViewProperty.title,
-        ViewProperty.icon,
-        ViewProperty.focusPtr,
-        ViewProperty.subnodePacked,
-      ]) {
+      for (const property of [ViewProperty.title, ViewProperty.icon, ViewProperty.focusPtr]) {
         const propertyName = ViewProperty[property];
         if (!deepValueEquals((existing as any)[propertyName], (view as any)[propertyName])) {
           tx.update(existing, { [propertyName]: (view as any)[propertyName] }, { debounce: "tick" });
@@ -1047,13 +1022,6 @@ export class SpaceCanvas {
         this.goToNode(base, options);
         const runPtr = isNode(node, NodeType.RUN) ? (node.rootPtr ?? toNodeRef(node)) : node.rootPtr;
         this.tx().update(this.space.value!, { runPtr }, { debounce: "tick" });
-        const helpView = this.findView({ type: ViewType.CONTEXT });
-        if (helpView != null) {
-          this.tx().update(
-            helpView,
-            makeEditFromSubnode(helpView, { metatype: NodeType.VIEW, type: ViewType.CONTEXT }),
-          );
-        }
         return;
       }
     }

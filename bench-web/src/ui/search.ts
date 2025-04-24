@@ -551,7 +551,6 @@ export function useValueSearch(options: {
         const graph = benchGraph.nodeTypes.has(nodeType) ? benchGraph : benchGraph;
         let roots: AnyNodeData[] | undefined = undefined;
         let metatypes: NodeType[] = [];
-        const subtypes: number[] | undefined = valueType.value?.constraint?.nodeSubtypes;
         if (valueType.value?.baseTypePtr != null) {
           // based node
           const base = graph.get(valueType.value.baseTypePtr);
@@ -566,10 +565,7 @@ export function useValueSearch(options: {
         } else {
           metatypes = [NodeType.BLOCK, NodeType.ACTION, NodeType.FIELD, NodeType.VIEW];
         }
-        const filter =
-          subtypes != null
-            ? (node: AnyNodeData) => subtypes.includes((node as any).type) && !isHiddenBuiltinNodeItem(node)
-            : (node: AnyNodeData) => !isHiddenBuiltinNodeItem(node);
+        const filter = (node: AnyNodeData) => !isHiddenBuiltinNodeItem(node);
         return graphIndex({ id: "graph", graph, roots, metatypes, filter });
       }
     } else if (options.valueType.value?.benchType == BenchType.TYPE) {
@@ -895,11 +891,6 @@ export function typeIndex(idx: {
       const option = ENUM_OPTIONS_BY_VALUE[EnumType.STRUCT_TYPE][value.benchType];
       if (option != null) return typeItemFromEnumOption(EnumType.STRUCT_TYPE, option);
     } else if (isNodeType(value.benchType)) {
-      const subtypeEnum = getSubtypeEnum(value.benchType);
-      if (subtypeEnum != null && value.constraint?.nodeSubtypes?.length == 1) {
-        const option = ENUM_OPTIONS_BY_VALUE[subtypeEnum][value.constraint!.nodeSubtypes[0]];
-        if (option != null) return typeItemFromEnumOption(subtypeEnum, option);
-      }
       const option = ENUM_OPTIONS_BY_VALUE[EnumType.NODE_TYPE][value.benchType];
       if (option != null) return typeItemFromEnumOption(EnumType.NODE_TYPE, option);
     } else if (value.kind == TypeKind.NODE) {
@@ -940,22 +931,18 @@ export function typeIndex(idx: {
       item.title = option.title + " File";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.FILE;
-      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as FileType] });
     } else if (enumType == EnumType.BLOCK_TYPE) {
       item.title = option.title + " Block";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.BLOCK;
-      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as BlockType] });
     } else if (enumType == EnumType.ACTION_TYPE) {
       item.title = option.title + " Action";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.ACTION;
-      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as ActionType] });
     } else if (enumType == EnumType.VIEW_TYPE) {
       item.title = option.title + " View";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.VIEW;
-      item.constraint = makeTypeConstraint({ nodeSubtypes: [option.value as ViewType] });
     } else {
       throw new Error(`unexpected enum type: ${enumType} (${option.value})`);
     }

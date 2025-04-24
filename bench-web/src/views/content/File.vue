@@ -61,9 +61,7 @@ const self = toRef(props, "self");
 const id = toRef(props, "id");
 
 const fileType = computed(() => {
-  if (props.valueType?.constraint?.nodeSubtypes?.length == 1)
-    return props.valueType.constraint.nodeSubtypes[0] as FileType;
-  else if (props.type != null) return FILE_TYPE_BY_VIEW_TYPE[props.type] ?? FileType.GENERIC;
+  if (props.type != null) return FILE_TYPE_BY_VIEW_TYPE[props.type] ?? FileType.GENERIC;
   else return FileType.GENERIC;
 });
 const facetIcon = computed(() => {

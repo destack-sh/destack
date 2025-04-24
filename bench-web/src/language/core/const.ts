@@ -322,9 +322,6 @@ export function toCamelName<T extends object>(cls: T, key: any) {
   return toCasing(name, Casing.CAMEL, true);
 }
 
-export const NODE_SUBTYPE_PACKED_ID = EmptyProperty.subnodePacked;
-export const NODE_SUBTYPE_PACKED_KEY = NODE_SUBTYPE_PACKED_ID.toString(); // it's the same property id for all nodes
-
 //
 // Enums
 //

@@ -80,7 +80,7 @@ class MessageStatus(BuiltinEnum):
     READ = 60
 
 
-@timed_node_(NodeType.MESSAGE, passthrough_get="value", passthrough_set="value", has_subtypes=True)
+@timed_node_(NodeType.MESSAGE)
 class Message(
     IsTimed,
     IsBased,
