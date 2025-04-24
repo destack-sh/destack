@@ -26,8 +26,9 @@ def _register_builtins():
         impl = impl_cls()
         for action in kit.actions:
             assert action.name is not None, f"{action!r} has no name"
-            method = getattr(impl, action.name, None)
-            assert method is not None, f"{impl.__class__} has no method {action.name!r}"
+            method_name = action.name.replace(" ", "_")
+            method = getattr(impl, method_name, None)
+            assert method is not None, f"{impl.__class__} has no method {method_name!r}"
             _register_builtin_action(action, method)
 
     _registered = True

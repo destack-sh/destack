@@ -344,7 +344,7 @@ class IsComputable(BuiltinObject):
 
 
 @object_()
-class IsBased(BuiltinObject, abc.ABC):
+class IsBased(BuiltinObject):
     """A Node which may have a 'base' in another Node (e.g., its type definition)."""
 
     @property
@@ -365,7 +365,7 @@ class IsBased(BuiltinObject, abc.ABC):
 
 
 @object_()
-class IsTimed(BuiltinObject, abc.ABC):
+class IsTimed(BuiltinObject):
     """A Node with a time-based identity."""
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT

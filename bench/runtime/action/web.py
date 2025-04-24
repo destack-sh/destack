@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Mapping, override
 
@@ -20,6 +21,7 @@ exa = AsyncExa(api_key=EXA_API_KEY)
 
 
 def _make_link_preview(result: ExaResult | _ExaResult) -> LinkPreview:
+    """Make a LinkPreview from an ExaResult."""
     published_at = datetime.fromisoformat(result.published_date) if result.published_date else None
     link = LinkPreview(
         url=result.url,
@@ -34,27 +36,52 @@ def _make_link_preview(result: ExaResult | _ExaResult) -> LinkPreview:
     return link
 
 
+async def _do_search(query: str, content: bool, limit: int) -> list[LinkPreview]:
+    """Search the web for the given query."""
+    if content:
+        response = await exa.search_and_contents(
+            query=query,
+            num_results=limit,
+            text=True,
+            extras={"image_links": 10},
+        )
+    else:
+        response = await exa.search(query=query, num_results=limit)
+    results: list[LinkPreview] = []
+    for result in response.results:
+        results.append(_make_link_preview(result))
+    return results
+
+
 class ExaWeb(IWeb if TYPE_CHECKING else object):
     @override
     async def Search(
         self, Query: str, Content: bool = True, Limit: int = 5
     ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
-        if Content:
-            response = await exa.search_and_contents(
-                query=Query,
-                num_results=Limit,
-                text=True,
-                extras={"image_links": 10},
-            )
-        else:
-            response = await exa.search(query=Query, num_results=Limit)
-        results: list[LinkPreview] = []
-        for result in response.results:
-            results.append(_make_link_preview(result))
+        results = await _do_search(Query, Content, Limit)
         return {"Results": results}
 
     @override
-    async def Read(
+    async def Search_Many(
+        self, Queries: list[str], Content: bool = True, Limit: int = 5
+    ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
+        # search in parallel
+        results = await asyncio.gather(*(_do_search(query, Content, Limit) for query in Queries))
+        results = [result for results in results for result in results]
+        return {"Results": results}
+
+    @override
+    async def Read(self, URL: str) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
+        response = await exa.get_contents(
+            urls=URL, text=True, livecrawl="fallback", extras={"image_links": 10}
+        )
+        previews: list[LinkPreview] = []
+        for result in response.results:
+            previews.append(_make_link_preview(result))
+        return {"Previews": previews}
+
+    @override
+    async def Read_Many(
         self, URLs: list[str]
     ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
         response = await exa.get_contents(

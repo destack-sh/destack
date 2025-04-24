@@ -21,7 +21,7 @@ import { type CommandMapKit } from "@/ui/command";
 import { getActionSides, useFlowContextMaybe } from "@/ui/flow";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { PopoverInfoIn, pushDefaultMenu } from "@/ui/popover";
-import { getNodeColorHex, getRunColorHex } from "@/ui/style";
+import { getNodeColorHex, getProcessColorHex } from "@/ui/style";
 import { focusInElement } from "@/ui/view";
 import NodeMetadata from "@/views/builtin/NodeMetadata.vue";
 import ProcessStatus from "@/views/builtin/ProcessStatus.vue";
@@ -90,8 +90,8 @@ defineExpose<ViewExpose>({ self, id, commands });
       lastRun != null && isProcessActive(lastRun) ? '' : 'outline-transparent',
     ]"
     :style="{
-      borderColor: lastRun != null ? getRunColorHex(lastRun.status) : '',
-      outlineColor: lastRun != null && isProcessActive(lastRun) ? getRunColorHex(lastRun.status) : '',
+      borderColor: lastRun != null ? getProcessColorHex(lastRun.status) : '',
+      outlineColor: lastRun != null && isProcessActive(lastRun) ? getProcessColorHex(lastRun.status) : '',
     }"
     aria-role="button"
     @mouseup="(e) => flowCtx?.endDragging(e, { kind: 'action', action: action! })"
@@ -164,7 +164,7 @@ defineExpose<ViewExpose>({ self, id, commands });
         <div class="ml-auto flex flex-row pr-1.5 pl-2">
           <!-- Run status -->
           <button v-if="lastRun != null" class="rounded-sm hover:bg-gray-100" aria-hidden>
-            <ProcessStatus :run="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
+            <ProcessStatus :node="lastRun" :orientation="Orientation.HORIZONTAL_REVERSED" icon="dot" />
           </button>
         </div>
       </div>
