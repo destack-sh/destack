@@ -10,6 +10,7 @@ from bench.language import (
     Agent,
     BuiltinObject,
     Node,
+    NodeMode,
     Page,
     RunType,
     Span,
@@ -108,7 +109,7 @@ You SHOULD title & icon the Thread if unset (~10-40 characters, recognizeable).
 You SHOULD use Messages to communicate with Users and other Agents.
 You SHOULD split long Messages (1 paragraph ~= 1 Message ~= 1 SEND).
 You SHOULD ONLY set reply_to if context is ambiguous (just like on Discord).
-You SHOULD NOT respond to yourself or repeat yourself.
+You SHOULD include `nodes` in SENDs IF (and ONLY IF) they're new, important and NOT Runs, Messages, or other transient Nodes.
 
 # Python
 You MUST express your response in Python.
@@ -365,7 +366,7 @@ Reflect on the instructions, the context and any errors as you try again.
     prompt.region(
         f"Agent (YOU = {agent_alias})",
         "This is the Agent YOU're representing",
-        AgentPiece(node=agent, role="user"),
+        AgentPiece(node=agent, role="developer" if agent.mode == NodeMode.BUILTIN else "user"),
         priority=50,
         role="developer",
     )
@@ -379,7 +380,7 @@ YOUR RESPONSE IN CODE
 REMEMBER:
  - This is ONE turn. You will turn again *automatically*.
  - JUST Python code, top level, NO outer ```, JUST code.
- - Users can't see the code, any comments are for YOU only.
+ - Users can't see the code; any comments are for YOU only.
  - Split Messages/SENDs into lines/paragraphs.
  - Reference ALL Nodes directly by their alias [@Node1], NOT by name.
  - Ignore yourself.
