@@ -45,6 +45,7 @@ class Computer(IsSubject, Resource[ComputerData]):
     version: str = p_system(60, default=VERSION, default_sql=None)
     external_name: Optional[str] = p_kernel(62, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(63, require=False, default=None, sensitive=True)
+    image_id: Optional[str] = p_kernel(64, require=False, default=None, sensitive=True)
     # Computer.grpc_url/vnc_url should maybe be :RealSecrets
     grpc_url: Optional[str] = p_kernel(65, require=False, default=None, sensitive=True)
     vnc_url: Optional[str] = p_kernel(66, require=False, default=None, sensitive=True)
@@ -63,8 +64,8 @@ class Computer(IsSubject, Resource[ComputerData]):
     )
     width: int = p_system(75, default=1280, default_sql=None)
     height: int = p_system(76, default=960, default_sql=None)
-    # is_headless?
+    is_headless: bool = p_system(77, default=False)
 
     @staticmethod
-    def new(type: ComputerType, name: str, **kwargs) -> "Computer":
-        return Computer(type=type, name=name, **kwargs)
+    def new(type: ComputerType, name: str, *, is_headless: bool = False) -> "Computer":
+        return Computer(type=type, name=name, is_headless=is_headless)

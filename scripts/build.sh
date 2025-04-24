@@ -22,8 +22,8 @@ bun run --cwd bench-web build
 
 # build all images
 # image names and their corresponding Dockerfiles
-IMAGES=("bench-computer-ubuntu" "bench-system" "bench-computer-runtime")
-DOCKERFILES=("bench-infra/docker/Dockerfile.computer-ubuntu" "bench-infra/docker/Dockerfile.system-bench" "bench-infra/docker/Dockerfile.runtime-bench")
+IMAGES=("bench-computer-ubuntu-desktop" "bench-computer-ubuntu-terminal" "bench-system")
+DOCKERFILES=("bench-infra/docker/Dockerfile.computer-ubuntu-desktop" "bench-infra/docker/Dockerfile.computer-ubuntu-terminal" "bench-infra/docker/Dockerfile.system")
 
 for i in "${!IMAGES[@]}"; do
   IMAGE="${IMAGES[$i]}"

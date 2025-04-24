@@ -963,7 +963,6 @@ enum BlockType {
   BLOCK_TYPE_KIT = 5060;
   BLOCK_TYPE_DATABASE = 5090;
   BLOCK_TYPE_AGENT = 5640;
-  BLOCK_TYPE_PLAN = 6100;
   BLOCK_TYPE_TASK = 6110;
   BLOCK_TYPE_THREAD = 5510;
   BLOCK_TYPE_PARAGRAPH = 10001;
@@ -2421,6 +2420,7 @@ message ComputerData {
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
+  optional string image_id = 64;
   optional string grpc_url = 65;
   optional string vnc_url = 66;
   optional NodeReferenceData client_ptr = 69;
@@ -2428,6 +2428,7 @@ message ComputerData {
   float ram = 71;
   int32 width = 75;
   int32 height = 76;
+  bool is_headless = 77;
 }
 
 message ScalerData {

@@ -240,7 +240,7 @@ async def computer(host: str, port: int, *, process_id: int = -1, watch: bool = 
     logger.info("serve.computer", host=host, port=port, env=ENV)
 
     computer_id = get_from_env("COMPUTER_ID", typ=UUID, description="Node id of current computer")
-    display = get_from_env("DISPLAY", typ=str, description="Display to use for computer")
+    display = get_from_env_maybe("DISPLAY", typ=str, description="Display to use for computer")
     network = RealNetwork()
     computer = ComputerService(
         id="computer",

@@ -40,8 +40,11 @@ tracer = trace.get_tracer(__name__)
 COMPUTER_RUNTIME_IMAGE = get_from_env(
     "COMPUTER_RUNTIME_IMAGE", description="Runtime container image for computer"
 )
-COMPUTER_UBUNTU_IMAGE = get_from_env(
-    "COMPUTER_UBUNTU_IMAGE", description="Ubuntu container image for computer"
+COMPUTER_UBUNTU_DESKTOP_IMAGE = get_from_env(
+    "COMPUTER_UBUNTU_DESKTOP_IMAGE", description="Ubuntu desktop container image for computer"
+)
+COMPUTER_UBUNTU_TERMINAL_IMAGE = get_from_env(
+    "COMPUTER_UBUNTU_TERMINAL_IMAGE", description="Ubuntu terminal container image for computer"
 )
 COMPUTER_OVERCOMMITMENT = get_from_env(
     "COMPUTER_OVERCOMMITMENT",
@@ -125,7 +128,10 @@ def _get_computer_image(computer: Computer) -> str:
     if computer.type == ComputerType.RUNTIME:
         return f"{COMPUTER_RUNTIME_IMAGE}:{computer.version}"
     elif computer.type == ComputerType.UBUNTU:
-        return f"{COMPUTER_UBUNTU_IMAGE}:{computer.version}"
+        if computer.is_headless:
+            return f"{COMPUTER_UBUNTU_TERMINAL_IMAGE}:{computer.version}"
+        else:
+            return f"{COMPUTER_UBUNTU_DESKTOP_IMAGE}:{computer.version}"
     else:
         raise NotImplementedError(f"cannot provision {computer!r}")
 
@@ -208,7 +214,8 @@ class DockerComputerProvisioner(ComputerProvisioner):
             resource.external_name = external_name
             resource.external_id = container.id
             resource.grpc_url = f"http://localhost:{grpc_port}"
-            resource.vnc_url = f"ws://localhost:{vnc_port}"
+            if not resource.is_headless:
+                resource.vnc_url = f"ws://localhost:{vnc_port}"
             resource.update_status(ResourceStatus.AVAILABLE)
 
     @override
@@ -385,9 +392,10 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
             grpc_url = f"http://{pod.status.pod_ip}:{COMPUTER_GRPC_PORT}"
             if computer.grpc_url != grpc_url:
                 computer.grpc_url = grpc_url
-            vnc_url = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
-            if computer.vnc_url != vnc_url:
-                computer.vnc_url = vnc_url
+            if not computer.is_headless:
+                vnc_url = f"ws://{pod.status.pod_ip}:{COMPUTER_VNC_PORT}"
+                if computer.vnc_url != vnc_url:
+                    computer.vnc_url = vnc_url
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
         """Watches for changes to these Pods, update corresponding Computers."""
