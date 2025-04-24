@@ -896,7 +896,7 @@ class PageRenderer(PackageNodeRenderer[Page]):
     ) -> str:
         # inline name only for now
         args = (
-            rendered_kwargs.pop("title"),
+            rendered_kwargs.pop("title", None),
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Page.new({renderer.render_args(*args)})"
