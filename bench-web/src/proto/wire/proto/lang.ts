@@ -2218,10 +2218,6 @@ export interface ThreadData {
      */
     pagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData plan_ptr = 61;
-     */
-    planPtr?: NodeReferenceData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 65;
      */
     text?: TextData;
@@ -7219,6 +7215,25 @@ export interface ViewData {
 /**
  * A View is a graphical interface in a Bench.
  *
+ * @generated from protobuf message symbolx.bench.ThreadViewData
+ */
+export interface ThreadViewData {
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData draft_text = 100;
+     */
+    draftText?: TextData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData draft_nodes_ptr = 101;
+     */
+    draftNodesPtr: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102;
+     */
+    draftReplyToPtr?: NodeReferenceData;
+}
+/**
+ * A View is a graphical interface in a Bench.
+ *
  * @generated from protobuf message symbolx.bench.RunViewData
  */
 export interface RunViewData {
@@ -7256,25 +7271,6 @@ export interface UserWizardViewData {
      * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 100;
      */
     stage?: UserWizardViewStage;
-}
-/**
- * A View is a graphical interface in a Bench.
- *
- * @generated from protobuf message symbolx.bench.ChatViewData
- */
-export interface ChatViewData {
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData draft_text = 100;
-     */
-    draftText?: TextData;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData draft_nodes_ptr = 101;
-     */
-    draftNodesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102;
-     */
-    draftReplyToPtr?: NodeReferenceData;
 }
 /**
  * A View is a graphical interface in a Bench.
@@ -12779,10 +12775,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_CREATE = 20201;
      */
     CREATE = 20201,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHAT = 20202;
-     */
-    CHAT = 20202,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_SIDEBAR = 20205;
      */
@@ -19296,7 +19288,6 @@ class ThreadData$Type extends MessageType$<ThreadData> {
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 60, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 61, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 65, name: "text", kind: "message", T: () => TextData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
@@ -19397,9 +19388,6 @@ class ThreadData$Type extends MessageType$<ThreadData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData page_ptr */ 60:
                     message.pagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pagePtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData plan_ptr */ 61:
-                    message.planPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.planPtr);
                     break;
                 case /* optional symbolx.bench.TextData text */ 65:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
@@ -19530,9 +19518,6 @@ class ThreadData$Type extends MessageType$<ThreadData> {
         /* optional symbolx.bench.NodeReferenceData page_ptr = 60; */
         if (message.pagePtr)
             NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData plan_ptr = 61; */
-        if (message.planPtr)
-            NodeReferenceData.internalBinaryWrite(message.planPtr, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 65; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
@@ -29742,6 +29727,67 @@ class ViewData$Type extends MessageType$<ViewData> {
  */
 export const ViewData = new ViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ThreadViewData$Type extends MessageType$<ThreadViewData> {
+    constructor() {
+        super("symbolx.bench.ThreadViewData", [
+            { no: 100, name: "draft_text", kind: "message", T: () => TextData },
+            { no: 101, name: "draft_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 102, name: "draft_reply_to_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<ThreadViewData>): ThreadViewData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.draftNodesPtr = [];
+        if (value !== undefined)
+            reflectionMergePartial<ThreadViewData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ThreadViewData): ThreadViewData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional symbolx.bench.TextData draft_text */ 100:
+                    message.draftText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.draftText);
+                    break;
+                case /* repeated symbolx.bench.NodeReferenceData draft_nodes_ptr */ 101:
+                    message.draftNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr */ 102:
+                    message.draftReplyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.draftReplyToPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ThreadViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional symbolx.bench.TextData draft_text = 100; */
+        if (message.draftText)
+            TextData.internalBinaryWrite(message.draftText, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.NodeReferenceData draft_nodes_ptr = 101; */
+        for (let i = 0; i < message.draftNodesPtr.length; i++)
+            NodeReferenceData.internalBinaryWrite(message.draftNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102; */
+        if (message.draftReplyToPtr)
+            NodeReferenceData.internalBinaryWrite(message.draftReplyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ThreadViewData
+ */
+export const ThreadViewData = new ThreadViewData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class RunViewData$Type extends MessageType$<RunViewData> {
     constructor() {
         super("symbolx.bench.RunViewData", [
@@ -29895,67 +29941,6 @@ class UserWizardViewData$Type extends MessageType$<UserWizardViewData> {
  * @generated MessageType for protobuf message symbolx.bench.UserWizardViewData
  */
 export const UserWizardViewData = new UserWizardViewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ChatViewData$Type extends MessageType$<ChatViewData> {
-    constructor() {
-        super("symbolx.bench.ChatViewData", [
-            { no: 100, name: "draft_text", kind: "message", T: () => TextData },
-            { no: 101, name: "draft_nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 102, name: "draft_reply_to_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<ChatViewData>): ChatViewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.draftNodesPtr = [];
-        if (value !== undefined)
-            reflectionMergePartial<ChatViewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChatViewData): ChatViewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* optional symbolx.bench.TextData draft_text */ 100:
-                    message.draftText = TextData.internalBinaryRead(reader, reader.uint32(), options, message.draftText);
-                    break;
-                case /* repeated symbolx.bench.NodeReferenceData draft_nodes_ptr */ 101:
-                    message.draftNodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr */ 102:
-                    message.draftReplyToPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.draftReplyToPtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ChatViewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* optional symbolx.bench.TextData draft_text = 100; */
-        if (message.draftText)
-            TextData.internalBinaryWrite(message.draftText, writer.tag(100, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.NodeReferenceData draft_nodes_ptr = 101; */
-        for (let i = 0; i < message.draftNodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.draftNodesPtr[i], writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData draft_reply_to_ptr = 102; */
-        if (message.draftReplyToPtr)
-            NodeReferenceData.internalBinaryWrite(message.draftReplyToPtr, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ChatViewData
- */
-export const ChatViewData = new ChatViewData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SidebarViewData$Type extends MessageType$<SidebarViewData> {
     constructor() {
@@ -31752,12 +31737,12 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.EMPTY]: EmptyData,
 }
 
-export type ViewSubtype = RunViewData | ObjectViewData | UserWizardViewData | ChatViewData | SidebarViewData | ContextViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
+export type ViewSubtype = ThreadViewData | RunViewData | ObjectViewData | UserWizardViewData | SidebarViewData | ContextViewData | ButtonViewData | PickerViewData | DatetimeViewData | IconViewData;
 export interface ViewSubtypeMapping extends Record<ViewType, ViewSubtype> {
+  [ViewType.THREAD]: ThreadViewData,
   [ViewType.RUN]: RunViewData,
   [ViewType.OBJECT]: ObjectViewData,
   [ViewType.USER_WIZARD]: UserWizardViewData,
-  [ViewType.CHAT]: ChatViewData,
   [ViewType.SIDEBAR]: SidebarViewData,
   [ViewType.CONTEXT]: ContextViewData,
   [ViewType.BUTTON]: ButtonViewData,
@@ -32807,7 +32792,6 @@ export enum ThreadProperty {
   definitionPtr = 35,
   channelPtr = 40,
   pagePtr = 60,
-  planPtr = 61,
   text = 65,
   status = 80,
   duration = 81,
@@ -33481,6 +33465,12 @@ export enum EmptyProperty {
   subnodePacked = 29,
 }
 
+export enum ThreadViewProperty {
+  draftText = 100,
+  draftNodesPtr = 101,
+  draftReplyToPtr = 102,
+}
+
 export enum RunViewProperty {
   resourcesPacked = 100,
   inputsPacked = 101,
@@ -33493,12 +33483,6 @@ export enum ObjectViewProperty {
 
 export enum UserWizardViewProperty {
   stage = 100,
-}
-
-export enum ChatViewProperty {
-  draftText = 100,
-  draftNodesPtr = 101,
-  draftReplyToPtr = 102,
 }
 
 export enum SidebarViewProperty {
@@ -34204,10 +34188,10 @@ export const INTERRUPTION_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<InterruptionT
 }
 
 export const VIEW_PROPERTY_ENUM_BY_SUBTYPE: Partial<Record<ViewType, any>> = {
+  [ViewType.THREAD]: ThreadViewProperty,
   [ViewType.RUN]: RunViewProperty,
   [ViewType.OBJECT]: ObjectViewProperty,
   [ViewType.USER_WIZARD]: UserWizardViewProperty,
-  [ViewType.CHAT]: ChatViewProperty,
   [ViewType.SIDEBAR]: SidebarViewProperty,
   [ViewType.CONTEXT]: ContextViewProperty,
   [ViewType.BUTTON]: ButtonViewProperty,
@@ -35081,7 +35065,6 @@ export const ThreadDataInfo: Record<ThreadProperty, PropertyInfo> = {
   [ThreadProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.channelPtr]: { id: 40, name: 'channel_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.pagePtr]: { id: 60, name: 'page_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [ThreadProperty.planPtr]: { id: 61, name: 'plan_ptr', component: ObjectType.THREAD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [ThreadProperty.text]: { id: 65, name: 'text', component: ObjectType.THREAD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ThreadProperty.status]: { id: 80, name: 'status', component: ObjectType.THREAD, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ThreadProperty.duration]: { id: 81, name: 'duration', component: ObjectType.THREAD, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -35733,6 +35716,11 @@ export const EmptyDataInfo: Record<EmptyProperty, PropertyInfo> = {
   [EmptyProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [EmptyProperty.subnodePacked]: { id: 29, name: 'subnode_packed', component: ObjectType.EMPTY, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
+export const ThreadViewDataInfo: Record<ThreadViewProperty, PropertyInfo> = {
+  [ThreadViewProperty.draftText]: { id: 100, name: 'draft_text', component: ObjectType.VIEW, componentSubtype: 5510, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ThreadViewProperty.draftNodesPtr]: { id: 101, name: 'draft_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 5510, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
+  [ThreadViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 5510, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
+}
 export const RunViewDataInfo: Record<RunViewProperty, PropertyInfo> = {
   [RunViewProperty.resourcesPacked]: { id: 100, name: 'resources_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RunViewProperty.inputsPacked]: { id: 101, name: 'inputs_packed', component: ObjectType.VIEW, componentSubtype: 6010, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -35743,11 +35731,6 @@ export const ObjectViewDataInfo: Record<ObjectViewProperty, PropertyInfo> = {
 }
 export const UserWizardViewDataInfo: Record<UserWizardViewProperty, PropertyInfo> = {
   [UserWizardViewProperty.stage]: { id: 100, name: 'stage', component: ObjectType.VIEW, componentSubtype: 20001, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
-export const ChatViewDataInfo: Record<ChatViewProperty, PropertyInfo> = {
-  [ChatViewProperty.draftText]: { id: 100, name: 'draft_text', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [ChatViewProperty.draftNodesPtr]: { id: 101, name: 'draft_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [ChatViewProperty.draftReplyToPtr]: { id: 102, name: 'draft_reply_to_ptr', component: ObjectType.VIEW, componentSubtype: 20202, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SidebarViewDataInfo: Record<SidebarViewProperty, PropertyInfo> = {
   [SidebarViewProperty.expandedPackageNodesPtr]: { id: 100, name: 'expanded_package_nodes_ptr', component: ObjectType.VIEW, componentSubtype: 20205, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
@@ -36289,10 +36272,10 @@ export const MessageSubtypePropertyInfo: Partial<Record<MessageType, Record<any,
 export const InterruptionSubtypePropertyInfo: Partial<Record<InterruptionType, Record<any, PropertyInfo>>> = {
 }
 export const ViewSubtypePropertyInfo: Partial<Record<ViewType, Record<any, PropertyInfo>>> = {
+  [ViewType.THREAD]: ThreadViewDataInfo,
   [ViewType.RUN]: RunViewDataInfo,
   [ViewType.OBJECT]: ObjectViewDataInfo,
   [ViewType.USER_WIZARD]: UserWizardViewDataInfo,
-  [ViewType.CHAT]: ChatViewDataInfo,
   [ViewType.SIDEBAR]: SidebarViewDataInfo,
   [ViewType.CONTEXT]: ContextViewDataInfo,
   [ViewType.BUTTON]: ButtonViewDataInfo,
@@ -36722,7 +36705,6 @@ export const ViewTypeOptionInfo: Partial<Record<ViewType, EnumOptionInfo>> = {
   [ViewType.USER_WIZARD]: { id: 20001, name: 'USER_WIZARD', text: 'Sign up, login, etc.', title: 'User wizard', icon: 'fas fa-user' },
   [ViewType.EMPTY]: { id: 20100, name: 'EMPTY', text: 'For debugging', title: 'Empty view', icon: 'fas fa-bug' },
   [ViewType.CREATE]: { id: 20201, name: 'CREATE', icon: 'fas fa-plus' },
-  [ViewType.CHAT]: { id: 20202, name: 'CHAT', icon: 'fas fa-message' },
   [ViewType.SIDEBAR]: { id: 20205, name: 'SIDEBAR', icon: 'fas fa-object-group' },
   [ViewType.CONTEXT]: { id: 20206, name: 'CONTEXT', icon: 'fas fa-question' },
   [ViewType.WINDOW]: { id: 30001, name: 'WINDOW', text: 'Full window', title: 'Window', icon: 'fas fa-window' },

@@ -26,7 +26,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.FLOW]: () => import("@/views/nodes/Flow.vue"),
   [ViewType.KIT]: () => import("@/views/nodes/Kit.vue"),
   [ViewType.THREAD]: () => import("@/views/nodes/Thread.vue"),
-  [ViewType.CHANNEL]: () => import("@/views/nodes/Thread.vue"), // shared with Thread
   [ViewType.TASK]: () => import("@/views/nodes/Task.vue"),
   [ViewType.AGENT]: () => import("@/views/nodes/Agent.vue"),
   // structs
@@ -37,7 +36,6 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.EMPTY]: () => import("@/views/helpers/Empty.vue"),
   [ViewType.SIDEBAR]: () => import("@/views/helpers/Sidebar.vue"),
   [ViewType.CONTEXT]: () => import("@/views/helpers/Context.vue"),
-  [ViewType.CHAT]: () => import("@/views/helpers/Chat.vue"),
 
   //
   // Organization

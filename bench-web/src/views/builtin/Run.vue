@@ -16,9 +16,7 @@ const nodePtr = toRef(props, "nodePtr");
 const node = props.graph.getRef(nodePtr) as Ref<RunData | null>;
 </script>
 <template>
-  <div
-    class="flex flex-row items-baseline gap-x-1.5 rounded-full border bg-gray-100 py-1 pr-3 pl-2 text-sm select-none"
-  >
+  <div class="flex flex-row items-baseline gap-x-1.5 rounded-full border py-1 pr-3 pl-2 text-sm select-none">
     <!-- Runnable -->
     <NodeReference :node-ptr="node?.actionPtr" hide-metadata size="sm" />
     <!-- Title/arguments -->

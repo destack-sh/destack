@@ -1452,7 +1452,6 @@ enum ViewType {
   VIEW_TYPE_USER_WIZARD = 20001;
   VIEW_TYPE_EMPTY = 20100;
   VIEW_TYPE_CREATE = 20201;
-  VIEW_TYPE_CHAT = 20202;
   VIEW_TYPE_SIDEBAR = 20205;
   VIEW_TYPE_CONTEXT = 20206;
   VIEW_TYPE_WINDOW = 30001;
@@ -2363,7 +2362,6 @@ message ThreadData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData channel_ptr = 40;
   optional NodeReferenceData page_ptr = 60;
-  optional NodeReferenceData plan_ptr = 61;
   optional TextData text = 65;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -3689,6 +3687,13 @@ message ViewData {
 }
 
 // A View is a graphical interface in a Bench.
+message ThreadViewData {
+  optional TextData draft_text = 100;
+  repeated NodeReferenceData draft_nodes_ptr = 101;
+  optional NodeReferenceData draft_reply_to_ptr = 102;
+}
+
+// A View is a graphical interface in a Bench.
 message RunViewData {
   optional google.protobuf.Value resources_packed = 100;
   optional google.protobuf.Value inputs_packed = 101;
@@ -3703,13 +3708,6 @@ message ObjectViewData {
 // A View is a graphical interface in a Bench.
 message UserWizardViewData {
   optional UserWizardViewStage stage = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message ChatViewData {
-  optional TextData draft_text = 100;
-  repeated NodeReferenceData draft_nodes_ptr = 101;
-  optional NodeReferenceData draft_reply_to_ptr = 102;
 }
 
 // A View is a graphical interface in a Bench.

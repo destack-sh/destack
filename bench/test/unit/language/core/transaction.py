@@ -9,7 +9,7 @@ from bench.language import (
     ViewType,
 )
 from bench.language.core import text
-from bench.language.view.view import ChatView, Offset
+from bench.language.view.view import Offset, ThreadView
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
 from bench.test.unit.conftest import simulated_runtime
@@ -21,7 +21,7 @@ async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkloa
     session = runtime.session
     Message1 = Class.new("Message1", Field.member("Integer", int), Field.member("String", str))
     Message1.fields.append(Field.member("Message1", Message1))
-    View1 = cast(ChatView, View.new(ViewType.CHAT, "ChatView1"))
+    View1 = cast(ThreadView, View.new(ViewType.THREAD, "ThreadView1"))
     Value1 = Class.new("Value1", Field.member("Value", str))
     runtime.page().extend(Message1, View1, Value1)
     await runtime.commit()
@@ -63,8 +63,8 @@ async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkloa
     assert get_last_operation().type == EditOperationType.SET
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,
-        str(ViewType.CHAT),
-        ChatView.get_property("draft_text").key,
+        str(ViewType.THREAD),
+        ThreadView.get_property("draft_text").key,
     ]
 
     # subtype clear (indirect via computed property)
@@ -72,8 +72,8 @@ async def test_trace_edits(simulation: Simulation, runtime: RuntimeLambdaWorkloa
     assert get_last_operation().type == EditOperationType.CLEAR
     assert get_last_operation().path == [
         Node.get_property("subnode_packed").key,
-        str(ViewType.CHAT),
-        ChatView.get_property("draft_text").key,
+        str(ViewType.THREAD),
+        ThreadView.get_property("draft_text").key,
     ]
 
     # commit
