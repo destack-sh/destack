@@ -74,7 +74,6 @@ class ViewType(BuiltinEnum):
     USER_WIZARD = 20001, "User wizard", "Sign up, login, etc.", "fas fa-user"
     EMPTY = 20100, "Empty view", "For debugging", "fas fa-bug"
     CREATE = 20201, None, None, "fas fa-plus"
-    CHAT = 20202, None, None, "fas fa-message"
     SIDEBAR = 20205, None, None, "fas fa-object-group"
     CONTEXT = 20206, None, None, "fas fa-question"
     # ACTIVITY = 20207, None, None, "fas fa-list-timeline"
@@ -494,7 +493,17 @@ class View(
 # Intrinsics (0-30000)
 #
 
-# nodes (0-10000)
+
+@subnode_(ViewType.THREAD)
+class ThreadView(View):
+    draft_text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
+    draft_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
+    draft_reply_to: Optional["Message"] = p_regular(
+        102, require=False, array=False, references=NodeType.MESSAGE
+    )
+    if TYPE_CHECKING:
+        draft_nodes_ptr: list["NodeReference"] = []
+        draft_reply_to_ptr: Optional["NodeReference"] = None
 
 
 @subnode_(ViewType.RUN)
@@ -520,18 +529,6 @@ class UserWizardViewStage(BuiltinEnum):
 @subnode_(ViewType.USER_WIZARD)
 class UserWizardView(View):
     stage: UserWizardViewStage | None = p_regular(100)
-
-
-@subnode_(ViewType.CHAT)
-class ChatView(View):
-    draft_text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
-    draft_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
-    draft_reply_to: Optional["Message"] = p_regular(
-        102, require=False, array=False, references=NodeType.MESSAGE
-    )
-    if TYPE_CHECKING:
-        draft_nodes_ptr: list["NodeReference"] = []
-        draft_reply_to_ptr: Optional["NodeReference"] = None
 
 
 @subnode_(ViewType.SIDEBAR)

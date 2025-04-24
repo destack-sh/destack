@@ -83,7 +83,7 @@ const subnodePacked = toRef(props, "subnodePacked");
 
 // node
 const nodePtr = computedValue(() => props.nodePtr);
-const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
+const { node, connection, graph } = supergraph.getLinkRef(nodePtr);
 const threadPtr = computed(() => {
   if (isNode(node.value, NodeType.THREAD)) {
     return nodePtr.value;
@@ -315,9 +315,9 @@ const replyTo = computed(() => {
 });
 
 // draft
-const draftText = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "draftText");
-const draftNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "draftNodesPtr");
-const draftReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.CHAT, subnodePacked, "draftReplyToPtr");
+const draftText = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftText");
+const draftNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftNodesPtr");
+const draftReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftReplyToPtr");
 const draftNodes = supergraph.getManyRef(draftNodesPtr);
 const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
@@ -444,7 +444,7 @@ function clearDraft() {
   state.update(
     {
       metatype: NodeType.VIEW,
-      type: ViewType.CHAT,
+      type: ViewType.THREAD,
       subnode: { draftText: undefined, draftNodesPtr: [], draftReplyToPtr: undefined },
     },
     { debounce: "tick" },
@@ -453,7 +453,7 @@ function clearDraft() {
 
 function startReplying(message: MessageData) {
   state.update(
-    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: toNodeRef(message) } },
+    { metatype: NodeType.VIEW, type: ViewType.THREAD, subnode: { draftReplyToPtr: toNodeRef(message) } },
     { debounce: "tick" },
   );
   nextTick(() => {
@@ -463,7 +463,7 @@ function startReplying(message: MessageData) {
 
 function stopReplying() {
   state.update(
-    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftReplyToPtr: undefined } },
+    { metatype: NodeType.VIEW, type: ViewType.THREAD, subnode: { draftReplyToPtr: undefined } },
     { debounce: "tick" },
   );
 }
@@ -484,7 +484,7 @@ async function addFiles(files: FileList | File[]) {
     state.update(
       {
         metatype: NodeType.VIEW,
-        type: ViewType.CHAT,
+        type: ViewType.THREAD,
         subnode: { draftNodesPtr: [...(draftNodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
       },
       { debounce: "tick" },
@@ -496,7 +496,7 @@ function removeFiles(files: (FileData | NodeReferenceData)[]) {
   state.update(
     {
       metatype: NodeType.VIEW,
-      type: ViewType.CHAT,
+      type: ViewType.THREAD,
       subnode: { draftNodesPtr: draftNodesPtr.value?.filter((f) => !files.some((f2) => f2.id == f.id)) },
     },
     { debounce: "tick" },
@@ -1034,7 +1034,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
               @update:model-value="
                 (value) =>
                   state.update(
-                    { metatype: NodeType.VIEW, type: ViewType.CHAT, subnode: { draftText: value } },
+                    { metatype: NodeType.VIEW, type: ViewType.THREAD, subnode: { draftText: value } },
                     { debounce: 'long' },
                   )
               "
