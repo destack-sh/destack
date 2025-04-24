@@ -16,7 +16,6 @@ from bench.language.core import (
     IsType,
     LocalNodeList,
     NodeReference,
-    NodeSubtypeStub,
     NodeType,
     PackageNode,
     RunType,
@@ -76,7 +75,7 @@ class ActionType(BuiltinEnum):
         return self < 40
 
 
-@node_(NodeType.ACTION, has_subtypes=True)
+@node_(NodeType.ACTION)
 class Action(
     IsComputable,
     IsClaimable,
@@ -245,7 +244,7 @@ class Action(
 
     @staticmethod
     def new[ActionT: "Action" = "Action"](
-        typ: Union["Action", ActionType, _type[ActionT], NodeSubtypeStub[ActionT]],
+        typ: Union["Action", ActionType, _type[ActionT]],
         name: str | None = None,
         **kwargs,
     ) -> ActionT:
@@ -255,8 +254,6 @@ class Action(
             return cast(ActionT, action)
         elif isinstance(typ, type):
             typ = Action.__subtype_by_subclass__[typ]  # type: ignore
-        elif isinstance(typ, NodeSubtypeStub):
-            typ = cast(ActionType, typ._node_subtype)
         action = Action(
             type=cast(ActionType, typ), name=name or cast(ActionType, typ).bench_name, **kwargs
         )

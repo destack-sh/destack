@@ -1,9 +1,7 @@
 <script lang="ts" setup>
 import { getPropertyName, getPropertyTitle } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
-import { moveNode, packSubnode } from "@/language/core/node";
-import { getPropertyType, getStorageKey, makeType, NAME_TYPE, nodeToType, TypeIdentity } from "@/language/core/type";
-import { packValue, unpackValue } from "@/language/core/value";
+import { moveNode } from "@/language/core/node";
 import {
   DebounceLevel,
   getTransactionOptionsForType,
@@ -11,6 +9,8 @@ import {
   Transaction,
   TransactionOptions,
 } from "@/language/core/transaction";
+import { getPropertyType, getStorageKey, makeType, NAME_TYPE, nodeToType, TypeIdentity } from "@/language/core/type";
+import { packValue, unpackValue } from "@/language/core/value";
 import { createField } from "@/language/source/field";
 import {
   BenchType,
@@ -25,7 +25,6 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  PickerVariant,
   PrimitiveType,
   PropertyInfo,
   RecordData,
@@ -33,7 +32,7 @@ import {
   TextLineType,
   TypeKind,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire";
 import {
   describeNode,

@@ -42,7 +42,6 @@ export function actionToType(
           benchType: BenchType.ACTION,
           baseFieldTypes: fieldTypes,
           propertyFieldTypes: fieldTypes,
-          constraint: makeTypeConstraint({ nodeSubtypes: [action.type] }),
         });
       } else {
         return makeType({

@@ -261,7 +261,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                         )
 
             # computed runtime value (with cache key)
-            if prop.is_value_runtime or prop.is_subnode_packed:
+            if prop.is_value_runtime:
                 from .value import _object_value_runtime
 
                 prop.cache_key = intern(f"_{prop.name}_cached")
@@ -615,8 +615,6 @@ def _trace_edit_operation(
     if node is None or node._is_new or node._session is None:
         return  # ignore, not tracked
 
-    from .node import Node
-
     # trace path for edit
     path: list[str] = [key.key]
     k = key
@@ -631,16 +629,6 @@ def _trace_edit_operation(
             ), f"{obj!r} has non-str key {parent_key_str!r} in {parent!r}"
             path.insert(0, parent_key_str)
         obj = parent
-
-    # figure out subtype if we're coming from a nested property
-    if subtype is None and node.__has_subtypes__:
-        assert type(k) is Property, f"expected Property, got {k!r} for {key!r} in {node!r}"
-        subtype = cast(type[Node], k.component).__subtype__
-
-    # add subtype to path
-    if subtype is not None:
-        path.insert(0, str(subtype))
-        path.insert(0, Node.get_property("subnode_packed").key)
 
     # pack edit operation content
     operation_type = EditOperationType.CLEAR if new_value is None else EditOperationType.SET
@@ -676,8 +664,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
 
     metatype: ClassVar[ObjectType]
     __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
-    __passthrough_get__: ClassVar[tuple[str, ...] | None] = None
-    __passthrough_set__: ClassVar[tuple[str, ...] | None] = None
 
     __is_struct__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
@@ -928,14 +914,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
     def _do_get(self, key):
         """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
-        # check passthrough (if in a session)
-        if self.__passthrough_get__ is not None and self._session is not None:
-            for passthrough_key in self.__passthrough_get__:
-                target = getattr(self, passthrough_key, UNSET)
-                attr = getattr(target, key, UNSET)
-                if attr is not UNSET:
-                    return attr
-
         # attribute error
         # NOTE: we only try to repr once in a call chain to prevent recursive repr errors
         #  (this is rare, but can happen for instance when an init partially fails)
@@ -1012,13 +990,6 @@ class BuiltinObject[ObjectDataT: AnyObjectData](abc.ABC):
                 object.__setattr__(self, key, new_value)
 
             return
-        elif track and self.__passthrough_set__ is not None:
-            # try passthrough target (if any)
-            for passthrough_key in self.__passthrough_set__:
-                target = getattr(self, passthrough_key, UNSET)
-                if target is not UNSET:
-                    setattr(target, key, new_value)
-                    return
 
         # attribute error
         try:
@@ -1342,7 +1313,6 @@ class PropertyReference(Struct):
 
     object_type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
-    node_subtype: Optional[int] = p_internal(32, default=None)
     references_node_type: Optional[NodeType] = p_internal(35)  # disambiguate reference properties
     references_meta: Optional[PropertyReferenceType] = p_internal(36, default=None)
 
@@ -1387,15 +1357,6 @@ class PropertyReference(Struct):
 
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
-        if (
-            prop is None
-            and object_cls is not None
-            and issubclass(object_cls, Node)
-            and self.node_subtype
-        ):
-            subtype_cls = object_cls.__subclass_by_subtype__.get(cast(Any, self.node_subtype))
-            if subtype_cls is not None:
-                prop = subtype_cls.__properties_by_id__.get(self.id)
         if prop is not None:
             if self.references_meta is not None:
                 assert prop.reference_stored_metas is not None, f"{prop!r} has no stored metas"

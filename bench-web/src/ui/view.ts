@@ -1,6 +1,5 @@
 import { isEnumType, isNodeType } from "@/language/core/const";
 import { getEnumOptions } from "@/language/core/enum";
-import { packSubnode } from "@/language/core/node";
 import { makeType, type TypeIdentity } from "@/language/core/type";
 import {
   Alignment,
@@ -10,7 +9,6 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
-  PickerVariant,
   PrimitiveType,
   SelectionData,
   SelectionType,
@@ -249,20 +247,7 @@ export function getViewForType(
     return { type: ViewType.OBJECT, valueType };
   } else if (type.benchType != null || type.kind == TypeKind.NODE) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType!] != null) {
-      if (
-        type.benchType == BenchType.FILE &&
-        type.constraint?.nodeSubtypes?.length == 1 &&
-        VIEW_TYPE_BY_FILE_TYPE[type.constraint.nodeSubtypes[0] as FileType] != null
-      ) {
-        // specific file type view
-        return {
-          type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.nodeSubtypes[0] as FileType]!,
-          valueType,
-          isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(
-            type.constraint.nodeSubtypes[0] as FileType,
-          ),
-        };
-      } else if (type.benchType == BenchType.FILE) {
+      if (type.benchType == BenchType.FILE) {
         // generic file type view
         return { type: ViewType.FILE, valueType, isInline: true };
       }
@@ -271,18 +256,7 @@ export function getViewForType(
       return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType!]!, valueType };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
-      if (!options?.forcePickerDropdown && !type.isList && getEnumOptions(type.benchType).length <= 5) {
-        // prefer inline picker for small scalar enums
-        return {
-          type: ViewType.PICKER,
-          valueType,
-          isInline: true,
-          // subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.MULTI_TOGGLE }),
-        };
-      } else {
-        // regular picker
-        return { type: ViewType.PICKER, valueType };
-      }
+      return { type: ViewType.PICKER, valueType };
     } else if (type.kind == TypeKind.NODE || isNodeType(type.benchType)) {
       // node picker
       return { type: ViewType.PICKER, valueType };

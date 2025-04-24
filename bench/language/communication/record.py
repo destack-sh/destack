@@ -32,12 +32,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_(
-    NodeType.RECORD,
-    passthrough_get=("value",),
-    passthrough_set=("value",),
-    stored_value_unraveled=True,
-)
+@node_(NodeType.RECORD, stored_value_unraveled=True)
 class Record(
     IsBased,
     IsModal,

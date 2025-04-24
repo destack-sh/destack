@@ -71,7 +71,7 @@ class LinkPreview(LinkBase, Struct):
     image_urls: list[str] = p_regular(70, array=True)
 
 
-@node_(NodeType.LINK, has_subtypes=True)
+@node_(NodeType.LINK)
 class Link(IsTitled, LinkBase, Resource[LinkData]):
     """
     A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).

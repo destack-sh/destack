@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/core/const";
-import { packSubnode } from "@/language/core/node";
 import { makeType, TypeIdentity } from "@/language/core/type";
 import { createField, useFieldList } from "@/language/source/field";
-import { BenchType, FieldType, NodeType, Orientation, PickerVariant, ViewData, ViewType } from "@/proto/wire";
+import { BenchType, FieldType, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";

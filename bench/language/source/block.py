@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, cast, override
+from typing import TYPE_CHECKING, Optional, Union, override
 from uuid import UUID
 
 from bench.language.core import (
@@ -11,7 +11,6 @@ from bench.language.core import (
     LocalNodeList,
     Node,
     NodeReference,
-    NodeSubtypeStub,
     NodeType,
     PackageNode,
     PageNode,
@@ -129,7 +128,7 @@ if IS_DEV or IS_TEST:
             raise ValueError(f"TextLineType {text_line_type.name} != BlockType {block_type.name}")
 
 
-@node_(NodeType.BLOCK, has_subtypes=True)
+@node_(NodeType.BLOCK)
 class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
     """
     A Block on a Page.
@@ -249,15 +248,13 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
 
     @staticmethod
     def new[BlockT: "Block" = "Block"](
-        typ: BlockType | _type[BlockT] | NodeSubtypeStub[BlockT],
+        typ: BlockType | _type[BlockT],
         node: Node | None = None,
         **kwargs,
     ) -> "BlockT":
         # unravel subtype
         if isinstance(typ, type):
             typ = Block.__subtype_by_subclass__[typ]  # type: ignore
-        elif isinstance(typ, NodeSubtypeStub):
-            typ = cast(BlockType, typ._node_subtype)
         # make
         block = Block(type=typ, node=node, **kwargs)  # type: ignore
         # set the node definition for inline source nodes

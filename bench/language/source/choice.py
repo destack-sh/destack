@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CHOICE, passthrough_get=("options",))
+@node_(NodeType.CHOICE)
 class Choice(
     IsTemplatable,
     IsModal,

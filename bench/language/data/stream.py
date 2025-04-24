@@ -27,7 +27,7 @@ class StreamType(BuiltinEnum):
     VIDEO = 5
 
 
-@node_(NodeType.STREAM, has_subtypes=True)
+@node_(NodeType.STREAM)
 class Stream(Resource[StreamData]):
     """
     A Stream stored somewhere (like in a Drive, or externally).

@@ -27,7 +27,7 @@ import {
   TextData,
   ThreadData,
   Timestamp,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
@@ -66,15 +66,11 @@ const props = defineProps<
     id: string;
     isRoot?: boolean;
     size?: Partial<Pick<RectangleData, "width" | "height">>;
-  } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "alignment" | "isMinimal" | "subnodePacked">
-  >
+  } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "alignment" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
-const subnodePacked = toRef(props, "subnodePacked");
 const alignment = computed(() => props.alignment ?? Alignment.END);
 
 // state

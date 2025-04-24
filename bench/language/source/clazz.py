@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.CLASS, passthrough_get=("fields",))
+@node_(NodeType.CLASS)
 class Class(
     IsTemplatable,
     IsModal,

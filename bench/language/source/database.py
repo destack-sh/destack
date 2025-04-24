@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.DATABASE, passthrough_get=("fields",))
+@node_(NodeType.DATABASE)
 class Database(
     IsInstantiable,
     IsTemplatable,

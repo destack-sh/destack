@@ -15,15 +15,12 @@ import {
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeMode,
   NodeReferenceData,
-  NodeSubtypeMapping,
   NodeType,
   ObjectType,
   PackageData,
   PageData,
   PARENT_NODE_TYPES,
-  PROPERTY_ENUM_BY_SUBTYPE,
   PROPERTY_ENUM_BY_TYPE,
-  PROPERTY_INFOS_BY_SUBTYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyInfo,
   StructType,
@@ -102,20 +99,10 @@ export function makeNodeName(graph: ReadNodeGraph, node: { metatype: ObjectType 
   return generateNodeName(node, siblings);
 }
 
-/** A Node 'in' type for mapping subnode correctly given a metatype & optional type. */
-export type NodeIn<T extends NodeType> = NodeTypeMapping[T] extends { type: infer ST }
-  ? ST extends keyof NodeSubtypeMapping[T]
-    ? {
-        metatype: T | ObjectType;
-        type: ST;
-        subnode?: Partial<NodeSubtypeMapping[T][ST]>;
-      } & Partial<Omit<NodeTypeMapping[T], "metatype" | "type">>
-    : {
-        metatype: T | ObjectType;
-      } & Partial<Omit<NodeTypeMapping[T], "metatype">>
-  : {
-      metatype: T | ObjectType;
-    } & Partial<Omit<NodeTypeMapping[T], "metatype">>;
+/** A Node 'in' type. */
+export type NodeIn<T extends NodeType> = {
+  metatype: T | ObjectType;
+} & Partial<Omit<NodeTypeMapping[T], "metatype">>;
 
 /**
  * Make a node from the given data and assign it an id (and ck if in package).
@@ -167,152 +154,10 @@ export function makeNode<T extends NodeType>(
     (node as any).orderKey = INTEGER_ZERO;
   }
 
-  // pack subnode
-  if ("type" in properties && "subnode" in nodeIn) {
-    node.subnodePacked = packSubnode(nodeIn.metatype as T, nodeIn.type as _NodeSubtype<T>, nodeIn.subnode as any);
-  }
-
   // assign default values to unset properties
   node = makeDefaultObject(node) as NodeTypeMapping[T];
 
   return node;
-}
-
-type _NodeSubtype<T extends NodeType> = NodeTypeMapping[T] extends { type: infer U }
-  ? U extends keyof NodeSubtypeMapping[T]
-    ? U
-    : never
-  : never;
-type _NodeSubnodeProperty<
-  T extends NodeType,
-  ST extends keyof NodeSubtypeMapping[T],
-  P extends keyof NodeSubtypeMapping[T][ST],
-> = NodeSubtypeMapping[T][ST][P];
-type _NodeSubnodeProperties<T extends NodeType, ST extends _NodeSubtype<T>> = ST extends keyof NodeSubtypeMapping[T]
-  ? keyof NodeSubtypeMapping[T][ST]
-  : never;
-
-/** Packs the subnode properties of a Node */
-export function packSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
-  nodeType: T,
-  type: ST,
-  subnode: ST extends keyof NodeSubtypeMapping[T] ? Partial<NodeSubtypeMapping[T][ST]> : never,
-): JsonValue {
-  if (subnode == null || typeof subnode != "object" || Object.keys(subnode).length == 0) {
-    return {}; // empty subnode
-  }
-
-  const propertiesEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
-  const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
-  if (propertiesEnum == null || properties == null) {
-    throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
-  }
-
-  const subnodePacked: Record<string, any> = {};
-  for (const prop of Object.values(properties)) {
-    const propName = propertiesEnum[prop.id];
-    const propValue = (subnode as any)[propName];
-    const propValuePacked = packBuiltinObjectProperty(propValue, prop);
-    if (propValuePacked != null) {
-      subnodePacked[prop.id.toString()] = propValuePacked;
-    }
-  }
-
-  return { [type.toString()]: subnodePacked };
-}
-
-/** Unpacks the subnode properties of a Node */
-export function unpackSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
-  nodeType: T,
-  type: ST,
-  subnodePacked: JsonValue | undefined,
-): ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never {
-  const propertyEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
-  const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
-  if (propertyEnum == null || properties == null)
-    throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
-
-  subnodePacked = (subnodePacked as any)?.[type.toString()] as Record<string, any>;
-  if (subnodePacked == null || typeof subnodePacked != "object") {
-    // nothing here, empty subnode
-    return {} as any;
-  }
-
-  const subnode: Record<string, any> = {};
-  for (const prop of Object.values(properties)) {
-    const propName = propertyEnum[prop.id];
-    const propValuePacked = (subnodePacked as any)[prop.id.toString()];
-    const propValue = propValuePacked != null ? unpackBuiltinObjectProperty(propValuePacked, prop) : undefined;
-    if (propValue != null) {
-      subnode[propName] = propValue;
-    }
-  }
-
-  return subnode as any;
-}
-
-/** Unpacks a specific subnode property */
-export function unpackSubnodeProperty<
-  T extends NodeType,
-  ST extends _NodeSubtype<T>,
-  P extends _NodeSubnodeProperties<T, ST>,
->(
-  nodeType: T,
-  type: ST,
-  subnodePacked: JsonValue | undefined,
-  propertyName: P,
-): ST extends keyof NodeSubtypeMapping[T] ? _NodeSubnodeProperty<T, ST, P> : never {
-  const propertyEnum = PROPERTY_ENUM_BY_SUBTYPE[nodeType]?.[type];
-  const properties = PROPERTY_INFOS_BY_SUBTYPE[nodeType]?.[type];
-  if (propertyEnum == null || properties == null)
-    throw new Error(`no properties for ${NodeType[nodeType]}.${type.toString()}`);
-  const propertyId: number = propertyEnum[propertyName];
-  const property: PropertyInfo = properties[propertyId];
-  const propValuePacked = (subnodePacked as any)?.[type.toString()]?.[propertyId.toString()];
-  if (propValuePacked == null) {
-    return undefined as any;
-  } else {
-    return unpackBuiltinObjectProperty(propValuePacked, property) as any;
-  }
-}
-
-/** Unpacks a subnode reactively */
-export function useSubnode<T extends NodeType, ST extends _NodeSubtype<T>>(
-  nodeType: T,
-  type: ST,
-  subnodePacked: Ref<NodeTypeMapping[T] | JsonValue | undefined>,
-): Ref<ST extends keyof NodeSubtypeMapping[T] ? NodeSubtypeMapping[T][ST] : never> {
-  const subnode = computed(() => {
-    if (subnodePacked.value == null) return null;
-    if (isNode(subnodePacked.value, nodeType)) {
-      return unpackSubnode(nodeType, type, subnodePacked.value.subnodePacked);
-    } else {
-      return unpackSubnode(nodeType, type, subnodePacked.value as JsonValue);
-    }
-  });
-  return subnode as Ref<any>;
-}
-
-/** Unpacks a specific subnode property reactively */
-export function useSubnodeProperty<
-  T extends NodeType,
-  ST extends _NodeSubtype<T>,
-  P extends _NodeSubnodeProperties<T, ST>,
->(
-  nodeType: T,
-  type: ST,
-  subnodePacked: Ref<NodeTypeMapping[T] | JsonValue | undefined>,
-  propertyName: P,
-): Ref<ST extends keyof NodeSubtypeMapping[T] ? _NodeSubnodeProperty<T, ST, P> : never> {
-  const property = computed(() => {
-    if (subnodePacked.value == null) return null;
-    if (isNode(subnodePacked.value, nodeType)) {
-      return unpackSubnodeProperty(nodeType, type, subnodePacked.value.subnodePacked, propertyName);
-    } else {
-      return unpackSubnodeProperty(nodeType, type, subnodePacked.value as JsonValue, propertyName);
-    }
-  });
-  return property as Ref<any>;
 }
 
 /**

@@ -10,7 +10,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
-from pydantic import JsonValue
 
 from bench import pb2
 from bench.language.core import (
@@ -32,9 +31,7 @@ from bench.language.core import (
     on_invalid_raise,
     pack_custom_object,
     pack_proto_json,
-    pack_value,
     unpack_proto_json,
-    unpack_value,
 )
 from bench.language.registry import BUILTIN_OBJECT_CLASS_BY_TYPE
 from bench.language.runtime import Session
@@ -114,38 +111,6 @@ def unpack_enum[EnumT: BuiltinEnumOrUnion](enum_cls: type[EnumT], value: Any) ->
 #
 
 
-def pack_subnode(node_cls: type[Node], subnode: dict[str, Any]):
-    subnode_packed: dict[str, dict[str, JsonValue]] = {}
-    for subnode_key in subnode:
-        subtype_cls = node_cls.__subclass_by_subtype__.get(int(subnode_key))  # type: ignore
-        if subtype_cls is None:
-            continue
-        subnode_packed[subnode_key] = {}
-        for p in subtype_cls.__subtype_extra_properties__.values():
-            if p.key in subnode[subnode_key] and p._type_info is not None:
-                subnode_packed[subnode_key][p.key] = pack_value(
-                    subnode[subnode_key][p.key], p._type_info
-                )
-    return subnode_packed
-
-
-def unpack_subnode(node_cls: type[Node], subnode_packed: dict) -> dict[str, Any]:
-    subnode_unpacked: dict[str, Any] = {}
-    for subnode_key in subnode_packed:
-        subnode_cls = node_cls.__subclass_by_subtype__.get(int(subnode_key))  # type: ignore
-        if subnode_cls is None:
-            continue
-        subnode_unpacked[subnode_key] = {}
-        for p_key, prop_value_packed in cast(dict, subnode_packed[subnode_key]).items():
-            p = subnode_cls.__properties_by_id__.get(int(p_key))
-            assert (
-                p is not None and p._type_info is not None
-            ), f"bad {p_key} for {node_cls.subnode_packed!r}"
-            prop_value = unpack_value(prop_value_packed, p._type_info)
-            subnode_unpacked[subnode_key][p.key] = prop_value
-    return subnode_unpacked
-
-
 def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: Any) -> Any:
     if value is None:
         return None
@@ -178,10 +143,6 @@ def pack_builtin_object_prop_scalar(obj: BuiltinObject, prop: Property, value: A
         else:
             value_packed = value
         return pack_proto_json(value_packed)
-    elif prop.is_subnode_packed:
-        assert isinstance(obj, Node) and obj.__has_subtypes__, f"no subtypes for {obj!r}"
-        subnode_packed = pack_subnode(obj.__class__, value)
-        return pack_proto_json(cast(JsonValue, subnode_packed))
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.primitive_type == PrimitiveType.JSON:
@@ -217,12 +178,6 @@ def unpack_builtin_object_prop_scalar(
                 id=value_id,
                 ck=UUID(value.ck) if value.ck else value_id,
             )
-        elif prop.is_subnode_packed:
-            node_cls = prop.component
-            assert issubclass(node_cls, Node) and node_cls.__has_subtypes__, f"no subtypes {prop!r}"
-            subnode_packed = unpack_proto_json(value)
-            assert type(subnode_packed) is dict, f"unexpected {subnode_packed!r} for {prop!r}"
-            return unpack_subnode(node_cls, subnode_packed)
         elif prop.primitive_type == PrimitiveType.UUID:
             return UUID(value)  # uuids are wired as strings
         elif prop.primitive_type == PrimitiveType.JSON:

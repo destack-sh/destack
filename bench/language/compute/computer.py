@@ -34,7 +34,7 @@ class ComputerType(BuiltinEnum):
     CUSTOM = 9000, "Custom", "A custom Docker image", "fas fa-whale"
 
 
-@node_(NodeType.COMPUTER, has_subtypes=True)
+@node_(NodeType.COMPUTER)
 class Computer(IsSubject, Resource[ComputerData]):
     """
     A Computer provides physical compute.

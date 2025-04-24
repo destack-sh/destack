@@ -101,8 +101,6 @@ export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
       return false;
     } else if ((a.constraint != null) != (b.constraint != null)) {
       return false;
-    } else if (a.constraint != null && b.constraint != null) {
-      return deepValueEquals(a.constraint.nodeSubtypes, b.constraint.nodeSubtypes);
     } else {
       return true;
     }
@@ -160,7 +158,7 @@ export function getPropertyType(prop: PropertyInfo | PropertyReferenceData): Typ
         benchType = undefined;
       } else if ((prop.referenceNodes?.length ?? 0) > 1) {
         benchType = undefined;
-        constraint = makeTypeConstraint({ ...constraint, nodeSubtypes: prop.referenceNodes! });
+        constraint = makeTypeConstraint({ ...constraint });
       } else {
         benchType = prop.referenceNodes![0] as unknown as BenchType;
       }
@@ -293,11 +291,7 @@ export function getFieldType(storageKey: string): FieldType | null {
 
 /** Whether the value meets the type constraints */
 export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstraintData): boolean {
-  if (constraint.nodeSubtypes.length > 0) {
-    return constraint.nodeSubtypes.includes((node as any).type);
-  } else {
-    return true; // no constraint
-  }
+  return true; // no constraint
 }
 
 /** Whether the given type supports lists :ListableTypes. */
@@ -341,17 +335,7 @@ export function getSubtypeEnum(metatype: NodeType): EnumType | null {
 /** Gets the implied subtype node name  */
 export function getConstrainedTypeName(type: TypeIdentity): string | null {
   const metatypeName = toCamelName(BenchType, type.benchType);
-  if (isNodeType(type.benchType) && type.constraint?.nodeSubtypes?.length == 1) {
-    const enumType = getSubtypeEnum(type.benchType);
-    const subtype = type.constraint.nodeSubtypes[0];
-    if ((enumType as any)?.[subtype] != null) {
-      return getEnumTitle(enumType!, subtype);
-    } else {
-      return metatypeName;
-    }
-  } else {
-    return metatypeName;
-  }
+  return metatypeName;
 }
 
 /** Gets the default Field name from a type  */
@@ -364,12 +348,7 @@ export function getTypeName(field: Partial<TypeData>): string {
     return getEnumTitle(EnumType.PRIMITIVE_TYPE, field.primitiveType!);
   } else if (field.kind == TypeKind.STRUCT || field.kind == TypeKind.NODE || field.kind == TypeKind.ENUM) {
     if (isNodeType(field.benchType)) {
-      const subtypeEnum = getSubtypeEnum(field.benchType);
-      if (subtypeEnum != null && field.constraint?.nodeSubtypes?.length == 1) {
-        return getEnumTitle(subtypeEnum, field.constraint.nodeSubtypes[0]);
-      } else {
-        return getEnumTitle(EnumType.BENCH_TYPE, field.benchType);
-      }
+      return getEnumTitle(EnumType.BENCH_TYPE, field.benchType);
     } else if (field.benchType != null) {
       return getEnumTitle(EnumType.BENCH_TYPE, field.benchType);
     } else {

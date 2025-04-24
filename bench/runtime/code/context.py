@@ -9,10 +9,7 @@ from uuid import UUID
 from PIL.Image import Image
 
 from bench import language
-from bench.language import (
-    BENCH_CLASS_BY_NAME,
-    NODE_CLASS_STUBS_BY_NAME,
-)
+from bench.language import BENCH_CLASS_BY_NAME
 from bench.utils.func import get_subclasses
 from bench.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 
@@ -27,7 +24,6 @@ BUILTIN_GLOBALS = {k: v for k, v in builtins.__dict__.items() if not k.startswit
 STATIC_CODE_GLOBALS: dict[str, Any] = {
     **{k: v for k, v in vars(language).items() if not k.startswith("__")},
     **BENCH_CLASS_BY_NAME,
-    **NODE_CLASS_STUBS_BY_NAME,
     "Image": Image,
     # some error types
     **{c.__name__: c for c in RUNTIME_ERROR_CLASSES},

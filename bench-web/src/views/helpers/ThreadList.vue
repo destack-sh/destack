@@ -39,11 +39,9 @@ const DEFAULT_SORT = [
 ];
 const NODE_COMMANDS = CONTEXT_COMMANDS_BY_TYPE[NodeType.THREAD]?.map(getCommand);
 
-const props = defineProps<
-  {
-    self?: TypedNodeReferenceData<NodeType.VIEW>;
-  } & Partial<Pick<ViewData, "subnodePacked">>
->();
+const props = defineProps<{
+  self?: TypedNodeReferenceData<NodeType.VIEW>;
+}>();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 

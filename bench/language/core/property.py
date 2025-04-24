@@ -125,10 +125,6 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
     value_field_type: FieldType | None = None  # what field type this value represents
     value_is_partial: bool = False
 
-    # subtype
-    subtype_key: str | None = None  # :PropertySubtypeKey
-    is_subnode_packed: bool = False  # for packed subtype properties
-
     # references to nodes or structs
     reference_kind: ReferenceKind | None = None
     reference_nodes: tuple[NodeType, ...] | Literal["any"] | None = None  # for node relations
@@ -231,14 +227,11 @@ class Property(_IntoQuery if TYPE_CHECKING else object):
 
         if self._cached_as_ref is None:
             assert self.component is not None, f"{self!r} is not finalized"
-            from .node import Node
             from .object import PropertyReference
 
             ref = PropertyReference(
                 object_type=getattr(self.component, "metatype", None), id=self.id
             )
-            if issubclass(self.component, Node) and self.component.__subtype__:
-                ref.node_subtype = self.component.__subtype__
             if self.reference_source is not None and self.reference_source.is_node_reference:
                 if self.reference_nodes == "any":
                     ref.references_node_type = NODE_TYPES.tuple[0]
@@ -1030,21 +1023,6 @@ def p_value_packed(
         is_encrypted=secret,
         is_deferred=secret,
         value_is_partial=partial,
-    )
-
-
-def p_subnode_packed(id: int) -> Any:
-    return Property(
-        id=id,
-        primitive_type=PrimitiveType.JSON,
-        is_subnode_packed=True,
-        is_value_packed=True,
-        is_internal=True,
-        is_stored=True,
-        is_wired=True,
-        is_list=False,
-        is_required=False,
-        is_system=False,
     )
 
 

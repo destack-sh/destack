@@ -307,20 +307,7 @@ class Renderer:
             )
             if value._type.bench_type is not None:
                 rendered_kwargs.pop("metatype", None)
-            if value._type.constraint is not None and value._type.constraint.node_subtypes:
-                rendered_kwargs.pop("type", None)
-                assert node_cls.__subtype_base_property__, f"bad subtype {node_cls!r}"
-                subtype_type = node_cls.__subtype_base_property__.enum_type
-                assert subtype_type is not None, f"bad subtype {node_cls!r}"
-                subtype_cls = ENUM_CLASS_BY_TYPE[subtype_type]
-                subtype = subtype_cls(value._type.constraint.node_subtypes[0])
-                args = (
-                    subtype_cls.__name__ + "." + subtype.name,
-                    self.render_kwargs(**rendered_kwargs) or None,
-                )
-                return f"{node_cls.__name__}.partial({self.render_args(*args)})"
-            else:
-                return f"{node_cls.__name__}.partial({self.render_kwargs(**rendered_kwargs)})"
+            return f"{node_cls.__name__}.partial({self.render_kwargs(**rendered_kwargs)})"
         elif (
             typ.base_field_types
             and FieldType.MEMBER in typ.base_field_types
@@ -520,7 +507,7 @@ def _deconstruct_custom_object(obj: CustomObject) -> dict[Property | Field, Any]
     kwargs: dict[Property | Field, Any] = {}
     # properties
     for prop in get_custom_object_properties(obj._type, obj._value):
-        storage_key = prop.subtype_key or prop.key
+        storage_key = prop.key
         prop_value = cast(SomeValue, obj._value.get(storage_key))
         if prop_value is None:
             continue
@@ -576,8 +563,6 @@ def _desconstruct_partial_type(renderer: "Renderer", obj: IsType):
         node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, obj.bench_type)]
     else:
         node_cls = Node
-    if obj.constraint is not None and obj.constraint.node_subtypes:
-        kwargs["type"] = obj.constraint.node_subtypes[0]
     if obj.base_type is not None:
         kwargs["block"] = renderer.render_node_ref(obj.base_type)
     if obj.base_field_types:

@@ -785,7 +785,7 @@ class FileInfo(Struct[FileInfoData], FileBase):
     __content_str__ = FileBase.__content_str__  # type: ignore
 
 
-@node_(NodeType.FILE, has_subtypes=True)
+@node_(NodeType.FILE)
 class File(Resource[FileData], FileBase):
     """
     A File stored somewhere.

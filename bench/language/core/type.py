@@ -222,7 +222,6 @@ class TypeConstraint(Struct):
     node_scope: list["Node"] = p_regular(72, require=False, array=True, references="any")
     node_max_depth: Optional[int] = p_regular(73, require=False, default=None)
     # NOTE :Architecture: TypeConstraint.node_subtypes feels wrong, need Node-specific constraints?
-    node_subtypes: list[int] = p_regular(74, array=True)
     # specific node-ish
     # ...?
 
@@ -478,7 +477,6 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
         Choice,
         Class,
         Database,
-        FileType,
         Flow,
         Transition,
     )
@@ -504,12 +502,6 @@ def to_type_scalar(type_in: TypeIn) -> "Type":
             return Type(kind=TypeKind.ENUM, bench_type=type_in)
     elif isinstance(type_in, TypeFormat):
         return Type(kind=TypeKind.PRIMITIVE, primitive_type=type_in.primitive_type, format=type_in)
-    elif isinstance(type_in, FileType):
-        return Type(
-            kind=TypeKind.NODE,
-            bench_type=NodeType.FILE,
-            constraint=TypeConstraint(node_subtypes=[type_in]),
-        )
     elif isinstance(type_in, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(type_in)
         if primitive_type:
@@ -560,9 +552,6 @@ def reverse_type_scalar(typ: IsType) -> TypeIn | None:
         else:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
-        if typ.constraint is not None:
-            if len(typ.constraint.node_subtypes) == 1:
-                return cast(TypeIn, typ.constraint.node_subtypes[0])
         if typ.kind == TypeKind.NODE and typ.bench_type is None:
             return Node
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"

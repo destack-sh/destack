@@ -26,7 +26,7 @@ class ScalerStrategy(BuiltinEnum):
     AUTO = 2
 
 
-@node_(NodeType.SCALER, has_subtypes=True)
+@node_(NodeType.SCALER)
 class Scaler(Resource[ScalerData]):
     """
     A Scaler automatically scales another Resource.

@@ -61,7 +61,6 @@ class TypeConstraintIn:
     node_types: "list[NodeType]" = dataclasses.field(default_factory=list)
     node_scope: "list[Node]" = dataclasses.field(default_factory=list)
     node_max_depth: Optional[int] = None
-    node_subtypes: "list[int]" = dataclasses.field(default_factory=list)
 
     def into(self) -> "TypeConstraint":
         from bench.language.core import TypeConstraint
@@ -78,7 +77,6 @@ class TypeConstraintIn:
             node_types=self.node_types,
             node_scope=self.node_scope,
             node_max_depth=self.node_max_depth,
-            node_subtypes=self.node_subtypes,
         )
 
 
@@ -111,7 +109,6 @@ def constraint(
     starts_with: str | None = None,
     ends_with: str | None = None,
     node_types: "list[NodeType] | None" = None,
-    node_subtypes: "list[int] | None" = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -123,7 +120,6 @@ def constraint(
         starts_with=starts_with,
         ends_with=ends_with,
         node_types=node_types if node_types is not None else [],
-        node_subtypes=node_subtypes if node_subtypes is not None else [],
     )
 
 

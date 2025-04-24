@@ -21,7 +21,7 @@ from .core.const import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, Node, NodeSubtypeStub, Struct
+    from bench.language import BuiltinObject, Node, Struct
 
 # some global indexes for language types/classes
 # NOTE :Cleanup: organize global type/class indexes better
@@ -29,8 +29,6 @@ ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular import
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_CLASS_BY_NAME: dict[str, type["Node"]] = {}
-NODE_CLASS_STUBS_BY_TYPE: dict[NodeType, dict[int, "NodeSubtypeStub"]] = {}
-NODE_CLASS_STUBS_BY_NAME: dict[str, "NodeSubtypeStub"] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BUILTIN_OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 BUILTIN_OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
@@ -41,7 +39,6 @@ FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
 BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", BuiltinEnum]]] = {}
 BENCH_CLASSES: list[type[Union["BuiltinObject", BuiltinEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
-SUBNODE_CLASSES: list[type["Node"]] = []
 STRUCT_CLASSES: list[type["Struct"]] = []
 
 # direct parent/child
@@ -85,7 +82,6 @@ def _complete_bench_setup():
         Struct,
     )
     from bench.language.core import (
-        NodeSubtypeStub,
         const,
         trait,
     )
@@ -120,8 +116,6 @@ def _complete_bench_setup():
         BENCH_CLASS_BY_TYPE[node_t] = node_cls
         BENCH_TYPE_BY_CLASS[node_cls] = node_t
         NODE_CLASSES.append(node_cls)
-        for subnode_cls in node_cls.__subclass_by_subtype__.values():
-            SUBNODE_CLASSES.append(subnode_cls)
     for struct_t in STRUCT_TYPES:
         BUILTIN_OBJECT_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         BUILTIN_OBJECT_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
@@ -220,20 +214,6 @@ def _complete_bench_setup():
                         )
                     if STRUCT_CLASS_BY_TYPE[prop.reference_struct] is not prop.py_type_raw:
                         raise ValueError(f"{prop!r} {prop.reference_struct} != {prop.py_type_raw}")
-
-    # add all subtype stubs
-
-    for node_type in NODE_TYPES:
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
-        if node_cls.__has_subtypes__:
-            subtype_prop = node_cls.__subtype_base_property__
-            assert subtype_prop is not None and subtype_prop.enum_type is not None
-            enum_cls = ENUM_CLASS_BY_TYPE[subtype_prop.enum_type]
-            NODE_CLASS_STUBS_BY_TYPE[node_type] = {}
-            for subtype in enum_cls:
-                stub = NodeSubtypeStub(node_cls, node_type, subtype)
-                NODE_CLASS_STUBS_BY_TYPE[node_type][subtype] = stub
-                NODE_CLASS_STUBS_BY_NAME[stub._name] = stub
 
     #
     # Complete

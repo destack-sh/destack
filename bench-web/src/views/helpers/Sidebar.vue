@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import { packSubnode, useSubnodeProperty } from "@/language/core/node";
-import { NodeReferenceData, NodeType, NodeTypeOptionInfo, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { NodeReferenceData, NodeType, NodeTypeOptionInfo, Orientation, ViewData } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
-import { bench, benchConnection, canvas, hasLocalBench, spaceGraph } from "@/system/space";
+import { bench, benchConnection, canvas, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
 import { CommandBuiltinId, fireCommand, fireCommandById, getCommand } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
@@ -13,9 +12,9 @@ import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/u
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Icon from "@/views/content/Icon.vue";
-import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import PackageTree from "@/views/helpers/PackageTree.vue";
 import ThreadList from "@/views/helpers/ThreadList.vue";
+import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { computed, Ref, ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
@@ -34,14 +33,13 @@ const USER_MENU_ITEMS = computed(() => {
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
     ViewData,
-    "name" | "title" | "icon" | "nodePtr" | "size" | "subnodePacked"
+    "name" | "title" | "icon" | "nodePtr" | "size"
   >
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
-const expandedPackageNodesPtr = ref<NodeReferenceData[]>([]);
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
@@ -156,13 +154,7 @@ defineExpose<ViewExpose>({ self });
               <span class="fas fa-plus w-5 text-center" />
             </button>
           </div>
-          <PackageTree
-            id="package"
-            class=""
-            :node-ptr="props.nodePtr"
-            :expanded-nodes-ptr="expandedPackageNodesPtr"
-            @update:expanded-nodes-ptr="expandedPackageNodesPtr = $event"
-          />
+          <PackageTree id="package" class="" :node-ptr="props.nodePtr" />
         </div>
 
         <!-- Threads -->

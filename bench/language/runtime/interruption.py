@@ -82,7 +82,7 @@ class InterruptionResponse(BuiltinEnum):
     # CRITIQUE/EDIT, ...?
 
 
-@timed_node_(NodeType.INTERRUPTION, has_subtypes=True)
+@timed_node_(NodeType.INTERRUPTION)
 class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     """An Interruption in the processing or execution of something."""
 
