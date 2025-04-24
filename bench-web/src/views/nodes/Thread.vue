@@ -13,6 +13,7 @@ import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
+  AnyNodeData,
   ColorType,
   ExpressionData,
   ExpressionType,
@@ -217,7 +218,7 @@ const expandedMessageIds = ref<string[]>([]);
 type MessageView = {
   idx: number;
   message: MessageData;
-  filesPtr: NodeReferenceData[];
+  nodesPtr: NodeReferenceData[];
   author: AuthorInfo | null;
   replyTo: MessageView | null;
   isEmpty: boolean;
@@ -235,7 +236,6 @@ const messageViews = computed(() => {
   const viewsById: Record<string, MessageView> = {};
   for (let i = 0; i < messages.value.length; i++) {
     const message = messages.value[i];
-    const filesPtr = message.nodesPtr.filter((n) => n.nodeType == NodeType.FILE);
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? authorsById.value[authorPtr.id!] : null;
     let isStartOfGroup;
@@ -264,7 +264,7 @@ const messageViews = computed(() => {
     const richMessage: MessageView = {
       idx: i,
       message,
-      filesPtr,
+      nodesPtr: message.nodesPtr,
       author,
       isEmpty,
       isStartOfGroup,
@@ -311,7 +311,6 @@ const draftText = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePack
 const draftNodesPtr = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftNodesPtr");
 const draftReplyTo = useSubnodeProperty(NodeType.VIEW, ViewType.THREAD, subnodePacked, "draftReplyToPtr");
 const draftNodes = supergraph.getManyRef(draftNodesPtr);
-const draftFiles = computed(() => draftNodes.value.filter((n) => isNode(n, NodeType.FILE)));
 
 //
 // Interaction
@@ -460,6 +459,24 @@ function stopReplying() {
   );
 }
 
+function addNodes(nodePtrs: NodeReferenceData[]) {
+  state.update({
+    metatype: NodeType.VIEW,
+    type: ViewType.THREAD,
+    subnode: {
+      draftNodesPtr: [...(draftNodesPtr.value ?? []).filter((n) => !nodePtrs.some((n2) => n2.id == n.id)), ...nodePtrs],
+    },
+  });
+}
+
+function removeNodes(nodePtrs: (NodeReferenceData | AnyNodeData)[]) {
+  state.update({
+    metatype: NodeType.VIEW,
+    type: ViewType.THREAD,
+    subnode: { draftNodesPtr: draftNodesPtr.value?.filter((n) => !nodePtrs.some((n2) => n2.id == n.id)) },
+  });
+}
+
 async function addFiles(files: FileList | File[]) {
   Array.from(files).forEach(async (file) => {
     // upload and insert each file individually
@@ -473,26 +490,8 @@ async function addFiles(files: FileList | File[]) {
       compress: true,
     });
     await upload.completion.wait();
-    state.update(
-      {
-        metatype: NodeType.VIEW,
-        type: ViewType.THREAD,
-        subnode: { draftNodesPtr: [...(draftNodesPtr.value ?? []), toNodeRef(upload.file.value!)] },
-      },
-      { debounce: "tick" },
-    );
+    addNodes([toNodeRef(upload.file.value!)]);
   });
-}
-
-function removeFiles(files: (FileData | NodeReferenceData)[]) {
-  state.update(
-    {
-      metatype: NodeType.VIEW,
-      type: ViewType.THREAD,
-      subnode: { draftNodesPtr: draftNodesPtr.value?.filter((f) => !files.some((f2) => f2.id == f.id)) },
-    },
-    { debounce: "tick" },
-  );
 }
 
 // view
@@ -508,6 +507,11 @@ const dropZone = useSingleDropZone({
     if (dragged.kind == "file") {
       if (dragged.files == null) return;
       addFiles(dragged.files);
+    } else if (dragged.kind == "node") {
+      const nodePtr = toNodeRef(dragged.node);
+      addNodes([nodePtr]);
+    } else if (dragged.kind == "selection") {
+      addNodes(dragged.nodes.map((n) => toNodeRef(n)));
     }
   },
 });
@@ -694,7 +698,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           v-for="{
             idx,
             message,
-            filesPtr,
+            nodesPtr,
             author,
             replyTo,
             isEmpty,
@@ -910,18 +914,28 @@ defineExpose<ViewExpose>({ self, id, focus });
 
                 <!-- Extras -->
                 <!-- NOTE :UX: this should be a proper :FileGallery -->
-                <div v-if="filesPtr.length > 0" class="mt-1.5 mb-2 flex flex-row flex-wrap items-start gap-x-2 gap-y-2">
-                  <File
-                    v-for="filePtr in filesPtr"
-                    :id="'file-' + filePtr.id"
-                    :key="filePtr.id"
-                    is-inline
-                    :model-value="toNodeRef(filePtr)"
-                    :size="{
-                      height: size?.height != null ? Math.min(300, size.height / 2) : undefined,
-                    }"
-                    class=""
-                  />
+                <div
+                  v-if="message.nodesPtr.length > 0"
+                  class="mt-1.5 mb-2 flex flex-row flex-wrap items-start gap-x-2 gap-y-2"
+                >
+                  <template v-for="nodePtr in message.nodesPtr" :key="nodePtr.id">
+                    <File
+                      v-if="nodePtr.nodeType == NodeType.FILE"
+                      :id="'file-' + nodePtr.id"
+                      is-inline
+                      :model-value="nodePtr"
+                      :size="{
+                        height: size?.height != null ? Math.min(300, size.height / 2) : undefined,
+                      }"
+                      class=""
+                    />
+                    <NodeReference
+                      v-else
+                      :node-ptr="nodePtr"
+                      size="sm"
+                      class="rounded-full border border-gray-200 px-2 py-0.5"
+                    />
+                  </template>
                 </div>
               </div>
             </div>
@@ -1015,25 +1029,27 @@ defineExpose<ViewExpose>({ self, id, focus });
         <!-- Main input -->
         <div class="flex-1">
           <!-- Extras -->
-          <div v-if="draftFiles.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2.5 gap-y-1">
+          <div v-if="draftNodes.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2.5 gap-y-1">
             <!-- should also be a proper :FileGallery -->
-            <div v-for="file in draftFiles" :key="file.id" class="group/file relative">
+            <div v-for="node in draftNodes" :key="node.id" class="group/file relative">
               <File
-                :id="'file-' + file.id"
+                v-if="isNode(node, NodeType.FILE)"
+                :id="'file-' + node.id"
                 is-inline
                 class="pointer-events-none"
-                :model-value="toNodeRef(file)"
+                :model-value="toNodeRef(node)"
                 :size="{
                   height:
-                    size?.height != null && INLINABLE_FILE_TYPES.includes(file.type)
+                    size?.height != null && INLINABLE_FILE_TYPES.includes(node.type)
                       ? Math.min(100, size.height / 3)
                       : undefined,
                 }"
               />
+              <NodeReference v-else :node="node" size="sm" class="rounded-full border border-gray-200 px-2 py-0.5" />
               <!-- Remove -->
               <button
                 class="absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 rounded-full border border-gray-200 bg-gray-500 px-1 text-xs text-white transition-colors duration-75 hover:bg-gray-600"
-                @click.stop="removeFiles([file])"
+                @click.stop="removeNodes([node])"
               >
                 <i class="fas fa-xmark" />
               </button>

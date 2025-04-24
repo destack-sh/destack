@@ -339,7 +339,7 @@ defineExpose<ViewExpose>({
       >
         <!-- Icon -->
         <div
-          class="rounded-sm px-2 py-1"
+          class="rounded-sm px-2 py-2"
           :style="{
             backgroundColor: getColorHex(
               FileTypeOptionInfo[optimisticValue.type]?.color ?? ColorType.GRAY,
