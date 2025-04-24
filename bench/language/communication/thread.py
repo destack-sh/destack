@@ -72,6 +72,7 @@ class Thread(
     """
     A Thread for communicating with Messages.
     Threads may be nested to organize conversations and work.
+    nocheckin: nested Threads, ThreadType & "monologue" threads
     """
 
     # meta
@@ -97,14 +98,6 @@ class Thread(
         references=NodeType.PAGE,
         same_bench=True,
         description="The main or root Page used by this Thread (may be shared).",
-    )
-    plan: Optional["Plan"] = p_regular(
-        61,
-        require=False,
-        array=False,
-        references=NodeType.PLAN,
-        same_bench=True,
-        description="The main Plan to work on in this Thread (may be on the Page, may not).",
     )
     text: Optional["Text"] = p_regular(65, require=False, default=None, struct=StructType.TEXT)
     if TYPE_CHECKING:
@@ -135,7 +128,6 @@ class Thread(
         *,
         channel: "Channel | None" = None,
         page: "Page | None" = None,
-        plan: "Plan | None" = None,
         **kwargs,
     ) -> "Thread":
         thread = Thread(
@@ -143,7 +135,6 @@ class Thread(
             text=to_text(text) if text is not None else None,
             channel=channel,
             page=page,
-            plan=plan,
             **kwargs,
         )
         return thread

@@ -18,7 +18,7 @@ import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { pushPopover } from "@/ui/popover";
-import { getColorHex, getRunColorHex } from "@/ui/style";
+import { getColorHex, getProcessColorHex } from "@/ui/style";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import TextLine from "@/views/content/TextLine.vue";
@@ -74,7 +74,7 @@ defineExpose<ViewExpose>({ self, id, focus });
           fillState != 'empty'
             ? isManual
               ? getColorHex(ColorType.GRAY, ColorShade.S700)
-              : getRunColorHex(task.status, ColorShade.S400)
+              : getProcessColorHex(task.status, ColorShade.S400)
             : undefined,
       }"
       @click="toggleTaskStatus(connection.tx, task)"
@@ -86,7 +86,7 @@ defineExpose<ViewExpose>({ self, id, focus });
             fillState != 'empty'
               ? isManual
                 ? getColorHex(ColorType.GRAY, ColorShade.S400)
-                : getRunColorHex(task.status, ColorShade.S400)
+                : getProcessColorHex(task.status, ColorShade.S400)
               : undefined,
           clipPath: fillState == 'full' ? undefined : 'inset(0 0 50% 0)',
         }"

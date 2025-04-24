@@ -257,7 +257,7 @@
 .ProseMirror-selectednode {
   @apply outline-yellow-700;
 }
-.ProseMirror[contenteditable="false"] {
+.pm-text:not(.pm-noselect) .ProseMirror[contenteditable="false"] {
   user-select: text; /* let user highlight text */
   -webkit-user-select: text;
   -moz-user-select: text;

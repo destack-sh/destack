@@ -13,7 +13,6 @@ from bench.language import (
     LocalNodeList,
     Message,
     NodeReference,
-    Plan,
     ResourceStatus,
     SearchConnection,
     Subject,
@@ -83,11 +82,6 @@ class ThreadHandle:
         assert self._thread_connection is not None, f"{self!r} is not ready"
         thread = self._thread_connection.result.roots[0]
         return thread
-
-    @property
-    def main_plan(self) -> Plan | None:
-        """The Plan (if any)."""
-        return self.thread.plan
 
     @property
     def messages(self) -> list[Message]:

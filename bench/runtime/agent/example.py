@@ -261,7 +261,7 @@ Sure, here's how you make lists in markdown:
 @example_(ExampleType.SNIPPET, title="Call an Action")
 def example_call_an_action(Action1: Action):
     # Action1 should do this
-    CALL(Action1, Arg1="https://example.com?...", Arg2=True, title="example.com")
+    CALL(Action1, Arg1="https://example.com?...", Arg2=True, object_title="example.com")
 
 
 @example_(ExampleType.SNIPPET, title="Excerpt from a Page")

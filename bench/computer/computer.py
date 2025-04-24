@@ -158,6 +158,8 @@ class ComputerService(ServiceBase, ComputerBase):
     # Terminal
     #
 
+    # nocheckin: Computer shell / "Jupyter" / ...
+
     async def shell(self, request: ShellCommandRequest, headers: Mapping) -> ShellCommandResponse:
         """Execute a shell command and return its output"""
         stdout, stderr, returncode = await self._execute_shell(request.command)

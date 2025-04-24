@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast, fina
 
 from bench.language import (
     Action,
+    ActionType,
     Agent,
     Block,
     CursorType,
@@ -220,24 +221,29 @@ def SEND(
 @function_macro_(
     "CALL",
     """\
-Call an Action as a tool. Results arrive on on next turn.
-You SHOULD title this call with its main argument(s) summarized
- (e.g., for web search title = query, for reading a page title = [@Page], ...)
+Call an Action as a tool. Results arrive on next turn.
+The call will be presented as <Action.name> + <object_title>, thus object_title should be the object ONLY.
+Example object_titles: "history of computing", "[@Page7]", "green button"
 """,
-    signature="(action: Action, title: str | None = None, **inputs) -> None",
+    signature="(action: Action, object_title: str | None = None, **inputs) -> None",
     is_terminal=True,
 )
 def CALL(
     action: Action,
-    title: TextLineIn | None = None,
+    object_title: TextLineIn | None = None,
     silent: bool = False,
     runner: "AgentRunner" = _INJECTED_RUNNER,
     **inputs,
 ):
+    from bench.builtin import WebKit
+
     # title
-    if type(title) is str and action.name and title.lower().startswith(action.name.lower()):
-        title = title.split(" ", 1)[1]
-    title = text_line(title) if title is not None else None
+    object_title = text_line(object_title) if object_title is not None else None
+    if action.type == ActionType.BUILTIN:
+        if action.id == WebKit.actions.Search.id and "Query" in inputs:
+            object_title = text_line(inputs["Query"])
+        elif action.id == WebKit.actions.Read.id and "URL" in inputs:
+            object_title = text_line(inputs["URL"])
 
     # create run
     agent_run = runner.tracked_run
@@ -252,7 +258,7 @@ def CALL(
         status=ProcessStatus.QUEUED,
         agent=runner.agent,
         inputs=inputs,
-        title=title,
+        title=object_title,
     )
     runner.call(run)
 
@@ -261,13 +267,15 @@ def CALL(
         thread = runner.thread.thread
         message = Message.new(
             type=MessageType.RUN,
-            title=title,
+            title=object_title,
             nodes=[run],
             run=run,
             runnable=action,
             value=inputs,
         )
         thread.append(message)
+
+    runner.session.stage()
 
 
 @function_macro_(

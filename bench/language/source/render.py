@@ -977,18 +977,10 @@ class TaskRenderer(NodeRenderer["Task"]):
         from bench.language import Task
 
         kwargs = _deconstruct_builtin_object(obj, options=options)
-        target = kwargs.pop(Task.get_property("target"))
-        target_str = renderer.render_node_ref(target)
-        value = kwargs.pop(Task.get_property("value"))
-        value_kwargs = _deconstruct_custom_object(value)
         kwargs.pop(Task.get_property("type"), None)
-        # render
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
-        rendered_value_kwargs = _render_custom_object_kwargs(renderer, value, value_kwargs)
-        rendered_kwargs.update(rendered_value_kwargs)
         args = renderer.render_args(
-            rendered_kwargs.pop("title"),
-            target_str,
+            rendered_kwargs.pop("title", None),
             renderer.render_kwargs(**rendered_kwargs) or None,
         )
         return f"Task.new({args})"

@@ -69,7 +69,7 @@ defineExpose({ commands, focus, interact });
     ref="textRef"
     class="pm-text pm-compact pm-paddingless relative rounded-sm"
     :class="[
-      isInput ? 'hover:cursor-text' : '',
+      isInput ? 'hover:cursor-text' : 'pm-noselect',
       truncate ? 'pm-truncate truncate' : '',
       colorless ? 'pm-colorless' : '',
       props.forceLineType == 'inherit' ? 'pm-inherit' : isSmall ? 'pm-sm' : 'pm-base',

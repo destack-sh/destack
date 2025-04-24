@@ -12,7 +12,6 @@ import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
-  ChannelData,
   ColorType,
   ExpressionData,
   ExpressionType,
@@ -44,9 +43,8 @@ import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
-import NodeReference from "@/views/builtin/NodeReference.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
-import TextLine from "@/views/content/TextLine.vue";
+import Run from "@/views/builtin/Run.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
@@ -71,7 +69,10 @@ const props = defineProps<
     size?: Partial<Pick<RectangleData, "width" | "height">>;
     isRoot?: boolean;
   } & Partial<
-    Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "selection" | "alignment" | "subnodePacked">
+    Pick<
+      ViewData,
+      "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "selection" | "alignment" | "subnodePacked" | "isInput"
+    >
   >
 >();
 const emit = defineEmits<ViewEmits>();
@@ -82,15 +83,7 @@ const subnodePacked = toRef(props, "subnodePacked");
 
 // node
 const nodePtr = computedValue(() => props.nodePtr);
-const { node, connection, graph } = supergraph.getLinkRef(nodePtr);
-const channelPtr = computed(() => {
-  if (isNode(node.value, NodeType.CHANNEL)) {
-    return nodePtr.value;
-  } else if (isNode(node.value, NodeType.THREAD)) {
-    return node.value.channelPtr!;
-  }
-  return null;
-});
+const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
 const threadPtr = computed(() => {
   if (isNode(node.value, NodeType.THREAD)) {
     return nodePtr.value;
@@ -105,16 +98,6 @@ const threadPtr = computed(() => {
 const isEnabled = computed(() => threadPtr.value != null);
 const filter = computed(() => {
   const filters: ExpressionData[] = [];
-  // channel
-  if (channelPtr.value != null) {
-    filters.push(
-      makeExpression({
-        type: ExpressionType.EQUALS,
-        propertyPtr: propertyReference(NodeType.MESSAGE, MessageProperty.channelPtr),
-        value: channelPtr.value,
-      }),
-    );
-  }
   // thread
   if (threadPtr.value != null) {
     filters.push(
@@ -444,7 +427,6 @@ function submit() {
       ownedByPtr: toNodeRef(currentAuthor.value),
       benchPtr: benchPtr.value,
       packagePtr: packagePtr.value!,
-      channelPtr: channelPtr.value ?? undefined,
       threadPtr: toNodeRef(thread),
       replyToPtr: replyTo.value != null ? draftReplyTo.value : undefined,
       nodesPtr: draftNodesPtr.value,
@@ -492,11 +474,10 @@ async function addFiles(files: FileList | File[]) {
     if (bench.value == null) throw new Error("no bench");
     if (pkg.value == null) throw new Error("no package");
     const thread = threadPtr.value != null ? (supergraph.get(threadPtr.value) as ThreadData | null) : null;
-    const channel = channelPtr.value != null ? (supergraph.get(channelPtr.value) as ChannelData | null) : null;
     const upload = uploadFile(() => benchConnection.tx, file, {
       bench: bench.value,
       pkg: pkg.value,
-      parent: thread ?? channel ?? pkg.value,
+      parent: thread ?? pkg.value,
       compress: true,
     });
     await upload.completion.wait();
@@ -716,12 +697,13 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <div class="grow border-t border-gray-200"></div>
           </div>
 
+          <!-- Message -->
           <li
             class="group/message max-w-full rounded-sm px-0.5 transition-colors duration-75"
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
-              isSelected ? 'bg-amber-100' : 'hover:bg-gray-100',
+              isSelected ? 'bg-amber-100' : 'hover:bg-gray-50',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
             :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
@@ -765,11 +747,10 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 <!-- Author for new groups -->
                 <AvatarInline
                   v-if="isStartOfGroup && author?.icon"
-                  class="mr-1 cursor-pointer text-gray-700"
+                  class="mr-1 text-gray-700"
                   size="medium"
                   v-bind="author.icon"
                   :force-color="author.color ?? undefined"
-                  @click="author && canvas.goToNode(author.node)"
                 />
                 <div v-else-if="isStartOfGroup" class="ml-2 h-8 w-8 rounded-full bg-gray-100" />
                 <!-- Time/edited otherwise -->
@@ -787,10 +768,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                 <!-- Meta (if new group) -->
                 <div v-if="isStartOfGroup" class="">
                   <!-- Author -->
-                  <span
-                    class="text-base font-medium decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
-                    @click="author && canvas.goToNode(author.node)"
-                  >
+                  <span class="text-base font-medium decoration-gray-300 underline-offset-3 hover:underline">
                     {{ author?.name ?? "[missing]" }}
                   </span>
                   <!-- Timestamp -->
@@ -820,20 +798,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
 
                 <!-- Run -->
                 <div v-if="message.type == MessageType.RUN" class="mt-1.5 mb-1.5 flex flex-row items-center">
-                  <!-- Call -->
-                  <div
-                    class="flex flex-row items-baseline gap-x-1.5 rounded-full border bg-gray-100 py-1 pr-3 pl-2 text-sm"
-                  >
-                    <NodeReference :node-ptr="message.runnablePtr" hide-metadata size="sm" />
-                    <TextLine
-                      v-if="message.title"
-                      :model-value="message.title"
-                      force-line-type="inherit"
-                      class="text-gray-500"
-                      colorless
-                      is-minimal
-                    />
-                  </div>
+                  <Run v-if="graph != null" :graph="graph" :node-ptr="message.runPtr" />
                 </div>
 
                 <!-- Text -->
@@ -857,12 +822,21 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
                   <!-- Expand button -->
                   <button
                     v-if="isOverflowing"
-                    class="absolute right-0 bottom-0 left-0 z-10 mt-1.5 flex w-full cursor-pointer flex-row items-center justify-center rounded-sm border border-gray-200 bg-white transition-colors duration-75 hover:bg-gray-100"
+                    class="group/expand relative mt-1.5 flex w-full cursor-pointer items-center rounded-sm py-0.5 transition-colors duration-75"
                     @click="expandedMessageIds.push(message.id)"
                   >
-                    <span class="px-1.5 py-0.5 text-gray-400 transition-colors duration-75 hover:bg-gray-100">
+                    <div
+                      class="flex-grow border-t border-gray-200 transition-colors duration-75 group-hover/expand:border-gray-300"
+                    />
+                    <div
+                      class="mx-4 shrink text-xs text-gray-400 transition-colors duration-75 group-hover/expand:text-gray-500"
+                    >
+                      <span class="mr-1">Expand</span>
                       <i class="fas fa-chevron-down" />
-                    </span>
+                    </div>
+                    <div
+                      class="flex-grow border-t border-gray-200 transition-colors duration-75 group-hover/expand:border-gray-300"
+                    />
                   </button>
                 </div>
 

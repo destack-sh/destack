@@ -6,7 +6,7 @@ import { runtime } from "@/runtime/runtime";
 import { canvas } from "@/system/space";
 import { CommandMapKit } from "@/ui/command";
 import { TRANSITION_WIDTH, pathToSvg, useFlowContext } from "@/ui/flow";
-import { getColorHex, getRunColorHex } from "@/ui/style";
+import { getColorHex, getProcessColorHex } from "@/ui/style";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import { computed, Ref, ref, toRef } from "vue";
@@ -70,7 +70,7 @@ defineExpose<ViewExpose>({ self, id, commands });
     <svg
       class="group pointer-events-none relative overflow-visible"
       :class="lastRun != null && isProcessActive(lastRun) ? 'animate-pulse' : ''"
-      :style="{ color: lastRun != null ? getRunColorHex(lastRun.status) : pathColorHex }"
+      :style="{ color: lastRun != null ? getProcessColorHex(lastRun.status) : pathColorHex }"
       data-suppress-node="self"
     >
       <defs>
