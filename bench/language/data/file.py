@@ -621,10 +621,6 @@ class FileBase(BuiltinObject):
         self._cached_content = None
         self._cached_get_url = None
 
-    def b64encode(self) -> str:
-        """Encodes the file content as base64."""
-        return base64.b64encode(self.read_content()).decode()
-
     @tracer.start_as_current_span("file.convert")
     async def convert(self, target_format: FileFormat) -> "FileBase":
         """Converts the file to the given type/format."""
