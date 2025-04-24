@@ -36,13 +36,15 @@ def _make_link_preview(result: ExaResult | _ExaResult) -> LinkPreview:
     return link
 
 
-async def _do_search(query: str, content: bool, limit: int) -> list[LinkPreview]:
+async def _do_search(
+    query: str, content: bool, limit: int, max_characters: int | None
+) -> list[LinkPreview]:
     """Search the web for the given query."""
     if content:
         response = await exa.search_and_contents(
             query=query,
             num_results=limit,
-            text=True,
+            text={"max_characters": max_characters},
             extras={"image_links": 10},
         )
     else:
@@ -58,7 +60,7 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
     async def Search(
         self, Query: str, Content: bool = True, Limit: int = 5
     ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
-        results = await _do_search(Query, Content, Limit)
+        results = await _do_search(Query, Content, Limit, max_characters=1000)
         return {"Results": results}
 
     @override
@@ -66,7 +68,9 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
         self, Queries: list[str], Content: bool = True, Limit: int = 5
     ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
         # search in parallel
-        results = await asyncio.gather(*(_do_search(query, Content, Limit) for query in Queries))
+        results = await asyncio.gather(
+            *(_do_search(query, Content, Limit, max_characters=1000) for query in Queries)
+        )
         results = [result for results in results for result in results]
         return {"Results": results}
 

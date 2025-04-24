@@ -236,6 +236,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         try:
             runner = restore_runner(self.runtime, run)
             await self.runtime.run_runner(runner)
+            logger.debug("agent.tool", agent=self.node, runner=self, run=run)
         except asyncio.CancelledError:
             logger.debug(
                 "agent.tool.aborted",
