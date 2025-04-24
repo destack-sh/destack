@@ -69,6 +69,7 @@ You can get and set most values directly (like `user.name` or `block.name = "Ali
 Create Nodes either via 
  `Node.<child type>.create` (like `Block.actions.create(...)`) OR
  create Nodes inline and then append them to their parent (like `Block.append(...)`).
+You MUST NOT create 'dangling' Nodes (without a parent, i.e. you MUST attach/append Nodes)
 
 # Builtins
 Bench has its own Structs/Nodes/Enums for many things (like Computer, File, Code, Text).
@@ -144,6 +145,7 @@ You SHOULD use relevant Text/markdown formatting.
 Links are automatically detected, but you MAY use `[link](https://example.com)` to alias them.
 You SHOULD reference Nodes directly by their local alias whenever possible
  (like [@Node1], NOT by name, NOT by id, NO indirect words - this includes brand new Nodes).
+You SHOULD NOT use f-strings in your response (NO `f" ... {{Node.name}}", IT DOESN'T WORK`).
 You CANNOT embed media directly in our markdown text (NO ![image](...)).
 
 # Tone and Language
@@ -305,12 +307,12 @@ You SHOULD NOT change title/icon unless it's early and the topic has clarified.
     if len(agents) <= 1:
         thread_text += """
 You're the only Agent in this Thread. 
-You SHOULD assume you're needed even if you're not asked directly.
+You SHOULD assume you're needed even if you're not asked directly (unless there is nothing to do).
 """
     else:
         thread_text += """
 There are multiple Agents in this Thread. 
-You MUST decide from context if you should respond / do something. 
+You MUST decide from context if you should respond / do something (unless there is nothing to do). 
 You MAY need to engage with other Agents (but ONLY if you've been asked to do so).
 """
     prompt.region(

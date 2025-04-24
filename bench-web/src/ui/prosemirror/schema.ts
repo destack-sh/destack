@@ -99,7 +99,7 @@ export const PM_SCHEMA = new PmSchema({
     },
     // list
     orderedList: {
-      group: "line",
+      group: "line line-container",
       content: "lineListOrdered+",
       toDOM(node) {
         return toLineDom(node, ["ol", { class: "ordered-list" }, 0]);
@@ -116,7 +116,7 @@ export const PM_SCHEMA = new PmSchema({
       parseDOM: [{ tag: "li.list-unordered", attrs: { type: TextLineType.LIST_UNORDERED } }],
     },
     unorderedList: {
-      group: "line",
+      group: "line line-container",
       content: "lineListUnordered+",
       toDOM(node) {
         return toLineDom(node, ["ul", { class: "unordered-list" }, 0]);

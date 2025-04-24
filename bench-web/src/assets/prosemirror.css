@@ -1,4 +1,4 @@
-@import url('/node_modules/prosemirror-view/style/prosemirror.css');
+@import url("/node_modules/prosemirror-view/style/prosemirror.css");
 @import "@/assets/index.css";
 
 /** Basics */
@@ -49,7 +49,7 @@
 }
 .pm-text.pm-compact.pm-paddingless .line,
 .pm-text.pm-compact.pm-paddingless .line-block.page {
-  @apply mb-0 mt-0 px-0 py-0;
+  @apply mt-0 mb-0 px-0 py-0;
 }
 .pm-text.pm-truncate .line,
 .pm-text.pm-truncate .line-block {
@@ -58,7 +58,7 @@
 
 /** Placeholders */
 .pm-text .placeholder {
-  @apply pointer-events-none select-none text-gray-400;
+  @apply pointer-events-none text-gray-400 select-none;
 }
 .pm-text .ProseMirror-focused .placeholder-hidden {
   @apply opacity-100;
@@ -120,10 +120,10 @@
   content: "\f06a"; /* fa-icon: circle-exclamation */
   font-family: "Font Awesome 6 Pro";
   font-weight: 900;
-  @apply mr-1 pl-1.5 pr-2 text-gray-700;
+  @apply mr-1 pr-2 pl-1.5 text-gray-700;
 }
 .pm-text hr {
-  @apply my-3 border-gray-200 focus:outline-hidden focus:ring-0;
+  @apply my-3 border-gray-200 focus:ring-0 focus:outline-hidden;
 }
 .pm-text.pm-base > * > code.line {
   @apply my-2.5 block w-full rounded-sm border border-gray-200 bg-gray-100 px-3 py-3 text-sm;
@@ -137,7 +137,7 @@
 
 /** Line handles */
 .pm-text .line-handle {
-  @apply absolute -left-[6px] top-[3px] z-40 flex -translate-x-full text-base text-gray-400 opacity-0 transition-colors duration-150;
+  @apply absolute top-[4px] -left-[6px] z-40 flex -translate-x-full text-base text-gray-400 opacity-0 transition-colors duration-150;
 }
 .pm-text .line-handle-button {
   @apply w-5 rounded-sm text-base transition-colors duration-150;
@@ -181,40 +181,40 @@
   line-height: 1.2;
 }
 .pm-text:not(.pm-paddingless) h1.line {
-  @apply mb-2 mt-4;
+  @apply mt-4 mb-2;
 }
 .pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h1.line {
-  @apply mb-1 mt-2;
+  @apply mt-2 mb-1;
 }
 .pm-text:not(.pm-inherit) h2.line {
   @apply text-2xl font-bold;
   line-height: 1.4;
 }
 .pm-text:not(.pm-paddingless) h2.line {
-  @apply mb-1.5 mt-2.5;
+  @apply mt-2.5 mb-1.5;
 }
 .pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h2.line {
-  @apply mb-0.5 mt-1.5;
+  @apply mt-1.5 mb-0.5;
 }
 .pm-text:not(.pm-inherit) h3.line {
   @apply text-xl font-bold;
   line-height: 1.5;
 }
 .pm-text:not(.pm-paddingless) h3.line {
-  @apply mb-0.5 mt-1.5;
+  @apply mt-1.5 mb-0.5;
 }
 .pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h3.line {
-  @apply mb-0 mt-1;
+  @apply mt-1 mb-0;
 }
 .pm-text:not(.pm-inherit) h4.line {
   @apply text-lg font-bold;
   line-height: 1.5;
 }
 .pm-text:not(.pm-paddingless) h4.line {
-  @apply mb-0.5 mt-1.5;
+  @apply mt-1.5 mb-0.5;
 }
 .pm-text.pm-compact:not(.pm-inherit):not(.pm-paddingless) h4.line {
-  @apply mb-0 mt-0.5;
+  @apply mt-0.5 mb-0;
 }
 
 /* Lists */
