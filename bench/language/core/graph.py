@@ -97,6 +97,15 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """All nodes of a certain type in the graph"""
         return tuple(n for n in self.nodes if isinstance(n, node_type))
 
+    def nodes_bfs(self, node_type: NodeType | None = None) -> Iterable[V]:
+        """Iterate through nodes in BFS order"""
+        roots = self.find_roots()
+        queue = deque(roots)
+        while queue:
+            node = queue.popleft()
+            yield node
+            queue.extend(self.get_descendants(node, node_type=node_type))
+
     def __len__(self):
         """Number of nodes in the graph"""
         return len(self._nodes_by_id)

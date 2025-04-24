@@ -26,7 +26,8 @@ const node = props.graph.getRef(nodePtr) as Ref<RunData | null>;
       v-if="node?.title"
       :model-value="node?.title"
       force-line-type="inherit"
-      class="text-gray-500 select-none"
+      class="truncate text-gray-500 select-none"
+      truncate
       colorless
       is-minimal
     />

@@ -632,8 +632,9 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             epoch=self._local_epoch,
             span="current",
         )
+        nodes_bfs = list(result.graph.nodes_bfs())
         return GetNodesResponse(
-            nodes=[wiring.wrap_some_node(n) for n in result.graph.nodes],
+            nodes=[wiring.wrap_some_node(n) for n in nodes_bfs],
             connection_token=connection.token,
             epoch=self._local_epoch,
         )
@@ -754,9 +755,10 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
             epoch=self._local_epoch,
             span="current",
         )
+        nodes_bfs = list(result.graph.nodes_bfs())
         return SearchNodesResponse(
             roots_ptr=result.roots_ptr,
-            nodes=[wiring.wrap_some_node(n) for n in result.graph.nodes],
+            nodes=[wiring.wrap_some_node(n) for n in nodes_bfs],
             total=result.total,
             connection_token=connection.token,
             epoch=self._local_epoch,
