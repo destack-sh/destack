@@ -20,6 +20,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { ConnectionBase } from "@/system/connection";
+import { groupByList, groupByScalar } from "@/utils/functools";
 import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import {
@@ -502,6 +503,28 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
   }
 }
 
+function sortNodesBfs(nodes: AnyNodeData[]): AnyNodeData[] {
+  const nodesById: Record<string, AnyNodeData> = groupByScalar(nodes, (node) => node.id);
+  const nodesByParentId: Record<string, AnyNodeData[]> = groupByList(nodes, (node) => node.parentPtr?.id ?? "");
+  const queue: AnyNodeData[] = [];
+  for (const node of nodes) {
+    if (node.parentPtr?.id == null || !nodesById[node.parentPtr.id]) {
+      queue.push(node);
+    }
+  }
+  const nodesBfs: AnyNodeData[] = [];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (node) {
+      nodesBfs.push(node);
+      for (const child of nodesByParentId[node.id] ?? []) {
+        queue.push(child);
+      }
+    }
+  }
+  return nodesBfs;
+}
+
 /**
  * Core in-memory node graph without regard for hidden nodes or multi-graphs (deleted, etc.).
  * If it's an overlay, we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
@@ -536,7 +559,9 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   }
 
   extend(...nodes: AnyNodeData[]) {
-    for (const node of nodes) {
+    // put node in BFS order (ensure we add parent before children)
+    const nodesBfs = sortNodesBfs(nodes);
+    for (const node of nodesBfs) {
       this.add(node);
     }
   }
