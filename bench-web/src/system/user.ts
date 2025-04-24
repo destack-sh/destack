@@ -192,7 +192,6 @@ function userWizardView(view: { title: string; stage: UserWizardViewStage }): Vi
     type: ViewType.USER_WIZARD,
     icon: makeIcon("fas fa-right-from-bracket"),
     title: view.title,
-    subnode: { stage: view.stage },
   };
 }
 

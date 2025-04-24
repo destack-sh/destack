@@ -136,7 +136,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       v-else-if="block.type == BlockType.DATABASE"
       id="database"
       ref="nodeRef"
-      v-bind="state.getChildState('database')"
       :node-ptr="nodePtr"
       :container-gutter-width="pageContext.gutterWidth.value"
       is-minimal
@@ -148,7 +147,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       v-else-if="block.type == BlockType.KIT"
       id="kit"
       ref="nodeRef"
-      v-bind="state.getChildState('kit')"
       :node-ptr="nodePtr"
       :prepared-connection="preparedConnection"
       is-minimal

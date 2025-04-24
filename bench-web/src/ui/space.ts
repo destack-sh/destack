@@ -701,51 +701,6 @@ export class SpaceCanvas {
     const baseViewRef: Ref<ViewData | null> = (base as any)?.__selfViewRef ?? ref(null);
 
     //
-    // (Sub)State
-    //
-
-    function getState(viewId?: string, override?: ViewProps): Partial<Record<string, any> | undefined> {
-      const subviewPacked = (baseViewRef?.value?.subviewsPacked as any)?.[viewId ?? componentId];
-      if (subviewPacked == null) return undefined;
-      const view = unpackBuiltinObject(subviewPacked, ObjectType.VIEW);
-      if (override != null) {
-        Object.assign(view, override);
-      }
-      return view;
-    }
-
-    function getChildState(viewId: string, override?: ViewProps): Partial<Record<string, any> | undefined> {
-      return getState(componentId + "." + viewId, override);
-    }
-
-    function update(update: Partial<NodeIn<NodeType.VIEW>>, options?: TransactionOptions) {
-      const baseView = baseViewRef?.value;
-      if (baseView == null) return; // no base view, cannot update (should error?)
-      if (self.value != null) {
-        // base view upate
-        tx()
-          .with({ category: ChangeCategory.SPACE })
-          .update(baseView, update as NodeIn<any>, options);
-      } else {
-        // subview update
-        if ("subnode" in update && "type" in update) {
-          // merge current subnode into new subnode
-          // (we override subview values at the property level, so this would get lost otherwise)
-          const key = update.type!.toString();
-          if ((instance?.props?.subnodePacked as any)?.[key] != null) {
-            const subnode = unpackSubnode(NodeType.VIEW, update.type!, instance!.props.subnodePacked as any);
-            update.subnode = { ...subnode, ...update.subnode };
-          }
-        }
-        const edits = makeEdit(baseView, update as NodeIn<any>);
-        for (const edit of edits) {
-          edit.path = [SUBVIEWS_PROPERTY_KEY, componentId, ...edit.path];
-        }
-        tx().with({ category: ChangeCategory.SPACE }).update(baseView, edits, options);
-      }
-    }
-
-    //
     // Selection
     // (just forward to/from space)
     //
@@ -765,7 +720,7 @@ export class SpaceCanvas {
       return canvas.isSelected(node);
     }
 
-    return { getState, getChildState, update, select: select, deselect: deselect, isSelected, baseViewRef };
+    return { select: select, deselect: deselect, isSelected, baseViewRef };
   }
 
   /** Gets the containing root view (or self, if any) for a view */
@@ -924,9 +879,6 @@ export class SpaceCanvas {
       return existing;
     } else if (options?.ifPresent == "upsertAndFocus") {
       log.trace("canvas.addView.upsertAndFocus", view, { existing, options });
-      if (view.subnode != null && view.subnodePacked == null) {
-        view.subnodePacked = packSubnode(NodeType.VIEW, view.type, view.subnode);
-      }
       for (const property of [
         ViewProperty.title,
         ViewProperty.icon,

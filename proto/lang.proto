@@ -3686,60 +3686,6 @@ message ViewData {
   bool is_loading = 85;
 }
 
-// A View is a graphical interface in a Bench.
-message ThreadViewData {
-  optional TextData draft_text = 100;
-  repeated NodeReferenceData draft_nodes_ptr = 101;
-  optional NodeReferenceData draft_reply_to_ptr = 102;
-}
-
-// A View is a graphical interface in a Bench.
-message RunViewData {
-  optional google.protobuf.Value resources_packed = 100;
-  optional google.protobuf.Value inputs_packed = 101;
-}
-
-// A View is a graphical interface in a Bench.
-message ObjectViewData {
-  repeated string expanded_sections = 100;
-  repeated string collapsed_sections = 101;
-}
-
-// A View is a graphical interface in a Bench.
-message UserWizardViewData {
-  optional UserWizardViewStage stage = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message SidebarViewData {
-  repeated NodeReferenceData expanded_package_nodes_ptr = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message ContextViewData {
-  optional ContextMode context_mode = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message ButtonViewData {
-  optional ButtonVariant variant = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message PickerViewData {
-  optional PickerVariant variant = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message DatetimeViewData {
-  optional bool is_relative = 100;
-}
-
-// A View is a graphical interface in a Bench.
-message IconViewData {
-  optional bool include_color = 100;
-}
-
 enum BuiltinEnum {
   BUILTIN_ENUM_UNSPECIFIED = 0;
 }

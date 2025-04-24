@@ -33,10 +33,7 @@ from bench.language import (
     Text,
     TextLine,
     Thread,
-    View,
-    ViewType,
 )
-from bench.language.view.view import ThreadView
 from bench.proto import unpack_builtin_object
 from bench.test.simulation.core import Simulation
 from bench.test.simulation.workload import RuntimeLambdaWorkload
@@ -69,26 +66,6 @@ def test_get_set_non_existing_property(session: "Session"):
         node.wadabadaboo = "wadabadaboo"  # type: ignore
     with pytest.raises(AttributeError):
         _ = node.wadabadaboo  # type: ignore
-
-
-def test_node_subtype_property_access(session: "Session"):
-    # subtype -> regular property
-    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
-    assert Text1.line is not None and Text1.line.spans[0].content == "Hello!"
-    Text1.line = TextLine.plain("Hello, world!")
-    assert Text1.line is not None and Text1.line.spans[0].content == "Hello, world!"
-
-    # subtype -> node ref property
-    View1 = cast(ThreadView, View.new(ViewType.THREAD, "ThreadView1", draft_nodes=[Text1]))
-    assert View1.draft_nodes == [Text1]
-    assert View1.draft_nodes_ptr == [Text1.to_ref()]
-
-
-def test_node_subtype_property_reference(session: "Session"):
-    Text1 = Block.new(BlockType.PARAGRAPH, line=TextLine.plain("Hello!"))
-    View1 = cast(ThreadView, View.new(ViewType.THREAD, "ThreadView1", draft_nodes=[Text1]))
-    node_prop: Property = View1.get_property("draft_nodes")
-    assert node_prop.to_ref().resolve_or_error() is node_prop
 
 
 def test_node_subtype_pack_unpack(session: "Session"):

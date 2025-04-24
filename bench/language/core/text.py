@@ -162,6 +162,15 @@ class TextLine(TextOptionsBase, Struct):
                 text_parts.append(span.content or "")
         return "".join(text_parts)
 
+    @property
+    def is_empty(self) -> bool:
+        if self.content:
+            return False
+        for span in self.spans:  # noqa: SIM110
+            if span.type != TextSpanType.TEXT or span.content:
+                return False
+        return True
+
     @staticmethod
     def paragraph(text: str) -> "TextLine":
         return TextLine(type=TextLineType.PARAGRAPH, spans=_parse_inline(text))

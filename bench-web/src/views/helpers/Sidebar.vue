@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { packSubnode, useSubnodeProperty } from "@/language/core/node";
-import { NodeType, NodeTypeOptionInfo, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { NodeReferenceData, NodeType, NodeTypeOptionInfo, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { bench, benchConnection, canvas, hasLocalBench, spaceGraph } from "@/system/space";
 import { isAuthenticated, user, userConnection } from "@/system/user";
@@ -41,12 +41,7 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const state = canvas.registerView(self, id);
-const expandedPackageNodesPtr = useSubnodeProperty(
-  NodeType.VIEW,
-  ViewType.SIDEBAR,
-  toRef(props, "subnodePacked"),
-  "expandedPackageNodesPtr",
-);
+const expandedPackageNodesPtr = ref<NodeReferenceData[]>([]);
 
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const bodyRef = ref<HTMLElement | null>(null);
@@ -166,16 +161,7 @@ defineExpose<ViewExpose>({ self });
             class=""
             :node-ptr="props.nodePtr"
             :expanded-nodes-ptr="expandedPackageNodesPtr"
-            @update:expanded-nodes-ptr="
-              state.update(
-                {
-                  subnodePacked: packSubnode(NodeType.VIEW, ViewType.SIDEBAR, {
-                    expandedPackageNodesPtr: $event,
-                  }),
-                },
-                { debounce: 'long' },
-              )
-            "
+            @update:expanded-nodes-ptr="expandedPackageNodesPtr = $event"
           />
         </div>
 

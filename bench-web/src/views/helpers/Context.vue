@@ -1,26 +1,26 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/core/const";
 import { getEnumOptions } from "@/language/core/enum";
-import { useSubnodeProperty } from "@/language/core/node";
-import { EnumType, ContextMode, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
+import { ContextMode, EnumType, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
-import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
+import {
+  canvas,
+  containerPtr,
+  inspectionPtr,
+  pagePtr,
+  threadPtr
+} from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
-import { getNodeIcon, IconInline } from "@/ui/icon";
-import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
+import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Chat from "@/views/helpers/Chat.vue";
 import Thread from "@/views/nodes/Thread.vue";
-import SomeObject from "@/views/objects/Object.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
-import { useElementSize } from "@vueuse/core";
-import { computed, ref, Ref, toRef } from "vue";
+import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
-const HEADER_HEIGHT = 36;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<
@@ -31,8 +31,6 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
-const subnodePacked = toRef(props, "subnodePacked");
 
 // node
 const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(inspectionPtr);
@@ -45,12 +43,13 @@ const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value)
 const scope = computed(() => container.value);
 
 // state (should be in ContextView?)
-const mode = useSubnodeProperty(NodeType.VIEW, ViewType.CONTEXT, subnodePacked, "contextMode");
+const mode = ref<ContextMode>(ContextMode.CHAT);
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
+const threadRef = ref<InstanceType<typeof Thread> | null>(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
-const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT - HEADER_HEIGHT);
+const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 const chatRef: Ref<InstanceType<typeof Chat> | null> = ref(null);
@@ -82,38 +81,48 @@ defineExpose<ViewExpose>({ self });
       </template>
 
       <!-- Meta -->
-      <div class="ml-auto flex flex-row items-center">
-        <!-- ... -->
-        <div v-if="target != null" class="flex flex-row items-center text-gray-400">
+      <div class="ml-auto flex flex-row items-center gap-x-1.5">
+        <!-- Focus thread -->
+        <button
+          v-tooltip="{ title: 'Focus Thread', small: true, group: 'context.meta' }"
+          class="cursor-pointer rounded-sm border-gray-200 px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900"
+          @click="() => canvas.goToNode(threadPtr!)"
+        >
+          <span class="fas fa-expand" />
+        </button>
+        <!-- New/reset thread -->
+        <button
+          v-tooltip="{ title: 'New Thread', small: true, group: 'context.meta' }"
+          class="cursor-pointer rounded-sm border-gray-200 px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900"
+          @click="
+            () => {
+              canvas.tx().update(canvas.space.value!, { threadPtr: undefined });
+              nextTick(() => threadRef?.focus?.());
+            }
+          "
+        >
+          <span class="fas fa-rotate-left" />
+        </button>
+        <!-- Mode -->
+        <div class="flex flex-row items-center divide-x divide-gray-200 rounded-sm border border-gray-200">
+          <button
+            v-for="m in getEnumOptions(EnumType.CONTEXT_MODE)"
+            :key="m.value"
+            v-tooltip="{ title: m.title, small: true, group: 'context.meta' }"
+            class="cursor-pointer px-2 py-0.5 transition-colors duration-150 hover:bg-gray-100"
+            :class="[mode == m.value ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
+            @click="mode = m.value"
+          >
+            <span>{{ m.title }}</span>
+          </button>
+        </div>
+
+        <!-- Node type? -->
+        <!-- <div v-if="target != null" class="flex flex-row items-center text-gray-400">
           <IconInline v-bind="getNodeIcon({ metatype: target.metatype })" class="w-5 text-center" />
           <span class="ml-1">{{ toCamelName(NodeType, target.metatype) }}</span>
-        </div>
+        </div> -->
       </div>
-    </div>
-
-    <!-- Header -->
-    <div
-      class="mx-3 flex flex-row items-center gap-x-1"
-      :style="{
-        height: `${HEADER_HEIGHT}px`,
-      }"
-    >
-      <!-- ... -->
-      <button
-        v-for="m in getEnumOptions(EnumType.CONTEXT_MODE)"
-        :key="m.value"
-        class="cursor-pointer rounded-sm px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100"
-        :class="[mode == m.value ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
-        @click="
-          state.update({
-            metatype: NodeType.VIEW,
-            type: ViewType.CONTEXT,
-            subnode: { contextMode: m.value },
-          })
-        "
-      >
-        <span>{{ m.title }}</span>
-      </button>
     </div>
 
     <!-- Content -->
@@ -133,17 +142,11 @@ defineExpose<ViewExpose>({ self });
         }"
       >
         <!-- Detail -->
-        <SomeObject
-          v-if="mode == ContextMode.DETAIL"
-          id="detail"
-          :node-ptr="targetPtr"
-          is-input
-          data-contextmenu="ignore"
-        />
-        <!-- Chat -->
         <Thread
-          v-else-if="mode == ContextMode.CHAT"
-          id="chat"
+          v-if="mode == ContextMode.CHAT"
+          id="thread"
+          ref="threadRef"
+          is-minimal
           :node-ptr="threadPtr"
           :size="{
             width: size?.width,

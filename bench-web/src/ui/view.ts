@@ -277,7 +277,7 @@ export function getViewForType(
           type: ViewType.PICKER,
           valueType,
           isInline: true,
-          subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.MULTI_TOGGLE }),
+          // subnodePacked: packSubnode(NodeType.VIEW, ViewType.PICKER, { variant: PickerVariant.MULTI_TOGGLE }),
         };
       } else {
         // regular picker

@@ -25,12 +25,11 @@ from bench.language.core import (
     p_regular,
     p_value_packed,
     struct_,
-    subnode_,
 )
 from bench.pb2 import ViewData
 
 if TYPE_CHECKING:
-    from bench.language import Message, Page, Space, Text, Type
+    from bench.language import Page, Space, Type
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -494,48 +493,12 @@ class View(
 #
 
 
-@subnode_(ViewType.THREAD)
-class ThreadView(View):
-    draft_text: Optional["Text"] = p_regular(100, require=False, struct=StructType.TEXT)
-    draft_nodes: list["Node"] = p_regular(101, require=False, array=True, references="any")
-    draft_reply_to: Optional["Message"] = p_regular(
-        102, require=False, array=False, references=NodeType.MESSAGE
-    )
-    if TYPE_CHECKING:
-        draft_nodes_ptr: list["NodeReference"] = []
-        draft_reply_to_ptr: Optional["NodeReference"] = None
-
-
-@subnode_(ViewType.RUN)
-class RunView(View):
-    resources_packed: Any = p_value_packed(100)
-    inputs_packed: Any = p_value_packed(101)
-
-
-@subnode_(ViewType.OBJECT)
-class ObjectView(View):
-    expanded_sections: list[str] = p_regular(100, array=True)
-    collapsed_sections: list[str] = p_regular(101, array=True)
-
-
 @enum_(EnumType.USER_WIZARD_STAGE)
 class UserWizardViewStage(BuiltinEnum):
     """The stage of a User view."""
 
     SIGN_UP = 1
     LOG_IN = 2
-
-
-@subnode_(ViewType.USER_WIZARD)
-class UserWizardView(View):
-    stage: UserWizardViewStage | None = p_regular(100)
-
-
-@subnode_(ViewType.SIDEBAR)
-class SidebarView(View):
-    expanded_package_nodes: list["Node"] = p_regular(
-        100, require=False, array=True, references="any"
-    )
 
 
 @enum_(EnumType.CONTEXT_MODE)
@@ -547,11 +510,6 @@ class ContextMode(BuiltinEnum):
     # LOG, ...
 
 
-@subnode_(ViewType.CONTEXT)
-class ContextView(View):
-    context_mode: ContextMode | None = p_regular(100)
-
-
 @enum_(EnumType.BUTTON_VARIANT)
 class ButtonVariant(BuiltinEnum):
     PRIMARY = 1
@@ -559,28 +517,8 @@ class ButtonVariant(BuiltinEnum):
     LINK = 3
 
 
-@subnode_(ViewType.BUTTON)
-class ButtonView(View):
-    variant: ButtonVariant | None = p_regular(100)
-
-
 @enum_(EnumType.PICKER_VARIANT)
 class PickerVariant(BuiltinEnum):
     MULTI_TOGGLE = 1
     DROPDOWN = 2
     DROPDOWN_LARGE = 3
-
-
-@subnode_(ViewType.PICKER)
-class PickerView(View):
-    variant: PickerVariant | None = p_regular(100)
-
-
-@subnode_(ViewType.DATETIME)
-class DatetimeView(View):
-    is_relative: bool | None = p_regular(100, default=False)
-
-
-@subnode_(ViewType.ICON)
-class IconView(View):
-    include_color: bool | None = p_regular(100, default=None)
