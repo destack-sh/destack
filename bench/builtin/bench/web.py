@@ -15,7 +15,7 @@ class IWeb(ABC):
 
     @abstractmethod
     async def Search(
-        self, Query: str, Content: bool = False, Limit: int = 5
+        self, Query: str, Include_Content: bool = False, Limit: int = 5
     ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
         Search the web for the given query.

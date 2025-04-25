@@ -1830,25 +1830,9 @@ export interface MessageData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value value_packed = 62;
-     */
-    valuePacked?: JsonValue;
-    /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 63;
      */
     nodesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 64;
-     */
-    runPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData runnable_ptr = 65;
-     */
-    runnablePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData interruption_ptr = 66;
-     */
-    interruptionPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.ModelDeveloper model_developer = 100;
      */
@@ -12162,10 +12146,6 @@ export enum ModelDeveloper {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_META = 1000;
-     */
-    META = 1000,
-    /**
      * @generated from protobuf enum value: MODEL_DEVELOPER_OPENAI = 1010;
      */
     OPENAI = 1010,
@@ -12177,10 +12157,6 @@ export enum ModelDeveloper {
      * @generated from protobuf enum value: MODEL_DEVELOPER_GOOGLE = 1030;
      */
     GOOGLE = 1030,
-    /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_MICROSOFT = 1040;
-     */
-    MICROSOFT = 1040,
     /**
      * @generated from protobuf enum value: MODEL_DEVELOPER_DEEPSEEK = 1050;
      */
@@ -18105,11 +18081,7 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 50, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "forwarded_from_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "text", kind: "message", T: () => TextData },
-            { no: 62, name: "value_packed", kind: "message", T: () => Value },
             { no: 63, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 64, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 65, name: "runnable_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 66, name: "interruption_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -18214,20 +18186,8 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbolx.bench.TextData text */ 61:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
-                case /* optional google.protobuf.Value value_packed */ 62:
-                    message.valuePacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
                 case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 63:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 64:
-                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData runnable_ptr */ 65:
-                    message.runnablePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runnablePtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData interruption_ptr */ 66:
-                    message.interruptionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.interruptionPtr);
                     break;
                 case /* optional symbolx.bench.ModelDeveloper model_developer */ 100:
                     message.modelDeveloper = reader.int32();
@@ -18334,21 +18294,9 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.TextData text = 61; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value value_packed = 62; */
-        if (message.valuePacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.valuePacked), writer.tag(62, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 63; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData run_ptr = 64; */
-        if (message.runPtr)
-            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData runnable_ptr = 65; */
-        if (message.runnablePtr)
-            NodeReferenceData.internalBinaryWrite(message.runnablePtr, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData interruption_ptr = 66; */
-        if (message.interruptionPtr)
-            NodeReferenceData.internalBinaryWrite(message.interruptionPtr, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ModelDeveloper model_developer = 100; */
         if (message.modelDeveloper !== undefined)
             writer.tag(100, WireType.Varint).int32(message.modelDeveloper);
@@ -31601,11 +31549,7 @@ export enum MessageProperty {
   replyToPtr = 50,
   forwardedFromPtr = 51,
   text = 61,
-  valuePacked = 62,
   nodesPtr = 63,
-  runPtr = 64,
-  runnablePtr = 65,
-  interruptionPtr = 66,
   modelDeveloper = 100,
   modelProvider = 101,
   modelId = 102,
@@ -33065,7 +33009,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -33103,7 +33047,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -33717,11 +33661,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.replyToPtr]: { id: 50, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.forwardedFromPtr]: { id: 51, name: 'forwarded_from_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.text]: { id: 61, name: 'text', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [MessageProperty.valuePacked]: { id: 62, name: 'value_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [MessageProperty.nodesPtr]: { id: 63, name: 'nodes_ptr', component: ObjectType.MESSAGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.runPtr]: { id: 64, name: 'run_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.runnablePtr]: { id: 65, name: 'runnable_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT, NodeType.FLOW, NodeType.ACTION, NodeType.TRANSITION], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.interruptionPtr]: { id: 66, name: 'interruption_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.INTERRUPTION], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.modelDeveloper]: { id: 100, name: 'model_developer', component: ObjectType.MESSAGE, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.modelProvider]: { id: 101, name: 'model_provider', component: ObjectType.MESSAGE, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.modelId]: { id: 102, name: 'model_id', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -35126,13 +35066,11 @@ export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOp
 }
 
 export const ModelDeveloperOptionInfo: Partial<Record<ModelDeveloper, EnumOptionInfo>> = {
-  [ModelDeveloper.META]: { id: 1000, name: 'META', text: 'Meta', title: 'Meta', color: ColorType.BLUE, icon: 'fab fa-meta' },
-  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY, icon: 'fas fa-o' },
-  [ModelDeveloper.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic', color: ColorType.PURPLE, icon: 'fas fa-a' },
-  [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED, icon: 'fab fa-google' },
-  [ModelDeveloper.MICROSOFT]: { id: 1040, name: 'MICROSOFT', text: 'Microsoft', title: 'Microsoft', color: ColorType.BLUE, icon: 'fab fa-microsoft' },
-  [ModelDeveloper.DEEPSEEK]: { id: 1050, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek', color: ColorType.GRAY, icon: 'fas fa-whale' },
-  [ModelDeveloper.XAI]: { id: 1060, name: 'XAI', text: 'XAI', title: 'XAI', color: ColorType.GRAY, icon: 'fas fa-x' },
+  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY },
+  [ModelDeveloper.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic', color: ColorType.PURPLE },
+  [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED },
+  [ModelDeveloper.DEEPSEEK]: { id: 1050, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek', color: ColorType.GRAY },
+  [ModelDeveloper.XAI]: { id: 1060, name: 'XAI', text: 'XAI', title: 'XAI', color: ColorType.GRAY },
 }
 
 export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionInfo>> = {

@@ -1363,11 +1363,9 @@ enum InterruptionResponse {
 
 enum ModelDeveloper {
   MODEL_DEVELOPER_UNSPECIFIED = 0;
-  MODEL_DEVELOPER_META = 1000;
   MODEL_DEVELOPER_OPENAI = 1010;
   MODEL_DEVELOPER_ANTHROPIC = 1020;
   MODEL_DEVELOPER_GOOGLE = 1030;
-  MODEL_DEVELOPER_MICROSOFT = 1040;
   MODEL_DEVELOPER_DEEPSEEK = 1050;
   MODEL_DEVELOPER_XAI = 1060;
 }
@@ -2256,11 +2254,7 @@ message MessageData {
   optional NodeReferenceData reply_to_ptr = 50;
   optional NodeReferenceData forwarded_from_ptr = 51;
   optional TextData text = 61;
-  optional google.protobuf.Value value_packed = 62;
   repeated NodeReferenceData nodes_ptr = 63;
-  optional NodeReferenceData run_ptr = 64;
-  optional NodeReferenceData runnable_ptr = 65;
-  optional NodeReferenceData interruption_ptr = 66;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;

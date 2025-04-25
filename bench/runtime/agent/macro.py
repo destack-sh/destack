@@ -153,7 +153,7 @@ class FunctionMacro(Macro):
         code_parts = [f"# {self.name}"]
         text = "\n".join([f"# {line}" for line in self.text.split("\n")])
         if self.is_terminal:
-            text += f"\n# TERMINAL: You MAY only PUT {self.name} at the end of your response ONCE."
+            text += f"\n# TERMINAL: You MAY only PUT {self.name} at the end of your turn."
         if self.is_edit:
             text += "\n# EDIT: You MUST have the appropriate access to do this. Refuse otherwise."
         code_parts.append(f"{self.name}: {self.signature}")
@@ -240,8 +240,8 @@ def SEND(
     "CALL",
     """\
 Call an Action as a tool. Results arrive on next turn.
-The call will be presented as <Action.name> + <object_title>, thus object_title should be the object ONLY.
-Example object_titles: "history of computing", "[@Page7]", "green button"
+The call will be presented as `<action.name> <object_title>`, thus `<object_title>` should be the object ONLY.
+Example `<object_title>`: "history of computing", "[@Page7]", "login button"
 """,
     signature="(action: Action, object_title: str | None = None, **inputs) -> None",
     is_terminal=True,
@@ -249,7 +249,6 @@ Example object_titles: "history of computing", "[@Page7]", "green button"
 def CALL(
     action: Action,
     object_title: TextLineIn | None = None,
-    silent: bool = False,
     runner: "AgentRunner" = _INJECTED_RUNNER,
     **inputs,
 ):
@@ -279,18 +278,6 @@ def CALL(
         title=object_title,
     )
     runner.call(run)
-
-    # message about run
-    if not silent:
-        thread = runner.thread.thread
-        message = Message.new(
-            type=MessageType.RUN,
-            title=object_title,
-            run=run,
-            runnable=action,
-            value=inputs,
-        )
-        thread.append(message)
 
     runner.session.stage()
 

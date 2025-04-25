@@ -171,7 +171,12 @@ class BuiltinActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
         runner = get_builtin_action_runner(self.node)
-        outputs_raw = await runner(**(self.inputs or {}), runner=self)
+        inputs_raw: dict[str, Any] = {"runner": self}
+        if self.inputs is not None:
+            for key in self.inputs:
+                key_raw = key.replace(" ", "_")
+                inputs_raw[key_raw] = self.inputs[key]
+        outputs_raw = await runner(**inputs_raw)
         if self.output_type is not None:
             self.outputs = coerce_custom_object_scalar(outputs_raw, self.output_type)
 

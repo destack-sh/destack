@@ -71,12 +71,12 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
     async def Search(
         self,
         Query: str,
-        Content: bool = True,
+        Include_Content: bool = True,
         Limit: int = 5,
         Max_Characters: int | None = 1000,
         runner: "ActionRunner" = _INJECTED_RUNNER,
     ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
-        links = await _do_search(Query, Content, Limit, max_characters=Max_Characters)
+        links = await _do_search(Query, Include_Content, Limit, max_characters=Max_Characters)
         run = runner.closest_tracked_run
         assert run is not None, f"no run in {runner!r}"
         run.extend(*links)
