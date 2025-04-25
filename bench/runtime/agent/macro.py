@@ -11,13 +11,15 @@ from bench.language import (
     Agent,
     Block,
     CursorType,
-    File,
-    FileIn,
+    Interruption,
+    Log,
     Message,
     MessageType,
     Node,
     Page,
     ProcessStatus,
+    Run,
+    Span,
     TextIn,
     TextLineIn,
     Thread,
@@ -205,13 +207,19 @@ def SEND(
     reply_to: Message | None = None,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
-    thread = runner.thread.thread
-    nodes = list(nodes or ())
+    # nodes
+    nodes = [
+        n
+        for n in nodes or ()
+        if isinstance(n, Node) and not isinstance(n, (Run, Span, Log, Interruption, Message))
+    ]
+    # message
     message = Message.new(text=text, owned_by=runner.agent, nodes=nodes, reply_to=reply_to)
     for node in nodes:
         if node.parent_ptr is None:
             message.append(node)
-    thread.append(message)
+    runner.thread.thread.append(message)
+    # cursor
     if (cursor := runner.node.get_cursor(type=CursorType.THREAD)) is not None:
         cursor.seen_at = message.created_at
     runner.session.stage()
@@ -239,7 +247,7 @@ def CALL(
 
     # title
     object_title = text_line(object_title) if object_title is not None else None
-    if action.type == ActionType.BUILTIN:
+    if action.type == ActionType.BUILTIN:  # use known good title for builtin actions
         if action.id == WebKit.actions.Search.id and "Query" in inputs:
             object_title = text_line(inputs["Query"])
         elif action.id == WebKit.actions.Read.id and "URL" in inputs:
@@ -268,7 +276,6 @@ def CALL(
         message = Message.new(
             type=MessageType.RUN,
             title=object_title,
-            nodes=[run],
             run=run,
             runnable=action,
             value=inputs,

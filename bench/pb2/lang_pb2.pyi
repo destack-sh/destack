@@ -218,7 +218,6 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_ERROR: _ClassVar[StructType]
     STRUCT_TYPE_RUN_TRACE: _ClassVar[StructType]
     STRUCT_TYPE_RUN_FRAME: _ClassVar[StructType]
-    STRUCT_TYPE_LINK_PREVIEW: _ClassVar[StructType]
     STRUCT_TYPE_COLOR: _ClassVar[StructType]
     STRUCT_TYPE_FONT: _ClassVar[StructType]
     STRUCT_TYPE_RECTANGLE: _ClassVar[StructType]
@@ -314,7 +313,6 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_ERROR: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_TRACE: _ClassVar[ObjectType]
     OBJECT_TYPE_RUN_FRAME: _ClassVar[ObjectType]
-    OBJECT_TYPE_LINK_PREVIEW: _ClassVar[ObjectType]
     OBJECT_TYPE_COLOR: _ClassVar[ObjectType]
     OBJECT_TYPE_FONT: _ClassVar[ObjectType]
     OBJECT_TYPE_RECTANGLE: _ClassVar[ObjectType]
@@ -410,7 +408,6 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_ERROR: _ClassVar[BenchType]
     BENCH_TYPE_RUN_TRACE: _ClassVar[BenchType]
     BENCH_TYPE_RUN_FRAME: _ClassVar[BenchType]
-    BENCH_TYPE_LINK_PREVIEW: _ClassVar[BenchType]
     BENCH_TYPE_COLOR: _ClassVar[BenchType]
     BENCH_TYPE_FONT: _ClassVar[BenchType]
     BENCH_TYPE_RECTANGLE: _ClassVar[BenchType]
@@ -1908,7 +1905,6 @@ STRUCT_TYPE_SELECT_OPTIONS: StructType
 STRUCT_TYPE_ERROR: StructType
 STRUCT_TYPE_RUN_TRACE: StructType
 STRUCT_TYPE_RUN_FRAME: StructType
-STRUCT_TYPE_LINK_PREVIEW: StructType
 STRUCT_TYPE_COLOR: StructType
 STRUCT_TYPE_FONT: StructType
 STRUCT_TYPE_RECTANGLE: StructType
@@ -2001,7 +1997,6 @@ OBJECT_TYPE_SELECT_OPTIONS: ObjectType
 OBJECT_TYPE_ERROR: ObjectType
 OBJECT_TYPE_RUN_TRACE: ObjectType
 OBJECT_TYPE_RUN_FRAME: ObjectType
-OBJECT_TYPE_LINK_PREVIEW: ObjectType
 OBJECT_TYPE_COLOR: ObjectType
 OBJECT_TYPE_FONT: ObjectType
 OBJECT_TYPE_RECTANGLE: ObjectType
@@ -2094,7 +2089,6 @@ BENCH_TYPE_SELECT_OPTIONS: BenchType
 BENCH_TYPE_ERROR: BenchType
 BENCH_TYPE_RUN_TRACE: BenchType
 BENCH_TYPE_RUN_FRAME: BenchType
-BENCH_TYPE_LINK_PREVIEW: BenchType
 BENCH_TYPE_COLOR: BenchType
 BENCH_TYPE_FONT: BenchType
 BENCH_TYPE_RECTANGLE: BenchType
@@ -3558,36 +3552,6 @@ class FileInfoData(_message.Message):
     content: bytes
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., type: _Optional[_Union[FileType, str]] = ..., name: _Optional[str] = ..., source: _Optional[_Union[FileSource, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., url: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[bytes] = ...) -> None: ...
 
-class LinkPreviewData(_message.Message):
-    __slots__ = ("metatype", "title", "url", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "attribution", "published_at", "expires_at", "image_urls")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    TITLE_FIELD_NUMBER: _ClassVar[int]
-    URL_FIELD_NUMBER: _ClassVar[int]
-    CONTENT_URL_FIELD_NUMBER: _ClassVar[int]
-    THUMBNAIL_URL_FIELD_NUMBER: _ClassVar[int]
-    FAVICON_URL_FIELD_NUMBER: _ClassVar[int]
-    THUMBNAIL_WIDTH_FIELD_NUMBER: _ClassVar[int]
-    THUMBNAIL_HEIGHT_FIELD_NUMBER: _ClassVar[int]
-    CONTENT_FIELD_NUMBER: _ClassVar[int]
-    ATTRIBUTION_FIELD_NUMBER: _ClassVar[int]
-    PUBLISHED_AT_FIELD_NUMBER: _ClassVar[int]
-    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
-    IMAGE_URLS_FIELD_NUMBER: _ClassVar[int]
-    metatype: ObjectType
-    title: TextLineData
-    url: str
-    content_url: str
-    thumbnail_url: str
-    favicon_url: str
-    thumbnail_width: int
-    thumbnail_height: int
-    content: str
-    attribution: str
-    published_at: _timestamp_pb2.Timestamp
-    expires_at: _timestamp_pb2.Timestamp
-    image_urls: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., url: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[str] = ..., attribution: _Optional[str] = ..., published_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., image_urls: _Optional[_Iterable[str]] = ...) -> None: ...
-
 class EditContextData(_message.Message):
     __slots__ = ("metatype", "page_ptr", "flow_ptr", "action_ptr", "session_ptr", "run_ptr", "run_root_ptr", "agent_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
@@ -4851,7 +4815,7 @@ class FileData(_message.Message):
     def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., claimed_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[FileType, str]] = ..., name: _Optional[str] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., source: _Optional[_Union[FileSource, str]] = ..., mime_type: _Optional[str] = ..., format: _Optional[_Union[FileFormat, str]] = ..., size: _Optional[int] = ..., sha256: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., aspect_ratio: _Optional[float] = ..., codec: _Optional[str] = ..., duration: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ..., url: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[bytes] = ..., retention: _Optional[_Union[FileRetentionMode, str]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class LinkData(_message.Message):
-    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "claimed_by_ptr", "mode", "type", "name", "title", "order_key", "icon", "definition_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "failed_at", "failed_attempts", "url", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "attribution", "published_at", "expires_at")
+    __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "claimed_by_ptr", "mode", "type", "name", "title", "order_key", "icon", "definition_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "failed_at", "failed_attempts", "url", "domain", "content_url", "thumbnail_url", "favicon_url", "thumbnail_width", "thumbnail_height", "content", "attribution", "published_at", "expires_at", "image_urls")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     CK_FIELD_NUMBER: _ClassVar[int]
@@ -4886,6 +4850,7 @@ class LinkData(_message.Message):
     FAILED_AT_FIELD_NUMBER: _ClassVar[int]
     FAILED_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     URL_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
     CONTENT_URL_FIELD_NUMBER: _ClassVar[int]
     THUMBNAIL_URL_FIELD_NUMBER: _ClassVar[int]
     FAVICON_URL_FIELD_NUMBER: _ClassVar[int]
@@ -4895,6 +4860,7 @@ class LinkData(_message.Message):
     ATTRIBUTION_FIELD_NUMBER: _ClassVar[int]
     PUBLISHED_AT_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    IMAGE_URLS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     ck: str
@@ -4929,6 +4895,7 @@ class LinkData(_message.Message):
     failed_at: _timestamp_pb2.Timestamp
     failed_attempts: int
     url: str
+    domain: str
     content_url: str
     thumbnail_url: str
     favicon_url: str
@@ -4938,7 +4905,8 @@ class LinkData(_message.Message):
     attribution: str
     published_at: _timestamp_pb2.Timestamp
     expires_at: _timestamp_pb2.Timestamp
-    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., claimed_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[LinkType, str]] = ..., name: _Optional[str] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., url: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[str] = ..., attribution: _Optional[str] = ..., published_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    image_urls: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, metatype: _Optional[_Union[ObjectType, str]] = ..., id: _Optional[str] = ..., ck: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., bench_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., package_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., archived_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., owned_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., claimed_by_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., mode: _Optional[_Union[NodeMode, str]] = ..., type: _Optional[_Union[LinkType, str]] = ..., name: _Optional[str] = ..., title: _Optional[_Union[TextLineData, _Mapping]] = ..., order_key: _Optional[str] = ..., icon: _Optional[_Union[IconData, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., region: _Optional[_Union[Region, str]] = ..., scaler_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ..., status: _Optional[_Union[ResourceStatus, str]] = ..., activated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., deactivated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., reset_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., suspended_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., decommissioned_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., active_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., failed_attempts: _Optional[int] = ..., url: _Optional[str] = ..., domain: _Optional[str] = ..., content_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., favicon_url: _Optional[str] = ..., thumbnail_width: _Optional[int] = ..., thumbnail_height: _Optional[int] = ..., content: _Optional[str] = ..., attribution: _Optional[str] = ..., published_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., image_urls: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class StreamData(_message.Message):
     __slots__ = ("metatype", "id", "ck", "parent_ptr", "bench_ptr", "package_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "archived_at", "deleted_at", "template_ptr", "owned_by_ptr", "claimed_by_ptr", "mode", "type", "name", "order_key", "icon", "definition_ptr", "region", "scaler_ptr", "status", "activated_at", "deactivated_at", "reset_at", "suspended_at", "decommissioned_at", "active_at", "failed_at", "failed_attempts")

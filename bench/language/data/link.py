@@ -10,21 +10,15 @@ from opentelemetry import trace
 
 from bench.language.core import (
     BuiltinEnum,
-    BuiltinObject,
     EnumType,
     IsTitled,
     NodeType,
     Resource,
-    Struct,
-    StructType,
-    TextLine,
     enum_,
     node_,
-    object_,
     p_node_parent,
     p_regular,
     p_system,
-    struct_,
 )
 from bench.pb2 import LinkData
 
@@ -42,37 +36,8 @@ class LinkType(BuiltinEnum):
     WEB = 1
 
 
-@object_()
-class LinkBase(BuiltinObject):
-    """Common Link info."""
-
-    url: str | None = p_regular(50, default=None)
-    content_url: str | None = p_regular(51, default=None)
-    thumbnail_url: str | None = p_regular(52, default=None)
-    favicon_url: str | None = p_regular(53, default=None)
-    thumbnail_width: int | None = p_regular(54, default=None)
-    thumbnail_height: int | None = p_regular(55, default=None)
-    content: str | None = p_regular(60, default=None)
-    attribution: str | None = p_regular(62, default=None)
-    published_at: Optional[datetime] = p_system(63)
-    expires_at: Optional[datetime] = p_system(64)
-
-
-# NOTE :Architecture: having separate Link and LinkPreview feels funky
-
-
-@struct_(StructType.LINK_PREVIEW)
-class LinkPreview(LinkBase, Struct):
-    """
-    A preview of a Link.
-    """
-
-    title: TextLine | None = p_regular(32, default=None, struct=StructType.TEXT_LINE)
-    image_urls: list[str] = p_regular(70, array=True)
-
-
 @node_(NodeType.LINK)
-class Link(IsTitled, LinkBase, Resource[LinkData]):
+class Link(IsTitled, Resource[LinkData]):
     """
     A Link to an external resource (like a web URL, or anything that doesn't fit into other Nodes).
     """
@@ -102,4 +67,25 @@ class Link(IsTitled, LinkBase, Resource[LinkData]):
     type: LinkType = p_regular(30, require=True)
 
     # content
-    # ...LinkBase[50-70]
+    url: str | None = p_regular(50, default=None)
+    domain: str | None = p_regular(51, default=None)
+    content_url: str | None = p_regular(52, default=None)
+    thumbnail_url: str | None = p_regular(53, default=None)
+    favicon_url: str | None = p_regular(54, default=None)
+    thumbnail_width: int | None = p_regular(55, default=None)
+    thumbnail_height: int | None = p_regular(56, default=None)
+    content: str | None = p_regular(60, default=None)
+    attribution: str | None = p_regular(62, default=None)
+    published_at: Optional[datetime] = p_system(63)
+    expires_at: Optional[datetime] = p_system(64)
+    image_urls: list[str] = p_regular(70, array=True)
+
+    def __content_str__(self):
+        content_parts: list[str] = [self.type.bench_name]
+        if self.url:
+            content_parts.append(self.url)
+        if self.content_url:
+            content_parts.append(self.content_url)
+        if self.content:
+            content_parts.append(self.content[:100] + "...")
+        return ", ".join(content_parts)

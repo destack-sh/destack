@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated, Any, Mapping
 
 from bench.builtin.core import class_to_kit
-from bench.language import LinkPreview, to_icon
+from bench.language import Link, to_icon
 
 if TYPE_CHECKING:
     pass
@@ -16,7 +16,7 @@ class IWeb(ABC):
     @abstractmethod
     async def Search(
         self, Query: str, Content: bool = False, Limit: int = 5
-    ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
+    ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
         Search the web for the given query.
         ICON: fas fa-magnifying-glass
@@ -26,7 +26,7 @@ class IWeb(ABC):
     @abstractmethod
     async def Search_Many(
         self, Queries: list[str], Content: bool = False, Limit: int = 5
-    ) -> Annotated[Mapping[str, Any], {"Results": list[LinkPreview]}]:
+    ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
         Search the web for the given queries in parallel.
         ICON: fas fa-magnifying-glass
@@ -34,7 +34,7 @@ class IWeb(ABC):
         pass
 
     @abstractmethod
-    async def Read(self, URL: str) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
+    async def Read(self, URL: str) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
         Extract the content of the given URL.
         ICON: fas fa-globe
@@ -44,7 +44,7 @@ class IWeb(ABC):
     @abstractmethod
     async def Read_Many(
         self, URLs: list[str]
-    ) -> Annotated[Mapping[str, Any], {"Previews": list[LinkPreview]}]:
+    ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
         Extract the content of the given URLs in parallel.
         ICON: fas fa-globe

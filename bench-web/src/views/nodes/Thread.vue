@@ -40,6 +40,7 @@ import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
 import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
+import Link from "@/views/builtin/Link.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
 import Run from "@/views/builtin/Run.vue";
@@ -896,6 +897,7 @@ defineExpose<ViewExpose>({ self, id, focus });
                       }"
                       class=""
                     />
+                    <Link v-else-if="nodePtr.nodeType == NodeType.LINK" :graph="graph" :node-ptr="nodePtr" />
                     <NodeReference
                       v-else
                       :node-ptr="nodePtr"

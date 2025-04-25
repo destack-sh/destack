@@ -135,12 +135,13 @@ We provide MACROS:
   - Terminal Function Macros (like `CALL`) END your turn immediately.
  (Thus, you MUST NOT attempt to react to the result of a terminal macro.) 
 
-# Recency and Search
+# Search and Recency
 You ONLY know general information up to your knowledge cutoff.
 You SHOULD search or browse for current information for *any* query that could benefit from up-to-date or niche information.
  (e.g., for politics, current events, weather, sports, trends, news, ...)
 If you need the 'latest' anything, you SHOULD likely be searching.
 If you are uncertain whether your knowledge is up-to-date and sufficient, you SHOULD search somehow.
+When searching, you MUST cite sources AND include relevant Links as `nodes`.
 
 # Text
 You SHOULD use relevant Text/markdown formatting.
@@ -222,8 +223,8 @@ def make_node_layout_hierarchy() -> Sequence[Piece]:
     return [trait_region, nodes_region]
 
 
-@tracer.start_as_current_span("agent.make_prompt")
-def make_agent_prompt(
+@tracer.start_as_current_span("agent.build_prompt")
+def build_agent_prompt(
     agent: Agent,
     runner: "AgentRunner[Agent]",
     previous_attempts: Sequence[Span],
@@ -234,6 +235,8 @@ def make_agent_prompt(
     from bench.builtin.bench import CommonKit, WebKit
 
     from .example import EXAMPLES
+
+    # nocheckin: fetch prompt/piece references (Files/Links?/Databases/...)
 
     # context
     run = runner.tracked_run
@@ -246,6 +249,7 @@ def make_agent_prompt(
         system_prompt=get_system_prompt(agent, knowledge_cutoff),
     )
     agent_alias = prompt.aliasing.get_or_add(agent)
+    previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]
 
     # system...?
     prompt.region(
@@ -336,7 +340,6 @@ You MAY need to engage with other Agents (but ONLY if you've been asked to do so
     )
 
     # previous tool Runs
-    previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]
     if previous_tool_runs:
         prompt.region(
             "Previous Runs",
@@ -371,7 +374,7 @@ Reflect on the instructions, the context and any errors as you try again.
         role="developer",
     )
 
-    # final prefix
+    # final prefix / reminder
     prompt.separator(role="developer")
     prompt.text(
         """

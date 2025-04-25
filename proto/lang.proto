@@ -206,7 +206,6 @@ enum StructType {
   STRUCT_TYPE_ERROR = 12700;
   STRUCT_TYPE_RUN_TRACE = 12703;
   STRUCT_TYPE_RUN_FRAME = 12704;
-  STRUCT_TYPE_LINK_PREVIEW = 12800;
   STRUCT_TYPE_COLOR = 13200;
   STRUCT_TYPE_FONT = 13201;
   STRUCT_TYPE_RECTANGLE = 13202;
@@ -302,7 +301,6 @@ enum ObjectType {
   OBJECT_TYPE_ERROR = 12700;
   OBJECT_TYPE_RUN_TRACE = 12703;
   OBJECT_TYPE_RUN_FRAME = 12704;
-  OBJECT_TYPE_LINK_PREVIEW = 12800;
   OBJECT_TYPE_COLOR = 13200;
   OBJECT_TYPE_FONT = 13201;
   OBJECT_TYPE_RECTANGLE = 13202;
@@ -398,7 +396,6 @@ enum BenchType {
   BENCH_TYPE_ERROR = 12700;
   BENCH_TYPE_RUN_TRACE = 12703;
   BENCH_TYPE_RUN_FRAME = 12704;
-  BENCH_TYPE_LINK_PREVIEW = 12800;
   BENCH_TYPE_COLOR = 13200;
   BENCH_TYPE_FONT = 13201;
   BENCH_TYPE_RECTANGLE = 13202;
@@ -1979,22 +1976,6 @@ message FileInfoData {
   optional bytes content = 76;
 }
 
-message LinkPreviewData {
-  ObjectType metatype = 1;
-  optional TextLineData title = 32;
-  optional string url = 50;
-  optional string content_url = 51;
-  optional string thumbnail_url = 52;
-  optional string favicon_url = 53;
-  optional int32 thumbnail_width = 54;
-  optional int32 thumbnail_height = 55;
-  optional string content = 60;
-  optional string attribution = 62;
-  optional google.protobuf.Timestamp published_at = 63;
-  optional google.protobuf.Timestamp expires_at = 64;
-  repeated string image_urls = 70;
-}
-
 message EditContextData {
   ObjectType metatype = 1;
   optional NodeReferenceData page_ptr = 70;
@@ -2697,15 +2678,17 @@ message LinkData {
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;
   optional string url = 50;
-  optional string content_url = 51;
-  optional string thumbnail_url = 52;
-  optional string favicon_url = 53;
-  optional int32 thumbnail_width = 54;
-  optional int32 thumbnail_height = 55;
+  optional string domain = 51;
+  optional string content_url = 52;
+  optional string thumbnail_url = 53;
+  optional string favicon_url = 54;
+  optional int32 thumbnail_width = 55;
+  optional int32 thumbnail_height = 56;
   optional string content = 60;
   optional string attribution = 62;
   optional google.protobuf.Timestamp published_at = 63;
   optional google.protobuf.Timestamp expires_at = 64;
+  repeated string image_urls = 70;
 }
 
 message StreamData {

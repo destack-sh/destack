@@ -22,6 +22,7 @@ from bench.language.core import (
     IsType,
     Node,
     NodeReference,
+    NodeSuperGraph,
     NodeType,
     ObjectType,
     PackageNode,
@@ -88,7 +89,8 @@ class RenderOptions:
 class Aliasing:
     """Registry of aliases for Nodes."""
 
-    def __init__(self):
+    def __init__(self, supergraph: NodeSuperGraph):
+        self._supergraph = supergraph
         self._alias_by_node_id: dict[UUID, str] = {}
         self._node_by_alias: dict[str, Node | NodeReference] = {}
         self._node_by_id: dict[UUID, Node | NodeReference] = {}
@@ -101,7 +103,7 @@ class Aliasing:
 
     def clone(self) -> "Aliasing":
         """Clone the current aliasing registry."""
-        aliasing = Aliasing()
+        aliasing = Aliasing(self._supergraph)
         aliasing._alias_by_node_id = self._alias_by_node_id.copy()
         aliasing._node_by_alias = self._node_by_alias.copy()
         aliasing._node_by_id = self._node_by_id.copy()
@@ -117,6 +119,11 @@ class Aliasing:
                 # ensure alias is set if explicitly given
                 self._node_by_alias[alias] = obj
             return self._alias_by_node_id[obj.id]
+
+        # try to resolve node references
+        if isinstance(obj, NodeReference):
+            if (resolved := self._supergraph.get(obj)) is not None:
+                obj = resolved
 
         # make new unique alias if needed
         if alias is None:
@@ -178,25 +185,26 @@ class Aliasing:
 
     def resolve(self, name: str) -> Node | NodeReference | None:
         """Resolves the given name to a node. Also attempts to interpret name as an id."""
-        if (node := self._node_by_alias.get(name)) is not None:
-            # resolve by name
-            return node
-        else:
+        node = self._node_by_alias.get(name)
+        if node is None:
             # resolve by id
             try:
                 name_as_uuid = UUID(name)
-                return self._node_by_id.get(name_as_uuid)
+                node = self._node_by_id.get(name_as_uuid)
             except ValueError:
-                return None
+                pass
+        # try to auto-resolve node references
+        if isinstance(node, NodeReference):
+            if (resolved := self._supergraph.get(node)) is not None:
+                node = resolved
+        return node
 
     @staticmethod
-    def new(aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
-        """Create a new Aliasing registry from a mapping of aliases to nodes."""
-        aliasing = Aliasing()
-        for alias, node in aliases.items():
-            aliasing._alias_by_node_id[node.id] = alias
-            aliasing._node_by_alias[alias] = node
-            aliasing._node_by_id[node.id] = node
+    def new(supergraph: NodeSuperGraph, aliases: Mapping[str, Node | NodeReference]) -> "Aliasing":
+        """Create a new Aliasing registry from a supergraph and a mapping of aliases."""
+        aliasing = Aliasing(supergraph)
+        for name, node in aliases.items():
+            aliasing.add(node, name)
         return aliasing
 
 
@@ -207,9 +215,6 @@ ACTIVE_ALIASING: contextvars.ContextVar[Aliasing | None] = contextvars.ContextVa
 
 def get_active_aliasing() -> Aliasing | None:
     return ACTIVE_ALIASING.get()
-
-
-AliasingIn = Aliasing | Mapping[str, Node | NodeReference]
 
 
 class Renderer:
@@ -227,12 +232,13 @@ class Renderer:
 
     def render_node_ref(self, node: Node | NodeReference) -> str:
         """Renders a python-valid reference to the given node in this context."""
+
+        # refer named inlined children from parent
         if (
             isinstance(node, Node)
             and node.metatype in self.options.inline_node_types
             and "name" in node.__properties__
         ):
-            # refer named inlined children from parent
             parent = node.parent
             if parent is not None:
                 parent_alias = self.render_node_ref(parent)
@@ -770,7 +776,7 @@ class ActionRenderer(PackageNodeRenderer[Action]):
 
 
 @_renderer(NodeType.TRANSITION)
-class LinkRenderer(PackageNodeRenderer[Transition]):
+class TransitionRenderer(PackageNodeRenderer[Transition]):
     @override
     def _render_constructor(
         self,

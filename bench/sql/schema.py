@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.24.1"
+VERSION = "2025.04.25.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -539,6 +539,7 @@ LINK_TABLE = Table(
         Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("failed_attempts", PrimitiveType.INT32, default="0"),
         Column("url", PrimitiveType.STRING, is_nullable=True),
+        Column("domain", PrimitiveType.STRING, is_nullable=True),
         Column("content_url", PrimitiveType.STRING, is_nullable=True),
         Column("thumbnail_url", PrimitiveType.STRING, is_nullable=True),
         Column("favicon_url", PrimitiveType.STRING, is_nullable=True),
@@ -548,6 +549,7 @@ LINK_TABLE = Table(
         Column("attribution", PrimitiveType.STRING, is_nullable=True),
         Column("published_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("image_urls", PrimitiveType.STRING, is_array=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

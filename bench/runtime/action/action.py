@@ -156,7 +156,7 @@ class CodeActionRunner(ActionRunner):
                 node=self.node,
                 run=resumed_span or SpanType.CODE,
                 code=code,
-                aliasing=Aliasing(),
+                aliasing=Aliasing(self.runtime.supergraph),
                 inputs=self.inputs,
                 outputs=self.outputs or self.output_type,
             )
@@ -171,7 +171,7 @@ class BuiltinActionRunner(ActionRunner):
     @override
     async def run(self) -> None:
         runner = get_builtin_action_runner(self.node)
-        outputs_raw = await runner(**(self.inputs or {}))
+        outputs_raw = await runner(**(self.inputs or {}), runner=self)
         if self.output_type is not None:
             self.outputs = coerce_custom_object_scalar(outputs_raw, self.output_type)
 

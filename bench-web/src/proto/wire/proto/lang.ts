@@ -875,63 +875,6 @@ export interface FileInfoData {
     content?: Uint8Array;
 }
 /**
- * @generated from protobuf message symbolx.bench.LinkPreviewData
- */
-export interface LinkPreviewData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextLineData title = 32;
-     */
-    title?: TextLineData;
-    /**
-     * @generated from protobuf field: optional string url = 50;
-     */
-    url?: string;
-    /**
-     * @generated from protobuf field: optional string content_url = 51;
-     */
-    contentUrl?: string;
-    /**
-     * @generated from protobuf field: optional string thumbnail_url = 52;
-     */
-    thumbnailUrl?: string;
-    /**
-     * @generated from protobuf field: optional string favicon_url = 53;
-     */
-    faviconUrl?: string;
-    /**
-     * @generated from protobuf field: optional int32 thumbnail_width = 54;
-     */
-    thumbnailWidth?: number;
-    /**
-     * @generated from protobuf field: optional int32 thumbnail_height = 55;
-     */
-    thumbnailHeight?: number;
-    /**
-     * @generated from protobuf field: optional string content = 60;
-     */
-    content?: string;
-    /**
-     * @generated from protobuf field: optional string attribution = 62;
-     */
-    attribution?: string;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp published_at = 63;
-     */
-    publishedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 64;
-     */
-    expiresAt?: Timestamp;
-    /**
-     * @generated from protobuf field: repeated string image_urls = 70;
-     */
-    imageUrls: string[];
-}
-/**
  * @generated from protobuf message symbolx.bench.EditContextData
  */
 export interface EditContextData {
@@ -3488,23 +3431,27 @@ export interface LinkData {
      */
     url?: string;
     /**
-     * @generated from protobuf field: optional string content_url = 51;
+     * @generated from protobuf field: optional string domain = 51;
+     */
+    domain?: string;
+    /**
+     * @generated from protobuf field: optional string content_url = 52;
      */
     contentUrl?: string;
     /**
-     * @generated from protobuf field: optional string thumbnail_url = 52;
+     * @generated from protobuf field: optional string thumbnail_url = 53;
      */
     thumbnailUrl?: string;
     /**
-     * @generated from protobuf field: optional string favicon_url = 53;
+     * @generated from protobuf field: optional string favicon_url = 54;
      */
     faviconUrl?: string;
     /**
-     * @generated from protobuf field: optional int32 thumbnail_width = 54;
+     * @generated from protobuf field: optional int32 thumbnail_width = 55;
      */
     thumbnailWidth?: number;
     /**
-     * @generated from protobuf field: optional int32 thumbnail_height = 55;
+     * @generated from protobuf field: optional int32 thumbnail_height = 56;
      */
     thumbnailHeight?: number;
     /**
@@ -3523,6 +3470,10 @@ export interface LinkData {
      * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 64;
      */
     expiresAt?: Timestamp;
+    /**
+     * @generated from protobuf field: repeated string image_urls = 70;
+     */
+    imageUrls: string[];
 }
 /**
  * @generated from protobuf message symbolx.bench.StreamData
@@ -8080,10 +8031,6 @@ export enum StructType {
      */
     RUN_FRAME = 12704,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LINK_PREVIEW = 12800;
-     */
-    LINK_PREVIEW = 12800,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 13200;
      */
     COLOR = 13200,
@@ -8457,10 +8404,6 @@ export enum ObjectType {
      */
     RUN_FRAME = 12704,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_LINK_PREVIEW = 12800;
-     */
-    LINK_PREVIEW = 12800,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 13200;
      */
     COLOR = 13200,
@@ -8833,10 +8776,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_RUN_FRAME = 12704;
      */
     RUN_FRAME = 12704,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_LINK_PREVIEW = 12800;
-     */
-    LINK_PREVIEW = 12800,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_COLOR = 13200;
      */
@@ -15750,138 +15689,6 @@ class FileInfoData$Type extends MessageType$<FileInfoData> {
  */
 export const FileInfoData = new FileInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class LinkPreviewData$Type extends MessageType$<LinkPreviewData> {
-    constructor() {
-        super("symbolx.bench.LinkPreviewData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 32, name: "title", kind: "message", T: () => TextLineData },
-            { no: 50, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 51, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 53, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 55, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 63, name: "published_at", kind: "message", T: () => Timestamp },
-            { no: 64, name: "expires_at", kind: "message", T: () => Timestamp },
-            { no: 70, name: "image_urls", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<LinkPreviewData>): LinkPreviewData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.imageUrls = [];
-        if (value !== undefined)
-            reflectionMergePartial<LinkPreviewData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LinkPreviewData): LinkPreviewData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.TextLineData title */ 32:
-                    message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
-                    break;
-                case /* optional string url */ 50:
-                    message.url = reader.string();
-                    break;
-                case /* optional string content_url */ 51:
-                    message.contentUrl = reader.string();
-                    break;
-                case /* optional string thumbnail_url */ 52:
-                    message.thumbnailUrl = reader.string();
-                    break;
-                case /* optional string favicon_url */ 53:
-                    message.faviconUrl = reader.string();
-                    break;
-                case /* optional int32 thumbnail_width */ 54:
-                    message.thumbnailWidth = reader.int32();
-                    break;
-                case /* optional int32 thumbnail_height */ 55:
-                    message.thumbnailHeight = reader.int32();
-                    break;
-                case /* optional string content */ 60:
-                    message.content = reader.string();
-                    break;
-                case /* optional string attribution */ 62:
-                    message.attribution = reader.string();
-                    break;
-                case /* optional google.protobuf.Timestamp published_at */ 63:
-                    message.publishedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.publishedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp expires_at */ 64:
-                    message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
-                    break;
-                case /* repeated string image_urls */ 70:
-                    message.imageUrls.push(reader.string());
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LinkPreviewData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.TextLineData title = 32; */
-        if (message.title)
-            TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional string url = 50; */
-        if (message.url !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.url);
-        /* optional string content_url = 51; */
-        if (message.contentUrl !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.contentUrl);
-        /* optional string thumbnail_url = 52; */
-        if (message.thumbnailUrl !== undefined)
-            writer.tag(52, WireType.LengthDelimited).string(message.thumbnailUrl);
-        /* optional string favicon_url = 53; */
-        if (message.faviconUrl !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.faviconUrl);
-        /* optional int32 thumbnail_width = 54; */
-        if (message.thumbnailWidth !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.thumbnailWidth);
-        /* optional int32 thumbnail_height = 55; */
-        if (message.thumbnailHeight !== undefined)
-            writer.tag(55, WireType.Varint).int32(message.thumbnailHeight);
-        /* optional string content = 60; */
-        if (message.content !== undefined)
-            writer.tag(60, WireType.LengthDelimited).string(message.content);
-        /* optional string attribution = 62; */
-        if (message.attribution !== undefined)
-            writer.tag(62, WireType.LengthDelimited).string(message.attribution);
-        /* optional google.protobuf.Timestamp published_at = 63; */
-        if (message.publishedAt)
-            Timestamp.internalBinaryWrite(message.publishedAt, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp expires_at = 64; */
-        if (message.expiresAt)
-            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* repeated string image_urls = 70; */
-        for (let i = 0; i < message.imageUrls.length; i++)
-            writer.tag(70, WireType.LengthDelimited).string(message.imageUrls[i]);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.LinkPreviewData
- */
-export const LinkPreviewData = new LinkPreviewData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class EditContextData$Type extends MessageType$<EditContextData> {
     constructor() {
         super("symbolx.bench.EditContextData", [
@@ -21468,15 +21275,17 @@ class LinkData$Type extends MessageType$<LinkData> {
             { no: 47, name: "failed_at", kind: "message", T: () => Timestamp },
             { no: 48, name: "failed_attempts", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 50, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 51, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 53, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 54, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 55, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "domain", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "content_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 53, name: "thumbnail_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 54, name: "favicon_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 55, name: "thumbnail_width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 56, name: "thumbnail_height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "attribution", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 63, name: "published_at", kind: "message", T: () => Timestamp },
-            { no: 64, name: "expires_at", kind: "message", T: () => Timestamp }
+            { no: 64, name: "expires_at", kind: "message", T: () => Timestamp },
+            { no: 70, name: "image_urls", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<LinkData>): LinkData {
@@ -21489,6 +21298,7 @@ class LinkData$Type extends MessageType$<LinkData> {
         message.region = 0;
         message.status = 0;
         message.failedAttempts = 0;
+        message.imageUrls = [];
         if (value !== undefined)
             reflectionMergePartial<LinkData>(this, message, value);
         return message;
@@ -21600,19 +21410,22 @@ class LinkData$Type extends MessageType$<LinkData> {
                 case /* optional string url */ 50:
                     message.url = reader.string();
                     break;
-                case /* optional string content_url */ 51:
+                case /* optional string domain */ 51:
+                    message.domain = reader.string();
+                    break;
+                case /* optional string content_url */ 52:
                     message.contentUrl = reader.string();
                     break;
-                case /* optional string thumbnail_url */ 52:
+                case /* optional string thumbnail_url */ 53:
                     message.thumbnailUrl = reader.string();
                     break;
-                case /* optional string favicon_url */ 53:
+                case /* optional string favicon_url */ 54:
                     message.faviconUrl = reader.string();
                     break;
-                case /* optional int32 thumbnail_width */ 54:
+                case /* optional int32 thumbnail_width */ 55:
                     message.thumbnailWidth = reader.int32();
                     break;
-                case /* optional int32 thumbnail_height */ 55:
+                case /* optional int32 thumbnail_height */ 56:
                     message.thumbnailHeight = reader.int32();
                     break;
                 case /* optional string content */ 60:
@@ -21626,6 +21439,9 @@ class LinkData$Type extends MessageType$<LinkData> {
                     break;
                 case /* optional google.protobuf.Timestamp expires_at */ 64:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
+                    break;
+                case /* repeated string image_urls */ 70:
+                    message.imageUrls.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -21741,21 +21557,24 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional string url = 50; */
         if (message.url !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.url);
-        /* optional string content_url = 51; */
+        /* optional string domain = 51; */
+        if (message.domain !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.domain);
+        /* optional string content_url = 52; */
         if (message.contentUrl !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.contentUrl);
-        /* optional string thumbnail_url = 52; */
+            writer.tag(52, WireType.LengthDelimited).string(message.contentUrl);
+        /* optional string thumbnail_url = 53; */
         if (message.thumbnailUrl !== undefined)
-            writer.tag(52, WireType.LengthDelimited).string(message.thumbnailUrl);
-        /* optional string favicon_url = 53; */
+            writer.tag(53, WireType.LengthDelimited).string(message.thumbnailUrl);
+        /* optional string favicon_url = 54; */
         if (message.faviconUrl !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.faviconUrl);
-        /* optional int32 thumbnail_width = 54; */
+            writer.tag(54, WireType.LengthDelimited).string(message.faviconUrl);
+        /* optional int32 thumbnail_width = 55; */
         if (message.thumbnailWidth !== undefined)
-            writer.tag(54, WireType.Varint).int32(message.thumbnailWidth);
-        /* optional int32 thumbnail_height = 55; */
+            writer.tag(55, WireType.Varint).int32(message.thumbnailWidth);
+        /* optional int32 thumbnail_height = 56; */
         if (message.thumbnailHeight !== undefined)
-            writer.tag(55, WireType.Varint).int32(message.thumbnailHeight);
+            writer.tag(56, WireType.Varint).int32(message.thumbnailHeight);
         /* optional string content = 60; */
         if (message.content !== undefined)
             writer.tag(60, WireType.LengthDelimited).string(message.content);
@@ -21768,6 +21587,9 @@ class LinkData$Type extends MessageType$<LinkData> {
         /* optional google.protobuf.Timestamp expires_at = 64; */
         if (message.expiresAt)
             Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string image_urls = 70; */
+        for (let i = 0; i < message.imageUrls.length; i++)
+            writer.tag(70, WireType.LengthDelimited).string(message.imageUrls[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29551,9 +29373,9 @@ export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue
 
 // Any...
 export type AnyNodeData = BenchData | HandleData | UserData | OrganizationData | ClientData | ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | KitData | ActionData | TransitionData | TriggerData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | CursorData | ViewData | SpaceData | RecordData | SkipData | EmptyData
-export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | LinkPreviewData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
+export type AnyStructData = ContextData | EditContextData | EditData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PolicyData | PolicyRuleData | PolicySubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeData | TypeConstraintData | FileInfoData | IconData | ScheduleData | TextData | TextLineData | TextSpanData | CodeData | ExpressionData | AggregationResultData | SelectionData | SelectOptionsData | ErrorData | RunTraceData | RunFrameData | ColorData | FontData | RectangleData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | RectangleConstraintData
 export type AnyNodeDataType = typeof BenchData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData | typeof ScalerData | typeof StoreData | typeof ComputerData | typeof FileData | typeof StreamData | typeof LinkData | typeof PackageData | typeof DependencyData | typeof PageData | typeof BlockData | typeof ChoiceData | typeof ClassData | typeof FieldData | typeof OptionData | typeof TagData | typeof FlowData | typeof KitData | typeof ActionData | typeof TransitionData | typeof TriggerData | typeof DatabaseData | typeof ChannelData | typeof ThreadData | typeof MessageData | typeof NotificationData | typeof TeamData | typeof MembershipData | typeof InviteData | typeof RoleData | typeof AgentData | typeof SessionData | typeof RunData | typeof SpanData | typeof InterruptionData | typeof LogData | typeof PlanData | typeof TaskData | typeof ClaimData | typeof CursorData | typeof ViewData | typeof SpaceData | typeof RecordData | typeof SkipData | typeof EmptyData
-export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof LinkPreviewData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
+export type AnyStructDataType = typeof ContextData | typeof EditContextData | typeof EditData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PolicyData | typeof PolicyRuleData | typeof PolicySubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeData | typeof TypeConstraintData | typeof FileInfoData | typeof IconData | typeof ScheduleData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof CodeData | typeof ExpressionData | typeof AggregationResultData | typeof SelectionData | typeof SelectOptionsData | typeof ErrorData | typeof RunTraceData | typeof RunFrameData | typeof ColorData | typeof FontData | typeof RectangleData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof RectangleConstraintData
 export type BenchNodeData = BenchData | HandleData | ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PackageData | DependencyData | PageData | BlockData | ChoiceData | ClassData | FieldData | OptionData | TagData | FlowData | KitData | ActionData | TransitionData | TriggerData | DatabaseData | ChannelData | ThreadData | MessageData | NotificationData | TeamData | MembershipData | InviteData | RoleData | AgentData | SessionData | RunData | SpanData | InterruptionData | LogData | PlanData | TaskData | ClaimData | CursorData | ViewData | SpaceData | RecordData
 export type ClaimableNodeData = ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PageData | FlowData | KitData | ActionData | DatabaseData | AgentData | PlanData | TaskData | ViewData | RecordData
 export type PageNodeData = ScalerData | StoreData | ComputerData | FileData | StreamData | LinkData | PageData | ChoiceData | ClassData | TagData | FlowData | KitData | DatabaseData | ChannelData | ThreadData | TeamData | RoleData | AgentData | PlanData | TaskData | ViewData
@@ -30209,7 +30031,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.ERROR]: ErrorData,
   [ObjectType.RUN_TRACE]: RunTraceData,
   [ObjectType.RUN_FRAME]: RunFrameData,
-  [ObjectType.LINK_PREVIEW]: LinkPreviewData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
   [ObjectType.RECTANGLE]: RectangleData,
@@ -30304,7 +30125,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ErrorData"]: ObjectType.ERROR,
   ["symbolx.bench.RunTraceData"]: ObjectType.RUN_TRACE,
   ["symbolx.bench.RunFrameData"]: ObjectType.RUN_FRAME,
-  ["symbolx.bench.LinkPreviewData"]: ObjectType.LINK_PREVIEW,
   ["symbolx.bench.ColorData"]: ObjectType.COLOR,
   ["symbolx.bench.FontData"]: ObjectType.FONT,
   ["symbolx.bench.RectangleData"]: ObjectType.RECTANGLE,
@@ -30462,7 +30282,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.ERROR]: ErrorData,
   [StructType.RUN_TRACE]: RunTraceData,
   [StructType.RUN_FRAME]: RunFrameData,
-  [StructType.LINK_PREVIEW]: LinkPreviewData,
   [StructType.COLOR]: ColorData,
   [StructType.FONT]: FontData,
   [StructType.RECTANGLE]: RectangleData,
@@ -30609,7 +30428,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.ERROR]: ErrorData,
   [ObjectType.RUN_TRACE]: RunTraceData,
   [ObjectType.RUN_FRAME]: RunFrameData,
-  [ObjectType.LINK_PREVIEW]: LinkPreviewData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
   [ObjectType.RECTANGLE]: RectangleData,
@@ -31095,15 +30913,17 @@ export enum LinkProperty {
   failedAt = 47,
   failedAttempts = 48,
   url = 50,
-  contentUrl = 51,
-  thumbnailUrl = 52,
-  faviconUrl = 53,
-  thumbnailWidth = 54,
-  thumbnailHeight = 55,
+  domain = 51,
+  contentUrl = 52,
+  thumbnailUrl = 53,
+  faviconUrl = 54,
+  thumbnailWidth = 55,
+  thumbnailHeight = 56,
   content = 60,
   attribution = 62,
   publishedAt = 63,
   expiresAt = 64,
+  imageUrls = 70,
 }
 
 export enum PackageProperty {
@@ -32536,22 +32356,6 @@ export enum RunFrameProperty {
   metatype = 1,
 }
 
-export enum LinkPreviewProperty {
-  metatype = 1,
-  title = 32,
-  url = 50,
-  contentUrl = 51,
-  thumbnailUrl = 52,
-  faviconUrl = 53,
-  thumbnailWidth = 54,
-  thumbnailHeight = 55,
-  content = 60,
-  attribution = 62,
-  publishedAt = 63,
-  expiresAt = 64,
-  imageUrls = 70,
-}
-
 export enum ColorProperty {
   metatype = 1,
   type = 31,
@@ -32632,11 +32436,11 @@ export enum RectangleConstraintProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof FileProperty | typeof StreamProperty | typeof LinkProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof KitProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof LinkPreviewProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructProperty = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof FileProperty | typeof StreamProperty | typeof LinkProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof KitProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof LinkPreviewProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
-export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof FileProperty | typeof StreamProperty | typeof LinkProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof KitProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof LinkPreviewProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
+export type AnyPropertyType = typeof BenchProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ScalerProperty | typeof StoreProperty | typeof ComputerProperty | typeof FileProperty | typeof StreamProperty | typeof LinkProperty | typeof PackageProperty | typeof DependencyProperty | typeof PageProperty | typeof BlockProperty | typeof ChoiceProperty | typeof ClassProperty | typeof FieldProperty | typeof OptionProperty | typeof TagProperty | typeof FlowProperty | typeof KitProperty | typeof ActionProperty | typeof TransitionProperty | typeof TriggerProperty | typeof DatabaseProperty | typeof ChannelProperty | typeof ThreadProperty | typeof MessageProperty | typeof NotificationProperty | typeof TeamProperty | typeof MembershipProperty | typeof InviteProperty | typeof RoleProperty | typeof AgentProperty | typeof SessionProperty | typeof RunProperty | typeof SpanProperty | typeof InterruptionProperty | typeof LogProperty | typeof PlanProperty | typeof TaskProperty | typeof ClaimProperty | typeof CursorProperty | typeof ViewProperty | typeof SpaceProperty | typeof RecordProperty | typeof SkipProperty | typeof EmptyProperty | typeof ContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof PolicySubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeProperty | typeof TypeConstraintProperty | typeof FileInfoProperty | typeof IconProperty | typeof ScheduleProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof CodeProperty | typeof ExpressionProperty | typeof AggregationResultProperty | typeof SelectionProperty | typeof SelectOptionsProperty | typeof ErrorProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof ColorProperty | typeof FontProperty | typeof RectangleProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof RectangleConstraintProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.HANDLE]: HandleProperty,
@@ -32722,7 +32526,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.ERROR]: ErrorProperty,
   [ObjectType.RUN_TRACE]: RunTraceProperty,
   [ObjectType.RUN_FRAME]: RunFrameProperty,
-  [ObjectType.LINK_PREVIEW]: LinkPreviewProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
   [ObjectType.RECTANGLE]: RectangleProperty,
@@ -32817,7 +32620,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.ERROR]: ErrorProperty,
   [ObjectType.RUN_TRACE]: RunTraceProperty,
   [ObjectType.RUN_FRAME]: RunFrameProperty,
-  [ObjectType.LINK_PREVIEW]: LinkPreviewProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
   [ObjectType.RECTANGLE]: RectangleProperty,
@@ -33055,7 +32857,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -33093,7 +32895,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.24.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -33228,15 +33030,17 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.url]: { id: 50, name: 'url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.contentUrl]: { id: 51, name: 'content_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.thumbnailUrl]: { id: 52, name: 'thumbnail_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.faviconUrl]: { id: 53, name: 'favicon_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.thumbnailWidth]: { id: 54, name: 'thumbnail_width', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [LinkProperty.thumbnailHeight]: { id: 55, name: 'thumbnail_height', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.domain]: { id: 51, name: 'domain', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.contentUrl]: { id: 52, name: 'content_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.thumbnailUrl]: { id: 53, name: 'thumbnail_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.faviconUrl]: { id: 54, name: 'favicon_url', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.thumbnailWidth]: { id: 55, name: 'thumbnail_width', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.thumbnailHeight]: { id: 56, name: 'thumbnail_height', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.content]: { id: 60, name: 'content', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.attribution]: { id: 62, name: 'attribution', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.publishedAt]: { id: 63, name: 'published_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.expiresAt]: { id: 64, name: 'expires_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.imageUrls]: { id: 70, name: 'image_urls', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PACKAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -34598,21 +34402,6 @@ export const RunTraceDataInfo: Record<RunTraceProperty, PropertyInfo> = {
 export const RunFrameDataInfo: Record<RunFrameProperty, PropertyInfo> = {
   [RunFrameProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_FRAME, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
 }
-export const LinkPreviewDataInfo: Record<LinkPreviewProperty, PropertyInfo> = {
-  [LinkPreviewProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINK_PREVIEW, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [LinkPreviewProperty.title]: { id: 32, name: 'title', component: ObjectType.LINK_PREVIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
-  [LinkPreviewProperty.url]: { id: 50, name: 'url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.contentUrl]: { id: 51, name: 'content_url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.thumbnailUrl]: { id: 52, name: 'thumbnail_url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.faviconUrl]: { id: 53, name: 'favicon_url', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.thumbnailWidth]: { id: 54, name: 'thumbnail_width', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.thumbnailHeight]: { id: 55, name: 'thumbnail_height', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.content]: { id: 60, name: 'content', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.attribution]: { id: 62, name: 'attribution', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.publishedAt]: { id: 63, name: 'published_at', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.expiresAt]: { id: 64, name: 'expires_at', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LinkPreviewProperty.imageUrls]: { id: 70, name: 'image_urls', component: ObjectType.LINK_PREVIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-}
 export const ColorDataInfo: Record<ColorProperty, PropertyInfo> = {
   [ColorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COLOR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ColorProperty.type]: { id: 31, name: 'type', component: ObjectType.COLOR, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
@@ -34765,7 +34554,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.ERROR]: ErrorDataInfo,
   [ObjectType.RUN_TRACE]: RunTraceDataInfo,
   [ObjectType.RUN_FRAME]: RunFrameDataInfo,
-  [ObjectType.LINK_PREVIEW]: LinkPreviewDataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.FONT]: FontDataInfo,
   [ObjectType.RECTANGLE]: RectangleDataInfo,
@@ -34800,6 +34588,7 @@ export const NodeTypeOptionInfo: Partial<Record<NodeType, EnumOptionInfo>> = {
   [NodeType.COMPUTER]: { id: 2100, name: 'COMPUTER', text: 'Machine for computing', title: 'Computer', icon: 'fas fa-computer-classic' },
   [NodeType.FILE]: { id: 2200, name: 'FILE', text: 'File', title: 'File', icon: 'fas fa-file' },
   [NodeType.STREAM]: { id: 2210, name: 'STREAM', text: 'Stream', title: 'Stream', icon: 'fas fa-stream' },
+  [NodeType.LINK]: { id: 2250, name: 'LINK', text: 'Link to some Resource', title: 'Link', icon: 'fas fa-link' },
   [NodeType.PACKAGE]: { id: 5000, name: 'PACKAGE', text: 'Isolated sub-Bench', title: 'Package', icon: 'fas fa-box-open' },
   [NodeType.DEPENDENCY]: { id: 5010, name: 'DEPENDENCY', text: 'Dependency to something', title: 'Dependency', icon: 'fas fa-turn-down-right' },
   [NodeType.PAGE]: { id: 5020, name: 'PAGE', text: 'Page of Blocks', title: 'Page', icon: 'far fa-file' },

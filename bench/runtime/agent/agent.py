@@ -23,7 +23,7 @@ from bench.runtime.core import NotSupportedError, RunIn, Runner, Runtime, restor
 from bench.runtime.model import ChatModelRunner
 from bench.utils.tenacity import RetryOptions
 
-from .instruct import make_agent_prompt
+from .instruct import build_agent_prompt
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -164,13 +164,12 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
             # make prompt
             model_runner_info = self._get_model_runner()
-            prompt = make_agent_prompt(
+            prompt = build_agent_prompt(
                 agent=self.node,
                 runner=cast(AgentRunner[Agent], self),
                 previous_attempts=attempts,
                 knowledge_cutoff=model_runner_info.knowledge_cutoff,
             )
-            # nocheckin: fetch prompt/piece references (Files/Links?/Databases/...)
 
             # run model
             # TODO :Incomplete: bring your own models/keys (BYOK)

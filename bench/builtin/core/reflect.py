@@ -37,10 +37,7 @@ def class_to_kit(
         kit.text = text(text_value)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-        if method_name.startswith("_"):
-            continue
-
-        action = Action.new(ActionType.BUILTIN, name=method_name.replace("_", " ").title())
+        action = Action.new(ActionType.BUILTIN, name=method_name.replace("_", " "))
 
         # template
         if template is not None:
@@ -95,6 +92,8 @@ def class_to_kit(
         if params and params[0][0] == "self":
             params = params[1:]
         for param_name, param in params:
+            if param_name == "runner":
+                continue  # ignore injected runner
             param_type = param.annotation if param.annotation != inspect.Parameter.empty else Any
             default_value = None if param.default == inspect.Parameter.empty else param.default
             type_info = parse_py_annotation(cast(Any, param_type), BENCH_CLASS_BY_NAME)
