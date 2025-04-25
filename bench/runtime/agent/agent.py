@@ -13,6 +13,8 @@ from bench.language import (
     CursorType,
     CustomObject,
     IsType,
+    Message,
+    MessageType,
     ModelDeveloper,
     ModelProvider,
     Run,
@@ -50,11 +52,12 @@ class AgentContinue:
 
 
 @dataclass
-class AgentTool:
-    run: Run
+class AgentCall:
+    runs: list[Run]
+    message: Message
 
 
-AgentAction = Union[AgentComplete, AgentWait, AgentContinue, AgentTool]
+AgentAction = Union[AgentComplete, AgentWait, AgentContinue, AgentCall]
 
 
 class ModelSettings(NamedTuple):
@@ -105,7 +108,19 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
 
     def call(self, run: Run):
         """Call an Action."""
-        self._next_action = AgentTool(run=run)
+        if not isinstance(self._next_action, AgentCall):
+            # new call
+            message = Message.new(
+                type=MessageType.RUN,
+                title=run.title,
+                nodes=[run],
+            )
+            self.thread.thread.append(message)
+            self._next_action = AgentCall(runs=[run], message=message)
+        else:
+            # add run to existing call
+            self._next_action.runs.append(run)
+            self._next_action.message.nodes = [*self._next_action.message.nodes, run]
 
     def _update_model_options(self) -> ModelSettings:
         """Get the model to use."""
@@ -117,38 +132,38 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         )
 
         # select options
-        model_provider = (
-            self.node.model_provider or self.thread.thread.model_provider or ModelProvider.GOOGLE
+        model_developer = (
+            self.node.model_developer or self.thread.thread.model_developer or ModelDeveloper.OPENAI
         )
-        model_developer: ModelDeveloper
+        model_provider: ModelProvider
         model_id: str
         knowledge_cutoff: date
-        if model_provider == ModelProvider.OPENAI:
+        if model_developer == ModelDeveloper.OPENAI:
             model_cls = OpenAIChatModelRunner
-            model_developer = ModelDeveloper.OPENAI
+            model_provider = ModelProvider.OPENAI
             model_id = "gpt-4.1-2025-04-14"
             model_name = "gpt-4.1"
             knowledge_cutoff = date(2024, 6, 1)
-        elif model_provider == ModelProvider.ANTHROPIC:
+        elif model_developer == ModelDeveloper.ANTHROPIC:
             model_cls = AnthropicChatModelRunner
-            model_developer = ModelDeveloper.ANTHROPIC
+            model_provider = ModelProvider.ANTHROPIC
             model_id = "claude-3-7-sonnet-20250219"
             model_name = "claude-3-7-sonnet"
             knowledge_cutoff = date(2024, 10, 1)
-        elif model_provider == ModelProvider.GOOGLE:
+        elif model_developer == ModelDeveloper.GOOGLE:
             model_cls = GoogleChatModelRunner
-            model_developer = ModelDeveloper.GOOGLE
+            model_provider = ModelProvider.GOOGLE
             model_id = "gemini-2.5-flash-preview-04-17"
             model_name = "gemini-2.5-flash"
             knowledge_cutoff = date(2025, 1, 1)
-        elif model_provider == ModelProvider.XAI:
+        elif model_developer == ModelDeveloper.XAI:
             model_cls = OpenRouterChatModelRunner
-            model_developer = ModelDeveloper.XAI
+            model_provider = ModelProvider.XAI
             model_id = "x-ai/grok-3-beta"
             model_name = "grok-3"
             knowledge_cutoff = date(2025, 4, 14)
         else:
-            raise NotSupportedError(f"unsupported model provider {model_provider!r}")
+            raise NotSupportedError(f"unsupported model developer {model_developer!r}")
         self.model_settings = ModelSettings(
             model_cls=model_cls,
             model_developer=model_developer,
@@ -298,7 +313,10 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 await self.runtime.oracle.sleep(self._next_action.seconds)
             elif isinstance(self._next_action, AgentContinue):
                 pass  # continue
-            elif isinstance(self._next_action, AgentTool):
-                await self._call(self._next_action.run)
+            elif isinstance(self._next_action, AgentCall):
+                await asyncio.gather(
+                    *[self._call(run) for run in self._next_action.runs],
+                    return_exceptions=True,
+                )
             else:
                 assert_never(self._next_action)

@@ -265,6 +265,14 @@ def example_call_action(Action1: Action):
     CALL(Action1, Arg1="https://example.com?...", Arg2=True, object_title="example.com")
 
 
+@example_(ExampleType.SNIPPET, title="Search multiple things")
+def example_search_multiple_things(Action1: Action):
+    # search multiple things
+    SEND("good question, lemme look that up")
+    CALL(Action1, object_title="european AI companies", Query="european AI companies")
+    CALL(Action1, object_title="Swiss tech startups", Query="swiss tech startups")
+
+
 @example_(ExampleType.SNIPPET, title="Excerpt from a Page")
 def example_excerpt_from_a_page(Page1: Page):
     # refer to a Page

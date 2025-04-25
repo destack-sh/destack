@@ -11,7 +11,7 @@ import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Thread from "@/views/nodes/Thread.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
-import { computed, nextTick, ref, Ref, toRef } from "vue";
+import { computed, nextTick, ref, Ref, toRef, watchEffect } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 
@@ -37,6 +37,13 @@ const scope = computed(() => container.value);
 
 // state (should be in ContextView?)
 const mode = ref<ContextMode>(ContextMode.CHAT);
+
+// auto-switch to detail mode if thread is the target (don't want same thread in multiple views)
+watchEffect(() => {
+  if (mode.value == ContextMode.CHAT && threadPtr.value != null && threadPtr.value.id == targetPtr.value?.id) {
+    mode.value = ContextMode.DETAIL;
+  }
+});
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);

@@ -1061,7 +1061,7 @@ class TextRenderer(BuiltinObjectRenderer[Text]):
     def render(self, renderer: "Renderer", obj: Text, options: RenderOptions) -> str:
         rendered_string = text_to_markdown(obj, renderer.aliasing)
         if "\n" in rendered_string:
-            return f'text("""\\\n{rendered_string}\n""")'
+            return f'text("""\\\n{repr(rendered_string)[1:-1]}\n""")'
         else:
             return f"text({rendered_string!r})"
 

@@ -798,16 +798,9 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   </button>
                 </div>
 
-                <!-- Run -->
-                <div v-if="message.type == MessageType.RUN" class="mt-1.5 mb-1.5 flex flex-row items-center">
-                  <Run v-if="graph != null" :graph="graph" :node-ptr="message.runPtr" />
-                </div>
-
                 <!-- Text -->
                 <div
-                  v-else-if="
-                    !isEditing && message.type == MessageType.DEFAULT && (!isEmpty || message.nodesPtr.length == 0)
-                  "
+                  v-if="!isEditing && message.type == MessageType.DEFAULT && (!isEmpty || message.nodesPtr.length == 0)"
                   class="relative"
                 >
                   <Text
@@ -900,6 +893,11 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                         height: size?.height != null ? Math.min(300, size.height / 2) : undefined,
                       }"
                       class=""
+                    />
+                    <Run
+                      v-else-if="nodePtr.nodeType == NodeType.RUN && graph != null"
+                      :graph="graph"
+                      :node-ptr="nodePtr"
                     />
                     <Link
                       v-else-if="nodePtr.nodeType == NodeType.LINK && graph != null"
