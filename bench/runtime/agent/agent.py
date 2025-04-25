@@ -298,8 +298,8 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         # TODO :Incomplete :UX: indicate current Agent activity/focus/... better
         # run main loop
         while not isinstance(self._next_action, AgentComplete):
-            # think
-            self._next_action = AgentComplete()
+            # turn
+            self.complete()
             self._received_wake = False
             await self._turn()
             received_wake = self._received_wake
