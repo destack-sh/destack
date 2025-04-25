@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Mapping, cast, override
 from urllib.parse import urlparse
@@ -84,27 +83,6 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
         return {"Links": links}
 
     @override
-    async def Search_Many(
-        self,
-        Queries: list[str],
-        Content: bool = True,
-        Limit: int = 5,
-        Max_Characters: int | None = 1000,
-        runner: "ActionRunner" = _INJECTED_RUNNER,
-    ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
-        # search in parallel
-        results = await asyncio.gather(
-            *(_do_search(query, Content, Limit, max_characters=Max_Characters) for query in Queries)
-        )
-        links: list[Link] = []
-        for result in results:
-            links.extend(result)
-        run = runner.closest_tracked_run
-        assert run is not None, f"no run in {runner!r}"
-        run.extend(*links)
-        return {"Links": links}
-
-    @override
     async def Read(
         self,
         URL: str,
@@ -113,27 +91,6 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
     ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         response = await exa.get_contents(
             urls=URL,
-            text={"max_characters": Max_Characters},
-            livecrawl="fallback",
-            extras={"image_links": 10},
-        )
-        links: list[Link] = []
-        for result in response.results:
-            links.append(_make_link(result))
-        run = runner.closest_tracked_run
-        assert run is not None, f"no run in {runner!r}"
-        run.extend(*links)
-        return {"Links": links}
-
-    @override
-    async def Read_Many(
-        self,
-        URLs: list[str],
-        Max_Characters: int | None = 1000,
-        runner: "ActionRunner" = _INJECTED_RUNNER,
-    ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
-        response = await exa.get_contents(
-            urls=URLs,
             text={"max_characters": Max_Characters},
             livecrawl="fallback",
             extras={"image_links": 10},

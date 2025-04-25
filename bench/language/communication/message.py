@@ -93,6 +93,9 @@ class Message(
     A Message about something (usually in a Thread or a Channel).
     """
 
+    # nocheckin: track & show model/budget/... per Message?
+    # (maybe in line with Agent settings.. common IsComputable/IsCostable/... trait?)
+
     # meta
     parent: Union["Channel", "Thread", None] = p_node_parent(
         4, NodeType.CHANNEL, NodeType.THREAD, ckless=True

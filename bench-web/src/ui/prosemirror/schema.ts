@@ -206,7 +206,7 @@ export const PM_SCHEMA = new PmSchema({
       marks: "",
       attrs: { url: {} },
       toDOM(node) {
-        return toLineDom(node, ["a", { href: node.attrs.url, class: "citation", target: "_blank" }, 0]);
+        return ["a", { href: node.attrs.url, class: "citation", target: "_blank" }, 0];
       },
       parseDOM: [
         {
