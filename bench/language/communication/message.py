@@ -12,6 +12,7 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsBased,
+    IsComputable,
     IsModal,
     IsOwnable,
     IsTimed,
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
     from bench.language import (
         Channel,
         Interruption,
+        ModelDeveloper,
+        ModelProvider,
         NodeReference,
         Package,
         Run,
@@ -82,6 +85,7 @@ class MessageStatus(BuiltinEnum):
 
 @timed_node_(NodeType.MESSAGE)
 class Message(
+    IsComputable,
     IsTimed,
     IsBased,
     IsOwnable,
@@ -92,9 +96,6 @@ class Message(
     """
     A Message about something (usually in a Thread or a Channel).
     """
-
-    # nocheckin: track & show model/budget/... per Message?
-    # (maybe in line with Agent settings.. common IsComputable/IsCostable/... trait?)
 
     # meta
     parent: Union["Channel", "Thread", None] = p_node_parent(
@@ -248,6 +249,10 @@ class Message(
         runnable: Optional[Runnable] = None,
         interruption: Optional["Interruption"] = None,
         value: Any = None,
+        model_developer: Optional["ModelDeveloper"] = None,
+        model_provider: Optional["ModelProvider"] = None,
+        model_id: Optional[str] = None,
+        model_name: Optional[str] = None,
     ) -> "Message":
         message = Message(
             type=type,
@@ -259,6 +264,10 @@ class Message(
             runnable=runnable,
             interruption=interruption,
             value=value,
+            model_developer=model_developer,
+            model_provider=model_provider,
+            model_id=model_id,
+            model_name=model_name,
         )
         if nodes is not None:
             message.nodes = nodes

@@ -13,6 +13,7 @@ from bench.language import (
     CursorType,
     CustomObject,
     IsType,
+    ModelDeveloper,
     ModelProvider,
     Run,
     Runnable,
@@ -56,9 +57,12 @@ class AgentTool:
 AgentAction = Union[AgentComplete, AgentWait, AgentContinue, AgentTool]
 
 
-class ModelRunnerInfo(NamedTuple):
-    cls: type[ChatModelRunner]
+class ModelSettings(NamedTuple):
+    model_cls: type[ChatModelRunner]
+    model_developer: ModelDeveloper
+    model_provider: ModelProvider
     model_id: str
+    model_name: str
     knowledge_cutoff: date
 
 
@@ -85,6 +89,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         )
         self._received_wake: bool = False
         self._next_action: AgentAction = AgentContinue()
+        self._update_model_options()
 
     def complete(self):
         """Complete the current Run."""
@@ -102,8 +107,8 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         """Call an Action."""
         self._next_action = AgentTool(run=run)
 
-    def _get_model_runner(self) -> ModelRunnerInfo:
-        """Get the ChatModelRunner class for the given model type."""
+    def _update_model_options(self) -> ModelSettings:
+        """Get the model to use."""
         from bench.runtime.model import (
             AnthropicChatModelRunner,
             GoogleChatModelRunner,
@@ -111,33 +116,56 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             OpenRouterChatModelRunner,
         )
 
-        model_provider = self.node.model_provider or ModelProvider.GOOGLE
+        # select options
+        model_provider = (
+            self.node.model_provider or self.thread.thread.model_provider or ModelProvider.GOOGLE
+        )
+        model_developer: ModelDeveloper
+        model_id: str
+        knowledge_cutoff: date
         if model_provider == ModelProvider.OPENAI:
-            return ModelRunnerInfo(
-                cls=OpenAIChatModelRunner,
-                model_id="gpt-4.1-2025-04-14",
-                knowledge_cutoff=date(2024, 6, 1),
-            )
+            model_cls = OpenAIChatModelRunner
+            model_developer = ModelDeveloper.OPENAI
+            model_id = "gpt-4.1-2025-04-14"
+            model_name = "gpt-4.1"
+            knowledge_cutoff = date(2024, 6, 1)
         elif model_provider == ModelProvider.ANTHROPIC:
-            return ModelRunnerInfo(
-                cls=AnthropicChatModelRunner,
-                model_id="claude-3-7-sonnet-20250219",
-                knowledge_cutoff=date(2024, 10, 1),
-            )
+            model_cls = AnthropicChatModelRunner
+            model_developer = ModelDeveloper.ANTHROPIC
+            model_id = "claude-3-7-sonnet-20250219"
+            model_name = "claude-3-7-sonnet"
+            knowledge_cutoff = date(2024, 10, 1)
         elif model_provider == ModelProvider.GOOGLE:
-            return ModelRunnerInfo(
-                cls=GoogleChatModelRunner,
-                model_id="gemini-2.5-flash-preview-04-17",
-                knowledge_cutoff=date(2025, 1, 1),
-            )
+            model_cls = GoogleChatModelRunner
+            model_developer = ModelDeveloper.GOOGLE
+            model_id = "gemini-2.5-flash-preview-04-17"
+            model_name = "gemini-2.5-flash"
+            knowledge_cutoff = date(2025, 1, 1)
         elif model_provider == ModelProvider.XAI:
-            return ModelRunnerInfo(
-                cls=OpenRouterChatModelRunner,
-                model_id="x-ai/grok-3-beta",
-                knowledge_cutoff=date(2025, 4, 14),
-            )
+            model_cls = OpenRouterChatModelRunner
+            model_developer = ModelDeveloper.XAI
+            model_id = "x-ai/grok-3-beta"
+            model_name = "grok-3"
+            knowledge_cutoff = date(2025, 4, 14)
         else:
             raise NotSupportedError(f"unsupported model provider {model_provider!r}")
+        self.model_settings = ModelSettings(
+            model_cls=model_cls,
+            model_developer=model_developer,
+            model_provider=model_provider,
+            model_id=model_id,
+            model_name=model_name,
+            knowledge_cutoff=knowledge_cutoff,
+        )
+
+        # update run
+        if self.tracked_run is not None:
+            self.tracked_run.model_developer = model_developer
+            self.tracked_run.model_provider = model_provider
+            self.tracked_run.model_id = model_id
+            self.tracked_run.model_name = model_name
+
+        return self.model_settings
 
     @tracer.start_as_current_span("agent.turn")
     async def _turn(self):
@@ -163,24 +191,23 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             agent.cursor = cursor
 
             # make prompt
-            model_runner_info = self._get_model_runner()
-            prompt = build_agent_prompt(
+            prompt = await build_agent_prompt(
                 agent=self.node,
                 runner=cast(AgentRunner[Agent], self),
                 previous_attempts=attempts,
-                knowledge_cutoff=model_runner_info.knowledge_cutoff,
+                model_settings=self.model_settings,
             )
 
             # run model
             # TODO :Incomplete: bring your own models/keys (BYOK)
-            model_runner = model_runner_info.cls(
+            model_runner = self.model_settings.model_cls(
                 runtime=self.runtime,
                 node=self.node,
                 prompt=prompt,
                 parent=cast(Runner[Runnable], self),
                 agent=self.agent,
                 run=SpanType.AGENT_TURN,
-                model_id=model_runner_info.model_id,
+                model_id=self.model_settings.model_id,
             )
             attempt = model_runner.tracked_span
             assert attempt is not None, f"{model_runner!r} has no Span"

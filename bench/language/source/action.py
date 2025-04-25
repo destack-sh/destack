@@ -8,7 +8,6 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsClaimable,
-    IsComputable,
     IsInstantiable,
     IsModal,
     IsNamed,
@@ -77,7 +76,6 @@ class ActionType(BuiltinEnum):
 
 @node_(NodeType.ACTION)
 class Action(
-    IsComputable,
     IsClaimable,
     IsInstantiable,
     IsNamed,

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { ReadNodeGraph } from "@/language/core/graph";
 import { LinkData, ViewData } from "@/proto/wire";
-import TextLine from "@/views/content/TextLine.vue";
 import { Ref, toRef } from "vue";
 
 const props = defineProps<
@@ -23,6 +22,7 @@ const node = props.graph.getRef(nodePtr) as Ref<LinkData | null>;
     <template v-if="node != null">
       <!-- Image -->
       <img v-if="node.faviconUrl" :src="node.faviconUrl" class="h-4 w-4 rounded-full" />
+      <span v-else class="fas fa-link text-gray-400" />
       <!-- Domain -->
       <span
         class="truncate text-gray-700 underline decoration-transparent underline-offset-3 transition-colors duration-75 group-hover/link:decoration-gray-300"

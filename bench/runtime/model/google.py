@@ -20,7 +20,7 @@ from .piece import (
     SeparatorPiece,
     TextPiece,
 )
-from .prompt import LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
+from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
 
 if TYPE_CHECKING:
@@ -144,6 +144,6 @@ class GoogleChatModelRunner(ChatModelRunner):
             if len(chunk.parts) > 0 and chunk.text:
                 code_runner.add_and_execute(chunk.text)
         code_runner.complete_and_execute()
-        if LOG_PROMPTS:
+        if LOG_COMPLETIONS:
             log_completion(code_runner.code)
         self.code = Code.from_string(code_runner.code or "pass", language="python")

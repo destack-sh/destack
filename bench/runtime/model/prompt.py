@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     pass
 
 LOG_PROMPTS = get_from_env("LOG_PROMPTS", default=IS_DEV or IS_TEST, typ=bool)
-
+LOG_COMPLETIONS = get_from_env("LOG_COMPLETIONS", default=IS_DEV or IS_TEST, typ=bool)
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 

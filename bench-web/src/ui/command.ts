@@ -587,6 +587,8 @@ export const NON_ARCHIVEABLE_NODE_TYPES = [
   NodeType.MEMBERSHIP,
   NodeType.RUN,
   NodeType.SPAN,
+  NodeType.MESSAGE,
+  NodeType.MEMBERSHIP,
 ];
 export const NON_DELETABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,

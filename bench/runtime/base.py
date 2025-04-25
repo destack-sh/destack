@@ -192,6 +192,9 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                 ), f"{self._bench!r} has no computer {self._computer_id}"
                 self._computer = computer
 
+        # NOTE :Architecture: set builtin Bench supergraph/refs to self._bench_bench?
+        #  (otherwise they're all 'detached'?)
+
         # update session context
         self._session.client = self._client
         self._session.computer = self._computer
