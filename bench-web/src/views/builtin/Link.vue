@@ -15,7 +15,7 @@ const node = props.graph.getRef(nodePtr) as Ref<LinkData | null>;
 </script>
 <template>
   <a
-    class="group/link flex cursor-pointer flex-row items-center gap-x-1.5 rounded-full border py-1 pr-3 pl-2 text-sm select-none"
+    class="group/link flex h-[32px] cursor-pointer flex-row items-center gap-x-1.5 rounded-full border py-1 pr-3 pl-2 text-sm transition-colors duration-75 select-none hover:bg-gray-100"
     role="link"
     target="_blank"
     :href="node?.url"
@@ -25,7 +25,7 @@ const node = props.graph.getRef(nodePtr) as Ref<LinkData | null>;
       <img v-if="node.faviconUrl" :src="node.faviconUrl" class="h-4 w-4 rounded-full" />
       <!-- Domain -->
       <span
-        class="truncate text-gray-700 underline decoration-transparent underline-offset-3 transition-colors duration-150 group-hover/link:decoration-gray-300"
+        class="truncate text-gray-700 underline decoration-transparent underline-offset-3 transition-colors duration-75 group-hover/link:decoration-gray-300"
         >{{ node.domain }}</span
       >
     </template>

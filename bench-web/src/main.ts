@@ -24,6 +24,9 @@ import { RESOURCE_COMMANDS } from "@/language/resource/resource";
 import "highlight.js/styles/github.min.css";
 
 function onUnhandledError(err: unknown) {
+  if (typeof err === "string" && err.includes("ResizeObserver")) {
+    return; // TODO :Cleanup: don't just suppress ResizeObserver errors
+  }
   log.error("error.internal", err);
   toaster.error({ title: "Internal client error", text: (err as any).message });
   resetTransactionBuffers();
