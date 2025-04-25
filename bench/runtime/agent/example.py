@@ -310,12 +310,12 @@ def example_create_simple_database(Page1: Page):
 @example_(ExampleType.SNIPPET, title="Cite Links in Messages")
 def example_cite_links_in_messages(Link1: Link, Link2: Link, Link3):
     SEND(
-        """\
-Yeah, looks like that PR was merged[^GH123](httpsgithub.com/symbolx/bench/pull/123).
-However, the issue is still open [^JIRA123](https://symbolx.atlassian.net/browse/BENCH-123).
-""",
-        nodes=(Link1, Link2, Link3),
+        "Yeah, looks like that PR was merged. [^GH123](httpsgithub.com/symbolx/bench/pull/123)",
     )
+    SEND(
+        "However, the issue is still open. [^JIRA123](https://symbolx.atlassian.net/browse/BENCH-123)",
+    )
+    SEND(None, nodes=(Link1, Link2, Link3))
 
 
 @example_(ExampleType.SNIPPET, title="Add external images to response")

@@ -111,7 +111,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             OpenRouterChatModelRunner,
         )
 
-        model_provider = self.node.model_provider or ModelProvider.OPENAI
+        model_provider = self.node.model_provider or ModelProvider.GOOGLE
         if model_provider == ModelProvider.OPENAI:
             return ModelRunnerInfo(
                 cls=OpenAIChatModelRunner,

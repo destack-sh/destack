@@ -72,33 +72,33 @@
   @apply cursor-pointer text-gray-900 underline decoration-gray-300 underline-offset-2 transition-colors duration-150;
 }
 .pm-text a:hover {
-  @apply text-yellow-700 decoration-yellow-700;
+  @apply text-amber-700 decoration-amber-700;
 }
 
 /** Citations */
 .pm-text a.citation {
-  @apply rounded-full bg-gray-100 px-1 py-0.5 no-underline;
+  @apply mx-0.5 rounded-full border border-gray-200 px-2 py-0.5 text-sm text-gray-700 no-underline;
 }
 .pm-text a.citation:hover {
-  @apply bg-yellow-100 text-yellow-700;
+  @apply bg-amber-100;
 }
 
 /** Selected */
 .pm-text .line.selected,
 .pm-text .line-block.selected {
-  @apply bg-yellow-400/20;
+  @apply bg-amber-400/20;
 }
 .pm-text hr.selected {
-  @apply border-yellow-300;
+  @apply border-amber-300;
 }
 .pm-text code.line.selected {
-  @apply bg-yellow-400/20;
+  @apply bg-amber-400/20;
 }
 .pm-text p.line.callout.selected {
-  @apply bg-yellow-400/20;
+  @apply bg-amber-400/20;
 }
 .pm-text .line-block.page.selected {
-  @apply bg-yellow-400/20;
+  @apply bg-amber-400/20;
 }
 
 /** Dragging */
@@ -255,7 +255,7 @@
   outline: none;
 }
 .ProseMirror-selectednode {
-  @apply outline-yellow-700;
+  @apply outline-amber-700;
 }
 .pm-text:not(.pm-noselect) .ProseMirror[contenteditable="false"] {
   user-select: text; /* let user highlight text */

@@ -198,10 +198,10 @@ Create a Message in the current Thread.
 SHOULD be just one 'paragraph' (use multiple SENDs if needed).
 Returns the Message.
 """,
-    signature="(str, *, nodes: Sequence[Node] | None = None, reply_to: Message | None = None) -> Message",
+    signature="(str | None, *, nodes: Sequence[Node] | None = None, reply_to: Message | None = None) -> Message",
 )
 def SEND(
-    text: TextIn,
+    text: TextIn | None,
     *,
     nodes: Sequence[Node] | None = None,
     reply_to: Message | None = None,
