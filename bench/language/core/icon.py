@@ -22,6 +22,7 @@ class IconType(BuiltinEnum):
     FONT_AWESOME = 3
     VS_CODE = 4
     FILE = 10
+    FILE_URL = 11
 
 
 @struct_(StructType.ICON)
@@ -34,6 +35,7 @@ class Icon(Struct):
     fa_name: str | None = p_regular(33, require=False)
     vsc_name: str | None = p_regular(34, require=False)
     file: Optional["File"] = p_regular(35, require=False, references=NodeType.FILE)
+    file_url: str | None = p_regular(36, require=False)
     # style
     color: Optional["Color"] = p_regular(40, require=False, array=False, struct=StructType.COLOR)
 

@@ -9,6 +9,7 @@ from bench.language import (
     Action,
     Agent,
     BuiltinObject,
+    Link,
     Node,
     NodeMode,
     Page,
@@ -26,6 +27,7 @@ from .piece import (
     ActionPiece,
     AgentPiece,
     AttemptPiece,
+    LinkPiece,
     PagePiece,
     RunPiece,
     TextPiece,
@@ -135,13 +137,14 @@ We provide MACROS:
   - Terminal Function Macros (like `CALL`) END your turn immediately.
  (Thus, you MUST NOT attempt to react to the result of a terminal macro.) 
 
-# Search and Recency
+# Search, Recency and Citations
 You ONLY know general information up to your knowledge cutoff.
 You SHOULD search or browse for current information for *any* query that could benefit from up-to-date or niche information.
  (e.g., for politics, current events, weather, sports, trends, news, ...)
 If you need the 'latest' anything, you SHOULD likely be searching.
 If you are uncertain whether your knowledge is up-to-date and sufficient, you SHOULD search somehow.
-When searching, you MUST cite sources AND include relevant Links as `nodes`.
+When searching, you MUST cite sources AND include any relevant Links as `nodes`.
+ (You SHOULD deduplicate Links into one set of 'nodes' for multiple related SENDs.)
 
 # Text
 You SHOULD use relevant Text/markdown formatting.
@@ -291,7 +294,7 @@ def build_agent_prompt(
         role="developer",
     )
 
-    # claims / resources
+    # resources
     for claim in thread.thread.claims:
         claim_name = prompt.aliasing.get_or_add(claim)
         if claim.is_hidden or (node := claim.target) is None:
@@ -306,6 +309,18 @@ YOU HAVE A {claim.type.name} CLAIM: "{claim.type.text}".
                 PagePiece(node=node, role="user"),
                 priority=10,
                 role="developer",
+            )
+    for run in previous_tool_runs:
+        run_alias = prompt.aliasing.get_or_add(run)
+        for link in run.get_children(Link):
+            prompt.region(
+                "Link",
+                f"""
+A Link from Run {run_alias}
+""",
+                LinkPiece(node=link, role="user"),
+                priority=10,
+                role="user",
             )
 
     # thread

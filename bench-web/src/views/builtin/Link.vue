@@ -14,7 +14,7 @@ const nodePtr = toRef(props, "nodePtr");
 const node = props.graph.getRef(nodePtr) as Ref<LinkData | null>;
 </script>
 <template>
-  <div
+  <a
     class="group/link flex cursor-pointer flex-row items-center gap-x-1.5 rounded-full border py-1 pr-3 pl-2 text-sm select-none"
     role="link"
     target="_blank"
@@ -26,8 +26,8 @@ const node = props.graph.getRef(nodePtr) as Ref<LinkData | null>;
       <!-- Domain -->
       <span
         class="truncate text-gray-700 underline decoration-transparent underline-offset-3 transition-colors duration-150 group-hover/link:decoration-gray-300"
-        >{{ node.url }}</span
+        >{{ node.domain }}</span
       >
     </template>
-  </div>
+  </a>
 </template>

@@ -113,7 +113,7 @@ export const AVAILABLE_EMOJI_ICONS: EmojiIcon[] = _AVAILABLE_EMOJI_ICONS;
 export const AVAILABLE_ICONS_BY_ID: Record<string, FontAwesomeIcon | EmojiIcon> = Object.fromEntries(
   [...AVAILABLE_FA_ICONS, ...AVAILABLE_EMOJI_ICONS].map((i) => [i.id, i]),
 );
-type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName" | "filePtr"> & {
+type IconInlineProps = Pick<IconData, "emoji" | "faName" | "vscName" | "filePtr" | "fileUrl"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
@@ -156,6 +156,9 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
         <span class="fas fa-circle animate-pulse" style={{ color: getColorHex(ColorType.GRAY, ColorShade.S200) }} />
       );
     }
+  } else if (props.fileUrl) {
+    // file url
+    return <img src={props.fileUrl} class="rounded-full" />;
   }
 
   // invalid icon
@@ -166,6 +169,7 @@ IconInline.props = [
   "faName",
   "vscName",
   "filePtr",
+  "fileUrl",
   "color",
   "forceColor",
   "fallbackColor",
@@ -248,6 +252,9 @@ export const AvatarInline: FunctionalComponent<
       // downloading (skeleton)
       return <div class={baseClasses + " animate-pulse rounded-full bg-gray-200"} />;
     }
+  } else if (props.fileUrl) {
+    // file url
+    return <img src={props.fileUrl} class={baseClasses + " rounded-full"} />;
   }
 
   // invalid icon
@@ -262,6 +269,7 @@ AvatarInline.props = [
   "faName",
   "vscName",
   "filePtr",
+  "fileUrl",
   "color",
   "forceColor",
   "fallbackColor",

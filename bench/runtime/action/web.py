@@ -7,7 +7,7 @@ from exa_py import AsyncExa
 from exa_py.api import Result as ExaResult
 from exa_py.api import _Result as _ExaResult
 
-from bench.language import Link, LinkType, ResourceStatus, TextLine
+from bench.language import Icon, IconType, Link, LinkType, ResourceStatus, TextLine
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -26,11 +26,14 @@ def _make_link(result: ExaResult | _ExaResult) -> Link:
     """Make a Link from an ExaResult."""
     published_at = datetime.fromisoformat(result.published_date) if result.published_date else None
     domain = urlparse(result.url).netloc
+    icon = Icon(type=IconType.FILE_URL, file_url=result.favicon) if result.favicon else None
     link = Link(
         type=LinkType.WEB,
+        icon=icon,
         url=result.url,
-        domain=domain,
         status=ResourceStatus.AVAILABLE,
+        name=domain,
+        domain=domain,
         title=TextLine.plain(title) if (title := result.title) else None,
         content=getattr(result, "text", None),
         attribution=result.author,
