@@ -6,7 +6,6 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     FieldType,
-    IsComputable,
     IsModal,
     IsRunnable,
     IsTemplatable,
@@ -63,7 +62,6 @@ LINK_TYPES_BY_SIGN: dict[str, TransitionType] = {v: k for k, v in SIGN_BY_LINK_T
 class Transition(
     IsTemplatable,
     IsModal,
-    IsComputable,
     IsRunnable,
     PackageNode[TransitionData],
 ):

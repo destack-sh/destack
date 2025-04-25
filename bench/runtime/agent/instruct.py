@@ -1,4 +1,3 @@
-from datetime import date
 from itertools import chain
 from typing import TYPE_CHECKING, Sequence
 
@@ -37,6 +36,7 @@ from .piece import (
 if TYPE_CHECKING:
     from bench.runtime import AgentRunner
 
+    from .agent import ModelSettings
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -45,13 +45,14 @@ tracer = trace.get_tracer(__name__)
 assert _is_setup_complete(), "NOTE: import this file after import is complete"
 
 
-def get_system_prompt(agent: Agent, knowledge_cutoff: date):
+def get_system_prompt(agent: Agent, model_settings: "ModelSettings"):
     oracle = agent.active_session._oracle
     now = oracle.utc()
     return f"""\
 You are a generalist agent in a Python shell on the Bench software platform.
-Knowledge cutoff: {knowledge_cutoff.strftime("%Y-%m-%d")}
+Knowledge cutoff: {model_settings.knowledge_cutoff.strftime("%Y-%m-%d")}
 Current date: {now.strftime("%Y-%m-%d")}
+Model: {model_settings.model_name}
 
 # Turn
 This is ONE turn in a loop of agent turns interleaved with tool calls, waiting, messages, etc..
@@ -143,7 +144,7 @@ You SHOULD search or browse for current information for *any* query that could b
  (e.g., for politics, current events, weather, sports, trends, news, ...)
 If you are uncertain whether your knowledge is up-to-date and sufficient, you SHOULD search somehow.
 When searching, you SHOULD summarize results with citations AND include any relevant Links as `nodes`.
-Citations MUST be at the end of sentences (after punctuation), Links MUST appear ONCE in 'nodes'.
+Citations MUST be at the end of SENDs (after punctuation), Links MUST appear ONCE in 'nodes'.
 
 # Text
 You SHOULD use relevant Text/markdown formatting.
@@ -226,11 +227,11 @@ def make_node_layout_hierarchy() -> Sequence[Piece]:
 
 
 @tracer.start_as_current_span("agent.build_prompt")
-def build_agent_prompt(
+async def build_agent_prompt(  # noqa: RUF029
     agent: Agent,
     runner: "AgentRunner[Agent]",
     previous_attempts: Sequence[Span],
-    knowledge_cutoff: date,
+    model_settings: "ModelSettings",
 ) -> Prompt:
     """Build the Agent's 'thinking' Prompt."""
 
@@ -248,7 +249,7 @@ def build_agent_prompt(
         subject=agent,
         session=runner.session,
         node=agent,
-        system_prompt=get_system_prompt(agent, knowledge_cutoff),
+        system_prompt=get_system_prompt(agent, model_settings),
     )
     agent_alias = prompt.aliasing.get_or_add(agent)
     previous_tool_runs = [r for r in run.runs if r.type == RunType.ACTION]
@@ -398,8 +399,8 @@ REMEMBER:
  - This is ONE turn. You will turn again *automatically*.
  - JUST Python code, top level, NO outer ```, JUST code.
  - Users can't see the code; any comments are for YOU only.
- - Split Messages/SENDs into lines/paragraphs.
- - Cite by sentence, Links in `nodes` only ONCE per turn.
+ - Split SENDs into lines/paragraphs (the smaller the more responsive).
+ - Cite at end of SEND with full URLs, put Links in `nodes` only ONCE per turn.
  - Reference ALL Nodes directly by their alias [@Node1], NOT by name.
  - Ignore yourself.
  - DO NOT ASK 'let me know' or similar preemptive questions.

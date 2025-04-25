@@ -8,6 +8,7 @@ from bench.language.core import (
     Expression,
     FieldType,
     IsBased,
+    IsComputable,
     IsModal,
     IsProcessable,
     IsTimed,
@@ -56,6 +57,7 @@ if TYPE_CHECKING:
 @timed_node_(NodeType.RUN)
 class Run(
     IsTimed,
+    IsComputable,
     IsProcessable,
     IsModal,
     IsBased,

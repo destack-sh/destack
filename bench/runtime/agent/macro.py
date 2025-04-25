@@ -16,6 +16,7 @@ from bench.language import (
     Message,
     MessageType,
     Node,
+    NodeMode,
     Page,
     ProcessStatus,
     Run,
@@ -214,7 +215,16 @@ def SEND(
         if isinstance(n, Node) and not isinstance(n, (Run, Span, Log, Interruption, Message))
     ]
     # message
-    message = Message.new(text=text, owned_by=runner.agent, nodes=nodes, reply_to=reply_to)
+    message = Message.new(
+        text=text,
+        owned_by=runner.agent,
+        nodes=nodes,
+        reply_to=reply_to,
+        model_developer=runner.model_settings.model_developer,
+        model_provider=runner.model_settings.model_provider,
+        model_id=runner.model_settings.model_id,
+        model_name=runner.model_settings.model_name,
+    )
     for node in nodes:
         if node.parent_ptr is None:
             message.append(node)
@@ -247,7 +257,7 @@ def CALL(
 
     # title
     object_title = text_line(object_title) if object_title is not None else None
-    if action.type == ActionType.BUILTIN:  # use known good title for builtin actions
+    if action.mode == NodeMode.BUILTIN:  # use known good title for builtin actions
         if action.id == WebKit.actions.Search.id and "Query" in inputs:
             object_title = text_line(inputs["Query"])
         elif action.id == WebKit.actions.Read.id and "URL" in inputs:

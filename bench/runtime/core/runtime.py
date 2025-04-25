@@ -138,7 +138,7 @@ class Runtime:
         on_error: Callable[[BaseException], None] | None = None,
     ):
         assert session.bench is not None, f"{session!r} is not attached"
-        self.session = session
+        self.session = cast(Session, session)  # NOTE: break Runtime/Session typechecking circle
         self.session._graph.add_types(*RUNTIME_NODE_TYPES)
         self.session._graph.add_types(*COMMUNICATION_NODE_TYPES)
         self.session_ptr = session.to_ref()

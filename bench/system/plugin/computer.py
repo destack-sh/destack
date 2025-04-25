@@ -233,6 +233,12 @@ class DockerComputerProvisioner(ComputerProvisioner):
         async with self.host.session(commit=True):
             resource.update_status(ResourceStatus.OFFLINE)
 
+    @override
+    async def wait_closed(self) -> None:
+        await super().wait_closed()
+        if self._docker_client is not None:
+            await self._docker_client.close()
+
 
 class KubernetesComputerProvisioner(ComputerProvisioner):
     """Provision Computers as Pods on Kubernetes."""

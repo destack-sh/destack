@@ -2261,6 +2261,10 @@ message MessageData {
   optional NodeReferenceData run_ptr = 64;
   optional NodeReferenceData runnable_ptr = 65;
   optional NodeReferenceData interruption_ptr = 66;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
 }
 
 message NotificationData {
@@ -2352,6 +2356,10 @@ message ThreadData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
 }
 
 message ComputerData {
@@ -2756,12 +2764,6 @@ message AgentData {
   optional NodeReferenceData cursor_ptr = 56;
   optional TextData text = 57;
   optional ColorType color = 59;
-  optional int32 max_attempts = 70;
-  optional google.protobuf.Duration retry_interval = 71;
-  optional float backoff = 72;
-  optional google.protobuf.Duration max_retry_interval = 73;
-  optional ModelDeveloper model_developer = 75;
-  optional ModelProvider model_provider = 76;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -2778,6 +2780,13 @@ message AgentData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
 }
 
 message InviteData {
@@ -3108,6 +3117,10 @@ message RunData {
   optional NodeReferenceData client_ptr = 95;
   optional NodeReferenceData computer_ptr = 96;
   optional NodeReferenceData user_ptr = 97;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
 }
 
 message SessionData {
@@ -3204,12 +3217,13 @@ message ActionData {
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
   optional google.protobuf.Value inputs_packed = 55;
-  optional int32 max_attempts = 70;
-  optional google.protobuf.Duration retry_interval = 71;
-  optional float backoff = 72;
-  optional google.protobuf.Duration max_retry_interval = 73;
-  optional ModelDeveloper model_developer = 75;
-  optional ModelProvider model_provider = 76;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
 }
 
 message BlockData {
@@ -3371,12 +3385,13 @@ message FlowData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional TextData text = 41;
-  optional int32 max_attempts = 70;
-  optional google.protobuf.Duration retry_interval = 71;
-  optional float backoff = 72;
-  optional google.protobuf.Duration max_retry_interval = 73;
-  optional ModelDeveloper model_developer = 75;
-  optional ModelProvider model_provider = 76;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
 }
 
 message KitData {
@@ -3492,12 +3507,13 @@ message TransitionData {
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
   optional ColorData color = 60;
-  optional int32 max_attempts = 70;
-  optional google.protobuf.Duration retry_interval = 71;
-  optional float backoff = 72;
-  optional google.protobuf.Duration max_retry_interval = 73;
-  optional ModelDeveloper model_developer = 75;
-  optional ModelProvider model_provider = 76;
+  optional ModelDeveloper model_developer = 100;
+  optional ModelProvider model_provider = 101;
+  optional string model_id = 102;
+  optional string model_name = 103;
+  optional int32 max_attempts = 110;
+  optional google.protobuf.Duration retry_interval = 111;
+  optional float backoff = 112;
 }
 
 message TagData {

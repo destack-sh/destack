@@ -336,14 +336,6 @@ class IsClaimable(BuiltinObject):
 
 
 @object_()
-class IsComputable(BuiltinObject):
-    """A Node that can be computed at runtime."""
-
-    # NOTE :Architecture: IsComputable.computed_values should probably be a Node? "Formula"?
-    pass
-
-
-@object_()
 class IsBased(BuiltinObject):
     """A Node which may have a 'base' in another Node (e.g., its type definition)."""
 
@@ -548,29 +540,35 @@ class IsProcessable(IsRuntime):
 
 
 @object_()
-class IsRunnable(BuiltinObject):
-    """A Node that can be run (at runtime with a Run)."""
+class IsComputable(BuiltinObject):
+    """A Node that can have computation applied to it somehow."""
+
+    # model
+    # NOTE :Incomplete: IsComputable.model_id should probably be plural (model_ids?)
+    model_developer: Optional["ModelDeveloper"] = p_regular(100)
+    model_provider: Optional["ModelProvider"] = p_regular(101)
+    model_id: Optional[str] = p_regular(102)
+    model_name: Optional[str] = p_regular(103)
+    # compute/cost/effort/budget/...?
+
+
+@object_()
+class IsRunnable(IsComputable):
+    """A Node that can be run (at runtime in a Run)."""
 
     # control
     max_attempts: Optional[int] = p_regular(
-        70, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
+        110, constraint=TypeConstraintIn(min_value=-1), description="Maximum retry attempts per Run"
     )
-    retry_interval: Optional[timedelta] = p_regular(71)
-    backoff: Optional[float] = p_regular(72, constraint=TypeConstraintIn(min_value=1))
-    max_retry_interval: Optional[timedelta] = p_regular(73)
-
-    # model
-    model_developer: Optional["ModelDeveloper"] = p_regular(75)
-    model_provider: Optional["ModelProvider"] = p_regular(76)
+    retry_interval: Optional[timedelta] = p_regular(111)
+    backoff: Optional[float] = p_regular(112, constraint=TypeConstraintIn(min_value=1))
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
+        retry_interval = self.retry_interval.total_seconds() if self.retry_interval else 1
         return RetryOptions(
             max_attempts=self.max_attempts or 1,
-            retry_interval=self.retry_interval.total_seconds() if self.retry_interval else 1,
+            retry_interval=retry_interval,
             backoff=self.backoff or 2,
-            max_retry_interval=self.max_retry_interval.total_seconds()
-            if self.max_retry_interval
-            else 30,
-            # NOTE: retry_on is handled separately in runtime because we need the specific ErrorType
+            max_retry_interval=max(30, retry_interval * 5),
         )

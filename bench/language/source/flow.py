@@ -6,7 +6,6 @@ from bench.language.core import (
     EnumType,
     FieldType,
     IsClaimable,
-    IsComputable,
     IsModal,
     IsNamed,
     IsOwnable,
@@ -43,7 +42,6 @@ class FlowType(BuiltinEnum):
 
 @node_(NodeType.FLOW)
 class Flow(
-    IsComputable,
     IsTemplatable,
     IsOwnable,
     IsClaimable,

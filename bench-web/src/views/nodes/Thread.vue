@@ -541,7 +541,7 @@ function focus() {
 // view
 const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 
-defineExpose<ViewExpose>({ self, id, focus });
+defineExpose<ViewExpose>({ self, id, commands, focus });
 </script>
 <template>
   <div ref="containerRef">
@@ -742,7 +742,7 @@ defineExpose<ViewExpose>({ self, id, focus });
                   width: MESSAGE_SIDE_WIDTH + 'px',
                 }"
               >
-                <!-- Author for new groups -->
+                <!-- Author icon -->
                 <AvatarInline
                   v-if="isStartOfGroup && author?.icon"
                   class="mr-1 text-gray-700"
@@ -772,6 +772,10 @@ defineExpose<ViewExpose>({ self, id, focus });
                   <!-- Timestamp -->
                   <span class="ml-1.5 text-xs text-gray-400">
                     {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
+                  </span>
+                  <!-- Model name -->
+                  <span v-if="message?.modelName" class="ml-1.5 text-xs text-gray-400">
+                    {{ message?.modelName }}
                   </span>
                   <!-- Edited? -->
                   <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />

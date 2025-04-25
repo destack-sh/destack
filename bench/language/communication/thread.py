@@ -4,6 +4,7 @@ from uuid import UUID
 from bench.language.core import (
     BuiltinEnum,
     EnumType,
+    IsComputable,
     IsInstantiable,
     IsJoinable,
     IsModal,
@@ -59,6 +60,7 @@ class ThreadStatus(BuiltinEnum):
 
 @timed_node_(NodeType.THREAD)
 class Thread(
+    IsComputable,
     IsTimed,
     IsOwnable,
     IsProcessable,
