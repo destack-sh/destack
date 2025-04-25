@@ -9,6 +9,7 @@ from bench.language import (
     Database,
     FieldType,
     File,
+    Link,
     Message,
     Node,
     NodeReference,
@@ -226,6 +227,11 @@ class PlanPiece(NodePiece[Plan]):
 
 @piece_(NodeType.TASK)
 class TaskPiece(NodePiece[Task]):
+    pass
+
+
+@piece_(NodeType.LINK)
+class LinkPiece(NodePiece[Link]):
     pass
 
 

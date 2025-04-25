@@ -277,7 +277,7 @@ class Renderer:
                 value_iso = timedelta_to_isoformat(cast(timedelta, value))
                 return f"timedelta_from_isoformat({value_iso!r})"
             elif typ.primitive_type == PrimitiveType.STRING:
-                return f'"{value}"'
+                return repr(value)  # auto-escape
             elif typ.primitive_type == PrimitiveType.UUID:
                 return f"UUID({value!r})"
             else:

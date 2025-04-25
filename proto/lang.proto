@@ -879,6 +879,7 @@ enum IconType {
   ICON_TYPE_FONT_AWESOME = 3;
   ICON_TYPE_VS_CODE = 4;
   ICON_TYPE_FILE = 10;
+  ICON_TYPE_FILE_URL = 11;
 }
 
 enum LinkType {
@@ -1901,6 +1902,7 @@ message IconData {
   optional string fa_name = 33;
   optional string vsc_name = 34;
   optional NodeReferenceData file_ptr = 35;
+  optional string file_url = 36;
   optional ColorData color = 40;
 }
 

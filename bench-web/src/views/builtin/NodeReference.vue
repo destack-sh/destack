@@ -63,8 +63,8 @@ const nodeTypeName = computed(() => toCamelName(NodeType, nodeType.value));
 const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY_TYPE[nodeType.value] : null));
 const identifierKind = computed(() => {
   if (nodeProperties.value == null) return null;
-  else if ("title" in nodeProperties.value) return "title";
   else if ("name" in nodeProperties.value) return "name";
+  else if ("title" in nodeProperties.value) return "title";
   else return null;
 });
 

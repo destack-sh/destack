@@ -897,7 +897,11 @@ defineExpose<ViewExpose>({ self, id, focus });
                       }"
                       class=""
                     />
-                    <Link v-else-if="nodePtr.nodeType == NodeType.LINK" :graph="graph" :node-ptr="nodePtr" />
+                    <Link
+                      v-else-if="nodePtr.nodeType == NodeType.LINK && graph != null"
+                      :graph="graph"
+                      :node-ptr="nodePtr"
+                    />
                     <NodeReference
                       v-else
                       :node-ptr="nodePtr"
