@@ -730,7 +730,7 @@ def make_runner(
             parent=parent,
             agent=agent,
             code=code,
-            aliasing=Aliasing(),
+            aliasing=Aliasing(runtime.supergraph),
         )
     elif RUN_TYPE == RunType.AGENT:
         from bench.runtime.agent import AgentRunner

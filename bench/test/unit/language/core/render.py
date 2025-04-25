@@ -48,10 +48,12 @@ def _render_test(func: Callable[[Any, Any], Mapping[str, Any]]):
         package: Package,
     ) -> None:
         """Common logic for rendering and checking rendered code matches original."""
-        # (line length 96 because it's 100 - 4 for the method indent here)
 
         def _render(defns: Mapping[str, Any]):
-            options = RenderOptions(aliasing=Aliasing(), format=True, line_length=96)
+            # (line length 96 because it's 100 - 4 for the method indent here)
+            options = RenderOptions(
+                aliasing=Aliasing(session._supergraph), format=True, line_length=96
+            )
             renderer = Renderer(options)
             statements: list[str] = []
             for obj in defns.values():
@@ -235,7 +237,7 @@ def test_render_simple_choice_option_ref(session: Session, package: Package):
     Page1.append(Choice1)
     rendered_option = render_expression(
         Choice1.options.Option2,
-        options=RenderOptions(aliasing=Aliasing()),
+        options=RenderOptions(aliasing=Aliasing(session._supergraph)),
         as_ref=True,
     )
     assert rendered_option == "Choice1.options.Option2"

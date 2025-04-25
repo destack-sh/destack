@@ -21,6 +21,7 @@ from bench.language import (
     BenchStatus,
     Block,
     File,
+    Link,
     Message,
     NodeGraph,
     NodeReference,
@@ -259,7 +260,7 @@ Sure, here's how you make lists in markdown:
 
 
 @example_(ExampleType.SNIPPET, title="Call an Action")
-def example_call_an_action(Action1: Action):
+def example_call_action(Action1: Action):
     # Action1 should do this
     CALL(Action1, Arg1="https://example.com?...", Arg2=True, object_title="example.com")
 
@@ -304,6 +305,17 @@ def example_create_simple_database(Page1: Page):
     Record2 = Database1.records.create(name="John", Age=30)
     # reference directly by alias
     SEND("I've created [@Database1] and added [@Record1] and [@Record2].")
+
+
+@example_(ExampleType.SNIPPET, title="Cite Links in Messages")
+def example_cite_links_in_messages(Link1: Link, Link2: Link, Link3):
+    SEND(
+        """\
+Yeah, looks like that PR was merged[^GH123](httpsgithub.com/symbolx/bench/pull/123).
+However, the issue is still open [^JIRA123](https://symbolx.atlassian.net/browse/BENCH-123).
+""",
+        nodes=(Link1, Link2, Link3),
+    )
 
 
 @example_(ExampleType.SNIPPET, title="Add external images to response")

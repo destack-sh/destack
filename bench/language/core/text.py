@@ -14,7 +14,7 @@ from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import ColorType
-    from bench.language.source.render import Aliasing, AliasingIn
+    from bench.language.source.render import Aliasing
 
 
 @object_()
@@ -613,11 +613,11 @@ def _parse_code(lines: list[str], start: int) -> tuple[TextLine, int]:
     return TextLine(type=TextLineType.CODE, content=content, language=language), i
 
 
-def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Text:
+def markdown_to_text(markdown: str, aliasing: "Aliasing | None" = None) -> Text:
     """
     Parse markdown as Text.
     """
-    from bench.language import Aliasing, get_active_aliasing
+    from bench.language import get_active_aliasing
 
     # bail if nothing to parse
     if not markdown:
@@ -626,8 +626,6 @@ def markdown_to_text(markdown: str, aliasing: "AliasingIn | None" = None) -> Tex
     # aliasing
     if aliasing is None:
         aliasing = get_active_aliasing()
-    if isinstance(aliasing, Mapping):
-        aliasing = Aliasing.new(aliasing)
 
     # parse
     markdown = textwrap.dedent(markdown)
@@ -796,7 +794,7 @@ def _render_inline(spans: Sequence[TextSpan], aliasing: "Aliasing | None" = None
     return "".join(parts)
 
 
-def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) -> str:
+def text_line_to_markdown(line: TextLine, aliasing: "Aliasing | None" = None) -> str:
     """
     Render a single TextLine as markdown.
     """
@@ -805,10 +803,6 @@ def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) 
     # aliasing
     if aliasing is None:
         aliasing = get_active_aliasing()
-    if aliasing is not None and isinstance(aliasing, Mapping):
-        from bench.language.source import Aliasing
-
-        aliasing = Aliasing.new(aliasing)
 
     # render
     if line.type == TextLineType.DIVIDER:
@@ -849,7 +843,7 @@ def text_line_to_markdown(line: TextLine, aliasing: "AliasingIn | None" = None) 
         return prefix + content
 
 
-def text_to_markdown(text: Text, aliasing: "AliasingIn | None" = None) -> str:
+def text_to_markdown(text: Text, aliasing: "Aliasing | None" = None) -> str:
     """
     Render a Text object as markdown.
     """
@@ -860,7 +854,7 @@ TextIn = Text | str
 TextLineIn = TextLine | str
 
 
-def text(text: TextIn, aliasing: "AliasingIn | None" = None) -> Text:
+def text(text: TextIn, aliasing: "Aliasing | None" = None) -> Text:
     """Parse markdown as Text."""
     if isinstance(text, str):
         return markdown_to_text(text, aliasing=aliasing)
@@ -868,11 +862,9 @@ def text(text: TextIn, aliasing: "AliasingIn | None" = None) -> Text:
         return text
 
 
-def text_line(text: TextLineIn, aliasing: "AliasingIn | None" = None) -> TextLine:
+def text_line(text: TextLineIn, aliasing: "Aliasing | None" = None) -> TextLine:
     """Parse markdown as TextLine."""
     if isinstance(text, str):
-        if isinstance(aliasing, Mapping):
-            aliasing = Aliasing.new(aliasing)
         return markdown_line_to_line(text, aliasing=aliasing)
     else:
         return text

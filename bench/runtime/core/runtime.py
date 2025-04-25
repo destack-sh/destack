@@ -143,6 +143,7 @@ class Runtime:
         self.session._graph.add_types(*COMMUNICATION_NODE_TYPES)
         self.session_ptr = session.to_ref()
         self.session_id = session.id
+        self.supergraph = session._supergraph
         self.network = network
         self.bench = session.bench
         self.oracle = oracle

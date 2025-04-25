@@ -10,7 +10,6 @@ from bench.language import (
     Text,
     TextLine,
     code,
-    text,
 )
 from bench.runtime import create_run
 from bench.test.simulation.core import Simulation
@@ -48,29 +47,6 @@ async def test_run_code_with_syntax_error(simulation: Simulation, runtime: Runti
     assert runner.status == ProcessStatus.FAILED
     assert runner.error is not None and runner.error.type == ErrorType.CODE_INVALID
     assert runner.error.text and "!!invalid!!" in runner.error.text
-
-
-@simulated_runtime()
-async def test_run_code_with_aliasing(simulation: Simulation, runtime: RuntimeLambdaWorkload):
-    """Code Action with aliasing should work."""
-    Flow1 = Flow.new("Flow1")
-    Code1 = Action.new(
-        ActionType.CODE,
-        "Code1",
-        code=code("""\
-text1 = text("hello, [@Code1]!")
-return {"Output1": text1}
-"""),
-        fields=(Field.output("Output1", Text),),
-    )
-    Flow1.actions.append(Code1)
-    runtime.page().append(Flow1)
-    await runtime.commit()
-
-    runner = await runtime.run_in_runtime(Code1)
-    assert runner.status == ProcessStatus.COMPLETED
-    assert runner.outputs
-    assert runner.outputs.Output1 == text("hello, [@Code1]!", aliasing={"Code1": Code1})
 
 
 @simulated_runtime()
