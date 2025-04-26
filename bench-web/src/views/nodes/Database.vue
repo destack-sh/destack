@@ -98,9 +98,10 @@ const props = defineProps<
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
+const selfView = canvas.graph.getRef(self, { ignoreAncestors: true });
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
-const isSelected = computed(() => state.isSelected(databasePtr.value));
+canvas.registerView(self, id);
+const isSelected = computed(() => canvas.isSelected(databasePtr.value));
 
 // NOTE :UX :Architecture: Database view should be factored out into general Table/Feed/List/etc. query/collection views (?)
 
@@ -472,7 +473,7 @@ function setSelectionRow(record: RecordData, selected: boolean, expandFromLast: 
       const from = Math.min(lastSelectedY, currentY);
       const to = Math.max(lastSelectedY, currentY);
       const newSelection = records.value.slice(from, to + 1);
-      state.select(expandSelection(canvas.selection, newSelection));
+      canvas.select(expandSelection(canvas.selection, newSelection));
     } else {
       addSelectionRow(record);
     }
@@ -553,7 +554,7 @@ const commands: Partial<CommandMapKit<"space" | "table" | "list">> = {
   },
   ...useNodeTableCommands({
     nodeType: NodeType.RECORD,
-    self: state.baseViewRef,
+    self: selfView,
     graph: graph,
     list: records,
     create: () => createRecord(),
@@ -632,7 +633,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
           :class="numSelectedRows > 0 ? 'opacity-100' : 'pointer-events-none opacity-0'"
           data-suppress-drag="both"
         >
-          <button class="h-full cursor-pointer px-2 py-0.5 font-medium hover:bg-gray-100" @click="state.deselect()">
+          <button class="h-full cursor-pointer px-2 py-0.5 font-medium hover:bg-gray-100" @click="canvas.deselect()">
             {{ numSelectedRows }} selected
           </button>
           <button
@@ -750,7 +751,7 @@ defineExpose<ViewExpose>({ self, id, commands: commands, focus });
             <button
               class="flex h-4 w-4 cursor-pointer items-center rounded-sm border border-gray-200 bg-white px-[1px] transition-colors duration-75"
               :class="selectedRecords.length > 0 ? 'opacity-100' : 'opacity-0 group-hover/header:opacity-100'"
-              @click="() => (isAllSelectedRows ? state.deselect() : state.select(records))"
+              @click="() => (isAllSelectedRows ? canvas.deselect() : canvas.select(records))"
             >
               <span
                 class="inline-block h-3 w-3 rounded-sm transition-colors duration-75"

@@ -37,7 +37,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const agentPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.AGENT>);
 const preparedConnection = props.preparedConnection ?? useAutoConnection(agentPtr);

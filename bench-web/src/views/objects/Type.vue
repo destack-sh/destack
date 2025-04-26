@@ -15,7 +15,7 @@ const modelValue = defineModel<TypeData | undefined>();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const supportsList = computed(() => modelValue.value?.baseTypePtr?.nodeType != NodeType.BLOCK);
 

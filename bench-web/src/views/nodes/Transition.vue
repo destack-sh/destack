@@ -19,7 +19,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const transitionPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.TRANSITION>);
 const flowCtx = useFlowContext();
@@ -41,7 +41,7 @@ const nameRef: Ref<InstanceType<typeof NodeReference> | null> = ref(null);
 
 const isInspected = computed(() => canvas.isInspected(transitionPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(transitionPtr.value));
-const isSelected = computed(() => state.isSelected(transitionPtr.value));
+const isSelected = computed(() => canvas.isSelected(transitionPtr.value));
 const strokeDashArray = computed(() => {
   if (transition.value?.type == TransitionType.DECIDE) {
     // dashed

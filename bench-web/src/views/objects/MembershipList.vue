@@ -37,7 +37,7 @@ const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
 const isHorizontal = computed(
   () => orientation.value == Orientation.HORIZONTAL || orientation.value == Orientation.HORIZONTAL_REVERSED,
 );
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const containerRef = ref<HTMLElement | null>(null);
 

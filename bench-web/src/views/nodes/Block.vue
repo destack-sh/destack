@@ -28,7 +28,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 // page
 const instance = getCurrentInstance();
@@ -65,7 +65,7 @@ const isPage = computed(() => block.value?.type == BlockType.PAGE);
 const hasCanvas = computed(() => CANVAS_BLOCK_TYPES.includes(block.value?.type!));
 const isInspected = computed(() => canvas.isInspected(blockPtr.value) || canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(blockPtr.value) || canvas.isHighlighted(nodePtr.value));
-const isSelected = computed(() => state.isSelected(blockPtr.value));
+const isSelected = computed(() => canvas.isSelected(blockPtr.value));
 
 //
 // Interaction

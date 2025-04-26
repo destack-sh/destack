@@ -24,7 +24,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits & { (e: "create", event: MouseEvent): void }>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 // state
 const nodePtr = toRef(props, "nodePtr");

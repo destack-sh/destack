@@ -32,12 +32,13 @@ const props = defineProps<
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
+const selfView = canvas.graph.getRef(self, { ignoreAncestors: true });
 const id = toRef(props, "id");
 const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
 const isHorizontal = computed(
   () => orientation.value == Orientation.HORIZONTAL || orientation.value == Orientation.HORIZONTAL_REVERSED,
 );
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const containerRef = ref<HTMLElement | null>(null);
 const fieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
@@ -54,7 +55,7 @@ const { allowDrop, onDrop } = useFieldList({
   txFactory: () => connection.tx,
   fieldType: toRef(props, "fieldType"),
   base: base,
-});
+}); 
 const { activeDropZone } = useMultiDropZone({
   name: "type",
   container: containerRef,
@@ -77,7 +78,7 @@ const commands: Partial<CommandMapKit<"list">> = {
   // list
   ...useNodeListCommands({
     nodeType: NodeType.FIELD,
-    self: state.baseViewRef,
+    self: selfView,
     graph,
     list: fields,
     txFactory: () => connection.tx,

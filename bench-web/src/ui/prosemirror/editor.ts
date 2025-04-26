@@ -662,11 +662,7 @@ export function setTextSpanType(
 }
 
 /** Gets our custom ProseMirror format command */
-export function markFormatCommand(
-  mark: TextMarkType,
-  getView: () => EditorView | null,
-  isEnabled: () => boolean,
-) {
+export function markFormatCommand(mark: TextMarkType, getView: () => EditorView | null, isEnabled: () => boolean) {
   return {
     isEnabled: () => {
       const view = getView();
