@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Collection
 
 import structlog
 from opentelemetry import trace
@@ -12,6 +12,7 @@ from bench.language import (
     GraphCapture,
     LocalNodeList,
     Message,
+    MessageType,
     NodeReference,
     ResourceStatus,
     SearchConnection,
@@ -113,11 +114,17 @@ class ThreadHandle:
         else:
             return None
 
-    def has_new_messages_for(self, owner: Subject, cursor: Cursor | None) -> bool:
+    def has_new_messages_for(
+        self,
+        owner: Subject,
+        cursor: Cursor | None,
+        ignore_types: Collection[MessageType] = (MessageType.JOIN, MessageType.LEAVE),
+    ) -> bool:
         """Check if there are new Messages for the given Cursor."""
         return any(
             m.created_by_id != owner.id
             and (cursor is None or cursor.seen_at is None or m.created_at > cursor.seen_at)
+            and m.type not in ignore_types
             for m in self.messages
         )
 

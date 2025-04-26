@@ -19,6 +19,7 @@ import {
   MessageData,
   MessageProperty,
   MessageType,
+  MessageTypeOptionInfo,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -27,7 +28,7 @@ import {
   TextData,
   ThreadData,
   Timestamp,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
@@ -36,7 +37,7 @@ import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system
 import { user } from "@/system/user";
 import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/ui/drag";
-import { AvatarInline, getNodeIcon, getNodeTitle, IconInline } from "@/ui/icon";
+import { AvatarInline, getNodeIcon, getNodeTitle, IconInline, makeIcon } from "@/ui/icon";
 import { getNodeColor } from "@/ui/style";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
@@ -220,6 +221,7 @@ type MessageView = {
   isEmpty: boolean;
   isStartOfGroup: boolean;
   isEndOfGroup: boolean;
+  isCustomLineOnly: boolean;
   isNewDate: boolean;
   isEdited: boolean;
   isEditing: boolean;
@@ -234,16 +236,18 @@ const messageViews = computed(() => {
     const message = messages.value[i];
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? authorsById.value[authorPtr.id!] : null;
+    const isCustomLineOnly =
+      message.type == MessageType.JOIN || message.type == MessageType.LEAVE || message.type == MessageType.RESOURCE;
     let isStartOfGroup;
     let isNewDate;
     if (i == 0) {
-      isStartOfGroup = true;
+      isStartOfGroup = message.createdByPtr != null;
       isNewDate = true;
     } else {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
       isStartOfGroup =
-        message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
+        (message.createdByPtr != null && message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id) ||
         Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
           MESSAGE_GROUP_TIME_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
@@ -262,6 +266,7 @@ const messageViews = computed(() => {
       message,
       nodesPtr: message.nodesPtr,
       author,
+      isCustomLineOnly,
       isEmpty,
       isStartOfGroup,
       isEndOfGroup: false, // fill later
@@ -677,6 +682,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             replyTo,
             isEmpty,
             isEdited,
+            isCustomLineOnly,
             isStartOfGroup,
             isEndOfGroup,
             isNewDate,
@@ -739,7 +745,24 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             </div>
 
             <!-- Body -->
-            <div class="flex flex-row rounded-sm transition-colors duration-75">
+            <div class="relative flex flex-row rounded-sm transition-colors duration-75">
+              <!-- Commands -->
+              <div
+                v-if="!isEditing"
+                class="absolute top-0 -right-2 z-10 flex -translate-y-[80%] flex-row rounded-lg border border-gray-200 bg-white opacity-0 transition-opacity duration-75 group-hover/message:opacity-100"
+              >
+                <button
+                  v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
+                  :key="command.id"
+                  v-tooltip="{ small: true, title: command.title, group: 'message' }"
+                  class="cursor-pointer rounded-sm px-1.5 py-0.5 text-gray-400 transition-colors duration-75 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
+                  :disabled="command.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
+                  @click.stop.prevent="fireCommand(command, { nodes: [message] })"
+                >
+                  <IconInline v-bind="command.icon" />
+                </button>
+              </div>
+
               <!-- Side -->
               <div
                 class="shrink-0 text-center"
@@ -748,9 +771,12 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   width: MESSAGE_SIDE_WIDTH + 'px',
                 }"
               >
-                <!-- Author icon -->
+                <!-- Icon -->
+                <div v-if="isCustomLineOnly" class="ml-2 flex h-7 w-8 flex-col items-center justify-center">
+                  <IconInline v-bind="makeIcon(MessageTypeOptionInfo[message.type]?.icon ?? 'fas fa-question')" />
+                </div>
                 <AvatarInline
-                  v-if="isStartOfGroup && author?.icon"
+                  v-else-if="isStartOfGroup && author?.icon"
                   class="mr-1 text-gray-700"
                   size="medium"
                   v-bind="author.icon"
@@ -767,9 +793,10 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   <span v-if="isEdited" class="fas fa-pencil text-xs text-gray-300 group-hover/message:hidden" />
                 </div>
               </div>
+
               <!-- Body -->
               <div class="relative flex-1">
-                <!-- Meta (if new group) -->
+                <!-- Header -->
                 <div v-if="isStartOfGroup" class="">
                   <!-- Author -->
                   <span class="text-base font-medium decoration-gray-300 underline-offset-3 hover:underline">
@@ -787,28 +814,29 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
                 </div>
 
-                <!-- Commands -->
-                <div
-                  v-if="!isEditing"
-                  class="absolute top-0 -right-2 z-10 flex -translate-y-[80%] flex-row rounded-lg border border-gray-200 bg-white opacity-0 transition-opacity duration-75 group-hover/message:opacity-100"
-                >
-                  <button
-                    v-for="command in MESSAGE_CONTEXT_COMMANDS.map(getCommand)"
-                    :key="command.id"
-                    v-tooltip="{ small: true, title: command.title, group: 'message' }"
-                    class="cursor-pointer rounded-sm px-1.5 py-0.5 text-gray-400 transition-colors duration-75 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
-                    :disabled="command.id == 'chat.message.edit' && message.createdByPtr?.id != currentAuthor?.id"
-                    @click.stop.prevent="fireCommand(command, { nodes: [message] })"
-                  >
-                    <IconInline v-bind="command.icon" />
-                  </button>
+                <!-- Custom line -->
+                <div v-if="isCustomLineOnly" class="mt-1 mb-1 flex flex-row items-baseline gap-x-1.5">
+                  <!-- Node -->
+                  <NodeReference
+                    v-for="nodePtr in message.nodesPtr"
+                    :key="nodePtr.id"
+                    :node-ptr="nodePtr"
+                    size="sm"
+                    hide-icon
+                    hide-metadata
+                    class="rounded-full py-0.5"
+                  />
+                  <!-- Verb -->
+                  <span v-if="message.type == MessageType.JOIN" class="text-gray-400">joined.</span>
+                  <span v-else-if="message.type == MessageType.LEAVE" class="text-gray-400">left.</span>
+                  <!-- Timestamp -->
+                  <span class="text-xs text-gray-400">
+                    {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
+                  </span>
                 </div>
 
                 <!-- Text -->
-                <div
-                  v-if="!isEditing && message.type == MessageType.DEFAULT && (!isEmpty || message.nodesPtr.length == 0)"
-                  class="relative"
-                >
+                <div v-if="!isEditing && (!isEmpty || message.nodesPtr.length == 0)" class="relative">
                   <Text
                     :id="'text-' + message.id"
                     placeholder="Empty message"
@@ -840,9 +868,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                     />
                   </button>
                 </div>
-
                 <!-- Editing content -->
-                <div v-if="isEditing" class="my-1">
+                <div v-else-if="isEditing" class="my-1">
                   <Text
                     :id="'text-' + message.id"
                     ref="editingTextRefs"
@@ -866,7 +893,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                     "
                     @keydown.esc.stop.prevent="stopEditing()"
                   />
-                  <div v-if="isEditing" class="mt-0.5 flex-row text-xs text-gray-400">
+                  <div class="mt-0.5 flex-row text-xs text-gray-400">
                     <span>
                       escape to
                       <a href="#" class="text-amber-700 underline-offset-2 hover:underline" @click.stop="stopEditing()"
@@ -886,7 +913,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                 <!-- Extras -->
                 <!-- NOTE :UX: this should be a proper :FileGallery -->
                 <div
-                  v-if="message.nodesPtr.length > 0"
+                  v-if="!isCustomLineOnly && nodesPtr.length > 0"
                   class="mt-1.5 mb-2 flex flex-row flex-wrap items-start gap-x-2 gap-y-2"
                 >
                   <template v-for="nodePtr in nodesPtr" :key="nodePtr.id">
