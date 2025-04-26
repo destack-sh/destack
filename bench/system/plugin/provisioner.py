@@ -62,12 +62,14 @@ class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
 
     def _set_resource_status(self, resource: PT, status: ResourceStatus) -> None:
         """Set the status of the Resource, emitting any Messages."""
-        resource.status = status
-        if isinstance(thread := resource.parent, Thread):
+        # create message if status changed
+        if resource.status != status and isinstance(thread := resource.parent, Thread):
             message = Message.new(
                 type=MessageType.RESOURCE, nodes=[resource], resource_status=status
             )
             thread.messages.append(message)
+
+        resource.update_status(status)
 
     @final
     async def start(self) -> None:
