@@ -3713,14 +3713,6 @@ export interface AgentData {
      */
     definitionPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 50;
-     */
-    inputsPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 51;
-     */
-    outputsPacked?: JsonValue;
-    /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData page_ptr = 54;
      */
     pagePtr?: NodeReferenceData;
@@ -4770,14 +4762,6 @@ export interface InterruptionData {
      */
     text?: TextData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 52;
-     */
-    inputsPacked?: JsonValue;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value outputs_packed = 53;
-     */
-    outputsPacked?: JsonValue;
-    /**
      * @generated from protobuf field: optional symbolx.bench.InterruptionResponse response = 54;
      */
     response?: InterruptionResponse;
@@ -5450,10 +5434,6 @@ export interface ActionData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData tool_ptr = 53;
      */
     toolPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Value inputs_packed = 55;
-     */
-    inputsPacked?: JsonValue;
     /**
      * @generated from protobuf field: optional symbolx.bench.ModelDeveloper model_developer = 100;
      */
@@ -21978,8 +21958,6 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 51, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 54, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 55, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 56, name: "cursor_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22085,12 +22063,6 @@ class AgentData$Type extends MessageType$<AgentData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData definition_ptr */ 35:
                     message.definitionPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional google.protobuf.Value inputs_packed */ 50:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional google.protobuf.Value outputs_packed */ 51:
-                    message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData page_ptr */ 54:
                     message.pagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pagePtr);
@@ -22248,12 +22220,6 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.NodeReferenceData definition_ptr = 35; */
         if (message.definitionPtr)
             NodeReferenceData.internalBinaryWrite(message.definitionPtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value inputs_packed = 50; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value outputs_packed = 51; */
-        if (message.outputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData page_ptr = 54; */
         if (message.pagePtr)
             NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -24132,8 +24098,6 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
             { no: 41, name: "duration", kind: "message", T: () => Duration },
             { no: 42, name: "closed_at", kind: "message", T: () => Timestamp },
             { no: 51, name: "text", kind: "message", T: () => TextData },
-            { no: 52, name: "inputs_packed", kind: "message", T: () => Value },
-            { no: 53, name: "outputs_packed", kind: "message", T: () => Value },
             { no: 54, name: "response", kind: "enum", opt: true, T: () => ["symbolx.bench.InterruptionResponse", InterruptionResponse, "INTERRUPTION_RESPONSE_"] },
             { no: 55, name: "message_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 56, name: "task_ptr", kind: "message", T: () => NodeReferenceData },
@@ -24224,12 +24188,6 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
                     break;
                 case /* optional symbolx.bench.TextData text */ 51:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
-                    break;
-                case /* optional google.protobuf.Value inputs_packed */ 52:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
-                    break;
-                case /* optional google.protobuf.Value outputs_packed */ 53:
-                    message.outputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.InterruptionResponse response */ 54:
                     message.response = reader.int32();
@@ -24330,12 +24288,6 @@ class InterruptionData$Type extends MessageType$<InterruptionData> {
         /* optional symbolx.bench.TextData text = 51; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value inputs_packed = 52; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value outputs_packed = 53; */
-        if (message.outputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.outputsPacked), writer.tag(53, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.InterruptionResponse response = 54; */
         if (message.response !== undefined)
             writer.tag(54, WireType.Varint).int32(message.response);
@@ -25495,7 +25447,6 @@ class ActionData$Type extends MessageType$<ActionData> {
             { no: 45, name: "position", kind: "message", T: () => Vector2Data },
             { no: 52, name: "code", kind: "message", T: () => CodeData },
             { no: 53, name: "tool_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 55, name: "inputs_packed", kind: "message", T: () => Value },
             { no: 100, name: "model_developer", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelDeveloper", ModelDeveloper, "MODEL_DEVELOPER_"] },
             { no: 101, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
             { no: 102, name: "model_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -25590,9 +25541,6 @@ class ActionData$Type extends MessageType$<ActionData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData tool_ptr */ 53:
                     message.toolPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.toolPtr);
-                    break;
-                case /* optional google.protobuf.Value inputs_packed */ 55:
-                    message.inputsPacked = Value.toJson(Value.internalBinaryRead(reader, reader.uint32(), options, undefined));
                     break;
                 case /* optional symbolx.bench.ModelDeveloper model_developer */ 100:
                     message.modelDeveloper = reader.int32();
@@ -25696,9 +25644,6 @@ class ActionData$Type extends MessageType$<ActionData> {
         /* optional symbolx.bench.NodeReferenceData tool_ptr = 53; */
         if (message.toolPtr)
             NodeReferenceData.internalBinaryWrite(message.toolPtr, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Value inputs_packed = 55; */
-        if (message.inputsPacked !== undefined)
-            Value.internalBinaryWrite(Value.fromJson(message.inputsPacked), writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.ModelDeveloper model_developer = 100; */
         if (message.modelDeveloper !== undefined)
             writer.tag(100, WireType.Varint).int32(message.modelDeveloper);
@@ -31346,7 +31291,6 @@ export enum ActionProperty {
   position = 45,
   code = 52,
   toolPtr = 53,
-  inputsPacked = 55,
   modelDeveloper = 100,
   modelProvider = 101,
   modelId = 102,
@@ -31680,8 +31624,6 @@ export enum AgentProperty {
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
-  inputsPacked = 50,
-  outputsPacked = 51,
   pagePtr = 54,
   planPtr = 55,
   cursorPtr = 56,
@@ -31856,8 +31798,6 @@ export enum InterruptionProperty {
   duration = 41,
   closedAt = 42,
   text = 51,
-  inputsPacked = 52,
-  outputsPacked = 53,
   response = 54,
   messagePtr = 55,
   taskPtr = 56,
@@ -33009,7 +32949,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -33047,7 +32987,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.activeAt]: { id: 46, name: 'active_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.25.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.26.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -33464,7 +33404,6 @@ export const ActionDataInfo: Record<ActionProperty, PropertyInfo> = {
   [ActionProperty.position]: { id: 45, name: 'position', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [ActionProperty.code]: { id: 52, name: 'code', component: ObjectType.ACTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ActionProperty.toolPtr]: { id: 53, name: 'tool_ptr', component: ObjectType.ACTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.AGENT, NodeType.FLOW, NodeType.ACTION], referenceStruct: StructType.NODE_REFERENCE },
-  [ActionProperty.inputsPacked]: { id: 55, name: 'inputs_packed', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ActionProperty.modelDeveloper]: { id: 100, name: 'model_developer', component: ObjectType.ACTION, enumType: EnumType.MODEL_DEVELOPER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.modelProvider]: { id: 101, name: 'model_provider', component: ObjectType.ACTION, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ActionProperty.modelId]: { id: 102, name: 'model_id', component: ObjectType.ACTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -33786,8 +33725,6 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.icon]: { id: 34, name: 'icon', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [AgentProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [AgentProperty.outputsPacked]: { id: 51, name: 'outputs_packed', component: ObjectType.AGENT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [AgentProperty.pagePtr]: { id: 54, name: 'page_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.planPtr]: { id: 55, name: 'plan_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.cursorPtr]: { id: 56, name: 'cursor_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
@@ -33958,8 +33895,6 @@ export const InterruptionDataInfo: Record<InterruptionProperty, PropertyInfo> = 
   [InterruptionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.closedAt]: { id: 42, name: 'closed_at', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.text]: { id: 51, name: 'text', component: ObjectType.INTERRUPTION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
-  [InterruptionProperty.inputsPacked]: { id: 52, name: 'inputs_packed', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [InterruptionProperty.outputsPacked]: { id: 53, name: 'outputs_packed', component: ObjectType.INTERRUPTION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [InterruptionProperty.response]: { id: 54, name: 'response', component: ObjectType.INTERRUPTION, enumType: EnumType.INTERRUPTION_RESPONSE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [InterruptionProperty.messagePtr]: { id: 55, name: 'message_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [InterruptionProperty.taskPtr]: { id: 56, name: 'task_ptr', component: ObjectType.INTERRUPTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.TASK], referenceStruct: StructType.NODE_REFERENCE },

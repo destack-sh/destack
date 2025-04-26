@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Literal, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.core import (
@@ -26,8 +26,6 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_value_packed,
-    p_value_runtime,
 )
 from bench.pb2 import ActionData
 from bench.utils.fractional import INTEGER_ZERO
@@ -120,10 +118,6 @@ class Action(
         array=False,
         references=(NodeType.AGENT, NodeType.FLOW, NodeType.ACTION),
         description="The implementation for this action.",
-    )
-    inputs_packed: Any = p_value_packed(55)
-    inputs: Any = p_value_runtime(
-        55, type=FieldType.INPUT, typ=lambda self: cast(Action, self).input_type
     )
     if TYPE_CHECKING:
         tool_ptr: "NodeReference | None" = None

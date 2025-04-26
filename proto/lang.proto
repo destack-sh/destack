@@ -2751,8 +2751,6 @@ message AgentData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional google.protobuf.Value inputs_packed = 50;
-  optional google.protobuf.Value outputs_packed = 51;
   optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData plan_ptr = 55;
   optional NodeReferenceData cursor_ptr = 56;
@@ -3031,8 +3029,6 @@ message InterruptionData {
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp closed_at = 42;
   optional TextData text = 51;
-  optional google.protobuf.Value inputs_packed = 52;
-  optional google.protobuf.Value outputs_packed = 53;
   optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
   optional NodeReferenceData task_ptr = 56;
@@ -3210,7 +3206,6 @@ message ActionData {
   optional Vector2Data position = 45;
   optional CodeData code = 52;
   optional NodeReferenceData tool_ptr = 53;
-  optional google.protobuf.Value inputs_packed = 55;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
