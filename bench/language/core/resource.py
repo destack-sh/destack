@@ -127,12 +127,13 @@ class Resource[NodeDataT: AnyNodeData](
     )
     # ... space for type/name/...
     region: Region = p_system(38, default=REGION, default_sql=None)
-    scaler: Optional["Scaler"] = p_system(
-        39, require=False, array=False, references=NodeType.SCALER
-    )
-    if TYPE_CHECKING:
-        scaler_ptr: Optional[NodeReference] = None
-        scaler_id: Optional[UUID] = None
+
+
+@node_component_()
+class ProvisionableResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
+    """
+    A Resource that can be provisioned.
+    """
 
     # status
     status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING, default_sql=None)
@@ -144,6 +145,12 @@ class Resource[NodeDataT: AnyNodeData](
     active_at: Optional[datetime] = p_system(46, default=None)
     failed_at: Optional[datetime] = p_system(47, default=None)
     failed_attempts: int = p_system(48, default=0)
+    scaler: Optional["Scaler"] = p_system(
+        49, require=False, array=False, references=NodeType.SCALER
+    )
+    if TYPE_CHECKING:
+        scaler_ptr: Optional[NodeReference] = None
+        scaler_id: Optional[UUID] = None
 
     def __content_str__(self):
         return Node.__default_content_str__(self)

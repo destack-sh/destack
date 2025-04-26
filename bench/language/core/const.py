@@ -50,7 +50,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.26.0"
+VERSION = "2025.04.26.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -707,6 +707,7 @@ NODE_TYPES_BY_AREA = {
 }
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 RESOURCE_NODE_TYPES = _get_node_types(2000, 3000)
+PROVISIONABLE_NODE_TYPES = bittuple(NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER)
 SOURCE_NODE_TYPES = _get_node_types(5000, 5500)
 COMMUNICATION_NODE_TYPES = _get_node_types(5500, 5600)
 RUNTIME_NODE_TYPES = _get_node_types(6000, 6100)

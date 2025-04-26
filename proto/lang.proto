@@ -2379,7 +2379,6 @@ message ComputerData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
-  optional NodeReferenceData scaler_ptr = 39;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp activated_at = 41;
   optional google.protobuf.Timestamp deactivated_at = 42;
@@ -2389,6 +2388,7 @@ message ComputerData {
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;
+  optional NodeReferenceData scaler_ptr = 49;
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
@@ -2426,7 +2426,6 @@ message ScalerData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
-  optional NodeReferenceData scaler_ptr = 39;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp activated_at = 41;
   optional google.protobuf.Timestamp deactivated_at = 42;
@@ -2436,6 +2435,7 @@ message ScalerData {
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;
+  optional NodeReferenceData scaler_ptr = 49;
   ScalerStrategy strategy = 60;
   int32 target_count = 61;
   int32 min_count = 62;
@@ -2467,7 +2467,6 @@ message StoreData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
-  optional NodeReferenceData scaler_ptr = 39;
   ResourceStatus status = 40;
   optional google.protobuf.Timestamp activated_at = 41;
   optional google.protobuf.Timestamp deactivated_at = 42;
@@ -2477,6 +2476,7 @@ message StoreData {
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;
+  optional NodeReferenceData scaler_ptr = 49;
   string version = 60;
   optional string external_name = 62;
   optional string external_id = 63;
@@ -2616,16 +2616,6 @@ message FileData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
-  optional NodeReferenceData scaler_ptr = 39;
-  ResourceStatus status = 40;
-  optional google.protobuf.Timestamp activated_at = 41;
-  optional google.protobuf.Timestamp deactivated_at = 42;
-  optional google.protobuf.Timestamp reset_at = 43;
-  optional google.protobuf.Timestamp suspended_at = 44;
-  optional google.protobuf.Timestamp decommissioned_at = 45;
-  optional google.protobuf.Timestamp active_at = 46;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int32 failed_attempts = 48;
   FileSource source = 60;
   optional string mime_type = 61;
   optional FileFormat format = 62;
@@ -2671,16 +2661,6 @@ message LinkData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
-  optional NodeReferenceData scaler_ptr = 39;
-  ResourceStatus status = 40;
-  optional google.protobuf.Timestamp activated_at = 41;
-  optional google.protobuf.Timestamp deactivated_at = 42;
-  optional google.protobuf.Timestamp reset_at = 43;
-  optional google.protobuf.Timestamp suspended_at = 44;
-  optional google.protobuf.Timestamp decommissioned_at = 45;
-  optional google.protobuf.Timestamp active_at = 46;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int32 failed_attempts = 48;
   optional string url = 50;
   optional string domain = 51;
   optional string content_url = 52;
@@ -2718,16 +2698,6 @@ message StreamData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
-  optional NodeReferenceData scaler_ptr = 39;
-  ResourceStatus status = 40;
-  optional google.protobuf.Timestamp activated_at = 41;
-  optional google.protobuf.Timestamp deactivated_at = 42;
-  optional google.protobuf.Timestamp reset_at = 43;
-  optional google.protobuf.Timestamp suspended_at = 44;
-  optional google.protobuf.Timestamp decommissioned_at = 45;
-  optional google.protobuf.Timestamp active_at = 46;
-  optional google.protobuf.Timestamp failed_at = 47;
-  int32 failed_attempts = 48;
 }
 
 message AgentData {

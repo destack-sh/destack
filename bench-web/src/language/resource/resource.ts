@@ -1,6 +1,6 @@
-import { isResourceNode } from "@/language/core/const";
+import { isProvisionableResourceNode, isResourceNode } from "@/language/core/const";
 import { newChangeId, Transaction } from "@/language/core/transaction";
-import { ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
+import { ProvisionableNodeData, ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
 import { Command, CommandContext, getNodesForCommand, provideCommands } from "@/ui/command";
 
 /** Provision or activate a Resource. */
@@ -36,7 +36,7 @@ function isResourceCommandEnabled(
   statusPredicate: (status: ResourceStatus) => boolean,
 ): boolean {
   const nodes = getNodesForCommand(command, context, isResourceNode).nodes;
-  return nodes.length > 0 && nodes.every((n) => statusPredicate((n as ResourceNodeData).status));
+  return nodes.length > 0 && nodes.every((n) => !isProvisionableResourceNode(n) || statusPredicate(n.status));
 }
 
 // resource

@@ -46,6 +46,7 @@ from .const import (
     PACKAGE_NODE_TYPES,
     PAGE_NODE_TYPES,
     PRIMITIVE_TYPE_BY_PY_TYPE,
+    PROVISIONABLE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     REGION,
@@ -195,7 +196,7 @@ from .query import (
     SelectOptions,
     get_default_query_filter,
 )
-from .resource import Resource, ResourceStatus
+from .resource import ProvisionableResource, Resource, ResourceStatus
 from .struct import Struct, struct_
 from .text import (
     Text,
@@ -362,6 +363,7 @@ __all__ = [
     "PRIMITIVE_TYPE_BY_PY_TYPE",
     "PROCESSABLE_NODE_TYPES",
     "PROPERTY_META_KEY_BY_TYPE",
+    "PROVISIONABLE_NODE_TYPES",
     "PUBLIC_NODE_TYPES",
     "PY_TYPE_BY_PRIMITIVE_TYPE",
     "RAM_CONSTRAINT",
@@ -479,6 +481,7 @@ __all__ = [
     "Property",
     "PropertyReference",
     "PropertyReferenceType",
+    "ProvisionableResource",
     "Query",
     "QueryType",
     "RecordNodeList",

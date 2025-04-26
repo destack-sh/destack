@@ -2,7 +2,7 @@ from bench.language.core import (
     BuiltinEnum,
     EnumType,
     NodeType,
-    Resource,
+    ProvisionableResource,
     constraint,
     enum_,
     node_,
@@ -27,7 +27,7 @@ class ScalerStrategy(BuiltinEnum):
 
 
 @node_(NodeType.SCALER)
-class Scaler(Resource[ScalerData]):
+class Scaler(ProvisionableResource[ScalerData]):
     """
     A Scaler automatically scales another Resource.
     """

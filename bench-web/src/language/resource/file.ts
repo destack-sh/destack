@@ -126,7 +126,6 @@ export async function extractFile(
     packagePtr: toNodeRef(pkg),
     benchPtr: toNodeRef(bench),
     region: bench.region,
-    status: ResourceStatus.AVAILABLE,
     source: FileSource.BENCH,
     name,
     type,

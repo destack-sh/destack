@@ -10,7 +10,7 @@ from bench.language.core import (
     IsSubject,
     NodeReference,
     NodeType,
-    Resource,
+    ProvisionableResource,
     enum_,
     node_,
     p_kernel,
@@ -35,7 +35,7 @@ class ComputerType(BuiltinEnum):
 
 
 @node_(NodeType.COMPUTER)
-class Computer(IsSubject, Resource[ComputerData]):
+class Computer(IsSubject, ProvisionableResource[ComputerData]):
     """
     A Computer provides physical compute.
     """

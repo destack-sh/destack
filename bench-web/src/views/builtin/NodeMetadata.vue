@@ -3,6 +3,7 @@ import {
   isNodeActive,
   isNodeInstance,
   isProcessableNode,
+  isProvisionableResourceNode,
   isResourceNode,
   PRE_PROCESS_STATUSES,
   toCamelName,
@@ -60,7 +61,7 @@ const textClass = computed(() => [
     />
     <!-- Resource metadata -->
     <span
-      v-if="isResourceNode(node) && isNodeActive(node)"
+      v-if="isProvisionableResourceNode(node) && isNodeActive(node)"
       class="fas fa-circle-small w-5 text-center"
       :class="[iconClass]"
       :style="{ color: getColorHex(ResourceStatusOptionInfo[node.status]!.color!) }"
