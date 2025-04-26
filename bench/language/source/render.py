@@ -1,6 +1,7 @@
 import base64
 import contextvars
 import dataclasses
+import json
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from enum import Enum
@@ -1060,10 +1061,12 @@ class TextRenderer(BuiltinObjectRenderer[Text]):
     @override
     def render(self, renderer: "Renderer", obj: Text, options: RenderOptions) -> str:
         rendered_string = text_to_markdown(obj, renderer.aliasing)
+        escaped_string = json.dumps(rendered_string)[1:-1]
+        escaped_string = escaped_string.replace('"""', '\\"\\"\\"')
         if "\n" in rendered_string:
-            return f'text("""\\\n{repr(rendered_string)[1:-1]}\n""")'
+            return f'text("""\\\n{escaped_string}\n""")'
         else:
-            return f"text({rendered_string!r})"
+            return f'text("""\\\n{escaped_string}\n""")'
 
 
 @_renderer(StructType.CODE)
