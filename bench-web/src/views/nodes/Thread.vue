@@ -1,17 +1,20 @@
 <script lang="ts" setup>
 import { supergraph } from "@/globals";
-import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
+import { BENCH_BENCH_AGENT_PTR, BENCH_BENCH_UBUNTU_DESKTOP_PTR } from "@/language/core/builtin";
 import { isProcessableNode, toCamelName } from "@/language/core/const";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { newChangeId } from "@/language/core/transaction";
 import { INLINABLE_FILE_TYPES, uploadFile } from "@/language/resource/file";
+import { VERB_BY_RESOURCE_STATUS } from "@/language/resource/resource";
 import { isProcessActive, touchProcess } from "@/language/runtime/process";
+import { createClaim } from "@/language/source/claim";
 import { createThread } from "@/language/source/thread";
 import { createMessage, getMessageAuthorPtr } from "@/language/state/message";
 import {
   Alignment,
   AnyNodeData,
+  ClaimType,
   ColorType,
   ExpressionData,
   ExpressionType,
@@ -20,10 +23,12 @@ import {
   MessageProperty,
   MessageType,
   MessageTypeOptionInfo,
+  NodeMode,
   NodeReferenceData,
   NodeType,
   Orientation,
   RectangleData,
+  ResourceStatus,
   SubjectNodeData,
   TextData,
   ThreadData,
@@ -32,7 +37,7 @@ import {
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
-import { SearchConnectionParams, useInfiniteSearchConnection } from "@/system/connection";
+import { SearchConnectionParams, useAutoConnection, useInfiniteSearchConnection } from "@/system/connection";
 import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
 import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";
@@ -49,6 +54,7 @@ import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
+import Claim from "@/views/nodes/Claim.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -80,6 +86,8 @@ canvas.registerView(self, id);
 // state
 const nodePtr = toRef(props, "nodePtr");
 const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
+const { graph: threadGraph, connection: threadConnection } = useAutoConnection(nodePtr);
+const claims = threadGraph.getChildrenRef(nodePtr, NodeType.CLAIM);
 
 //
 // Messages
@@ -772,7 +780,10 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                 }"
               >
                 <!-- Icon -->
-                <div v-if="isCustomLineOnly" class="ml-2 flex h-7 w-8 flex-col items-center justify-center">
+                <div
+                  v-if="isCustomLineOnly"
+                  class="ml-2 flex h-7 w-8 flex-col items-center justify-center text-gray-700"
+                >
                   <IconInline v-bind="makeIcon(MessageTypeOptionInfo[message.type]?.icon ?? 'fas fa-question')" />
                 </div>
                 <AvatarInline
@@ -796,8 +807,31 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
 
               <!-- Body -->
               <div class="relative flex-1">
+                <!-- Custom line -->
+                <div v-if="isCustomLineOnly" class="mt-1 mb-1 flex flex-row items-baseline gap-x-1.5">
+                  <!-- Node -->
+                  <NodeReference
+                    v-for="nodePtr in message.nodesPtr"
+                    :key="nodePtr.id"
+                    :node-ptr="nodePtr"
+                    size="sm"
+                    hide-metadata
+                    class="rounded-full py-0.5"
+                  />
+                  <!-- Verb -->
+                  <span v-if="message.type == MessageType.JOIN" class="text-gray-400">joined.</span>
+                  <span v-else-if="message.type == MessageType.LEAVE" class="text-gray-400">left.</span>
+                  <span v-else-if="message.type == MessageType.RESOURCE" class="text-gray-400"
+                    >{{ VERB_BY_RESOURCE_STATUS[message.resourceStatus ?? ResourceStatus.UNSPECIFIED] }}.</span
+                  >
+                  <!-- Timestamp -->
+                  <span class="text-xs text-gray-400">
+                    {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
+                  </span>
+                </div>
+
                 <!-- Header -->
-                <div v-if="isStartOfGroup" class="">
+                <div v-else-if="isStartOfGroup" class="">
                   <!-- Author -->
                   <span class="text-base font-medium decoration-gray-300 underline-offset-3 hover:underline">
                     {{ author?.name ?? "[missing]" }}
@@ -812,27 +846,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   </span>
                   <!-- Edited? -->
                   <span v-if="isEdited" class="fas fa-pencil ml-1 text-xs text-gray-300" />
-                </div>
-
-                <!-- Custom line -->
-                <div v-if="isCustomLineOnly" class="mt-1 mb-1 flex flex-row items-baseline gap-x-1.5">
-                  <!-- Node -->
-                  <NodeReference
-                    v-for="nodePtr in message.nodesPtr"
-                    :key="nodePtr.id"
-                    :node-ptr="nodePtr"
-                    size="sm"
-                    hide-icon
-                    hide-metadata
-                    class="rounded-full py-0.5"
-                  />
-                  <!-- Verb -->
-                  <span v-if="message.type == MessageType.JOIN" class="text-gray-400">joined.</span>
-                  <span v-else-if="message.type == MessageType.LEAVE" class="text-gray-400">left.</span>
-                  <!-- Timestamp -->
-                  <span class="text-xs text-gray-400">
-                    {{ formatAbsoluteDate(message.createdAt!, { prefer: "time" }) }}
-                  </span>
                 </div>
 
                 <!-- Text -->
@@ -1023,7 +1036,10 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           {{ renderText(replyTo.message.text, 3) }}
         </span>
         <!-- Clear -->
-        <button class="ml-auto rounded-full px-1 text-gray-700 hover:text-gray-900" @click="stopReplying()">
+        <button
+          class="ml-auto cursor-pointer rounded-full px-1 text-gray-700 hover:text-gray-900"
+          @click="stopReplying()"
+        >
           <i class="fas fa-xmark" />
         </button>
       </div>
@@ -1051,7 +1067,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           />
           <button
             v-tooltip="{ small: true, title: 'Add Context' }"
-            class="transition-color mr-3 rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
+            class="transition-color mr-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
             @click.stop="fileInputRef?.click()"
           >
             <i class="fas fa-plus" />
@@ -1131,6 +1147,25 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       <div class="flex h-[24px] w-full flex-row items-center px-3 text-xs">
         <!-- Context? -->
         <div>
+          <!-- nocheckin -->
+          {{ claims.length }}
+          <button
+            @click="
+              () => {
+                createClaim(threadConnection.tx, threadGraph, {
+                  claim: {
+                    mode: NodeMode.MAIN,
+                    type: ClaimType.WRITE,
+                    packagePtr: (node as ThreadData)?.packagePtr,
+                    parentPtr: nodePtr,
+                    targetTemplatePtr: BENCH_BENCH_UBUNTU_DESKTOP_PTR,
+                  },
+                });
+              }
+            "
+          >
+            computer
+          </button>
           <!-- ... -->
         </div>
         <!-- Compute -->

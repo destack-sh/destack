@@ -3,13 +3,26 @@ import { newChangeId, Transaction } from "@/language/core/transaction";
 import { ProvisionableNodeData, ResourceNodeData, ResourceStatus, Timestamp } from "@/proto/wire";
 import { Command, CommandContext, getNodesForCommand, provideCommands } from "@/ui/command";
 
+export const VERB_BY_RESOURCE_STATUS: Record<ResourceStatus, string> = {
+  [ResourceStatus.UNSPECIFIED]: "is unspecified",
+  [ResourceStatus.PENDING]: "is pending",
+  [ResourceStatus.CREATING]: "is creating",
+  [ResourceStatus.RETRYING]: "is retrying",
+  [ResourceStatus.AVAILABLE]: "is online",
+  [ResourceStatus.SLEEPING]: "is sleeping",
+  [ResourceStatus.UNAVAILABLE]: "is unavailable",
+  [ResourceStatus.IMPAIRED]: "is impaired",
+  [ResourceStatus.OFFLINE]: "is offline",
+  [ResourceStatus.FAILED]: "is failed",
+};
+
 /** Provision or activate a Resource. */
-export function activateResource(tx: Transaction, resource: ResourceNodeData) {
+export function activateResource(tx: Transaction, resource: ProvisionableNodeData) {
   tx.update(resource, { activatedAt: Timestamp.now() });
 }
 
 /** Decommission a Resource. */
-export function decommissionResource(tx: Transaction, resource: ResourceNodeData) {
+export function decommissionResource(tx: Transaction, resource: ProvisionableNodeData) {
   tx.update(resource, { decommissionedAt: Timestamp.now() });
 }
 
