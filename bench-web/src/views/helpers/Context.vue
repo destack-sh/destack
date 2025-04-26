@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import { getEnumOptions } from "@/language/core/enum";
-import { ContextMode, EnumType, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
@@ -11,7 +10,7 @@ import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Thread from "@/views/nodes/Thread.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
-import { computed, nextTick, ref, Ref, toRef, watchEffect } from "vue";
+import { computed, nextTick, ref, Ref, toRef } from "vue";
 
 const BAR_HEADER_HEIGHT = VIEW_DEFAULT_ROOT_HEADER_HEIGHT;
 
@@ -34,16 +33,6 @@ const target = computed(() => {
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
 const scope = computed(() => container.value);
-
-// state (should be in ContextView?)
-const mode = ref<ContextMode>(ContextMode.CHAT);
-
-// auto-switch to detail mode if thread is the target (don't want same thread in multiple views)
-watchEffect(() => {
-  if (mode.value == ContextMode.CHAT && threadPtr.value != null && threadPtr.value.id == targetPtr.value?.id) {
-    mode.value = ContextMode.DETAIL;
-  }
-});
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -87,7 +76,7 @@ defineExpose<ViewExpose>({ self });
           class="cursor-pointer rounded-sm border-gray-200 px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900"
           @click="() => canvas.goToNode(threadPtr!)"
         >
-          <span class="fas fa-expand" />
+          <span class="fas fa-arrow-up-left" />
         </button>
         <!-- New/reset thread -->
         <button
@@ -102,25 +91,6 @@ defineExpose<ViewExpose>({ self });
         >
           <span class="fas fa-rotate-left" />
         </button>
-        <!-- Mode -->
-        <div class="flex flex-row items-center divide-x divide-gray-200 rounded-sm border border-gray-200">
-          <button
-            v-for="m in getEnumOptions(EnumType.CONTEXT_MODE)"
-            :key="m.value"
-            v-tooltip="{ title: m.title, small: true, group: 'context.meta' }"
-            class="cursor-pointer px-2 py-0.5 transition-colors duration-150 hover:bg-gray-100"
-            :class="[mode == m.value ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
-            @click="mode = m.value"
-          >
-            <span>{{ m.title }}</span>
-          </button>
-        </div>
-
-        <!-- Node type? -->
-        <!-- <div v-if="target != null" class="flex flex-row items-center text-gray-400">
-          <IconInline v-bind="getNodeIcon({ metatype: target.metatype })" class="w-5 text-center" />
-          <span class="ml-1">{{ toCamelName(NodeType, target.metatype) }}</span>
-        </div> -->
       </div>
     </div>
 
@@ -142,7 +112,6 @@ defineExpose<ViewExpose>({ self });
       >
         <!-- Detail -->
         <Thread
-          v-if="mode == ContextMode.CHAT"
           id="thread"
           ref="threadRef"
           is-minimal
