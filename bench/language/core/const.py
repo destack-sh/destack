@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Node,
         Session,
-        Severity,
         Span,
         SpanType,
         Text,
@@ -50,7 +49,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.26.1"
+VERSION = "2025.04.26.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -396,7 +395,6 @@ class EnumType(BuiltinEnum):
     RUN_TYPE = 22001
     SPAN_TYPE = 22002
     SESSION_STATUS = 22020
-    LOG_TYPE = 22060
     SEVERITY = 22061
     TRIGGER_TYPE = 22030
     TRIGGER_EFFECT = 22031
@@ -596,8 +594,7 @@ class NodeType(BuiltinEnum):
     RUN = 6010, "Run", "Run", "fas fa-play"
     SPAN = 6011, "Span", "Span", "fas fa-ruler-horizontal"
     INTERRUPTION = 6020, "Interruption", "Interruption", "fas fa-hand"
-    LOG = 6030, "Log", "Log", "fas fa-file-alt"
-    # BREAKPOINT?
+    # LOG? BREAKPOINT?
 
     # orchestration
     PLAN = 6100, "Plan", "Plan with Tasks", "fas fa-list-check"
@@ -1263,15 +1260,6 @@ class Severity(BuiltinEnum):
     PANIC = 6, None, None, "fas fa-skull", ColorType.RED
 
 
-@enum_(EnumType.LOG_TYPE)
-class LogType(BuiltinEnum):
-    # code
-    PRINT = 100
-    # access
-    CHANGE = 200
-    EDIT = 201
-
-
 @enum_(EnumType.POLICY_EFFECT)
 class PolicyEffect(BuiltinEnum):
     ALLOW = 1
@@ -1754,7 +1742,7 @@ def capture_span(
     runner: "Runner[Any] | None" = None,
 ) -> Generator["Span | None", None, None]:
     """Decorate or annotate a Span in the current Run (noop if not inside a Run)."""
-    from bench.language import Severity, Span
+    from bench.language import Span
 
     if runner is None:
         session = ACTIVE_SESSION.get()
@@ -1773,7 +1761,6 @@ def capture_span(
     else:
         span = Span(
             type=type,
-            severity=level or Severity.INFO,
             nodes=nodes or [],
             title=title,
             text=text,

@@ -33,7 +33,6 @@ from bench.language import (
     InterruptionType,
     IsType,
     Kit,
-    Log,
     Membership,
     Message,
     Node,
@@ -369,15 +368,6 @@ class Runner[N: Runnable = Runnable](abc.ABC):
         for span in reversed(self.tracked_run.spans):
             if span.type == SpanType.ATTEMPT:
                 return span
-
-    @property
-    def logs(self) -> Sequence[Log]:
-        if self.tracked_run is not None:
-            return self.tracked_run.logs
-        elif (run := self.closest_tracked_run) is not None:
-            return run.logs
-        else:
-            return ()
 
     @property
     def ancestors(self):

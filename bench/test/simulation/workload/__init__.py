@@ -7,8 +7,6 @@ from .client import (
 from .package import (
     ReadPackageSpec,
     ReadPackageWorkload,
-    WatchLogsSpec,
-    WatchLogsWorkload,
     WritePageTreeSpec,
     WritePageTreeWorkload,
 )
@@ -32,8 +30,6 @@ __all__ = [
     "RuntimeLambdaWorkloadSpec",
     "RuntimeWorkload",
     "RuntimeWorkloadSpec",
-    "WatchLogsSpec",
-    "WatchLogsWorkload",
     "Workload",
     "WorkloadSpec",
     "WorkloadType",

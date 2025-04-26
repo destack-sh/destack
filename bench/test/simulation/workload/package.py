@@ -6,7 +6,6 @@ from opentelemetry import trace
 
 from bench.language import (
     EditType,
-    Log,
     NodeType,
     Page,
     repr_enums,
@@ -117,48 +116,3 @@ class ReadPackageWorkload(ClientWorkload[ReadPackageSpec]):
             if other is self or not isinstance(other, ClientWorkload):
                 continue
             assert_graph_equals(self.main_package._graph, other.main_package._graph)
-
-
-@dataclass
-class WatchLogsSpec(ClientWorkloadSpec):
-    type: WorkloadType = WorkloadType.WATCH_LOGS
-    tail_user: str | None = None
-    limit: int | SampledInt = 50
-    live: bool = True
-    min_expected_count: int | None = None
-
-
-@workload_(WorkloadType.WATCH_LOGS, WatchLogsSpec)
-class WatchLogsWorkload(ClientWorkload[WatchLogsSpec]):
-    @override
-    async def prepare_in_session(self):
-        self.limit = to_value(self.random, self.spec.limit)
-        log_query = Log.order_by("-created_at").first(self.limit)
-        if self.spec.tail_user:
-            tail_user = self.simulation.get_user(self.spec.tail_user)
-            log_query = log_query.where(user=tail_user.user_ptr)
-        _, self.connection = await log_query.search_connection(live=True)
-
-    @property
-    def logs(self) -> list[Log]:
-        return self.connection.result.roots
-
-    @override
-    async def check_self(self):
-        logs = self.connection.result.roots
-        if self.spec.min_expected_count is not None:
-            assert (
-                len(logs) >= self.spec.min_expected_count
-            ), f"too few logs {len(logs)} < {self.spec.min_expected_count}"
-        assert len(logs) <= self.limit, f"too many logs {len(logs)} > {self.limit}"
-        assert len(self.connection.result.graph.nodes) == len(logs)
-
-    @override
-    async def check_group(self, group: list[Workload]):
-        for other in group:
-            if other is self or not isinstance(other, WatchLogsWorkload):
-                continue
-            assert len(self.logs) == len(other.logs), f"{self!r} != {other!r}"
-            for log_a, log_b in zip(self.logs, other.logs):
-                assert log_a == log_b, f"{log_a!r} != {log_b!r}"
-                assert log_a.equals(log_b), f"{log_a!r} != {log_b!r}"

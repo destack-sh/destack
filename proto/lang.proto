@@ -71,7 +71,6 @@ enum EnumType {
   ENUM_TYPE_RUN_TYPE = 22001;
   ENUM_TYPE_SPAN_TYPE = 22002;
   ENUM_TYPE_SESSION_STATUS = 22020;
-  ENUM_TYPE_LOG_TYPE = 22060;
   ENUM_TYPE_SEVERITY = 22061;
   ENUM_TYPE_TRIGGER_TYPE = 22030;
   ENUM_TYPE_TRIGGER_EFFECT = 22031;
@@ -160,7 +159,6 @@ enum NodeType {
   NODE_TYPE_RUN = 6010;
   NODE_TYPE_SPAN = 6011;
   NODE_TYPE_INTERRUPTION = 6020;
-  NODE_TYPE_LOG = 6030;
   NODE_TYPE_PLAN = 6100;
   NODE_TYPE_TASK = 6110;
   NODE_TYPE_CLAIM = 6150;
@@ -259,7 +257,6 @@ enum ObjectType {
   OBJECT_TYPE_RUN = 6010;
   OBJECT_TYPE_SPAN = 6011;
   OBJECT_TYPE_INTERRUPTION = 6020;
-  OBJECT_TYPE_LOG = 6030;
   OBJECT_TYPE_PLAN = 6100;
   OBJECT_TYPE_TASK = 6110;
   OBJECT_TYPE_CLAIM = 6150;
@@ -354,7 +351,6 @@ enum BenchType {
   BENCH_TYPE_RUN = 6010;
   BENCH_TYPE_SPAN = 6011;
   BENCH_TYPE_INTERRUPTION = 6020;
-  BENCH_TYPE_LOG = 6030;
   BENCH_TYPE_PLAN = 6100;
   BENCH_TYPE_TASK = 6110;
   BENCH_TYPE_CLAIM = 6150;
@@ -466,7 +462,6 @@ enum BenchType {
   BENCH_TYPE_RUN_TYPE = 22001;
   BENCH_TYPE_SPAN_TYPE = 22002;
   BENCH_TYPE_SESSION_STATUS = 22020;
-  BENCH_TYPE_LOG_TYPE = 22060;
   BENCH_TYPE_SEVERITY = 22061;
   BENCH_TYPE_TRIGGER_TYPE = 22030;
   BENCH_TYPE_TRIGGER_EFFECT = 22031;
@@ -1222,13 +1217,6 @@ enum SessionStatus {
   SESSION_STATUS_PENDING = 1;
   SESSION_STATUS_OPEN = 10;
   SESSION_STATUS_CLOSED = 30;
-}
-
-enum LogType {
-  LOG_TYPE_UNSPECIFIED = 0;
-  LOG_TYPE_PRINT = 100;
-  LOG_TYPE_CHANGE = 200;
-  LOG_TYPE_EDIT = 201;
 }
 
 enum Severity {
@@ -2047,7 +2035,6 @@ message EditData {
   optional ClientOriginData origin = 64;
   optional EditContextData context = 65;
   optional int64 epoch = 68;
-  optional NodeReferenceData undo_of_ptr = 69;
 }
 
 message ChangeData {
@@ -3008,29 +2995,6 @@ message InterruptionData {
   optional NodeReferenceData user_ptr = 97;
 }
 
-message LogData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  NodeMode mode = 20;
-  LogType type = 30;
-  Severity severity = 31;
-  optional string title = 32;
-  optional TextData text = 33;
-  optional NodeReferenceData session_ptr = 94;
-  optional NodeReferenceData client_ptr = 95;
-  optional NodeReferenceData computer_ptr = 96;
-  optional NodeReferenceData user_ptr = 97;
-}
-
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3120,7 +3084,6 @@ message SpanData {
   NodeMode mode = 20;
   SpanType type = 30;
   optional NodeReferenceData root_ptr = 31;
-  Severity severity = 33;
   optional string title = 60;
   optional TextData text = 61;
   optional CodeData code = 62;
@@ -3652,16 +3615,15 @@ message SomeNodeData {
     RunData run = 37;
     SpanData span = 38;
     InterruptionData interruption = 39;
-    LogData log = 40;
-    PlanData plan = 41;
-    TaskData task = 42;
-    ClaimData claim = 43;
-    CursorData cursor = 44;
-    ViewData view = 45;
-    SpaceData space = 46;
-    RecordData record = 47;
-    SkipData skip = 48;
-    EmptyData empty = 49;
+    PlanData plan = 40;
+    TaskData task = 41;
+    ClaimData claim = 42;
+    CursorData cursor = 43;
+    ViewData view = 44;
+    SpaceData space = 45;
+    RecordData record = 46;
+    SkipData skip = 47;
+    EmptyData empty = 48;
   };
 }
 

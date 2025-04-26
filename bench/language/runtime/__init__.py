@@ -8,7 +8,6 @@ from .interruption import (
     InterruptionStatus,
     InterruptionType,
 )
-from .log import Log, LogType, Severity
 from .model import ModelDeveloper, ModelProvider
 from .run import Run
 from .session import Session
@@ -39,13 +38,10 @@ __all__ = [
     "InterruptionStatus",
     "InterruptionType",
     "IsRun",
-    "Log",
-    "LogType",
     "ModelDeveloper",
     "ModelProvider",
     "Run",
     "Session",
-    "Severity",
     "Span",
     "Transaction",
     "edit_data_graph",

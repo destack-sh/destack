@@ -1,5 +1,4 @@
 import abc
-import asyncio
 import functools
 from datetime import date, datetime
 from enum import StrEnum
@@ -7,14 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast, fina
 
 from bench.language import (
     Action,
-    ActionType,
     Agent,
     Block,
     CursorType,
     Interruption,
-    Log,
     Message,
-    MessageType,
     Node,
     NodeMode,
     Page,
@@ -212,7 +208,7 @@ def SEND(
     nodes = [
         n
         for n in nodes or ()
-        if isinstance(n, Node) and not isinstance(n, (Run, Span, Log, Interruption, Message))
+        if isinstance(n, Node) and not isinstance(n, (Run, Span, Interruption, Message))
     ]
     # message
     message = Message.new(

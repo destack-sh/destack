@@ -42,9 +42,7 @@ if TYPE_CHECKING:
         CustomObject,
         Interruption,
         IsType,
-        Log,
         NodeReference,
-        Plan,
         Runnable,
         Span,
         Thread,
@@ -108,8 +106,6 @@ class Run(
     runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
     spans: LocalNodeList["Span"] = p_node_children(NodeType.SPAN)
     interruptions: LocalNodeList["Interruption"] = p_node_children(NodeType.INTERRUPTION)
-    logs: LocalNodeList["Log"] = p_node_children(NodeType.LOG)
-    plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
 
     def __content_str__(self):
         node = self.runnable
