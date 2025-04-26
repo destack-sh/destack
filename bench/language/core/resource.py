@@ -18,7 +18,7 @@ from .property import p_internal, p_node_parent, p_system
 from .trait import IsClaimable, IsInstantiable, IsModal, IsNamed, IsOwnable
 
 if TYPE_CHECKING:
-    from bench.language import Channel, Package, Page, Region, Scaler, Thread
+    from bench.language import Package, Page, Region, Scaler, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -122,8 +122,8 @@ class Resource[NodeDataT: AnyNodeData](
     """
 
     # meta
-    parent: Union["Package", "Page", "Channel", "Thread", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.CHANNEL, NodeType.THREAD, ckless=True
+    parent: Union["Package", "Page", "Thread", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.THREAD, ckless=True
     )
     # ... space for type/name/...
     region: Region = p_system(38, default=REGION, default_sql=None)

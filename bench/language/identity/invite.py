@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.core import (
     JOINABLE_NODE_TYPES,
+    SUBJECT_NODE_TYPES,
     BenchNode,
     Joinable,
     NodeType,
@@ -33,11 +34,5 @@ class Invite(BenchNode[InviteData]):
         array=False,
         baseless=True,
         ckless=True,
-        references=(
-            NodeType.BENCH,
-            NodeType.ORGANIZATION,
-            NodeType.TEAM,
-            NodeType.CHANNEL,
-            NodeType.THREAD,
-        ),
+        references=SUBJECT_NODE_TYPES.tuple,
     )
