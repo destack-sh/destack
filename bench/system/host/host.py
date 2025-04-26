@@ -12,8 +12,10 @@ from more_itertools import first
 from opentelemetry import trace
 
 from bench.language import (
+    BENCH_ID,
     BENCH_NODE_TYPES,
     CLOUD,
+    EMPTY_SCOPE_DATA,
     LOADED_PACKAGE_NODE_TYPES,
     LOCAL_NODE_TYPES,
     REGIONAL_NODE_TYPES,
@@ -43,6 +45,7 @@ from bench.language import (
     PageNode,
     PolicySubject,
     Query,
+    QueryType,
     Session,
     Store,
     User,
@@ -52,8 +55,7 @@ from bench.language import (
     pack_value_scalar,
     patch_graph,
 )
-from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES, BENCH_ID, QueryType
-from bench.language.core.object import EMPTY_SCOPE_DATA
+from bench.language.core.const import AUTOLOAD_DESCENDANT_TYPES
 from bench.pb2 import MessageData
 from bench.proto import (
     DownloadFilesRequest,
@@ -364,8 +366,8 @@ class HostService(GraphServiceBase, HostBase):
         from bench.system.plugin import (
             ClaimPlugin,
             DatabasePlugin,
+            MessagePlugin,
             RunPlugin,
-            ScheduleTriggerPlugin,
             WakePlugin,
         )
 
@@ -459,7 +461,7 @@ class HostService(GraphServiceBase, HostBase):
         self._plugins = (
             database_plugin,
             *self._provisioners,
-            ScheduleTriggerPlugin(self, self._bench),
+            MessagePlugin(self, self._bench),
             RunPlugin(self, self._bench),
             WakePlugin(self, self._bench),
             ClaimPlugin(self, self._bench),

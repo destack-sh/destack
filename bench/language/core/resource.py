@@ -137,11 +137,11 @@ class ProvisionableResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
 
     # status
     status: ResourceStatus = p_system(40, default=ResourceStatus.PENDING, default_sql=None)
-    activated_at: Optional[datetime] = p_internal(41, default=None)
-    deactivated_at: Optional[datetime] = p_internal(42, default=None)
-    reset_at: Optional[datetime] = p_internal(43, default=None)
-    suspended_at: Optional[datetime] = p_internal(44, default=None)
-    decommissioned_at: Optional[datetime] = p_internal(45, default=None)
+    requested_activate_at: Optional[datetime] = p_internal(41, default=None)
+    requested_deactivate_at: Optional[datetime] = p_internal(42, default=None)
+    requested_reset_at: Optional[datetime] = p_internal(43, default=None)
+    requested_suspend_at: Optional[datetime] = p_internal(44, default=None)
+    requested_decommission_at: Optional[datetime] = p_internal(45, default=None)
     active_at: Optional[datetime] = p_system(46, default=None)
     failed_at: Optional[datetime] = p_system(47, default=None)
     failed_attempts: int = p_system(48, default=0)
@@ -174,35 +174,37 @@ class ProvisionableResource[NodeDataT: AnyNodeData](Resource[NodeDataT]):
     def should_retry(self) -> bool:
         """Whether this Resource should be retried."""
         return self.failed_at is None or (
-            self.reset_at is not None and self.reset_at > self.failed_at
+            self.requested_reset_at is not None and self.requested_reset_at > self.failed_at
         )
 
     @property
     def target_status(self) -> ResourceStatus:
         """The implied target status of this Resource."""
-        if self.decommissioned_at is not None:
+        if self.requested_decommission_at is not None:
             return ResourceStatus.OFFLINE
-        elif self.suspended_at is not None and not (
-            self.activated_at is not None and self.activated_at > self.suspended_at
+        elif self.requested_suspend_at is not None and not (
+            self.requested_activate_at is not None
+            and self.requested_activate_at > self.requested_suspend_at
         ):
             return ResourceStatus.SLEEPING
-        elif self.deactivated_at is not None and not (
-            self.activated_at is not None and self.activated_at > self.deactivated_at
+        elif self.requested_deactivate_at is not None and not (
+            self.requested_activate_at is not None
+            and self.requested_activate_at > self.requested_deactivate_at
         ):
             return ResourceStatus.UNAVAILABLE
         else:
             return ResourceStatus.AVAILABLE
 
     def provision(self) -> None:
-        """Provision this Resource."""
-        self.activated_at = self.active_session._oracle.utc()
+        """Request to provision this Resource."""
+        self.requested_activate_at = self.active_session._oracle.utc()
 
     def decommission(self) -> None:
-        """Decommission this Resource."""
-        self.decommissioned_at = self.active_session._oracle.utc()
+        """Request to decommission this Resource."""
+        self.requested_decommission_at = self.active_session._oracle.utc()
 
     def update_status(self, status: ResourceStatus) -> None:
-        """Set the status of this Resource."""
+        """Set the actual current status of this Resource."""
         self.status = status
         if status == ResourceStatus.FAILED or status == ResourceStatus.RETRYING:
             self.failed_at = self.active_session._oracle.utc()

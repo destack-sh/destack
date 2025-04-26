@@ -27,7 +27,7 @@ import {
   TextData,
   ThreadData,
   Timestamp,
-  ViewData,
+  ViewData
 } from "@/proto/wire";
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
@@ -53,13 +53,14 @@ import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 
+const MAX_THREAD_WIDTH = 1000;
+const GUTTER_WIDTH = 30;
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
 const MIN_AUTOSCROLL_INTERVAL_MILLISECONDS = 500;
 const MESSAGE_GROUP_TIME_SECONDS = 5 * 60; // 5 minutes
 const MESSAGE_SIDE_WIDTH = 52;
 const MESSAGE_MAX_LINES = 60;
-const GUTTER_WIDTH = 30;
 
 const props = defineProps<
   {
@@ -588,9 +589,12 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
     >
       <ul
         ref="innerScrollRef"
-        class="relative flex flex-col focus:outline-hidden"
+        class="relative mx-auto flex flex-col focus:outline-hidden"
         :class="[alignment == Alignment.END ? 'justify-end' : '']"
-        :style="{ minHeight: bodyHeight != null ? bodyHeight - 4 /* WHY -4? */ + 'px' : undefined }"
+        :style="{
+          minHeight: bodyHeight != null ? bodyHeight - 4 /* WHY -4? */ + 'px' : undefined,
+          maxWidth: MAX_THREAD_WIDTH + 'px',
+        }"
         @mousedown="(e) => startSelectingIfAllowed(selectionZone, e)"
       >
         <!-- Top placeholder / general loading state -->
@@ -625,7 +629,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         <!-- Beginning of Chat -->
         <div
           v-if="isAtStart && !isMinimal"
-          class="mb-2"
+          class="mb-3"
           :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
         >
           <!-- Title -->
@@ -919,9 +923,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           </li>
         </template>
 
-        <!-- Spacer -->
-        <div class="h-[16px] w-full" />
-
         <!-- Loading down 'skeleton' -->
         <div
           v-for="i in LOADING_SKELETON_COUNT"
@@ -947,9 +948,35 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
     <!-- Input box -->
     <div
       ref="inputContainerRef"
-      :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
+      class="mx-auto w-full"
+      :style="{
+        paddingLeft: GUTTER_WIDTH + 'px',
+        paddingRight: GUTTER_WIDTH + 'px',
+        maxWidth: MAX_THREAD_WIDTH + 'px',
+      }"
       @mousedown="inputRef?.focus?.('right')"
     >
+      <div class="flex h-[20px] w-full flex-row items-center px-3 text-xs">
+        <template v-if="activeAuthors.length > 0">
+          <!-- Status icon -->
+          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
+            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
+          </span>
+          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
+            <!-- Names -->
+            <div
+              class="cursor-pointer rounded-full decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
+              role="link"
+              :class="i > 0 ? 'ml-1' : ''"
+              @click="author && canvas.goToNode(author.node)"
+            >
+              <span class="font-medium text-gray-900">{{ author.name }}</span>
+            </div>
+            <span v-if="i < activeAuthors.length - 1">, </span>
+          </template>
+        </template>
+      </div>
+
       <!-- Replying to -->
       <div
         v-if="replyTo != null"
@@ -1073,26 +1100,16 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         </div>
       </div>
       <!-- Footer -->
-      <!-- Activity -->
-      <div class="flex h-[20px] w-full flex-row items-center px-3 text-xs">
-        <template v-if="activeAuthors.length > 0">
-          <!-- Status icon -->
-          <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
-            <span class="fas fa-circle-small absolute inset-0 animate-ping text-blue-500" />
-          </span>
-          <template v-for="(author, i) in activeAuthors" :key="author.node.id">
-            <!-- Names -->
-            <div
-              class="cursor-pointer rounded-full decoration-gray-300 underline-offset-3 hover:cursor-pointer hover:underline"
-              role="link"
-              :class="i > 0 ? 'ml-1' : ''"
-              @click="author && canvas.goToNode(author.node)"
-            >
-              <span class="font-medium text-gray-900">{{ author.name }}</span>
-            </div>
-            <span v-if="i < activeAuthors.length - 1">, </span>
-          </template>
-        </template>
+      <!-- Options -->
+      <div class="flex h-[24px] w-full flex-row items-center px-3 text-xs">
+        <!-- Context? -->
+        <div>
+          <!-- ... -->
+        </div>
+        <!-- Compute -->
+        <div class="ml-auto">
+          <!-- ... -->
+        </div>
       </div>
     </div>
   </div>

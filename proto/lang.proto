@@ -1677,11 +1677,9 @@ enum MessageType {
   MESSAGE_TYPE_DEFAULT = 1;
   MESSAGE_TYPE_JOIN = 10;
   MESSAGE_TYPE_LEAVE = 11;
-  MESSAGE_TYPE_THREAD = 20;
+  MESSAGE_TYPE_RESOURCE = 20;
   MESSAGE_TYPE_RUN = 100;
-  MESSAGE_TYPE_INTERRUPTION = 110;
-  MESSAGE_TYPE_PLAN = 200;
-  MESSAGE_TYPE_TASK = 210;
+  MESSAGE_TYPE_THREAD = 110;
 }
 
 enum MessageStatus {
@@ -2242,6 +2240,7 @@ message MessageData {
   optional NodeReferenceData forwarded_from_ptr = 51;
   optional TextData text = 61;
   repeated NodeReferenceData nodes_ptr = 63;
+  optional ResourceStatus resource_status = 64;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -2367,11 +2366,11 @@ message ComputerData {
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
   ResourceStatus status = 40;
-  optional google.protobuf.Timestamp activated_at = 41;
-  optional google.protobuf.Timestamp deactivated_at = 42;
-  optional google.protobuf.Timestamp reset_at = 43;
-  optional google.protobuf.Timestamp suspended_at = 44;
-  optional google.protobuf.Timestamp decommissioned_at = 45;
+  optional google.protobuf.Timestamp requested_activate_at = 41;
+  optional google.protobuf.Timestamp requested_deactivate_at = 42;
+  optional google.protobuf.Timestamp requested_reset_at = 43;
+  optional google.protobuf.Timestamp requested_suspend_at = 44;
+  optional google.protobuf.Timestamp requested_decommission_at = 45;
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;
@@ -2414,11 +2413,11 @@ message ScalerData {
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
   ResourceStatus status = 40;
-  optional google.protobuf.Timestamp activated_at = 41;
-  optional google.protobuf.Timestamp deactivated_at = 42;
-  optional google.protobuf.Timestamp reset_at = 43;
-  optional google.protobuf.Timestamp suspended_at = 44;
-  optional google.protobuf.Timestamp decommissioned_at = 45;
+  optional google.protobuf.Timestamp requested_activate_at = 41;
+  optional google.protobuf.Timestamp requested_deactivate_at = 42;
+  optional google.protobuf.Timestamp requested_reset_at = 43;
+  optional google.protobuf.Timestamp requested_suspend_at = 44;
+  optional google.protobuf.Timestamp requested_decommission_at = 45;
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;
@@ -2455,11 +2454,11 @@ message StoreData {
   optional NodeReferenceData definition_ptr = 35;
   Region region = 38;
   ResourceStatus status = 40;
-  optional google.protobuf.Timestamp activated_at = 41;
-  optional google.protobuf.Timestamp deactivated_at = 42;
-  optional google.protobuf.Timestamp reset_at = 43;
-  optional google.protobuf.Timestamp suspended_at = 44;
-  optional google.protobuf.Timestamp decommissioned_at = 45;
+  optional google.protobuf.Timestamp requested_activate_at = 41;
+  optional google.protobuf.Timestamp requested_deactivate_at = 42;
+  optional google.protobuf.Timestamp requested_reset_at = 43;
+  optional google.protobuf.Timestamp requested_suspend_at = 44;
+  optional google.protobuf.Timestamp requested_decommission_at = 45;
   optional google.protobuf.Timestamp active_at = 46;
   optional google.protobuf.Timestamp failed_at = 47;
   int32 failed_attempts = 48;

@@ -918,6 +918,7 @@ async def pg_graph_select(
     node_cls = NODE_CLASS_BY_TYPE[node_type]
     base_type = query._base_type
     selected_properties = select.get_selected_properties(node_type)
+    selected_properties = [p for p in selected_properties if not p.name.startswith("requested")]
     if node_type in BUILTIN_TABLE_BY_NODE_TYPE:
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[node_type]
         columns = [node_table.get_column(prop.name) for prop in selected_properties]
