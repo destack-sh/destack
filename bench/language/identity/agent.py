@@ -1,10 +1,9 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Literal, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
     ColorType,
-    CustomObject,
     FieldType,
     IsClaimable,
     IsInstantiable,
@@ -26,8 +25,6 @@ from bench.language.core import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_value_packed,
-    p_value_runtime,
 )
 from bench.pb2 import AgentData
 
@@ -72,14 +69,6 @@ class Agent(
     )
 
     # content
-    inputs_packed: Any = p_value_packed(50)
-    inputs: "CustomObject | None" = p_value_runtime(
-        50, type=FieldType.INPUT, typ=lambda self: cast("Agent", self).input_type
-    )
-    outputs_packed: Any = p_value_packed(51)
-    outputs: "CustomObject | None" = p_value_runtime(
-        51, type=FieldType.OUTPUT, typ=lambda self: cast("Agent", self).output_type
-    )
     page: Optional["Page"] = p_regular(
         54,
         require=False,

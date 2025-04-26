@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from bench.language.core import (
     BuiltinEnum,
     CustomObject,
     EnumType,
-    FieldType,
     IsModal,
     IsRuntime,
     IsTimed,
@@ -21,8 +20,6 @@ from bench.language.core import (
     p_node_ancestor,
     p_node_parent,
     p_regular,
-    p_value_packed,
-    p_value_runtime,
     timed_node_,
 )
 from bench.pb2 import InterruptionData
@@ -125,14 +122,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
 
     # content
     text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
-    inputs_packed: Any = p_value_packed(52)
-    inputs: Any = p_value_runtime(
-        52, type=FieldType.INPUT, typ=lambda self: cast("Interruption", self).input_type
-    )
-    outputs_packed: Any = p_value_packed(53)
-    outputs: Any = p_value_runtime(
-        53, type=FieldType.OUTPUT, typ=lambda self: cast("Interruption", self).output_type
-    )
     response: Optional[InterruptionResponse] = p_internal(54, require=False, default=None)
     message: Optional["Message"] = p_regular(
         55,

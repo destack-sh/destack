@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.25.4"
+VERSION = "2025.04.26.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -943,7 +943,6 @@ ACTION_TABLE = Table(
         Column("tool_ck", PrimitiveType.UUID, is_nullable=True),
         Column("tool_type", PrimitiveType.INT16, is_nullable=True),
         Column("tool_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("model_developer", PrimitiveType.INT16, is_nullable=True),
         Column("model_provider", PrimitiveType.INT16, is_nullable=True),
         Column("model_id", PrimitiveType.STRING, is_nullable=True),
@@ -1408,8 +1407,6 @@ AGENT_TABLE = Table(
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
-        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("page_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_id", PrimitiveType.UUID, is_nullable=True),
         Column("plan_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1647,8 +1644,6 @@ INTERRUPTION_TABLE = Table(
         Column("duration", PrimitiveType.DURATION, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
         Column("response", PrimitiveType.INT16, is_nullable=True),
         Column("message_id", PrimitiveType.UUID, is_nullable=True),
         Column("task_id", PrimitiveType.UUID, is_nullable=True),

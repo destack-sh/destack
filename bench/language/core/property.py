@@ -974,6 +974,12 @@ def p_struct_parent(id: int) -> Any:
     )
 
 
+# TODO :Architecture!: only one 'value/value_packed' property per Node at top-level
+#  (for *all* custom values, simplify edit paths into just one element: property id or field key,
+#   which means we can drastically simplify edit tracking/syncing)
+#  (what about values in Structs like Expression.value and Field.default?)
+
+
 def p_value_runtime(
     packed: int,
     *,
