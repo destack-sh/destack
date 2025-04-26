@@ -37,12 +37,7 @@ from bench.language.core import (
 from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Channel,
-        NodeReference,
-        Package,
-        Thread,
-    )
+    from bench.language import Channel, NodeReference, Package, Thread
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -60,9 +55,6 @@ class MessageType(BuiltinEnum):
     THREAD = 110, "Thread", "Thread inside a chat", "fas fa-thread"
     # EDIT, STREAM, ...
     # also see https://discord.com/developers/docs/resources/message
-
-
-# nocheckin: join/leave/resource/.. Messages
 
 
 @enum_(EnumType.MESSAGE_STATUS)
