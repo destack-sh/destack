@@ -9,7 +9,7 @@ from bench.language import (
     IsInstantiable,
     NodeMode,
     NodeType,
-    Resource,
+    ProvisionableResource,
     bittuple,
 )
 from bench.system.host import Commit, DeferredHostPlugin
@@ -86,6 +86,6 @@ class ClaimPlugin(DeferredHostPlugin[Claim]):
                     if target is None:
                         target = await claim.target_ptr.get()
                     claim.status = ClaimStatus.CLOSED
-                    if isinstance(target, Resource) and target.status.is_extant:
+                    if isinstance(target, ProvisionableResource) and target.status.is_extant:
                         target.decommission()
                         logger.info("claim.decommission", claim=claim, target=target)

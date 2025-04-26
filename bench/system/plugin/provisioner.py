@@ -10,7 +10,7 @@ from bench.language import (
     Bench,
     NodeMode,
     NodeType,
-    Resource,
+    ProvisionableResource,
     ResourceStatus,
 )
 from bench.system.host import Commit, DeferredHostPlugin, HostService
@@ -22,7 +22,9 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Provisioner[PT: Resource, WT: Resource](DeferredHostPlugin[WT], abc.ABC):
+class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
+    DeferredHostPlugin[WT], abc.ABC
+):
     """
     A provisioner for some type of Resource.
     Synchronizes the declared state of Resources with their actual (external) state (bidirectionally).

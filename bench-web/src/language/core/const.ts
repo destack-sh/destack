@@ -37,6 +37,8 @@ import {
   ViewProperty,
   ViewType,
   type AnyNodeData,
+  PROVISIONABLE_NODE_TYPES,
+  ProvisionableNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -153,8 +155,13 @@ export function isStaticResourceNodeType(nodeType: any): boolean {
   return typeof nodeType == "number" && nodeType >= 2000 && nodeType < 2100;
 }
 
-export function isDynamicResourceNodeType(nodeType: any): boolean {
-  return typeof nodeType == "number" && nodeType >= 2100 && nodeType < 3000;
+export function isProvisionableResourceNodeType(nodeType: any): boolean {
+  return typeof nodeType == "number" && PROVISIONABLE_NODE_TYPES.includes(nodeType);
+}
+
+export function isProvisionableResourceNode(node: any): node is ProvisionableNodeData {
+  if (node == null || typeof node != "object") return false;
+  else return isProvisionableResourceNodeType(node.metatype as unknown as NodeType);
 }
 
 export function isLocalNodeType(nodeType: any): boolean {

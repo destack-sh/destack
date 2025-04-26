@@ -36,6 +36,7 @@ from bench.language import (
     PAGE_NODE_TYPES,
     PARENT_NODE_TYPES,
     PROCESSABLE_NODE_TYPES,
+    PROVISIONABLE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     REGIONAL_NODE_TYPES,
     RESOURCE_NODE_TYPES,
@@ -57,6 +58,7 @@ from bench.language import (
     EnumType,
     PageNode,
     Property,
+    ProvisionableResource,
     Resource,
     TypeConstraint,
     TypeConstraintIn,
@@ -696,6 +698,7 @@ export const TYPE_CONSTRAINT_BY_FORMAT: Partial<Record<TypeFormat, TypeConstrain
         ("OWNABLE_NODE_TYPES", OWNABLE_NODE_TYPES),
         ("PACKAGE_NODE_TYPES", PACKAGE_NODE_TYPES),
         ("PROCESSABLE_NODE_TYPES", PROCESSABLE_NODE_TYPES),
+        ("PROVISIONABLE_NODE_TYPES", PROVISIONABLE_NODE_TYPES),
         ("TEMPLATABLE_NODE_TYPES", TEMPLATABLE_NODE_TYPES),
         ("TIMED_NODE_TYPES", TIMED_NODE_TYPES),
         ("USER_NODE_TYPES", USER_NODE_TYPES),
@@ -725,6 +728,7 @@ export type TemplatableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in N
 export type InstantiableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in INSTANTIABLE_NODE_TYPES)}
 export type ProcessableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in PROCESSABLE_NODE_TYPES)}
 export type ResourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, Resource))}
+export type ProvisionableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if issubclass(cls, ProvisionableResource))}
 export type RunnableNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in RUNNABLE_NODE_TYPES)}
 export type SourceNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype.is_source)}
 export type SubjectNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES if cls.metatype in SUBJECT_NODE_TYPES)}

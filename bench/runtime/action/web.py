@@ -6,7 +6,7 @@ from exa_py import AsyncExa
 from exa_py.api import Result as ExaResult
 from exa_py.api import _Result as _ExaResult
 
-from bench.language import Icon, IconType, Link, LinkType, ResourceStatus, TextLine
+from bench.language import Icon, IconType, Link, LinkType, TextLine
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -30,7 +30,6 @@ def _make_link(result: ExaResult | _ExaResult) -> Link:
         type=LinkType.WEB,
         icon=icon,
         url=result.url,
-        status=ResourceStatus.AVAILABLE,
         name=domain,
         domain=domain,
         title=TextLine.plain(title) if (title := result.title) else None,
