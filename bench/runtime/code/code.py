@@ -21,7 +21,6 @@ from bench.language import (
 )
 from bench.runtime.core import CodeInvalidError, Interrupted, RunIn, Runner, Runtime
 
-from .capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_RUN, LogSink, capture_logs
 from .compiler import CompiledCode, compile_code
 from .context import STATIC_CODE_GLOBALS
 
@@ -71,11 +70,6 @@ class CodeRunner(Runner, ABC):
             **(globals or {}),
         }
         self.compiled: CompiledCode | None = None
-        self.log_sink = LogSink(
-            runtime=self.runtime,
-            max_logs=MAX_LOGS_PER_RUN,
-            max_log_length=MAX_LOG_LINE_LENGTH,
-        )
 
     @tracer.start_as_current_span("code.compile")
     async def _compile_code(self, kind: CodeType) -> CompiledCode:
@@ -104,14 +98,13 @@ class CodeRunner(Runner, ABC):
     @contextmanager
     def _enter(self):
         """Enter the context for running the code."""
-        with capture_logs(self.log_sink):
-            aliasing_token = ACTIVE_ALIASING.set(self.aliasing)
-            in_user_code_token = IS_IN_USER_CODE.set(True)
-            try:
-                yield self.log_sink
-            finally:
-                IS_IN_USER_CODE.reset(in_user_code_token)
-                ACTIVE_ALIASING.reset(aliasing_token)
+        aliasing_token = ACTIVE_ALIASING.set(self.aliasing)
+        in_user_code_token = IS_IN_USER_CODE.set(True)
+        try:
+            yield self.log_sink
+        finally:
+            IS_IN_USER_CODE.reset(in_user_code_token)
+            ACTIVE_ALIASING.reset(aliasing_token)
 
     @tracer.start_as_current_span("code.coerce_outputs")
     def _coerce_outputs(self, outputs_raw: Any) -> CustomObject:

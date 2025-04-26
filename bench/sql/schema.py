@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.26.1"
+VERSION = "2025.04.26.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1527,7 +1527,6 @@ SPAN_TABLE = Table(
         Column("type", PrimitiveType.INT16),
         Column("root_id", PrimitiveType.UUID, is_nullable=True),
         Column("root_base_id", PrimitiveType.UUID, is_nullable=True),
-        Column("severity", PrimitiveType.INT16, default="3"),
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
@@ -1612,39 +1611,6 @@ INTERRUPTION_TABLE = Table(
         Column("message_id", PrimitiveType.UUID, is_nullable=True),
         Column("task_id", PrimitiveType.UUID, is_nullable=True),
         Column("task_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("session_id", PrimitiveType.UUID, is_nullable=True),
-        Column("client_id", PrimitiveType.UUID, is_nullable=True),
-        Column("computer_id", PrimitiveType.UUID, is_nullable=True),
-        Column("computer_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("user_id", PrimitiveType.UUID, is_nullable=True),
-    ),
-    indexes=(
-        Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
-        Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),
-    ),
-)
-
-LOG_TABLE = Table(
-    "bench_log",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("package_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="20"),
-        Column("type", PrimitiveType.INT16),
-        Column("severity", PrimitiveType.INT16),
-        Column("title", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("session_id", PrimitiveType.UUID, is_nullable=True),
         Column("client_id", PrimitiveType.UUID, is_nullable=True),
         Column("computer_id", PrimitiveType.UUID, is_nullable=True),

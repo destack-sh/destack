@@ -7,7 +7,6 @@ from bench.language.core import (
     Node,
     NodeType,
     PackageNode,
-    Severity,
     SpanType,
     StructType,
     Text,
@@ -49,7 +48,6 @@ class Span(
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
         root_id: Optional[UUID] = None
-    severity: "Severity" = p_regular(33, default=Severity.INFO)
 
     # content
     title: str | None = p_regular(60, default=None)

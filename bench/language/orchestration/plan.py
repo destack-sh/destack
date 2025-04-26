@@ -21,7 +21,7 @@ from bench.language.core import (
 from bench.pb2 import PlanData
 
 if TYPE_CHECKING:
-    from bench.language import Error, Page, Run, Task, Thread, Trigger
+    from bench.language import Error, Page, Task, Thread, Trigger
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -40,8 +40,8 @@ class Plan(
     """A Plan for something expressed as a sequence of Tasks."""
 
     # meta
-    parent: Union["Page", "Thread", "Plan", "Run", None] = p_node_parent(
-        4, NodeType.PAGE, NodeType.THREAD, NodeType.PLAN, NodeType.RUN
+    parent: Union["Page", "Thread", "Plan", None] = p_node_parent(
+        4, NodeType.PAGE, NodeType.THREAD, NodeType.PLAN
     )
 
     # ...IsProcessable[80-]

@@ -162,9 +162,6 @@ def unpack_commit(
         node_id = UUID(edit.node_ptr.id)
         node = graph.get(node_id) or supergraph.get(node_id)
         if node is None:
-            if node_type == NodeType.LOG:
-                # access logs which are just created for each edit
-                continue
             raise RuntimeError(
                 f"missing node {node_id!r} in {supergraph!r} for {wiring.describe_edit(edit)}"
             )

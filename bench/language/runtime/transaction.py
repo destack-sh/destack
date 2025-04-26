@@ -60,7 +60,6 @@ if TYPE_CHECKING:
         Code,
         EditContext,
         Icon,
-        Log,
         NodeSuperGraph,
         Run,
         Session,
@@ -175,13 +174,6 @@ class Edit(Struct):
         require=False,
         description="Epoch at that Edit.",
         primitive_type=PrimitiveType.INT64,
-    )
-    undo_of: Optional["Log"] = p_system(
-        69,
-        require=False,
-        array=False,
-        references=NodeType.LOG,
-        description="The logged Change that is being undone with this Edit.",
     )
 
 

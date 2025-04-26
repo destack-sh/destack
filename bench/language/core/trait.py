@@ -38,7 +38,6 @@ if TYPE_CHECKING:
         Flow,
         Interruption,
         Kit,
-        Log,
         Message,
         ModelDeveloper,
         ModelProvider,
@@ -169,7 +168,6 @@ Timed = Union[
     "Plan",
     "Task",
     "Interruption",
-    "Log",
     "Run",
     "Span",
 ]
@@ -181,7 +179,6 @@ TIMED_NODE_TYPES = bittuple(
     NodeType.PLAN,
     NodeType.TASK,
     NodeType.INTERRUPTION,
-    NodeType.LOG,
     NodeType.RUN,
     NodeType.SPAN,
 )
