@@ -52,7 +52,7 @@ const { focus, actions: textActions } = useTextEditor({
   parentComponent: vueInstance,
   plugins,
 });
-// NOTE :Performance: having each Title be its own full Text editor is a bit heavy
+// NOTE :Performance: having each TextLine view be its own full Text editor is a bit heavy
 
 const commands: Partial<CommandMapKit<"space">> = {
   ...textActions,

@@ -37,7 +37,7 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const orientation = computed(() => props.orientation ?? Orientation.HORIZONTAL);
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 const isHorizontal = computed(
   () => orientation.value == Orientation.HORIZONTAL || orientation.value == Orientation.HORIZONTAL_REVERSED,
 );

@@ -21,7 +21,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const nodePtr = toRef(props, "nodePtr");
 const { graph, connection } = props.preparedConnection ?? useAutoConnection(nodePtr);
@@ -32,7 +32,7 @@ const target = supergraph.getRef(targetPtr.value);
 // view
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
-const isSelected = computed(() => nodePtr.value != null && state.isSelected(nodePtr.value));
+const isSelected = computed(() => nodePtr.value != null && canvas.isSelected(nodePtr.value));
 
 defineExpose<ViewExpose>({ self, id });
 </script>

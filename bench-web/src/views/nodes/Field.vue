@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { FieldType, NodeType, Orientation, ViewData } from "@/proto/wire";
+import { NodeType, Orientation, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -17,7 +17,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const fieldRef = ref<HTMLElement | null>(null);
 const nameRef = ref<InstanceType<typeof NodeReference> | null>(null);
@@ -27,7 +27,7 @@ const { graph: graph, connection: connection } = props.preparedConnection ?? use
 const field = graph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isInspected = computed(() => canvas.isInspected(nodePtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(nodePtr.value));
-const isSelected = computed(() => state.isSelected(nodePtr.value));
+const isSelected = computed(() => canvas.isSelected(nodePtr.value));
 
 // actions
 const commands: Partial<CommandMapKit<"space">> = {

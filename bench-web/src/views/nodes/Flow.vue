@@ -12,7 +12,7 @@ import {
   TransitionData,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useAutoConnection, type PreparedNodeConnection } from "@/system/connection";
@@ -57,6 +57,7 @@ const props = defineProps<
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
+const selfView = canvas.graph.getRef(self, { ignoreAncestors: true });
 const id = toRef(props, "id");
 
 // view
@@ -79,6 +80,10 @@ const flowCtx = new FlowContext({
   spaceTx: () => canvas.tx().with({ category: ChangeCategory.SPACE }),
   graph: graph,
   tx: () => connection.tx,
+  view: selfView,
+  update: (update) => {
+    connection.tx.update(selfView.value!, update as any);
+  },
   transform: toRef(props, "transform"),
   containerRef: bodyRef,
   actionRefs: actionRefs,

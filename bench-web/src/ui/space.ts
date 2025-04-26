@@ -589,7 +589,7 @@ export class SpaceCanvas {
   }
 
   /** Registers the current Vue component instance in the canvas with some View identity */
-  registerView(self: Ref<NodeReferenceData | undefined>, id: Ref<string>) {
+  registerView(self: Ref<NodeReferenceData | undefined>, id: Ref<string>): void {
     const graph = this.graph;
     const tx = this.tx;
     const instance = getCurrentInstance() as ViewComponent | null;
@@ -679,28 +679,6 @@ export class SpaceCanvas {
       base = (base as any).parent;
     }
     const baseViewRef: Ref<ViewData | null> = (base as any)?.__selfViewRef ?? ref(null);
-
-    //
-    // Selection
-    // (just forward to/from space)
-    //
-
-    function select(
-      selection: SelectionData | AnyNodeData[] | NodeReferenceData[] | undefined,
-      options?: TransactionOptions,
-    ) {
-      canvas.select(selection, options);
-    }
-
-    function deselect(options?: TransactionOptions) {
-      select(undefined, options);
-    }
-
-    function isSelected(node: NodeKey<any>): boolean {
-      return canvas.isSelected(node);
-    }
-
-    return { select: select, deselect: deselect, isSelected, baseViewRef };
   }
 
   /** Gets the containing root view (or self, if any) for a view */

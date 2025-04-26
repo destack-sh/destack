@@ -20,7 +20,7 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const nodePtr = computed(() => props.nodePtr);
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const { graph, connection } = useAutoConnection(nodePtr);
 const computer = graph.getRef(nodePtr) as Ref<ComputerData | undefined>;

@@ -57,9 +57,10 @@ const props = defineProps<
 >();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
+const selfView = canvas.graph.getRef(self, { ignoreAncestors: true });
 const id = toRef(props, "id");
 const nodePtr = computed(() => props.nodePtr);
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 const vueInstance = getCurrentInstance();
 if (vueInstance == null) throw new Error("no vue instance in Page");
 
@@ -316,7 +317,7 @@ const commands: Partial<CommandMapKit<"list" | "space">> = {
   },
   ...useNodeListCommands({
     nodeType: NodeType.BLOCK,
-    self: state.baseViewRef,
+    self: selfView,
     graph: graph,
     list: blocks,
     txFactory: () => connection.tx,

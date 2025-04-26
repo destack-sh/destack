@@ -73,6 +73,7 @@ const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
 const alignment = computed(() => props.alignment ?? Alignment.END);
+canvas.registerView(self, id);
 
 // state
 const nodePtr = toRef(props, "nodePtr");
@@ -642,6 +643,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           >
             <!-- Meta -->
             <template #right>
+              <!-- Open in full -->
               <button
                 v-if="!isRoot"
                 v-tooltip="{ small: true, text: 'Open in full' }"

@@ -39,7 +39,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
-const state = canvas.registerView(self, id);
+canvas.registerView(self, id);
 
 const actionPtr = computed(() => props.nodePtr as TypedNodeReferenceData<NodeType.ACTION>);
 const { connection, graph } = props.preparedConnection ?? useAutoConnection(actionPtr);
@@ -51,7 +51,7 @@ const tool = actionState?.tool ?? graph.getRef(toolPtr.value);
 const fields = actionState?.fields ?? graph.getChildrenRef(actionPtr.value, NodeType.FIELD);
 const isInspected = computed(() => canvas.isInspected(actionPtr.value));
 const isHighlighted = computed(() => canvas.isHighlighted(actionPtr.value));
-const isSelected = computed(() => state.isSelected(actionPtr.value));
+const isSelected = computed(() => canvas.isSelected(actionPtr.value));
 const sides = computed(() => (action.value != null ? getActionSides(action.value) : []));
 
 const nameRef: Ref<InstanceType<typeof NativeInput> | null> = ref(null);
