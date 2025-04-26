@@ -8,10 +8,13 @@ from opentelemetry import trace
 from bench.language import (
     NODE_CLASS_BY_TYPE,
     Bench,
+    Message,
+    MessageType,
     NodeMode,
     NodeType,
     ProvisionableResource,
     ResourceStatus,
+    Thread,
 )
 from bench.system.host import Commit, DeferredHostPlugin, HostService
 
@@ -56,6 +59,15 @@ class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
         resources_query._include_memory = False
         resources = await resources_query.tolist()
         return resources
+
+    def _set_resource_status(self, resource: PT, status: ResourceStatus) -> None:
+        """Set the status of the Resource, emitting any Messages."""
+        resource.status = status
+        if isinstance(thread := resource.parent, Thread):
+            message = Message.new(
+                type=MessageType.RESOURCE, nodes=[resource], resource_status=status
+            )
+            thread.messages.append(message)
 
     @final
     async def start(self) -> None:
@@ -141,7 +153,7 @@ class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
             )
             self.host.on_error(e)
             async with self.host.session(commit=True):
-                resource.update_status(ResourceStatus.RETRYING)
+                self._set_resource_status(resource, ResourceStatus.RETRYING)
             raise
 
     @abc.abstractmethod
@@ -203,7 +215,7 @@ class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
             )
             self.host.on_error(e)
             async with self.host.session(commit=True):
-                resource.update_status(ResourceStatus.FAILED)
+                self._set_resource_status(resource, ResourceStatus.FAILED)
             raise
 
     @abc.abstractmethod

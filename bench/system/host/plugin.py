@@ -1,13 +1,13 @@
 import abc
 import asyncio
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar, Sequence, final, override
+from typing import TYPE_CHECKING, ClassVar, final, override
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeType, Package, Session, bittuple
-from bench.proto import EditData, Network
+from bench.proto import Network
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
@@ -100,7 +100,7 @@ class HostPlugin[T: Node]:
     # Events
     #
 
-    async def pre_commit(self, session: Session, commit: Commit[T]) -> Sequence[EditData] | None:
+    async def pre_commit(self, session: Session, commit: Commit[T]) -> None:
         """
         Add edits that logically belong to the same Transaction.
         The commit contains only direct edits, not cascaded edits.

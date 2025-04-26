@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, Orientation, ViewData } from "@/proto/wire";
+import { ContextMode, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
@@ -33,6 +33,10 @@ const target = computed(() => {
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
 const scope = computed(() => container.value);
+const { node: thread, connection: threadConnection } = supergraph.getLinkRef(threadPtr);
+
+// state
+const mode: Ref<ContextMode> = ref(ContextMode.CHAT);
 
 // interaction
 const bodyRef = ref<HTMLElement | null>(null);
@@ -68,16 +72,8 @@ defineExpose<ViewExpose>({ self });
         <NodeReference :node="scope" :tx="() => inspectionConnection!.tx" is-light size="sm" />
       </template>
 
-      <!-- Meta -->
+      <!-- Thread -->
       <div class="ml-auto flex flex-row items-center gap-x-1.5">
-        <!-- Focus thread -->
-        <button
-          v-tooltip="{ title: 'Focus Thread', small: true, group: 'context.meta' }"
-          class="cursor-pointer rounded-sm border-gray-200 px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900"
-          @click="() => canvas.goToNode(threadPtr!)"
-        >
-          <span class="fas fa-arrow-up-left" />
-        </button>
         <!-- New/reset thread -->
         <button
           v-tooltip="{ title: 'New Thread', small: true, group: 'context.meta' }"
@@ -91,6 +87,15 @@ defineExpose<ViewExpose>({ self });
         >
           <span class="fas fa-rotate-left" />
         </button>
+        <!-- Thread -->
+        <NodeReference
+          v-if="thread != null && thread.id != target?.id"
+          :node="thread"
+          :tx="() => inspectionConnection!.tx"
+          size="sm"
+          class="max-w-[300px] truncate rounded-sm transition-colors duration-150 hover:cursor-pointer hover:bg-gray-100"
+          @click="() => canvas.goToNode(threadPtr!)"
+        />
       </div>
     </div>
 

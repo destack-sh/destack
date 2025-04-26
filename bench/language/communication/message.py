@@ -19,6 +19,7 @@ from bench.language.core import (
     NodeType,
     PackageNode,
     PageNode,
+    ResourceStatus,
     StructType,
     Subject,
     Text,
@@ -38,8 +39,6 @@ from bench.pb2 import AnyNodeData, MessageData, NodeReferenceData
 if TYPE_CHECKING:
     from bench.language import (
         Channel,
-        ModelDeveloper,
-        ModelProvider,
         NodeReference,
         Package,
         Thread,
@@ -56,13 +55,14 @@ class MessageType(BuiltinEnum):
     # FORWARDED = 3, "Forwarded", "Forwarded Message", "fas fa-forward"
     JOIN = 10, "Join", "Join a chat", "fas fa-arrow-right-to-bracket"
     LEAVE = 11, "Leave", "Leave a chat", "fas fa-arrow-left-from-line"
-    THREAD = 20, "Thread", "Thread inside a chat", "fas fa-thread"
+    RESOURCE = 20, "Resource", "Resource update", "fas fa-plug"
     RUN = 100, "Run", None, "fas fa-play"
-    INTERRUPTION = 110, "Interruption", None, "fas fa-times"
-    PLAN = 200, "Plan", None, "fas fa-list-check"
-    TASK = 210, "Task", None, "fas fa-square-check"
+    THREAD = 110, "Thread", "Thread inside a chat", "fas fa-thread"
     # EDIT, STREAM, ...
     # also see https://discord.com/developers/docs/resources/message
+
+
+# nocheckin: join/leave/resource/.. Messages
 
 
 @enum_(EnumType.MESSAGE_STATUS)
@@ -155,6 +155,9 @@ class Message(
     if TYPE_CHECKING:
         nodes_ptr: Optional[NodeReference] = None
         nodes_id: Optional[UUID] = None
+    resource_status: Optional[ResourceStatus] = p_regular(
+        64, description="The status of the Resources (in nodes) at that time."
+    )
 
     def __content_str__(self) -> str:
         if self.title:
@@ -196,10 +199,7 @@ class Message(
         scope: Optional["PageNode"] = None,
         reply_to: Optional["Message"] = None,
         nodes: list["Node"] | None = None,
-        model_developer: Optional["ModelDeveloper"] = None,
-        model_provider: Optional["ModelProvider"] = None,
-        model_id: Optional[str] = None,
-        model_name: Optional[str] = None,
+        **kwargs,
     ) -> "Message":
         message = Message(
             type=type,
@@ -207,10 +207,7 @@ class Message(
             text=to_text(text) if text is not None else None,
             reply_to=reply_to,
             owned_by=owned_by,
-            model_developer=model_developer,
-            model_provider=model_provider,
-            model_id=model_id,
-            model_name=model_name,
+            **kwargs,
         )
         if nodes is not None:
             message.nodes = nodes

@@ -54,7 +54,7 @@ defineExpose<ViewExpose>({ self, id });
       <IconInline v-bind="getNodeIcon(target ?? claim)" class="rounded-sm text-center text-lg text-gray-800" />
     </div>
 
-    <!-- TODO :Incomplete: show/control? actual Claim status somehow (what about Entitlements?) -->
+    <!-- NOTE :Incomplete: show/control? actual Claim status somehow (what about Entitlements?) -->
     <!-- Target -->
     <NodeReference :node-ptr="targetPtr" :tx="() => connection.tx" is-light :hide-icon="!isMinimal" size="sm" />
 

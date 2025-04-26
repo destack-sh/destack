@@ -160,7 +160,7 @@ class ScalerProvisioner[WT: ProvisionableResource](Provisioner[Scaler, Scaler | 
     async def _do_provision(self, resource: Scaler):
         self._reconcile_event.set()
         async with self.host.session(commit=True):
-            resource.update_status(ResourceStatus.AVAILABLE)
+            self._set_resource_status(resource, ResourceStatus.AVAILABLE)
 
     @override
     async def _do_update(self, resource: Scaler):
@@ -170,4 +170,4 @@ class ScalerProvisioner[WT: ProvisionableResource](Provisioner[Scaler, Scaler | 
     async def _do_decommission(self, resource: Scaler):
         self._reconcile_event.set()
         async with self.host.session(commit=True):
-            resource.update_status(ResourceStatus.OFFLINE)
+            self._set_resource_status(resource, ResourceStatus.OFFLINE)

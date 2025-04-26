@@ -216,7 +216,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
             resource.grpc_url = f"http://localhost:{grpc_port}"
             if not resource.is_headless:
                 resource.vnc_url = f"ws://localhost:{vnc_port}"
-            resource.update_status(ResourceStatus.AVAILABLE)
+            self._set_resource_status(resource, ResourceStatus.AVAILABLE)
 
     @override
     async def _do_update(self, resource: Computer):
@@ -231,7 +231,7 @@ class DockerComputerProvisioner(ComputerProvisioner):
             await container.stop()
             await container.delete()
         async with self.host.session(commit=True):
-            resource.update_status(ResourceStatus.OFFLINE)
+            self._set_resource_status(resource, ResourceStatus.OFFLINE)
 
     @override
     async def wait_closed(self) -> None:
@@ -475,9 +475,9 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
         target_diff = resource._get_target_diff("cpu", "ram", "version")
         if (
             resource.status.is_extant
-            and resource.reset_at is not None
-            and resource.activated_at is not None
-            and resource.reset_at > resource.activated_at
+            and resource.requested_reset_at is not None
+            and resource.requested_activate_at is not None
+            and resource.requested_reset_at > resource.requested_activate_at
         ):
             # 'restart' by deleting it (to be recreated)
             assert resource.external_name is not None, f"{resource!r} has no external name"
@@ -517,7 +517,7 @@ class KubernetesComputerProvisioner(ComputerProvisioner):
                 # probably already gone
                 logger.warn("computer.decommission.error", resource=resource, exc_info=e)
         async with self.host.session(commit=True):
-            resource.update_status(ResourceStatus.OFFLINE)
+            self._set_resource_status(resource, ResourceStatus.OFFLINE)
 
     @override
     async def wait_closed(self) -> None:
