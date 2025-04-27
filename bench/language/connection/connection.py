@@ -470,6 +470,7 @@ class GetConnection[ConnectorT: Connector, T: Node](
                     edits=new_edits,
                     include_removed=self.query.include_removed,
                     validate=False,
+                    ignore_missing=True,  # :RichGraph
                 )
 
 
