@@ -250,16 +250,17 @@ const messageViews = computed(() => {
     let isStartOfGroup;
     let isNewDate;
     if (i == 0) {
-      isStartOfGroup = message.createdByPtr != null;
+      isStartOfGroup = message.createdByPtr != null && !isCustomLineOnly;
       isNewDate = true;
     } else {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
       isStartOfGroup =
-        (message.createdByPtr != null &&
-          (message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id || prevView.isCustomLineOnly)) ||
-        Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
-          MESSAGE_GROUP_TIME_SECONDS;
+        !isCustomLineOnly &&
+        (message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
+          prevView.isCustomLineOnly ||
+          Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
+            MESSAGE_GROUP_TIME_SECONDS);
       isNewDate = previousDt.day != currentDt.day;
     }
     const isEmpty = message.text == null || isTextEmpty(message.text);
