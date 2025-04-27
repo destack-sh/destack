@@ -65,7 +65,11 @@ class Provisioner[PT: ProvisionableResource, WT: ProvisionableResource](
         # create message if status changed
         if resource.status != status and isinstance(thread := resource.parent, Thread):
             message = Message.new(
-                type=MessageType.RESOURCE, nodes=[resource], resource_status=status
+                parent=thread,
+                type=MessageType.RESOURCE,
+                nodes=[resource],
+                resource_status=status,
+                _supergraph=thread._supergraph,
             )
             thread.messages.append(message)
 
