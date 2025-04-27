@@ -1152,7 +1152,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       </div>
 
       <!-- Footer -->
-      <div class="flex h-[28px] w-full flex-row flex-nowrap items-center gap-x-3 px-2.5 text-xs">
+      <div class="flex h-[28px] w-full flex-row flex-nowrap items-center gap-x-3 px-2.5">
         <!-- Context -->
         <div class="flex flex-row items-center gap-x-1.5">
           <!-- Computer -->
@@ -1199,7 +1199,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             <template #trigger="{ toggle }">
               <button
                 class="cursor-pointer rounded-full px-1 py-0.5 transition-colors duration-75 enabled:hover:bg-gray-100"
-                :class="thread?.modelDeveloper == null ? 'text-gray-400' : 'text-gray-900'"
+                :class="thread?.modelDeveloper == null ? 'text-gray-400' : 'text-gray-700'"
                 @click="toggle"
               >
                 <!-- Model type -->

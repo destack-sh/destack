@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, override
+from typing import TYPE_CHECKING, Union, assert_never, override
 
 import anthropic
 import structlog
@@ -74,7 +74,13 @@ async def build_anthropic_messages(
 
     def _flush_content() -> None:
         if current_role and current_content:
-            messages.append({"role": current_role, "content": tuple(current_content)})  # type: ignore
+            if current_role == "user":
+                anthropic_role = "user"
+            elif current_role == "developer":
+                anthropic_role = "assistant"
+            else:
+                assert_never(current_role)
+            messages.append({"role": anthropic_role, "content": tuple(current_content)})  # type: ignore
             current_content.clear()
 
     for piece in pieces:
