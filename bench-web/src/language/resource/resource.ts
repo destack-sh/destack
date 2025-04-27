@@ -18,28 +18,28 @@ export const VERB_BY_RESOURCE_STATUS: Record<ResourceStatus, string> = {
 
 /** Provision or activate a Resource. */
 export function activateResource(tx: Transaction, resource: ProvisionableNodeData) {
-  tx.update(resource, { activatedAt: Timestamp.now() });
+  tx.update(resource, { requestedActivateAt: Timestamp.now() });
 }
 
 /** Decommission a Resource. */
 export function decommissionResource(tx: Transaction, resource: ProvisionableNodeData) {
-  tx.update(resource, { decommissionedAt: Timestamp.now() });
+  tx.update(resource, { requestedDecommissionAt: Timestamp.now() });
 }
 
 /** Suspend a Resource. */
 export function suspendResource(tx: Transaction, resource: ResourceNodeData) {
-  tx.update(resource, { suspendedAt: Timestamp.now() });
+  tx.update(resource, { requestedSuspendAt: Timestamp.now() });
 }
 
 function applyResourceCommand(
   command: Command,
   context: CommandContext | undefined,
-  method: (tx: Transaction, resource: ResourceNodeData) => void,
+  method: (tx: Transaction, resource: ProvisionableNodeData) => void,
 ) {
   const { connection, graph, nodes } = getNodesForCommand(command, context, isResourceNode);
   if (connection == null) return false;
   const tx = connection.tx.with({ change: { key: newChangeId(), title: "Provision" } });
-  nodes.forEach((node) => method(tx, node as ResourceNodeData));
+  nodes.forEach((node) => method(tx, node as ProvisionableNodeData));
   return true;
 }
 

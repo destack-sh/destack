@@ -24,7 +24,7 @@ class ModelDeveloper(BuiltinEnum):
     GOOGLE = 1030, "Google", "Google", None, ColorType.RED
     # MICROSOFT = 1040, "Microsoft", "Microsoft", "fab fa-microsoft", ColorType.BLUE
     DEEPSEEK = 1050, "DeepSeek", "DeepSeek", None, ColorType.GRAY
-    XAI = 1060, "XAI", "XAI", None, ColorType.GRAY
+    XAI = 1060, "xAI", "xAI", None, ColorType.GRAY
 
 
 @enum_(EnumType.MODEL_PROVIDER)
@@ -36,4 +36,4 @@ class ModelProvider(BuiltinEnum):
     OPENAI = 1010, "OpenAI", "OpenAI"
     ANTHROPIC = 1020, "Anthropic", "Anthropic"
     GOOGLE = 1030, "Google", "Google"
-    XAI = 1040, "XAI", "XAI"
+    XAI = 1040, "xAI", "xAI"

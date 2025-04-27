@@ -211,7 +211,9 @@ class MultipleNodesFoundError(QueryError):
 
 
 class Query[NodeT: Node, NodeDataT: AnyNodeData]:
-    """Build a Query."""
+    """
+    Build a Query.
+    """
 
     __slots__ = (
         "_after",

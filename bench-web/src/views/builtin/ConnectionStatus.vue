@@ -36,7 +36,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
     <template #content="{ close }">
       <!-- Individual connections -->
       <!-- (will probably move this to a Connections View (maybe keep summary on hover)) -->
-      <div v-outside.click.stop="close" class="p z-50 rounded-sm border border-gray-200 bg-white text-gray-900">
+      <div v-outside.click.stop="close" class="z-50 rounded-sm border border-gray-200 bg-white text-gray-900">
         <!-- Header -->
         <div class="my-1 flex flex-row border-b border-gray-200 px-3 py-1">
           <span class="font-semibold">Connections</span>

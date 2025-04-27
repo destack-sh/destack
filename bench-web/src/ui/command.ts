@@ -583,10 +583,12 @@ export const NON_DUPLICATABLE_NODE_TYPES = [
 ];
 export const NON_ARCHIVEABLE_NODE_TYPES = [
   ...ROOT_NODE_TYPES,
+  ...RESOURCE_NODE_TYPES,
   NodeType.PACKAGE,
   NodeType.MEMBERSHIP,
   NodeType.RUN,
   NodeType.SPAN,
+  NodeType.THREAD, // NOTE :Incomplete: removing Threads causes annoying issues
   NodeType.MESSAGE,
   NodeType.MEMBERSHIP,
 ];
@@ -596,7 +598,7 @@ export const NON_DELETABLE_NODE_TYPES = [
   NodeType.MESSAGE,
   NodeType.RUN,
   NodeType.SPAN,
-  NodeType.LOG,
+  NodeType.THREAD, // NOTE :Incomplete: removing Threads causes annoying issues
   ...RESOURCE_NODE_TYPES,
   ...COSMOS_NODE_TYPES,
 ];

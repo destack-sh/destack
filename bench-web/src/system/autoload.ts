@@ -1,6 +1,6 @@
 import { isBenchNodeType, isUnloadedNodeType } from "@/language/core/const";
 import { NodeSuperGraph } from "@/language/core/graph";
-import { NodeReferenceData, NodeType } from "@/proto/wire";
+import { NodeReferenceData, NodeType, RESOURCE_NODE_TYPES } from "@/proto/wire";
 import { describeNode, makeScope, toNodeRef } from "@/proto/wiring";
 import { CURRENT_BENCH_SCOPE } from "@/system/client";
 import { acquireConnection, GetConnectionParams, releaseConnection, RemoteGetConnection } from "@/system/connection";
@@ -11,8 +11,7 @@ import { Ref, shallowRef, triggerRef } from "vue";
 // automatically included descendants :AutoLoading
 export const AUTOLOAD_DESCENDANT_TYPES: Partial<Record<NodeType, NodeType[]>> = {
   [NodeType.THREAD]: [
-    NodeType.FILE,
-    NodeType.LINK,
+    ...RESOURCE_NODE_TYPES,
     NodeType.MEMBERSHIP,
     NodeType.CLAIM,
     NodeType.AGENT,
