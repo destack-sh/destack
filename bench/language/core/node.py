@@ -1087,14 +1087,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     def first(cls, count: int) -> "Query[Self, NodeDataT]":
         return cls._query().first(count)
 
-    @classmethod
-    async def count(cls, filter: Optional["Expression"] = None, **kwargs) -> int:
-        return await cls._query().count(filter, **kwargs)
-
-    @classmethod
-    async def exists(cls, filter: Optional["Expression"] = None, **kwargs) -> bool:
-        return await cls._query().exists(filter, **kwargs)
-
 
 @node_component_()
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT]):

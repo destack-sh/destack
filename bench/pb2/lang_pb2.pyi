@@ -652,7 +652,6 @@ class QueryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     QUERY_TYPE_UNSPECIFIED: _ClassVar[QueryType]
     QUERY_TYPE_GET: _ClassVar[QueryType]
     QUERY_TYPE_SEARCH: _ClassVar[QueryType]
-    QUERY_TYPE_AGGREGATE: _ClassVar[QueryType]
 
 class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -683,7 +682,6 @@ class AccessType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ACCESS_TYPE_UNSPECIFIED: _ClassVar[AccessType]
     ACCESS_TYPE_GET: _ClassVar[AccessType]
     ACCESS_TYPE_SEARCH: _ClassVar[AccessType]
-    ACCESS_TYPE_AGGREGATE: _ClassVar[AccessType]
     ACCESS_TYPE_CREATE: _ClassVar[AccessType]
     ACCESS_TYPE_UPSERT: _ClassVar[AccessType]
     ACCESS_TYPE_UPDATE: _ClassVar[AccessType]
@@ -2270,7 +2268,6 @@ POLICY_EFFECT_DENY: PolicyEffect
 QUERY_TYPE_UNSPECIFIED: QueryType
 QUERY_TYPE_GET: QueryType
 QUERY_TYPE_SEARCH: QueryType
-QUERY_TYPE_AGGREGATE: QueryType
 EDIT_TYPE_UNSPECIFIED: EditType
 EDIT_TYPE_CREATE: EditType
 EDIT_TYPE_UPSERT: EditType
@@ -2292,7 +2289,6 @@ USE_TYPE_RECEIVE: UseType
 ACCESS_TYPE_UNSPECIFIED: AccessType
 ACCESS_TYPE_GET: AccessType
 ACCESS_TYPE_SEARCH: AccessType
-ACCESS_TYPE_AGGREGATE: AccessType
 ACCESS_TYPE_CREATE: AccessType
 ACCESS_TYPE_UPSERT: AccessType
 ACCESS_TYPE_UPDATE: AccessType

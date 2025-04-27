@@ -152,54 +152,6 @@ class WatchSearchResponse(_message.Message):
     epoch: int
     def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ...) -> None: ...
 
-class AggregateNodesRequest(_message.Message):
-    __slots__ = ("scope", "node_type", "base_type_ptr", "filter", "sort", "aggregation", "no_cache")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    NODE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    BASE_TYPE_PTR_FIELD_NUMBER: _ClassVar[int]
-    FILTER_FIELD_NUMBER: _ClassVar[int]
-    SORT_FIELD_NUMBER: _ClassVar[int]
-    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
-    NO_CACHE_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
-    node_type: _lang_pb2.NodeType
-    base_type_ptr: _lang_pb2.NodeReferenceData
-    filter: _lang_pb2.ExpressionData
-    sort: _containers.RepeatedCompositeFieldContainer[_lang_pb2.ExpressionData]
-    aggregation: _lang_pb2.ExpressionData
-    no_cache: bool
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., base_type_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
-
-class AggregateNodesResponse(_message.Message):
-    __slots__ = ("scope", "connection_token", "aggregation", "epoch")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
-    connection_token: str
-    aggregation: _lang_pb2.AggregationResultData
-    epoch: int
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., aggregation: _Optional[_Union[_lang_pb2.AggregationResultData, _Mapping]] = ..., epoch: _Optional[int] = ...) -> None: ...
-
-class WatchAggregateRequest(_message.Message):
-    __slots__ = ("scope", "connection_token", "since_epoch")
-    SCOPE_FIELD_NUMBER: _ClassVar[int]
-    CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    SINCE_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    scope: _lang_pb2.GraphScopeData
-    connection_token: str
-    since_epoch: int
-    def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., connection_token: _Optional[str] = ..., since_epoch: _Optional[int] = ...) -> None: ...
-
-class WatchAggregateResponse(_message.Message):
-    __slots__ = ("aggregation", "epoch")
-    AGGREGATION_FIELD_NUMBER: _ClassVar[int]
-    EPOCH_FIELD_NUMBER: _ClassVar[int]
-    aggregation: _lang_pb2.AggregationResultData
-    epoch: int
-    def __init__(self, aggregation: _Optional[_Union[_lang_pb2.AggregationResultData, _Mapping]] = ..., epoch: _Optional[int] = ...) -> None: ...
-
 class CommitTransactionRequest(_message.Message):
     __slots__ = ("scope", "id", "edits", "context")
     SCOPE_FIELD_NUMBER: _ClassVar[int]

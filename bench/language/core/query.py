@@ -23,9 +23,7 @@ from bench.pb2 import AnyNodeData
 from bench.utils.func import hash_stable
 
 from .const import (
-    AggregationType,
     BenchError,
-    ExpressionKind,
     FieldType,
     NodeType,
     QueryType,
@@ -39,7 +37,6 @@ from .struct import Struct, struct_
 
 if TYPE_CHECKING:
     from bench.language import (
-        AggregateOptions,
         ConnectMode,
         Connector,
         Database,
@@ -423,13 +420,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     limit = first
 
-    def aggregate(self, aggregation: "Expression") -> "Query[NodeT, NodeDataT]":
-        """Aggregates the query results."""
-        assert aggregation.kind == ExpressionKind.AGGREGATION, f"not an aggregation: {aggregation}"
-        clone = self.clone()
-        clone._aggregation = aggregation
-        return clone
-
     def include(self, *properties: Property) -> "Query[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
         clone = self.clone()
@@ -660,54 +650,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             return None, connection
         else:
             raise MultipleNodesFoundError(query=self, result=results)
-
-    @tracer.start_as_current_span("query.count")
-    async def count(
-        self, filter: Optional["Expression"] = None, mode: "ConnectMode" = "unpacked", **kwargs
-    ) -> int:
-        """Returns the number of results."""
-        from bench.language import AggregateOptions
-
-        from .expression import A, coerce_conditional
-
-        # prepare
-        filter = coerce_conditional(
-            node_cls=self._node_cls, base_type=self._base_type, expr=filter, kwargs=kwargs
-        )
-        query = self.where(filter) if filter is not None else self
-        query = query.aggregate(A(AggregationType.COUNT))
-        query._type = QueryType.AGGREGATE
-        trace.get_current_span().set_attribute("query", repr(query))
-
-        # query
-        connector = await query._get_read_connector()
-        connection = await connector.aggregate(query, AggregateOptions(live=False, mode=mode))
-        aggregation = connection.result_data.aggregation
-        assert aggregation.count is not None, f"missing count in {connection!r}"
-        return aggregation.count
-
-    @tracer.start_as_current_span("query.exists")
-    async def exists(
-        self, filter: Optional["Expression"] = None, mode: "ConnectMode" = "unpacked", **kwargs
-    ) -> bool:
-        """Whether any nodes match the query."""
-        from .expression import A, coerce_conditional
-
-        # prepare
-        filter = coerce_conditional(
-            node_cls=self._node_cls, base_type=self._base_type, expr=filter, kwargs=kwargs
-        )
-        query = self.where(filter) if filter is not None else self
-        query = query.aggregate(A(AggregationType.EXISTENCE))
-        query._type = QueryType.AGGREGATE
-        trace.get_current_span().set_attribute("query", repr(query))
-
-        # query
-        connector = await query._get_read_connector()
-        connection = await connector.aggregate(query, AggregateOptions(live=False, mode=mode))
-        aggregation = connection.result_data.aggregation
-        assert aggregation.exists is not None, f"missing exists in {connection!r}"
-        return aggregation.exists
 
     @tracer.start_as_current_span("query.scalar")
     async def scalar(self, *properties: "str | Property") -> Any:

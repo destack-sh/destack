@@ -6,15 +6,11 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    AggregateConnection,
-    AggregateResultData,
-    AggregationType,
     Bench,
     CommitResultData,
     Connection,
     ConnectionOptions,
     Engine,
-    EngineIncapableError,
     EngineUnavailableError,
     FlushResultData,
     GetConnection,
@@ -35,7 +31,6 @@ from bench.language import (
     repr_scope,
 )
 from bench.proto import (
-    AggregationResultData,
     EditData,
     GraphScopeData,
 )
@@ -43,9 +38,7 @@ from bench.sql import (
     PostgresConnection,
     SqlContext,
     get_pg_pool,
-    pg_graph_count,
     pg_graph_edit,
-    pg_graph_exists,
     pg_graph_get,
     pg_graph_search,
 )
@@ -142,8 +135,6 @@ class PostgresConnector(WritableConnector[PostgresEngine]):
             return PostgresGetConnection
         elif query._type == QueryType.SEARCH:
             return PostgresSearchConnection
-        elif query._type == QueryType.AGGREGATE:
-            return PostgresAggregateConnection
         else:
             raise RuntimeError(f"unsupported read type {query._type}")
 
@@ -219,32 +210,3 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresConnector, T]):
             epoch=None,
             connection_token=None,
         )
-
-
-class PostgresAggregateConnection(AggregateConnection):
-    """Aggregate a Postgres channel."""
-
-    @override
-    @_pg_method
-    async def _do_read(self, query: "Query") -> AggregateResultData:
-        assert query._aggregation is not None
-        if query._aggregation.type == AggregationType.EXISTENCE:
-            async with self.connector.connection.lock:
-                exists = await pg_graph_exists(
-                    cur=self.connector.cur, ctx=self.connector.engine.context, query=query
-                )
-            return AggregateResultData(
-                aggregation=AggregationResultData(exists=exists), epoch=None, connection_token=None
-            )
-        elif query._aggregation.type == AggregationType.COUNT:
-            async with self.connector.connection.lock:
-                count = await pg_graph_count(
-                    cur=self.connector.cur, ctx=self.connector.engine.context, query=query
-                )
-            return AggregateResultData(
-                aggregation=AggregationResultData(count=count), epoch=None, connection_token=None
-            )
-        else:
-            raise EngineIncapableError(
-                self, query, expression=query._aggregation, reason="unsupported"
-            )

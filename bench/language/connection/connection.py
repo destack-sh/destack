@@ -15,9 +15,6 @@ from bench.utils.tenacity import RetryOptions
 
 from .capture import capture
 from .engine import (
-    AggregateOptions,
-    AggregateResult,
-    AggregateResultData,
     ConnectionOptions,
     Connector,
     EngineIncapableError,
@@ -32,8 +29,6 @@ from .engine import (
     SearchResultData,
     Update,
     UpdateData,
-    WatchAggregateUpdate,
-    WatchAggregateUpdateData,
     WatchGetUpdate,
     WatchGetUpdateData,
     WatchSearchUpdate,
@@ -42,7 +37,7 @@ from .engine import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import AggregationResult, Query, Session
+    from bench.language import Query, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -643,53 +638,3 @@ class SearchConnection[ConnectorT: Connector, T: Node](
                 ), f"missing root for update: {wiring.describe_node_ptr(root_ptr_data)}"
                 new_roots_data.append(root)
             result_data.roots = new_roots_data
-
-
-class AggregateConnection[ConnectorT: Connector](
-    Connection[
-        ConnectorT,
-        AggregateOptions,
-        AggregateResult,
-        AggregateResultData,
-        WatchAggregateUpdateData,
-        WatchAggregateUpdate,
-    ]
-):
-    """Base for aggregate connections (may be live)."""
-
-    @override
-    def _unpack_result(self, result_data: AggregateResultData) -> AggregateResult:
-        from bench.language import AggregationResult
-        from bench.proto import wiring
-
-        aggregation = wiring.unpack_builtin_object(
-            result_data.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
-        )
-        return AggregateResult(aggregation=aggregation)
-
-    @override
-    def _patch_result(
-        self, old_result: AggregateResult, new_result: AggregateResult
-    ) -> AggregateResult:
-        return new_result  # nothing to patch
-
-    @override
-    def _detach_result(self, result: AggregateResult):
-        pass  # nothing to release
-
-    @override
-    def _apply_update(
-        self,
-        result_data: AggregateResultData | None,
-        result: AggregateResult | None,
-        update: WatchAggregateUpdateData,
-        unpack_update: bool,
-    ) -> WatchAggregateUpdate | None:
-        from bench.proto import wiring
-
-        if result_data is not None:
-            result_data.aggregation = update.aggregation
-        if result is not None:
-            result.aggregation = wiring.unpack_builtin_object(
-                update.aggregation, supergraph=self.session._supergraph, expect=AggregationResult
-            )

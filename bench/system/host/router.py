@@ -17,8 +17,6 @@ from bench.language import (
     Store,
 )
 from bench.proto import (
-    AggregateNodesRequest,
-    AggregateNodesResponse,
     CommitTransactionRequest,
     CommitTransactionResponse,
     DownloadFilesRequest,
@@ -35,8 +33,6 @@ from bench.proto import (
     ServiceKind,
     UploadFilesRequest,
     UploadFilesResponse,
-    WatchAggregateRequest,
-    WatchAggregateResponse,
     WatchGetRequest,
     WatchGetResponse,
     WatchSearchRequest,
@@ -199,18 +195,6 @@ class HostRouterService(ServiceBase, HostBase):
     ) -> AsyncIterator["WatchSearchResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         yield WatchSearchResponse()  # unreachable
-
-    @override
-    async def aggregate_nodes(
-        self, request: "AggregateNodesRequest", headers: Mapping
-    ) -> "AggregateNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    def watch_aggregate(
-        self, request: "WatchAggregateRequest", headers: Mapping
-    ) -> AsyncIterator["WatchAggregateResponse"]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-        yield WatchAggregateResponse()  # unreachable
 
     @override
     async def commit_transaction(

@@ -124,43 +124,6 @@ message WatchSearchResponse {
   uint64 epoch = 10;
 }
 
-message AggregateNodesRequest {
-  GraphScopeData scope = 1;
-  // The type of node to aggregate.
-  NodeType node_type = 2;
-  // The relevant base type (if any).
-  optional NodeReferenceData base_type_ptr = 3;
-  // Filter for the aggregation.
-  optional ExpressionData filter = 4;
-  // Sort order for the aggregation.
-  repeated ExpressionData sort = 5;
-  // Aggregation expression.
-  ExpressionData aggregation = 6;
-  // Whether to sideline the cache.
-  optional bool no_cache = 30;
-}
-message AggregateNodesResponse {
-  GraphScopeData scope = 1;
-  // The connection to watch. Must already exist.
-  string connection_token = 2;
-  // An updated aggregation result.
-  AggregationResultData aggregation = 3;
-  // Current epoch.
-  uint64 epoch = 10;
-}
-
-message WatchAggregateRequest {
-  GraphScopeData scope = 1;
-  // The connection to watch. Must already exist.
-  string connection_token = 2;
-  // Get any updates in between the original request and this one.
-  uint64 since_epoch = 3;
-}
-message WatchAggregateResponse {
-  AggregationResultData aggregation = 1;
-  uint64 epoch = 10;
-}
-
 message CommitTransactionRequest {
   GraphScopeData scope = 1;
   // UUIDT of the transaction.
@@ -189,10 +152,6 @@ service Graph {
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Receive any relevant node edits or result set updates for a search query.
   rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
-  // Aggregate nodes in this graph.
-  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  // Receive any relevant aggregation updates for an aggregation query.
-  rpc WatchAggregate(WatchAggregateRequest) returns (stream WatchAggregateResponse);
   // Commit a transaction to this graph.
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
 }
@@ -315,8 +274,6 @@ service Supervisor {
   rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
-  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  rpc WatchAggregate(WatchAggregateRequest) returns (stream WatchAggregateResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
 
   //
@@ -394,8 +351,6 @@ service Host {
   rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   rpc WatchSearch(WatchSearchRequest) returns (stream WatchSearchResponse);
-  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  rpc WatchAggregate(WatchAggregateRequest) returns (stream WatchAggregateResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
 
   // 
