@@ -22,21 +22,13 @@ anyio==4.9.0
     #   httpx
     #   openai
     #   watchfiles
-atlassian-python-api==3.41.16
-    # via -r bench/requirements/runtime.in
 attrs==25.3.0
     # via
     #   aiohttp
     #   jsonschema
     #   referencing
-authlib==0.15.6
-    # via python-twitter-v2
 base58==2.1.1
     # via -r bench/requirements/runtime.in
-beautifulsoup4==4.12.3
-    # via
-    #   -r bench/requirements/runtime.in
-    #   atlassian-python-api
 bitarray==2.9.2
     # via -r bench/requirements/base.in
 black==24.10.0
@@ -65,7 +57,6 @@ certifi==2024.7.4
     #   httpx
     #   requests
     #   sentry-sdk
-    #   sherlock-project
 cffi==1.17.1
     # via
     #   cryptography
@@ -78,25 +69,17 @@ click==8.1.8
     #   black
     #   livekit-agents
     #   magika
-    #   nltk
     #   typer
-colorama==0.4.6
-    # via sherlock-project
 coloredlogs==15.0.1
     # via onnxruntime
 croniter==1.4.1
     # via -r bench/requirements/base.in
 cryptography==44.0.2
-    # via
-    #   authlib
-    #   pyjwt
-dataclasses-json==0.5.14
-    # via python-twitter-v2
+    # via pyjwt
 dateparser==1.1.8
     # via -r bench/requirements/runtime.in
 deprecated==1.2.18
     # via
-    #   atlassian-python-api
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-semantic-conventions
@@ -110,22 +93,14 @@ dropbox==11.36.2
     # via -r bench/requirements/runtime.in
 duckdb==1.1.1
     # via -r bench/requirements/base.in
-et-xmlfile==2.0.0
-    # via openpyxl
 exa-py==1.12.0
     # via -r bench/requirements/base.in
-feedparser==6.0.10
-    # via -r bench/requirements/runtime.in
 flatbuffers==25.2.10
     # via onnxruntime
 frozenlist==1.5.0
     # via
     #   aiohttp
     #   aiosignal
-gitdb==4.0.12
-    # via gitpython
-gitpython==3.1.32
-    # via -r bench/requirements/runtime.in
 google-ai-generativelanguage==0.6.10
     # via google-generativeai
 google-api-core==2.24.2
@@ -156,16 +131,12 @@ google-genai==0.5.0
     # via -r bench/requirements/base.in
 google-generativeai==0.8.3
     # via -r bench/requirements/base.in
-google-search-results==2.4.2
-    # via -r bench/requirements/runtime.in
 googleapis-common-protos==1.66.0
     # via
     #   -r bench/requirements/base.in
     #   google-api-core
     #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
-googlemaps==4.10.0
-    # via -r bench/requirements/runtime.in
 grpcio==1.71.0
     # via
     #   -r bench/requirements/runtime.in
@@ -198,7 +169,6 @@ httpx==0.28.1
     #   anthropic
     #   browserbase
     #   exa-py
-    #   notion-client
     #   openai
 humanfriendly==10.0
     # via coloredlogs
@@ -219,20 +189,15 @@ iniconfig==2.1.0
 itsdangerous==2.1.2
     # via -r bench/requirements/runtime.in
 jinja2==3.1.4
-    # via
-    #   -r bench/requirements/runtime.in
-    #   stone
+    # via stone
 jiter==0.9.0
     # via
     #   anthropic
     #   openai
 jmespath==1.0.1
     # via
-    #   atlassian-python-api
     #   boto3
     #   botocore
-joblib==1.4.2
-    # via nltk
 jsonschema==4.23.0
     # via
     #   -r bench/requirements/base.in
@@ -255,19 +220,14 @@ livekit-protocol==0.9.2
     #   livekit-api
 lxml==5.2.2
     # via
-    #   -r bench/requirements/runtime.in
     #   python-docx
     #   python-pptx
 magika==0.5.1
     # via -r bench/requirements/base.in
-markdown==3.4.1
-    # via -r bench/requirements/runtime.in
 markdown-it-py==3.0.0
     # via rich
 markupsafe==3.0.2
     # via jinja2
-marshmallow==3.26.1
-    # via dataclasses-json
 mdurl==0.1.2
     # via markdown-it-py
 more-itertools==9.0.0
@@ -276,8 +236,6 @@ more-itertools==9.0.0
     #   -r bench/requirements/runtime.in
 mpmath==1.3.0
     # via sympy
-msgpack==1.1.0
-    # via -r bench/requirements/runtime.in
 multidict==6.4.3
     # via
     #   -r bench/requirements/base.in
@@ -286,23 +244,14 @@ multidict==6.4.3
     #   grpclib
     #   yarl
 mypy-extensions==1.0.0
-    # via
-    #   black
-    #   typing-inspect
-nltk==3.9.1
-    # via -r bench/requirements/runtime.in
-notion-client==2.3.0
-    # via -r bench/requirements/runtime.in
+    # via black
 numpy==1.26.4
     # via
     #   -r bench/requirements/base.in
     #   onnxruntime
     #   opencv-python
-    #   pandas
 oauthlib==3.2.2
-    # via
-    #   atlassian-python-api
-    #   requests-oauthlib
+    # via requests-oauthlib
 onnxruntime==1.21.0
     # via magika
 openai==1.76.0
@@ -311,8 +260,6 @@ openai==1.76.0
     #   exa-py
 opencv-python==4.10.0.84
     # via -r bench/requirements/runtime.in
-openpyxl==3.1.5
-    # via sherlock-project
 opentelemetry-api==1.28.1
     # via
     #   -r bench/requirements/base.in
@@ -336,14 +283,9 @@ opentelemetry-semantic-conventions==0.49b1
 packaging==24.2
     # via
     #   black
-    #   marshmallow
     #   onnxruntime
     #   pytest
     #   stone
-pandas==2.2.3
-    # via
-    #   -r bench/requirements/runtime.in
-    #   sherlock-project
 pathspec==0.12.1
     # via black
 pillow==11.0.0
@@ -383,9 +325,7 @@ protobuf==5.28.3
     #   opentelemetry-proto
     #   proto-plus
 psutil==5.9.2
-    # via
-    #   -r bench/requirements/runtime.in
-    #   livekit-agents
+    # via livekit-agents
 psycopg==3.2.3
     # via -r bench/requirements/runtime.in
 psycopg-binary==3.2.3
@@ -437,8 +377,6 @@ pyparsing==3.2.3
     # via httplib2
 pypdf==5.4.0
     # via -r bench/requirements/runtime.in
-pysocks==1.7.1
-    # via sherlock-project
 pytest==8.3.3
     # via
     #   -r bench/requirements/base.in
@@ -451,7 +389,6 @@ python-dateutil==2.9.0.post0
     #   botocore
     #   croniter
     #   dateparser
-    #   pandas
 python-docx==1.1.2
     # via -r bench/requirements/runtime.in
 python-dotenv==1.1.0
@@ -460,13 +397,10 @@ python-dotenv==1.1.0
     #   magika
 python-pptx==1.0.2
     # via -r bench/requirements/runtime.in
-python-twitter-v2==0.8.1
-    # via -r bench/requirements/runtime.in
 pytz==2024.1
     # via
     #   -r bench/requirements/base.in
     #   dateparser
-    #   pandas
 redis==4.5.4
     # via -r bench/requirements/base.in
 referencing==0.36.2
@@ -477,31 +411,20 @@ regex==2024.11.6
     # via
     #   -r bench/requirements/base.in
     #   dateparser
-    #   nltk
     #   tiktoken
 requests==2.32.3
     # via
     #   -r bench/requirements/runtime.in
-    #   atlassian-python-api
     #   dropbox
     #   exa-py
     #   google-api-core
     #   google-genai
-    #   google-search-results
-    #   googlemaps
     #   pyairtable
     #   pygithub
-    #   python-twitter-v2
-    #   requests-futures
     #   requests-oauthlib
-    #   sherlock-project
     #   tiktoken
-requests-futures==1.0.2
-    # via sherlock-project
 requests-oauthlib==2.0.0
-    # via
-    #   atlassian-python-api
-    #   google-auth-oauthlib
+    # via google-auth-oauthlib
 rich==13.9.4
     # via
     #   -r bench/requirements/base.in
@@ -516,22 +439,13 @@ s3transfer==0.10.4
     # via boto3
 sentry-sdk==2.2.0
     # via -r bench/requirements/base.in
-sgmllib3k==1.0.0
-    # via feedparser
 shellingham==1.5.4
     # via typer
-sherlock-project==0.15.0
-    # via -r bench/requirements/runtime.in
 six==1.17.0
     # via
-    #   atlassian-python-api
     #   dropbox
     #   python-dateutil
     #   stone
-slack-sdk==3.35.0
-    # via -r bench/requirements/runtime.in
-smmap==5.0.2
-    # via gitdb
 sniffio==1.3.1
     # via
     #   anthropic
@@ -540,12 +454,8 @@ sniffio==1.3.1
     #   openai
 sortedcontainers==2.4.0
     # via -r bench/requirements/base.in
-soupsieve==2.6
-    # via beautifulsoup4
 sqlglot==25.30.0
     # via -r bench/requirements/base.in
-stem==1.8.2
-    # via sherlock-project
 stone==3.3.9
     # via dropbox
 structlog==24.2.0
@@ -561,7 +471,6 @@ tqdm==4.67.1
     #   -r bench/requirements/runtime.in
     #   google-generativeai
     #   magika
-    #   nltk
     #   openai
 typer==0.15.1
     # via -r bench/requirements/base.in
@@ -588,14 +497,9 @@ typing-extensions==4.13.2
     #   python-docx
     #   python-pptx
     #   typer
-    #   typing-inspect
     #   typing-inspection
-typing-inspect==0.9.0
-    # via dataclasses-json
 typing-inspection==0.4.0
     # via pydantic
-tzdata==2025.2
-    # via pandas
 tzlocal==5.3.1
     # via dateparser
 uritemplate==4.1.1
