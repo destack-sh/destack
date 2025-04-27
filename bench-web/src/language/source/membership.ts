@@ -3,7 +3,7 @@ import { isNodeInstance, isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { instanceNode } from "@/language/core/node";
 import { newChangeId, Transaction } from "@/language/core/transaction";
-import { JoinableNodeData, MembershipData, NodeType } from "@/proto/wire";
+import { JoinableNodeData, MembershipData, MessageType, NodeType } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 
 /** Create a Membership */
@@ -32,5 +32,19 @@ export function createMembership(
     parentPtr: toNodeRef(options.parent),
     memberPtr: toNodeRef(member),
   });
+
+  // auto create join messages :BadAutoMessages
+  //  (unfortunately, these have to be 'created' by the current User, not the system)
+  if (isNode(options.parent, NodeType.THREAD)) {
+    const message = tx.create({
+      metatype: NodeType.MESSAGE,
+      parentPtr: toNodeRef(options.parent),
+      packagePtr: options.parent.packagePtr,
+      type: MessageType.JOIN,
+      threadPtr: toNodeRef(options.parent),
+      nodesPtr: [toNodeRef(member)],
+    });
+  }
+
   return membership;
 }

@@ -86,7 +86,7 @@ canvas.registerView(self, id);
 // state
 const nodePtr = toRef(props, "nodePtr");
 const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
-const { graph: threadGraph, connection: threadConnection } = useAutoConnection(nodePtr);
+const { graph: threadGraph, connection: threadConnection } = useAutoConnection(nodePtr); // ughh
 const claims = threadGraph.getChildrenRef(nodePtr, NodeType.CLAIM);
 
 //
@@ -242,6 +242,7 @@ const messageViews = computed(() => {
   const viewsById: Record<string, MessageView> = {};
   for (let i = 0; i < messages.value.length; i++) {
     const message = messages.value[i];
+    const prevView = views[i - 1];
     const authorPtr = getMessageAuthorPtr(message);
     const author = authorPtr != null ? authorsById.value[authorPtr.id!] : null;
     const isCustomLineOnly =
@@ -255,7 +256,8 @@ const messageViews = computed(() => {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
       isStartOfGroup =
-        (message.createdByPtr != null && message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id) ||
+        (message.createdByPtr != null &&
+          (message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id || prevView.isCustomLineOnly)) ||
         Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
           MESSAGE_GROUP_TIME_SECONDS;
       isNewDate = previousDt.day != currentDt.day;
