@@ -8,8 +8,6 @@ from opentelemetry import trace
 
 from bench.language import (
     ROOT_NODE_TYPES,
-    AggregateOptions,
-    AggregateResultData,
     Database,
     EditType,
     GetOptions,
@@ -23,7 +21,6 @@ from bench.language import (
     SearchOptions,
     SearchResultData,
     Session,
-    WatchAggregateUpdateData,
     WatchGetUpdateData,
     WatchSearchUpdateData,
     apply_sort,
@@ -60,8 +57,8 @@ CONNECTION_CACHE_EXPIRE_SECONDS = get_from_env(
 
 
 class Connection[
-    ResultT: GetResultData | SearchResultData | AggregateResultData,
-    UpdateT: WatchGetUpdateData | WatchSearchUpdateData | WatchAggregateUpdateData,
+    ResultT: GetResultData | SearchResultData,
+    UpdateT: WatchGetUpdateData | WatchSearchUpdateData,
 ](abc.ABC):
     """
     A system-side query connection to a (sub)graph.
@@ -537,41 +534,6 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
                 epoch=epoch,
             )
             self.notify_update(update)
-
-
-class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdateData]):
-    """
-    Connected aggregate query in the graph.
-    Live isn't supported yet, but eventually (like search) this should be incremental materialized view.
-    """
-
-    read_type: ClassVar[QueryType] = QueryType.AGGREGATE
-
-    def __result_str__(self, result: AggregateResultData) -> str:
-        return f"aggregation={result.aggregation!r}"
-
-    @override
-    async def connect(self, session: Session) -> AggregateResultData:
-        connector = await session._get_connector_for(
-            self.scope,
-            self.query.all_node_types,
-            include_removed=self.query.include_removed,
-            is_readonly=True,
-        )
-        connection = await connector.aggregate(
-            self.query, AggregateOptions(live=False, mode="packed")
-        )
-        self._result_data = connection.result_data
-        return self._result_data
-
-    def post_commit(
-        self,
-        graph: NodeDataGraph,
-        edits: Sequence[EditData],
-        cascaded_edits: Sequence[EditData],
-        epoch: int,
-    ):
-        pass  # not yet implemented (watch_aggregate errors with not implemented for now)
 
 
 class ConnectionIndex:

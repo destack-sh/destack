@@ -26,10 +26,6 @@ import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { Graph } from "./system";
 import type { CommitTransactionResponse } from "./system";
 import type { CommitTransactionRequest } from "./system";
-import type { WatchAggregateResponse } from "./system";
-import type { WatchAggregateRequest } from "./system";
-import type { AggregateNodesResponse } from "./system";
-import type { AggregateNodesRequest } from "./system";
 import type { WatchSearchResponse } from "./system";
 import type { WatchSearchRequest } from "./system";
 import type { SearchNodesResponse } from "./system";
@@ -74,18 +70,6 @@ export interface IGraphClient {
      * @generated from protobuf rpc: WatchSearch(symbolx.bench.WatchSearchRequest) returns (stream symbolx.bench.WatchSearchResponse);
      */
     watchSearch(input: WatchSearchRequest, options?: OperationOptions): ServerStreamingCall<WatchSearchRequest, WatchSearchResponse>;
-    /**
-     * Aggregate nodes in this graph.
-     *
-     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
-     */
-    aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
-    /**
-     * Receive any relevant aggregation updates for an aggregation query.
-     *
-     * @generated from protobuf rpc: WatchAggregate(symbolx.bench.WatchAggregateRequest) returns (stream symbolx.bench.WatchAggregateResponse);
-     */
-    watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse>;
     /**
      * Commit a transaction to this graph.
      *
@@ -143,30 +127,12 @@ export class GraphClient implements IGraphClient, ServiceInfo {
         return stackIntercept<WatchSearchRequest, WatchSearchResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
-     * Aggregate nodes in this graph.
-     *
-     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
-     */
-    aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Receive any relevant aggregation updates for an aggregation query.
-     *
-     * @generated from protobuf rpc: WatchAggregate(symbolx.bench.WatchAggregateRequest) returns (stream symbolx.bench.WatchAggregateResponse);
-     */
-    watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchAggregateRequest, WatchAggregateResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
      * Commit a transaction to this graph.
      *
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
 }
@@ -196,14 +162,6 @@ export interface ISupervisorClient {
      * @generated from protobuf rpc: WatchSearch(symbolx.bench.WatchSearchRequest) returns (stream symbolx.bench.WatchSearchResponse);
      */
     watchSearch(input: WatchSearchRequest, options?: OperationOptions): ServerStreamingCall<WatchSearchRequest, WatchSearchResponse>;
-    /**
-     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
-     */
-    aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
-    /**
-     * @generated from protobuf rpc: WatchAggregate(symbolx.bench.WatchAggregateRequest) returns (stream symbolx.bench.WatchAggregateResponse);
-     */
-    watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse>;
     /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
@@ -297,24 +255,10 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<WatchSearchRequest, WatchSearchResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
-     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
-     */
-    aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * @generated from protobuf rpc: WatchAggregate(symbolx.bench.WatchAggregateRequest) returns (stream symbolx.bench.WatchAggregateResponse);
-     */
-    watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchAggregateRequest, WatchAggregateResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -327,7 +271,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
      * @generated from protobuf rpc: SignupUser(symbolx.bench.SignupUserRequest) returns (symbolx.bench.SignupUserResponse);
      */
     signupUser(input: SignupUserRequest, options?: OperationOptions): UnaryCall<SignupUserRequest, SignupUserResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<SignupUserRequest, SignupUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -336,7 +280,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
      * @generated from protobuf rpc: ChangeUserPassword(symbolx.bench.ChangeUserPasswordRequest) returns (symbolx.bench.ChangeUserPasswordResponse);
      */
     changeUserPassword(input: ChangeUserPasswordRequest, options?: OperationOptions): UnaryCall<ChangeUserPasswordRequest, ChangeUserPasswordResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<ChangeUserPasswordRequest, ChangeUserPasswordResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -345,7 +289,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
      * @generated from protobuf rpc: LoginUser(symbolx.bench.LoginUserRequest) returns (symbolx.bench.LoginUserResponse);
      */
     loginUser(input: LoginUserRequest, options?: OperationOptions): UnaryCall<LoginUserRequest, LoginUserResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
         return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -354,7 +298,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
      * @generated from protobuf rpc: LogoutUser(symbolx.bench.LogoutUserRequest) returns (symbolx.bench.LogoutUserResponse);
      */
     logoutUser(input: LogoutUserRequest, options?: OperationOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -367,7 +311,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
      * @generated from protobuf rpc: CreateBench(symbolx.bench.CreateBenchRequest) returns (symbolx.bench.CreateBenchResponse);
      */
     createBench(input: CreateBenchRequest, options?: OperationOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -376,7 +320,7 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
      * @generated from protobuf rpc: ResolveHosts(symbolx.bench.ResolveHostsRequest) returns (symbolx.bench.ResolveHostsResponse);
      */
     resolveHosts(input: ResolveHostsRequest, options?: OperationOptions): UnaryCall<ResolveHostsRequest, ResolveHostsResponse> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<ResolveHostsRequest, ResolveHostsResponse>("unary", this._transport, method, opt, input);
     }
 }
@@ -406,14 +350,6 @@ export interface IHostClient {
      * @generated from protobuf rpc: WatchSearch(symbolx.bench.WatchSearchRequest) returns (stream symbolx.bench.WatchSearchResponse);
      */
     watchSearch(input: WatchSearchRequest, options?: OperationOptions): ServerStreamingCall<WatchSearchRequest, WatchSearchResponse>;
-    /**
-     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
-     */
-    aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
-    /**
-     * @generated from protobuf rpc: WatchAggregate(symbolx.bench.WatchAggregateRequest) returns (stream symbolx.bench.WatchAggregateResponse);
-     */
-    watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse>;
     /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
@@ -479,24 +415,10 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<WatchSearchRequest, WatchSearchResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
-     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
-     */
-    aggregateNodes(input: AggregateNodesRequest, options?: OperationOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * @generated from protobuf rpc: WatchAggregate(symbolx.bench.WatchAggregateRequest) returns (stream symbolx.bench.WatchAggregateResponse);
-     */
-    watchAggregate(input: WatchAggregateRequest, options?: OperationOptions): ServerStreamingCall<WatchAggregateRequest, WatchAggregateResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchAggregateRequest, WatchAggregateResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -509,7 +431,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
     uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -518,7 +440,7 @@ export class HostClient implements IHostClient, ServiceInfo {
      * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
     downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
 }

@@ -495,12 +495,6 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     def first(self, count: int) -> "Query[V, VD]":
         return self._query().first(count)
 
-    async def count(self, filter: Optional["Expression"] = None, **kwargs) -> int:
-        return await self._query().count(filter, **kwargs)
-
-    async def exists(self, filter: Optional["Expression"] = None, **kwargs) -> bool:
-        return await self._query().exists(filter, **kwargs)
-
 
 class RecordNodeList(RemoteNodeList["Record", RecordData]):
     """

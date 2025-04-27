@@ -1,5 +1,4 @@
-from bench.system.graph.connection import (
-    AggregateConnection,
+from .connection import (
     Connection,
     ConnectionIndex,
     ConnectionSubscription,
@@ -7,9 +6,8 @@ from bench.system.graph.connection import (
     SearchConnection,
     is_edit_in_scope,
 )
-from bench.system.graph.graph import CommitScope, GraphLock, GraphServiceBase
-from bench.system.graph.postgres import (
-    PostgresAggregateConnection,
+from .graph import CommitScope, GraphLock, GraphServiceBase
+from .postgres import (
     PostgresConnector,
     PostgresEngine,
     PostgresGetConnection,
@@ -17,7 +15,6 @@ from bench.system.graph.postgres import (
 )
 
 __all__ = [
-    "AggregateConnection",
     "CommitScope",
     "Connection",
     "ConnectionIndex",
@@ -25,7 +22,6 @@ __all__ = [
     "GetConnection",
     "GraphLock",
     "GraphServiceBase",
-    "PostgresAggregateConnection",
     "PostgresConnector",
     "PostgresEngine",
     "PostgresGetConnection",

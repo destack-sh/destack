@@ -29,9 +29,8 @@ from bench.pb2.system_grpc import GraphClient, HostClient, SupervisorClient
 from bench.pb2.system_pb2 import WatchGetRequest, WatchSearchRequest
 from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 
-from .connection import AggregateConnection, Connection, GetConnection, SearchConnection
+from .connection import Connection, GetConnection, SearchConnection
 from .engine import (
-    AggregateResultData,
     CommitResultData,
     ConnectionOptions,
     Engine,
@@ -116,8 +115,6 @@ class RemoteConnector(WritableConnector[RemoteEngine]):
             return RemoteGetConnection
         elif query._type == QueryType.SEARCH:
             return RemoteSearchConnection
-        elif query._type == QueryType.AGGREGATE:
-            return RemoteAggregateConnection
         else:
             raise RuntimeError(f"unsupported read type {query._type}")
 
@@ -294,32 +291,3 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
                 epoch=rep.epoch,
             )
             yield update
-
-
-class RemoteAggregateConnection(AggregateConnection[RemoteConnector]):
-    """Aggregate a remote connector live."""
-
-    @override
-    async def _do_read(self, query: "Query") -> AggregateResultData:
-        from bench.proto import wiring
-
-        engine = self.connector.engine
-        assert query._aggregation is not None, f"{query!r} has no aggregation"
-        request = pb2.AggregateNodesRequest(
-            node_type=wiring.pack_enum(NodeType, query._node_type),
-            filter=wiring.pack_builtin_object_maybe(query._filter, ExpressionData),
-            aggregation=cast(ExpressionData, query._aggregation._to_data()),
-            scope=engine.scope,
-        )
-        try:
-            response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
-        except GRPCError as e:
-            raise _grpc_wrap_error(query, e) from e
-        assert response.aggregation is not None, f"{response!r} has no aggregation"
-        return AggregateResultData(
-            aggregation=response.aggregation,
-            epoch=response.epoch,
-            connection_token=response.connection_token,
-        )
-
-    # NOTE :Incomplete: RemoteAggregateConnection subscription

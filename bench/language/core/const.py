@@ -1111,8 +1111,6 @@ class QueryType(BuiltinEnum):
     GET = 1
     """Search all nodes."""
     SEARCH = 2
-    """Aggregate statistics."""
-    AGGREGATE = 3
 
     @property
     def kind(self) -> "AccessKind":

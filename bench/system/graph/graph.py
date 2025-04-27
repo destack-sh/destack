@@ -61,8 +61,6 @@ from bench.language import (
     unpack_value_scalar_data,
 )
 from bench.proto import (
-    AggregateNodesRequest,
-    AggregateNodesResponse,
     CommitTransactionRequest,
     CommitTransactionResponse,
     EditData,
@@ -75,8 +73,6 @@ from bench.proto import (
     SearchNodesRequest,
     SearchNodesResponse,
     ServiceBase,
-    WatchAggregateRequest,
-    WatchAggregateResponse,
     WatchGetRequest,
     WatchGetResponse,
     WatchSearchRequest,
@@ -90,7 +86,6 @@ from bench.utils.tenacity import RetryOptions
 from bench.utils.utils import get_from_env
 
 from .connection import (
-    AggregateConnection,
     ConnectionIndex,
     GetConnection,
     SearchConnection,
@@ -799,61 +794,6 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 )
         finally:
             subscription.cancel()
-
-    @override
-    async def aggregate_nodes(
-        self, request: "AggregateNodesRequest", headers: Mapping
-    ) -> "AggregateNodesResponse":
-        # parse query & fetch
-        node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
-        self._check_allowed_node_types(node_type)
-        metadata = wiring.unpack_rpc_headers(headers)
-        subject = await self.get_request_subject(request, metadata)
-        async with self.new_request_session(supergraph=subject._supergraph) as session:
-            with self.tracer.start_as_current_span(f"{self.name}.aggregate.parse"):
-                filter = wiring.unpack_builtin_object_validate_maybe(
-                    request.filter, supergraph=session._supergraph, expect=Expression
-                )
-                aggregation = wiring.unpack_builtin_object_validate(
-                    request.aggregation, supergraph=session._supergraph, expect=Expression
-                )
-                query = Query(
-                    type=QueryType.AGGREGATE,
-                    node_type=node_type,
-                    filter=filter,
-                    aggregation=aggregation,
-                )
-                adapted_query = self._adapt_read_query(subject, query)
-
-            with self.tracer.start_as_current_span(f"{self.name}.aggregate.read") as span:
-                async with self._graph_lock.read(query):
-                    connection = await self.connector.connect(
-                        query=adapted_query,
-                        session=session,
-                        connection_t=AggregateConnection,
-                        cache=not request.no_cache,
-                    )
-                    span.set_attributes(
-                        {"connection_hash": connection.hash, "connection_token": connection.token}
-                    )
-
-        # TODO :Security!: check aggregation access
-
-        self.logger.info(
-            f"{self.name}.aggregate", subject=subject, epoch=self._local_epoch, span="current"
-        )
-        return AggregateNodesResponse(
-            aggregation=connection.result.aggregation,
-            connection_token=connection.token,
-            epoch=self._local_epoch,
-        )
-
-    @override
-    async def watch_aggregate(
-        self, request: WatchAggregateRequest, headers: Mapping
-    ) -> AsyncIterator[WatchAggregateResponse]:
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED, "watch_aggregate not yet supported")
-        yield  # unreachable (for type checking)
 
     def _extract_commit_scope(self, edits: Sequence[EditData]) -> CommitScope:
         """

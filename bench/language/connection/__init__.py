@@ -1,15 +1,6 @@
 from .capture import GraphCapture, capture, isolated_graph, uncapture
-from .connection import (
-    AggregateConnection,
-    Connection,
-    GetConnection,
-    SearchConnection,
-)
+from .connection import Connection, GetConnection, SearchConnection
 from .engine import (
-    AggregateOptions,
-    AggregateResult,
-    AggregateResultData,
-    AggregationResultData,
     CommitResultData,
     ConnectionOptions,
     ConnectMode,
@@ -28,8 +19,6 @@ from .engine import (
     SearchResultData,
     Update,
     UpdateData,
-    WatchAggregateUpdate,
-    WatchAggregateUpdateData,
     WatchGetUpdate,
     WatchGetUpdateData,
     WatchSearchUpdate,
@@ -39,21 +28,10 @@ from .engine import (
 )
 from .link import NodeLink, synchronize_nodes
 from .memory import MemoryConnector, MemoryEngine, MemoryGetConnection
-from .remote import (
-    RemoteAggregateConnection,
-    RemoteConnector,
-    RemoteEngine,
-    RemoteGetConnection,
-    RemoteSearchConnection,
-)
+from .remote import RemoteConnector, RemoteEngine, RemoteGetConnection, RemoteSearchConnection
 from .split import SplitConnection, SplitConnector, SplitGetConnection, SplitSearchConnection
 
 __all__ = [
-    "AggregateConnection",
-    "AggregateOptions",
-    "AggregateResult",
-    "AggregateResultData",
-    "AggregationResultData",
     "CommitResultData",
     "ConnectMode",
     "Connection",
@@ -75,7 +53,6 @@ __all__ = [
     "MemoryGetConnection",
     "NodeLink",
     "NullEngine",
-    "RemoteAggregateConnection",
     "RemoteConnector",
     "RemoteEngine",
     "RemoteGetConnection",
@@ -90,8 +67,6 @@ __all__ = [
     "SplitSearchConnection",
     "Update",
     "UpdateData",
-    "WatchAggregateUpdate",
-    "WatchAggregateUpdateData",
     "WatchGetUpdate",
     "WatchGetUpdateData",
     "WatchSearchUpdate",

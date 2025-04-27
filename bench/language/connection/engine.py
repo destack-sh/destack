@@ -31,7 +31,6 @@ from bench.language.core import (
     repr_scope,
 )
 from bench.pb2 import (
-    AggregationResultData,
     AnyNodeData,
     ClientOriginData,
     EditData,
@@ -42,8 +41,6 @@ from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
-        AggregateConnection,
-        AggregationResult,
         Connection,
         Expression,
         Field,
@@ -192,44 +189,11 @@ class WatchSearchUpdate:
     removed: Mapping[UUID, Node]
 
 
-#
-# Aggregate
-#
-
-
-@dataclass(slots=True)
-class AggregateOptions(_ConnectOptions):
-    pass
-
-
-@dataclass(slots=True)
-class AggregateResultData:
-    aggregation: AggregationResultData
-    epoch: int | None
-    connection_token: str | None
-
-
-@dataclass(slots=True)
-class AggregateResult:
-    aggregation: "AggregationResult"
-
-
-@dataclass(slots=True)
-class WatchAggregateUpdateData:
-    aggregation: AggregationResultData
-    epoch: int
-
-
-@dataclass(slots=True)
-class WatchAggregateUpdate:
-    pass
-
-
-ConnectionOptions = GetOptions | SearchOptions | AggregateOptions
-ResultData = GetResultData | SearchResultData | AggregateResultData
-Result = GetResult | SearchResult | AggregateResult
-UpdateData = WatchGetUpdateData | WatchSearchUpdateData | WatchAggregateUpdateData
-Update = WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate
+ConnectionOptions = GetOptions | SearchOptions
+ResultData = GetResultData | SearchResultData
+Result = GetResult | SearchResult
+UpdateData = WatchGetUpdateData | WatchSearchUpdateData
+Update = WatchGetUpdate | WatchSearchUpdate
 
 
 def scope_includes(scope: GraphScopeData, other: GraphScopeData) -> bool:
@@ -370,20 +334,6 @@ class Connector[E: Engine](abc.ABC):
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.read_retry, options)
         assert isinstance(connection, SearchConnection), f"{connection!r} is not a search"
-        await connection.connect()
-        return connection
-
-    @final
-    async def aggregate(self, query: "Query", options: AggregateOptions) -> "AggregateConnection":
-        """Read the nodes given the aggregate query in the current transaction context (if any)."""
-        from .connection import AggregateConnection
-
-        assert query._type == QueryType.AGGREGATE, f"{query!r} is not an aggregate"
-        assert query._aggregation is not None, f"{query!r} has no aggregation"
-        scope = self.session._get_scope_for_query(query)
-        connection_cls = self._get_connection_cls(query, scope, options)
-        connection = connection_cls(self, scope, query, self.read_retry, options)
-        assert isinstance(connection, AggregateConnection), f"{connection!r} is not an aggregate"
         await connection.connect()
         return connection
 
