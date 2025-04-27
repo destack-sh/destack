@@ -53,7 +53,15 @@ def to_icon(icon: IconIn, color: ColorIn | None = None) -> Icon:
 
     color = to_color(color) if color else None
     if isinstance(icon, str):
-        if icon.startswith("fa"):
+        if (
+            icon.endswith(".svg")
+            or icon.endswith(".png")
+            or icon.endswith(".jpg")
+            or icon.endswith(".jpeg")
+            or icon.endswith(".ico")
+        ):
+            return Icon(type=IconType.FILE_URL, file_url=icon, color=color)
+        elif icon.startswith("fa"):
             return Icon(type=IconType.FONT_AWESOME, fa_name=icon, color=color)
         else:
             return Icon(type=IconType.EMOJI, emoji=icon, color=color)
