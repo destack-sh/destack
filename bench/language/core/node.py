@@ -304,7 +304,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     )
     archived_at: Optional[datetime] = p_system(14, default=None, autoset=True)
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
-    # IsTemplatable.template/template_at: 16
+    # IsTemplatable.template: 16
     # IsOwnable.owned_by: 17
     # IsClaimable.claimed_by: 18
     # ...managed_by?
@@ -327,6 +327,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
 
     if TYPE_CHECKING:
         _skip_add_self: bool = False
+        _skip_validate_self: bool = False
 
     def __init__(
         self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs

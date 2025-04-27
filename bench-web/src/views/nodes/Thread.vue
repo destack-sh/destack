@@ -2,6 +2,7 @@
 import { supergraph } from "@/globals";
 import { BENCH_BENCH_AGENT_PTR, BENCH_BENCH_UBUNTU_DESKTOP_PTR } from "@/language/core/builtin";
 import { isProcessableNode, toCamelName } from "@/language/core/const";
+import { getEnumOption, getEnumOptions } from "@/language/core/enum";
 import { makeAndConditional, makeExpression } from "@/language/core/expression";
 import { emptyText, isTextEmpty, renderText, trimText } from "@/language/core/text";
 import { newChangeId } from "@/language/core/transaction";
@@ -16,6 +17,8 @@ import {
   AnyNodeData,
   ClaimType,
   ColorType,
+  ComputerData,
+  EnumType,
   ExpressionData,
   ExpressionType,
   IconData,
@@ -23,6 +26,7 @@ import {
   MessageProperty,
   MessageType,
   MessageTypeOptionInfo,
+  ModelDeveloper,
   NodeMode,
   NodeReferenceData,
   NodeType,
@@ -48,6 +52,7 @@ import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import { formatAbsoluteDate, getNow, TimeUpdateInterval, tsToDt } from "@/utils/time";
 import Link from "@/views/builtin/Link.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
+import Popover from "@/views/builtin/Popover.vue";
 import RootHeader from "@/views/builtin/RootHeader.vue";
 import Run from "@/views/builtin/Run.vue";
 import { type ViewEmits, type ViewExpose } from "@/views/common";
@@ -86,8 +91,17 @@ canvas.registerView(self, id);
 // state
 const nodePtr = toRef(props, "nodePtr");
 const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
+const thread = node as Ref<ThreadData | null>;
 const { graph: threadGraph, connection: threadConnection } = useAutoConnection(nodePtr); // ughh
 const claims = threadGraph.getChildrenRef(nodePtr, NodeType.CLAIM);
+const computers = threadGraph.getChildrenRef(nodePtr, NodeType.COMPUTER);
+const hasComputerClaim = computed(() =>
+  claims.value.some(
+    (c) => c.targetPtr?.nodeType == NodeType.COMPUTER || c.targetTemplatePtr?.nodeType == NodeType.COMPUTER,
+  ),
+);
+const computer: Ref<ComputerData | null> = computed(() => computers.value[0] ?? null);
+const hasClaimedComputer = ref(false);
 
 //
 // Messages
@@ -256,7 +270,7 @@ const messageViews = computed(() => {
       const previousDt = tsToDt(messages.value[i - 1].createdAt!);
       const currentDt = tsToDt(message.createdAt!);
       isStartOfGroup =
-        !isCustomLineOnly &&
+        !(isCustomLineOnly && prevView.isCustomLineOnly) &&
         (message.createdByPtr?.id != messages.value[i - 1]?.createdByPtr?.id ||
           prevView.isCustomLineOnly ||
           Math.abs(Number(messages.value[i - 1].createdAt!.seconds) - Number(message.createdAt!.seconds)) >
@@ -488,9 +502,6 @@ async function addFiles(files: FileList | File[]) {
   });
 }
 
-// view
-const fileInputRef = ref<HTMLInputElement | null>(null);
-
 // drop
 const dropZone = useSingleDropZone({
   container: containerRef,
@@ -623,7 +634,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           leave-from-class="opacity-100"
           leave-to-class="opacity-0"
         >
-          <div v-if="isEnabled && (!isAtStart || node == null)">
+          <div v-if="isEnabled && (!isAtStart || thread == null)">
             <div
               v-for="i in LOADING_SKELETON_COUNT"
               ref="topPlaceholderRef"
@@ -650,12 +661,12 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         >
           <!-- Title -->
           <NodeReference
-            v-if="node"
+            v-if="thread"
             ref="nameRef"
             class="group/title mt-3 w-full px-0.5"
             :orientation="Orientation.VERTICAL"
             size="title"
-            :node="node"
+            :node="thread"
             is-input
             hide-metadata
             :tx="() => connection!.tx"
@@ -668,14 +679,14 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                 v-if="!isRoot"
                 v-tooltip="{ small: true, text: 'Open in full' }"
                 class="ml-2 cursor-pointer rounded-sm px-1 text-2xl text-gray-400 opacity-0 transition-opacity duration-75 group-focus-within/title:opacity-100 group-hover/title:opacity-100 hover:bg-gray-100 hover:text-gray-700"
-                @click="() => canvas.goToNode(node!)"
+                @click="() => canvas.goToNode(thread!)"
               >
                 <i class="fas fa-arrow-up-right" />
               </button>
             </template>
           </NodeReference>
           <!-- Beginning -->
-          <div v-if="node" class="mt-1.5 px-0.5 text-base text-gray-400">
+          <div v-if="thread" class="mt-1.5 px-0.5 text-base text-gray-400">
             <span>
               This is the beginning of this
               {{ nodePtr != null ? toCamelName(NodeType, nodePtr.nodeType) : "???" }}.
@@ -702,7 +713,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             isReplyingTo,
             isOverflowing,
           } in messageViews"
-          v-if="node != null"
+          v-if="thread != null"
           :key="message.id"
         >
           <!-- New date (line with date in middle) -->
@@ -1049,29 +1060,16 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
 
       <!-- Main box -->
       <div
-        class="relative flex flex-row rounded-sm border border-gray-200 px-2 pt-3 pb-2"
+        class="relative flex flex-row rounded-sm border border-gray-200 px-2 pt-2 pb-2"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <!-- Left -->
         <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 9 + 'px' }">
           <!-- Add extra -->
-          <!-- NOTE :Incomplete: support adding other Nodes to Chat instead of just Files -->
-          <input
-            ref="fileInputRef"
-            type="file"
-            class="hidden"
-            @change="
-              (e) => {
-                const files = Array.from((e.target as HTMLInputElement).files!);
-                addFiles(files);
-                (e.target as HTMLInputElement).value = ''; // clear value
-              }
-            "
-          />
+          <!-- nocheckin :Incomplete: support adding other Nodes to Chat instead of just Files -->
           <button
             v-tooltip="{ small: true, title: 'Add Context' }"
             class="transition-color mr-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
-            @click.stop="fileInputRef?.click()"
           >
             <i class="fas fa-plus" />
           </button>
@@ -1142,38 +1140,108 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         </div>
         <!-- Controls? (pause/stop/resume) -->
         <div>
-          <!-- ... -->
+          <!-- Record / Submit -->
+          <button
+            v-tooltip="{ small: true, title: 'Submit' }"
+            class="transition-color mr-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
+            @click="submit()"
+          >
+            <i class="fas fa-arrow-up" />
+          </button>
         </div>
       </div>
+
       <!-- Footer -->
-      <!-- Options -->
-      <div class="flex h-[24px] w-full flex-row items-center px-3 text-xs">
-        <!-- Context? -->
-        <div>
-          <!-- nocheckin -->
-          {{ claims.length }}
+      <div class="flex h-[28px] w-full flex-row flex-nowrap items-center gap-x-3 px-2.5 text-xs">
+        <!-- Context -->
+        <div class="flex flex-row items-center gap-x-1.5">
+          <!-- Computer -->
           <button
+            :disabled="computer != null || hasClaimedComputer"
+            class="group/button cursor-pointer rounded-full px-1 py-0.5 transition-colors duration-75 enabled:text-gray-400 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
             @click="
               () => {
+                hasClaimedComputer = true;
                 createClaim(threadConnection.tx, threadGraph, {
                   claim: {
                     mode: NodeMode.MAIN,
                     type: ClaimType.WRITE,
-                    packagePtr: (node as ThreadData)?.packagePtr,
+                    packagePtr: (thread as ThreadData)?.packagePtr,
                     parentPtr: nodePtr,
                     targetTemplatePtr: BENCH_BENCH_UBUNTU_DESKTOP_PTR,
                   },
                 });
               }
             "
+            @dblclick="
+              () => {
+                if (computer != null) {
+                  canvas.goToNode(computer);
+                }
+              }
+            "
           >
-            computer
+            <NodeReference v-if="computer != null" :node="computer" size="sm" is-light class="" />
+            <template v-else>
+              <IconInline v-bind="makeIcon('fa-solid fa-computer-classic')" class="w-5 text-center" />
+              <span class="ml-1.5">Computer</span>
+            </template>
           </button>
-          <!-- ... -->
+          <!-- Pages / Files / Links / ... -->
+          <div>
+            <!-- ... -->
+          </div>
         </div>
+
         <!-- Compute -->
         <div class="ml-auto">
-          <!-- ... -->
+          <Popover placement="top">
+            <template #trigger="{ toggle }">
+              <button
+                class="cursor-pointer rounded-full px-1 py-0.5 transition-colors duration-75 enabled:hover:bg-gray-100"
+                :class="thread?.modelDeveloper == null ? 'text-gray-400' : 'text-gray-900'"
+                @click="toggle"
+              >
+                <!-- Model type -->
+                <template v-if="thread?.modelDeveloper == null">
+                  <IconInline v-bind="makeIcon('fas fa-microchip')" class="w-5 text-center" />
+                  <span class="ml-1">Model</span>
+                </template>
+                <template v-else>
+                  <IconInline v-bind="makeIcon('fas fa-microchip')" class="w-5 text-center" />
+                  <span class="ml-1">{{ getEnumOption(EnumType.MODEL_DEVELOPER, thread?.modelDeveloper)?.title }}</span>
+                </template>
+                <!-- Juice? -->
+              </button>
+            </template>
+            <template #content="{ close }">
+              <div
+                class="pointer-events-auto z-70 rounded-sm border border-gray-200 bg-white text-gray-900 shadow-xs shadow-gray-300"
+              >
+                <!-- Model picker -->
+                <ul class="mx-0.5 my-0.5 flex max-w-full flex-col py-0.5">
+                  <li
+                    v-for="option in getEnumOptions(EnumType.MODEL_DEVELOPER)"
+                    :key="option.value"
+                    class="mt-[1px] mr-0.5 mb-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-1.5 hover:bg-gray-100"
+                    @click="
+                      () => {
+                        threadConnection.tx.update(thread!, {
+                          modelDeveloper: option.value,
+                        });
+                        close();
+                      }
+                    "
+                  >
+                    <span class="mr-1.5 w-6 shrink-0 text-gray-700"></span>
+                    <span class="max-w-full truncate select-none">
+                      {{ option.title }}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </template>
+          </Popover>
         </div>
       </div>
     </div>
