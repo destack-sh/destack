@@ -1341,7 +1341,6 @@ class ModelDeveloper(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODEL_DEVELOPER_OPENAI: _ClassVar[ModelDeveloper]
     MODEL_DEVELOPER_ANTHROPIC: _ClassVar[ModelDeveloper]
     MODEL_DEVELOPER_GOOGLE: _ClassVar[ModelDeveloper]
-    MODEL_DEVELOPER_DEEPSEEK: _ClassVar[ModelDeveloper]
     MODEL_DEVELOPER_XAI: _ClassVar[ModelDeveloper]
 
 class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2792,7 +2791,6 @@ MODEL_DEVELOPER_UNSPECIFIED: ModelDeveloper
 MODEL_DEVELOPER_OPENAI: ModelDeveloper
 MODEL_DEVELOPER_ANTHROPIC: ModelDeveloper
 MODEL_DEVELOPER_GOOGLE: ModelDeveloper
-MODEL_DEVELOPER_DEEPSEEK: ModelDeveloper
 MODEL_DEVELOPER_XAI: ModelDeveloper
 MODEL_PROVIDER_UNSPECIFIED: ModelProvider
 MODEL_PROVIDER_OPENROUTER: ModelProvider

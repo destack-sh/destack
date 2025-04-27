@@ -19,12 +19,12 @@ class ModelDeveloper(BuiltinEnum):
     # ...
     # external
     # META = 1000, "Meta", "Meta", "fab fa-meta", ColorType.BLUE
-    OPENAI = 1010, "OpenAI", "OpenAI", None, ColorType.GRAY
-    ANTHROPIC = 1020, "Anthropic", "Anthropic", None, ColorType.PURPLE
-    GOOGLE = 1030, "Google", "Google", None, ColorType.RED
+    OPENAI = 1010, "OpenAI", "OpenAI", "https://chatgpt.com/favicon.ico", ColorType.GRAY
+    ANTHROPIC = 1020, "Anthropic", "Anthropic", "https://claude.ai/favicon.ico", ColorType.PURPLE
+    GOOGLE = 1030, "Google", "Google", "https://www.google.com/favicon.ico", ColorType.RED
     # MICROSOFT = 1040, "Microsoft", "Microsoft", "fab fa-microsoft", ColorType.BLUE
-    DEEPSEEK = 1050, "DeepSeek", "DeepSeek", None, ColorType.GRAY
-    XAI = 1060, "xAI", "xAI", None, ColorType.GRAY
+    # DEEPSEEK = 1050, "DeepSeek", "DeepSeek", "https://www.deepseek.com/favicon.ico", ColorType.GRAY
+    XAI = 1060, "xAI", "xAI", "https://x.com/favicon.ico", ColorType.GRAY
 
 
 @enum_(EnumType.MODEL_PROVIDER)

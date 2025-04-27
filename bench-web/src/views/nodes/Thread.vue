@@ -1198,7 +1198,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           <Popover placement="top">
             <template #trigger="{ toggle }">
               <button
-                class="cursor-pointer rounded-full px-1 py-0.5 transition-colors duration-75 enabled:hover:bg-gray-100"
+                class="flex cursor-pointer flex-row items-center rounded-full px-1 py-0.5 transition-colors duration-75 enabled:hover:bg-gray-100"
                 :class="thread?.modelDeveloper == null ? 'text-gray-400' : 'text-gray-700'"
                 @click="toggle"
               >
@@ -1208,7 +1208,10 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   <span class="ml-1">Model</span>
                 </template>
                 <template v-else>
-                  <IconInline v-bind="makeIcon('fas fa-microchip')" class="w-5 text-center" />
+                  <IconInline
+                    v-bind="getEnumOption(EnumType.MODEL_DEVELOPER, thread?.modelDeveloper)?.icon"
+                    class="w-5 text-center"
+                  />
                   <span class="ml-1">{{ getEnumOption(EnumType.MODEL_DEVELOPER, thread?.modelDeveloper)?.title }}</span>
                 </template>
                 <!-- Juice? -->
@@ -1216,24 +1219,36 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             </template>
             <template #content="{ close }">
               <div
-                class="pointer-events-auto z-70 rounded-sm border border-gray-200 bg-white text-gray-900 shadow-xs shadow-gray-300"
+                class="pointer-events-auto z-70 w-40 rounded-sm border border-gray-200 bg-white text-gray-900 shadow-xs shadow-gray-300"
               >
                 <!-- Model picker -->
                 <ul class="mx-0.5 my-0.5 flex max-w-full flex-col py-0.5">
+                  <!-- Auto -->
+                  <li
+                    class="mt-[1px] mr-0.5 mb-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-1.5 hover:bg-gray-100"
+                    @click="
+                      () => {
+                        threadConnection.tx.update(thread!, { modelDeveloper: undefined });
+                        close();
+                      }
+                    "
+                  >
+                    <span class="mr-1.5 w-6 shrink-0 text-gray-700"></span>
+                    <span class="max-w-full truncate select-none">Automatic</span>
+                  </li>
+                  <!-- Options -->
                   <li
                     v-for="option in getEnumOptions(EnumType.MODEL_DEVELOPER)"
                     :key="option.value"
                     class="mt-[1px] mr-0.5 mb-[1px] flex h-[30px] max-w-full cursor-pointer flex-row items-center truncate rounded-sm border border-transparent px-1.5 hover:bg-gray-100"
                     @click="
                       () => {
-                        threadConnection.tx.update(thread!, {
-                          modelDeveloper: option.value,
-                        });
+                        threadConnection.tx.update(thread!, { modelDeveloper: option.value });
                         close();
                       }
                     "
                   >
-                    <span class="mr-1.5 w-6 shrink-0 text-gray-700"></span>
+                    <IconInline v-bind="option.icon" class="mr-1.5 w-6 shrink-0 text-center text-gray-700" />
                     <span class="max-w-full truncate select-none">
                       {{ option.title }}
                     </span>

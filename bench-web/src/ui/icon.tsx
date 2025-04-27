@@ -295,7 +295,7 @@ export function newIconId(): number {
 }
 
 type ColorIn = ColorData | ColorType;
-type IconIn = string | (Pick<IconData, "emoji" | "faName" | "filePtr"> & { color?: ColorIn });
+type IconIn = string | (Pick<IconData, "emoji" | "faName" | "filePtr" | "fileUrl"> & { color?: ColorIn });
 const ICON_BY_STRING: Record<string, IconData> = {};
 
 export function makeIcon(icon: IconIn): IconData {
@@ -303,6 +303,16 @@ export function makeIcon(icon: IconIn): IconData {
   if (typeof icon == "string") {
     if (icon in ICON_BY_STRING) {
       return ICON_BY_STRING[icon];
+    } else if (
+      icon.endsWith(".ico") ||
+      icon.endsWith(".svg") ||
+      icon.endsWith(".png") ||
+      icon.endsWith(".jpg") ||
+      icon.endsWith(".jpeg")
+    ) {
+      const i = { metatype: ObjectType.ICON, type: IconType.FILE_URL, fileUrl: icon };
+      ICON_BY_STRING[icon] = i;
+      return i;
     } else if (icon.startsWith("fa")) {
       const i = { metatype: ObjectType.ICON, type: IconType.FONT_AWESOME, faName: icon };
       ICON_BY_STRING[icon] = i;
@@ -318,6 +328,8 @@ export function makeIcon(icon: IconIn): IconData {
     type = IconType.FONT_AWESOME;
   } else if (icon.filePtr) {
     type = IconType.FILE;
+  } else if (icon.fileUrl) {
+    type = IconType.FILE_URL;
   } else {
     throw new Error(`unexpected icon ${icon}`);
   }

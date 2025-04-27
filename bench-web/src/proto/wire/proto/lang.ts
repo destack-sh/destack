@@ -11874,10 +11874,6 @@ export enum ModelDeveloper {
      */
     GOOGLE = 1030,
     /**
-     * @generated from protobuf enum value: MODEL_DEVELOPER_DEEPSEEK = 1050;
-     */
-    DEEPSEEK = 1050,
-    /**
      * @generated from protobuf enum value: MODEL_DEVELOPER_XAI = 1060;
      */
     XAI = 1060
@@ -34192,11 +34188,10 @@ export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOp
 }
 
 export const ModelDeveloperOptionInfo: Partial<Record<ModelDeveloper, EnumOptionInfo>> = {
-  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY },
-  [ModelDeveloper.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic', color: ColorType.PURPLE },
-  [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED },
-  [ModelDeveloper.DEEPSEEK]: { id: 1050, name: 'DEEPSEEK', text: 'DeepSeek', title: 'DeepSeek', color: ColorType.GRAY },
-  [ModelDeveloper.XAI]: { id: 1060, name: 'XAI', text: 'XAI', title: 'XAI', color: ColorType.GRAY },
+  [ModelDeveloper.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI', color: ColorType.GRAY, icon: 'https://chatgpt.com/favicon.ico' },
+  [ModelDeveloper.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic', color: ColorType.PURPLE, icon: 'https://claude.ai/favicon.ico' },
+  [ModelDeveloper.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google', color: ColorType.RED, icon: 'https://www.google.com/favicon.ico' },
+  [ModelDeveloper.XAI]: { id: 1060, name: 'XAI', text: 'xAI', title: 'xAI', color: ColorType.GRAY, icon: 'https://x.com/favicon.ico' },
 }
 
 export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionInfo>> = {
@@ -34204,7 +34199,7 @@ export const ModelProviderOptionInfo: Partial<Record<ModelProvider, EnumOptionIn
   [ModelProvider.OPENAI]: { id: 1010, name: 'OPENAI', text: 'OpenAI', title: 'OpenAI' },
   [ModelProvider.ANTHROPIC]: { id: 1020, name: 'ANTHROPIC', text: 'Anthropic', title: 'Anthropic' },
   [ModelProvider.GOOGLE]: { id: 1030, name: 'GOOGLE', text: 'Google', title: 'Google' },
-  [ModelProvider.XAI]: { id: 1040, name: 'XAI', text: 'XAI', title: 'XAI' },
+  [ModelProvider.XAI]: { id: 1040, name: 'XAI', text: 'xAI', title: 'xAI' },
 }
 
 export const ActionTypeOptionInfo: Partial<Record<ActionType, EnumOptionInfo>> = {
