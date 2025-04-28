@@ -21,11 +21,11 @@ from .bench import (
     ComputerTerminalKit,
     IComputerDesktop,
     IComputerTerminal,
-    IWeb,
+    IInternet,
+    InternetKit,
     ThreadPage,
     UbuntuComputerTemplate,
     UbuntuHeadlessComputerTemplate,
-    WebKit,
 )
 from .core import assign_builtin_ids, get_stable_builtin_path, sync_node
 
@@ -35,7 +35,7 @@ BenchPackage = Package(
     slug=BENCH_BENCH_PACKAGE_SLUG,
     _is_new=True,
 )
-BenchPackage.extend(ActionPage, AgentPage, ComputerPage, ThreadPage, WebKit)
+BenchPackage.extend(ActionPage, AgentPage, ComputerPage, ThreadPage, InternetKit)
 
 # finalize
 supergraph = NodeSuperGraph(
@@ -60,7 +60,7 @@ __all__ = [
     "ComputerTerminalKit",
     "IComputerDesktop",
     "IComputerTerminal",
-    "IWeb",
+    "IInternet",
     "UbuntuComputerTemplate",
     "UbuntuHeadlessComputerTemplate",
     "assign_builtin_ids",

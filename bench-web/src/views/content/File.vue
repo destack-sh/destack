@@ -362,7 +362,7 @@ defineExpose<ViewExpose>({
           </div>
           <div>
             <span class="text-gray-400">
-              {{ FileFormat[optimisticValue.format!].toUpperCase().replace(/_/g, " ") }}
+              {{ FileFormat[optimisticValue.format!]?.toUpperCase().replace(/_/g, " ") ?? "???" }}
             </span>
             <span class="text-gray-400"> · </span>
             <span v-if="optimisticValue.size != null" class="text-gray-400">

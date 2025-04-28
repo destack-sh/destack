@@ -9,8 +9,8 @@ from .computer import (
     UbuntuComputerTemplate,
     UbuntuHeadlessComputerTemplate,
 )
+from .internet import IInternet, InternetKit
 from .thread import BlankThread, ThreadPage
-from .web import IWeb, WebKit
 
 __all__ = [
     "ActionPage",
@@ -23,9 +23,9 @@ __all__ = [
     "ComputerTerminalKit",
     "IComputerDesktop",
     "IComputerTerminal",
-    "IWeb",
+    "IInternet",
+    "InternetKit",
     "ThreadPage",
     "UbuntuComputerTemplate",
     "UbuntuHeadlessComputerTemplate",
-    "WebKit",
 ]
