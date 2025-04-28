@@ -15,11 +15,11 @@ import { getElement, getElementRef } from "@/utils/element";
 import { groupByList } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
-import SelectionZone from "@/views/overlays/SelectionOverlay.vue";
 import { ViewComponent } from "@/views/common";
+import SelectionZone from "@/views/overlays/SelectionOverlay.vue";
 import { MaybeElement, tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, shallowRef, toRef, toValue, triggerRef, unref, watch, type MaybeRef, type Ref } from "vue";
+import { computed, ref, shallowRef, toRef, triggerRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
 //
 // Drag
@@ -709,12 +709,16 @@ function getIntersectingNodes(
 // lower ranks are more specific, higher ranks are broader
 const SELECTION_RANK_DEFAULT = 10;
 const SELECTION_RANK_BY_NODE_TYPE: Partial<Record<NodeType, number>> = {
-  [NodeType.FIELD]: 2,
-  [NodeType.VIEW]: 3,
-  [NodeType.RECORD]: 4,
-  [NodeType.ACTION]: 5,
+  [NodeType.FIELD]: 1,
+  [NodeType.VIEW]: 2,
+  [NodeType.RECORD]: 3,
+  [NodeType.ACTION]: 4,
   [NodeType.TRANSITION]: 5,
-  [NodeType.BLOCK]: 20,
+  [NodeType.BLOCK]: 11,
+  [NodeType.THREAD]: 12,
+  [NodeType.CHANNEL]: 13,
+  [NodeType.PACKAGE]: 14,
+  [NodeType.BENCH]: 15,
 };
 
 const SELECTION_MIN_SIZE = 5;

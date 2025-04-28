@@ -93,7 +93,6 @@ defineExpose<ViewExpose>({ self, id, focus });
         "
         @navigate="emit('navigate', $event)"
       />
-      <!-- nocheckin: Tasks -->
       <!-- NOTE :Incomplete: Task.owner/due/triggers/... -->
       <!-- ... -->
     </div>

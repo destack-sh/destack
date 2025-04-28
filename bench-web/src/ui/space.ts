@@ -34,7 +34,14 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { benchConnection, benchGraph, inspectionPtr, pkg, space } from "@/system/space";
-import { Command, CommandContext, declareCommands, getNodesForCommand, NON_DELETABLE_NODE_TYPES } from "@/ui/command";
+import {
+  Command,
+  CommandContext,
+  declareCommands,
+  getNodesForCommand,
+  NON_ARCHIVEABLE_NODE_TYPES,
+  NON_DELETABLE_NODE_TYPES,
+} from "@/ui/command";
 import type { SplitAnchor } from "@/ui/drag";
 import { getContainingFlow } from "@/ui/flow";
 import { getNodeIcon, getNodeTitle, toIconMaybe } from "@/ui/icon";
@@ -1346,7 +1353,9 @@ export function archiveSelection(command: Command, ctx: CommandContext): boolean
     return false; // bubble up
   }
   const tx = connection.tx.with({ change: { key: newChangeId(), title: "Archive" } });
-  for (const node of nodes) {
+  for (const node of nodes.filter(
+    (node) => !NON_ARCHIVEABLE_NODE_TYPES.includes(node.metatype as unknown as NodeType),
+  )) {
     tx.archive(node);
   }
   return true;
