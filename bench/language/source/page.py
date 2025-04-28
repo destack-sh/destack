@@ -76,7 +76,8 @@ class Page(
             # wrap PageNodes into Blocks
             child_blocks = [cast(PageNode, child).to_block() for child in children]
             self.blocks.extend(*child_blocks)
-            super().extend(*children, move=move)
+            for child in children:
+                super().append(child, move)
             return child_blocks
         else:
             return super().extend(*children, move=move)
