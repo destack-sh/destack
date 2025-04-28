@@ -29,7 +29,7 @@ import { MaybeElement } from "@vueuse/core";
 import { computed, inject, provide, Ref, ref, toRef } from "vue";
 
 const props = defineProps<{
-  size: "sm" | "base" | "title" | "inherit";
+  size: "xs" | "sm" | "base" | "title" | "inherit";
   node?: AnyNodeData;
   nodePtr?: NodeReferenceData;
   tx?: () => Transaction;
@@ -70,18 +70,21 @@ const identifierKind = computed(() => {
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
+  props.size == "xs" ? "text-xs w-4 mr-0.5" : "",
   props.size == "sm" ? "text-sm w-5 mr-1" : "",
   props.size == "base" ? "text-base w-5 mr-2" : "",
   props.size == "title" ? "text-5xl w-fit mr-3.5" : "",
   props.size == "inherit" ? "max-w-[1em] mr-[0.3em]" : "",
 ]);
 const identifierClass = computed(() => [
+  props.size == "xs" ? ["text-xs", props.isLight ? "" : "font-medium"] : "",
   props.size == "sm" ? ["text-sm", props.isLight ? "" : "font-medium"] : "",
   props.size == "base" ? ["text-base", props.isLight ? "" : "font-medium"] : "",
   props.size == "title" ? ["text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.isUnderline ? "underline decoration-gray-300 underline-offset-3" : "",
 ]);
 const metadataClass = computed(() => [
+  props.size == "xs" ? "ml-0.5" : "",
   props.size == "sm" ? "ml-0.5" : "",
   props.size == "base" ? "ml-1" : "",
   props.size == "title" ? "ml-1.5" : "",
@@ -91,9 +94,11 @@ const identifierWidthMax = computed(() => {
   if (props.maxWidth != null) return props.maxWidth;
   else if (props.size == "title") return 600;
   else if (props.size == "base") return 400;
+  else if (props.size == "xs") return 200;
   else return 300;
 });
 const verticalClass = computed(() => [
+  props.size == "xs" ? "gap-y-0.5" : "",
   props.size == "sm" ? "gap-y-0.5" : "",
   props.size == "base" ? "gap-y-1" : "",
   props.size == "title" ? "gap-y-3" : "",
@@ -196,7 +201,7 @@ defineExpose({
           size == 'inherit' ? 'inherit' : size == 'title' ? TextLineType.HEADING_1 : TextLineType.PARAGRAPH
         "
         :hide-mentions="isNested"
-        :is-small="size == 'sm'"
+        :is-small="size == 'sm' || size == 'xs'"
         :is-input="!isNested && isInput"
         :placeholder="nodeTypeName"
         :style="{ maxWidth: `${identifierWidthMax}px` }"
