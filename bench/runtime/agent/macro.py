@@ -16,6 +16,7 @@ from bench.language import (
     Message,
     Node,
     NodeMode,
+    Package,
     Page,
     ProcessStatus,
     Run,
@@ -251,14 +252,14 @@ def CALL(
     runner: "AgentRunner" = _INJECTED_RUNNER,
     **inputs,
 ):
-    from bench.builtin import WebKit
+    from bench.builtin import InternetKit
 
     # title
     object_title = text_line(object_title) if object_title is not None else None
     if action.mode == NodeMode.BUILTIN:  # use known good title for builtin actions
-        if action.id == WebKit.actions.Search.id and "Query" in inputs:
+        if action.id == InternetKit.actions.Search.id and "Query" in inputs:
             object_title = text_line(inputs["Query"])
-        elif action.id == WebKit.actions.Read.id and "URL" in inputs:
+        elif action.id == InternetKit.actions.Read.id and "URL" in inputs:
             object_title = text_line(inputs["URL"])
 
     # create run
@@ -306,6 +307,30 @@ def ADD_CONTEXT(
             thread.claims.append(claim)
             claims.append(claim)
     return claims
+
+
+@function_macro_(
+    "CREATE_PAGE",
+    """\
+Create a new Page. Also adds it to context by default.
+""",
+    signature="(title: str, icon: str | None = None, parent: Page | Package | None = None, add_to_context: bool = True) -> Page",
+    is_edit=True,
+)
+def CREATE_PAGE(
+    title: str,
+    icon: str | None = None,
+    parent: Page | Package | None = None,
+    add_to_context: bool = True,
+    runner: "AgentRunner" = _INJECTED_RUNNER,
+) -> Page:
+    page = Page.new(title=title, icon=icon)
+    if parent is None:
+        parent = runner.tracked.package
+    assert parent is not None, f"no parent for {page!r}"
+    parent.append(page)
+    runner.session.stage()
+    return page
 
 
 @function_macro_(

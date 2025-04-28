@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated, Any, Mapping
 
 from bench.builtin.core import class_to_kit
-from bench.language import Link, to_icon
+from bench.language import File, Link, to_icon
 
 if TYPE_CHECKING:
     pass
@@ -10,17 +10,29 @@ if TYPE_CHECKING:
 # ruff: noqa: N802,N803
 
 
-class IWeb(ABC):
-    """The Web :WebKit."""
+class IInternet(ABC):
+    """The Internet :InternetKit."""
 
     @abstractmethod
     async def Search(
         self, Query: str, Include_Content: bool = False, Limit: int = 5
     ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
-        Search the web for the given query.
+        Search the internet for the given query.
         ICON: fas fa-magnifying-glass
         """
+        pass
+
+    @abstractmethod
+    async def Search_Images(
+        self, Query: str, Limit: int = 3
+    ) -> Annotated[Mapping[str, Any], {"Images": list[File]}]:
+        """
+        Search the internet for images matching the given query.
+        Currently, only Unsplash is supported, so only generic (non-recent) queries work.
+        ICON: fas fa-image
+        """
+
         pass
 
     @abstractmethod
@@ -32,4 +44,4 @@ class IWeb(ABC):
         pass
 
 
-WebKit = class_to_kit(IWeb, "Web Kit", icon=to_icon("fas fa-globe"))
+InternetKit = class_to_kit(IInternet, "Internet Kit", icon=to_icon("fas fa-globe"))

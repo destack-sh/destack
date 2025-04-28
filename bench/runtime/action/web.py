@@ -1,22 +1,26 @@
+import urllib.parse
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Mapping, cast, override
 from urllib.parse import urlparse
 
+import aiohttp
 from exa_py import AsyncExa
 from exa_py.api import Result as ExaResult
 from exa_py.api import _Result as _ExaResult
 
-from bench.language import Icon, IconType, Link, LinkType, TextLine
+from bench.language import File, FileType, Icon, IconType, Link, LinkType, TextLine
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
-    from bench.builtin import IWeb
+    from bench.builtin import IInternet
 
     from .action import ActionRunner
 
 # ruff: noqa: N802,N803
 
 EXA_API_KEY = get_from_env("EXA_API_KEY")
+UNSPLASH_ACCESS_KEY = get_from_env("UNSPLASH_ACCESS_KEY")
+UNSPLASH_SECRET_KEY = get_from_env("UNSPLASH_SECRET_KEY")
 
 exa = AsyncExa(api_key=EXA_API_KEY)
 
@@ -65,7 +69,7 @@ async def _do_search(
 _INJECTED_RUNNER = cast("ActionRunner", None)
 
 
-class ExaWeb(IWeb if TYPE_CHECKING else object):
+class Internet(IInternet if TYPE_CHECKING else object):
     @override
     async def Search(
         self,
@@ -82,6 +86,42 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
         return {"Links": links}
 
     @override
+    async def Search_Images(
+        self, Query: str, Limit: int = 3, runner: "ActionRunner" = _INJECTED_RUNNER
+    ) -> Annotated[Mapping[str, Any], {"Images": list[File]}]:
+        encoded_query = urllib.parse.quote(Query)
+        url = f"https://api.unsplash.com/search/photos?query={encoded_query}&per_page={Limit}&client_id={UNSPLASH_ACCESS_KEY}"
+
+        # unsplash
+        async with aiohttp.ClientSession() as session, session.get(url) as response:
+            if response.status != 200:
+                error_text = await response.text()
+                raise RuntimeError(f"Unsplash error: {response.status} - {error_text}")
+            data = await response.json()
+
+        # file
+        images = []
+        for item in data.get("results", []):
+            image_url = item.get("urls", {}).get("regular")
+            if not image_url:
+                continue
+            width = item.get("width")
+            height = item.get("height")
+            description = item.get("description") or item.get("alt_description") or Query
+            filename = f"{description[:30].replace(' ', '_')}.jpeg"
+            file = File.external(
+                url=image_url,
+                name=filename,
+                type=FileType.IMAGE,
+                mime_type="image/jpeg",
+                width=width,
+                height=height,
+            )
+            images.append(file)
+
+        return {"Images": images}
+
+    @override
     async def Read(
         self,
         URL: str,
@@ -89,9 +129,9 @@ class ExaWeb(IWeb if TYPE_CHECKING else object):
         runner: "ActionRunner" = _INJECTED_RUNNER,
     ) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         response = await exa.get_contents(
-            urls=URL,
+            urls=[URL],
             text={"max_characters": Max_Characters},
-            livecrawl="fallback",
+            livecrawl="always",
             extras={"image_links": 10},
         )
         links: list[Link] = []

@@ -370,6 +370,9 @@ def example_draft_report_for_confirmation(Page1: Page):
 
 # Competition
 ...
+
+# Further Reading
+...
 """,
         Page1,
         after=TaskBlocks[-1],

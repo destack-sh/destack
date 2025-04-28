@@ -4,7 +4,7 @@ from uuid import UUID
 from bench.language import Action
 from bench.runtime.core import NotSupportedError
 
-from .web import ExaWeb
+from .web import Internet
 
 _registered = False
 _builtin_action_runners_by_id: dict[UUID, Callable] = {}
@@ -20,9 +20,9 @@ def _register_builtin_action(action: Action, runner: Callable):
 def _register_builtins():
     """Registers all builtin Actions."""
     global _registered
-    from bench.builtin import WebKit
+    from bench.builtin import InternetKit
 
-    for kit, impl_cls in ((WebKit, ExaWeb),):
+    for kit, impl_cls in ((InternetKit, Internet),):
         impl = impl_cls()
         for action in kit.actions:
             assert action.name is not None, f"{action!r} has no name"

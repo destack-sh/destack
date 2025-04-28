@@ -81,6 +81,12 @@ class Task(
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
 
+    def reset(self) -> None:
+        self.status = ProcessStatus.ASSIGNED if self.owned_by_ptr else ProcessStatus.CREATED
+        self.started_at = None
+        self.terminated_at = None
+        self.duration = None
+
     def fail(self) -> None:
         self.status = ProcessStatus.FAILED
 
