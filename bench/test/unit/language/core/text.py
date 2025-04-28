@@ -268,3 +268,59 @@ def test_text_roundtrip(md):
     # should roundtrip
     text_reparsed = markdown_to_text(text_rendered)
     assert text_to_markdown(text_reparsed) == text_to_markdown(text)
+
+
+def test_invalid_bracket_content():
+    """Test that invalid content in brackets like [PDF] is treated as literal text."""
+    md = "This document is available as [PDF] and [EPUB] formats."
+    text = markdown_to_text(md)
+
+    # The whole line should be treated as regular text
+    assert len(text.lines) == 1
+
+    # Check that [PDF] and [EPUB] are preserved as literal text
+    spans = text.lines[0].spans
+    combined_content = "".join(span.content or "" for span in spans)
+    assert "[PDF]" in combined_content
+    assert "[EPUB]" in combined_content
+
+    # Verify roundtrip
+    md_out = text_to_markdown(text)
+    assert "This document is available as [PDF] and [EPUB] formats." in md_out
+
+
+def test_math_operators():
+    """Test that math operators like * in '4 * 7 = 24' are not treated as formatting markers."""
+    md = "Basic math: 4 * 7 = 28 and 10 * 3 = 30"
+    text = markdown_to_text(md)
+
+    # Verify that asterisks are preserved as literal text, not formatting
+    spans = text.lines[0].spans
+    combined_content = "".join(span.content or "" for span in spans)
+    assert "4 * 7 = 28" in combined_content
+    assert "10 * 3 = 30" in combined_content
+
+    # Check none of the spans have italic formatting
+    assert all(not span.is_italic for span in spans)
+
+    # Verify roundtrip
+    md_out = text_to_markdown(text)
+    assert md_out == md
+
+
+def test_mixed_formatting_and_operators():
+    """Test text with both formatting markers and operators."""
+    md = "This is *italic*, but 2 * 3 is multiplication, and this is also *italic*."
+    text = markdown_to_text(md)
+
+    # Verify that the first "italic" is properly formatted
+    assert any(span.is_italic for span in text.lines[0].spans)
+
+    # Verify that the math operator * is preserved as literal text
+    spans = text.lines[0].spans
+    combined_content = "".join(span.content or "" for span in spans if not span.is_italic)
+    assert "but 2 * 3 is multiplication, and this is also" in combined_content
+
+    # Verify roundtrip
+    md_out = text_to_markdown(text)
+    assert md_out == md
