@@ -1,13 +1,12 @@
 import { ACTIVE_PROCESS_STATUSES, TERMINAL_PROCESS_STATUSES } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { Transaction } from "@/language/core/transaction";
-import { NodeType, ProcessStatus, TaskData, TaskType } from "@/proto/wire";
+import { NodeType, ProcessStatus, TaskData } from "@/proto/wire";
 
 /** Create a Task. */
 export function createTask(tx: Transaction, graph: ReadNodeGraph, options: { task: Partial<TaskData> }): TaskData {
   const siblings = graph.getChildren(options.task.parentPtr!, NodeType.TASK);
-  const type = options.task.type ?? TaskType.MANUAL;
-  const task = tx.create({ metatype: NodeType.TASK, ...options.task, type });
+  const task = tx.create({ metatype: NodeType.TASK, ...options.task });
   return task;
 }
 

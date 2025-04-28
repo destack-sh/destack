@@ -40,7 +40,7 @@ if (props.isInput && !forceLineType) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
 
-const { focus, actions: textActions } = useTextEditor({
+const { focus, commands: textCommands } = useTextEditor({
   mode: "line",
   textRef,
   text: textInterface,
@@ -55,7 +55,7 @@ const { focus, actions: textActions } = useTextEditor({
 // NOTE :Performance: having each TextLine view be its own full Text editor is a bit heavy
 
 const commands: Partial<CommandMapKit<"space">> = {
-  ...textActions,
+  ...textCommands,
 };
 
 function interact() {

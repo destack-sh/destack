@@ -164,8 +164,13 @@
 .pm-text .line-block {
   @apply relative my-1 cursor-default py-1;
 }
-.pm-text .line-block.page {
+.pm-text .line-block.page,
+.pm-text .line-block.file,
+.pm-text .line-block.task {
   @apply my-0;
+}
+.pm-text .line-block.task {
+  @apply pl-1;
 }
 .pm-text .line-block.page:hover:not(.selected),
 .pm-text .line-block.page:focus-within {

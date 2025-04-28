@@ -53,7 +53,7 @@ const formatCommands: FormatCommand[] = [
   >
     <div
       v-if="visible && tick >= 0 /* react to tick */"
-      class="flex w-fit flex-row items-center rounded-sm border border-gray-200 bg-white px-1 py-1"
+      class="flex w-fit flex-row items-center rounded-sm border border-gray-200 bg-white px-1 py-1 text-sm"
       :style="{ height: `${height}px` }"
       @click.stop.prevent
       @mousedown.stop.prevent

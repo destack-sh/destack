@@ -546,7 +546,7 @@ class IsComputable(BuiltinObject):
     model_provider: Optional["ModelProvider"] = p_regular(101)
     model_id: Optional[str] = p_regular(102)
     model_name: Optional[str] = p_regular(103)
-    # compute/cost/effort/budget/...?
+    # compute/cost/effort/budget/'juice'...?
 
 
 @object_()

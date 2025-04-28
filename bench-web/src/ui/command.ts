@@ -625,9 +625,9 @@ export const RESOURCE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
   "resource.status.decommission",
 ];
 export const MESSAGE_CONTEXT_COMMANDS: CommandBuiltinId[] = [
+  "chat.message.edit",
   "chat.message.copy",
   "chat.message.reply",
-  "chat.message.edit",
 ];
 
 export const CONTEXT_COMMANDS_BY_TYPE: Partial<Record<NodeType, CommandBuiltinId[]>> = {

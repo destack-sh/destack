@@ -4453,10 +4453,6 @@ export interface TaskData {
      */
     mode: NodeMode;
     /**
-     * @generated from protobuf field: symbolx.bench.TaskType type = 30;
-     */
-    type: TaskType;
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextLineData title = 32;
      */
     title?: TextLineData;
@@ -4476,10 +4472,6 @@ export interface TaskData {
      * @generated from protobuf field: optional google.protobuf.Timestamp due_at = 50;
      */
     dueAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 51;
-     */
-    text?: TextData;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 52;
      */
@@ -7358,10 +7350,6 @@ export enum EnumType {
      */
     CURSOR_STATUS = 22071,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TASK_TYPE = 22072;
-     */
-    TASK_TYPE = 22072,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_ERROR_KIND = 22100;
      */
     ERROR_KIND = 22100,
@@ -8893,10 +8881,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_CURSOR_STATUS = 22071;
      */
     CURSOR_STATUS = 22071,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TASK_TYPE = 22072;
-     */
-    TASK_TYPE = 22072,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ERROR_KIND = 22100;
      */
@@ -11684,21 +11668,6 @@ export enum CursorStatus {
      * @generated from protobuf enum value: CURSOR_STATUS_COMPLETED = 53;
      */
     COMPLETED = 53
-}
-/**
- * The type of Task.
- *
- * @generated from protobuf enum symbolx.bench.TaskType
- */
-export enum TaskType {
-    /**
-     * @generated from protobuf enum value: TASK_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TASK_TYPE_MANUAL = 10;
-     */
-    MANUAL = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.ErrorKind
@@ -23274,13 +23243,11 @@ class TaskData$Type extends MessageType$<TaskData> {
             { no: 17, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 18, name: "claimed_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 20, name: "mode", kind: "enum", T: () => ["symbolx.bench.NodeMode", NodeMode, "NODE_MODE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TaskType", TaskType, "TASK_TYPE_"] },
             { no: 32, name: "title", kind: "message", T: () => TextLineData },
             { no: 33, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "due_at", kind: "message", T: () => Timestamp },
-            { no: 51, name: "text", kind: "message", T: () => TextData },
             { no: 52, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
             { no: 81, name: "duration", kind: "message", T: () => Duration },
@@ -23306,7 +23273,6 @@ class TaskData$Type extends MessageType$<TaskData> {
         message.id = "";
         message.ck = "";
         message.mode = 0;
-        message.type = 0;
         message.nodesPtr = [];
         message.status = 0;
         if (value !== undefined)
@@ -23366,9 +23332,6 @@ class TaskData$Type extends MessageType$<TaskData> {
                 case /* symbolx.bench.NodeMode mode */ 20:
                     message.mode = reader.int32();
                     break;
-                case /* symbolx.bench.TaskType type */ 30:
-                    message.type = reader.int32();
-                    break;
                 case /* optional symbolx.bench.TextLineData title */ 32:
                     message.title = TextLineData.internalBinaryRead(reader, reader.uint32(), options, message.title);
                     break;
@@ -23383,9 +23346,6 @@ class TaskData$Type extends MessageType$<TaskData> {
                     break;
                 case /* optional google.protobuf.Timestamp due_at */ 50:
                     message.dueAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.dueAt);
-                    break;
-                case /* optional symbolx.bench.TextData text */ 51:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 52:
                     message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -23498,9 +23458,6 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* symbolx.bench.NodeMode mode = 20; */
         if (message.mode !== 0)
             writer.tag(20, WireType.Varint).int32(message.mode);
-        /* symbolx.bench.TaskType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
         /* optional symbolx.bench.TextLineData title = 32; */
         if (message.title)
             TextLineData.internalBinaryWrite(message.title, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -23516,9 +23473,6 @@ class TaskData$Type extends MessageType$<TaskData> {
         /* optional google.protobuf.Timestamp due_at = 50; */
         if (message.dueAt)
             Timestamp.internalBinaryWrite(message.dueAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 51; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 52; */
         for (let i = 0; i < message.nodesPtr.length; i++)
             NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(52, WireType.LengthDelimited).fork(), options).join();
@@ -29594,7 +29548,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CLAIM_STATUS]: ClaimStatus,
   [EnumType.CURSOR_TYPE]: CursorType,
   [EnumType.CURSOR_STATUS]: CursorStatus,
-  [EnumType.TASK_TYPE]: TaskType,
   [EnumType.ERROR_KIND]: ErrorKind,
   [EnumType.ERROR_TYPE]: ErrorType,
   [EnumType.INTERRUPTION_TYPE]: InterruptionType,
@@ -29894,7 +29847,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CLAIM_STATUS]: ClaimStatus,
   [EnumType.CURSOR_TYPE]: CursorType,
   [EnumType.CURSOR_STATUS]: CursorStatus,
-  [EnumType.TASK_TYPE]: TaskType,
   [EnumType.ERROR_KIND]: ErrorKind,
   [EnumType.ERROR_TYPE]: ErrorType,
   [EnumType.INTERRUPTION_TYPE]: InterruptionType,
@@ -31131,13 +31083,11 @@ export enum TaskProperty {
   ownedByPtr = 17,
   claimedByPtr = 18,
   mode = 20,
-  type = 30,
   title = 32,
   orderKey = 33,
   icon = 34,
   definitionPtr = 35,
   dueAt = 50,
-  text = 51,
   nodesPtr = 52,
   status = 80,
   duration = 81,
@@ -33170,13 +33120,11 @@ export const TaskDataInfo: Record<TaskProperty, PropertyInfo> = {
   [TaskProperty.ownedByPtr]: { id: 17, name: 'owned_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.COMPUTER, NodeType.AGENT], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.claimedByPtr]: { id: 18, name: 'claimed_by_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLAIM], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.mode]: { id: 20, name: 'mode', component: ObjectType.TASK, enumType: EnumType.NODE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 20, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.type]: { id: 30, name: 'type', component: ObjectType.TASK, enumType: EnumType.TASK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.title]: { id: 32, name: 'title', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT_LINE },
   [TaskProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.icon]: { id: 34, name: 'icon', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [TaskProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.TASK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.dueAt]: { id: 50, name: 'due_at', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [TaskProperty.text]: { id: 51, name: 'text', component: ObjectType.TASK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [TaskProperty.nodesPtr]: { id: 52, name: 'nodes_ptr', component: ObjectType.TASK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: "any", referenceStruct: StructType.NODE_REFERENCE },
   [TaskProperty.status]: { id: 80, name: 'status', component: ObjectType.TASK, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TaskProperty.duration]: { id: 81, name: 'duration', component: ObjectType.TASK, kind: 'primitive', primitiveType: PrimitiveType.DURATION, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -34177,10 +34125,6 @@ export const CursorStatusOptionInfo: Partial<Record<CursorStatus, EnumOptionInfo
   [CursorStatus.COMPLETED]: { id: 53, name: 'COMPLETED', text: 'Completed', title: 'Completed', color: ColorType.GREEN, icon: 'fas fa-check' },
 }
 
-export const TaskTypeOptionInfo: Partial<Record<TaskType, EnumOptionInfo>> = {
-  [TaskType.MANUAL]: { id: 10, name: 'MANUAL', text: 'Manual Task', title: 'Manual', icon: 'fas fa-pencil' },
-}
-
 export const InterruptionTypeOptionInfo: Partial<Record<InterruptionType, EnumOptionInfo>> = {
   [InterruptionType.PAUSE]: { id: 10, name: 'PAUSE', text: 'Run is marked as paused', title: 'Pause', icon: 'fas fa-pause' },
   [InterruptionType.YIELD]: { id: 20, name: 'YIELD', text: 'Yield to something', title: 'Yield', icon: 'fas fa-hand' },
@@ -34307,7 +34251,6 @@ export const ENUM_OPTION_INFO_BY_TYPE: Partial<Record<EnumType, Record<any, Enum
   [EnumType.CLAIM_STATUS]: ClaimStatusOptionInfo,
   [EnumType.CURSOR_TYPE]: CursorTypeOptionInfo,
   [EnumType.CURSOR_STATUS]: CursorStatusOptionInfo,
-  [EnumType.TASK_TYPE]: TaskTypeOptionInfo,
   [EnumType.INTERRUPTION_TYPE]: InterruptionTypeOptionInfo,
   [EnumType.MODEL_DEVELOPER]: ModelDeveloperOptionInfo,
   [EnumType.MODEL_PROVIDER]: ModelProviderOptionInfo,

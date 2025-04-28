@@ -6,13 +6,11 @@ import {
   ColorType,
   NodeReferenceData,
   NodeType,
-  PrimitiveType,
   TaskData,
-  TaskType,
   TextLineData,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
@@ -21,10 +19,9 @@ import { pushPopover } from "@/ui/popover";
 import { getColorHex, getProcessColorHex } from "@/ui/style";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
-import TextLine from "@/views/content/TextLine.vue";
 import { FocusAnchor, type ViewEmits, type ViewExpose } from "@/views/common";
-import Datetime from "@/views/content/Datetime.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
+import TextLine from "@/views/content/TextLine.vue";
 import { computed, ref, Ref, toRef } from "vue";
 
 const props = defineProps<
@@ -41,7 +38,6 @@ canvas.registerView(self, id);
 const taskPtr = toRef(props, "nodePtr");
 const { graph, connection } = props.preparedConnection ?? useAutoConnection(taskPtr);
 const task = graph.getRef(taskPtr, { ignoreAncestors: true }) as Ref<TaskData | null>;
-const isManual = computed(() => task.value != null && task.value.type == TaskType.MANUAL);
 const isActive = computed(() => task.value != null && isTaskActive(task.value));
 const isTerminal = computed(() => task.value != null && isTaskTerminal(task.value));
 const hasMeta = computed(() => task.value != null && (task.value.dueAt != null || task.value.ownedByPtr != null));
@@ -65,35 +61,25 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 defineExpose<ViewExpose>({ self, id, focus });
 </script>
 <template>
-  <div v-if="task" class="group/task flex flex-row items-start gap-x-2">
+  <div v-if="task" class="group/task flex flex-row items-baseline gap-x-2">
     <!-- Status -->
     <button
-      class="mt-0.5 ml-1 flex h-5 w-5 flex-row items-center justify-center rounded-2xl border border-gray-500 bg-white p-[1px] transition-colors duration-75"
+      class="flex h-4 w-4 cursor-pointer flex-row items-center justify-center rounded-2xl border border-gray-500 bg-white p-[1px] transition-colors duration-75"
       :style="{
-        borderColor:
-          fillState != 'empty'
-            ? isManual
-              ? getColorHex(ColorType.GRAY, ColorShade.S700)
-              : getProcessColorHex(task.status, ColorShade.S400)
-            : undefined,
+        borderColor: fillState != 'empty' ? getProcessColorHex(task.status, ColorShade.S400) : undefined,
       }"
       @click="toggleTaskStatus(connection.tx, task)"
     >
       <span
         class="inline-block h-full w-full rounded-2xl transition-all duration-75"
         :style="{
-          backgroundColor:
-            fillState != 'empty'
-              ? isManual
-                ? getColorHex(ColorType.GRAY, ColorShade.S400)
-                : getProcessColorHex(task.status, ColorShade.S400)
-              : undefined,
+          backgroundColor: fillState != 'empty' ? getProcessColorHex(task.status, ColorShade.S400) : undefined,
           clipPath: fillState == 'full' ? undefined : 'inset(0 0 50% 0)',
         }"
       />
     </button>
     <!-- Body -->
-    <div class="w-full">
+    <div class="relative w-full">
       <!-- Title -->
       <TextLine
         ref="nameRef"
@@ -105,13 +91,13 @@ defineExpose<ViewExpose>({ self, id, focus });
         @update:model-value="
           (newValue) => connection.tx.update(task!, { title: newValue as TextLineData }, { debounce: 'short' })
         "
-        @keydown.enter="emit('navigate', 'enter')"
+        @navigate="emit('navigate', $event)"
       />
       <!-- nocheckin: Tasks -->
       <!-- Metadata -->
       <!-- Owner -->
-      <!-- <button
-        class="inline-flex flex-row items-center gap-x-1.5 rounded-sm bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      <button
+        class="absolute right-0 inline-flex flex-row items-center gap-x-1.5 rounded-sm bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
         :class="[
           hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
         ]"
@@ -143,39 +129,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         <i v-if="!task.ownedByPtr" class="fas fa-user" :class="task.ownedByPtr ? 'text-gray-700' : 'text-gray-400'" />
         <NodeReference v-if="task.ownedByPtr" :node-ptr="task.ownedByPtr" size="sm" />
         <span v-else class="text-gray-400">owner</span>
-      </button> -->
-      <!-- Due -->
-      <!-- <button
-        class="inline-flex flex-row items-center gap-x-1.5 rounded-sm bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-        :class="[
-          hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
-        ]"
-        @click="
-          (e: MouseEvent) => {
-            const button = (e.target as HTMLElement).closest('button')!;
-            pushPopover({
-              kind: 'view',
-              trigger: button,
-              reference: button,
-              component: ViewType.DATETIME,
-              title: 'Date',
-              placement: 'bottom-left',
-              offset: 'referenceWidth',
-              props: {
-                valueType: makeType({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.DATETIME }),
-                modelValue: task?.dueAt,
-              },
-              onApply: (value: any) => {
-                connection.tx.update(task!, { dueAt: value }, { debounce: 'short' });
-              },
-            });
-          }
-        "
-      >
-        <i class="fas fa-calendar-days" :class="task.dueAt ? 'text-gray-700' : 'text-gray-400'" />
-        <Datetime v-if="task.dueAt" id="datetime" :model-value="task.dueAt" is-minimal />
-        <span v-else class="text-gray-400">due</span>
-      </button> -->
+      </button>
       <!-- Triggers -->
       <!-- ... -->
     </div>

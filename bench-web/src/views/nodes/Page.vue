@@ -147,7 +147,7 @@ const textInterface = useTextPageInterface({
 });
 const {
   focus: focusInText,
-  actions: textActions,
+  commands: textCommands,
   lineRefsById,
   updatePlugin,
 } = useTextEditor({
@@ -324,7 +324,7 @@ const commands: Partial<CommandMapKit<"list" | "space">> = {
     create: (anchor, node) =>
       createAndFocusBlock({ type: BlockType.PARAGRAPH }, node != null ? anchor : "inside", node ?? page.value!),
   }),
-  ...textActions,
+  ...textCommands,
 };
 function createAndFocusBlock(
   blockIn: Partial<NodeIn<NodeType.BLOCK>>,

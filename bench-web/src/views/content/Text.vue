@@ -45,7 +45,7 @@ if (props.isInput) {
   plugins.push(useTooltipPlugin({ component: TextTooltip, parentComponent: vueInstance, container: textRef }));
 }
 
-const { focus, actions: textActions } = useTextEditor({
+const { focus, commands: textCommands } = useTextEditor({
   mode: "block",
   textRef,
   text: textInterface,
@@ -62,7 +62,7 @@ const { focus, actions: textActions } = useTextEditor({
 //  (see https://discuss.prosemirror.net/t/render-doc-content-to-html/4193)
 
 const commands: Partial<CommandMapKit<"space">> = {
-  ...textActions,
+  ...textCommands,
 };
 
 canvas.registerView(self, id);
