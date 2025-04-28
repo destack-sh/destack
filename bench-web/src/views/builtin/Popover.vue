@@ -32,6 +32,12 @@ useFloating({
   isEnabled: isOpen,
   options: props,
 });
+
+defineExpose({
+  open,
+  close,
+  toggle,
+});
 </script>
 <template>
   <!-- Popover -->

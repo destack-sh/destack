@@ -4,9 +4,7 @@ import {
   isNodeInstance,
   isProcessableNode,
   isProvisionableResourceNode,
-  isResourceNode,
-  PRE_PROCESS_STATUSES,
-  toCamelName,
+  PRE_PROCESS_STATUSES
 } from "@/language/core/const";
 import { isProcessActive } from "@/language/runtime/process";
 import {
@@ -15,10 +13,10 @@ import {
   NodeMode,
   NodeModeOptionInfo,
   NodeType,
-  ResourceStatusOptionInfo,
-  ProcessStatusOptionInfo,
   ObjectType,
   ProcessStatus,
+  ProcessStatusOptionInfo,
+  ResourceStatusOptionInfo,
 } from "@/proto/wire";
 import { isNode } from "@/proto/wiring";
 import { getColorHex } from "@/ui/style";
@@ -26,18 +24,20 @@ import { humanizeBytes } from "@/utils/string";
 import { computed } from "vue";
 
 const props = defineProps<{
-  size: "sm" | "base" | "title" | "inherit";
+  size: "xs" | "sm" | "base" | "title" | "inherit";
   node: AnyNodeData;
   isLight?: boolean;
 }>();
 
 // :NodeReferenceStyle
 const iconClass = computed(() => [
+  props.size == "xs" ? "w-4 text-xs" : "",
   props.size == "sm" ? "w-5" : "",
   props.size == "base" ? "w-5 text-base" : "",
   props.size == "title" ? "w-8 text-2xl" : "",
 ]);
 const textClass = computed(() => [
+  props.size == "xs" ? ["text-xs", props.isLight ? "" : ""] : "",
   props.size == "sm" ? ["", props.isLight ? "" : ""] : "",
   props.size == "base" ? ["text-xl", props.isLight ? "font-medium" : "font-bold"] : "",
   props.size == "title" ? ["text-3xl", props.isLight ? "font-medium" : "font-bold"] : "",

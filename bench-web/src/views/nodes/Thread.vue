@@ -26,7 +26,6 @@ import {
   MessageProperty,
   MessageType,
   MessageTypeOptionInfo,
-  ModelDeveloper,
   NodeMode,
   NodeReferenceData,
   NodeType,
@@ -102,6 +101,8 @@ const hasComputerClaim = computed(() =>
 );
 const computer: Ref<ComputerData | null> = computed(() => computers.value[0] ?? null);
 const hasClaimedComputer = ref(false);
+const CONTEXT_TABS = ["File", "Pages"];
+const contextTab: Ref<(typeof CONTEXT_TABS)[number]> = ref(CONTEXT_TABS[0]);
 
 //
 // Messages
@@ -354,6 +355,7 @@ const bodyHeight = computed(() => {
     ? props.size.height - inputContainerSize.height.value - (props.isRoot ? VIEW_DEFAULT_ROOT_HEADER_HEIGHT : 0)
     : undefined;
 });
+const contextPopoverRef = ref<InstanceType<typeof Popover> | null>(null);
 
 // selection
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
@@ -479,6 +481,21 @@ function addNodes(nodePtrs: NodeReferenceData[]) {
     ...(draftNodesPtr.value ?? []).filter((n) => !nodePtrs.some((n2) => n2.id == n.id)),
     ...nodePtrs,
   ];
+  // auto-add any pages to our claims (if not there already)
+  for (const nodePtr of nodePtrs) {
+    if (nodePtr.nodeType == NodeType.PAGE && !claims.value.some((c) => c.targetPtr?.id == nodePtr.id)) {
+      const claim = createClaim(threadConnection.tx, threadGraph, {
+        claim: {
+          type: ClaimType.WRITE,
+          parentPtr: toNodeRef(thread.value!),
+          benchPtr: thread.value?.benchPtr,
+          packagePtr: thread.value?.packagePtr,
+          targetPtr: nodePtr,
+        },
+      });
+      claims.value.push(claim);
+    }
+  }
 }
 
 function removeNodes(nodePtrs: (NodeReferenceData | AnyNodeData)[]) {
@@ -999,7 +1016,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       </ul>
     </Scroll>
 
-    <!-- Input box -->
+    <!-- Input -->
     <div
       ref="inputContainerRef"
       class="mx-auto w-full"
@@ -1010,7 +1027,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       }"
       @mousedown="inputRef?.focus?.('right')"
     >
-      <div class="flex h-[20px] w-full flex-row items-center px-3 text-xs">
+      <!-- Activity -->
+      <div class="flex h-[20px] w-full flex-row items-center px-2.5 text-xs">
         <template v-if="activeAuthors.length > 0">
           <!-- Status icon -->
           <span class="fas fa-circle-small relative mr-1.5 text-blue-500">
@@ -1058,22 +1076,90 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         </button>
       </div>
 
-      <!-- Main box -->
+      <!-- Input -->
       <div
         class="relative flex flex-row rounded-sm border border-gray-200 px-2 pt-2 pb-2"
         :class="[replyTo != null ? 'rounded-t-none' : '']"
       >
         <!-- Left -->
-        <div class="sticky top-0 text-center" :style="{ width: MESSAGE_SIDE_WIDTH - 9 + 'px' }">
+        <div class="" :style="{ width: MESSAGE_SIDE_WIDTH - 9 + 'px' }">
           <!-- Add extra -->
-          <!-- nocheckin :Incomplete: support adding other Nodes to Chat instead of just Files -->
-          <button
-            v-tooltip="{ small: true, title: 'Add Context' }"
-            class="transition-color mr-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
-          >
-            <i class="fas fa-plus" />
-          </button>
+          <Popover ref="contextPopoverRef" placement="top" :reference-margin="10">
+            <template #trigger="{ toggle }">
+              <button
+                class="transition-color mr-3 w-[28px] cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
+                @mousedown.stop="toggle"
+              >
+                <i class="fas fa-plus" />
+              </button>
+            </template>
+            <template #content="{ close }">
+              <div
+                v-outside.mousedown.stop="close"
+                class="flex h-[200px] w-[300px] flex-col rounded-md border border-gray-200 bg-white p-2 shadow-md"
+              >
+                <!-- Header -->
+                <div class="mb-2 flex flex-row items-center gap-x-0.5 border-b border-gray-200 pb-2">
+                  <!-- Tabs -->
+                  <button
+                    v-for="tab in CONTEXT_TABS"
+                    :key="tab"
+                    class="cursor-pointer rounded-sm px-1.5 transition-colors duration-75 hover:bg-gray-100"
+                    :class="[contextTab == tab ? 'bg-gray-100 text-gray-900' : 'text-gray-400']"
+                    @mousedown.stop="contextTab = tab"
+                  >
+                    {{ tab }}
+                  </button>
+                  <!-- Close -->
+                  <button
+                    class="ml-auto cursor-pointer rounded-full px-1 text-gray-400 hover:text-gray-700"
+                    @mousedown.stop="close"
+                  >
+                    <i class="fas fa-xmark" />
+                  </button>
+                </div>
+
+                <!-- Content -->
+                <div class="max-h-full flex-1 overflow-y-scroll">
+                  <File
+                    v-if="contextTab == 'File'"
+                    id="file"
+                    class="h-full w-full"
+                    is-inline
+                    is-input
+                    @update:model-value="
+                      (filePtr) => {
+                        if (filePtr != null) {
+                          addNodes([filePtr]);
+                        }
+                      }
+                    "
+                  />
+                  <ul v-else-if="contextTab == 'Pages'">
+                    <li
+                      v-for="claim in claims.filter((c) => c.targetPtr?.nodeType == NodeType.PAGE)"
+                      :key="claim.id"
+                      class="flex flex-row"
+                    >
+                      <NodeReference :node-ptr="claim.targetPtr" size="sm" class="rounded-full px-2 py-0.5" />
+                      <button
+                        class="ml-auto cursor-pointer rounded-full px-1 text-gray-400 hover:text-gray-700"
+                        @mousedown.stop="
+                          () => {
+                            threadConnection.tx.delete(claim);
+                          }
+                        "
+                      >
+                        <i class="fas fa-xmark" />
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </template>
+          </Popover>
         </div>
+
         <!-- Main input -->
         <div class="flex-1">
           <!-- Extras -->
@@ -1138,12 +1224,12 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             />
           </Scroll>
         </div>
+
         <!-- Controls? (pause/stop/resume) -->
         <div>
           <!-- Record / Submit -->
           <button
-            v-tooltip="{ small: true, title: 'Submit' }"
-            class="transition-color mr-3 cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
+            class="transition-color mr-3 w-[28px] cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
             @click="submit()"
           >
             <i class="fas fa-arrow-up" />
@@ -1152,14 +1238,14 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       </div>
 
       <!-- Footer -->
-      <div class="flex h-[28px] w-full flex-row flex-nowrap items-center gap-x-3 px-2.5">
+      <div class="flex h-[28px] w-full flex-row flex-nowrap items-center gap-x-3">
         <!-- Context -->
         <div class="flex flex-row items-center gap-x-1.5">
           <!-- Computer -->
           <button
             :disabled="computer != null || hasClaimedComputer"
-            class="group/button cursor-pointer rounded-full px-1 py-0.5 transition-colors duration-75 enabled:text-gray-400 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
-            @click="
+            class="group/button cursor-pointer rounded-full px-1 py-0.5 text-xs transition-colors duration-75 enabled:text-gray-400 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
+            @mousedown.stop="
               () => {
                 hasClaimedComputer = true;
                 createClaim(threadConnection.tx, threadGraph, {
@@ -1181,26 +1267,34 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
               }
             "
           >
-            <NodeReference v-if="computer != null" :node="computer" size="sm" is-light class="" />
+            <NodeReference v-if="computer != null" :node="computer" size="xs" is-light class="" />
             <template v-else>
               <IconInline v-bind="makeIcon('fa-solid fa-computer-classic')" class="w-5 text-center" />
               <span class="ml-1.5">Computer</span>
             </template>
           </button>
           <!-- Pages / Files / Links / ... -->
-          <div>
-            <!-- ... -->
-          </div>
+          <button
+            v-if="claims.filter((c) => c.targetPtr?.nodeType == NodeType.PAGE).length > 0"
+            class="cursor-pointer rounded-sm text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            @mousedown.stop="
+              () => {
+                contextPopoverRef?.open();
+              }
+            "
+          >
+            <span>{{ claims.filter((c) => c.targetPtr?.nodeType == NodeType.PAGE).length }} pages</span>
+          </button>
         </div>
 
         <!-- Compute -->
         <div class="ml-auto">
-          <Popover placement="top">
+          <Popover placement="top-left">
             <template #trigger="{ toggle }">
               <button
-                class="flex cursor-pointer flex-row items-center rounded-full px-1 py-0.5 transition-colors duration-75 enabled:hover:bg-gray-100"
+                class="flex cursor-pointer flex-row items-center rounded-full px-1 py-0.5 text-xs transition-colors duration-75 enabled:hover:bg-gray-100"
                 :class="thread?.modelDeveloper == null ? 'text-gray-400' : 'text-gray-700'"
-                @click="toggle"
+                @mousedown.stop="toggle"
               >
                 <!-- Model type -->
                 <template v-if="thread?.modelDeveloper == null">
@@ -1219,6 +1313,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             </template>
             <template #content="{ close }">
               <div
+                v-outside.mousedown.stop="close"
                 class="pointer-events-auto z-70 w-40 rounded-sm border border-gray-200 bg-white text-gray-900 shadow-xs shadow-gray-300"
               >
                 <!-- Model picker -->
