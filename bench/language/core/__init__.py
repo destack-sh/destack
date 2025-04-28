@@ -189,9 +189,9 @@ from .property import (
     p_value_runtime,
 )
 from .query import (
+    LegacyQuery,
     MultipleNodesFoundError,
     NodeNotFoundError,
-    Query,
     SelectOptions,
     get_default_query_filter,
 )
@@ -451,6 +451,7 @@ __all__ = [
     "IsTitled",
     "IsType",
     "Joinable",
+    "LegacyQuery",
     "LiteralType",
     "LocalNodeList",
     "Month",
@@ -480,7 +481,6 @@ __all__ = [
     "PropertyReference",
     "PropertyReferenceType",
     "ProvisionableResource",
-    "Query",
     "QueryType",
     "RecordNodeList",
     "ReferenceKind",

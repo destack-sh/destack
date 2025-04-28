@@ -49,6 +49,7 @@ from bench.language import (
     ExpressionTypes,
     Field,
     FieldType,
+    LegacyQuery,
     LiteralType,
     Node,
     NodeArea,
@@ -59,7 +60,6 @@ from bench.language import (
     PrimitiveValue,
     Property,
     PropertyReferenceType,
-    Query,
     QueryType,
     Record,
     ReferenceKind,
@@ -906,7 +906,7 @@ def _combine_filter(*, include_removed: bool, filter: Expression | None) -> Expr
 
 @_trace_pg_span
 async def pg_graph_select(
-    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query
+    *, cur: psycopg.AsyncCursor, ctx: SqlContext, query: LegacyQuery
 ) -> list[AnyNodeData]:
     """
     Selects the nodes from the graph matching the given query.
@@ -974,7 +974,7 @@ async def pg_graph_select(
 
 
 @_trace_pg_span
-async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> int:
+async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: LegacyQuery) -> int:
     """Counts the nodes from the graph matching the given query. Ignores pagination parameters."""
     # compile
     node_type = query._node_type
@@ -996,7 +996,7 @@ async def pg_graph_count(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Qu
 
 
 @_trace_pg_span
-async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: Query) -> bool:
+async def pg_graph_exists(*, cur: psycopg.AsyncCursor, ctx: SqlContext, query: LegacyQuery) -> bool:
     """Checks if nodes from the graph matching the given query exist."""
     # compile
     node_type = query._node_type
@@ -1120,7 +1120,7 @@ async def pg_graph_get(
     *,
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
-    query: Query,
+    query: LegacyQuery,
     visited_graph: NodeDataGraph,
 ) -> None:
     """
@@ -1137,7 +1137,7 @@ async def pg_graph_get(
         # select roots
         roots_ids = [node.id for node in roots]
         root_filter = C(ConditionalType.IN, property=Node.id, value=roots_ids)
-        root_query = Query(
+        root_query = LegacyQuery(
             QueryType.GET,
             node_type=query._node_type,
             base_type=query._base_type,
@@ -1174,7 +1174,7 @@ async def pg_graph_get(
             next_parents = []
             for node_type, node_ids in to_select_by_type.items():
                 parents_filter = C(ConditionalType.IN, property=Node.id, value=node_ids)
-                parents_query = Query(
+                parents_query = LegacyQuery(
                     QueryType.SEARCH,
                     node_type,
                     filter=parents_filter,
@@ -1203,7 +1203,7 @@ async def pg_graph_get(
             children_filter = C(
                 ConditionalType.IN, property=Node.id, value=[ptr.id for ptr in node_ptrs]
             )
-            children_query = Query(
+            children_query = LegacyQuery(
                 QueryType.SEARCH,
                 node_type,
                 filter=children_filter,
@@ -1220,7 +1220,7 @@ async def pg_graph_search(
     cur: psycopg.AsyncCursor,
     ctx: SqlContext,
     scope: GraphScopeData,
-    query: Query,
+    query: LegacyQuery,
     count: bool,
 ) -> tuple[list[AnyNodeData], NodeDataGraph, int | None]:
     """
@@ -1243,7 +1243,7 @@ async def pg_graph_search(
             )
             for r in roots
         ]
-        get_query = Query(
+        get_query = LegacyQuery(
             QueryType.GET,
             query._node_type,
             base_type=query._base_type,
@@ -1435,7 +1435,7 @@ async def _pg_edit_cascade(
     for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
         node_table = BUILTIN_TABLE_BY_NODE_TYPE[NodeType(descendant_node_type)]
         nodes_ids = [edit.node_ptr.id for edit in cascaded_edits]
-        descendant_query = Query(
+        descendant_query = LegacyQuery(
             QueryType.GET,
             node_type=NodeType(descendant_node_type),
             filter=C(ConditionalType.IN, property=Node.id, value=nodes_ids),

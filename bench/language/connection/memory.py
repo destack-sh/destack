@@ -27,7 +27,7 @@ from .connection import Connection, GetConnection, GetResultData
 from .engine import ConnectionOptions, Connector, Engine
 
 if TYPE_CHECKING:
-    from bench.language import Query, Session
+    from bench.language import LegacyQuery, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -84,7 +84,7 @@ class MemoryConnector(Connector[MemoryEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "LegacyQuery", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return MemoryGetConnection
@@ -96,7 +96,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryConnector, T]):
     """Search an in-memory Connector."""
 
     @override
-    async def _do_read(self, query: "Query") -> GetResultData:
+    async def _do_read(self, query: "LegacyQuery") -> GetResultData:
         from bench.language import NodeDataGraph, NodeReference
 
         loaded_graph = self.connector.engine.graph

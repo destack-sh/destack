@@ -29,12 +29,12 @@ if TYPE_CHECKING:
         CustomObject,
         Expression,
         Field,
+        LegacyQuery,
         Node,
         NodeGraph,
         NodeReference,
         PackageNode,
         Property,
-        Query,
         Record,
         Struct,
     )
@@ -428,12 +428,12 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     # Querying
     #
 
-    def _query(self) -> "Query[V, VD]":
-        from bench.language import Database, Expression, Query, SelectOptions
+    def _query(self) -> "LegacyQuery[V, VD]":
+        from bench.language import Database, Expression, LegacyQuery, SelectOptions
 
         assert isinstance(self._node, Database), f"cannot query from: {self._node!r}"
         created_at = self._child_node_cls.get_property("created_at")
-        query = Query(
+        query = LegacyQuery(
             type=QueryType.SEARCH,
             node_type=self._child_node_type,
             base_type=self._node,
@@ -444,30 +444,30 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
         )
         return query
 
-    def where(self, filter: Optional["Expression"] = None, **kwargs) -> "Query[V, VD]":
+    def where(self, filter: Optional["Expression"] = None, **kwargs) -> "LegacyQuery[V, VD]":
         return self._query().where(filter, **kwargs)
 
     def order_by(
         self, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
-    ) -> "Query[V, VD]":
+    ) -> "LegacyQuery[V, VD]":
         return self._query().order_by(sort, *args)
 
-    def include(self, *properties: "Property") -> "Query[V, VD]":
+    def include(self, *properties: "Property") -> "LegacyQuery[V, VD]":
         return self._query().include(*properties)
 
-    def select(self, *keys: FieldOrProperty) -> "Query[V, VD]":
+    def select(self, *keys: FieldOrProperty) -> "LegacyQuery[V, VD]":
         return self._query().select(*keys)
 
-    def select_all(self) -> "Query[V, VD]":
+    def select_all(self) -> "LegacyQuery[V, VD]":
         return self._query().select_all()
 
-    def deselect(self, *properties: "Property") -> "Query[V, VD]":
+    def deselect(self, *properties: "Property") -> "LegacyQuery[V, VD]":
         return self._query().deselect(*properties)
 
-    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "Query[V, VD]":
+    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "LegacyQuery[V, VD]":
         return self._query().include_ancestors(*node_types)
 
-    def include_descendants(self, *node_types: NodeTypeOrClass) -> "Query[V, VD]":
+    def include_descendants(self, *node_types: NodeTypeOrClass) -> "LegacyQuery[V, VD]":
         return self._query().include_descendants(*node_types)
 
     @overload
@@ -492,7 +492,7 @@ class RemoteNodeList[V: Node, VD: AnyNodeData](NodeList[V]):
     async def search(self, filter: Optional["Expression"] = None, **kwargs) -> list[V]:
         return await self._query().search(filter, **kwargs)
 
-    def first(self, count: int) -> "Query[V, VD]":
+    def first(self, count: int) -> "LegacyQuery[V, VD]":
         return self._query().first(count)
 
 

@@ -45,8 +45,8 @@ if TYPE_CHECKING:
         Expression,
         Field,
         GetConnection,
+        LegacyQuery,
         Property,
-        Query,
         SearchConnection,
         Session,
     )
@@ -68,7 +68,7 @@ class EngineError(BenchError):
     def __init__(
         self,
         medium: Union["Engine", "Connector", Any],
-        query: Optional["Query"] | Collection[EditData] = None,
+        query: Optional["LegacyQuery"] | Collection[EditData] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
         cause: Exception | None = None,
@@ -307,11 +307,11 @@ class Connector[E: Engine](abc.ABC):
 
     @abc.abstractmethod
     def _get_connection_cls(
-        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "LegacyQuery", scope: GraphScopeData, options: ConnectionOptions
     ) -> "type[Connection]": ...
 
     @final
-    async def get(self, query: "Query", options: GetOptions) -> "GetConnection":
+    async def get(self, query: "LegacyQuery", options: GetOptions) -> "GetConnection":
         """Read a single node given the query in the current transaction context (if any)."""
         from .connection import GetConnection
 
@@ -325,7 +325,7 @@ class Connector[E: Engine](abc.ABC):
         return connection
 
     @final
-    async def search(self, query: "Query", options: SearchOptions) -> "SearchConnection":
+    async def search(self, query: "LegacyQuery", options: SearchOptions) -> "SearchConnection":
         """Read the nodes given the search query in the current transaction context (if any)."""
         from .connection import SearchConnection
 

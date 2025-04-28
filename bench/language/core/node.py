@@ -89,11 +89,11 @@ if TYPE_CHECKING:
         Field,
         GetConnection,
         Icon,
+        LegacyQuery,
         NodeLink,
         NodeReference,
         Package,
         Page,
-        Query,
         SearchConnection,
         Session,
         TextLine,
@@ -1019,43 +1019,45 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
     #
 
     @classmethod
-    def _query(cls) -> "Query[Self, NodeDataT]":
-        from bench.language import Query
+    def _query(cls) -> "LegacyQuery[Self, NodeDataT]":
+        from bench.language import LegacyQuery
 
-        return Query(type=QueryType.SEARCH, node_type=cls.metatype)
+        return LegacyQuery(type=QueryType.SEARCH, node_type=cls.metatype)
 
     @classmethod
-    def where(cls, filter: Optional["Expression"] = None, **kwargs) -> "Query[Self, NodeDataT]":
+    def where(
+        cls, filter: Optional["Expression"] = None, **kwargs
+    ) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().where(filter, **kwargs)
 
     @classmethod
     def order_by(
         cls, sort: "Optional[Expression] | str | Field | Property" = None, *args: str
-    ) -> "Query[Self, NodeDataT]":
+    ) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().order_by(sort, *args)
 
     @classmethod
-    def include(cls, *properties: Property) -> "Query[Self, NodeDataT]":
+    def include(cls, *properties: Property) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().include(*properties)
 
     @classmethod
-    def select(cls, *keys: FieldOrProperty) -> "Query[Self, NodeDataT]":
+    def select(cls, *keys: FieldOrProperty) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().select(*keys)
 
     @classmethod
-    def select_all(cls) -> "Query[Self, NodeDataT]":
+    def select_all(cls) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().select_all()
 
     @classmethod
-    def deselect(cls, *properties: FieldOrProperty) -> "Query[Self, NodeDataT]":
+    def deselect(cls, *properties: FieldOrProperty) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().deselect(*properties)
 
     @classmethod
-    def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "Query[Self, NodeDataT]":
+    def include_ancestors(cls, *node_types: NodeTypeOrClass) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().include_ancestors(*node_types)
 
     @classmethod
-    def include_descendants(cls, *node_types: NodeTypeOrClass) -> "Query[Self, NodeDataT]":
+    def include_descendants(cls, *node_types: NodeTypeOrClass) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().include_descendants(*node_types)
 
     @overload
@@ -1085,7 +1087,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
         return await cls._query().search(filter, **kwargs)
 
     @classmethod
-    def first(cls, count: int) -> "Query[Self, NodeDataT]":
+    def first(cls, count: int) -> "LegacyQuery[Self, NodeDataT]":
         return cls._query().first(count)
 
 
