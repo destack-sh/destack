@@ -80,7 +80,6 @@ enum EnumType {
   ENUM_TYPE_CLAIM_STATUS = 22051;
   ENUM_TYPE_CURSOR_TYPE = 22070;
   ENUM_TYPE_CURSOR_STATUS = 22071;
-  ENUM_TYPE_TASK_TYPE = 22072;
   ENUM_TYPE_ERROR_KIND = 22100;
   ENUM_TYPE_ERROR_TYPE = 22101;
   ENUM_TYPE_INTERRUPTION_TYPE = 22210;
@@ -471,7 +470,6 @@ enum BenchType {
   BENCH_TYPE_CLAIM_STATUS = 22051;
   BENCH_TYPE_CURSOR_TYPE = 22070;
   BENCH_TYPE_CURSOR_STATUS = 22071;
-  BENCH_TYPE_TASK_TYPE = 22072;
   BENCH_TYPE_ERROR_KIND = 22100;
   BENCH_TYPE_ERROR_TYPE = 22101;
   BENCH_TYPE_INTERRUPTION_TYPE = 22210;
@@ -1292,12 +1290,6 @@ enum CursorStatus {
   CURSOR_STATUS_IDLE = 30;
   CURSOR_STATUS_CANCELLED = 50;
   CURSOR_STATUS_COMPLETED = 53;
-}
-
-// The type of Task.
-enum TaskType {
-  TASK_TYPE_UNSPECIFIED = 0;
-  TASK_TYPE_MANUAL = 10;
 }
 
 enum ErrorKind {
@@ -2933,13 +2925,11 @@ message TaskData {
   optional NodeReferenceData owned_by_ptr = 17;
   optional NodeReferenceData claimed_by_ptr = 18;
   NodeMode mode = 20;
-  TaskType type = 30;
   optional TextLineData title = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
-  optional TextData text = 51;
   repeated NodeReferenceData nodes_ptr = 52;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;

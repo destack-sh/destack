@@ -1115,7 +1115,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                     class="ml-auto cursor-pointer rounded-full px-1 text-gray-400 hover:text-gray-700"
                     @mousedown.stop="close"
                   >
-                    <i class="fas fa-xmark" />
+                    <i class="fas fa-xmark w-5 text-center" />
                   </button>
                 </div>
 
@@ -1150,7 +1150,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                           }
                         "
                       >
-                        <i class="fas fa-xmark" />
+                        <i class="fas fa-eye-slash w-5 text-center" />
                       </button>
                     </li>
                   </ul>
@@ -1160,7 +1160,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           </Popover>
         </div>
 
-        <!-- Main input -->
+        <!-- Input -->
         <div class="flex-1">
           <!-- Extras -->
           <div v-if="draftNodes.length > 0" class="mb-1 flex flex-row flex-wrap items-start gap-x-2.5 gap-y-1">
@@ -1226,10 +1226,10 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         </div>
 
         <!-- Controls? (pause/stop/resume) -->
-        <div>
+        <div class="mr-1">
           <!-- Record / Submit -->
           <button
-            class="transition-color mr-3 w-[28px] cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
+            class="transition-color w-[28px] cursor-pointer rounded-2xl border border-gray-200 bg-gray-100 px-1.5 py-0.5 text-gray-700 duration-75 hover:bg-gray-200"
             @click="submit()"
           >
             <i class="fas fa-arrow-up" />
@@ -1308,7 +1308,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                   />
                   <span class="ml-1">{{ getEnumOption(EnumType.MODEL_DEVELOPER, thread?.modelDeveloper)?.title }}</span>
                 </template>
-                <!-- Juice? -->
+                <!-- Juice/Effort? -->
               </button>
             </template>
             <template #content="{ close }">

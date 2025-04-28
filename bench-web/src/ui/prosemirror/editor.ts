@@ -1006,5 +1006,5 @@ export function useTextEditor(options: {
     view.dispatch(tr);
   }
 
-  return { focus, actions, updatePlugin, lineRefsById };
+  return { focus, commands: actions, updatePlugin, lineRefsById };
 }

@@ -275,15 +275,7 @@ class LegacyQuery[NodeT: Node, NodeDataT: AnyNodeData]:
             content_parts.append(self._base_type.absolute_path)
         if self._roots is not None:
             content_parts.append(f"roots=[{', '.join(str(r) for r in self._roots)}]")
-        for k in (
-            "filter",
-            "sort",
-            "first",
-            "skip",
-            "aggregation",
-            "include_memory",
-            "include_removed",
-        ):
+        for k in ("filter", "sort", "first", "include_memory", "include_removed"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None

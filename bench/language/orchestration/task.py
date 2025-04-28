@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
-    BuiltinEnum,
-    EnumType,
     IsClaimable,
     IsInstantiable,
     IsModal,
@@ -18,10 +16,7 @@ from bench.language.core import (
     NodeType,
     PageNode,
     ProcessStatus,
-    StructType,
-    Text,
     TextLineIn,
-    enum_,
     p_node_children,
     p_node_parent,
     p_regular,
@@ -44,13 +39,6 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@enum_(EnumType.TASK_TYPE)
-class TaskType(BuiltinEnum):
-    """The type of Task."""
-
-    MANUAL = 10, "Manual", "Manual Task", "fas fa-pencil"
-
-
 @timed_node_(NodeType.TASK)
 class Task(
     IsTimed,
@@ -68,14 +56,11 @@ class Task(
     parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
         4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
     )
+    # type?
     # priority?
-    type: TaskType = p_regular(30, require=True)
 
     # routing
     due_at: Optional[datetime] = p_regular(50, default=None)
-    text: Optional["Text"] = p_regular(
-        51, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     nodes: list["Node"] = p_regular(
         52, require=False, array=True, references="any", description="The Nodes this Task is about."
     )
@@ -111,17 +96,14 @@ class Task(
 
     @staticmethod
     def new(
-        type: TaskType = TaskType.MANUAL,
         title: "TextLineIn | None" = None,
-        text: "Text | None" = None,
+        nodes: list["Node"] | None = None,
     ) -> "Task":
-        task = Task(
-            title=text_line(title) if title is not None else None,
-            text=text,
-            type=type,
-        )
+        task = Task(title=text_line(title) if title is not None else None)
+        if nodes:
+            task.nodes = nodes
         return task
 
     @staticmethod
-    def manual(title: "TextLineIn | None" = None, text: "Text | None" = None) -> "Task":
-        return Task.new(type=TaskType.MANUAL, title=title, text=text)
+    def manual(title: "TextLineIn | None" = None, nodes: list["Node"] | None = None) -> "Task":
+        return Task.new(title=title, nodes=nodes)

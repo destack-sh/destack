@@ -110,6 +110,9 @@ class FilePiece(LeafPiece, ABC):
     file: File = raise_if_none()
 
 
+# nocheckin: File document support in Chat models
+
+
 @piece_()
 class ImagePiece(FilePiece):
     @override

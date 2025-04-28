@@ -41,6 +41,7 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
  * Common service definition for global and bench-local :Graph
  * TODO :Architecture: Graph interface should just be Query + Subscribe + Commit :RichGraph
+ *  (or maybe instead of Query + Subscribe -> Query + QueryAndSubscribe?)
  *  (and maybe some special methods for :ExclusiveOwnership acquisition/release (of Runs/Resources?)
  *
  * @generated from protobuf service symbolx.bench.Graph
@@ -80,6 +81,7 @@ export interface IGraphClient {
 /**
  * Common service definition for global and bench-local :Graph
  * TODO :Architecture: Graph interface should just be Query + Subscribe + Commit :RichGraph
+ *  (or maybe instead of Query + Subscribe -> Query + QueryAndSubscribe?)
  *  (and maybe some special methods for :ExclusiveOwnership acquisition/release (of Runs/Resources?)
  *
  * @generated from protobuf service symbolx.bench.Graph

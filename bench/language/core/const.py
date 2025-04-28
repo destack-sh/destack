@@ -49,7 +49,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.26.5"
+VERSION = "2025.04.28.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -404,7 +404,6 @@ class EnumType(BuiltinEnum):
     CLAIM_STATUS = 22051
     CURSOR_TYPE = 22070
     CURSOR_STATUS = 22071
-    TASK_TYPE = 22072
 
     # error (22100-22149)
     ERROR_KIND = 22100
