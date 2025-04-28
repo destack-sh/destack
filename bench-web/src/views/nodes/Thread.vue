@@ -1150,7 +1150,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                           }
                         "
                       >
-                        <i class="fas fa-eye-slash w-5 text-center" />
+                        <i class="fas fa-minus w-5 text-center" />
                       </button>
                     </li>
                   </ul>
@@ -1279,6 +1279,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
             class="cursor-pointer rounded-sm text-xs text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @mousedown.stop="
               () => {
+                contextTab = 'Pages';
                 contextPopoverRef?.open();
               }
             "
