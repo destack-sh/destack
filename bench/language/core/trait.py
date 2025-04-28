@@ -542,10 +542,10 @@ class IsComputable(BuiltinObject):
 
     # model
     # NOTE :Incomplete: IsComputable.model_id should probably be plural (model_ids?)
-    model_developer: Optional["ModelDeveloper"] = p_regular(100)
-    model_provider: Optional["ModelProvider"] = p_regular(101)
-    model_id: Optional[str] = p_regular(102)
-    model_name: Optional[str] = p_regular(103)
+    model_developer: Optional["ModelDeveloper"] = p_internal(100)
+    model_provider: Optional["ModelProvider"] = p_internal(101)
+    model_id: Optional[str] = p_internal(102)
+    model_name: Optional[str] = p_internal(103)
     # compute/cost/effort/budget/'juice'...?
 
 

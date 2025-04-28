@@ -47,7 +47,6 @@ enum EnumType {
   ENUM_TYPE_FILE_FORMAT = 21053;
   ENUM_TYPE_ICON_TYPE = 21060;
   ENUM_TYPE_LINK_TYPE = 21070;
-  ENUM_TYPE_STREAM_TYPE = 21100;
   ENUM_TYPE_PRIMITIVE_TYPE = 21150;
   ENUM_TYPE_FIELD_ZONE = 21151;
   ENUM_TYPE_TYPE_KIND = 21152;
@@ -128,7 +127,6 @@ enum NodeType {
   NODE_TYPE_STORE = 2010;
   NODE_TYPE_COMPUTER = 2100;
   NODE_TYPE_FILE = 2200;
-  NODE_TYPE_STREAM = 2210;
   NODE_TYPE_LINK = 2250;
   NODE_TYPE_PACKAGE = 5000;
   NODE_TYPE_DEPENDENCY = 5010;
@@ -226,7 +224,6 @@ enum ObjectType {
   OBJECT_TYPE_STORE = 2010;
   OBJECT_TYPE_COMPUTER = 2100;
   OBJECT_TYPE_FILE = 2200;
-  OBJECT_TYPE_STREAM = 2210;
   OBJECT_TYPE_LINK = 2250;
   OBJECT_TYPE_PACKAGE = 5000;
   OBJECT_TYPE_DEPENDENCY = 5010;
@@ -320,7 +317,6 @@ enum BenchType {
   BENCH_TYPE_STORE = 2010;
   BENCH_TYPE_COMPUTER = 2100;
   BENCH_TYPE_FILE = 2200;
-  BENCH_TYPE_STREAM = 2210;
   BENCH_TYPE_LINK = 2250;
   BENCH_TYPE_PACKAGE = 5000;
   BENCH_TYPE_DEPENDENCY = 5010;
@@ -437,7 +433,6 @@ enum BenchType {
   BENCH_TYPE_FILE_FORMAT = 21053;
   BENCH_TYPE_ICON_TYPE = 21060;
   BENCH_TYPE_LINK_TYPE = 21070;
-  BENCH_TYPE_STREAM_TYPE = 21100;
   BENCH_TYPE_PRIMITIVE_TYPE = 21150;
   BENCH_TYPE_FIELD_ZONE = 21151;
   BENCH_TYPE_TYPE_KIND = 21152;
@@ -876,15 +871,6 @@ enum IconType {
 enum LinkType {
   LINK_TYPE_UNSPECIFIED = 0;
   LINK_TYPE_WEB = 1;
-}
-
-enum StreamType {
-  STREAM_TYPE_UNSPECIFIED = 0;
-  STREAM_TYPE_TEXT = 1;
-  STREAM_TYPE_CODE = 2;
-  STREAM_TYPE_IMAGE = 3;
-  STREAM_TYPE_AUDIO = 4;
-  STREAM_TYPE_VIDEO = 5;
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -2415,7 +2401,6 @@ message ScalerData {
   int32 target_count = 61;
   int32 min_count = 62;
   int32 max_count = 63;
-  int32 min_ready_count = 64;
   optional string name_template = 65;
 }
 
@@ -2648,31 +2633,6 @@ message LinkData {
   optional google.protobuf.Timestamp published_at = 63;
   optional google.protobuf.Timestamp expires_at = 64;
   repeated string image_urls = 70;
-}
-
-message StreamData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  optional NodeReferenceData owned_by_ptr = 17;
-  optional NodeReferenceData claimed_by_ptr = 18;
-  NodeMode mode = 20;
-  StreamType type = 30;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
-  Region region = 38;
 }
 
 message AgentData {
@@ -3571,45 +3531,44 @@ message SomeNodeData {
     StoreData store = 7;
     ComputerData computer = 8;
     FileData file = 9;
-    StreamData stream = 10;
-    LinkData link = 11;
-    PackageData package = 12;
-    DependencyData dependency = 13;
-    PageData page = 14;
-    BlockData block = 15;
-    ChoiceData choice = 16;
-    ClassData class = 17;
-    FieldData field = 18;
-    OptionData option = 19;
-    TagData tag = 20;
-    FlowData flow = 21;
-    KitData kit = 22;
-    ActionData action = 23;
-    TransitionData transition = 24;
-    TriggerData trigger = 25;
-    DatabaseData database = 26;
-    ChannelData channel = 27;
-    ThreadData thread = 28;
-    MessageData message = 29;
-    NotificationData notification = 30;
-    TeamData team = 31;
-    MembershipData membership = 32;
-    InviteData invite = 33;
-    RoleData role = 34;
-    AgentData agent = 35;
-    SessionData session = 36;
-    RunData run = 37;
-    SpanData span = 38;
-    InterruptionData interruption = 39;
-    PlanData plan = 40;
-    TaskData task = 41;
-    ClaimData claim = 42;
-    CursorData cursor = 43;
-    ViewData view = 44;
-    SpaceData space = 45;
-    RecordData record = 46;
-    SkipData skip = 47;
-    EmptyData empty = 48;
+    LinkData link = 10;
+    PackageData package = 11;
+    DependencyData dependency = 12;
+    PageData page = 13;
+    BlockData block = 14;
+    ChoiceData choice = 15;
+    ClassData class = 16;
+    FieldData field = 17;
+    OptionData option = 18;
+    TagData tag = 19;
+    FlowData flow = 20;
+    KitData kit = 21;
+    ActionData action = 22;
+    TransitionData transition = 23;
+    TriggerData trigger = 24;
+    DatabaseData database = 25;
+    ChannelData channel = 26;
+    ThreadData thread = 27;
+    MessageData message = 28;
+    NotificationData notification = 29;
+    TeamData team = 30;
+    MembershipData membership = 31;
+    InviteData invite = 32;
+    RoleData role = 33;
+    AgentData agent = 34;
+    SessionData session = 35;
+    RunData run = 36;
+    SpanData span = 37;
+    InterruptionData interruption = 38;
+    PlanData plan = 39;
+    TaskData task = 40;
+    ClaimData claim = 41;
+    CursorData cursor = 42;
+    ViewData view = 43;
+    SpaceData space = 44;
+    RecordData record = 45;
+    SkipData skip = 46;
+    EmptyData empty = 47;
   };
 }
 

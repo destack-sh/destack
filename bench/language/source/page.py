@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union, overload
+from typing import TYPE_CHECKING, Optional, Sequence, Union, cast, overload
 
 from bench.language.core import (
     IsClaimable,
@@ -67,6 +67,20 @@ class Page(
         else:
             return super().append(child, move)
 
+    @overload
+    def extend(self, *children: "PageNode", move: bool = False) -> "Sequence[Block]": ...
+    @overload
+    def extend[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]": ...
+    def extend[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]":
+        if not move and isinstance(children[0], PageNode):
+            # wrap PageNodes into Blocks
+            child_blocks = [cast(PageNode, child).to_block() for child in children]
+            self.blocks.extend(*child_blocks)
+            super().extend(*children, move=move)
+            return child_blocks
+        else:
+            return super().extend(*children, move=move)
+
     def add_text(
         self, text: TextIn, after: Optional["Block"] = None, before: Optional["Block"] = None
     ) -> list[Block]:
@@ -84,6 +98,11 @@ class Page(
             raise ValueError(f"cannot remove non-text blocks with Page.remove_text: {bad_blocks}")
         for block in blocks:
             self.blocks.remove(block)
+
+    def remove_range(self, start: Optional["Block"] = None, end: Optional["Block"] = None):
+        """Remove a range of Blocks."""
+        blocks = self.blocks.between(start, end)
+        self.blocks.remove(*blocks)
 
     @staticmethod
     def new(title: "TextLineIn", *nodes: "Block | PageNode", **kwargs) -> "Page":

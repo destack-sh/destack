@@ -33,6 +33,8 @@ class StreamingCodeRunner:
     @tracer.start_as_current_span("streaming_code_runner.execute")
     def _execute(self, code: str) -> None:
         """Execute code. Automatically add any new globals to the aliasing."""
+        aliasing_token = ACTIVE_ALIASING.set(self.aliasing)
+        in_user_code_token = IS_IN_USER_CODE.set(True)
         try:
             glbls_copy = self.globals.copy()
             exec(code, glbls_copy)
@@ -44,6 +46,9 @@ class StreamingCodeRunner:
         except Exception as e:
             logger.error("streaming_code_runner.error", code=code, span="current", exc_info=e)
             raise
+        finally:
+            IS_IN_USER_CODE.reset(in_user_code_token)
+            ACTIVE_ALIASING.reset(aliasing_token)
 
     def _is_valid(self, code: str) -> bool:
         """Check if the code is (syntactically) complete."""
@@ -64,13 +69,7 @@ class StreamingCodeRunner:
         """Finish running the code. Raise if there is trailing unexecuted (=invalid) code."""
         if self.pending_code:
             if self._is_valid(self.pending_code):
-                aliasing_token = ACTIVE_ALIASING.set(self.aliasing)
-                in_user_code_token = IS_IN_USER_CODE.set(True)
-                try:
-                    self._execute(self.pending_code)
-                finally:
-                    IS_IN_USER_CODE.reset(in_user_code_token)
-                    ACTIVE_ALIASING.reset(aliasing_token)
+                self._execute(self.pending_code)
                 self.pending_code = ""
             else:
                 raise RuntimeError(f"bad trailing code: {self.pending_code!r}")

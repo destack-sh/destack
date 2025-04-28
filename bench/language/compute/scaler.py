@@ -39,5 +39,4 @@ class Scaler(ProvisionableResource[ScalerData]):
     target_count: int = p_regular(61, default=0, constraint=constraint(min_value=0))
     min_count: int = p_regular(62, default=0, constraint=constraint(min_value=0, max_value=16))
     max_count: int = p_regular(63, default=16, constraint=constraint(min_value=0, max_value=64))
-    min_ready_count: int = p_regular(64, default=0, constraint=constraint(min_value=0))
     name_template: str | None = p_regular(65, default=None)
