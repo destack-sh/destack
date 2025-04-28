@@ -462,18 +462,42 @@ def _parse_inline_raw(
                 )
                 continue
             else:
-                color = _parse_color(marker[1:-1])
-                closing = f"[/{marker[1:-1]}]"
-                inner, pos = _parse_inline_raw(
-                    text, pos, end_marker=closing, base=base.copy(), aliasing=aliasing
-                )
-                for sp in inner:
-                    sp.color = color
-                spans.extend(inner)
+                # try to parse as a color, but handle invalid colors gracefully
+                color_name = marker[1:-1]
+                try:
+                    color = _parse_color(color_name)
+                    closing = f"[/{color_name}]"
+                    inner, pos = _parse_inline_raw(
+                        text, pos, end_marker=closing, base=base.copy(), aliasing=aliasing
+                    )
+                    for sp in inner:
+                        sp.color = color
+                    spans.extend(inner)
+                except ValueError:
+                    # If not a valid color, treat it as literal text
+                    spans.append(TextSpan(content=marker, **base))
                 continue
         # symmetric markers
         if marker in MARKER_TO_FLAG:
             flag = MARKER_TO_FLAG[marker]
+
+            # check if this is likely a math operator or similar rather than a formatting marker
+            # For single character markers, check if surrounded by whitespace or not followed by closing marker
+            is_real_marker = False
+            if len(marker) == 1:
+                # check if followed by whitespace (or end of text)
+                if pos >= len(text) or text[pos].isspace():
+                    is_real_marker = True
+                else:
+                    # check if there's a matching closing marker in the remaining text
+                    remaining = text[pos:]
+                    if marker not in remaining:
+                        is_real_marker = True
+
+            if is_real_marker:
+                spans.append(TextSpan(content=marker, **base))
+                continue
+
             inner, pos = _parse_inline_raw(
                 text, pos, end_marker=marker, base=base.copy(), aliasing=aliasing
             )

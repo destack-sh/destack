@@ -615,7 +615,7 @@ class NodeType(BuiltinEnum):
     #
 
     SKIP = 9998
-    EMPTY = 9999
+    EMPTY = 9999  # STUB?
 
     @property
     def is_global(self) -> bool:
