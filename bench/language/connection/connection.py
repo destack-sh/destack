@@ -37,7 +37,7 @@ from .engine import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Query, Session
+    from bench.language import LegacyQuery, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -59,7 +59,7 @@ class Connection[
         self,
         connector: ConnectorT,
         scope: GraphScopeData,
-        query: "Query",
+        query: "LegacyQuery",
         retry: RetryOptions,
         options: OptionsT,
     ):
@@ -304,12 +304,12 @@ class Connection[
         ...
 
     @abc.abstractmethod
-    async def _do_read(self, query: "Query") -> ResultDataT:
+    async def _do_read(self, query: "LegacyQuery") -> ResultDataT:
         """Fetches the result data for the connection."""
         ...
 
     def _do_subscribe(
-        self, query: "Query", token: str | None, epoch: int
+        self, query: "LegacyQuery", token: str | None, epoch: int
     ) -> AsyncIterator[UpdateDataT]:
         """Subscribes to updates for the connection."""
         raise EngineIncapableError(self, query, reason="live subscription not supported")

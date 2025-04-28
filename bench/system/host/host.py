@@ -32,6 +32,7 @@ from bench.language import (
     FileSource,
     GraphScope,
     IsRuntime,
+    LegacyQuery,
     MemoryEngine,
     Node,
     NodeArea,
@@ -44,7 +45,6 @@ from bench.language import (
     Package,
     PageNode,
     PolicySubject,
-    Query,
     QueryType,
     Session,
     Store,
@@ -548,7 +548,7 @@ class HostService(GraphServiceBase, HostBase):
         return scope
 
     @override
-    def _adapt_read_query(self, subject: PolicySubject, query: Query) -> Query:
+    def _adapt_read_query(self, subject: PolicySubject, query: LegacyQuery) -> LegacyQuery:
         query = super()._adapt_read_query(subject, query)
 
         # restrict to this bench if it's a in-bench query

@@ -45,7 +45,7 @@ from .engine import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Query, Session
+    from bench.language import LegacyQuery, Session
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -53,7 +53,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def _grpc_wrap_error(query: "Query", e: GRPCError):
+def _grpc_wrap_error(query: "LegacyQuery", e: GRPCError):
     """Wraps a GRPCError in something more harmonized."""
     return e  # NOTE :UX: wrap remote grpc errors
 
@@ -109,7 +109,7 @@ class RemoteConnector(WritableConnector[RemoteEngine]):
         pass  # remote connectors use a shared client
 
     def _get_connection_cls(
-        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "LegacyQuery", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return RemoteGetConnection
@@ -178,7 +178,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
     """Search a remote connector live."""
 
     @override
-    async def _do_read(self, query: "Query") -> GetResultData:
+    async def _do_read(self, query: "LegacyQuery") -> GetResultData:
         from bench.proto import wiring
 
         assert query._roots, f"{query!r} has no roots"
@@ -210,7 +210,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteConnector, T]):
 
     @override
     async def _do_subscribe(
-        self, query: "Query", token: str | None, epoch: int
+        self, query: "LegacyQuery", token: str | None, epoch: int
     ) -> AsyncIterator[WatchGetUpdateData]:
         from bench.proto import unary_stream_rpc, wiring
 
@@ -232,7 +232,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
     """Search a remote connector live."""
 
     @override
-    async def _do_read(self, query: "Query") -> SearchResultData:
+    async def _do_read(self, query: "LegacyQuery") -> SearchResultData:
         from bench.proto import wiring
 
         engine = self.connector.engine
@@ -273,7 +273,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteConnector, T]):
 
     @override
     async def _do_subscribe(
-        self, query: "Query", token: str | None, epoch: int
+        self, query: "LegacyQuery", token: str | None, epoch: int
     ) -> AsyncIterator[WatchSearchUpdateData]:
         from bench.proto import unary_stream_rpc, wiring
 

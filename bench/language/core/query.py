@@ -189,7 +189,7 @@ class SelectOptions(Struct):
 class QueryError(BenchError, ValueError):
     def __init__(
         self,
-        query: "Query | NodeReference",
+        query: "LegacyQuery | NodeReference",
         result: Any | None = None,
         cause: Exception | None = None,
     ):
@@ -210,14 +210,13 @@ class MultipleNodesFoundError(QueryError):
     pass
 
 
-class Query[NodeT: Node, NodeDataT: AnyNodeData]:
+class LegacyQuery[NodeT: Node, NodeDataT: AnyNodeData]:
     """
     Build a Query.
     """
 
     __slots__ = (
         "_after",
-        "_aggregation",
         "_ancestor_types",
         "_base_type",
         "_descendant_types",
@@ -242,8 +241,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         roots: Optional[list["NodeReference"]] = None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
-        aggregation: Optional["Expression"] = None,
-        # joins
+        # "joins"
         ancestor_types: list[NodeType] | None = None,
         descendant_types: list[NodeType] | None = None,
         # options
@@ -262,8 +260,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         self._roots = roots
         self._filter = filter
         self._sort = sort
-        self._aggregation = aggregation
-        # joins
+        # "joins"
         self._ancestor_types = ancestor_types or []
         self._descendant_types = descendant_types or []
         # options
@@ -317,7 +314,6 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             tuple(r._stable_hash() for r in self._roots) if self._roots is not None else None,
             self._filter._stable_hash() if self._filter is not None else None,
             tuple(s._stable_hash() for s in self._sort) if self._sort is not None else None,
-            self._aggregation._stable_hash() if self._aggregation is not None else None,
             # joins
             self._ancestor_types,
             self._descendant_types,
@@ -353,7 +349,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def clone(self):
         """Clones the query (the properties are immutable)."""
-        return Query(
+        return LegacyQuery(
             # root
             type=self._type,
             node_type=self._node_type,
@@ -361,8 +357,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             roots=self._roots,
             filter=self._filter,
             sort=self._sort,
-            aggregation=self._aggregation,
-            # joins
+            # "joins"
             ancestor_types=self._ancestor_types,
             descendant_types=self._descendant_types,
             # options
@@ -378,14 +373,16 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         else:
             return self._select.clone()
 
-    def trim_to(self, node_types: Collection[NodeType]) -> "Query[NodeT, NodeDataT]":
+    def trim_to(self, node_types: Collection[NodeType]) -> "LegacyQuery[NodeT, NodeDataT]":
         assert self._node_type in node_types
         clone = self.clone()
         clone._ancestor_types = [a for a in self._ancestor_types if a in node_types]
         clone._descendant_types = [d for d in self._descendant_types if d in node_types]
         return clone
 
-    def where(self, filter: Optional["Expression"] = None, **kwargs) -> "Query[NodeT, NodeDataT]":
+    def where(
+        self, filter: Optional["Expression"] = None, **kwargs
+    ) -> "LegacyQuery[NodeT, NodeDataT]":
         """Adds a filter clause to the query."""
         from .expression import coerce_conditional
 
@@ -404,7 +401,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             list[Union["Expression", str]], str, "Expression", "Field", "Property", None
         ] = None,
         *args: str,
-    ) -> "Query[NodeT, NodeDataT]":
+    ) -> "LegacyQuery[NodeT, NodeDataT]":
         """Sorts the query results by the given sort criteria."""
         from .expression import coerce_sort
 
@@ -414,7 +411,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
         )
         return clone
 
-    def first(self, count: int) -> "Query[NodeT, NodeDataT]":
+    def first(self, count: int) -> "LegacyQuery[NodeT, NodeDataT]":
         """Returns the first N results."""
         clone = self.clone()
         clone._first = count
@@ -422,14 +419,14 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
 
     limit = first
 
-    def include(self, *properties: Property) -> "Query[NodeT, NodeDataT]":
+    def include(self, *properties: Property) -> "LegacyQuery[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.include_properties += self._to_properties(properties)
         return clone
 
-    def select(self, *keys: FieldOrProperty) -> "Query[NodeT, NodeDataT]":
+    def select(self, *keys: FieldOrProperty) -> "LegacyQuery[NodeT, NodeDataT]":
         """Selects only the given properties/fields in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
@@ -441,7 +438,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
                 clone._select.select_fields_ptr.append(key.to_ref())
         return clone
 
-    def select_all(self) -> "Query[NodeT, NodeDataT]":
+    def select_all(self) -> "LegacyQuery[NodeT, NodeDataT]":
         """Includes all properties/Fields in the results."""
         clone = self.clone()
         clone._select = self._clone_select()
@@ -455,14 +452,14 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
             clone._select.select_fields = []
         return clone
 
-    def deselect(self, *properties: FieldOrProperty) -> "Query[NodeT, NodeDataT]":
+    def deselect(self, *properties: FieldOrProperty) -> "LegacyQuery[NodeT, NodeDataT]":
         """Excludes given default-included properties from the results."""
         clone = self.clone()
         clone._select = self._clone_select()
         clone._select.exclude_properties += self._to_properties(properties)
         return clone
 
-    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "Query[NodeT, NodeDataT]":
+    def include_ancestors(self, *node_types: NodeTypeOrClass) -> "LegacyQuery[NodeT, NodeDataT]":
         """Includes all ancestors in the results."""
         clone = self.clone()
         if node_types:
@@ -479,7 +476,7 @@ class Query[NodeT: Node, NodeDataT: AnyNodeData]:
                     clone._ancestor_types.append(ancestor_type)
         return clone
 
-    def include_descendants(self, *node_types: NodeTypeOrClass) -> "Query[NodeT, NodeDataT]":
+    def include_descendants(self, *node_types: NodeTypeOrClass) -> "LegacyQuery[NodeT, NodeDataT]":
         """Joins the given descendants in the results."""
         clone = self.clone()
         for node_type in node_types:

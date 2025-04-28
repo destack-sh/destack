@@ -22,11 +22,11 @@ from bench.language.connection import (
     Connector,
     Engine,
     EngineUnavailableError,
+    MemoryEngine,
     NullEngine,
     SplitConnector,
     scope_includes,
 )
-from bench.language.connection.memory import MemoryEngine
 from bench.language.core import (
     ACTIVE_SESSION,
     EMPTY_SCOPE_DATA,
@@ -74,7 +74,7 @@ from .transaction import Transaction
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
-        Query,
+        LegacyQuery,
     )
     from bench.runtime.core import Runtime
 
@@ -256,7 +256,7 @@ class Session(BenchNode[SessionData], IsRuntime, IsModal):
                 scope.package_ids.append(package_id)
         return scope
 
-    def _get_scope_for_query(self, query: "Query") -> GraphScopeData:
+    def _get_scope_for_query(self, query: "LegacyQuery") -> GraphScopeData:
         """Get the scope for a query in this session."""
         if query._base_type is not None:
             return self._get_scope_for_node(query._base_type)

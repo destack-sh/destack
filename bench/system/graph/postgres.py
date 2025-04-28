@@ -15,11 +15,11 @@ from bench.language import (
     FlushResultData,
     GetConnection,
     GetResultData,
+    LegacyQuery,
     Node,
     NodeDataGraph,
     NodeReference,
     NodeType,
-    Query,
     QueryType,
     SearchConnection,
     SearchResultData,
@@ -129,7 +129,7 @@ class PostgresConnector(WritableConnector[PostgresEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "LegacyQuery", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return PostgresGetConnection
@@ -174,7 +174,7 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresConnector, T]):
     """Get from a Postgres channel."""
 
     @override
-    async def _do_read(self, query: "Query") -> GetResultData:
+    async def _do_read(self, query: "LegacyQuery") -> GetResultData:
         assert query._roots, f"{query!r} has no roots"
         graph = NodeDataGraph(scope=self.scope, node_types=self.node_types)
         roots_ptr = [r._to_data() for r in query._roots]
@@ -193,7 +193,7 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresConnector, T]):
 
     @override
     @_pg_method
-    async def _do_read(self, query: "Query") -> SearchResultData:
+    async def _do_read(self, query: "LegacyQuery") -> SearchResultData:
         async with self.connector.connection.lock:
             roots, graph, total = await pg_graph_search(
                 cur=self.connector.cur,

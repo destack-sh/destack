@@ -12,11 +12,11 @@ from bench.language import (
     EditType,
     GetOptions,
     GetResultData,
+    LegacyQuery,
     NodeDataGraph,
     NodeReference,
     NodeType,
     PolicySubject,
-    Query,
     QueryType,
     SearchOptions,
     SearchResultData,
@@ -68,7 +68,7 @@ class Connection[
 
     read_type: ClassVar[QueryType]
 
-    def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: LegacyQuery, oracle: Oracle):
         self.scope = scope
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
@@ -251,7 +251,7 @@ class GetConnection(Connection[GetResultData, WatchGetUpdateData]):
 
     read_type: ClassVar[QueryType] = QueryType.GET
 
-    def __init__(self, scope: GraphScopeData, query: "Query", oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: "LegacyQuery", oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._root_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
 
@@ -390,7 +390,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdateData]):
     In its final form, this should be a proper incremental materialized view.
     """
 
-    def __init__(self, scope: GraphScopeData, query: Query, oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: LegacyQuery, oracle: Oracle):
         super().__init__(scope, query, oracle)
         self._filter = query._filter
         self._database_id = (
@@ -583,7 +583,7 @@ class ConnectionIndex:
             )
 
     async def connect[ConnectionT: Connection](
-        self, query: Query, session: Session, connection_t: type[ConnectionT], *, cache: bool
+        self, query: LegacyQuery, session: Session, connection_t: type[ConnectionT], *, cache: bool
     ) -> ConnectionT:
         """Creates or reuses a connection to the graph."""
         assert query._type == connection_t.read_type, f"unexpected {query!r} (want {connection_t})"

@@ -40,7 +40,7 @@ from .engine import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Query
+    from bench.language import LegacyQuery
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -63,7 +63,7 @@ class SplitConnector(Connector[NullEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "Query", scope: GraphScopeData, options: ConnectionOptions
+        self, query: "LegacyQuery", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
         if query._type == QueryType.GET:
             return SplitGetConnection
@@ -116,10 +116,10 @@ class SplitConnection(Connection):
         scope: GraphScopeData,
         combined_graph: NodeDataGraph,
         remaining_types: set[NodeType],
-        query: "Query",
+        query: "LegacyQuery",
     ) -> set[NodeType]:
         """Read descendants for nodes in the graph, returns covered types."""
-        from bench.language import Query
+        from bench.language import LegacyQuery
 
         engine, covered_types = self._get_best_match_engine(
             scope,
@@ -144,7 +144,7 @@ class SplitConnection(Connection):
 
                 # get children
                 child_cls = NODE_CLASS_BY_TYPE[child_type]
-                descendant_query = Query(
+                descendant_query = LegacyQuery(
                     type=QueryType.SEARCH,
                     node_type=child_type,
                     filter=C(
@@ -169,11 +169,11 @@ class SplitConnection(Connection):
         scope: GraphScopeData,
         combined_graph: NodeDataGraph,
         remaining_types: set[NodeType],
-        query: "Query",
+        query: "LegacyQuery",
     ) -> set[NodeType]:
         """Read ancestors for roots in the graph, returns covered types."""
 
-        from bench.language import NodeReference, Query
+        from bench.language import LegacyQuery, NodeReference
         from bench.proto import wiring
 
         # get parent references from roots
@@ -205,7 +205,7 @@ class SplitConnection(Connection):
             if parent_type not in covered_types:
                 continue
 
-            ancestor_query = Query(
+            ancestor_query = LegacyQuery(
                 type=QueryType.GET,
                 node_type=parent_type,
                 roots=[
@@ -223,7 +223,7 @@ class SplitConnection(Connection):
 
     async def _do_read_remainder(
         self,
-        query: "Query",
+        query: "LegacyQuery",
         initial_result: GetResultData | SearchResultData,
         initial_types: Collection[NodeType],
     ) -> NodeDataGraph:
@@ -267,7 +267,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitConnector, T], SplitC
     """Search across multiple connections."""
 
     @override
-    async def _do_read(self, query: "Query") -> SearchResultData:
+    async def _do_read(self, query: "LegacyQuery") -> SearchResultData:
         # search engine for initial query
         engine, covered_types = self._get_best_match_engine(
             self.scope,
@@ -303,7 +303,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitConnector, T], SplitConnect
     """Get across multiple connections."""
 
     @override
-    async def _do_read(self, query: "Query") -> GetResultData:
+    async def _do_read(self, query: "LegacyQuery") -> GetResultData:
         # get engine for initial query
         engine, covered_types = self._get_best_match_engine(
             self.scope,

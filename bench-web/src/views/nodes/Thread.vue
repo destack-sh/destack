@@ -1276,7 +1276,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           <!-- Pages / Files / Links / ... -->
           <button
             v-if="claims.filter((c) => c.targetPtr?.nodeType == NodeType.PAGE).length > 0"
-            class="cursor-pointer rounded-sm text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            class="cursor-pointer rounded-sm text-xs text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-gray-700"
             @mousedown.stop="
               () => {
                 contextPopoverRef?.open();

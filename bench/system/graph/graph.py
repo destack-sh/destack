@@ -38,6 +38,7 @@ from bench.language import (
     Expression,
     GetOptions,
     IsRuntime,
+    LegacyQuery,
     Node,
     NodeDataGraph,
     NodeGraph,
@@ -47,7 +48,6 @@ from bench.language import (
     NodeType,
     PolicyEffect,
     PolicySubject,
-    Query,
     QueryType,
     SelectOptions,
     Session,
@@ -147,8 +147,8 @@ class GraphLock:
         self._locks: dict[NodeType, RWLock] = {node_type: RWLock() for node_type in NODE_TYPES}
 
     @asynccontextmanager
-    async def read(self, ctx: Query | Literal["all"]):
-        if isinstance(ctx, Query):  # noqa: SIM108
+    async def read(self, ctx: LegacyQuery | Literal["all"]):
+        if isinstance(ctx, LegacyQuery):  # noqa: SIM108
             node_types = ctx.all_node_types
         else:
             node_types = NODE_TYPES
@@ -228,7 +228,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
             )
 
-    def _adapt_read_query(self, subject: PolicySubject, query: "Query") -> "Query":
+    def _adapt_read_query(self, subject: PolicySubject, query: "LegacyQuery") -> "LegacyQuery":
         """
         Adapt read options based on the access to pre-filter as feasible and load any other required Nodes.
         Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
@@ -396,7 +396,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                         if isinstance(database, Database)
                         else None
                     )
-                    query = Query(
+                    query = LegacyQuery(
                         type=QueryType.GET,
                         node_type=node_type,
                         base_type=database,
@@ -582,7 +582,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                 if len(roots_by_type) > 1:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
                 node_type = next(iter(roots_by_type.keys()))
-                query = Query(
+                query = LegacyQuery(
                     type=QueryType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
@@ -708,7 +708,7 @@ class GraphServiceBase(ServiceBase, GraphBase, abc.ABC):
                     )
                     or SelectOptions.default()
                 )
-                query = Query(
+                query = LegacyQuery(
                     type=QueryType.SEARCH,
                     node_type=node_type,
                     base_type=database,
