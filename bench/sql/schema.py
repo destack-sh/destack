@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.28.0"
+VERSION = "2025.04.28.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -271,7 +271,6 @@ SCALER_TABLE = Table(
         Column("target_count", PrimitiveType.INT32, default="0"),
         Column("min_count", PrimitiveType.INT32, default="0"),
         Column("max_count", PrimitiveType.INT32, default="16"),
-        Column("min_ready_count", PrimitiveType.INT32, default="0"),
         Column("name_template", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
@@ -434,39 +433,6 @@ FILE_TABLE = Table(
         Column("content", PrimitiveType.BYTES, is_nullable=True),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
-    ),
-    indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
-)
-
-STREAM_TABLE = Table(
-    "bench_stream",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("package_id", PrimitiveType.UUID),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("owned_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("owned_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("claimed_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("claimed_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("mode", PrimitiveType.INT16, default="20"),
-        Column("type", PrimitiveType.INT16),
-        Column("name", PrimitiveType.STRING, is_nullable=True),
-        Column("order_key", PrimitiveType.STRING, is_nullable=True),
-        Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("definition_id", PrimitiveType.UUID, is_nullable=True),
-        Column("region", PrimitiveType.INT16),
     ),
     indexes=(Index("bench_idx_parent_id", IndexType.BTREE, ("parent_id",), cover=("id",)),),
 )

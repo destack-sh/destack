@@ -74,7 +74,7 @@ class Thread(
     """
     A Thread for communicating with Messages.
     Threads may be nested to organize conversations and work.
-    TODO :Incomplete: nested Threads, ThreadType & "monologue" threads
+    TODO :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
     """
 
     # meta

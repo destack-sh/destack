@@ -57,7 +57,7 @@ class Agent(
     PageNode[AgentData],
 ):
     """
-    An Agent is an autonomous entity that creates and implements Plans and Tasks.
+    An Agent is an autonomous entity that does work on behalf of a User.
     Agents run Flows using Actions, Resources, Pages, and other Bench stuff.
     Agents are not directly runnable; Agent instances are implemented by running their Flow.
     """

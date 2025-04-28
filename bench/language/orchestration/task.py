@@ -27,12 +27,10 @@ from bench.pb2 import TaskData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Error,
         Node,
         NodeReference,
         Page,
         Plan,
-        Run,
         Trigger,
     )
 
@@ -50,11 +48,11 @@ class Task(
     IsInstantiable,
     PageNode[TaskData],
 ):
-    """A Task to accomplish something."""
+    """A Task is like a to do item."""
 
     # meta
-    parent: Union["Page", "Plan", "Task", "Run", None] = p_node_parent(
-        4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK, NodeType.RUN
+    parent: Union["Page", "Plan", "Task", None] = p_node_parent(
+        4, NodeType.PAGE, NodeType.PLAN, NodeType.TASK
     )
     # type?
     # priority?
@@ -83,11 +81,7 @@ class Task(
         if self.started_at is not None:
             self.duration = self.terminated_at - self.started_at
 
-    def stop(self) -> None:
-        self.requested_stop_at = self.active_session._oracle.utc()
-
-    def fail(self, error: "Error | None" = None) -> None:
-        self.error = error
+    def fail(self) -> None:
         self.status = ProcessStatus.FAILED
 
     @cached_property
@@ -98,8 +92,9 @@ class Task(
     def new(
         title: "TextLineIn | None" = None,
         nodes: list["Node"] | None = None,
+        **kwargs,
     ) -> "Task":
-        task = Task(title=text_line(title) if title is not None else None)
+        task = Task(title=text_line(title) if title is not None else None, **kwargs)
         if nodes:
             task.nodes = nodes
         return task

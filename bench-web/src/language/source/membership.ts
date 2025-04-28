@@ -23,6 +23,7 @@ export function createMembership(
 
   // instance agents if not already instanced
   if (isNode(member, NodeType.AGENT) && !isNodeInstance(member)) {
+    // nocheckin: don't instance Agents?
     member = instanceNode(tx, graph, member, { parent: options.parent });
   }
 

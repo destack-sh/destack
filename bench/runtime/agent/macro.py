@@ -8,7 +8,10 @@ from bench.language import (
     Action,
     Agent,
     Block,
+    Claim,
+    ClaimType,
     CursorType,
+    File,
     Interruption,
     Message,
     Node,
@@ -279,6 +282,33 @@ def CALL(
 
 
 @function_macro_(
+    "ADD_CONTEXT",
+    """\
+Add context to the current Thread for future reference (noop if already present).
+""",
+    signature="(*nodes: Page) -> Sequence[Claim]",
+    is_edit=True,
+)
+def ADD_CONTEXT(
+    *nodes: Page,
+    runner: "AgentRunner" = _INJECTED_RUNNER,
+) -> Sequence[Claim]:
+    thread = runner.thread.thread
+    existing_claims = thread.claims.tolist()
+    claims: list[Claim] = []
+    for node in nodes:
+        for claim in existing_claims:
+            if claim.target_id == node.id:
+                existing_claims.append(claim)
+                break
+        else:
+            claim = Claim(type=ClaimType.WRITE, target=node, owned_by=runner.agent)
+            thread.claims.append(claim)
+            claims.append(claim)
+    return claims
+
+
+@function_macro_(
     "ADD_PAGE_TEXT",
     """\
 ADD text to a Page.
@@ -315,7 +345,7 @@ def REPLACE_PAGE_TEXT(
     before: Block | None = None,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ) -> tuple[Block, ...]:
-    _ = page.remove_text(after, before)
+    _ = page.remove_range(after, before)
     blocks = page.add_text(text, after, before)
     runner.session.stage()
     return tuple(blocks)

@@ -230,7 +230,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             try:
                 await self.runtime.run_runner(model_runner)
                 logger.debug(
-                    "agent.think",
+                    "agent.turn",
                     flow=self.node,
                     runner=self,
                     model=model_runner,
@@ -242,7 +242,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 return  # success
             except asyncio.CancelledError:
                 logger.debug(
-                    "agent.think.aborted",
+                    "agent.turn.aborted",
                     agent=self.node,
                     runner=self,
                     attempt=attempt,
@@ -251,7 +251,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 raise
             except BaseException as e:
                 logger.debug(
-                    "agent.think.error",
+                    "agent.turn.error",
                     agent=self.node,
                     runner=self,
                     attempt=attempt,
@@ -263,7 +263,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
                 else:
                     interval = retry.get_wait_interval()
                     logger.trace(
-                        "agent.think.retry",
+                        "agent.turn.retry",
                         agent=self.node,
                         runner=self,
                         attempt=attempt,
@@ -277,17 +277,17 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         try:
             runner = restore_runner(self.runtime, run)
             await self.runtime.run_runner(runner)
-            logger.debug("agent.tool", agent=self.node, runner=self, run=run)
+            logger.debug("agent.call", agent=self.node, runner=self, run=run)
         except asyncio.CancelledError:
             logger.debug(
-                "agent.tool.aborted",
+                "agent.call.aborted",
                 agent=self.node,
                 runner=self,
                 run=run,
             )
         except BaseException as e:
             logger.debug(
-                "agent.tool.error",
+                "agent.call.error",
                 agent=self.node,
                 runner=self,
                 run=run,

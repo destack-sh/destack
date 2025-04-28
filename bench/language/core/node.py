@@ -869,10 +869,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT]):
             raise ValueError(f"cannot append {child!r} to {self!r}")
         return child
 
-    def extend(self, *children: "Node", move: bool = False):
+    def extend[T: Node](self, *children: T, move: bool = False) -> Sequence[T]:
         """Append multiple Nodes as children of this Node."""
         for child in children:
             self.append(child, move=move)
+        return children
 
     def get_children[N: Node = Node](
         self, node_type: NodeType | type[N] | None = None

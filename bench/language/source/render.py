@@ -966,10 +966,7 @@ class PlanRenderer(NodeRenderer["Plan"]):
 class TaskRenderer(NodeRenderer["Task"]):
     @override
     def render(self, renderer: "Renderer", obj: "Task", options: RenderOptions) -> str:
-        from bench.language import Task
-
         kwargs = _deconstruct_builtin_object(obj, options=options)
-        kwargs.pop(Task.get_property("type"), None)
         rendered_kwargs = _render_builtin_object_kwargs(renderer, obj, kwargs)
         args = renderer.render_args(
             rendered_kwargs.pop("title", None),

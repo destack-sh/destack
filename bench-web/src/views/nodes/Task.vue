@@ -64,16 +64,16 @@ defineExpose<ViewExpose>({ self, id, focus });
   <div v-if="task" class="group/task flex flex-row items-baseline gap-x-2">
     <!-- Status -->
     <button
-      class="flex h-4 w-4 cursor-pointer flex-row items-center justify-center rounded-2xl border border-gray-500 bg-white p-[1px] transition-colors duration-75"
+      class="flex h-4 w-4 cursor-pointer flex-row items-center justify-center rounded-sm border border-gray-500 bg-white p-[1px] transition-colors duration-75"
       :style="{
-        borderColor: fillState != 'empty' ? getProcessColorHex(task.status, ColorShade.S400) : undefined,
+        borderColor: fillState != 'empty' ? getProcessColorHex(task.status, ColorShade.S500) : undefined,
       }"
-      @click="toggleTaskStatus(connection.tx, task)"
+      @mousedown.stop="toggleTaskStatus(connection.tx, task)"
     >
       <span
-        class="inline-block h-full w-full rounded-2xl transition-all duration-75"
+        class="inline-block h-full w-full rounded-sm transition-all duration-75"
         :style="{
-          backgroundColor: fillState != 'empty' ? getProcessColorHex(task.status, ColorShade.S400) : undefined,
+          backgroundColor: fillState != 'empty' ? getProcessColorHex(task.status, ColorShade.S500) : undefined,
           clipPath: fillState == 'full' ? undefined : 'inset(0 0 50% 0)',
         }"
       />
@@ -94,43 +94,7 @@ defineExpose<ViewExpose>({ self, id, focus });
         @navigate="emit('navigate', $event)"
       />
       <!-- nocheckin: Tasks -->
-      <!-- Metadata -->
-      <!-- Owner -->
-      <button
-        class="absolute right-0 inline-flex flex-row items-center gap-x-1.5 rounded-sm bg-white px-1.5 py-0.5 transition-colors duration-75 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-        :class="[
-          hasMeta ? 'opacity-100' : 'opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100',
-        ]"
-        @click="
-          (e: MouseEvent) => {
-            const button = (e.target as HTMLElement).closest('button')!;
-            pushPopover({
-              kind: 'view',
-              trigger: button,
-              reference: button,
-              component: ViewType.PICKER,
-              title: 'Owner',
-              placement: 'bottom-left',
-              offset: 'referenceWidth',
-              props: {
-                valueType: makeType({
-                  kind: TypeKind.NODE,
-                  constraint: makeTypeConstraint({ nodeTypes: [NodeType.USER, NodeType.AGENT] }),
-                }),
-                modelValue: task?.ownedByPtr,
-              },
-              onApply: (value: any) => {
-                connection.tx.update(task!, { ownedByPtr: value }, { debounce: 'short' });
-              },
-            });
-          }
-        "
-      >
-        <i v-if="!task.ownedByPtr" class="fas fa-user" :class="task.ownedByPtr ? 'text-gray-700' : 'text-gray-400'" />
-        <NodeReference v-if="task.ownedByPtr" :node-ptr="task.ownedByPtr" size="sm" />
-        <span v-else class="text-gray-400">owner</span>
-      </button>
-      <!-- Triggers -->
+      <!-- NOTE :Incomplete: Task.owner/due/triggers/... -->
       <!-- ... -->
     </div>
   </div>

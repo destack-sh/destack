@@ -589,7 +589,7 @@ export const NON_ARCHIVEABLE_NODE_TYPES = [
   NodeType.RUN,
   NodeType.SPAN,
   NodeType.THREAD, // NOTE :Incomplete: removing Threads causes annoying issues
-  NodeType.MESSAGE,
+  // NodeType.MESSAGE,
   NodeType.MEMBERSHIP,
 ];
 export const NON_DELETABLE_NODE_TYPES = [

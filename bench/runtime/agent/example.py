@@ -20,6 +20,8 @@ from bench.language import (
     Bench,
     BenchStatus,
     Block,
+    Database,
+    Field,
     File,
     Link,
     Message,
@@ -31,8 +33,10 @@ from bench.language import (
     Package,
     PackageType,
     Page,
+    Record,
     Region,
     Session,
+    Task,
     Thread,
     User,
     UserStatus,
@@ -41,14 +45,10 @@ from bench.language import (
     text_line,
     to_icon,
 )
-from bench.language.communication.record import Record
-from bench.language.source.database import Database
-from bench.language.source.field import Field
 from bench.runtime.model import (
     CodePiece,
     CompoundPiece,
     Piece,
-    PieceRole,
     Prompt,
     SeparatorPiece,
     TextPiece,
@@ -58,7 +58,7 @@ from bench.runtime.model import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-from .macro import ADD_PAGE_TEXT, CALL, SEND
+from .macro import ADD_CONTEXT, ADD_PAGE_TEXT, CALL, SEND
 
 # ruff: noqa: F401,B018,N803,F841
 # pyright: reportUnusedExpression=false
@@ -334,3 +334,49 @@ def example_upload_external_files():
         File.external("https://example.com/image2.jpg"),
     )
     SEND("Yeah, here's what that looks like:", nodes=images)
+
+
+@example_(ExampleType.SNIPPET, title="Draft report for confirmation")
+def example_draft_report_for_confirmation(Page1: Page):
+    SEND("Sure, I can do some research and compile my findings on [@Page1].")
+    # first sketch the report and ask for clarification
+    ADD_CONTEXT(Page1)
+    # icon/title is missing
+    Page1.title = text_line("European Tech Companies since 2000")
+    Page1.icon = to_icon("🇪🇺")
+    # sketch out Tasks on top (Tasks usually go in some separate area)
+    Task1 = Task.new("Search web for list of tech companies", owned_by=ME)
+    Task2 = Task.new("Find information on each company (add notes to page)", owned_by=ME)
+    Task3 = Task.new("Rewrite notes into proper report", owned_by=ME)
+    TaskBlocks = Page1.extend(Task1, Task2, Task3)
+    # draft outline (with some notes based on the conversation)
+    ADD_PAGE_TEXT(
+        """\
+---
+# Notes (to be removed)
+- Definitely look at Spotify, Revolut, Adyen, Klarna (as requested)
+- Also research international competition and expansion success
+- Be concise and and only state facts, little commentary
+- No introduction or conclusion
+- Add any new tasks that come to mind
+- Cite sources inline with links, add any other Links to bottom
+---
+
+# Companies
+...
+
+# Expansion
+...
+
+# Competition
+...
+""",
+        Page1,
+        after=TaskBlocks[-1],
+    )
+    SEND(
+        """\
+I've drafted the report on European tech companies on [@Page1].
+Review and edit or ask for more, or tell me to go ahead.
+""",
+    )

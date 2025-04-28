@@ -49,7 +49,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.28.0"
+VERSION = "2025.04.28.2"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -358,9 +358,6 @@ class EnumType(BuiltinEnum):
     ICON_TYPE = 21060
     LINK_TYPE = 21070
 
-    # streams (21100-21149)
-    STREAM_TYPE = 21100
-
     # type (21150-21199)
     PRIMITIVE_TYPE = 21150
     FIELD_ZONE = 21151
@@ -535,7 +532,7 @@ class NodeType(BuiltinEnum):
 
     # data
     FILE = 2200, "File", "File", "fas fa-file"
-    STREAM = 2210, "Stream", "Stream", "fas fa-stream"
+    # STREAM?
     # SECRET?
     LINK = 2250, "Link", "Link to some Resource", "fas fa-link"
     # REPOSITORY, SCHEMA, CONNECTION/API, ...?
@@ -768,7 +765,7 @@ TEMPLATABLE_NODE_TYPES = bittuple(
 
 
 # NOTE :Performance: we load too much and too coarsely :NodeOverload :RichGraph
-UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE, NodeType.STREAM)
+UNLOADED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE)
 LOADED_PACKAGE_NODE_TYPES = bittuple(
     *SOURCE_NODE_TYPES,
     *(RESOURCE_NODE_TYPES - UNLOADED_RESOURCE_NODE_TYPES),
