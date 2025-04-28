@@ -122,7 +122,7 @@ defineExpose<ViewExpose>({ self });
           is-minimal
           :node-ptr="threadPtr"
           :size="{
-            width: size?.width,
+            width: size?.width ?? 0,
             height: bodyHeight,
           }"
         />

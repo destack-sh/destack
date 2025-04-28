@@ -82,13 +82,13 @@ const textRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 
-// size block/gutter horizontally (try to fit both until min block width)
+// size content/gutter horizontally (try to fit both until min block width)
 const widths = computed(() => {
   // always respect MIN_GUTTER_WIDTH first
   const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - MAX_PAGE_WIDTH) / 2);
   // calculate block width with the remaining space
-  const blockWidth = Math.min(MAX_PAGE_WIDTH, props.size.width - gutterWidth * 2);
-  return { block: blockWidth, gutter: gutterWidth };
+  const bodyWidth = Math.min(MAX_PAGE_WIDTH, props.size.width - gutterWidth * 2);
+  return { body: bodyWidth, gutter: gutterWidth };
 });
 const isEmpty = computed(
   () =>
@@ -415,7 +415,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
         <!-- Page header (title) -->
         <PageHeader
           ref="pageHeaderRef"
-          :width="widths.block"
+          :width="widths.body"
           :node="page"
           :connection="preparedConnection"
           is-input
@@ -434,7 +434,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
           class="pm-text pm-base stealth relative mx-auto rounded-sm hover:cursor-text"
           data-suppress-actions="space.move.left,space.move.right"
           :style="{
-            width: widths.block + 'px',
+            width: widths.body + 'px',
           }"
         >
           <!-- Dragging anchor -->
@@ -445,7 +445,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
             :class="activeDropAnchorPosition.y > 0 ? 'fixed' : 'absolute'"
             :style="{
               top: activeDropAnchorPosition.y > 0 ? activeDropAnchorPosition.y - 2 + 'px' : undefined,
-              width: widths.block + 'px',
+              width: widths.body + 'px',
             }"
           />
         </div>
@@ -462,7 +462,7 @@ defineExpose<ViewExpose>({ self, commands, focus });
         <div
           class="group/footer mx-auto flex flex-row flex-wrap justify-center gap-x-2.5 gap-y-1.5 py-8"
           :style="{
-            width: widths.block + 'px',
+            width: widths.body + 'px',
           }"
           @click.stop="focusText()"
         >

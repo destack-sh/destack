@@ -58,14 +58,13 @@ import { type ViewEmits, type ViewExpose } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import File from "@/views/content/File.vue";
 import Text from "@/views/content/Text.vue";
-import Claim from "@/views/nodes/Claim.vue";
 import SelectionOverlay from "@/views/overlays/SelectionOverlay.vue";
 import { useElementSize, useElementVisibility, useEventListener } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, Ref, ref, toRef, watch, watchEffect } from "vue";
 
 const MAX_THREAD_WIDTH = 1000;
-const GUTTER_WIDTH = 30;
+const MIN_GUTTER_WIDTH = 30;
 const LOADING_SKELETON_COUNT = 3;
 const CHUNK_SIZE = 80;
 const MIN_AUTOSCROLL_INTERVAL_MILLISECONDS = 500;
@@ -78,7 +77,7 @@ const props = defineProps<
     self?: TypedNodeReferenceData<NodeType.VIEW>;
     id: string;
     isRoot?: boolean;
-    size?: Partial<Pick<RectangleData, "width" | "height">>;
+    size: Required<Pick<RectangleData, "width" | "height">>;
   } & Partial<Pick<ViewData, "name" | "title" | "icon" | "nodePtr" | "focusPtr" | "alignment" | "isMinimal">>
 >();
 const emit = defineEmits<ViewEmits>();
@@ -103,6 +102,16 @@ const computer: Ref<ComputerData | null> = computed(() => computers.value[0] ?? 
 const hasClaimedComputer = ref(false);
 const CONTEXT_TABS = ["File", "Pages"];
 const contextTab: Ref<(typeof CONTEXT_TABS)[number]> = ref(CONTEXT_TABS[0]);
+
+// size block/gutter horizontally (try to fit both until min block width)
+const widths = computed(() => {
+  // always respect MIN_GUTTER_WIDTH first
+  const gutterWidth = Math.max(MIN_GUTTER_WIDTH, (props.size.width - MAX_THREAD_WIDTH) / 2);
+  // calculate body width with the remaining space
+  const bodyWidth = Math.min(MAX_THREAD_WIDTH, props.size.width - gutterWidth * 2);
+  const textWidth = bodyWidth - MESSAGE_SIDE_WIDTH;
+  return { body: bodyWidth, text: textWidth, gutter: gutterWidth };
+});
 
 //
 // Messages
@@ -656,8 +665,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
               v-for="i in LOADING_SKELETON_COUNT"
               ref="topPlaceholderRef"
               :key="i"
-              class="mt-3 mb-2 flex animate-pulse flex-row"
-              :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
+              class="mx-auto mt-3 mb-2 flex animate-pulse flex-row"
+              :style="{ width: widths.body + 'px' }"
             >
               <div :style="{ width: MESSAGE_SIDE_WIDTH + 'px' }" class="flex flex-col items-center">
                 <div class="h-8 w-8 rounded-full bg-gray-100"></div>
@@ -671,11 +680,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         </Transition>
 
         <!-- Beginning of Chat -->
-        <div
-          v-if="isAtStart && !isMinimal"
-          class="mb-3"
-          :style="{ marginLeft: GUTTER_WIDTH + 'px', marginRight: GUTTER_WIDTH + 'px' }"
-        >
+        <div v-if="isAtStart && !isMinimal" class="mx-auto mb-3" :style="{ width: widths.body + 'px' }">
           <!-- Title -->
           <NodeReference
             v-if="thread"
@@ -734,11 +739,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           :key="message.id"
         >
           <!-- New date (line with date in middle) -->
-          <div
-            v-if="isNewDate"
-            class="relative mb-2 flex items-center"
-            :style="{ marginLeft: GUTTER_WIDTH - 4 + 'px', marginRight: GUTTER_WIDTH - 4 + 'px' }"
-          >
+          <div v-if="isNewDate" class="relative mx-auto mb-2 flex items-center" :style="{ width: widths.body + 'px' }">
             <div class="grow border-t border-gray-200" />
             <div class="mx-4 shrink text-sm text-gray-400">
               {{ formatAbsoluteDate(message.createdAt!, { prefer: "date" }) }}
@@ -748,14 +749,16 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
 
           <!-- Message -->
           <li
-            class="group/message max-w-full rounded-sm px-0.5 transition-colors duration-75"
+            class="group/message mx-auto rounded-sm px-0.5 transition-colors duration-75"
             :class="[
               isStartOfGroup ? 'mt-0.5 pt-0.5' : 'rounded-t-none',
               isEndOfGroup ? 'mb-0.5 pb-0.5' : 'rounded-b-none',
               isSelected ? 'bg-amber-100' : '',
               isReplyingTo ? 'bg-gray-100' : '',
             ]"
-            :style="{ marginLeft: GUTTER_WIDTH - 2 + 'px', marginRight: GUTTER_WIDTH - 2 + 'px' }"
+            :style="{
+              width: widths.body + 'px',
+            }"
             :data-node-type="message.metatype"
             :data-node-id="message.id"
             :data-node-ck="(message as any).ck"
@@ -888,6 +891,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                     :style="{
                       overflow: isOverflowing ? 'hidden' : undefined,
                       maxHeight: isOverflowing ? MESSAGE_MAX_LINES + 'em' : undefined,
+                      width: widths.text + 'px',
                     }"
                     is-minimal
                     :model-value="message.text"
@@ -1021,9 +1025,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       ref="inputContainerRef"
       class="mx-auto w-full"
       :style="{
-        paddingLeft: GUTTER_WIDTH + 'px',
-        paddingRight: GUTTER_WIDTH + 'px',
-        maxWidth: MAX_THREAD_WIDTH + 'px',
+        width: widths.body + 'px',
       }"
       @mousedown="inputRef?.focus?.('right')"
     >
@@ -1202,7 +1204,6 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
               ref="inputRef"
               is-input
               is-minimal
-              class="pr-1.5"
               placeholder="Message..."
               suppress-enter
               suppress-drop
