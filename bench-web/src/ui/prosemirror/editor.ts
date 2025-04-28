@@ -5,14 +5,9 @@ import { type CommandKit, type CommandMapKit } from "@/ui/command";
 import { PageContext } from "@/ui/prosemirror/page";
 import { getPmLineType, PM_SCHEMA, SpanSpecialInputType, TextMarkType } from "@/ui/prosemirror/schema";
 import { LineBlockView, SpanNodeView, VueComponentView, CodeLineView } from "@/ui/prosemirror/view";
-import {
-  LineInterface,
-  mapLineToPmNode,
-  mapPmNodeToText,
-  mapTextToPmNode,
-  TextInterface,
-} from "@/ui/prosemirror/wiring";
+import { ILine, mapLineToPmNode, mapPmNodeToText, mapTextToPmNode, IText } from "@/ui/prosemirror/wiring";
 import { deleteSelection } from "@/ui/space";
+import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import TextSpecialInput from "@/views/builtin/TextSpecialInput.vue";
@@ -730,7 +725,7 @@ export function markFormatCommand(mark: TextMarkType, getView: () => EditorView 
 export function useTextEditor(options: {
   mode: "line" | "block";
   textRef: Ref<HTMLElement | null>;
-  text: TextInterface;
+  text: IText;
   isInput: MaybeRef<boolean>;
   suppressEnter: MaybeRef<boolean>;
   suppressDrop: MaybeRef<boolean>;
@@ -776,7 +771,7 @@ export function useTextEditor(options: {
 
   // state
   const lines = computed(() => text.read());
-  function makeEditorState(lines: LineInterface[]): EditorState {
+  function makeEditorState(lines: ILine[]): EditorState {
     const doc = mapTextToPmNode(lines);
     const state = EditorState.create({ doc: doc, schema: PM_SCHEMA, plugins });
     return state;
@@ -808,7 +803,7 @@ export function useTextEditor(options: {
 
   // view
   let view: EditorView | null = null;
-  let prevText: LineInterface[] = [];
+  let prevText: ILine[] = [];
   function makeEditorView(): EditorView {
     const plugins: Plugin[] = [];
     if (!options.suppressDrop) {
@@ -906,15 +901,22 @@ export function useTextEditor(options: {
 
   // mount the editor view
   whenever(textRef, () => {
-    if (view) {
+    if (view != null) {
       view.destroy();
     }
     prevText = lines.value.slice();
     view = makeEditorView();
   });
   onBeforeUnmount(() => {
-    view?.destroy();
-    view = null;
+    if (view != null) {
+      try {
+        view.destroy();
+      } catch (e) {
+        // NOTE: internal prosemirror destroy error may happen rarely (on unmount), don't crash just in case
+        log.warn("text.destroy.error", e);
+      }
+      view = null;
+    }
   });
 
   // overwrite state from modelValue if different

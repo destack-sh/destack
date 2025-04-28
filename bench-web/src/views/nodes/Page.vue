@@ -121,7 +121,7 @@ const draggingBlockIds = computedValue(() => {
 });
 const highlightPlugin = useHighlightPlugin({ selectedBlockIds, draggingBlockIds });
 watch([selectedBlockIds, draggingBlockIds], () => {
-  updatePlugin(highlightPlugin);
+  nextTick(() => updatePlugin(highlightPlugin));
 });
 
 // placeholder

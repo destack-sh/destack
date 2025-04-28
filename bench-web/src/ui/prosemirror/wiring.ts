@@ -32,40 +32,40 @@ import { computed, type Ref } from "vue";
 //
 
 /** Line interface with text or block */
-export type LineInterface =
+export type ILine =
   | { type: "text"; text: TextLineData; blockPtr: NodeReferenceData | null }
   | { type: "block"; blockPtr: NodeReferenceData; nodePtr: NodeReferenceData | undefined };
 
 /** Read/write source of Text */
-export type TextInterface = {
+export type IText = {
   /** Reads the Lines (reactive). */
-  read: () => LineInterface[];
+  read: () => ILine[];
   /** Writes the Lines, returning the updated Lines (if changed). */
-  write: (lines: LineInterface[]) => LineInterface[];
+  write: (lines: ILine[]) => ILine[];
   /** Updates the given view. */
-  updateView: (view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) => void;
+  updateView: (view: EditorView, prevLines: ILine[], newLines: ILine[]) => void;
 };
 
 /** Read/write directly from TextData. */
 export function useTextModelValueInterface(options: {
   modelValue: Readonly<Ref<TextData | undefined | null>>;
   update: (text: TextData) => void;
-}): TextInterface {
+}): IText {
   const { modelValue, update } = options;
 
-  const lines: Ref<LineInterface[]> = computed(() => {
-    const lines: LineInterface[] = [];
+  const lines: Ref<ILine[]> = computed(() => {
+    const lines: ILine[] = [];
     for (const line of modelValue.value?.lines ?? []) {
       lines.push({ type: "text", text: line, blockPtr: null });
     }
     return lines;
   });
 
-  function read(): LineInterface[] {
+  function read(): ILine[] {
     return lines.value;
   }
 
-  function write(lines: LineInterface[]): LineInterface[] {
+  function write(lines: ILine[]): ILine[] {
     // only update text lines
     const textLines = lines.filter((l) => l.type === "text") as {
       type: "text";
@@ -76,7 +76,7 @@ export function useTextModelValueInterface(options: {
     return lines;
   }
 
-  function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+  function updateView(view: EditorView, prevLines: ILine[], newLines: ILine[]) {
     const doc = mapTextToPmNode(newLines);
     const updatedState = EditorState.create({ doc: doc, schema: PM_SCHEMA, plugins: view.state.plugins });
     view.updateState(updatedState);
@@ -91,10 +91,10 @@ export function useTextLineModelValueInterface(options: {
   forceLineType?: TextLineType;
   hideMentions?: boolean;
   update: (text: TextLineData) => void;
-}): TextInterface {
+}): IText {
   const { modelValue, forceLineType, hideMentions, update } = options;
 
-  const lines: Ref<LineInterface[]> = computed(() => {
+  const lines: Ref<ILine[]> = computed(() => {
     let text: TextLineData;
     if (modelValue.value == null) {
       text = emptyTextLine(options?.forceLineType ?? TextLineType.PARAGRAPH);
@@ -111,11 +111,11 @@ export function useTextLineModelValueInterface(options: {
     return [{ type: "text", text, blockPtr: null }];
   });
 
-  function read(): LineInterface[] {
+  function read(): ILine[] {
     return lines.value;
   }
 
-  function write(lines: LineInterface[]) {
+  function write(lines: ILine[]) {
     if (lines.length != 1 || lines[0].type != "text") {
       throw new Error("invalid lines");
     }
@@ -129,7 +129,7 @@ export function useTextLineModelValueInterface(options: {
     return lines;
   }
 
-  function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+  function updateView(view: EditorView, prevLines: ILine[], newLines: ILine[]) {
     const doc = mapTextToPmNode(newLines);
     const updatedState = EditorState.create({ doc: doc, schema: PM_SCHEMA, plugins: view.state.plugins });
     view.updateState(updatedState);
@@ -144,12 +144,12 @@ export function useTextPageInterface(options: {
   blocks: Ref<BlockData[]>;
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
-}): TextInterface {
+}): IText {
   const { page, blocks, graph, txFactory } = options;
 
   // map blocks to lines
-  const lines: Ref<LineInterface[]> = computed(() => {
-    const lines: LineInterface[] = [];
+  const lines: Ref<ILine[]> = computed(() => {
+    const lines: ILine[] = [];
     for (const block of blocks.value) {
       const blockPtr = toNodeRef(block);
       if (block.type >= BlockType.PARAGRAPH) {
@@ -162,17 +162,17 @@ export function useTextPageInterface(options: {
     return lines;
   });
 
-  function read(): LineInterface[] {
+  function read(): ILine[] {
     return lines.value;
   }
 
-  function write(lines: LineInterface[]) {
+  function write(lines: ILine[]) {
     if (page.value == null) throw new Error("no page");
     return differenceUpdateBlocks(txFactory(), graph, page.value, blocks.value, lines);
   }
 
-  function updateView(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
-    differenceUpdateLines(view, prevLines, newLines);
+  function updateView(view: EditorView, prevLines: ILine[], newLines: ILine[]) {
+    differenceUpdateView(view, prevLines, newLines);
   }
 
   return { read, write, updateView };
@@ -184,7 +184,7 @@ export function differenceUpdateBlocks(
   graph: ReadNodeGraph,
   page: PageData,
   blocks: BlockData[],
-  lines: LineInterface[],
+  lines: ILine[],
 ) {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { title: "Edit", key: newChangeId() } });
@@ -192,8 +192,8 @@ export function differenceUpdateBlocks(
 
   // index
   const blocksById: Record<string, BlockData> = groupByScalar(blocks, (b) => b.id);
-  const lineByBlockId: Record<string, LineInterface> = {};
-  const newLines: LineInterface[] = lines.map((l) => ({ ...l }));
+  const lineByBlockId: Record<string, ILine> = {};
+  const newLines: ILine[] = lines.map((l) => ({ ...l }));
   for (const line of lines) {
     if (line.type === "text" || line.type === "block") {
       if (line.blockPtr?.id != null) {
@@ -305,7 +305,7 @@ function computeLCS(oldKeys: string[], newKeys: string[]): Array<{ oldIndex: num
 type DiffItem = {
   key: string;
   node: PmNode;
-  line: LineInterface;
+  line: ILine;
 };
 type PositionedDiffItem = DiffItem & { pos: number };
 type DiffOp =
@@ -314,7 +314,7 @@ type DiffOp =
   | { type: "update"; pos: number; end: number; node: PmNode };
 
 /** Get the unique key of a Line (for Blocks only) */
-function getLineKey(line: LineInterface): string {
+function getLineKey(line: ILine): string {
   if (line.blockPtr == null) {
     throw new Error(`line has no blockPtr: ${JSON.stringify(line)}`);
   }
@@ -324,7 +324,7 @@ function getLineKey(line: LineInterface): string {
 /**
  * Compare the content of two Lines.
  */
-function lineContentEquals(a: LineInterface, b: LineInterface): boolean {
+function lineContentEquals(a: ILine, b: ILine): boolean {
   if (a.type === "text" && b.type === "text") {
     return deepValueEquals(a.text, b.text);
   } else if (a.type === "block" && b.type === "block") {
@@ -334,9 +334,9 @@ function lineContentEquals(a: LineInterface, b: LineInterface): boolean {
 }
 
 /**
- * Difference update Lines.
+ * Difference update ProseMirror view of the Lines.
  */
-export function differenceUpdateLines(view: EditorView, prevLines: LineInterface[], newLines: LineInterface[]) {
+export function differenceUpdateView(view: EditorView, prevLines: ILine[], newLines: ILine[]) {
   // state
   const oldItems: PositionedDiffItem[] = [];
   view.state.doc.descendants((node, pos) => {
@@ -549,7 +549,7 @@ function mapPmNodeToSpan(spanMention: PmNode): TextSpanData | null {
 }
 
 /** Convert a line to a PmNode */
-export function mapLineToPmNode(line: LineInterface): PmNode {
+export function mapLineToPmNode(line: ILine): PmNode {
   if (line.type === "block") {
     return PM_SCHEMA.node("block", { blockPtr: line.blockPtr, nodePtr: line.nodePtr });
   }
@@ -588,7 +588,7 @@ export function mapLineToPmNode(line: LineInterface): PmNode {
 }
 
 /** Convert a PmNode to a LineInterface */
-export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
+export function mapPmNodeToLine(lineNode: PmNode): ILine {
   if (lineNode.type.name === "block") {
     return { type: "block", blockPtr: lineNode.attrs.blockPtr, nodePtr: lineNode.attrs.nodePtr };
   } else if (lineNode.type.name === "lineCode") {
@@ -620,7 +620,7 @@ export function mapPmNodeToLine(lineNode: PmNode): LineInterface {
 }
 
 /** Convert Lines to a PmNode. */
-export function mapTextToPmNode(lines: LineInterface[]): PmNode {
+export function mapTextToPmNode(lines: ILine[]): PmNode {
   const nodes: PmNode[] = [];
   let listGroup: PmNode[] = [];
   let currentListType: "ordered" | "unordered" | null = null;
@@ -667,8 +667,8 @@ export function mapTextToPmNode(lines: LineInterface[]): PmNode {
 }
 
 /** Convert a PmNode to Lines. */
-export function mapPmNodeToText(node: PmNode): { lines: LineInterface[]; linesNodes: PmNode[]; linesPos: number[] } {
-  const lines: LineInterface[] = [];
+export function mapPmNodeToText(node: PmNode): { lines: ILine[]; linesNodes: PmNode[]; linesPos: number[] } {
+  const lines: ILine[] = [];
   const linesNodes: PmNode[] = [];
   const linesPos: number[] = [];
 
