@@ -1,11 +1,31 @@
 from abc import ABC
-from typing import TYPE_CHECKING, ClassVar
+from datetime import date
+from typing import TYPE_CHECKING, ClassVar, NamedTuple, Sequence
 
-from bench.language import Agent, CustomObject, IsType, Runnable, RunType
+from bench.language import (
+    Agent,
+    CustomObject,
+    FileType,
+    IsType,
+    ModelDeveloper,
+    ModelProvider,
+    Runnable,
+    RunType,
+)
 from bench.runtime.core import RunIn, Runner, Runtime
 
 if TYPE_CHECKING:
-    pass
+    from bench.runtime.model import ChatModelRunner
+
+
+class ModelSettings(NamedTuple):
+    model_cls: type["ChatModelRunner"]
+    model_developer: ModelDeveloper
+    model_provider: ModelProvider
+    model_id: str
+    model_name: str
+    supported_file_types: Sequence[FileType]
+    knowledge_cutoff: date
 
 
 class ModelRunner[R: Runnable = Runnable](Runner[R], ABC):

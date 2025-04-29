@@ -259,6 +259,7 @@ async def build_agent_prompt(  # noqa: RUF029
         subject=agent,
         session=runner.session,
         node=agent,
+        model_settings=model_settings,
         system_prompt=get_system_prompt(agent, model_settings),
     )
     agent_alias = prompt.aliasing.get_or_add(agent)
@@ -333,7 +334,7 @@ A Link from Run {run_alias}
             prompt.region(
                 "File",
                 f"A File from Run {run_alias}",
-                get_file_piece(file),
+                get_file_piece(file, model_settings),
                 priority=10,
                 role="user",
             )

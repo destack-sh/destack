@@ -10,6 +10,7 @@ from bench.language import File, FileType, NodeType, _is_setup_complete
 from .token import Tokenizer
 
 if TYPE_CHECKING:
+    from .model import ModelSettings
     from .prompt import Prompt
 
 logger = structlog.get_logger(__name__)
@@ -130,18 +131,30 @@ class AudioPiece(FilePiece):
 
 
 @piece_()
+class DocumentPiece(FilePiece):
+    @override
+    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
+        assert self.file.type == FileType.DOCUMENT
+        return tokenizer.estimate_document_tokens(self.file)
+
+
+@piece_()
 class UnsupportedFilePiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
         return 0
 
 
-def get_file_piece(file: File) -> FilePiece:
+def get_file_piece(file: File, model_settings: "ModelSettings") -> FilePiece:
     """Get the appropriate FilePiece for a File."""
-    if file.type == FileType.IMAGE:
+    if file.type not in model_settings.supported_file_types:
+        return UnsupportedFilePiece(file=file)
+    elif file.type == FileType.IMAGE:
         return ImagePiece(file=file)
     elif file.type == FileType.AUDIO:
         return AudioPiece(file=file)
+    elif file.type == FileType.TEXT or file.type == FileType.DOCUMENT:
+        return DocumentPiece(file=file)
     else:
         return UnsupportedFilePiece(file=file)
 
