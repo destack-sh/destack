@@ -29,7 +29,7 @@ from bench.pb2 import FieldData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Action, Agent, Class, Database, Flow, Icon, Text, Thread
+    from bench.language import Action, Agent, Class, Database, Flow, Icon, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -62,9 +62,6 @@ class Field(
     )
     type: FieldType = p_internal(30)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    text: Optional["Text"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     property: Optional[Property] = p_regular(
         36,

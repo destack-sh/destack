@@ -135,7 +135,6 @@ enum NodeType {
   NODE_TYPE_CLASS = 5031;
   NODE_TYPE_FIELD = 5035;
   NODE_TYPE_OPTION = 5036;
-  NODE_TYPE_TAG = 5040;
   NODE_TYPE_FLOW = 5050;
   NODE_TYPE_KIT = 5060;
   NODE_TYPE_ACTION = 5061;
@@ -232,7 +231,6 @@ enum ObjectType {
   OBJECT_TYPE_CLASS = 5031;
   OBJECT_TYPE_FIELD = 5035;
   OBJECT_TYPE_OPTION = 5036;
-  OBJECT_TYPE_TAG = 5040;
   OBJECT_TYPE_FLOW = 5050;
   OBJECT_TYPE_KIT = 5060;
   OBJECT_TYPE_ACTION = 5061;
@@ -325,7 +323,6 @@ enum BenchType {
   BENCH_TYPE_CLASS = 5031;
   BENCH_TYPE_FIELD = 5035;
   BENCH_TYPE_OPTION = 5036;
-  BENCH_TYPE_TAG = 5040;
   BENCH_TYPE_FLOW = 5050;
   BENCH_TYPE_KIT = 5060;
   BENCH_TYPE_ACTION = 5061;
@@ -931,7 +928,6 @@ enum BlockType {
   BLOCK_TYPE_PAGE = 5020;
   BLOCK_TYPE_CHOICE = 5030;
   BLOCK_TYPE_CLASS = 5031;
-  BLOCK_TYPE_TAG = 5040;
   BLOCK_TYPE_FLOW = 5050;
   BLOCK_TYPE_KIT = 5060;
   BLOCK_TYPE_DATABASE = 5090;
@@ -1692,54 +1688,9 @@ message NodeReferenceData {
   optional string base_id = 34;
 }
 
-message CodeData {
-  ObjectType metatype = 1;
-  optional string language = 32;
-  optional string content = 40;
-}
-
-message TextSpanData {
-  ObjectType metatype = 1;
-  TextSpanType type = 30;
-  optional string content = 33;
-  optional NodeReferenceData node_ptr = 34;
-  optional string url = 35;
-  optional ColorType color = 50;
-  optional ColorType background_color = 51;
-  optional bool is_bold = 60;
-  optional bool is_italic = 61;
-  optional bool is_strikethrough = 62;
-  optional bool is_underline = 63;
-  optional bool is_code = 64;
-  optional bool is_spoiler = 65;
-  optional string language = 70;
-}
-
-message TextLineData {
-  ObjectType metatype = 1;
-  TextLineType type = 30;
-  repeated TextSpanData spans = 33;
-  optional string content = 34;
-  optional ColorType color = 50;
-  optional ColorType background_color = 51;
-  optional bool is_bold = 60;
-  optional bool is_italic = 61;
-  optional bool is_strikethrough = 62;
-  optional bool is_underline = 63;
-  optional bool is_code = 64;
-  optional bool is_spoiler = 65;
-  optional string language = 70;
-}
-
-message TextData {
-  ObjectType metatype = 1;
-  repeated TextLineData lines = 32;
-}
-
 message PolicyData {
   ObjectType metatype = 1;
   string name = 30;
-  optional TextData text = 31;
   repeated PolicyRuleData rules = 32;
   repeated NodeReferenceData scopes_ptr = 33;
 }
@@ -1747,7 +1698,6 @@ message PolicyData {
 message PolicyRuleData {
   ObjectType metatype = 1;
   string name = 30;
-  optional TextData text = 31;
   optional bool subject_is_delegated = 40;
   optional bool subject_is_authenticated = 41;
   optional bool subject_is_staff = 42;
@@ -1802,6 +1752,12 @@ message AccessData {
   repeated PropertyReferenceData allowed_properties_ptr = 34;
 }
 
+message CodeData {
+  ObjectType metatype = 1;
+  optional string language = 32;
+  optional string content = 40;
+}
+
 message ColorData {
   ObjectType metatype = 1;
   optional ColorType type = 31;
@@ -1816,7 +1772,6 @@ message SelectionData {
   repeated NodeType node_types = 41;
   repeated NodeReferenceData nodes_ptr = 42;
   repeated NodeReferenceData scopes_ptr = 43;
-  repeated NodeReferenceData tags_ptr = 44;
   optional NodeReferenceData from_node_ptr = 45;
   optional NodeReferenceData to_node_ptr = 46;
   repeated NodeReferenceData fields_ptr = 50;
@@ -1860,6 +1815,44 @@ message SelectOptionsData {
   repeated PropertyReferenceData exclude_properties_ptr = 42;
   repeated PropertyReferenceData select_properties_ptr = 43;
   repeated NodeReferenceData select_fields_ptr = 51;
+}
+
+message TextSpanData {
+  ObjectType metatype = 1;
+  TextSpanType type = 30;
+  optional string content = 33;
+  optional NodeReferenceData node_ptr = 34;
+  optional string url = 35;
+  optional ColorType color = 50;
+  optional ColorType background_color = 51;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
+  optional bool is_spoiler = 65;
+  optional string language = 70;
+}
+
+message TextLineData {
+  ObjectType metatype = 1;
+  TextLineType type = 30;
+  repeated TextSpanData spans = 33;
+  optional string content = 34;
+  optional ColorType color = 50;
+  optional ColorType background_color = 51;
+  optional bool is_bold = 60;
+  optional bool is_italic = 61;
+  optional bool is_strikethrough = 62;
+  optional bool is_underline = 63;
+  optional bool is_code = 64;
+  optional bool is_spoiler = 65;
+  optional string language = 70;
+}
+
+message TextData {
+  ObjectType metatype = 1;
+  repeated TextLineData lines = 32;
 }
 
 message TypeConstraintData {
@@ -2154,8 +2147,6 @@ message ChannelData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional NodeReferenceData page_ptr = 60;
-  optional NodeReferenceData plan_ptr = 61;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -2250,7 +2241,6 @@ message RecordData {
   optional TextLineData title = 32;
   optional string order_key = 33;
   optional IconData icon = 34;
-  optional TextData text = 35;
   NodeReferenceData database_ptr = 36;
   optional google.protobuf.Value value_packed = 40;
 }
@@ -2277,7 +2267,6 @@ message ThreadData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData channel_ptr = 40;
   optional NodeReferenceData page_ptr = 60;
-  optional TextData text = 65;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
   optional ErrorData error = 82;
@@ -2441,7 +2430,7 @@ message BenchData {
   optional NodeReferenceData handle_ptr = 31;
   string slug = 32;
   string name = 33;
-  optional TextData text = 34;
+  optional TextLineData line = 34;
   optional IconData icon = 35;
   Region region = 37;
   BenchStatus status = 40;
@@ -2502,7 +2491,7 @@ message OrganizationData {
   optional google.protobuf.Timestamp deleted_at = 15;
   optional string slug = 32;
   string name = 33;
-  optional TextData text = 34;
+  optional TextLineData line = 34;
   optional IconData icon = 35;
   Region region = 37;
   OrganizationStatus status = 38;
@@ -2523,7 +2512,7 @@ message UserData {
   optional string slug = 31;
   string name = 32;
   optional IconData icon = 33;
-  optional TextData text = 34;
+  optional TextLineData line = 34;
   Region region = 35;
   UserStatus status = 36;
   optional NodeReferenceData bench_ptr = 40;
@@ -2641,7 +2630,6 @@ message AgentData {
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
   optional NodeReferenceData cursor_ptr = 55;
-  optional TextData text = 57;
   optional ColorType color = 59;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -2872,6 +2860,7 @@ message TaskData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional google.protobuf.Timestamp due_at = 50;
+  optional NodeReferenceData assigned_to_ptr = 51;
   repeated NodeReferenceData nodes_ptr = 52;
   ProcessStatus status = 80;
   optional google.protobuf.Duration duration = 81;
@@ -2913,7 +2902,6 @@ message InterruptionData {
   InterruptionStatus status = 40;
   optional google.protobuf.Duration duration = 41;
   optional google.protobuf.Timestamp closed_at = 42;
-  optional TextData text = 51;
   optional InterruptionResponse response = 54;
   optional NodeReferenceData message_ptr = 55;
   optional NodeReferenceData task_ptr = 56;
@@ -2942,7 +2930,6 @@ message RunData {
   optional NodeReferenceData thread_ptr = 38;
   optional google.protobuf.Value inputs_packed = 61;
   optional google.protobuf.Value outputs_packed = 62;
-  optional TextData text = 65;
   optional CodeData code = 66;
   optional NodeReferenceData agent_ptr = 70;
   optional NodeReferenceData flow_ptr = 71;
@@ -3013,7 +3000,6 @@ message SpanData {
   SpanType type = 30;
   optional NodeReferenceData root_ptr = 31;
   optional string title = 60;
-  optional TextData text = 61;
   optional CodeData code = 62;
   repeated NodeReferenceData nodes_ptr = 65;
   optional NodeReferenceData agent_ptr = 70;
@@ -3195,7 +3181,6 @@ message FieldData {
   FieldType type = 30;
   optional string name = 31;
   string order_key = 33;
-  optional TextData text = 34;
   optional IconData icon = 35;
   optional PropertyReferenceData property_ptr = 36;
   TypeKind kind = 40;
@@ -3234,7 +3219,6 @@ message FlowData {
   optional string order_key = 33;
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
-  optional TextData text = 41;
   optional ModelDeveloper model_developer = 100;
   optional ModelProvider model_provider = 101;
   optional string model_id = 102;
@@ -3265,7 +3249,6 @@ message KitData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData target_ptr = 40;
-  optional TextData text = 41;
 }
 
 message OptionData {
@@ -3285,7 +3268,6 @@ message OptionData {
   NodeMode mode = 20;
   optional string name = 31;
   string order_key = 32;
-  optional TextData text = 33;
   optional IconData icon = 34;
 }
 
@@ -3353,7 +3335,6 @@ message TransitionData {
   TransitionType type = 30;
   optional string name = 32;
   string order_key = 33;
-  optional TextData text = 34;
   NodeReferenceData source_ptr = 35;
   NodeReferenceData target_ptr = 36;
   optional ColorData color = 60;
@@ -3364,26 +3345,6 @@ message TransitionData {
   optional int32 max_attempts = 110;
   optional google.protobuf.Duration retry_interval = 111;
   optional float backoff = 112;
-}
-
-message TagData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData bench_ptr = 5;
-  optional NodeReferenceData package_ptr = 9;
-  google.protobuf.Timestamp created_at = 10;
-  optional NodeReferenceData created_by_ptr = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional NodeReferenceData updated_by_ptr = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional NodeReferenceData template_ptr = 16;
-  NodeMode mode = 20;
-  optional string name = 31;
-  optional string order_key = 33;
-  optional IconData icon = 34;
-  optional NodeReferenceData definition_ptr = 35;
 }
 
 message TriggerData {
@@ -3402,7 +3363,6 @@ message TriggerData {
   NodeMode mode = 20;
   TriggerType type = 30;
   optional string name = 32;
-  optional TextData text = 33;
   TriggerEffect effect = 34;
   optional NodeReferenceData run_root_ptr = 36;
   optional NodeReferenceData run_ptr = 37;
@@ -3431,7 +3391,6 @@ message SpaceData {
   NodeMode mode = 20;
   SpaceType type = 30;
   optional string name = 31;
-  optional TextData text = 32;
   string order_key = 33;
   optional SelectionData selection = 70;
   optional NodeReferenceData focus_ptr = 71;
@@ -3522,35 +3481,34 @@ message SomeNodeData {
     ClassData class = 16;
     FieldData field = 17;
     OptionData option = 18;
-    TagData tag = 19;
-    FlowData flow = 20;
-    KitData kit = 21;
-    ActionData action = 22;
-    TransitionData transition = 23;
-    TriggerData trigger = 24;
-    DatabaseData database = 25;
-    ChannelData channel = 26;
-    ThreadData thread = 27;
-    MessageData message = 28;
-    NotificationData notification = 29;
-    TeamData team = 30;
-    MembershipData membership = 31;
-    InviteData invite = 32;
-    RoleData role = 33;
-    AgentData agent = 34;
-    SessionData session = 35;
-    RunData run = 36;
-    SpanData span = 37;
-    InterruptionData interruption = 38;
-    PlanData plan = 39;
-    TaskData task = 40;
-    ClaimData claim = 41;
-    CursorData cursor = 42;
-    ViewData view = 43;
-    SpaceData space = 44;
-    RecordData record = 45;
-    SkipData skip = 46;
-    EmptyData empty = 47;
+    FlowData flow = 19;
+    KitData kit = 20;
+    ActionData action = 21;
+    TransitionData transition = 22;
+    TriggerData trigger = 23;
+    DatabaseData database = 24;
+    ChannelData channel = 25;
+    ThreadData thread = 26;
+    MessageData message = 27;
+    NotificationData notification = 28;
+    TeamData team = 29;
+    MembershipData membership = 30;
+    InviteData invite = 31;
+    RoleData role = 32;
+    AgentData agent = 33;
+    SessionData session = 34;
+    RunData run = 35;
+    SpanData span = 36;
+    InterruptionData interruption = 37;
+    PlanData plan = 38;
+    TaskData task = 39;
+    ClaimData claim = 40;
+    CursorData cursor = 41;
+    ViewData view = 42;
+    SpaceData space = 43;
+    RecordData record = 44;
+    SkipData skip = 45;
+    EmptyData empty = 46;
   };
 }
 

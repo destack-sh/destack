@@ -23,7 +23,7 @@ from bench.language.core import (
 from bench.pb2 import UserData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Cursor, Handle, Icon, NodeReference, Text, User
+    from bench.language import Bench, Cursor, Handle, Icon, NodeReference, TextLine, User
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,7 +44,9 @@ class User(IsSubject, Node[UserData]):
     slug: Optional[str] = p_system(31, unique=True)  # must match main handle
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     icon: Optional["Icon"] = p_regular(33, default=None, struct=StructType.ICON)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    line: Optional["TextLine"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
+    )
     region: "Region" = p_system(35)
     status: UserStatus = p_system(36)
 

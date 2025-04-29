@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from bench.language import (
         Field,
         IsType,
-        Tag,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -100,7 +99,6 @@ class Selection(Struct):
     node_types: list[NodeType] = p_regular(41, require=False, array=True)
     nodes: list[Node] = p_regular(42, require=False, array=True, references="any")
     scopes: list[Node] = p_regular(43, require=False, array=True, references="any")
-    tags: list["Tag"] = p_regular(44, require=False, array=True, references=NodeType.TAG)
     from_node: Optional[Node] = p_regular(45, require=False, default=None, references="any")
     to_node: Optional[Node] = p_regular(46, require=False, default=None, references="any")
     fields: list["Field"] = p_regular(50, require=False, array=True, references=NodeType.FIELD)

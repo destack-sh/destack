@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.04.29.0"
+VERSION = "2025.04.29.1"
 
 # import from all generated files
 from .runtime_pb2 import *
@@ -41,7 +41,6 @@ AnyNodeData = Union[
     ClassData,
     FieldData,
     OptionData,
-    TagData,
     FlowData,
     KitData,
     ActionData,
@@ -132,7 +131,6 @@ BenchNodeData = Union[
     ClassData,
     FieldData,
     OptionData,
-    TagData,
     FlowData,
     KitData,
     ActionData,
@@ -170,7 +168,6 @@ SourceNodeData = Union[
     ClassData,
     FieldData,
     OptionData,
-    TagData,
     FlowData,
     KitData,
     ActionData,
@@ -187,7 +184,6 @@ PageNodeData = Union[
     PageData,
     ChoiceData,
     ClassData,
-    TagData,
     FlowData,
     KitData,
     DatabaseData,

@@ -9,7 +9,6 @@ from bench.language.core import (
     PackageNode,
     SpanType,
     StructType,
-    Text,
     p_node_ancestor,
     p_node_parent,
     p_regular,
@@ -51,7 +50,6 @@ class Span(
 
     # content
     title: str | None = p_regular(60, default=None)
-    text: Optional["Text"] = p_regular(61, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(62, default=None, struct=StructType.CODE)
     nodes: list["Node"] = p_regular(65, array=True, require=False, references="any")
 

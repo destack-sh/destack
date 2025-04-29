@@ -336,7 +336,7 @@ defineExpose<Partial<ViewExpose>>({ focus });
                 class="flex max-w-full cursor-pointer flex-row items-center rounded-sm px-2 py-1 hover:bg-gray-100"
                 :class="[activeResultId == item.id ? 'bg-gray-100' : '']"
                 :data-active="activeResultId == item.id"
-                @click.prevent="apply(item)"
+                @mousedown.stop.prevent="apply(item)"
               >
                 <!-- Main content -->
                 <IconInline

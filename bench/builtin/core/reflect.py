@@ -32,9 +32,6 @@ def class_to_kit(
     """
 
     kit = Kit.new(name, mode=mode, icon=to_icon(icon) if icon else None, template=template)
-    text_value = inspect.getdoc(cls) or ""
-    if text_value:
-        kit.text = text(text_value)
 
     for method_name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
         action = Action.new(ActionType.BUILTIN, name=method_name.replace("_", " "))

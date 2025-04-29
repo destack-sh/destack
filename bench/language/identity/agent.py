@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional
 from uuid import UUID
 
 from bench.language.core import (
@@ -19,11 +19,9 @@ from bench.language.core import (
     NodeReference,
     NodeType,
     PageNode,
-    StructType,
     TypeKind,
     node_,
     p_node_children,
-    p_node_parent,
     p_regular,
 )
 from bench.pb2 import AgentData
@@ -35,8 +33,6 @@ if TYPE_CHECKING:
         CursorType,
         Field,
         Page,
-        Text,
-        Thread,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -57,14 +53,7 @@ class Agent(
 ):
     """
     An Agent is an autonomous entity that does work on behalf of a User.
-    Agents run Flows using Actions, Resources, Pages, and other Bench stuff.
-    Agents are not directly runnable; Agent instances are implemented by running their Flow.
     """
-
-    # meta
-    parent: Union["Page", "Thread", "Agent", None] = p_node_parent(
-        4, NodeType.PAGE, NodeType.THREAD, NodeType.AGENT
-    )
 
     # content
     page: Optional["Page"] = p_regular(
@@ -73,7 +62,7 @@ class Agent(
         array=False,
         references=NodeType.PAGE,
         same_bench=True,
-        description="The main or root Page used by this Agent (may be shared).",
+        description="The main Page used by this Agent.",
     )
     cursor: Optional["Cursor"] = p_regular(
         55,
@@ -83,13 +72,10 @@ class Agent(
         same_bench=True,
         description="The main Cursor for this Agent.",
     )
-    text: Optional["Text"] = p_regular(57, default=None, struct=StructType.TEXT)
     color: ColorType | None = p_regular(59)
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
-        plan_ptr: Optional[NodeReference] = None
-        plan_id: Optional[UUID] = None
         cursor_ptr: Optional[NodeReference] = None
         cursor_id: Optional[UUID] = None
 

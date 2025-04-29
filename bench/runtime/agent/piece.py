@@ -207,6 +207,9 @@ class AgentPiece(NodePiece[Agent]):
             self_alias = prompt.renderer.aliasing.get_or_add(self.node)
             rendered_node = f"# THIS IS WHO YOU ARE: {self_alias}\n{rendered_node}"
         yield CodePiece(code=rendered_node)
+        if (page := self.node.page) is not None:
+            page_piece = PagePiece(node=page)
+            yield page_piece
 
 
 @piece_(NodeType.PLAN)

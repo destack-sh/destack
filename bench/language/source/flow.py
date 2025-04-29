@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 from bench.language.core import (
     BuiltinEnum,
@@ -15,8 +15,6 @@ from bench.language.core import (
     LocalNodeList,
     NodeType,
     PageNode,
-    StructType,
-    Text,
     TypeKind,
     enum_,
     node_,
@@ -54,11 +52,6 @@ class Flow(
 
     parent: Union["Page", "Agent", None] = p_node_parent(4, NodeType.PAGE, NodeType.AGENT)
     type: FlowType = p_regular(30, default=FlowType.ACTION, default_sql=None)
-
-    # meta
-    text: Optional["Text"] = p_regular(
-        41, default=None, require=False, array=False, struct=StructType.TEXT
-    )
 
     actions: LocalNodeList["Action"] = p_node_children(NodeType.ACTION)
     transitions: LocalNodeList["Transition"] = p_node_children(NodeType.TRANSITION)

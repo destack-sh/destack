@@ -20,7 +20,6 @@ from bench.language.core import (
     RunType,
     SpanType,
     StructType,
-    Text,
     p_internal,
     p_node_ancestor,
     p_node_children,
@@ -98,7 +97,6 @@ class Run(
     outputs: "CustomObject | None" = p_value_runtime(
         62, type=FieldType.OUTPUT, typ=lambda self: cast("Run", self).output_type
     )
-    text: Optional["Text"] = p_regular(65, default=None, struct=StructType.TEXT)
     code: Optional["Code"] = p_regular(66, default=None, struct=StructType.CODE)
 
     # ...IsProcessable[80-]

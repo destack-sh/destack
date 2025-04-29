@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
 from bench.language.core import (
     BuiltinEnum,
@@ -15,13 +15,12 @@ from bench.language.core import (
     enum_,
     p_node_children,
     p_node_parent,
-    p_regular,
     timed_node_,
 )
 from bench.pb2 import ChannelData, MessageData
 
 if TYPE_CHECKING:
-    from bench.language import Agent, File, Link, Membership, Message, Package, Page, Plan
+    from bench.language import Agent, File, Link, Membership, Message, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,14 +40,6 @@ class Channel(IsInstantiable, IsProcessable, IsJoinable, IsModal, IsNamed, PageN
     # meta
     parent: Union["Page", "Package", None] = p_node_parent(4, NodeType.PAGE, NodeType.PACKAGE)
     # type: ChannelType? (text, voice, etc.)
-
-    # content
-    page: Optional["Page"] = p_regular(
-        60, require=False, array=False, references=NodeType.PAGE, same_bench=True
-    )
-    plan: Optional["Plan"] = p_regular(
-        61, require=False, array=False, references=NodeType.PLAN, same_bench=True
-    )
 
     # ...IsProcessable[80-]
 

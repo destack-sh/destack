@@ -40,7 +40,6 @@ from .graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from .node import NODE_CLASS_BY_TYPE, NodeReference
 from .property import Property, p_regular, p_runtime, p_system
 from .struct import Struct, struct_
-from .text import Text
 from .trait import OWNABLE_NODE_TYPES
 from .validation import NAME_CONSTRAINT, ValidationError
 
@@ -79,7 +78,6 @@ class Policy(Struct):
     """
 
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
     rules: list["PolicyRule"] = p_regular(32, array=True, struct=StructType.POLICY_RULE)
     scopes: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
 
@@ -106,7 +104,6 @@ class PolicyRule(Struct):
     """
 
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(31, default=None, struct=StructType.TEXT)
 
     # subject
     # if subject is delegated then it always matches if this rule is present
@@ -418,70 +415,46 @@ _SYSTEM_POLICIES: list[Policy] = []
 def _register_system_policies():
     system_policies = (
         Policy(name="SystemProtection").append(
-            PolicyRule(
-                name="CannotAccessKernelProperties",
-                text=Text.plain("Kernel properties are inaccessible outside of the system."),
-            )
+            PolicyRule(name="CannotAccessKernelProperties")
             .deny()
             .object(properties_is_kernel=True),
-            PolicyRule(
-                name="CannotUpdateSystemProperties",
-                text=Text.plain("System properties may only be edited through designated methods."),
-            )
+            PolicyRule(name="CannotUpdateSystemProperties")
             .deny(EditType.UPDATE)
             .object(properties_is_system=True),
-            PolicyRule(
-                name="CannotCreateOrDeleteSystemNodesDirectly",
-                text=Text.plain("System Nodes must be managed through designated methods."),
-            )
+            PolicyRule(name="CannotCreateOrDeleteSystemNodesDirectly")
             .deny(
                 EditType.CREATE, EditType.UPSERT, EditType.DELETE, EditType.RESTORE, EditType.ERASE
             )
             .object(node_types=(*ROOT_NODE_TYPES.tuple, NodeType.CLIENT)),
-            PolicyRule(
-                name="CannotEditHandles", text=Text.plain("Handles cannot be edited directly.")
-            )
+            PolicyRule(name="CannotEditHandles")
             .deny(AccessKind.EDIT)
             .object(node_types=(NodeType.HANDLE,)),
-            PolicyRule(
-                name="CannotRemoveRuntimeNodes",
-                text=Text.plain("Cannot remove Runtime Nodes."),
-            )
+            PolicyRule(name="CannotRemoveRuntimeNodes")
             .deny(EditType.DELETE, EditType.ERASE)
             .object(node_types=RUNTIME_NODE_TYPES.tuple),
         ),
         Policy(name="OwnerAccess").append(
-            PolicyRule(
-                name="OwnerCanDoAnything", text=Text.plain("Owners of a Node can do anything.")
-            )
-            .subject(is_owner=True)
-            .allow(),
+            PolicyRule(name="OwnerCanDoAnything").subject(is_owner=True).allow(),
         ),
         Policy(name="StaffAccess").append(
-            PolicyRule(name="StaffCanDoAnything", text=Text.plain("Staff Users can do anything."))
+            PolicyRule(name="StaffCanDoAnything")
             .subject(is_staff=True)
             .allow(AccessKind.READ, AccessKind.EDIT, AccessKind.USE),
         ),
         Policy(name="MemberAccess").append(
-            PolicyRule(
-                name="MemberCanReadBench",
-                text=Text.plain("Members can read non-sensitive properties."),
-            )
+            PolicyRule(name="MemberCanReadBench")
             .subject(is_member=True)
             .allow(AccessKind.READ)
             .object(properties_is_sensitive=False)
         ),
         Policy(name="AuthenticatedAccess").append(
-            PolicyRule(
-                name="AuthenticatedCanReadPublic",
-                text=Text.plain("Authenticated Users can read public Nodes."),
-            )
+            PolicyRule(name="AuthenticatedCanReadPublic")
             .subject(is_authenticated=True)
             .allow(AccessKind.READ)
             .object(node_types=PUBLIC_NODE_TYPES.tuple, properties_is_sensitive=False),
         ),
         Policy(name="AnonymousAccess").append(
-            PolicyRule(name="AnonCanReadHandle", text=Text.plain("Everyone can read Handles."))
+            PolicyRule(name="AnonCanReadHandle")
             .subject(is_authenticated=False)
             .allow(AccessKind.READ)
             .object((NodeType.HANDLE,))

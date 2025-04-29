@@ -24,7 +24,7 @@ from bench.pb2 import SpaceData
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
-    from bench.language import Package, Page, Run, Text, Thread, View
+    from bench.language import Package, Page, Run, Thread, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -44,7 +44,6 @@ class Space(IsOwnable, IsTemplatable, IsModal, PackageNode[SpaceData]):
 
     type: SpaceType = p_regular(30)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
 
     selection: Optional[Selection] = p_regular(

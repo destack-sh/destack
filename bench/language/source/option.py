@@ -17,7 +17,7 @@ from bench.pb2 import OptionData
 from bench.utils.fractional import INTEGER_ZERO
 
 if typing.TYPE_CHECKING:
-    from bench.language import Choice, Field, Icon, Text
+    from bench.language import Choice, Field, Icon
 
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
@@ -32,9 +32,6 @@ class Option(IsInstantiable, IsModal, PackageNode[OptionData]):
     parent: Union["Choice", "Field", None] = p_node_parent(4, NodeType.CHOICE, NodeType.FIELD)
     name: str | None = p_regular(31, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(32, default=INTEGER_ZERO)
-    text: Optional["Text"] = p_regular(
-        33, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     icon: Optional["Icon"] = p_regular(34, require=False, array=False, struct=StructType.ICON)
 
     @staticmethod
