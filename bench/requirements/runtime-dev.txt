@@ -32,6 +32,10 @@ attrs==25.3.0
     #   referencing
 base58==2.1.1
     # via -r bench/requirements/runtime.in
+beautifulsoup4==4.13.4
+    # via
+    #   markdownify
+    #   markitdown
 bitarray==2.9.2
     # via -r bench/requirements/base.in
 black==24.10.0
@@ -76,7 +80,9 @@ cffi==1.17.1
 cfgv==3.4.0
     # via pre-commit
 charset-normalizer==3.4.1
-    # via requests
+    # via
+    #   markitdown
+    #   requests
 click==8.1.8
     # via
     #   black
@@ -262,10 +268,16 @@ lxml==5.2.2
     # via
     #   python-docx
     #   python-pptx
-magika==0.5.1
-    # via -r bench/requirements/base.in
+magika==0.6.1
+    # via
+    #   -r bench/requirements/base.in
+    #   markitdown
 markdown-it-py==3.0.0
     # via rich
+markdownify==1.1.0
+    # via markitdown
+markitdown==0.1.1
+    # via -r bench/requirements/runtime.in
 markupsafe==3.0.2
     # via jinja2
 matplotlib-inline==0.1.7
@@ -299,9 +311,10 @@ nodeenv==1.9.1
     # via
     #   pre-commit
     #   pyright
-numpy==1.26.4
+numpy==2.2.5
     # via
     #   -r bench/requirements/base.in
+    #   magika
     #   onnxruntime
     #   opencv-python
 oauthlib==3.2.2
@@ -533,6 +546,7 @@ requests==2.32.3
     #   exa-py
     #   google-api-core
     #   google-genai
+    #   markitdown
     #   pyairtable
     #   pygithub
     #   requests-oauthlib
@@ -563,6 +577,7 @@ shellingham==1.5.4
 six==1.17.0
     # via
     #   dropbox
+    #   markdownify
     #   python-dateutil
     #   stone
 smmap==5.0.2
@@ -577,6 +592,8 @@ sortedcontainers==2.4.0
     # via
     #   -r bench/requirements/base.in
     #   hypothesis
+soupsieve==2.7
+    # via beautifulsoup4
 sqlglot==25.30.0
     # via -r bench/requirements/base.in
 stack-data==0.6.3
@@ -587,8 +604,6 @@ structlog==24.2.0
     # via -r bench/requirements/base.in
 sympy==1.13.3
     # via onnxruntime
-tabulate==0.9.0
-    # via magika
 tach==0.18.0
     # via -r bench/requirements/dev.in
 tiktoken==0.9.0
@@ -601,7 +616,6 @@ tqdm==4.67.1
     # via
     #   -r bench/requirements/runtime.in
     #   google-generativeai
-    #   magika
     #   openai
 traitlets==5.14.3
     # via
@@ -624,6 +638,7 @@ types-s3transfer==0.11.4
 typing-extensions==4.13.2
     # via
     #   anthropic
+    #   beautifulsoup4
     #   browserbase
     #   exa-py
     #   google-generativeai

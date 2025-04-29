@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import date
-from typing import Union, assert_never, cast
+from typing import Sequence, Union, assert_never, cast
 
 import structlog
 from opentelemetry import trace
@@ -130,34 +130,35 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         model_provider: ModelProvider
         model_id: str
         knowledge_cutoff: date
+        supported_file_types: Sequence[FileType]
         if model_developer == ModelDeveloper.OPENAI:
             model_cls = OpenAIChatModelRunner
             model_provider = ModelProvider.OPENAI
             model_id = "gpt-4.1-2025-04-14"
             model_name = "gpt-4.1"
             knowledge_cutoff = date(2024, 6, 1)
-            supported_file_types = [FileType.IMAGE, FileType.AUDIO]
+            supported_file_types = (FileType.IMAGE, FileType.AUDIO)
         elif model_developer == ModelDeveloper.ANTHROPIC:
             model_cls = AnthropicChatModelRunner
             model_provider = ModelProvider.ANTHROPIC
             model_id = "claude-3-7-sonnet-20250219"
             model_name = "claude-3-7-sonnet"
             knowledge_cutoff = date(2024, 10, 1)
-            supported_file_types = [FileType.IMAGE, FileType.AUDIO]
+            supported_file_types = (FileType.IMAGE, FileType.AUDIO)
         elif model_developer == ModelDeveloper.GOOGLE:
             model_cls = GoogleChatModelRunner
             model_provider = ModelProvider.GOOGLE
             model_id = "gemini-2.5-flash-preview-04-17"
             model_name = "gemini-2.5-flash"
             knowledge_cutoff = date(2025, 1, 1)
-            supported_file_types = [FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT]
+            supported_file_types = (FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT)
         elif model_developer == ModelDeveloper.XAI:
             model_cls = OpenRouterChatModelRunner
             model_provider = ModelProvider.XAI
             model_id = "x-ai/grok-3-beta"
             model_name = "grok-3"
             knowledge_cutoff = date(2025, 4, 14)
-            supported_file_types = [FileType.IMAGE, FileType.AUDIO]
+            supported_file_types = (FileType.IMAGE, FileType.AUDIO)
         else:
             raise NotSupportedError(f"unsupported model developer {model_developer!r}")
         self.model_settings = ModelSettings(

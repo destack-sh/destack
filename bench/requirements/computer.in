@@ -20,6 +20,7 @@ jinja2==3.1.4
 jsonschema==4.23.0
 langcodes==3.3.0
 lxml==5.2.2
+markitdown==0.1.1
 more-itertools==9.0.0
 msgpack==1.1.0
 multidict>=6.0.4
