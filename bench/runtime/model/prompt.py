@@ -16,11 +16,10 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 from .piece import (
-    AudioPiece,
     BreakPiece,
     CodePiece,
     CompoundPiece,
-    ImagePiece,
+    FilePiece,
     LeafPiece,
     Piece,
     PieceRole,
@@ -178,7 +177,7 @@ def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
             prompt_parts.append(text)
         elif isinstance(piece, CodePiece):
             prompt_parts.append(piece.code)
-        elif isinstance(piece, (AudioPiece, ImagePiece)):
+        elif isinstance(piece, FilePiece):
             prompt_parts.append(repr(piece.file))
         else:
             prompt_parts.append(f" ??? {piece!r} ???")

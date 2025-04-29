@@ -19,6 +19,7 @@ from .piece import (
     PieceRole,
     SeparatorPiece,
     TextPiece,
+    UnsupportedFilePiece,
 )
 from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
@@ -99,6 +100,9 @@ async def build_google_chat_messages(
             if not mime_type:
                 raise NotSupportedError(f"file {piece.file!r} not supported yet")
             current_content.append({"mime_type": mime_type, "data": piece.file.read_content()})
+        elif isinstance(piece, UnsupportedFilePiece):
+            alias = prompt.aliasing.get_or_add(piece.file)
+            current_text_parts.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
         else:
             raise RuntimeError(f"unexpected piece {piece!r}")
 

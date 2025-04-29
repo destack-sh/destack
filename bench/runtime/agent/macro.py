@@ -26,6 +26,7 @@ from bench.language import (
     Thread,
     coerce_custom_object_scalar,
     text_line,
+    to_icon,
 )
 from bench.runtime.core import create_run
 from bench.runtime.model import CodePiece, CompoundPiece, Piece, Prompt, Tokenizer
@@ -312,6 +313,25 @@ def ADD_CONTEXT(
 
 
 @function_macro_(
+    "REMOVE_CONTEXT",
+    """\
+Remove context from the current Thread if you're sure it's no longer relevant.
+You SHOULD ONLY remove context if there is a lot and it's not needed anymore (or if you're asked).
+""",
+    signature="(*nodes: Page) -> None",
+    is_edit=True,
+)
+def REMOVE_CONTEXT(*nodes: Page, runner: "AgentRunner" = _INJECTED_RUNNER) -> None:
+    thread = runner.thread.thread
+    existing_claims = thread.claims.tolist()
+    for node in nodes:
+        for claim in existing_claims:
+            if claim.target_id == node.id:
+                thread.claims.remove(claim)
+    runner.session.stage()
+
+
+@function_macro_(
     "CREATE_PAGE",
     """\
 Create a new Page. Also adds it to context by default.
@@ -326,11 +346,14 @@ def CREATE_PAGE(
     add_to_context: bool = True,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ) -> Page:
-    page = Page.new(title=title, icon=icon)
+    page = Page.new(title=text_line(title), icon=to_icon(icon) if icon else None)
     if parent is None:
         parent = runner.tracked.package
     assert parent is not None, f"no parent for {page!r}"
     parent.append(page)
+    if add_to_context:
+        claim = Claim(type=ClaimType.WRITE, target=page, owned_by=runner.agent)
+        runner.thread.thread.claims.append(claim)
     runner.session.stage()
     return page
 
