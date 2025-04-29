@@ -11,7 +11,7 @@ from .core import (
     Table,
 )
 
-VERSION = "2025.04.28.2"
+VERSION = "2025.04.29.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1131,11 +1131,6 @@ MESSAGE_TABLE = Table(
         Column("scope_ck", PrimitiveType.UUID, is_nullable=True),
         Column("scope_type", PrimitiveType.INT16, is_nullable=True),
         Column("scope_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("status", PrimitiveType.INT16),
-        Column("failed_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("sent_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("received_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("read_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("edited_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("reply_to_id", PrimitiveType.UUID, is_nullable=True),
         Column("reply_to_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1339,8 +1334,6 @@ AGENT_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("definition_id", PrimitiveType.UUID, is_nullable=True),
         Column("page_id", PrimitiveType.UUID, is_nullable=True),
-        Column("plan_id", PrimitiveType.UUID, is_nullable=True),
-        Column("plan_ck", PrimitiveType.UUID, is_nullable=True),
         Column("cursor_id", PrimitiveType.UUID, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("color", PrimitiveType.INT16, is_nullable=True),

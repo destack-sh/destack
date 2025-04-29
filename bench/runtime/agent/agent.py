@@ -192,7 +192,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
         while retry.should_retry:
             retry.on_attempt()
 
-            # update thread cursor
+            # update agent & thread cursor
             if (cursor := agent.get_cursor(type=CursorType.THREAD)) is None:
                 cursor = Cursor(type=CursorType.THREAD, target=thread, owned_by=agent)
                 agent.cursors.append(cursor)

@@ -1790,27 +1790,7 @@ export interface MessageData {
      */
     scopePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.MessageStatus status = 40;
-     */
-    status: MessageStatus;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp failed_at = 42;
-     */
-    failedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp sent_at = 43;
-     */
-    sentAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp received_at = 44;
-     */
-    receivedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp read_at = 45;
-     */
-    readAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp edited_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp edited_at = 40;
      */
     editedAt?: Timestamp;
     /**
@@ -3500,11 +3480,7 @@ export interface AgentData {
      */
     pagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData plan_ptr = 55;
-     */
-    planPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cursor_ptr = 56;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData cursor_ptr = 55;
      */
     cursorPtr?: NodeReferenceData;
     /**
@@ -7371,10 +7347,6 @@ export enum EnumType {
      */
     MESSAGE_TYPE = 22503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MESSAGE_STATUS = 22504;
-     */
-    MESSAGE_STATUS = 22504,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_TYPE = 22506;
      */
     NOTIFICATION_TYPE = 22506,
@@ -8886,10 +8858,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_TYPE = 22503;
      */
     MESSAGE_TYPE = 22503,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MESSAGE_STATUS = 22504;
-     */
-    MESSAGE_STATUS = 22504,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_TYPE = 22506;
      */
@@ -12787,39 +12755,6 @@ export enum MessageType {
      * @generated from protobuf enum value: MESSAGE_TYPE_THREAD = 110;
      */
     THREAD = 110
-}
-/**
- * @generated from protobuf enum symbolx.bench.MessageStatus
- */
-export enum MessageStatus {
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_DRAFT = 10;
-     */
-    DRAFT = 10,
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_SENDING = 20;
-     */
-    SENDING = 20,
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_SENT = 30;
-     */
-    SENT = 30,
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_FAILED = 40;
-     */
-    FAILED = 40,
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_RECEIVED = 50;
-     */
-    RECEIVED = 50,
-    /**
-     * @generated from protobuf enum value: MESSAGE_STATUS_READ = 60;
-     */
-    READ = 60
 }
 /**
  * @generated from protobuf enum symbolx.bench.NotificationType
@@ -17586,12 +17521,7 @@ class MessageData$Type extends MessageType$<MessageData> {
             { no: 34, name: "channel_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 35, name: "thread_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "scope_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.MessageStatus", MessageStatus, "MESSAGE_STATUS_"] },
-            { no: 42, name: "failed_at", kind: "message", T: () => Timestamp },
-            { no: 43, name: "sent_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "received_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "read_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "edited_at", kind: "message", T: () => Timestamp },
+            { no: 40, name: "edited_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "reply_to_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 51, name: "forwarded_from_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 61, name: "text", kind: "message", T: () => TextData },
@@ -17609,7 +17539,6 @@ class MessageData$Type extends MessageType$<MessageData> {
         message.id = "";
         message.mode = 0;
         message.type = 0;
-        message.status = 0;
         message.nodesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<MessageData>(this, message, value);
@@ -17674,22 +17603,7 @@ class MessageData$Type extends MessageType$<MessageData> {
                 case /* optional symbolx.bench.NodeReferenceData scope_ptr */ 36:
                     message.scopePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.scopePtr);
                     break;
-                case /* symbolx.bench.MessageStatus status */ 40:
-                    message.status = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp failed_at */ 42:
-                    message.failedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.failedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp sent_at */ 43:
-                    message.sentAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.sentAt);
-                    break;
-                case /* optional google.protobuf.Timestamp received_at */ 44:
-                    message.receivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.receivedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp read_at */ 45:
-                    message.readAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.readAt);
-                    break;
-                case /* optional google.protobuf.Timestamp edited_at */ 46:
+                case /* optional google.protobuf.Timestamp edited_at */ 40:
                     message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData reply_to_ptr */ 50:
@@ -17785,24 +17699,9 @@ class MessageData$Type extends MessageType$<MessageData> {
         /* optional symbolx.bench.NodeReferenceData scope_ptr = 36; */
         if (message.scopePtr)
             NodeReferenceData.internalBinaryWrite(message.scopePtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MessageStatus status = 40; */
-        if (message.status !== 0)
-            writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional google.protobuf.Timestamp failed_at = 42; */
-        if (message.failedAt)
-            Timestamp.internalBinaryWrite(message.failedAt, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp sent_at = 43; */
-        if (message.sentAt)
-            Timestamp.internalBinaryWrite(message.sentAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp received_at = 44; */
-        if (message.receivedAt)
-            Timestamp.internalBinaryWrite(message.receivedAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp read_at = 45; */
-        if (message.readAt)
-            Timestamp.internalBinaryWrite(message.readAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp edited_at = 46; */
+        /* optional google.protobuf.Timestamp edited_at = 40; */
         if (message.editedAt)
-            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData reply_to_ptr = 50; */
         if (message.replyToPtr)
             NodeReferenceData.internalBinaryWrite(message.replyToPtr, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -21077,8 +20976,7 @@ class AgentData$Type extends MessageType$<AgentData> {
             { no: 34, name: "icon", kind: "message", T: () => IconData },
             { no: 35, name: "definition_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 54, name: "page_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 55, name: "plan_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 56, name: "cursor_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 55, name: "cursor_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 57, name: "text", kind: "message", T: () => TextData },
             { no: 59, name: "color", kind: "enum", opt: true, T: () => ["symbolx.bench.ColorType", ColorType, "COLOR_TYPE_"] },
             { no: 80, name: "status", kind: "enum", T: () => ["symbolx.bench.ProcessStatus", ProcessStatus, "PROCESS_STATUS_"] },
@@ -21185,10 +21083,7 @@ class AgentData$Type extends MessageType$<AgentData> {
                 case /* optional symbolx.bench.NodeReferenceData page_ptr */ 54:
                     message.pagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.pagePtr);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData plan_ptr */ 55:
-                    message.planPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.planPtr);
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData cursor_ptr */ 56:
+                case /* optional symbolx.bench.NodeReferenceData cursor_ptr */ 55:
                     message.cursorPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.cursorPtr);
                     break;
                 case /* optional symbolx.bench.TextData text */ 57:
@@ -21341,12 +21236,9 @@ class AgentData$Type extends MessageType$<AgentData> {
         /* optional symbolx.bench.NodeReferenceData page_ptr = 54; */
         if (message.pagePtr)
             NodeReferenceData.internalBinaryWrite(message.pagePtr, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData plan_ptr = 55; */
-        if (message.planPtr)
-            NodeReferenceData.internalBinaryWrite(message.planPtr, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData cursor_ptr = 56; */
+        /* optional symbolx.bench.NodeReferenceData cursor_ptr = 55; */
         if (message.cursorPtr)
-            NodeReferenceData.internalBinaryWrite(message.cursorPtr, writer.tag(56, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.cursorPtr, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TextData text = 57; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
@@ -29195,7 +29087,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CHANNEL_STATUS]: ChannelStatus,
   [EnumType.THREAD_STATUS]: ThreadStatus,
   [EnumType.MESSAGE_TYPE]: MessageType,
-  [EnumType.MESSAGE_STATUS]: MessageStatus,
   [EnumType.NOTIFICATION_TYPE]: NotificationType,
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus,
 }
@@ -29491,7 +29382,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CHANNEL_STATUS]: ChannelStatus,
   [EnumType.THREAD_STATUS]: ThreadStatus,
   [EnumType.MESSAGE_TYPE]: MessageType,
-  [EnumType.MESSAGE_STATUS]: MessageStatus,
   [EnumType.NOTIFICATION_TYPE]: NotificationType,
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus,
 }
@@ -30290,12 +30180,7 @@ export enum MessageProperty {
   channelPtr = 34,
   threadPtr = 35,
   scopePtr = 36,
-  status = 40,
-  failedAt = 42,
-  sentAt = 43,
-  receivedAt = 44,
-  readAt = 45,
-  editedAt = 46,
+  editedAt = 40,
   replyToPtr = 50,
   forwardedFromPtr = 51,
   text = 61,
@@ -30432,8 +30317,7 @@ export enum AgentProperty {
   icon = 34,
   definitionPtr = 35,
   pagePtr = 54,
-  planPtr = 55,
-  cursorPtr = 56,
+  cursorPtr = 55,
   text = 57,
   color = 59,
   status = 80,
@@ -31724,7 +31608,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.STORE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 60, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.28.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.sqlUrl]: { id: 64, name: 'sql_url', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true },
@@ -31762,7 +31646,7 @@ export const ComputerDataInfo: Record<ComputerProperty, PropertyInfo> = {
   [ComputerProperty.failedAt]: { id: 47, name: 'failed_at', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.failedAttempts]: { id: 48, name: 'failed_attempts', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.INT32, default: 0, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.scalerPtr]: { id: 49, name: 'scaler_ptr', component: ObjectType.COMPUTER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER], referenceStruct: StructType.NODE_REFERENCE },
-  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.28.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputerProperty.version]: { id: 60, name: 'version', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2025.04.28.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ComputerProperty.externalName]: { id: 62, name: 'external_name', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.externalId]: { id: 63, name: 'external_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [ComputerProperty.imageId]: { id: 64, name: 'image_id', component: ObjectType.COMPUTER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -32312,12 +32196,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.channelPtr]: { id: 34, name: 'channel_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.CHANNEL], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.threadPtr]: { id: 35, name: 'thread_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.THREAD], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.scopePtr]: { id: 36, name: 'scope_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SCALER, NodeType.STORE, NodeType.COMPUTER, NodeType.FILE, NodeType.LINK, NodeType.CHOICE, NodeType.CLASS, NodeType.DATABASE, NodeType.FLOW, NodeType.KIT, NodeType.PAGE, NodeType.ROLE, NodeType.VIEW, NodeType.TAG, NodeType.TASK, NodeType.PLAN, NodeType.THREAD, NodeType.CHANNEL, NodeType.TEAM, NodeType.AGENT, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.status]: { id: 40, name: 'status', component: ObjectType.MESSAGE, enumType: EnumType.MESSAGE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.failedAt]: { id: 42, name: 'failed_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.sentAt]: { id: 43, name: 'sent_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.receivedAt]: { id: 44, name: 'received_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.readAt]: { id: 45, name: 'read_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [MessageProperty.editedAt]: { id: 46, name: 'edited_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [MessageProperty.editedAt]: { id: 40, name: 'edited_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.replyToPtr]: { id: 50, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.forwardedFromPtr]: { id: 51, name: 'forwarded_from_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.text]: { id: 61, name: 'text', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -32448,8 +32327,7 @@ export const AgentDataInfo: Record<AgentProperty, PropertyInfo> = {
   [AgentProperty.icon]: { id: 34, name: 'icon', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [AgentProperty.definitionPtr]: { id: 35, name: 'definition_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.pagePtr]: { id: 54, name: 'page_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.planPtr]: { id: 55, name: 'plan_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PLAN], referenceStruct: StructType.NODE_REFERENCE },
-  [AgentProperty.cursorPtr]: { id: 56, name: 'cursor_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
+  [AgentProperty.cursorPtr]: { id: 55, name: 'cursor_ptr', component: ObjectType.AGENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CURSOR], referenceStruct: StructType.NODE_REFERENCE },
   [AgentProperty.text]: { id: 57, name: 'text', component: ObjectType.AGENT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [AgentProperty.color]: { id: 59, name: 'color', component: ObjectType.AGENT, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [AgentProperty.status]: { id: 80, name: 'status', component: ObjectType.AGENT, enumType: EnumType.PROCESS_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
