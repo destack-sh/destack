@@ -5,12 +5,10 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import (
-    Agent,
     Computer,
     Cursor,
     GetConnection,
     GraphCapture,
-    LocalNodeList,
     Message,
     MessageType,
     NodeReference,
@@ -89,11 +87,6 @@ class ThreadHandle:
         """The Messages in this Thread (sorted by created_at)."""
         assert self._messages_connection is not None, f"{self!r} is not ready"
         return self._messages_connection.result.roots
-
-    @property
-    def agents(self) -> LocalNodeList[Agent]:
-        """The Agents instanced into this Thread."""
-        return self.thread.agents
 
     @property
     def last_message(self) -> Message | None:

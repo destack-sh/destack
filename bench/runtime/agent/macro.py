@@ -230,7 +230,9 @@ def SEND(
             message.append(node)
     runner.thread.thread.append(message)
     # cursor
-    if (cursor := runner.node.get_cursor(type=CursorType.THREAD)) is not None:
+    if (
+        cursor := runner.thread.thread.get_cursor(type=CursorType.THREAD, owned_by=runner.agent)
+    ) is not None:
         cursor.seen_at = message.created_at
     runner.session.stage()
     return message

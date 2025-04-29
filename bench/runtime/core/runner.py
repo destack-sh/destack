@@ -33,7 +33,6 @@ from bench.language import (
     InterruptionType,
     IsType,
     Kit,
-    Membership,
     Message,
     Node,
     NodeGraph,
@@ -618,17 +617,11 @@ def create_run(
     if thread is None:
         raise RuntimeError(f"no Thread for {node!r}")
 
-    # create agent (and :AutoInstanceAgents)
-    # nocheckin: don't instance Agents?
+    # create agent
     if agent is None:
         from bench.builtin import BenchAgent
 
         agent = BenchAgent
-    if agent is not None and not agent.is_instance:
-        agent = agent.instance()
-        thread.agents.append(agent)
-        membership = Membership.new(agent)
-        thread.memberships.append(membership)
 
     # build run
     if mode == NodeMode.BUILTIN:
