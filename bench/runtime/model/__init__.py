@@ -1,7 +1,7 @@
 from .anthropic import AnthropicChatModelRunner
 from .chat import ChatModelRunner
 from .google import GoogleChatModelRunner
-from .model import ModelRunner
+from .model import ModelRunner, ModelSettings
 from .openai import OpenAIChatModelRunner
 from .openrouter import OpenRouterChatModelRunner
 from .piece import (
@@ -43,6 +43,7 @@ __all__ = [
     "ImagePiece",
     "LeafPiece",
     "ModelRunner",
+    "ModelSettings",
     "OpenAIChatModelRunner",
     "OpenRouterChatModelRunner",
     "Piece",

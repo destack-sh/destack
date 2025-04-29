@@ -30,7 +30,8 @@ from .piece import (
 from .token import Tokenizer
 
 if TYPE_CHECKING:
-    pass
+    from .model import ModelSettings
+
 
 LOG_PROMPTS = get_from_env("LOG_PROMPTS", default=IS_DEV or IS_TEST, typ=bool)
 LOG_COMPLETIONS = get_from_env("LOG_COMPLETIONS", default=IS_DEV or IS_TEST, typ=bool)
@@ -54,6 +55,7 @@ class Prompt:
         node: Runnable,
         *,
         system_prompt: str,
+        model_settings: "ModelSettings",
         aliasing: Aliasing | None = None,
         renderer: Renderer | None = None,
         components: list["Piece"] | None = None,
@@ -62,6 +64,7 @@ class Prompt:
         self.session = session
         self.now = session._oracle.utc()
         self.node = node
+        self.model_settings = model_settings
         self.aliasing = aliasing or Aliasing(session._supergraph)
         self.renderer = renderer or Renderer(options=RenderOptions(aliasing=self.aliasing))
         self.pieces: list[Piece] = components or []

@@ -28,6 +28,7 @@ from bench.runtime.model import (
     CodePiece,
     CompoundPiece,
     FilePiece,
+    ModelSettings,
     Piece,
     Prompt,
     SeparatorPiece,
@@ -45,10 +46,10 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def _get_node_piece(node: Node) -> Union[FilePiece, "NodePiece"]:
+def get_node_piece(node: Node, model_settings: "ModelSettings") -> Union[FilePiece, "NodePiece"]:
     """Get the appropriate NodePiece for a Node."""
     if isinstance(node, File):
-        return get_file_piece(node)
+        return get_file_piece(node, model_settings)
     elif (piece_cls := PIECE_BY_NODE_TYPE.get(node.metatype)) is not None:
         assert issubclass(piece_cls, NodePiece)
         return piece_cls(node=node)
@@ -117,7 +118,7 @@ class MessagePiece(NodePiece[Message]):
         yield CodePiece(code=rendered_node)
         for node in self.node.nodes:
             if isinstance(node, File):
-                yield get_file_piece(node)
+                yield get_file_piece(node, prompt.model_settings)
 
 
 @piece_(NodeType.PAGE)
@@ -165,7 +166,7 @@ class PagePiece(NodePiece[Page]):
                 if text_block_parts:
                     yield _flush_text_block_parts()
                 if (node := block.node) is not None:
-                    yield _get_node_piece(node)
+                    yield get_node_piece(node, prompt.model_settings)
                 elif (node_ptr := block.node_ptr) is not None:
                     node_alias = prompt.renderer.aliasing.get_or_add(node_ptr)
                     yield TextPiece(

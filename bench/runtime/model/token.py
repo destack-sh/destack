@@ -20,6 +20,11 @@ class Tokenizer(ABC):
         """Estimate the number of tokens in an audio."""
         ...
 
+    @abstractmethod
+    def estimate_document_tokens(self, document: File) -> int:
+        """Estimate the number of tokens in a document."""
+        ...
+
 
 class StupidTokenizer(Tokenizer):
     @override
@@ -33,6 +38,10 @@ class StupidTokenizer(Tokenizer):
     @override
     def estimate_audio_tokens(self, audio: File) -> int:
         return 1000
+
+    @override
+    def estimate_document_tokens(self, document: File) -> int:
+        return 5000
 
 
 # TODO :Performance: implement TiktokenTokenizer
