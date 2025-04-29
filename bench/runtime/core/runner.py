@@ -610,8 +610,6 @@ def create_run(
     elif isinstance(parent, Agent):
         if isinstance((grandparent := parent.parent), Thread):
             thread = grandparent
-        else:
-            raise RuntimeError(f"expected {parent!r} to be in a Thread")
         if mode is None:
             mode = parent.mode
         graph = parent._graph
@@ -620,7 +618,7 @@ def create_run(
     if thread is None:
         raise RuntimeError(f"no Thread for {node!r}")
 
-    # create agent (and auto-instance)
+    # create agent (and :AutoInstanceAgents)
     if agent is None:
         from bench.builtin import BenchAgent
 

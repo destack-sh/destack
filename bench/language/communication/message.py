@@ -57,16 +57,6 @@ class MessageType(BuiltinEnum):
     # also see https://discord.com/developers/docs/resources/message
 
 
-@enum_(EnumType.MESSAGE_STATUS)
-class MessageStatus(BuiltinEnum):
-    DRAFT = 10
-    SENDING = 20
-    SENT = 30
-    FAILED = 40
-    RECEIVED = 50
-    READ = 60
-
-
 @timed_node_(NodeType.MESSAGE)
 class Message(
     IsComputable,
@@ -115,12 +105,7 @@ class Message(
         scope_ptr: Optional[NodeReference] = None
 
     # status
-    status: MessageStatus = p_internal(40, default=MessageStatus.SENT, default_sql=None)
-    failed_at: Optional[datetime] = p_internal(42, default=None)
-    sent_at: Optional[datetime] = p_internal(43, default=None)
-    received_at: Optional[datetime] = p_internal(44, default=None)
-    read_at: Optional[datetime] = p_internal(45, default=None)
-    edited_at: Optional[datetime] = p_internal(46, default=None)
+    edited_at: Optional[datetime] = p_internal(40, default=None)
 
     # routing
     reply_to: Optional["Message"] = p_regular(

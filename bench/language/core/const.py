@@ -49,7 +49,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.28.2"
+VERSION = "2025.04.29.0"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -448,7 +448,6 @@ class EnumType(BuiltinEnum):
     CHANNEL_STATUS = 22500
     THREAD_STATUS = 22502
     MESSAGE_TYPE = 22503
-    MESSAGE_STATUS = 22504
     NOTIFICATION_TYPE = 22506
     NOTIFICATION_STATUS = 22507
 

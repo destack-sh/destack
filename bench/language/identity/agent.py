@@ -35,7 +35,6 @@ if TYPE_CHECKING:
         CursorType,
         Field,
         Page,
-        Plan,
         Text,
         Thread,
     )
@@ -76,16 +75,8 @@ class Agent(
         same_bench=True,
         description="The main or root Page used by this Agent (may be shared).",
     )
-    plan: Optional["Plan"] = p_regular(
-        55,
-        require=False,
-        array=False,
-        references=NodeType.PLAN,
-        same_bench=True,
-        description="The main Plan to consider in this Agent (may be on the Page).",
-    )
     cursor: Optional["Cursor"] = p_regular(
-        56,
+        55,
         require=False,
         array=False,
         references=NodeType.CURSOR,

@@ -32,6 +32,8 @@
   }
 }
 
+/* TODO :UX: use tailwind theme variables for styling */
+
 @theme {
   /* neutral as gray */
   --color-gray-50: oklch(0.985 0 0);

@@ -21,9 +21,8 @@ export function createMembership(
     throw new Error(`non-subject node: ${describeNode(member ?? options.membership.memberPtr!)}`);
   }
 
-  // instance agents if not already instanced
-  if (isNode(member, NodeType.AGENT) && !isNodeInstance(member)) {
-    // nocheckin: don't instance Agents?
+  // instance agents if not already instanced :AutoInstanceAgents
+  if (isNode(options.parent, NodeType.THREAD) && isNode(member, NodeType.AGENT) && !isNodeInstance(member)) {
     member = instanceNode(tx, graph, member, { parent: options.parent });
   }
 

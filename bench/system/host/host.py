@@ -534,7 +534,7 @@ class HostService(GraphServiceBase, HostBase):
             self._validate_edit(edit, subject, now)
 
         # add any threads
-        # NOTE :Cleanup: manually loading more stuff for Thread feels wrong :AutoLoading
+        # NOTE :Cleanup: manually loading more stuff for Thread feels wrong :AutoLoading :RichGraph
         #  (also it only works when we're creating Nodes and thus have Edit.node_data)
         for edit in edits:
             if edit.node_ptr.node_type == NodeType.MESSAGE:
@@ -551,8 +551,8 @@ class HostService(GraphServiceBase, HostBase):
     def _adapt_read_query(self, subject: PolicySubject, query: LegacyQuery) -> LegacyQuery:
         query = super()._adapt_read_query(subject, query)
 
-        # restrict to this bench if it's a in-bench query
-        #  (non-local because those are already in-bench)
+        # restrict to this bench if it's an in-bench query
+        #  (non-local because those are already in-bench only)
         if (
             self._bench is not None
             and NodeType.BENCH in query._node_cls.__roots__

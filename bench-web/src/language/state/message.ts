@@ -2,7 +2,7 @@ import { getBaseFromNodeReference } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { NodeIn } from "@/language/core/node";
 import { Transaction } from "@/language/core/transaction";
-import { MessageData, MessageStatus, NodeReferenceData, NodeType } from "@/proto/wire";
+import { MessageData, NodeReferenceData, NodeType } from "@/proto/wire";
 
 /** Create a Message. */
 export function createMessage(
@@ -15,7 +15,6 @@ export function createMessage(
   const message = tx.create({
     metatype: NodeType.MESSAGE,
     ...options.message,
-    status: options.message.status ?? MessageStatus.SENT,
   });
 
   return message;
@@ -32,4 +31,3 @@ export function getMessageAuthorPtr(message: MessageData): NodeReferenceData | n
     return message.createdByPtr;
   }
 }
-

@@ -111,7 +111,6 @@ enum EnumType {
   ENUM_TYPE_CHANNEL_STATUS = 22500;
   ENUM_TYPE_THREAD_STATUS = 22502;
   ENUM_TYPE_MESSAGE_TYPE = 22503;
-  ENUM_TYPE_MESSAGE_STATUS = 22504;
   ENUM_TYPE_NOTIFICATION_TYPE = 22506;
   ENUM_TYPE_NOTIFICATION_STATUS = 22507;
 }
@@ -497,7 +496,6 @@ enum BenchType {
   BENCH_TYPE_CHANNEL_STATUS = 22500;
   BENCH_TYPE_THREAD_STATUS = 22502;
   BENCH_TYPE_MESSAGE_TYPE = 22503;
-  BENCH_TYPE_MESSAGE_STATUS = 22504;
   BENCH_TYPE_NOTIFICATION_TYPE = 22506;
   BENCH_TYPE_NOTIFICATION_STATUS = 22507;
 }
@@ -1657,16 +1655,6 @@ enum MessageType {
   MESSAGE_TYPE_THREAD = 110;
 }
 
-enum MessageStatus {
-  MESSAGE_STATUS_UNSPECIFIED = 0;
-  MESSAGE_STATUS_DRAFT = 10;
-  MESSAGE_STATUS_SENDING = 20;
-  MESSAGE_STATUS_SENT = 30;
-  MESSAGE_STATUS_FAILED = 40;
-  MESSAGE_STATUS_RECEIVED = 50;
-  MESSAGE_STATUS_READ = 60;
-}
-
 enum NotificationType {
   NOTIFICATION_TYPE_UNSPECIFIED = 0;
   NOTIFICATION_TYPE_MESSAGE = 100;
@@ -2205,12 +2193,7 @@ message MessageData {
   optional NodeReferenceData channel_ptr = 34;
   optional NodeReferenceData thread_ptr = 35;
   optional NodeReferenceData scope_ptr = 36;
-  MessageStatus status = 40;
-  optional google.protobuf.Timestamp failed_at = 42;
-  optional google.protobuf.Timestamp sent_at = 43;
-  optional google.protobuf.Timestamp received_at = 44;
-  optional google.protobuf.Timestamp read_at = 45;
-  optional google.protobuf.Timestamp edited_at = 46;
+  optional google.protobuf.Timestamp edited_at = 40;
   optional NodeReferenceData reply_to_ptr = 50;
   optional NodeReferenceData forwarded_from_ptr = 51;
   optional TextData text = 61;
@@ -2657,8 +2640,7 @@ message AgentData {
   optional IconData icon = 34;
   optional NodeReferenceData definition_ptr = 35;
   optional NodeReferenceData page_ptr = 54;
-  optional NodeReferenceData plan_ptr = 55;
-  optional NodeReferenceData cursor_ptr = 56;
+  optional NodeReferenceData cursor_ptr = 55;
   optional TextData text = 57;
   optional ColorType color = 59;
   ProcessStatus status = 80;
