@@ -9,7 +9,7 @@ import {
   NodeType,
   TypeKind,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire";
 import { TypedNodeReferenceData } from "@/proto/wiring";
 import { PreparedNodeConnection, useAutoConnection } from "@/system/connection";
@@ -83,13 +83,13 @@ function createClaimPopover(e: MouseEvent) {
     trigger: e.target as HTMLElement,
     reference: e.target as HTMLElement,
     component: ViewType.PICKER,
-    title: "Add Claim",
+    title: "Add Context",
     placement: "bottom-left",
     offset: "referenceWidth",
     props: {
       valueType: makeType({
         kind: TypeKind.NODE,
-        constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER] }),
+        constraint: makeTypeConstraint({ nodeTypes: [NodeType.COMPUTER, NodeType.PAGE] }),
       }),
     },
     onApply: (value) => {

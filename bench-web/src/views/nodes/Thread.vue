@@ -91,6 +91,8 @@ const nodePtr = toRef(props, "nodePtr");
 const { node, connection, graph } = supergraph.getLinkRef(nodePtr, { excludeSearch: true });
 const thread = node as Ref<ThreadData | null>;
 const { graph: threadGraph, connection: threadConnection } = useAutoConnection(nodePtr); // ughh
+const cursors = threadGraph.getChildrenRef(nodePtr, NodeType.CURSOR);
+const runs = threadGraph.getChildrenRef(nodePtr, NodeType.RUN);
 const claims = threadGraph.getChildrenRef(nodePtr, NodeType.CLAIM);
 const computers = threadGraph.getChildrenRef(nodePtr, NodeType.COMPUTER);
 const hasComputerClaim = computed(() =>
@@ -211,7 +213,11 @@ function getAuthorInfo(node: SubjectNodeData): AuthorInfo {
   const icon = getNodeIcon(node) ?? null;
   const name = getNodeTitle(node) ?? null;
   const color = getNodeColor(node) ?? null;
-  const isActive = isProcessableNode(node) && isProcessActive(node);
+  let isActive = false;
+  if (isNode(node, NodeType.AGENT)) {
+    isActive = runs.value.some((r) => r.agentPtr?.id == node.id && isProcessActive(r));
+  }
+
   return {
     node,
     icon,

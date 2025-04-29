@@ -18,6 +18,7 @@ from bench.language.core import (
     NodeType,
     PageNode,
     RemoteNodeList,
+    Subject,
     TextLineIn,
     enum_,
     p_node_children,
@@ -31,10 +32,10 @@ from bench.pb2 import MessageData, ThreadData
 
 if TYPE_CHECKING:
     from bench.language import (
-        Agent,
         Channel,
         Claim,
         Cursor,
+        CursorType,
         Field,
         File,
         Link,
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
         Package,
         Page,
         Plan,
+        Run,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -109,7 +111,6 @@ class Thread(
     messages: RemoteNodeList["Message", MessageData] = p_node_children(
         NodeType.MESSAGE, list=RemoteNodeList
     )
-    agents: LocalNodeList["Agent"] = p_node_children(NodeType.AGENT)
     memberships: LocalNodeList["Membership"] = p_node_children(NodeType.MEMBERSHIP)
     fields: LocalNodeList["Field"] = p_node_children(NodeType.FIELD)
     plans: LocalNodeList["Plan"] = p_node_children(NodeType.PLAN)
@@ -117,6 +118,7 @@ class Thread(
     cursors: LocalNodeList["Cursor"] = p_node_children(NodeType.CURSOR)
     files: LocalNodeList["File"] = p_node_children(NodeType.FILE)
     links: LocalNodeList["Link"] = p_node_children(NodeType.LINK)
+    runs: LocalNodeList["Run"] = p_node_children(NodeType.RUN)
 
     @staticmethod
     def new(
@@ -133,3 +135,10 @@ class Thread(
             **kwargs,
         )
         return thread
+
+    def get_cursor(self, *, type: "CursorType", owned_by: "Subject | None") -> "Cursor | None":
+        """Get a Cursor of the given type."""
+        for cursor in self.cursors:
+            if cursor.type == type and (owned_by is None or cursor.owned_by_id == owned_by.id):
+                return cursor
+        return None

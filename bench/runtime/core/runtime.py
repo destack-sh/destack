@@ -457,11 +457,10 @@ class Runtime:
         if span.started_at is None:
             span.started_at = self.oracle.utc()
         span.status = ProcessStatus.RUNNING
-        if runner.is_root and (agent := runner.agent) is not None:
+        if runner.is_root:
             assert type(span) is Run, f"unexpected non-Run root: {span!r}"
-            agent.update_status_from(span)
             thread = runner.thread.thread
-            thread.update_status_from(*thread.agents)
+            thread.update_status_from(span, *thread.runs)
             self.session.stage(include_runtime=True)
         else:
             self.session.stage()
@@ -535,11 +534,10 @@ class Runtime:
                 runner.fire_event(RunnerCancelledEvent(runner))
 
             # commit intermediate session edits
-            if runner.is_root and (agent := runner.agent) is not None:
+            if runner.is_root:
                 assert type(span) is Run, f"unexpected non-Run root: {span!r}"
-                agent.update_status_from(span)
                 thread = runner.thread.thread
-                thread.update_status_from(*thread.agents)
+                thread.update_status_from(span, *thread.runs)
                 self.session.stage(include_runtime=True)
             else:
                 self.session.stage(include_runtime=False)
@@ -806,7 +804,7 @@ class Runtime:
         for membership in thread.memberships:
             if not isinstance(agent := membership.member, Agent):
                 continue
-            cursor = agent.get_cursor(type=CursorType.THREAD)
+            cursor = thread.get_cursor(type=CursorType.THREAD, owned_by=agent)
             if handle.has_new_messages_for(agent, cursor):
                 # try to resume, otherwise create new run
                 agent_runners = self._runners_by_runnable_id.get(agent.id, ())
@@ -819,7 +817,11 @@ class Runtime:
                 if not resumed:
                     # create new agent run
                     run, _ = create_run(
-                        agent, parent=agent, status=ProcessStatus.QUEUED, thread=thread, agent=agent
+                        node=agent,
+                        parent=thread,
+                        status=ProcessStatus.QUEUED,
+                        thread=thread,
+                        agent=agent,
                     )
                     new_runs.append(run)
         logger.trace(

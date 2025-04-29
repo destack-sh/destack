@@ -23,7 +23,6 @@ from bench.language import (
     BenchStatus,
     C,
     ClientType,
-    Computer,
     ConditionalType,
     EditType,
     Engine,
@@ -246,8 +245,8 @@ class HostService(GraphServiceBase, HostBase):
 
         # get client
         is_staff = False
-        user: User | None = None
-        computer: Computer | None = None
+        user_ptr: NodeReference | None = None
+        computer_ptr: NodeReference | None = None
         owned: list[Ownable] = []
         if metadata.client_id and metadata.client_access_token:
             if not metadata.client_type:
@@ -268,9 +267,9 @@ class HostService(GraphServiceBase, HostBase):
                 else:
                     owned = [client.parent]  # type: ignore
                 is_staff = client.parent.is_staff
-                user = client.parent
+                user_ptr = client.parent_ptr
             elif isinstance(client.parent, Bench):
-                computer = client.computer
+                computer_ptr = client.computer_ptr
                 owned = [self._bench]  # NOTE :Security: Computers own their Benches for now
             else:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid client parent")
@@ -285,8 +284,8 @@ class HostService(GraphServiceBase, HostBase):
             is_authenticated=client is not None,
             is_staff=is_staff,
             client=client,
-            user=user,
-            computer=computer,
+            user_ptr=user_ptr,
+            computer_ptr=computer_ptr,
             owned=owned,  # type: ignore
             _supergraph=supergraph,
         )

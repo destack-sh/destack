@@ -1,7 +1,6 @@
 import { supergraph } from "@/globals";
-import { isNodeInstance, isSubjectNode } from "@/language/core/const";
+import { isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
-import { instanceNode } from "@/language/core/node";
 import { newChangeId, Transaction } from "@/language/core/transaction";
 import { JoinableNodeData, MembershipData, MessageType, NodeType } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
@@ -16,14 +15,9 @@ export function createMembership(
     tx = tx.with({ change: { key: newChangeId(), title: "Create" } });
   }
 
-  let member = supergraph.get(options.membership.memberPtr!);
+  const member = supergraph.get(options.membership.memberPtr!);
   if (!isSubjectNode(member)) {
     throw new Error(`non-subject node: ${describeNode(member ?? options.membership.memberPtr!)}`);
-  }
-
-  // instance agents if not already instanced :AutoInstanceAgents
-  if (isNode(options.parent, NodeType.THREAD) && isNode(member, NodeType.AGENT) && !isNodeInstance(member)) {
-    member = instanceNode(tx, graph, member, { parent: options.parent });
   }
 
   const membership = tx.create({
