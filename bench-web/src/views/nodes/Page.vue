@@ -74,6 +74,9 @@ const pageContext: PageContext = {
   blocksRefById: shallowRef({}),
   preparedConnection,
   gutterWidth: computed(() => widths.value.gutter),
+  focus(nodePtr: NodeReferenceData) {
+    focusInText(nodePtr);
+  }
 };
 providePageContext(pageContext);
 
@@ -162,7 +165,8 @@ const {
       pageHeaderRef.value?.focus?.("top");
     }
   },
-  deleteSelf: () => emit("deleteSelf"),
+  deleteSelf: () => {},
+  enter: () => {},
   plugins: [highlightPlugin, tooltipPlugin, placeholderPlugin, lineHandlePlugin],
   parentComponent: vueInstance,
   pageContext,

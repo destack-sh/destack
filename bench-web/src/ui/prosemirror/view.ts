@@ -93,7 +93,7 @@ export class VueComponentView implements PmNodeView {
   }
 
   selectNode() {
-    (this.vnode.component?.exposed as ViewExpose)?.focus?.("top");
+    (this.vnode.component?.exposed as ViewExpose)?.focus?.("right");
   }
 
   stopEvent(event: Event): boolean {

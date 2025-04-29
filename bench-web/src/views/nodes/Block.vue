@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { CANVAS_BLOCK_TYPES, toCamelName } from "@/language/core/const";
+import { newChangeId } from "@/language/core/transaction";
 import { BlockType, NodeReferenceData, NodeType, ViewData } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { CommandMapKit } from "@/ui/command";
 import { usePageContext } from "@/ui/prosemirror/page";
+import { generateOrderKey } from "@/utils/fractional";
 import Inaccessible from "@/views/builtin/Inaccessible.vue";
 import NodeReference from "@/views/builtin/NodeReference.vue";
 import { type FocusAnchor, type NavigationDirection, type ViewEmits, type ViewExpose } from "@/views/common";
@@ -14,7 +16,7 @@ import Choice from "@/views/nodes/Choice.vue";
 import Database from "@/views/nodes/Database.vue";
 import Kit from "@/views/nodes/Kit.vue";
 import Task from "@/views/nodes/Task.vue";
-import { computed, getCurrentInstance, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
+import { computed, getCurrentInstance, nextTick, onBeforeUnmount, ref, toRef, triggerRef, type Ref } from "vue";
 
 const MAX_INLINE_HEIGHT = 400;
 
@@ -73,6 +75,41 @@ const isSelected = computed(() => canvas.isSelected(blockPtr.value));
 
 const commands: Partial<CommandMapKit<"space">> & CommandMapKit<"block"> = {};
 
+function onEnter() {
+  if (block.value == null || pageContext.page.value == null) return;
+  // create new block below
+  const page = pageContext.page.value;
+  const tx = connection.tx.with({ change: { title: "Morph", key: newChangeId() } });
+  const blockIdx = pageContext.blocks.value.findIndex((b) => b.id == block.value!.id);
+  const nextBlock = pageContext.blocks.value[blockIdx + 1];
+  const orderKey = generateOrderKey(block.value.orderKey, nextBlock?.orderKey);
+  const newBlock = tx.create({
+    metatype: NodeType.BLOCK,
+    type: BlockType.PARAGRAPH,
+    parentPtr: toNodeRef(page),
+    orderKey,
+    packagePtr: page.packagePtr,
+  });
+  nextTick(() => pageContext.focus(toNodeRef(newBlock)));
+}
+
+function onDeleteSelf() {
+  if (block.value == null || pageContext.page.value == null) return;
+  // replace self with empty block
+  const oldBlock = block.value;
+  const page = pageContext.page.value;
+  const tx = connection.tx.with({ change: { title: "Morph", key: newChangeId() } });
+  tx.delete(oldBlock);
+  const newBlock = tx.create({
+    metatype: NodeType.BLOCK,
+    type: BlockType.PARAGRAPH,
+    parentPtr: toNodeRef(page),
+    orderKey: oldBlock.orderKey,
+    packagePtr: page.packagePtr,
+  });
+  nextTick(() => pageContext.focus(toNodeRef(newBlock)));
+}
+
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   nodeRef.value?.focus?.(anchor);
@@ -109,6 +146,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
           }
         }
       "
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <File
       v-else-if="block.type == BlockType.FILE"
@@ -120,6 +159,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       :model-value="nodePtr"
       :size="{ height: MAX_INLINE_HEIGHT }"
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <Choice
       v-else-if="block.type == BlockType.CHOICE"
@@ -131,6 +172,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       is-minimal
       is-inline
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <Database
       v-else-if="block.type == BlockType.DATABASE"
@@ -142,6 +185,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       is-inline
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <Kit
       v-else-if="block.type == BlockType.KIT"
@@ -153,6 +198,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       is-inline
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <Task
       v-else-if="block.type == BlockType.TASK"
@@ -164,6 +211,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       is-inline
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <Agent
       v-else-if="block.type == BlockType.AGENT"
@@ -175,6 +224,8 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
       is-inline
       is-input
       @navigate="(direction: NavigationDirection) => emit('navigate', direction)"
+      @enter="onEnter"
+      @deleteSelf="onDeleteSelf"
     />
     <div v-else class="rounded-sm border border-red-500 bg-red-100 text-center font-semibold text-red-900">
       <span>No View for {{ toCamelName(BlockType, block.type) }} Block</span>

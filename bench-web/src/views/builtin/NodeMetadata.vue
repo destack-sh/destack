@@ -4,7 +4,7 @@ import {
   isNodeInstance,
   isProcessableNode,
   isProvisionableResourceNode,
-  PRE_PROCESS_STATUSES
+  PRE_PROCESS_STATUSES,
 } from "@/language/core/const";
 import { isProcessActive } from "@/language/runtime/process";
 import {
@@ -72,12 +72,7 @@ const textClass = computed(() => [
     </span>
     <!-- Run metadata -->
     <span
-      v-if="
-        isProcessableNode(node) &&
-        node.status != ProcessStatus.IDLE &&
-        !PRE_PROCESS_STATUSES.includes(node.status) &&
-        (node.metatype != ObjectType.AGENT || isNodeInstance(node))
-      "
+      v-if="isProcessableNode(node) && node.status != ProcessStatus.IDLE && !PRE_PROCESS_STATUSES.includes(node.status)"
       class="fas fa-circle-small relative w-5 text-center"
       :class="[iconClass, isProcessActive(node) ? '' : '']"
       :style="{ color: getColorHex(ProcessStatusOptionInfo[node.status]!.color!, ColorShade.S500) }"

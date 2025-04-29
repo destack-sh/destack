@@ -37,7 +37,7 @@ const MAX_HEIGHT = 500;
 const WIDTH = 400;
 
 const PLACEHOLDER_BY_TYPE: Record<SpanSpecialInputType, string> = {
-  ["/"]: "Filter...",
+  ["/"]: "Command...",
   ["@"]: "Mention...",
 };
 
@@ -213,7 +213,7 @@ function apply(item: SearchItem) {
         //   and I'm not quite sure how to synchronize/connect the two properly)
         nextTick(() => {
           const blockRef = props.pageContext?.blocksRefById.value?.[block.id];
-          blockRef?.focus?.("top");
+          blockRef?.exposed?.focus?.("top");
         });
       }
     }
@@ -348,7 +348,7 @@ defineExpose<Partial<ViewExpose>>({ focus });
                   }"
                 />
                 <span v-else class="mr-1.5 w-6 shrink-0 text-gray-700" />
-                <span class="max-w-full select-none truncate" v-html="item.titleMarked ?? item.title" />
+                <span class="max-w-full truncate select-none" v-html="item.titleMarked ?? item.title" />
                 <!-- Metadata -->
                 <NodeMetadata v-if="item.metatype == 'node'" size="sm" :node="item.node!" class="ml-1.5" />
                 <!-- Secondary -->

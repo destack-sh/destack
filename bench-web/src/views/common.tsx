@@ -26,6 +26,7 @@ export type ViewEmits = {
   (e: "cancel"): void;
   (e: "close"): void;
   (e: "deleteSelf"): void;
+  (e: "enter"): void;
   (e: "navigate", direction: NavigationDirection): void;
 };
 
