@@ -40,6 +40,8 @@ beautifulsoup4==4.12.3
     # via
     #   -r bench/requirements/computer.in
     #   atlassian-python-api
+    #   markdownify
+    #   markitdown
 bitarray==2.9.2
     # via -r bench/requirements/base.in
 black==24.10.0
@@ -84,7 +86,9 @@ cffi==1.17.1
 cfgv==3.4.0
     # via pre-commit
 charset-normalizer==3.4.1
-    # via requests
+    # via
+    #   markitdown
+    #   requests
 click==8.1.8
     # via
     #   black
@@ -286,10 +290,16 @@ lxml==5.2.2
     #   -r bench/requirements/computer.in
     #   python-docx
     #   python-pptx
-magika==0.5.1
-    # via -r bench/requirements/base.in
+magika==0.6.1
+    # via
+    #   -r bench/requirements/base.in
+    #   markitdown
 markdown-it-py==3.0.0
     # via rich
+markdownify==1.1.0
+    # via markitdown
+markitdown==0.1.1
+    # via -r bench/requirements/computer.in
 markupsafe==3.0.2
     # via jinja2
 marshmallow==3.26.1
@@ -331,9 +341,10 @@ nodeenv==1.9.1
     #   pyright
 notion-client==2.3.0
     # via -r bench/requirements/computer.in
-numpy==1.26.4
+numpy==2.2.5
     # via
     #   -r bench/requirements/base.in
+    #   magika
     #   onnxruntime
     #   opencv-python
     #   pandas
@@ -579,6 +590,7 @@ requests==2.32.3
     #   google-api-core
     #   google-genai
     #   googlemaps
+    #   markitdown
     #   pyairtable
     #   pygithub
     #   python-twitter-v2
@@ -615,6 +627,7 @@ six==1.17.0
     # via
     #   atlassian-python-api
     #   dropbox
+    #   markdownify
     #   python-dateutil
     #   stone
 slack-sdk==3.35.0
@@ -643,8 +656,6 @@ structlog==24.2.0
     # via -r bench/requirements/base.in
 sympy==1.13.3
     # via onnxruntime
-tabulate==0.9.0
-    # via magika
 tach==0.18.0
     # via -r bench/requirements/dev.in
 tiktoken==0.9.0
@@ -657,7 +668,6 @@ tqdm==4.67.1
     # via
     #   -r bench/requirements/computer.in
     #   google-generativeai
-    #   magika
     #   openai
 traitlets==5.14.3
     # via

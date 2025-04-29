@@ -29,6 +29,10 @@ attrs==25.3.0
     #   referencing
 base58==2.1.1
     # via -r bench/requirements/runtime.in
+beautifulsoup4==4.13.4
+    # via
+    #   markdownify
+    #   markitdown
 bitarray==2.9.2
     # via -r bench/requirements/base.in
 black==24.10.0
@@ -63,7 +67,9 @@ cffi==1.17.1
     #   pycares
     #   pynacl
 charset-normalizer==3.4.1
-    # via requests
+    # via
+    #   markitdown
+    #   requests
 click==8.1.8
     # via
     #   black
@@ -222,10 +228,16 @@ lxml==5.2.2
     # via
     #   python-docx
     #   python-pptx
-magika==0.5.1
-    # via -r bench/requirements/base.in
+magika==0.6.1
+    # via
+    #   -r bench/requirements/base.in
+    #   markitdown
 markdown-it-py==3.0.0
     # via rich
+markdownify==1.1.0
+    # via markitdown
+markitdown==0.1.1
+    # via -r bench/requirements/runtime.in
 markupsafe==3.0.2
     # via jinja2
 mdurl==0.1.2
@@ -245,9 +257,10 @@ multidict==6.4.3
     #   yarl
 mypy-extensions==1.0.0
     # via black
-numpy==1.26.4
+numpy==2.2.5
     # via
     #   -r bench/requirements/base.in
+    #   magika
     #   onnxruntime
     #   opencv-python
 oauthlib==3.2.2
@@ -419,6 +432,7 @@ requests==2.32.3
     #   exa-py
     #   google-api-core
     #   google-genai
+    #   markitdown
     #   pyairtable
     #   pygithub
     #   requests-oauthlib
@@ -444,6 +458,7 @@ shellingham==1.5.4
 six==1.17.0
     # via
     #   dropbox
+    #   markdownify
     #   python-dateutil
     #   stone
 sniffio==1.3.1
@@ -454,6 +469,8 @@ sniffio==1.3.1
     #   openai
 sortedcontainers==2.4.0
     # via -r bench/requirements/base.in
+soupsieve==2.7
+    # via beautifulsoup4
 sqlglot==25.30.0
     # via -r bench/requirements/base.in
 stone==3.3.9
@@ -462,15 +479,12 @@ structlog==24.2.0
     # via -r bench/requirements/base.in
 sympy==1.13.3
     # via onnxruntime
-tabulate==0.9.0
-    # via magika
 tiktoken==0.9.0
     # via -r bench/requirements/runtime.in
 tqdm==4.67.1
     # via
     #   -r bench/requirements/runtime.in
     #   google-generativeai
-    #   magika
     #   openai
 typer==0.15.1
     # via -r bench/requirements/base.in
@@ -483,6 +497,7 @@ types-protobuf==4.25.0.20240417
 typing-extensions==4.13.2
     # via
     #   anthropic
+    #   beautifulsoup4
     #   browserbase
     #   exa-py
     #   google-generativeai

@@ -249,7 +249,7 @@ lxml==5.3.2
     # via
     #   python-docx
     #   python-pptx
-magika==0.5.1
+magika==0.6.1
     # via -r bench/requirements/base.in
 markdown-it-py==3.0.0
     # via rich
@@ -283,9 +283,10 @@ nodeenv==1.9.1
     # via
     #   pre-commit
     #   pyright
-numpy==1.26.4
+numpy==2.2.5
     # via
     #   -r bench/requirements/base.in
+    #   magika
     #   onnxruntime
 oauthlib==3.2.2
     # via
@@ -548,8 +549,6 @@ structlog==24.2.0
     # via -r bench/requirements/base.in
 sympy==1.13.3
     # via onnxruntime
-tabulate==0.9.0
-    # via magika
 tach==0.18.0
     # via -r bench/requirements/dev.in
 tomli==2.2.1
@@ -559,7 +558,6 @@ tomli-w==1.2.0
 tqdm==4.67.1
     # via
     #   google-generativeai
-    #   magika
     #   openai
 traitlets==5.14.3
     # via
