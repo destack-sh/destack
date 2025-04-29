@@ -883,6 +883,7 @@ def text(text: TextIn, aliasing: "Aliasing | None" = None) -> Text:
     if isinstance(text, str):
         return markdown_to_text(text, aliasing=aliasing)
     else:
+        assert isinstance(text, Text), f"expected Text, got {text!r}"
         return text
 
 
@@ -891,6 +892,7 @@ def text_line(text: TextLineIn, aliasing: "Aliasing | None" = None) -> TextLine:
     if isinstance(text, str):
         return markdown_line_to_line(text, aliasing=aliasing)
     else:
+        assert isinstance(text, TextLine), f"expected TextLine, got {text!r}"
         return text
 
 

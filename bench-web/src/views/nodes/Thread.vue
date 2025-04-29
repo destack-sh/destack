@@ -215,7 +215,8 @@ function getAuthorInfo(node: SubjectNodeData): AuthorInfo {
   const color = getNodeColor(node) ?? null;
   let isActive = false;
   if (isNode(node, NodeType.AGENT)) {
-    isActive = runs.value.some((r) => r.agentPtr?.id == node.id && isProcessActive(r));
+    const latestRun = runs.value.findLast((r) => r.agentPtr?.id == node.id);
+    isActive = latestRun != null && isProcessActive(latestRun);
   }
 
   return {

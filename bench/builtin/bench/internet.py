@@ -39,6 +39,7 @@ class IInternet(ABC):
     async def Read(self, URL: str) -> Annotated[Mapping[str, Any], {"Links": list[Link]}]:
         """
         Extract the content of the given URL.
+        Only works for web URLs with HTML content (no PDFs, local Files, etc.).
         ICON: fas fa-globe
         """
         pass

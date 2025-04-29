@@ -129,6 +129,13 @@ class AudioPiece(FilePiece):
         return tokenizer.estimate_audio_tokens(self.file)
 
 
+@piece_()
+class UnsupportedFilePiece(FilePiece):
+    @override
+    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
+        return 0
+
+
 def get_file_piece(file: File) -> FilePiece:
     """Get the appropriate FilePiece for a File."""
     if file.type == FileType.IMAGE:
@@ -136,7 +143,7 @@ def get_file_piece(file: File) -> FilePiece:
     elif file.type == FileType.AUDIO:
         return AudioPiece(file=file)
     else:
-        raise ValueError(f"unsupported file type: {file.type}")
+        return UnsupportedFilePiece(file=file)
 
 
 BasicPiece = BreakPiece | SeparatorPiece | TextPiece | CodePiece | FilePiece

@@ -21,6 +21,7 @@ from .piece import (
     PieceRole,
     SeparatorPiece,
     TextPiece,
+    UnsupportedFilePiece,
 )
 from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
@@ -115,6 +116,9 @@ async def build_anthropic_messages(
                     },
                 }
             )
+        elif isinstance(piece, UnsupportedFilePiece):
+            alias = prompt.aliasing.get_or_add(piece.file)
+            current_text_pieces.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
         else:
             raise NotSupportedError(f"unexpected piece {piece!r}")
 
