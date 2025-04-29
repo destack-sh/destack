@@ -21,7 +21,7 @@ from bench.language.core import (
 from bench.pb2 import OrganizationData
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Handle, Icon, Membership, Text
+    from bench.language import Bench, Handle, Icon, Membership, TextLine
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -41,8 +41,10 @@ class Organization(IsSubject, Node[OrganizationData]):
     # parent: Organization for nesting?
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
+    line: Optional["TextLine"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
+    )
     region: "Region" = p_system(37)
     status: OrganizationStatus = p_system(38)
 

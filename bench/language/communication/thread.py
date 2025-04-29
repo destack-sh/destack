@@ -18,9 +18,6 @@ from bench.language.core import (
     NodeType,
     PageNode,
     RemoteNodeList,
-    StructType,
-    Text,
-    TextIn,
     TextLineIn,
     enum_,
     p_node_children,
@@ -28,7 +25,6 @@ from bench.language.core import (
     p_regular,
     p_system,
     timed_node_,
-    to_text,
     to_text_line,
 )
 from bench.pb2 import MessageData, ThreadData
@@ -101,7 +97,6 @@ class Thread(
         same_bench=True,
         description="The main or root Page used by this Thread (may be shared).",
     )
-    text: Optional["Text"] = p_regular(65, require=False, default=None, struct=StructType.TEXT)
     if TYPE_CHECKING:
         page_ptr: Optional[NodeReference] = None
         page_id: Optional[UUID] = None
@@ -126,15 +121,13 @@ class Thread(
     @staticmethod
     def new(
         title: TextLineIn | None = None,
-        text: TextIn | None = None,
         *,
-        channel: "Channel | None" = None,
-        page: "Page | None" = None,
+        channel: Optional["Channel"] = None,
+        page: Optional["Page"] = None,
         **kwargs,
     ) -> "Thread":
         thread = Thread(
             title=to_text_line(title) if title is not None else None,
-            text=to_text(text) if text is not None else None,
             channel=channel,
             page=page,
             **kwargs,

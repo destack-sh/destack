@@ -47,7 +47,6 @@ class BlockType(BuiltinEnum):
     PAGE = 5020
     CHOICE = 5030
     CLASS = 5031
-    TAG = 5040
     FLOW = 5050
     KIT = 5060
     DATABASE = 5090
@@ -158,8 +157,8 @@ class Block(IsTemplatable, IsModal, IsNamed, PackageNode[BlockData]):
     def __content_str__(self):
         if self.node_ptr is not None and (node := self.node) is not None:
             return node.__content_str__()
-        elif (text := self.line) is not None:
-            return text.__content_str__()
+        elif (line := self.line) is not None:
+            return line.__content_str__()
         else:
             return ""
 

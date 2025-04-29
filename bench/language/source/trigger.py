@@ -10,8 +10,6 @@ from bench.language.core import (
     IsTemplatable,
     NodeType,
     PackageNode,
-    StructType,
-    Text,
     enum_,
     node_,
     p_node_parent,
@@ -70,7 +68,6 @@ class Trigger(IsTemplatable, IsModal, PackageNode[TriggerData]):
     # meta
     type: TriggerType = p_system(30, require=True)
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
-    text: Optional[Text] = p_regular(33, require=False, struct=StructType.TEXT)
     effect: TriggerEffect = p_regular(34, require=True)
     run_root: Optional["Run"] = p_regular(
         36,

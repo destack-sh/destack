@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Annotated, Any, Mapping
 
 from bench.builtin.core import class_to_kit
-from bench.language import File, Link, to_icon
+from bench.language import File, Link, Page, to_icon
 
 if TYPE_CHECKING:
     pass
@@ -45,3 +45,5 @@ class IInternet(ABC):
 
 
 InternetKit = class_to_kit(IInternet, "Internet Kit", icon=to_icon("fas fa-globe"))
+InternetPage = Page.new("Internet")
+InternetPage.append(InternetKit)

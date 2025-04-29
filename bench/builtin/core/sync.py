@@ -26,11 +26,16 @@ def get_stable_builtin_path(node: Node) -> str:
         path_key = current._ident
         if path_key is None:
             if isinstance(current, Block):
-                PAGE_NODE = current.node
-                assert PAGE_NODE is not None, f"block {current!r} has no inline node"
-                page_ident = PAGE_NODE._ident
-                assert page_ident is not None, f"inline node {PAGE_NODE!r} has no ident"
-                path_key = f"Block[{page_ident}]"
+                inline_node = current.node
+                if inline_node is None:
+                    # NOTE: this is a horrible way to assign ids to text blocks
+                    assert current.type.is_text, f"block {current!r} has no inline node"
+                    assert current.line is not None, f"block {current!r} has no line"
+                    path_key = f"Block[{current.line.to_markdown()}]"
+                else:
+                    page_ident = inline_node._ident
+                    assert page_ident is not None, f"inline node {inline_node!r} has no ident"
+                    path_key = f"Block[{page_ident}]"
             elif isinstance(current, Membership):
                 member = current.member
                 member_ident = member._ident

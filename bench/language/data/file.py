@@ -630,18 +630,18 @@ class FileBase(BuiltinObject):
             assert target_format.type == self.type, f"cannot convert {self!r} to {target_format!r}"
             buffer = io.BytesIO()
             self.image.save(buffer, format=target_format.name)
-            text = buffer.getvalue()
+            raw_text = buffer.getvalue()
             return FileInfo(
                 source=FileSource.INLINE,
                 name=self.name,
                 mime_type=target_format.mime_type,
                 type=target_format.type,
                 format=target_format,
-                size=len(text),
+                size=len(raw_text),
                 width=self.width,
                 height=self.height,
                 aspect_ratio=self.aspect_ratio,
-                content=text,
+                content=raw_text,
                 _original=self.original,
             )
         elif self.type == FileType.DOCUMENT:
@@ -655,10 +655,10 @@ class FileBase(BuiltinObject):
                 import pypandoc
 
                 tmp_file_path = self.to_tmp_file()
-                text = pypandoc.convert_file(
+                raw_text = pypandoc.convert_file(
                     tmp_file_path, target_format.name.lower(), format=self.format.name.lower()
                 )
-                content = text.encode()
+                content = raw_text.encode()
                 return FileInfo(
                     source=FileSource.INLINE,
                     name=self.name,
@@ -678,8 +678,8 @@ class FileBase(BuiltinObject):
                 for page in reader.pages:
                     page_text = page.extract_text()
                     pages_text.append(page_text)
-                text = "\n\n".join(pages_text)
-                content = text.encode()
+                raw_text = "\n\n".join(pages_text)
+                content = raw_text.encode()
                 return FileInfo(
                     source=FileSource.INLINE,
                     name=self.name,

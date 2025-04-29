@@ -23,7 +23,6 @@ from .render import (
     render_value,
 )
 from .schedule import Schedule, ScheduleFrequency
-from .tag import Tag
 from .transition import PortSide, Transition, TransitionType
 from .trigger import Trigger, TriggerEffect, TriggerStatus, TriggerType
 
@@ -53,7 +52,6 @@ __all__ = [
     "Renderer",
     "Schedule",
     "ScheduleFrequency",
-    "Tag",
     "Transition",
     "TransitionType",
     "Trigger",

@@ -30,7 +30,6 @@ if TYPE_CHECKING:
         Color,
         Flow,
         NodeReference,
-        Text,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -76,9 +75,6 @@ class Transition(
     type: TransitionType = p_internal(30)
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    text: Optional["Text"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT
-    )
     source: "Action" = p_regular(35, require=True, references=NodeType.ACTION, ckless=True)
     target: "Action" = p_regular(36, require=True, references=NodeType.ACTION, ckless=True)
     if TYPE_CHECKING:

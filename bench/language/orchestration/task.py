@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    SUBJECT_NODE_TYPES,
     IsClaimable,
     IsInstantiable,
     IsModal,
@@ -16,6 +17,7 @@ from bench.language.core import (
     NodeType,
     PageNode,
     ProcessStatus,
+    Subject,
     TextLineIn,
     p_node_children,
     p_node_parent,
@@ -26,13 +28,7 @@ from bench.language.core import (
 from bench.pb2 import TaskData
 
 if TYPE_CHECKING:
-    from bench.language import (
-        Node,
-        NodeReference,
-        Page,
-        Plan,
-        Trigger,
-    )
+    from bench.language import Node, NodeReference, Page, Plan, Trigger
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -59,12 +55,17 @@ class Task(
 
     # routing
     due_at: Optional[datetime] = p_regular(50, default=None)
+    # nocheckin: Task.thread?
+    assigned_to: Optional[Subject] = p_regular(
+        51, require=False, array=False, references=SUBJECT_NODE_TYPES.tuple
+    )
     nodes: list["Node"] = p_regular(
         52, require=False, array=True, references="any", description="The Nodes this Task is about."
     )
     if TYPE_CHECKING:
-        nodes_ptr: Optional[NodeReference] = None
-        nodes_id: Optional[UUID] = None
+        assigned_to_ptr: Optional[NodeReference] = None
+        assigned_to_id: Optional[UUID] = None
+        assigned_to_type: Optional[NodeType] = None
 
     # ...IsProcessable[80-]
 
@@ -82,7 +83,7 @@ class Task(
             self.duration = self.terminated_at - self.started_at
 
     def reset(self) -> None:
-        self.status = ProcessStatus.ASSIGNED if self.owned_by_ptr else ProcessStatus.CREATED
+        self.status = ProcessStatus.ASSIGNED if self.assigned_to_ptr else ProcessStatus.CREATED
         self.started_at = None
         self.terminated_at = None
         self.duration = None

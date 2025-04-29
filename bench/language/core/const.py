@@ -34,7 +34,6 @@ if TYPE_CHECKING:
         Session,
         Span,
         SpanType,
-        Text,
         Transaction,
     )
     from bench.runtime import Runner
@@ -49,7 +48,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.04.29.0"
+VERSION = "2025.04.29.1"
 UUID_NAMESPACE = uuid5(UUID(int=0), b"bench")
 CK_LENGTH_B64 = 24  # 1.5 * CK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
@@ -558,7 +557,7 @@ class NodeType(BuiltinEnum):
     # UNION?
     FIELD = 5035, "Field", "Field", "fas fa-triangle"
     OPTION = 5036, "Option", "Option", "far fa-square-check"
-    TAG = 5040, "Tag", "Tag", "fas fa-tag"
+    # TAG?
     FLOW = 5050, "Flow", "Link Actions together", "fas fa-diagram-project"
     KIT = 5060, "Kit", "Kit of stuff", "fas fa-screwdriver-wrench"
     ACTION = 5061, "Action", "Action", "fas fa-step-forward"
@@ -729,7 +728,6 @@ PAGE_NODE_TYPES = bittuple(
     NodeType.PAGE,
     NodeType.ROLE,
     NodeType.VIEW,
-    NodeType.TAG,
     NodeType.TASK,
     NodeType.PLAN,
     NodeType.THREAD,
@@ -1731,7 +1729,6 @@ def capture_span(
     level: "Severity | None" = None,
     nodes: list["Node"] | None = None,
     title: str | None = None,
-    text: "Text | None" = None,
     runner: "Runner[Any] | None" = None,
 ) -> Generator["Span | None", None, None]:
     """Decorate or annotate a Span in the current Run (noop if not inside a Run)."""
@@ -1756,7 +1753,6 @@ def capture_span(
             type=type,
             nodes=nodes or [],
             title=title,
-            text=text,
             started_at=runtime.oracle.utc(),
             _skip_validate_self=True,
         )

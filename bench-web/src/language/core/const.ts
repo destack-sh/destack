@@ -209,7 +209,7 @@ export function isNodeInstance(node: AnyNodeData): boolean {
 }
 
 // node types
-export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE, NodeType.STREAM];
+export const UNLOADED_RESOURCE_NODE_TYPES = [NodeType.FILE];
 export const LOADED_PACKAGE_NODE_TYPES = [
   ...SOURCE_NODE_TYPES,
   ...RESOURCE_NODE_TYPES.filter((t) => !UNLOADED_RESOURCE_NODE_TYPES.includes(t)),

@@ -18,7 +18,7 @@ from bench.language.core import (
 from bench.pb2 import TeamData
 
 if TYPE_CHECKING:
-    from bench.language import Membership, Organization, Package, Page, Thread
+    from bench.language import Membership, Organization, Package, Page
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -29,8 +29,8 @@ class Team(IsInstantiable, IsJoinable, IsModal, IsNamed, PageNode[TeamData]):
     A Team of Users or Identities.
     """
 
-    parent: Union["Package", "Page", "Thread", "Team", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.THREAD, NodeType.TEAM
+    parent: Union["Package", "Page", "Team", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.PAGE, NodeType.TEAM
     )
     organization: "Organization | None" = p_node_ancestor(
         7, NodeType.ORGANIZATION, require=False, store=True, wire=True

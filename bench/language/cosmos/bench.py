@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         Package,
         Region,
         Store,
-        Text,
+        TextLine,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -63,8 +63,8 @@ class Bench(IsOwnable, BenchNode[BenchData]):
     handles: LocalNodeList["Handle"] = p_node_children(NodeType.HANDLE)
     slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(
-        34, default=None, require=False, array=False, struct=StructType.TEXT
+    line: Optional["TextLine"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.TEXT_LINE
     )
     icon: Optional["Icon"] = p_regular(35, default=None, struct=StructType.ICON)
     region: "Region" = p_system(37, require=True, default=REGION, default_sql=None)

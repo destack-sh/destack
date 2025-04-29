@@ -14,7 +14,6 @@ from bench.language.core import (
     PackageNode,
     ProcessStatus,
     Runnable,
-    StructType,
     enum_,
     p_internal,
     p_node_ancestor,
@@ -33,7 +32,6 @@ if TYPE_CHECKING:
         Run,
         Span,
         Task,
-        Text,
         Transition,
     )
 
@@ -121,7 +119,6 @@ class Interruption(IsTimed, IsRuntime, IsModal, PackageNode[InterruptionData]):
     closed_at: Optional[datetime] = p_internal(42, require=False, default=None)
 
     # content
-    text: Optional["Text"] = p_regular(51, require=False, default=None, struct=StructType.TEXT)
     response: Optional[InterruptionResponse] = p_internal(54, require=False, default=None)
     message: Optional["Message"] = p_regular(
         55,

@@ -302,7 +302,6 @@ export function makeSelection(
     selections: [],
     nodeTypes: [],
     scopesPtr: [],
-    tagsPtr: [],
     fieldsPtr: [],
     propertiesPtr: [],
   };
@@ -330,7 +329,6 @@ export function expandSelection(
     selections: [],
     nodeTypes: [],
     scopesPtr: [],
-    tagsPtr: [],
     fieldsPtr: [],
     propertiesPtr: [],
   };

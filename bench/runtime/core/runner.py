@@ -619,6 +619,7 @@ def create_run(
         raise RuntimeError(f"no Thread for {node!r}")
 
     # create agent (and :AutoInstanceAgents)
+    # nocheckin: don't instance Agents?
     if agent is None:
         from bench.builtin import BenchAgent
 
