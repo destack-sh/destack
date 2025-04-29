@@ -55,7 +55,6 @@ class Task(
 
     # routing
     due_at: Optional[datetime] = p_regular(50, default=None)
-    # nocheckin: Task.thread?
     assigned_to: Optional[Subject] = p_regular(
         51, require=False, array=False, references=SUBJECT_NODE_TYPES.tuple
     )

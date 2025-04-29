@@ -592,9 +592,9 @@ class NodeType(BuiltinEnum):
 
     # orchestration
     PLAN = 6100, "Plan", "Plan with Tasks", "fas fa-list-check"
-    TASK = 6110, "Task", "Task", "far fa-square-check"
-    CLAIM = 6150, "Claim", "Claim", "fas fa-stamp"
-    CURSOR = 6170, "Cursor", "Cursor", "fas fa-mouse"
+    TASK = 6110, "Task", "To-do item", "far fa-square-check"
+    CLAIM = 6150, "Claim", "Control over something", "fas fa-stamp"
+    CURSOR = 6170, "Cursor", "Position in something", "fas fa-mouse"
     # ENTITLEMENT, POOL, LOCK, BARRIER, ...?
 
     # view

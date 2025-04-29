@@ -731,13 +731,14 @@ export function useTextEditor(options: {
   suppressDrop: MaybeRef<boolean>;
   navigate: (direction: NavigationDirection) => void;
   deleteSelf: () => void;
+  enter: () => void;
   plugins: Plugin[];
   parentComponent: ComponentInternalInstance;
   history?: boolean;
   pageContext?: PageContext;
   onPmTransaction?: (view: EditorView, prevState: EditorState, newState: EditorState) => void;
 }) {
-  const { mode, textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf } = options;
+  const { mode, textRef, text, isInput, suppressEnter, suppressDrop, navigate, deleteSelf, enter } = options;
 
   // setup
   const bindings: Record<string, Command> = {
@@ -747,7 +748,14 @@ export function useTextEditor(options: {
   if (mode == "line") {
     bindings["Shift-Enter"] = () => true;
     bindings["Mod-Enter"] = () => true;
-    bindings.Enter = () => true;
+    bindings.Enter = (state, dispatch, view) => {
+      // if we're at the end of the line, enter
+      const { selection } = state;
+      if (selection instanceof TextSelection && selection.empty) {
+        enter();
+      }
+      return true;
+    };
   } else if (toValue(suppressEnter)) {
     bindings["Shift-Enter"] = bindings.Enter;
     bindings["Mod-Enter"] = () => true;

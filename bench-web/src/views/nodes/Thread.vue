@@ -492,6 +492,9 @@ function stopReplying() {
 }
 
 function addNodes(nodePtrs: NodeReferenceData[]) {
+  if (thread.value == null) {
+    throw new Error("no thread");
+  }
   draftNodesPtr.value = [
     ...(draftNodesPtr.value ?? []).filter((n) => !nodePtrs.some((n2) => n2.id == n.id)),
     ...nodePtrs,
@@ -502,7 +505,7 @@ function addNodes(nodePtrs: NodeReferenceData[]) {
       const claim = createClaim(threadConnection.tx, threadGraph, {
         claim: {
           type: ClaimType.WRITE,
-          parentPtr: toNodeRef(thread.value!),
+          parentPtr: toNodeRef(thread.value),
           benchPtr: thread.value?.benchPtr,
           packagePtr: thread.value?.packagePtr,
           targetPtr: nodePtr,

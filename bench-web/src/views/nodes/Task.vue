@@ -68,9 +68,11 @@ defineExpose<ViewExpose>({ self, id, focus });
         placeholder="Task"
         :model-value="task?.title"
         @update:model-value="
-          (newValue) => connection.tx.update(task!, { title: newValue as TextLineData }, { debounce: 'short' })
+          (newValue) => connection.tx.update(task!, { title: newValue as TextLineData }, { debounce: 'long' })
         "
         @navigate="emit('navigate', $event)"
+        @enter="emit('enter')"
+        @deleteSelf="emit('deleteSelf')"
       />
       <!-- NOTE :Incomplete: Task.owner/due/triggers/... -->
       <!-- ... -->

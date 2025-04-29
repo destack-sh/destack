@@ -1,7 +1,7 @@
-import { BlockData, PageData } from "@/proto/wire";
+import { BlockData, NodeReferenceData, PageData } from "@/proto/wire";
 import { PreparedNodeConnection } from "@/system/connection";
 import Block from "@/views/nodes/Block.vue";
-import { inject, provide, Ref } from "vue";
+import { ComponentPublicInstance, inject, provide, Ref } from "vue";
 
 /**
  * NOTE :Architecture: we can't use provide/inject because the Block views are created manually,
@@ -14,9 +14,10 @@ export const PAGE_CONTEXT_KEY = Symbol("page");
 export type PageContext = {
   page: Ref<PageData | null | undefined>;
   blocks: Ref<BlockData[]>;
-  blocksRefById: Ref<Record<string, InstanceType<typeof Block>>>;
+  blocksRefById: Ref<Record<string, ComponentPublicInstance<typeof Block>>>;
   preparedConnection: PreparedNodeConnection;
   gutterWidth: Ref<number | undefined>;
+  focus: (nodePtr: NodeReferenceData) => void;
 };
 
 /** Provide the PageContext */
