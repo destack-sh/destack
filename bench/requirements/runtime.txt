@@ -62,10 +62,7 @@ certifi==2024.7.4
     #   requests
     #   sentry-sdk
 cffi==1.17.1
-    # via
-    #   cryptography
-    #   pycares
-    #   pynacl
+    # via pycares
 charset-normalizer==3.4.1
     # via
     #   markitdown
@@ -80,8 +77,6 @@ coloredlogs==15.0.1
     # via onnxruntime
 croniter==1.4.1
     # via -r bench/requirements/base.in
-cryptography==44.0.2
-    # via pyjwt
 dateparser==1.1.8
     # via -r bench/requirements/runtime.in
 deprecated==1.2.18
@@ -89,7 +84,6 @@ deprecated==1.2.18
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-semantic-conventions
-    #   pygithub
 distro==1.9.0
     # via
     #   anthropic
@@ -373,17 +367,14 @@ pydantic-core==2.33.1
     # via pydantic
 pydub==0.25.1
     # via -r bench/requirements/runtime.in
-pygithub==2.6.1
-    # via -r bench/requirements/runtime.in
 pygments==2.19.1
     # via rich
 pyjwt==2.10.1
     # via
     #   livekit-agents
     #   livekit-api
-    #   pygithub
-pynacl==1.5.0
-    # via pygithub
+pymupdf==1.25.5
+    # via -r bench/requirements/runtime.in
 pypandoc==1.13
     # via -r bench/requirements/runtime.in
 pyparsing==3.2.3
@@ -434,7 +425,6 @@ requests==2.32.3
     #   google-genai
     #   markitdown
     #   pyairtable
-    #   pygithub
     #   requests-oauthlib
     #   tiktoken
 requests-oauthlib==2.0.0
@@ -508,7 +498,6 @@ typing-extensions==4.13.2
     #   pyairtable
     #   pydantic
     #   pydantic-core
-    #   pygithub
     #   python-docx
     #   python-pptx
     #   typer
@@ -523,7 +512,6 @@ urllib3==2.4.0
     # via
     #   botocore
     #   pyairtable
-    #   pygithub
     #   requests
     #   sentry-sdk
 uvloop==0.21.0
