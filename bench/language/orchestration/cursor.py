@@ -22,7 +22,7 @@ from bench.language.core import (
 from bench.language.core.expression import Expression
 
 if TYPE_CHECKING:
-    from bench.language import Agent, Package, Run, Space, Thread
+    from bench.language import Agent, Run, Space, Thread
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -71,14 +71,12 @@ class Cursor(IsRuntime, IsOwnable, IsModal, IsTitled, PackageNode):
     """
 
     # meta
-    parent: Union["Package", "Space", "Agent", "Thread", "Run", "Cursor", None] = p_node_parent(
+    parent: Union["Space", "Agent", "Thread", "Run", None] = p_node_parent(
         4,
-        NodeType.PACKAGE,
         NodeType.SPACE,
         NodeType.AGENT,
         NodeType.THREAD,
         NodeType.RUN,
-        NodeType.CURSOR,
         ckless=True,
     )
     type: CursorType = p_regular(30, require=True)

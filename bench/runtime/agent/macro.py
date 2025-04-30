@@ -197,8 +197,8 @@ def FLUSH(*, runner: "AgentRunner" = _INJECTED_RUNNER):
     "SEND",
     """\
 Create a Message in the current Thread.
-SHOULD be just one 'paragraph' (use multiple SENDs if needed).
-Returns the Message.
+One Message SHOULD be just one 'paragraph' (use multiple SENDs as needed).
+`nodes` should only contain Nodes *new* to this chat.
 """,
     signature="(str | None, *, nodes: Sequence[Node] | None = None, reply_to: Message | None = None) -> Message",
 )
@@ -209,24 +209,27 @@ def SEND(
     reply_to: Message | None = None,
     runner: "AgentRunner" = _INJECTED_RUNNER,
 ):
+    thread = runner.thread
     # nodes
-    nodes = [
-        n
-        for n in nodes or ()
-        if isinstance(n, Node) and not isinstance(n, (Run, Span, Interruption, Message))
-    ]
+    new_nodes: list[Node] = []
+    prev_nodes: set[Node] = {n for m in thread.messages for n in m.nodes}
+    for node in nodes or ():
+        # ensure nodes are relevant and nodes
+        if not isinstance(node, (Run, Span, Interruption, Message)) and node not in prev_nodes:
+            new_nodes.append(node)
+            prev_nodes.add(node)
     # message
     message = Message.new(
         text=text,
         owned_by=runner.agent,
-        nodes=nodes,
+        nodes=new_nodes,
         reply_to=reply_to,
         model_developer=runner.model_settings.model_developer,
         model_provider=runner.model_settings.model_provider,
         model_id=runner.model_settings.model_id,
         model_name=runner.model_settings.model_name,
     )
-    for node in nodes:
+    for node in new_nodes:
         if node.parent_ptr is None:
             message.append(node)
     runner.thread.thread.append(message)
