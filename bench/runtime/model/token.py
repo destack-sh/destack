@@ -21,6 +21,11 @@ class Tokenizer(ABC):
         ...
 
     @abstractmethod
+    def estimate_video_tokens(self, video: File) -> int:
+        """Estimate the number of tokens in a video."""
+        ...
+
+    @abstractmethod
     def estimate_document_tokens(self, document: File) -> int:
         """Estimate the number of tokens in a document."""
         ...
@@ -40,8 +45,12 @@ class StupidTokenizer(Tokenizer):
         return 1000
 
     @override
+    def estimate_video_tokens(self, video: File) -> int:
+        return 10000
+
+    @override
     def estimate_document_tokens(self, document: File) -> int:
-        return 5000
+        return 3000
 
 
 # TODO :Performance: implement TiktokenTokenizer

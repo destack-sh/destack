@@ -495,6 +495,8 @@ class ColorType(BuiltinEnum):
 
 @enum_(EnumType.NODE_MODE)
 class NodeMode(BuiltinEnum):
+    KERNEL = 3, "Kernel", "Managed by Bench (hidden)", "fas fa-cog", ColorType.YELLOW
+    SYSTEM = 6, "System", "Managed by Bench", "fas fa-cog", ColorType.YELLOW
     BUILTIN = 10, "Builtin", "Provided by Bench", "fas fa-cog", ColorType.YELLOW
     MAIN = 20, "Main", "Active and available", "fas fa-globe", ColorType.GREEN
     TEST = 30, "Test", "Active in test", "fas fa-flask", ColorType.BLUE

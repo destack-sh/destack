@@ -131,6 +131,14 @@ class AudioPiece(FilePiece):
 
 
 @piece_()
+class VideoPiece(FilePiece):
+    @override
+    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
+        assert self.file.type == FileType.VIDEO
+        return tokenizer.estimate_video_tokens(self.file)
+
+
+@piece_()
 class DocumentPiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
@@ -153,7 +161,9 @@ def get_file_piece(file: File, model_settings: "ModelSettings") -> FilePiece:
         return ImagePiece(file=file)
     elif file.type == FileType.AUDIO:
         return AudioPiece(file=file)
-    elif file.type == FileType.TEXT or file.type == FileType.DOCUMENT:
+    elif file.type == FileType.VIDEO:
+        return VideoPiece(file=file)
+    elif file.type == FileType.TEXT or file.type == FileType.CODE or file.type == FileType.DOCUMENT:
         return DocumentPiece(file=file)
     else:
         return UnsupportedFilePiece(file=file)
