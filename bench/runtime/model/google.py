@@ -1,11 +1,10 @@
-from typing import TYPE_CHECKING, assert_never, override
+from typing import TYPE_CHECKING, Any, assert_never, cast, override
 
 import google.generativeai as genai
 import structlog
 from opentelemetry import trace
 
-from bench.language import Code, Session, download_file_batch
-from bench.runtime.core import NotSupportedError
+from bench.language import Code, FileFormat, Session, download_file_batch
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
@@ -14,12 +13,13 @@ from .piece import (
     AudioPiece,
     BreakPiece,
     CodePiece,
+    DocumentPiece,
+    FilePiece,
     ImagePiece,
     LeafPiece,
     PieceRole,
     SeparatorPiece,
     TextPiece,
-    UnsupportedFilePiece,
 )
 from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
@@ -46,11 +46,12 @@ async def build_google_chat_messages(
     pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
 
     # download media
+    # nocheckin :Robustness: upload larger Files for Google/Gemini models
     files_to_download = [
         piece.file
         for piece in pieces
-        if isinstance(piece, (ImagePiece, AudioPiece))
-        if piece.file._cached_content is None
+        if isinstance(piece, (ImagePiece, AudioPiece, DocumentPiece))
+        and piece.file._cached_content is None
     ]
     if files_to_download:
         await download_file_batch(files_to_download, include_content=True, session=session)
@@ -94,15 +95,57 @@ async def build_google_chat_messages(
             current_text_parts.append(text)
         elif isinstance(piece, CodePiece):
             current_text_parts.append(piece.code)
-        elif isinstance(piece, ImagePiece):
-            _flush_text()
-            mime_type = piece.file.mime_type
-            if not mime_type:
-                raise NotSupportedError(f"file {piece.file!r} not supported yet")
-            current_content.append({"mime_type": mime_type, "data": piece.file.read_content()})
-        elif isinstance(piece, UnsupportedFilePiece):
-            alias = prompt.aliasing.get_or_add(piece.file)
-            current_text_parts.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
+        elif isinstance(piece, FilePiece):
+            if isinstance(piece, ImagePiece) and piece.file.format in (  # noqa: SIM114
+                FileFormat.PNG,
+                FileFormat.JPEG,
+                FileFormat.WEBP,
+                FileFormat.HEIC,
+                FileFormat.HEIF,
+            ):
+                _flush_text()
+                current_content.append(
+                    {
+                        "mime_type": cast(Any, piece.file.mime_type),
+                        "data": piece.file.read_content(),
+                    }
+                )
+            elif isinstance(piece, AudioPiece) and piece.file.format in (  # noqa: SIM114
+                FileFormat.WAV,
+                FileFormat.MP3,
+                FileFormat.AAC,
+                FileFormat.OGG,
+                FileFormat.FLAC,
+            ):
+                _flush_text()
+                current_content.append(
+                    {
+                        "mime_type": cast(Any, piece.file.mime_type),
+                        "data": piece.file.read_content(),
+                    }
+                )
+            elif isinstance(piece, DocumentPiece) and piece.file.format in (
+                FileFormat.PDF,
+                FileFormat.JAVASCRIPT,
+                FileFormat.PYTHON,
+                FileFormat.TXT,
+                FileFormat.HTML,
+                FileFormat.CSS,
+                FileFormat.MARKDOWN,
+                FileFormat.CSV,
+                FileFormat.XML,
+                FileFormat.RTF,
+            ):
+                _flush_text()
+                current_content.append(
+                    {
+                        "mime_type": cast(Any, piece.file.mime_type),
+                        "data": piece.file.read_content(),
+                    }
+                )
+            else:
+                alias = prompt.aliasing.get_or_add(piece.file)
+                current_text_parts.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
         else:
             raise RuntimeError(f"unexpected piece {piece!r}")
 
