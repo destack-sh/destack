@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union, assert_never, override
+from typing import TYPE_CHECKING, Any, Union, assert_never, cast, override
 
 import anthropic
 import structlog
@@ -6,8 +6,7 @@ from anthropic import NOT_GIVEN
 from anthropic import types as anthropic_types
 from opentelemetry import trace
 
-from bench.language import Code, Session, download_file_batch
-from bench.runtime.core import NotSupportedError
+from bench.language import Code, FileFormat, Session, download_file_batch
 from bench.utils.utils import get_from_env
 
 from .chat import ChatModelRunner
@@ -16,12 +15,14 @@ from .piece import (
     AudioPiece,
     BreakPiece,
     CodePiece,
+    DocumentPiece,
+    FilePiece,
     ImagePiece,
     LeafPiece,
     PieceRole,
     SeparatorPiece,
     TextPiece,
-    UnsupportedFilePiece,
+    UnsupportedPiece,
 )
 from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
@@ -52,17 +53,21 @@ async def build_anthropic_messages(
 
     # download media
     files_to_download = [
-        piece.file
+        piece.node
         for piece in pieces
         if isinstance(piece, (ImagePiece, AudioPiece))
-        if piece.file._cached_content is None
+        if piece.node._cached_content is None
     ]
     if files_to_download:
         await download_file_batch(files_to_download, include_content=True, session=session)
 
     # render
     current_content: list[
-        Union[anthropic_types.TextBlockParam, anthropic_types.ImageBlockParam]
+        Union[
+            anthropic_types.TextBlockParam,
+            anthropic_types.ImageBlockParam,
+            anthropic_types.DocumentBlockParam,
+        ]
     ] = []
     current_text_pieces: list[str] = []
     current_role: PieceRole | None = None
@@ -70,7 +75,13 @@ async def build_anthropic_messages(
 
     def _flush_text() -> None:
         if current_text_pieces:
-            current_content.append({"type": "text", "text": "\n".join(current_text_pieces)})
+            current_content.append(
+                {
+                    "type": "text",
+                    "text": "\n".join(current_text_pieces),
+                    "cache_control": {"type": "ephemeral"},
+                }
+            )
             current_text_pieces.clear()
 
     def _flush_content() -> None:
@@ -101,26 +112,48 @@ async def build_anthropic_messages(
             current_text_pieces.append(text)
         elif isinstance(piece, CodePiece):
             current_text_pieces.append(piece.code)
-        elif isinstance(piece, ImagePiece):
-            _flush_text()
-            mime_type = piece.file.mime_type
-            if mime_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
-                raise NotSupportedError(f"unsupported image mime type {mime_type!r}")
-            current_content.append(
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": mime_type,
-                        "data": piece.file.read_content_b64(),
-                    },
-                }
+        elif isinstance(piece, FilePiece):
+            if isinstance(piece, ImagePiece) and piece.node.format in (
+                FileFormat.JPEG,
+                FileFormat.PNG,
+                FileFormat.GIF,
+                FileFormat.WEBP,
+            ):
+                _flush_text()
+                current_content.append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": cast(Any, piece.node.mime_type),
+                            "data": piece.node.read_content_b64(),
+                        },
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+            elif isinstance(piece, DocumentPiece) and piece.node.format == FileFormat.PDF:
+                _flush_text()
+                current_content.append(
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": cast(Any, piece.node.mime_type),
+                            "data": piece.node.read_content_b64(),
+                        },
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                )
+            else:
+                alias = prompt.aliasing.get_or_add(piece.node)
+                current_text_pieces.append(f"# UNSUPPORTED FILE: [@{alias}] = {piece.node!r})")
+        elif isinstance(piece, UnsupportedPiece):
+            alias = prompt.aliasing.get_or_add(piece.node)
+            current_text_pieces.append(
+                f"# UNSUPPORTED NODE: [@{alias}] = {piece.node!r} ({piece.reason or '<unknown reason>'})"
             )
-        elif isinstance(piece, UnsupportedFilePiece):
-            alias = prompt.aliasing.get_or_add(piece.file)
-            current_text_pieces.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
         else:
-            raise NotSupportedError(f"unexpected piece {piece!r}")
+            raise RuntimeError(f"unexpected piece {piece!r}")
 
     # final flush
     _flush_text()

@@ -137,14 +137,14 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             model_id = "gpt-4.1-2025-04-14"
             model_name = "gpt-4.1"
             knowledge_cutoff = date(2024, 6, 1)
-            supported_file_types = (FileType.IMAGE, FileType.AUDIO)
+            supported_file_types = (FileType.IMAGE,)
         elif model_developer == ModelDeveloper.ANTHROPIC:
             model_cls = AnthropicChatModelRunner
             model_provider = ModelProvider.ANTHROPIC
             model_id = "claude-3-7-sonnet-20250219"
             model_name = "claude-3-7-sonnet"
             knowledge_cutoff = date(2024, 10, 1)
-            supported_file_types = (FileType.IMAGE, FileType.AUDIO)
+            supported_file_types = (FileType.IMAGE, FileType.DOCUMENT)
         elif model_developer == ModelDeveloper.GOOGLE:
             model_cls = GoogleChatModelRunner
             model_provider = ModelProvider.GOOGLE
@@ -158,7 +158,7 @@ class AgentRunner[N: Agent = Agent](Runner[N]):
             model_id = "x-ai/grok-3-beta"
             model_name = "grok-3"
             knowledge_cutoff = date(2025, 4, 14)
-            supported_file_types = (FileType.IMAGE, FileType.AUDIO)
+            supported_file_types = (FileType.IMAGE,)
         else:
             raise NotSupportedError(f"unsupported model developer {model_developer!r}")
         self.model_settings = ModelSettings(

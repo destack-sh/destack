@@ -181,7 +181,7 @@ def log_prompt(prompt: Prompt, pieces: Sequence[LeafPiece]) -> None:
         elif isinstance(piece, CodePiece):
             prompt_parts.append(piece.code)
         elif isinstance(piece, FilePiece):
-            prompt_parts.append(repr(piece.file))
+            prompt_parts.append(repr(piece.node))
         else:
             prompt_parts.append(f" ??? {piece!r} ???")
     rendered = "\n".join(prompt_parts)
