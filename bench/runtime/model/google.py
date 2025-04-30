@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, assert_never, cast, override
+from typing import TYPE_CHECKING, Any, Literal, assert_never, cast, override
 
 import google.generativeai as genai
 import structlog
@@ -20,6 +20,7 @@ from .piece import (
     PieceRole,
     SeparatorPiece,
     TextPiece,
+    UnsupportedPiece,
 )
 from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
@@ -46,12 +47,12 @@ async def build_google_chat_messages(
     pieces, _ = compile_prompt(prompt=prompt, tokenizer=tokenizer, max_tokens=max_tokens)
 
     # download media
-    # nocheckin :Robustness: upload larger Files for Google/Gemini models
+    # TODO :Robustness: upload larger Files for Google/Gemini models
     files_to_download = [
-        piece.file
+        piece.node
         for piece in pieces
         if isinstance(piece, (ImagePiece, AudioPiece, DocumentPiece))
-        and piece.file._cached_content is None
+        and piece.node._cached_content is None
     ]
     if files_to_download:
         await download_file_batch(files_to_download, include_content=True, session=session)
@@ -96,21 +97,24 @@ async def build_google_chat_messages(
         elif isinstance(piece, CodePiece):
             current_text_parts.append(piece.code)
         elif isinstance(piece, FilePiece):
-            if isinstance(piece, ImagePiece) and piece.file.format in (  # noqa: SIM114
+            if isinstance(piece, ImagePiece) and piece.node.format in (
                 FileFormat.PNG,
                 FileFormat.JPEG,
                 FileFormat.WEBP,
-                FileFormat.HEIC,
-                FileFormat.HEIF,
+                FileFormat.GIF,
             ):
                 _flush_text()
-                current_content.append(
-                    {
-                        "mime_type": cast(Any, piece.file.mime_type),
-                        "data": piece.file.read_content(),
-                    }
-                )
-            elif isinstance(piece, AudioPiece) and piece.file.format in (  # noqa: SIM114
+                content: genai.types.BlobDict = {
+                    "mime_type": cast(
+                        Literal[
+                            "image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"
+                        ],
+                        piece.node.mime_type,
+                    ),
+                    "data": piece.node.read_content(),
+                }
+                current_content.append(content)
+            elif isinstance(piece, AudioPiece) and piece.node.format in (
                 FileFormat.WAV,
                 FileFormat.MP3,
                 FileFormat.AAC,
@@ -118,13 +122,15 @@ async def build_google_chat_messages(
                 FileFormat.FLAC,
             ):
                 _flush_text()
-                current_content.append(
-                    {
-                        "mime_type": cast(Any, piece.file.mime_type),
-                        "data": piece.file.read_content(),
-                    }
-                )
-            elif isinstance(piece, DocumentPiece) and piece.file.format in (
+                content: genai.types.BlobDict = {
+                    "mime_type": cast(
+                        Literal["audio/wav", "audio/mp3", "audio/aac", "audio/ogg", "audio/flac"],
+                        piece.node.mime_type,
+                    ),
+                    "data": piece.node.read_content(),
+                }
+                current_content.append(content)
+            elif isinstance(piece, DocumentPiece) and piece.node.format in (
                 FileFormat.PDF,
                 FileFormat.JAVASCRIPT,
                 FileFormat.PYTHON,
@@ -139,13 +145,18 @@ async def build_google_chat_messages(
                 _flush_text()
                 current_content.append(
                     {
-                        "mime_type": cast(Any, piece.file.mime_type),
-                        "data": piece.file.read_content(),
+                        "mime_type": cast(Any, piece.node.mime_type),
+                        "data": piece.node.read_content(),
                     }
                 )
             else:
-                alias = prompt.aliasing.get_or_add(piece.file)
-                current_text_parts.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
+                alias = prompt.aliasing.get_or_add(piece.node)
+                current_text_parts.append(f"# UNSUPPORTED FILE: [@{alias}] = ({piece.node!r})")
+        elif isinstance(piece, UnsupportedPiece):
+            alias = prompt.aliasing.get_or_add(piece.node)
+            current_text_parts.append(
+                f"# UNSUPPORTED NODE: [@{alias}] = {piece.node!r} ({piece.reason or '<unknown reason>'})"
+            )
         else:
             raise RuntimeError(f"unexpected piece {piece!r}")
 

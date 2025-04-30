@@ -1,11 +1,11 @@
 import dataclasses
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator, Literal, Sequence, dataclass_transform, override
+from typing import TYPE_CHECKING, Generator, Literal, Sequence, Union, dataclass_transform, override
 
 import structlog
 from opentelemetry import trace
 
-from bench.language import File, FileType, NodeType, _is_setup_complete
+from bench.language import File, FileType, Node, NodeType, _is_setup_complete
 
 from .token import Tokenizer
 
@@ -107,66 +107,68 @@ class CodePiece(LeafPiece):
 
 
 @piece_()
+class UnsupportedPiece(LeafPiece):
+    node: Node = raise_if_none()
+    reason: str | None = None
+
+    @override
+    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
+        return 50
+
+
+@piece_()
 class FilePiece(LeafPiece, ABC):
-    file: File = raise_if_none()
-
-
-# nocheckin: File document support in Chat models
+    node: File = raise_if_none()
 
 
 @piece_()
 class ImagePiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        assert self.file.type == FileType.IMAGE
-        return tokenizer.estimate_image_tokens(self.file)
+        assert self.node.type == FileType.IMAGE
+        return tokenizer.estimate_image_tokens(self.node)
 
 
 @piece_()
 class AudioPiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        assert self.file.type == FileType.AUDIO
-        return tokenizer.estimate_audio_tokens(self.file)
+        assert self.node.type == FileType.AUDIO
+        return tokenizer.estimate_audio_tokens(self.node)
 
 
 @piece_()
 class VideoPiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        assert self.file.type == FileType.VIDEO
-        return tokenizer.estimate_video_tokens(self.file)
+        assert self.node.type == FileType.VIDEO
+        return tokenizer.estimate_video_tokens(self.node)
 
 
 @piece_()
 class DocumentPiece(FilePiece):
     @override
     def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        assert self.file.type == FileType.DOCUMENT
-        return tokenizer.estimate_document_tokens(self.file)
+        assert self.node.type == FileType.DOCUMENT
+        return tokenizer.estimate_document_tokens(self.node)
 
 
-@piece_()
-class UnsupportedFilePiece(FilePiece):
-    @override
-    def estimate_tokens(self, prompt: "Prompt", tokenizer: Tokenizer) -> int:
-        return 0
-
-
-def get_file_piece(file: File, model_settings: "ModelSettings") -> FilePiece:
+def get_file_piece(
+    file: File, model_settings: "ModelSettings"
+) -> Union[FilePiece, UnsupportedPiece]:
     """Get the appropriate FilePiece for a File."""
     if file.type not in model_settings.supported_file_types:
-        return UnsupportedFilePiece(file=file)
+        return UnsupportedPiece(node=file, reason=f"unsupported file type: {file.type.bench_name}")
     elif file.type == FileType.IMAGE:
-        return ImagePiece(file=file)
+        return ImagePiece(node=file)
     elif file.type == FileType.AUDIO:
-        return AudioPiece(file=file)
+        return AudioPiece(node=file)
     elif file.type == FileType.VIDEO:
-        return VideoPiece(file=file)
+        return VideoPiece(node=file)
     elif file.type == FileType.TEXT or file.type == FileType.CODE or file.type == FileType.DOCUMENT:
-        return DocumentPiece(file=file)
+        return DocumentPiece(node=file)
     else:
-        return UnsupportedFilePiece(file=file)
+        return UnsupportedPiece(node=file, reason=f"unsupported file type: {file.type.bench_name}")
 
 
 BasicPiece = BreakPiece | SeparatorPiece | TextPiece | CodePiece | FilePiece

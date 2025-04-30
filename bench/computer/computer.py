@@ -158,7 +158,7 @@ class ComputerService(ServiceBase, ComputerBase):
     # Terminal
     #
 
-    # nocheckin: Computer shell / "Jupyter" / ...
+    # nocheckin: Computer shell / "Jupyter" / browsing / :ComputerUse ...
 
     async def shell(self, request: ShellCommandRequest, headers: Mapping) -> ShellCommandResponse:
         """Execute a shell command and return its output"""

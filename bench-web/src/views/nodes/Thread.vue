@@ -1254,6 +1254,7 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
         <div class="flex flex-row items-center gap-x-1.5">
           <!-- Computer -->
           <button
+            v-if="17 < 3 /* :Incomplete :ComputerUse */"
             :disabled="computer != null || hasClaimedComputer"
             class="group/button cursor-pointer rounded-full px-1 py-0.5 text-xs transition-colors duration-75 enabled:text-gray-400 enabled:hover:bg-gray-100 enabled:hover:text-gray-700"
             @mousedown.stop="

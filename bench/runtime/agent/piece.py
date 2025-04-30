@@ -34,6 +34,7 @@ from bench.runtime.model import (
     SeparatorPiece,
     TextPiece,
     Tokenizer,
+    UnsupportedPiece,
     get_file_piece,
     piece_,
     raise_if_none,
@@ -46,7 +47,9 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def get_node_piece(node: Node, model_settings: "ModelSettings") -> Union[FilePiece, "NodePiece"]:
+def get_node_piece(
+    node: Node, model_settings: "ModelSettings"
+) -> Union[UnsupportedPiece, FilePiece, "NodePiece"]:
     """Get the appropriate NodePiece for a Node."""
     if isinstance(node, File):
         return get_file_piece(node, model_settings)

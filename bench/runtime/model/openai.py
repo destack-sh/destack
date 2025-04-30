@@ -1,12 +1,11 @@
-from typing import override
+from typing import Literal, cast, override
 
 import openai
 import structlog
 from openai.types import chat as openai_chat_types
 from opentelemetry import trace
 
-from bench.language import Code, Session, download_file_batch
-from bench.runtime.core import IncapableError
+from bench.language import Code, FileFormat, Session, download_file_batch
 from bench.utils.func import hash_stable_hex
 from bench.utils.utils import get_from_env
 
@@ -16,12 +15,13 @@ from .piece import (
     AudioPiece,
     BreakPiece,
     CodePiece,
+    FilePiece,
     ImagePiece,
     LeafPiece,
     PieceRole,
     SeparatorPiece,
     TextPiece,
-    UnsupportedFilePiece,
+    UnsupportedPiece,
 )
 from .prompt import LOG_COMPLETIONS, LOG_PROMPTS, Prompt, compile_prompt, log_completion, log_prompt
 from .token import TiktokenTokenizer, Tokenizer
@@ -48,10 +48,10 @@ async def build_openai_chat_messages(
 
     # download media
     files_to_download = [
-        piece.file
+        piece.node
         for piece in pieces
         if isinstance(piece, (ImagePiece, AudioPiece))
-        if piece.file._cached_content is None
+        if piece.node._cached_content is None
     ]
     if files_to_download:
         await download_file_batch(files_to_download, include_content=True, session=session)
@@ -91,24 +91,51 @@ async def build_openai_chat_messages(
             current_text_pieces.append(text)
         elif isinstance(piece, CodePiece):
             current_text_pieces.append(piece.code)
-        elif isinstance(piece, ImagePiece):
-            _flush_text()
-            if piece.file.url is not None:
-                current_content.append({"type": "image_url", "image_url": {"url": piece.file.url}})
-            else:
+        elif isinstance(piece, FilePiece):
+            if isinstance(piece, ImagePiece) and piece.node.format in (
+                FileFormat.PNG,
+                FileFormat.JPEG,
+                FileFormat.WEBP,
+                FileFormat.GIF,
+            ):
+                _flush_text()
+                if piece.node.url is not None:
+                    current_content.append(
+                        {"type": "image_url", "image_url": {"url": piece.node.url}}
+                    )
+                else:
+                    current_content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{piece.node.mime_type};base64,{piece.node.read_content_b64()}"
+                            },
+                        }
+                    )
+            elif isinstance(piece, AudioPiece) and piece.node.format in (
+                FileFormat.MP3,
+                FileFormat.WAV,
+            ):
+                _flush_text()
                 current_content.append(
                     {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{piece.file.mime_type};base64,{piece.file.read_content_b64()}"
+                        "type": "input_audio",
+                        "input_audio": {
+                            "format": cast(Literal["wav", "mp3"], piece.node.format),
+                            "data": piece.node.read_content_b64(),
                         },
                     }
                 )
-        elif isinstance(piece, UnsupportedFilePiece):
-            alias = prompt.aliasing.get_or_add(piece.file)
-            current_text_pieces.append(f"# UNSUPPORTEED FILE: [@{alias}] = ({piece.file!r})")
+            else:
+                alias = prompt.aliasing.get_or_add(piece.node)
+                current_text_pieces.append(f"# UNSUPPORTED FILE: [@{alias}] = ({piece.node!r})")
+        elif isinstance(piece, UnsupportedPiece):
+            alias = prompt.aliasing.get_or_add(piece.node)
+            current_text_pieces.append(
+                f"# UNSUPPORTED NODE: [@{alias}] = {piece.node!r} ({piece.reason or '<unknown reason>'})"
+            )
         else:
-            raise IncapableError(f"unexpected piece {piece!r}")
+            raise RuntimeError(f"unexpected piece {piece!r}")
 
     # final flush
     _flush_text()
