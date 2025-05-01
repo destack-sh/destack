@@ -44,7 +44,7 @@ async function init() {
   // telemetry
   if (!IS_DEV) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
-      api_host: "https://eu.posthog.com",
+      api_host: "https://e.heybench.com",
       ui_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
       autocapture: true,
@@ -81,7 +81,7 @@ async function init() {
   startTransactionBuffers();
   setInterval(sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);
   watchCommands();
-  // (register commands that may not be imported directly)
+  // (register commands that might not be imported directly)
   // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   [HISTORY_COMMANDS, DEBUG_COMMANDS, RESOURCE_COMMANDS];
 
