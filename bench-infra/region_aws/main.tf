@@ -142,13 +142,14 @@ module "cluster_0" {
   source = "terraform-aws-modules/eks/aws"
 
   cluster_name    = "bench-${var.env}-${var.cloud}-${var.region}-cluster-0"
-  cluster_version = "1.30"
+  cluster_version = "1.32"
   iam_role_name   = "bench-${var.env}-${var.region}"
   vpc_id          = aws_vpc.region_vpc.id
   subnet_ids      = aws_subnet.private[*].id
 
-  cluster_endpoint_private_access = true
-  cluster_endpoint_public_access  = true
+  enable_cluster_creator_admin_permissions = true
+  cluster_endpoint_private_access          = true
+  cluster_endpoint_public_access           = true
 
   eks_managed_node_groups = {
     "bench-${var.env}-${var.region}-nodes" = {
@@ -181,10 +182,12 @@ module "cluster_0_auth" {
 
 # Kubernetes/Helm provider
 data "aws_eks_cluster" "cluster_0" {
-  name = module.cluster_0.cluster_name
+  name       = module.cluster_0.cluster_name
+  depends_on = [module.cluster_0]
 }
 data "aws_eks_cluster_auth" "cluster_0" {
-  name = module.cluster_0.cluster_name
+  name       = module.cluster_0.cluster_name
+  depends_on = [module.cluster_0]
 }
 provider "kubernetes" {
   host                   = data.aws_eks_cluster.cluster_0.endpoint

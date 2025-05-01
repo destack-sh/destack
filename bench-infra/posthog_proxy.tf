@@ -79,7 +79,7 @@ resource "aws_cloudfront_response_headers_policy" "posthog_cors" {
   cors_config {
     access_control_allow_credentials = true
     access_control_allow_headers {
-      items = ["*"]
+      items = ["Origin", "Authorization"]
     }
     access_control_allow_methods {
       items = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]

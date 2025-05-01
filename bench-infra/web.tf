@@ -172,21 +172,23 @@ resource "aws_cloudfront_distribution" "bench_web" {
 
 
 resource "cloudflare_record" "root" {
-  zone_id = data.cloudflare_zone.main_website.id
-  name    = local.main_website
-  type    = "CNAME"
-  content = aws_cloudfront_distribution.bench_web.domain_name
-  ttl     = 300
-  proxied = false
+  zone_id         = data.cloudflare_zone.main_website.id
+  name            = local.main_website
+  type            = "CNAME"
+  content         = aws_cloudfront_distribution.bench_web.domain_name
+  ttl             = 300
+  proxied         = false
+  allow_overwrite = true
 }
 
 resource "cloudflare_record" "www" {
-  zone_id = data.cloudflare_zone.main_website.id
-  name    = "www.${local.main_website}"
-  type    = "CNAME"
-  content = aws_cloudfront_distribution.bench_web.domain_name
-  ttl     = 300
-  proxied = false
+  zone_id         = data.cloudflare_zone.main_website.id
+  name            = "www.${local.main_website}"
+  type            = "CNAME"
+  content         = aws_cloudfront_distribution.bench_web.domain_name
+  ttl             = 300
+  proxied         = false
+  allow_overwrite = true
 }
 
 #

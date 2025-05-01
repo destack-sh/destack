@@ -132,7 +132,7 @@ resource "aws_route_table_association" "global_public" {
 
 # region modules
 module "region_aws_eu_frankfurt" {
-  source = "./region"
+  source = "./region_aws"
 
   # general
   bench_version          = local.bench_version
