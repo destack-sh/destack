@@ -370,14 +370,7 @@ export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.TIME,
   PrimitiveType.DURATION,
 ];
-export const EXPOSED_ANCHORS = [
-  // the rest are exposed too but as additional flags (start/end)
-  Anchor.LEFT,
-  Anchor.TOP,
-  Anchor.RIGHT,
-  Anchor.BOTTOM,
-];
-export const EXPOSED_REGIONS = [Region.FRANKFURT];
+export const EXPOSED_REGIONS = [Region.FRANKFURT, Region.VIRGINIA];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
@@ -385,7 +378,6 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
-  [EnumType.ANCHOR]: EXPOSED_ANCHORS,
   [EnumType.REGION]: EXPOSED_REGIONS,
 };
 

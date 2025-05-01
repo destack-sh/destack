@@ -63,27 +63,6 @@ variable "global_pg_password" {
   sensitive   = true
 }
 
-variable "global_pg_crypto_key" {
-  type        = string
-  description = "Crypto key for the global Postgres database"
-  sensitive   = true
-}
-
-# 
-# Cache
-# 
-
-variable "local_cache_system_password" {
-  type        = string
-  description = "Password for the local cache system"
-  sensitive   = true
-}
-variable "local_cache_user_password" {
-  type        = string
-  description = "Password for the local cache user"
-  sensitive   = true
-}
-
 # 
 # 3rd party secrets
 # 
@@ -115,6 +94,30 @@ variable "openai_api_key" {
 variable "anthropic_api_key" {
   type        = string
   description = "Anthropic API key"
+  sensitive   = true
+}
+
+variable "openrouter_api_key" {
+  type        = string
+  description = "OpenRouter API key"
+  sensitive   = true
+}
+
+variable "xai_api_key" {
+  type        = string
+  description = "xAI API key"
+  sensitive   = true
+}
+
+variable "exa_api_key" {
+  type        = string
+  description = "Exa API key"
+  sensitive   = true
+}
+
+variable "unsplash_access_key" {
+  type        = string
+  description = "Unsplash access key"
   sensitive   = true
 }
 

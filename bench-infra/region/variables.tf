@@ -108,28 +108,6 @@ variable "global_pg_password" {
   sensitive   = true
 }
 
-variable "global_pg_crypto_key" {
-  type        = string
-  description = "Crypto key for the global Postgres database"
-  sensitive   = true
-}
-
-#
-# Cache
-#
-
-variable "local_cache_system_password" {
-  type        = string
-  description = "Password for the local cache system"
-  sensitive   = true
-}
-
-variable "local_cache_user_password" {
-  type        = string
-  description = "Password for the local cache user"
-  sensitive   = true
-}
-
 #
 # Web
 # 
@@ -157,7 +135,6 @@ variable "web_certificate_private_key_pem" {
 # 
 # 3rd party secrets
 # 
-
 variable "sentry_dsn" {
   type        = string
   description = "Sentry DSN"
@@ -188,10 +165,35 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
+variable "openrouter_api_key" {
+  type        = string
+  description = "OpenRouter API key"
+  sensitive   = true
+}
+
+variable "xai_api_key" {
+  type        = string
+  description = "xAI API key"
+  sensitive   = true
+}
+
+variable "exa_api_key" {
+  type        = string
+  description = "Exa API key"
+  sensitive   = true
+}
+
+variable "unsplash_access_key" {
+  type        = string
+  description = "Unsplash access key"
+  sensitive   = true
+}
+
 variable "ghcr_username" {
   type        = string
   description = "GitHub Container Registry username"
 }
+
 variable "ghcr_token" {
   type        = string
   description = "GitHub Container Registry token"
@@ -204,3 +206,8 @@ variable "betterstack_token" {
   sensitive   = true
 }
 
+variable "ip_api_key" {
+  type        = string
+  description = "IP Geolocation API key"
+  sensitive   = true
+}

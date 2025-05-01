@@ -19,7 +19,6 @@ terraform {
 locals {
   bench_version = file("../version")
   global_region = "eu-zurich" # global state
-  regions       = ["eu-frankfurt"]
   main_website  = "heybench.com"
 
   host_map = {
@@ -30,10 +29,12 @@ locals {
   aws_region_by_bench_region = {
     "eu-zurich" : "eu-central-2"
     "eu-frankfurt" = "eu-central-1"
+    "na-virginia"  = "us-east-1"
   }
   aws_region_availability_zones = {
     "eu-zurich"    = ["eu-central-2a", "eu-central-2b"]
     "eu-frankfurt" = ["eu-central-1a", "eu-central-1b"]
+    "na-virginia"  = ["us-east-1a", "us-east-1b"]
   }
 }
 
@@ -152,15 +153,10 @@ module "region_aws_eu_frankfurt" {
   system_node_instance_type   = var.system_node_instance_type
 
   # db
-  global_pg_host       = aws_rds_cluster.global_pg_primary.endpoint
-  global_pg_name       = var.global_pg_name
-  global_pg_username   = var.global_pg_username
-  global_pg_password   = var.global_pg_password
-  global_pg_crypto_key = var.global_pg_crypto_key
-
-  # cache
-  local_cache_system_password = var.local_cache_system_password
-  local_cache_user_password   = var.local_cache_user_password
+  global_pg_host     = aws_rds_cluster.global_pg_primary.endpoint
+  global_pg_name     = var.global_pg_name
+  global_pg_username = var.global_pg_username
+  global_pg_password = var.global_pg_password
 
   # web
   web_zone_id                     = data.cloudflare_zone.main_website.id
@@ -169,12 +165,17 @@ module "region_aws_eu_frankfurt" {
   web_certificate_private_key_pem = acme_certificate.main_website.private_key_pem
 
   # 3rd party secrets
-  sentry_dsn        = var.sentry_dsn
-  neon_api_key      = var.neon_api_key
-  neon_base_url     = var.neon_base_url
-  openai_api_key    = var.openai_api_key
-  anthropic_api_key = var.anthropic_api_key
-  ghcr_username     = var.ghcr_username
-  ghcr_token        = var.ghcr_token
-  betterstack_token = var.betterstack_token
+  sentry_dsn          = var.sentry_dsn
+  neon_api_key        = var.neon_api_key
+  neon_base_url       = var.neon_base_url
+  openai_api_key      = var.openai_api_key
+  anthropic_api_key   = var.anthropic_api_key
+  openrouter_api_key  = var.openrouter_api_key
+  xai_api_key         = var.xai_api_key
+  exa_api_key         = var.exa_api_key
+  ip_api_key          = var.ip_api_key
+  ghcr_username       = var.ghcr_username
+  ghcr_token          = var.ghcr_token
+  betterstack_token   = var.betterstack_token
+  unsplash_access_key = var.unsplash_access_key
 }

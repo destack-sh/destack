@@ -264,48 +264,6 @@ resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
 }
 
 #
-# Elasticache
-# 
-
-resource "aws_elasticache_user" "system" {
-  user_id       = "system"
-  user_name     = "default"
-  engine        = "REDIS"
-  passwords     = ["${var.local_cache_system_password}"]
-  access_string = "on ~* +@all"
-}
-resource "aws_elasticache_user" "user" {
-  user_id       = "user"
-  user_name     = "user"
-  engine        = "REDIS"
-  passwords     = ["${var.local_cache_user_password}"]
-  access_string = "on ~* +get +set"
-}
-resource "aws_elasticache_user_group" "group" {
-  user_group_id = "group"
-  engine        = "REDIS"
-  user_ids = [
-    aws_elasticache_user.system.user_id,
-    aws_elasticache_user.user.user_id,
-  ]
-}
-resource "aws_elasticache_replication_group" "bench_redis" {
-  replication_group_id       = "bench-${var.env}-${var.cloud}-${var.region}-redis"
-  description                = "Bench Redis"
-  engine                     = "redis"
-  engine_version             = "7.1"
-  node_type                  = "cache.t3.small"
-  parameter_group_name       = "default.redis7"
-  port                       = 6379
-  user_group_ids             = [aws_elasticache_user_group.group.user_group_id]
-  automatic_failover_enabled = false
-  at_rest_encryption_enabled = true
-  transit_encryption_enabled = true
-  replicas_per_node_group    = 1
-}
-
-
-#
 # Supervisor (if primary)
 # NOTE :Infra: supervisor should probably be in its own cluster? (or even just a lone EC2 instance)
 #
@@ -324,19 +282,13 @@ module "supervisor" {
   vpc_id            = aws_vpc.region_vpc.id
   public_subnet_ids = aws_subnet.public[*].id
 
-  local_cache_host     = aws_elasticache_replication_group.bench_redis.primary_endpoint_address
-  local_cache_username = "default"
-  local_cache_password = var.local_cache_system_password
-
-  global_pg_host       = var.global_pg_host
-  global_pg_name       = var.global_pg_name
-  global_pg_username   = var.global_pg_username
-  global_pg_password   = var.global_pg_password
-  global_pg_crypto_key = var.global_pg_crypto_key
+  global_pg_host     = var.global_pg_host
+  global_pg_name     = var.global_pg_name
+  global_pg_username = var.global_pg_username
+  global_pg_password = var.global_pg_password
 
   image_pull_secret_name      = kubernetes_secret.image_pull_secret.metadata[0].name
   web_certificate_secret_name = kubernetes_secret.web_certificate_secret.metadata[0].name
-
   web_certificate_arn             = var.web_certificate_arn
   web_certificate_pem             = var.web_certificate_pem
   web_certificate_private_key_pem = var.web_certificate_private_key_pem
