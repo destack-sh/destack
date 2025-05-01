@@ -951,6 +951,9 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
                     suppress-enter
                     suppress-drop
                     placeholder="Empty message"
+                    :style="{
+                      width: widths.text + 'px',
+                    }"
                     @update:model-value="
                       (value) => {
                         editingText = value;
@@ -1232,6 +1235,9 @@ defineExpose<ViewExpose>({ self, id, commands, focus });
               placeholder="Message..."
               suppress-enter
               suppress-drop
+              :style="{
+                width: widths.text - MESSAGE_SIDE_WIDTH + 'px',
+              }"
               :model-value="draftText!"
               @update:model-value="
                 (value) => {

@@ -44,6 +44,7 @@ locals {
     USE_WAITLIST  = 1
 
     POSTHOG_API_KEY = var.posthog_api_key
+    POSTHOG_HOST    = var.posthog_host
     NEON_API_KEY    = var.neon_api_key
     NEON_BASE_URL   = var.neon_base_url
     S3_ACCESS_KEY   = aws_iam_access_key.supervisor.id

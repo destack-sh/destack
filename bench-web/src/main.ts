@@ -28,14 +28,15 @@ function onUnhandledError(err: unknown) {
     return; // TODO :Robustness: don't just suppress ResizeObserver errors
   }
   log.error("error.internal", err);
-  toaster.error({ title: "Internal client error", text: (err as any).message });
+  if (IS_DEV) {
+    toaster.error({ title: "Internal client error", text: (err as any).message });
+  }
   captureException(err);
 }
 
-/** Handle top-level errors. */
 function captureException(err: unknown) {
   posthog.captureException(err);
-  resetTransactionBuffers();
+  resetTransactionBuffers(); // NOTE: shouldn't we only do this if really needed?
 }
 
 async function init() {

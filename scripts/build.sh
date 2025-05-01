@@ -15,7 +15,7 @@ VERSION=$(cat version)
 # build bench-web with :BenchWebEnv placeholders (to be substituted in deploy)
 # (we need to 'set' them explicitly or they will be removed by vite during the build)
 VITE_COMMIT="VITE_COMMIT" \
-VITE_ENV="VITE_ENV" \
+VITE_ENVIRONMENT="VITE_ENVIRONMENT" \
 VITE_SUPERVISOR_URL="VITE_SUPERVISOR_URL" \
 VITE_IP_API_KEY="VITE_IP_API_KEY" \
 bun run --cwd bench-web build
