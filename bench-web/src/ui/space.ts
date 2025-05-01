@@ -6,7 +6,7 @@ import { cloneNode, cloneNodes, generateNodeName, makeNode, NodeIn } from "@/lan
 import { getOrderKey, updateOrder } from "@/language/core/order";
 import { newChangeId, TransactionOptions, type Transaction } from "@/language/core/transaction";
 import { createPage } from "@/language/source/page";
-import { createThread } from "@/language/source/thread";
+import { createDefaultThread, createThread } from "@/language/source/thread";
 import {
   BlockType,
   NodeMode,
@@ -29,7 +29,6 @@ import {
   isNodeRef,
   isStruct,
   makeStruct,
-  propertyInfo,
   toNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -1650,14 +1649,22 @@ declareCommands<"space">({
     text: "Create a new Thread",
     shortcuts: ["ctrl+t"],
     command: () => {
-      const thread = createThread(benchConnection.tx, benchGraph, {
-        thread: {
-          parentPtr: toNodeRef(pkg.value!),
-          packagePtr: toNodeRef(pkg.value!),
-        },
-        members: [BENCH_BENCH_AGENT_PTR, "user"],
-      });
+      const thread = createDefaultThread(benchConnection.tx, benchGraph);
       canvas.goToNode(thread, { graph: benchGraph });
+    },
+  },
+  "space.create.thread.side": {
+    title: "Create Thread (Side)",
+    icon: "fas fa-reel",
+    text: "Create a new Thread (on the side)",
+    shortcuts: ["ctrl+shift+t"],
+    command: () => {
+      const thread = createDefaultThread(benchConnection.tx, benchGraph);
+      canvas.tx().update(canvas.space.value!, { threadPtr: toNodeRef(thread) });
+      const contextView = canvas.views.find((v) => v.type == ViewType.CONTEXT);
+      if (contextView != null) {
+        nextTick(() => canvas.focusInComponent(contextView));
+      }
     },
   },
 });

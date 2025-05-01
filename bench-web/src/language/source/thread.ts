@@ -1,10 +1,12 @@
 import { supergraph } from "@/globals";
+import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
 import { isSubjectNode } from "@/language/core/const";
 import { ReadNodeGraph } from "@/language/core/graph";
 import { newChangeId, Transaction } from "@/language/core/transaction";
 import { createMembership } from "@/language/source/membership";
 import { NodeReferenceData, NodeType, SubjectNodeData, ThreadData, Timestamp } from "@/proto/wire";
 import { describeNode, isNode, isNodeRef, toNodeRef } from "@/proto/wiring";
+import { pkg } from "@/system/space";
 import { user } from "@/system/user";
 import { assertNever } from "@/utils/functools";
 import ProcessStatus from "@/views/builtin/ProcessStatus.vue";
@@ -59,5 +61,27 @@ export function createThread(
     });
   }
 
+  return thread;
+}
+
+/** Create the default Thread for this Space */
+export function createDefaultThread(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  options?: {
+    thread?: Partial<ThreadData>;
+  },
+): ThreadData {
+  if (pkg.value == null) {
+    throw new Error("no package");
+  }
+  const thread = createThread(tx, graph, {
+    thread: {
+      parentPtr: toNodeRef(pkg.value!),
+      packagePtr: toNodeRef(pkg.value!),
+      ...options?.thread,
+    },
+    members: [BENCH_BENCH_AGENT_PTR, "user"],
+  });
   return thread;
 }

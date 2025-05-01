@@ -249,7 +249,7 @@ async def build_agent_prompt(  # noqa: RUF029
 
     from .example import EXAMPLES
 
-    # nocheckin: fetch prompt/piece partials & references (Files/Links?/Databases/...)
+    # TODO :Incomplete! :Architecture: fetch prompt/piece partials & references (Files/Links?/Databases/...)
     #  (like parts of PDF files, queries into Databases.. as Cursors or as temporary context or..?)
 
     # context

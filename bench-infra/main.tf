@@ -20,7 +20,7 @@ locals {
   bench_version = file("../version")
   global_region = "eu-zurich" # global state
   regions       = ["eu-frankfurt"]
-  main_website  = "justbench.com"
+  main_website  = "heybench.com"
 
   host_map = {
     "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443s"
@@ -142,7 +142,7 @@ module "region_aws_eu_frankfurt" {
   is_primary             = true
   aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
   host_map               = local.host_map
-  supervisor_url         = "https://supervisor.justbench.com:60061"
+  supervisor_url         = "https://supervisor.heybench.com:60061"
 
   # aws
   vpc_network_cidr            = "10.1.0.0/16"

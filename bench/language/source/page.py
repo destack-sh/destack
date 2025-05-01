@@ -60,7 +60,7 @@ class Page(
     def append[T: Node](self, child: T, move: bool = False) -> "T | Block":
         if not move and isinstance(child, PageNode):
             # wrap PageNodes into Blocks
-            child_block = child.to_block()
+            child_block = child.wrap_in_block()
             self.blocks.append(child_block)
             super().append(child, move)
             return child_block
@@ -74,7 +74,7 @@ class Page(
     def extend[T: Node](self, *children: T, move: bool = False) -> "Sequence[T | Block]":
         if not move and isinstance(children[0], PageNode):
             # wrap PageNodes into Blocks
-            child_blocks = [cast(PageNode, child).to_block() for child in children]
+            child_blocks = [cast(PageNode, child).wrap_in_block() for child in children]
             self.blocks.extend(*child_blocks)
             for child in children:
                 super().append(child, move)
