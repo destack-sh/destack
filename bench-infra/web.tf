@@ -175,7 +175,7 @@ resource "cloudflare_record" "root" {
   zone_id = data.cloudflare_zone.main_website.id
   name    = local.main_website
   type    = "CNAME"
-  value   = aws_cloudfront_distribution.bench_web.domain_name
+  content = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
   proxied = false
 }
@@ -184,7 +184,7 @@ resource "cloudflare_record" "www" {
   zone_id = data.cloudflare_zone.main_website.id
   name    = "www.${local.main_website}"
   type    = "CNAME"
-  value   = aws_cloudfront_distribution.bench_web.domain_name
+  content = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
   proxied = false
 }

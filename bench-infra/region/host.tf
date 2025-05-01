@@ -16,29 +16,26 @@ locals {
     KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
-    # GLOBAL_PG_HOST       = var.global_pg_host
-    # GLOBAL_PG_NAME       = var.global_pg_name
-    # GLOBAL_PG_USERNAME   = var.global_pg_username
-    # GLOBAL_PG_PASSWORD   = var.global_pg_password
-    
+    GLOBAL_PG_URL = var.global_pg_url
+
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING       = 1
     LOG_LEVEL     = "DEBUG"
     LOG_MODE      = "JSON"
 
-    NEON_API_KEY      = var.neon_api_key
-    NEON_BASE_URL     = var.neon_base_url
-    OPENAI_API_KEY    = var.openai_api_key
-    ANTHROPIC_API_KEY = var.anthropic_api_key
-    OPENROUTER_API_KEY = var.openrouter_api_key
-    XAI_API_KEY       = var.xai_api_key
-    EXA_API_KEY       = var.exa_api_key
+    NEON_API_KEY        = var.neon_api_key
+    NEON_BASE_URL       = var.neon_base_url
+    OPENAI_API_KEY      = var.openai_api_key
+    ANTHROPIC_API_KEY   = var.anthropic_api_key
+    OPENROUTER_API_KEY  = var.openrouter_api_key
+    XAI_API_KEY         = var.xai_api_key
+    EXA_API_KEY         = var.exa_api_key
     UNSPLASH_ACCESS_KEY = var.unsplash_access_key
-    GHCR_TOKEN        = var.ghcr_token
-    S3_REGION         = aws_s3_bucket.bench_files.region
-    S3_ENDPOINT       = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
-    S3_ACCESS_KEY     = aws_iam_access_key.host.id
-    S3_SECRET_KEY     = aws_iam_access_key.host.secret
+    GHCR_TOKEN          = var.ghcr_token
+    S3_REGION           = aws_s3_bucket.bench_files.region
+    S3_ENDPOINT         = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
+    S3_ACCESS_KEY       = aws_iam_access_key.host.id
+    S3_SECRET_KEY       = aws_iam_access_key.host.secret
   }
 }
 
@@ -480,7 +477,7 @@ resource "cloudflare_record" "host_region" {
   zone_id = var.web_zone_id
   name    = "${var.cloud}-${var.region}.host"
   type    = "CNAME"
-  value   = data.kubernetes_service.host_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  content = data.kubernetes_service.host_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
   ttl     = 300
   proxied = false
 }
