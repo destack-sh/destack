@@ -30,6 +30,8 @@ attrs==25.3.0
     #   hypothesis
     #   jsonschema
     #   referencing
+backoff==2.2.1
+    # via posthog
 base58==2.1.1
     # via -r bench/requirements/runtime.in
 beautifulsoup4==4.13.4
@@ -71,7 +73,6 @@ certifi==2024.7.4
     #   httpcore
     #   httpx
     #   requests
-    #   sentry-sdk
 cffi==1.17.1
     # via pycares
 cfgv==3.4.0
@@ -109,6 +110,7 @@ distro==1.9.0
     #   anthropic
     #   browserbase
     #   openai
+    #   posthog
 dropbox==11.36.2
     # via -r bench/requirements/runtime.in
 duckdb==1.1.1
@@ -372,6 +374,8 @@ pluggy==1.5.0
     # via pytest
 ply==3.11
     # via stone
+posthog==4.0.1
+    # via -r bench/requirements/base.in
 pre-commit==3.3.3
     # via -r bench/requirements/dev.in
 prompt-toolkit==3.0.48
@@ -499,6 +503,7 @@ python-dateutil==2.9.0.post0
     #   botocore
     #   croniter
     #   dateparser
+    #   posthog
 python-docx==1.1.2
     # via
     #   -r bench/requirements/dev.in
@@ -538,6 +543,7 @@ requests==2.32.3
     #   google-api-core
     #   google-genai
     #   markitdown
+    #   posthog
     #   pyairtable
     #   requests-oauthlib
     #   tiktoken
@@ -558,8 +564,6 @@ ruff==0.7.4
     # via -r bench/requirements/dev.in
 s3transfer==0.10.4
     # via boto3
-sentry-sdk==2.27.0
-    # via -r bench/requirements/base.in
 setuptools==78.1.0
     # via pip-tools
 shellingham==1.5.4
@@ -568,6 +572,7 @@ six==1.17.0
     # via
     #   dropbox
     #   markdownify
+    #   posthog
     #   python-dateutil
     #   stone
 smmap==5.0.2
@@ -655,7 +660,6 @@ urllib3==2.4.0
     #   botocore
     #   pyairtable
     #   requests
-    #   sentry-sdk
 uvloop==0.21.0
     # via -r bench/requirements/base.in
 virtualenv==20.30.0

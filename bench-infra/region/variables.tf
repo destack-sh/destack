@@ -135,9 +135,9 @@ variable "web_certificate_private_key_pem" {
 # 
 # 3rd party secrets
 # 
-variable "sentry_dsn" {
+variable "posthog_api_key" {
   type        = string
-  description = "Sentry DSN"
+  description = "PostHog API key"
   sensitive   = true
 }
 

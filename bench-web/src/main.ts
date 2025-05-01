@@ -6,7 +6,11 @@ import {
   resetTransactionBuffers,
   startTransactionRotation as startTransactionBuffers,
 } from "@/language/core/transaction";
+import { RESOURCE_COMMANDS } from "@/language/resource/resource";
 import { sendRemoteKeepAlives } from "@/system/connection";
+import { DEBUG_COMMANDS } from "@/system/debug";
+import { HISTORY_COMMANDS } from "@/system/edit";
+import { watchCommands } from "@/ui/command";
 import { keytrap } from "@/ui/keymap";
 import { HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
@@ -14,22 +18,23 @@ import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/u
 import { COMMIT, ENV, GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { registerViewComponents } from "@/views/registry";
+import "highlight.js/styles/github.min.css";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
-import { watchCommands } from "@/ui/command";
-import { HISTORY_COMMANDS } from "@/system/edit";
-import { DEBUG_COMMANDS } from "@/system/debug";
-import { RESOURCE_COMMANDS } from "@/language/resource/resource";
-import "highlight.js/styles/github.min.css";
-import * as Sentry from "@sentry/browser";
 
 function onUnhandledError(err: unknown) {
   if (typeof err === "string" && err.includes("ResizeObserver")) {
-    return; // TODO :Cleanup: don't just suppress ResizeObserver errors
+    return; // TODO :Robustness: don't just suppress ResizeObserver errors
   }
   log.error("error.internal", err);
   toaster.error({ title: "Internal client error", text: (err as any).message });
+  captureException(err);
+}
+
+/** Handle top-level errors. */
+function captureException(err: unknown) {
+  posthog.captureException(err);
   resetTransactionBuffers();
 }
 
@@ -38,15 +43,11 @@ async function init() {
 
   // telemetry
   if (!IS_DEV) {
-    Sentry.init({
-      dsn: "https://dad29a06cac1ea9ad03ab2966c0410c9@o4504750961852416.ingest.us.sentry.io/4507623556579328",
-      environment: ENV,
-      release: `bench-web@${VERSION}`,
-    });
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
-      // public capture key
       api_host: "https://eu.posthog.com",
+      ui_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
+      autocapture: true,
     });
     posthog.opt_in_capturing();
   } else {

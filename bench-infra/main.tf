@@ -165,7 +165,6 @@ module "region_aws_eu_frankfurt" {
   web_certificate_private_key_pem = acme_certificate.main_website.private_key_pem
 
   # 3rd party secrets
-  sentry_dsn          = var.sentry_dsn
   neon_api_key        = var.neon_api_key
   neon_base_url       = var.neon_base_url
   openai_api_key      = var.openai_api_key
@@ -178,4 +177,5 @@ module "region_aws_eu_frankfurt" {
   ghcr_token          = var.ghcr_token
   betterstack_token   = var.betterstack_token
   unsplash_access_key = var.unsplash_access_key
+  posthog_api_key     = var.posthog_api_key
 }

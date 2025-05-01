@@ -72,7 +72,6 @@ certifi==2024.7.4
     #   kubernetes
     #   kubernetes-asyncio
     #   requests
-    #   sentry-sdk
 cffi==1.17.1
     # via pycares
 cfgv==3.4.0
@@ -107,6 +106,7 @@ distro==1.9.0
     #   anthropic
     #   browserbase
     #   openai
+    #   posthog
 docker==7.1.0
     # via -r bench/requirements/system.in
 duckdb==1.1.1
@@ -257,8 +257,6 @@ matplotlib-inline==0.1.7
     # via ipython
 mdurl==0.1.2
     # via markdown-it-py
-monotonic==1.6
-    # via posthog
 more-itertools==9.0.0
     # via -r bench/requirements/base.in
 mpmath==1.3.0
@@ -345,8 +343,8 @@ platformdirs==4.3.7
     #   virtualenv
 pluggy==1.5.0
     # via pytest
-posthog==3.0.2
-    # via -r bench/requirements/system.in
+posthog==4.0.1
+    # via -r bench/requirements/base.in
 pre-commit==3.3.3
     # via -r bench/requirements/dev.in
 prompt-toolkit==3.0.48
@@ -513,8 +511,6 @@ ruff==0.7.4
     # via -r bench/requirements/dev.in
 s3transfer==0.10.4
     # via boto3
-sentry-sdk==2.27.0
-    # via -r bench/requirements/base.in
 setuptools==78.1.0
     # via pip-tools
 shellingham==1.5.4
@@ -606,7 +602,6 @@ urllib3==2.4.0
     #   kubernetes
     #   kubernetes-asyncio
     #   requests
-    #   sentry-sdk
 uvicorn==0.23.2
     # via -r bench/requirements/system.in
 uvloop==0.21.0

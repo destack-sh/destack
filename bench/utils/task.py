@@ -69,7 +69,7 @@ class TaskManager:
             logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner)
             pass
         except BaseException as e:
-            logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e, sentry=e)
+            logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e)
             if self._on_error is not None:
                 self._on_error(e)
             raise
@@ -103,9 +103,7 @@ class TaskManager:
                 ):
                     self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
                     break
-                self._logger.exception(
-                    "task.error", owner=self._owner, task_id=task_id, exc_info=e, sentry=e
-                )
+                self._logger.exception("task.error", owner=self._owner, task_id=task_id, exc_info=e)
                 if not skip_errors:
                     if self._on_error is not None:
                         self._on_error(e)
@@ -149,9 +147,7 @@ class TaskManager:
                 ):
                     self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
                     break
-                self._logger.exception(
-                    "task.error", owner=self._owner, task_id=task_id, exc_info=e, sentry=e
-                )
+                self._logger.exception("task.error", owner=self._owner, task_id=task_id, exc_info=e)
                 if not skip_errors:
                     if self._on_error is not None:
                         self._on_error(e)

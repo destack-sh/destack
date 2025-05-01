@@ -14,10 +14,10 @@ from bench.utils.env import setup_env
 setup_env()
 
 from bench.utils.logging import setup_logging  # noqa: E402
-from bench.utils.telemetry import setup_tracing  # noqa: E402
+from bench.utils.telemetry import setup_telemetry  # noqa: E402
 
 setup_logging()
-setup_tracing()
+setup_telemetry()
 
 # add all CLI 'apps' in our CLI folder
 cli = typer.Typer(pretty_exceptions_enable=False)

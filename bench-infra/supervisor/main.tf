@@ -46,7 +46,7 @@ locals {
     LOG_MODE      = "JSON"
     USE_WAITLIST  = 1
 
-    SENTRY_DSN    = var.sentry_dsn
+    POSTHOG_API_KEY = var.posthog_api_key
     NEON_API_KEY  = var.neon_api_key
     NEON_BASE_URL = var.neon_base_url
     S3_ACCESS_KEY = aws_iam_access_key.supervisor.id
