@@ -27,7 +27,7 @@ locals {
     CLOUD        = var.cloud
     REGION       = var.region
 
-    SUPERVISOR_URL = "https://supervisor.justbench.com:${var.supervisor_grpc_port}"
+    SUPERVISOR_URL = "https://supervisor.heybench.com:${var.supervisor_grpc_port}"
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)

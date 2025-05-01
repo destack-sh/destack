@@ -1,8 +1,19 @@
 <script lang="ts" setup>
+import { BENCH_BENCH_AGENT_PTR } from "@/language/core/builtin";
+import { createDefaultThread, createThread } from "@/language/source/thread";
 import { ContextMode, NodeType, Orientation, ViewData } from "@/proto/wire";
 import { toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
-import { canvas, containerPtr, inspectionPtr, pagePtr, threadPtr } from "@/system/space";
+import {
+  benchConnection,
+  benchGraph,
+  canvas,
+  containerPtr,
+  inspectionPtr,
+  pagePtr,
+  pkg,
+  threadPtr,
+} from "@/system/space";
 import { startSelectingIfAllowed, useSelectionZone } from "@/ui/drag";
 import { VIEW_DEFAULT_ROOT_HEADER_HEIGHT } from "@/ui/view";
 import NodeReference from "@/views/builtin/NodeReference.vue";
@@ -23,6 +34,7 @@ const props = defineProps<
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
+canvas.registerView(self, id);
 
 // node
 const { node: inspection, connection: inspectionConnection } = supergraph.getLinkRef(inspectionPtr);
@@ -33,7 +45,7 @@ const target = computed(() => {
 });
 const targetPtr = computed(() => (target.value != null ? toNodeRef(target.value) : undefined));
 const scope = computed(() => container.value);
-const { node: thread, connection: threadConnection } = supergraph.getLinkRef(threadPtr);
+const { node: thread, connection: threadConnection } = supergraph.getLinkRef(threadPtr, { excludeSearch: true });
 
 // state
 const mode: Ref<ContextMode> = ref(ContextMode.CHAT);
@@ -46,7 +58,13 @@ const bodyHeight = computed(() => (props.size?.height ?? 0) - BAR_HEADER_HEIGHT)
 const selectionOverlayRef = ref<InstanceType<typeof SelectionOverlay> | null>(null);
 const selectionZone = useSelectionZone({ containerEl: bodyRef, overlayEl: selectionOverlayRef });
 
-defineExpose<ViewExpose>({ self });
+function focus() {
+  if (threadRef.value != null) {
+    threadRef.value.focus?.();
+  }
+}
+
+defineExpose<ViewExpose>({ self, focus });
 </script>
 <template>
   <div class="flex h-full w-full flex-col">
@@ -80,7 +98,8 @@ defineExpose<ViewExpose>({ self });
           class="cursor-pointer rounded-sm border-gray-200 px-1 py-0.5 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900"
           @click="
             () => {
-              canvas.tx().update(canvas.space.value!, { threadPtr: undefined });
+              const thread = createDefaultThread(benchConnection.tx, benchGraph);
+              canvas.tx().update(canvas.space.value!, { threadPtr: toNodeRef(thread) });
               nextTick(() => threadRef?.focus?.());
             }
           "
@@ -117,6 +136,7 @@ defineExpose<ViewExpose>({ self });
       >
         <!-- Detail -->
         <Thread
+          v-if="mode == ContextMode.CHAT && targetPtr?.id != threadPtr?.id"
           id="thread"
           ref="threadRef"
           is-minimal

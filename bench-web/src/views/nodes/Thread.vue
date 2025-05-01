@@ -41,7 +41,7 @@ import {
 import { isNode, propertyReference, toNodeRef, TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr, CURRENT_BENCH_SCOPE, packagePtr } from "@/system/client";
 import { SearchConnectionParams, useAutoConnection, useInfiniteSearchConnection } from "@/system/connection";
-import { bench, benchConnection, benchGraph, canvas, pkg, space } from "@/system/space";
+import { bench, benchConnection, benchGraph, canvas, pagePtr, pkg, space } from "@/system/space";
 import { user } from "@/system/user";
 import { CommandMapKit, fireCommand, getCommand, getNodesForCommand, MESSAGE_CONTEXT_COMMANDS } from "@/ui/command";
 import { startSelectingIfAllowed, useSelectionZone, useSingleDropZone } from "@/ui/drag";
@@ -440,6 +440,8 @@ function submit() {
   if (tx.change?.key == null) {
     tx = tx.with({ change: { key: newChangeId(), title: "Submit" } });
   }
+
+  // create thread if needed
   let thread: ThreadData;
   if (nodePtr.value == null) {
     thread = createThread(tx, benchGraph, {
@@ -452,6 +454,19 @@ function submit() {
     tx.update(space.value, { threadPtr: toNodeRef(thread) }); // not sure if this is right?
   } else {
     thread = supergraph.getOrError(nodePtr.value) as ThreadData;
+  }
+
+  // ensure current context is visible
+  if (pagePtr.value != null && !claims.value.some((c) => c.targetPtr?.id == pagePtr.value?.id)) {
+    const claim = createClaim(tx, benchGraph, {
+      claim: {
+        type: ClaimType.WRITE,
+        parentPtr: toNodeRef(thread),
+        benchPtr: benchPtr.value,
+        packagePtr: packagePtr.value!,
+        targetPtr: toNodeRef(pagePtr.value!),
+      },
+    });
   }
 
   // create message

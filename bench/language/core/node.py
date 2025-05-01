@@ -1178,7 +1178,7 @@ class PageNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT]):
         ):
             definition.restore(_now=_now)
 
-    def to_block(self) -> "Block":
+    def wrap_in_block(self) -> "Block":
         """Wrap this Node in a *new* Block."""
         from bench.language import Block
 
