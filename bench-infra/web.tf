@@ -46,7 +46,7 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
   depends_on = [aws_s3_bucket_public_access_block.bench_web]
 }
 
-# upload the built bench-web/dist to the S3 bucket
+# upload the bench-web/dist build to the S3 bucket
 locals {
   # :BenchWebEnv
   web_variables = {

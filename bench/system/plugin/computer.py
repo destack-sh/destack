@@ -84,7 +84,7 @@ def _get_computer_env_vars(
     # env vars
     env_vars: dict[str, str | None] = {
         # hosting
-        "SERVICE_NAME": "runtime",
+        "SERVICE_NAME": "computer",
         "ENVIRONMENT": ENV.value,
         "CLOUD": CLOUD.slug,
         "REGION": computer.region.slug,

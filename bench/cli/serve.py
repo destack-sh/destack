@@ -1,17 +1,20 @@
 import asyncio
 import signal
 from contextlib import contextmanager
+from pathlib import Path
 from time import time_ns
 from typing import Collection, Iterator
 from uuid import UUID
 
+import sentry_sdk
 import structlog
 import typer
 
-from bench.pb2.system_grpc import SupervisorClient
+from bench.pb2 import SupervisorClient
 from bench.proto import GrpcServer, Network, RealNetwork, ServiceBase
-from bench.utils.env import ENV, IS_DEV
+from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.oracle import REAL_ORACLE
+from bench.utils.telemetry import SERVICE_NAME
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -19,6 +22,15 @@ from .utils import async_to_sync
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
+
+if not IS_DEV and not IS_TEST:
+    version = Path("version").read_text().strip()
+    sentry_sdk.init(
+        dsn="https://dad29a06cac1ea9ad03ab2966c0410c9@o4504750961852416.ingest.us.sentry.io/4507623556579328",
+        send_default_pii=True,
+        environment=ENV,
+        release=f"bench-{SERVICE_NAME}@{version}",
+    )
 
 
 @contextmanager

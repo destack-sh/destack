@@ -102,7 +102,7 @@ const hasComputerClaim = computed(() =>
 );
 const computer: Ref<ComputerData | null> = computed(() => computers.value[0] ?? null);
 const hasClaimedComputer = ref(false);
-const CONTEXT_TABS = ["File", "Pages"];
+const CONTEXT_TABS = ["Files", "Pages"];
 const contextTab: Ref<(typeof CONTEXT_TABS)[number]> = ref(CONTEXT_TABS[0]);
 
 // size block/gutter horizontally (try to fit both until min block width)

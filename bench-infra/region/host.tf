@@ -10,21 +10,16 @@ locals {
     CLOUD        = var.cloud
     REGION       = var.region
 
-    SUPERVISOR_URL               = var.supervisor_url
+    SUPERVISOR_URL                = var.supervisor_url
     COMPUTER_RUNTIME_IMAGE        = "ghcr.io/symbolx/bench-runtime"
-    KUBERNETES_NAMESPACE         = "default"
+    KUBERNETES_NAMESPACE          = "default"
     KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
-    KUBERNETES_IMAGE_PULL_SECRET = kubernetes_secret.image_pull_secret.metadata[0].name
+    KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name
     GLOBAL_PG_USERNAME   = var.global_pg_username
     GLOBAL_PG_PASSWORD   = var.global_pg_password
-    GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
-
-    LOCAL_CACHE_HOST     = aws_elasticache_replication_group.bench_redis.primary_endpoint_address
-    LOCAL_CACHE_USERNAME = "user"
-    LOCAL_CACHE_PASSWORD = var.local_cache_user_password
 
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING       = 1
@@ -36,6 +31,10 @@ locals {
     NEON_BASE_URL     = var.neon_base_url
     OPENAI_API_KEY    = var.openai_api_key
     ANTHROPIC_API_KEY = var.anthropic_api_key
+    OPENROUTER_API_KEY = var.openrouter_api_key
+    XAI_API_KEY       = var.xai_api_key
+    EXA_API_KEY       = var.exa_api_key
+    UNSPLASH_ACCESS_KEY = var.unsplash_access_key
     GHCR_TOKEN        = var.ghcr_token
     S3_REGION         = aws_s3_bucket.bench_files.region
     S3_ENDPOINT       = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
@@ -218,7 +217,7 @@ resource "kubernetes_service" "host" {
 
 # 
 # Envoy proxy
-# NOTE: right now this looks very similar to the host, but we'll need to shard this soon
+# NOTE: right now this looks very similar to the host, but we'll probably need to shard this?
 #
 
 # Envoy ConfigMap

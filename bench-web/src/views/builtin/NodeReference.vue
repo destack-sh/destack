@@ -129,7 +129,7 @@ defineExpose({
 <template>
   <div
     v-if="node != null"
-    class=""
+    class="flex-shrink-0"
     :class="[orientation == Orientation.VERTICAL ? ['flex flex-col', verticalClass] : ['flex flex-row items-baseline']]"
     :data-node-id="node.id"
     :data-node-ck="(node as any).ck"
@@ -164,7 +164,7 @@ defineExpose({
         })
       "
       v-bind="getNodeIcon(node)"
-      class="rounded-sm text-center data-[popover=true]:bg-gray-100"
+      class="flex-shrink-0 rounded-sm text-center data-[popover=true]:bg-gray-100"
       :class="[
         ...iconClass,
         isInput ? 'hover:cursor-pointer hover:bg-gray-100' : '',
@@ -174,7 +174,7 @@ defineExpose({
       aria-hidden
     />
     <!-- Identifier -->
-    <div class="flex max-w-full flex-row items-baseline">
+    <div class="flex max-w-full flex-shrink-0 flex-row items-baseline">
       <NativeInput
         v-if="!isNested && isInput && identifierKind == 'name'"
         id="identifier"

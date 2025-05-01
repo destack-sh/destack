@@ -77,32 +77,6 @@ variable "global_pg_password" {
   sensitive   = true
 }
 
-variable "global_pg_crypto_key" {
-  type        = string
-  description = "Crypto key for the global Postgres database"
-  sensitive   = true
-}
-
-#
-# Cache
-# 
-
-variable "local_cache_host" {
-  type        = string
-  description = "Host for the Redis cache"
-}
-
-variable "local_cache_username" {
-  type        = string
-  description = "Port for the Redis cache"
-}
-
-variable "local_cache_password" {
-  type        = string
-  description = "Password for the Redis cache"
-  sensitive   = true
-}
-
 
 #
 # Kubernetes

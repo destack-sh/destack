@@ -30,6 +30,7 @@
     "@protobuf-ts/grpcweb-transport": "^2.9.4",
     "@protobuf-ts/runtime": "^2.9.4",
     "@protobuf-ts/runtime-rpc": "^2.9.4",
+    "@sentry/browser": "^9.15.0",
     "@vueuse/core": "^11.3.0",
     "grpc-web": "^1.5.0",
     "highlight.js": "^11.11.1",

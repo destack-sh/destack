@@ -22,6 +22,7 @@ import { HISTORY_COMMANDS } from "@/system/edit";
 import { DEBUG_COMMANDS } from "@/system/debug";
 import { RESOURCE_COMMANDS } from "@/language/resource/resource";
 import "highlight.js/styles/github.min.css";
+import * as Sentry from "@sentry/browser";
 
 function onUnhandledError(err: unknown) {
   if (typeof err === "string" && err.includes("ResizeObserver")) {
@@ -37,6 +38,11 @@ async function init() {
 
   // telemetry
   if (!IS_DEV) {
+    Sentry.init({
+      dsn: "https://dad29a06cac1ea9ad03ab2966c0410c9@o4504750961852416.ingest.us.sentry.io/4507623556579328",
+      environment: ENV,
+      release: `bench-web@${VERSION}`,
+    });
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
       // public capture key
       api_host: "https://eu.posthog.com",

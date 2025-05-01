@@ -617,7 +617,7 @@ ruff==0.7.4
     # via -r bench/requirements/dev.in
 s3transfer==0.10.4
     # via boto3
-sentry-sdk==2.2.0
+sentry-sdk==2.27.0
     # via -r bench/requirements/base.in
 setuptools==78.1.0
     # via pip-tools
