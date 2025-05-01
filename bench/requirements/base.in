@@ -30,6 +30,7 @@ opentelemetry-sdk==1.28.1
 opentelemetry-exporter-otlp-proto-grpc==1.28.1
 uvloop==0.21.0
 pillow==11.0.0
+posthog==4.0.1
 protobuf==5.28.3
 proto-plus==1.25.0
 pytest==8.3.3
@@ -39,7 +40,6 @@ pytz==2024.1
 redis[hiredis]==4.5.4
 regex==2024.11.6
 rich==13.9.4
-sentry-sdk==2.27.0
 structlog==24.2.0
 sortedcontainers==2.4.0
 sqlglot==25.30.0

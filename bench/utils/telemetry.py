@@ -16,16 +16,20 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from posthog import Posthog
 
-from bench.utils.env import ENV, IS_DEBUG, IS_DEV
+from bench.utils.env import ENV, IS_DEBUG, IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 VERSION = Path("version").read_text().strip()
+POSTHOG_API_KEY = get_from_env("POSTHOG_API_KEY", description="PostHog API key")
+POSTHOG_HOST = get_from_env_maybe("POSTHOG_HOST", description="Full URL to send PostHog events to")
 OTLP_ENDPOINT = get_from_env_maybe("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
 
-_setup_tracing = False
+_did_setup_telemetry = False
 _processor: BatchSpanProcessor | None = None
 _reader: PeriodicExportingMetricReader | None = None
+_posthog: Posthog | None = None
 
 
 class BaggageBatchSpanProcessor(BatchSpanProcessor):
@@ -54,38 +58,49 @@ def set_baggage(**kwargs):
         context.attach(baggage.set_baggage(key, _render_value(value)))
 
 
-def setup_tracing():
-    global _processor, _reader, _setup_tracing
-    if _setup_tracing:
+def capture_exception(exception: Exception):
+    if _posthog:
+        _posthog.capture_exception(exception)
+
+
+def setup_telemetry():
+    global _processor, _posthog, _reader, _did_setup_telemetry
+    if _did_setup_telemetry:
         return
+
+    # errors
+    if not (IS_DEBUG or IS_DEV or IS_TEST):
+        _posthog = Posthog(POSTHOG_API_KEY, host=POSTHOG_HOST, enable_exception_autocapture=True)
+
+    # tracing
     TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
-    if not TRACING or IS_DEBUG:
-        return  # don't trace in debug mode, distorts performance metrics
+    if TRACING and not IS_DEBUG:
+        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+        resource = Resource(
+            attributes={
+                SERVICE_NAME: get_from_env(
+                    "SERVICE_NAME", default="cli" if IS_DEV else None, description="Service name"
+                ),
+                SERVICE_VERSION: VERSION,
+                DEPLOYMENT_ENVIRONMENT: ENV,
+            }
+        )
+        tracer_provider = TracerProvider(resource=resource)
+        _processor = BaggageBatchSpanProcessor(
+            OTLPSpanExporter(endpoint=OTLP_ENDPOINT, insecure=True)
+        )
+        tracer_provider.add_span_processor(_processor)
+        trace.set_tracer_provider(tracer_provider)
 
-    resource = Resource(
-        attributes={
-            SERVICE_NAME: get_from_env(
-                "SERVICE_NAME", default="cli" if IS_DEV else None, description="Service name"
-            ),
-            SERVICE_VERSION: VERSION,
-            DEPLOYMENT_ENVIRONMENT: ENV,
-        }
-    )
-    tracer_provider = TracerProvider(resource=resource)
-    _processor = BaggageBatchSpanProcessor(OTLPSpanExporter(endpoint=OTLP_ENDPOINT, insecure=True))
-    tracer_provider.add_span_processor(_processor)
-    trace.set_tracer_provider(tracer_provider)
+        reader = PeriodicExportingMetricReader(
+            OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True),
+        )
+        meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
+        metrics.set_meter_provider(meter_provider)
 
-    reader = PeriodicExportingMetricReader(
-        OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True),
-    )
-    meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
-    metrics.set_meter_provider(meter_provider)
-
-    _setup_tracing = True
+    _did_setup_telemetry = True
 
 
 def collect_propagation_context():
@@ -148,4 +163,4 @@ Span.start = _PatchedSpan.start  # type: ignore
 Span.end = _PatchedSpan.end  # type: ignore
 
 
-setup_tracing()
+setup_telemetry()

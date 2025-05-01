@@ -67,9 +67,9 @@ variable "global_pg_password" {
 # 3rd party secrets
 # 
 
-variable "sentry_dsn" {
+variable "posthog_api_key" {
   type        = string
-  description = "Sentry DSN"
+  description = "PostHog API key"
   sensitive   = true
 }
 

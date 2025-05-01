@@ -6,7 +6,6 @@ aiodocker==0.22.2
 docker==7.1.0
 kubernetes-asyncio==30.3.0
 kubernetes==30.1.0
-posthog==3.0.2
 psycopg[binary,pool]==3.2.3
 uvicorn==0.23.2
 starlette==0.34.0

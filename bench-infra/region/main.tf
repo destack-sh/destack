@@ -147,9 +147,8 @@ module "cluster_0" {
   vpc_id          = aws_vpc.region_vpc.id
   subnet_ids      = aws_subnet.private[*].id
 
-  enable_cluster_creator_admin_permissions = true
-  cluster_endpoint_private_access          = true
-  cluster_endpoint_public_access           = true
+  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access  = true
 
   eks_managed_node_groups = {
     "bench-${var.env}-${var.region}-nodes" = {
@@ -287,15 +286,15 @@ module "supervisor" {
   global_pg_username = var.global_pg_username
   global_pg_password = var.global_pg_password
 
-  image_pull_secret_name      = kubernetes_secret.image_pull_secret.metadata[0].name
-  web_certificate_secret_name = kubernetes_secret.web_certificate_secret.metadata[0].name
+  image_pull_secret_name          = kubernetes_secret.image_pull_secret.metadata[0].name
+  web_certificate_secret_name     = kubernetes_secret.web_certificate_secret.metadata[0].name
   web_certificate_arn             = var.web_certificate_arn
   web_certificate_pem             = var.web_certificate_pem
   web_certificate_private_key_pem = var.web_certificate_private_key_pem
 
-  sentry_dsn    = var.sentry_dsn
-  neon_api_key  = var.neon_api_key
-  neon_base_url = var.neon_base_url
+  posthog_api_key = var.posthog_api_key
+  neon_api_key    = var.neon_api_key
+  neon_base_url   = var.neon_base_url
 }
 
 # point 'supervisor.' to the supervisor ingress

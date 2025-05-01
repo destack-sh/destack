@@ -26,7 +26,6 @@ locals {
     LOG_LEVEL     = "DEBUG"
     LOG_MODE      = "JSON"
 
-    SENTRY_DSN        = var.sentry_dsn
     NEON_API_KEY      = var.neon_api_key
     NEON_BASE_URL     = var.neon_base_url
     OPENAI_API_KEY    = var.openai_api_key

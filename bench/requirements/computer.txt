@@ -31,6 +31,8 @@ attrs==25.3.0
     #   referencing
 authlib==0.15.6
     # via python-twitter-v2
+backoff==2.2.1
+    # via posthog
 base58==2.1.1
     # via -r bench/requirements/computer.in
 beautifulsoup4==4.12.3
@@ -66,7 +68,6 @@ certifi==2024.7.4
     #   httpcore
     #   httpx
     #   requests
-    #   sentry-sdk
 cffi==1.17.1
     # via
     #   cryptography
@@ -106,6 +107,7 @@ distro==1.9.0
     #   anthropic
     #   browserbase
     #   openai
+    #   posthog
 dropbox==11.36.2
     # via -r bench/requirements/computer.in
 duckdb==1.1.1
@@ -351,6 +353,8 @@ pluggy==1.5.0
     # via pytest
 ply==3.11
     # via stone
+posthog==4.0.1
+    # via -r bench/requirements/base.in
 propcache==0.3.1
     # via
     #   aiohttp
@@ -445,6 +449,7 @@ python-dateutil==2.9.0.post0
     #   croniter
     #   dateparser
     #   pandas
+    #   posthog
 python-docx==1.1.2
     # via -r bench/requirements/computer.in
 python-dotenv==1.1.0
@@ -481,6 +486,7 @@ requests==2.32.3
     #   google-genai
     #   googlemaps
     #   markitdown
+    #   posthog
     #   pyairtable
     #   pygithub
     #   python-twitter-v2
@@ -502,8 +508,6 @@ rsa==4.9
     # via google-auth
 s3transfer==0.10.4
     # via boto3
-sentry-sdk==2.27.0
-    # via -r bench/requirements/base.in
 sgmllib3k==1.0.0
     # via feedparser
 shellingham==1.5.4
@@ -513,6 +517,7 @@ six==1.17.0
     #   atlassian-python-api
     #   dropbox
     #   markdownify
+    #   posthog
     #   python-dateutil
     #   stone
 slack-sdk==3.35.0
@@ -587,7 +592,6 @@ urllib3==2.4.0
     #   pyairtable
     #   pygithub
     #   requests
-    #   sentry-sdk
 uvloop==0.21.0
     # via -r bench/requirements/base.in
 watchfiles==0.24.0
