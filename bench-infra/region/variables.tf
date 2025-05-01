@@ -87,25 +87,9 @@ variable "system_node_instance_type" {
 # DB
 # 
 
-variable "global_pg_host" {
+variable "global_pg_url" {
   type        = string
-  description = "Host for the global Postgres database"
-}
-
-variable "global_pg_name" {
-  type        = string
-  description = "Name of the global Postgres database"
-}
-
-variable "global_pg_username" {
-  type        = string
-  description = "Username for the global Postgres database"
-}
-
-variable "global_pg_password" {
-  type        = string
-  description = "Password for the global Postgres database"
-  sensitive   = true
+  description = "URL for the global Postgres database"
 }
 
 #
@@ -139,6 +123,11 @@ variable "posthog_api_key" {
   type        = string
   description = "PostHog API key"
   sensitive   = true
+}
+
+variable "posthog_host" {
+  type        = string
+  description = "PostHog host"
 }
 
 variable "neon_api_key" {

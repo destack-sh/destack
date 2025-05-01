@@ -35,10 +35,7 @@ locals {
     ]))
     COMPUTER_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
 
-    GLOBAL_PG_HOST       = var.global_pg_host
-    GLOBAL_PG_NAME       = var.global_pg_name
-    GLOBAL_PG_USERNAME   = var.global_pg_username
-    GLOBAL_PG_PASSWORD   = var.global_pg_password
+    GLOBAL_PG_URL = var.global_pg_url
 
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING       = 1
@@ -47,10 +44,10 @@ locals {
     USE_WAITLIST  = 1
 
     POSTHOG_API_KEY = var.posthog_api_key
-    NEON_API_KEY  = var.neon_api_key
-    NEON_BASE_URL = var.neon_base_url
-    S3_ACCESS_KEY = aws_iam_access_key.supervisor.id
-    S3_SECRET_KEY = aws_iam_access_key.supervisor.secret
+    NEON_API_KEY    = var.neon_api_key
+    NEON_BASE_URL   = var.neon_base_url
+    S3_ACCESS_KEY   = aws_iam_access_key.supervisor.id
+    S3_SECRET_KEY   = aws_iam_access_key.supervisor.secret
   }
 }
 

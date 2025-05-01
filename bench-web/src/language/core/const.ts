@@ -370,7 +370,7 @@ export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.TIME,
   PrimitiveType.DURATION,
 ];
-export const EXPOSED_REGIONS = [Region.FRANKFURT, Region.VIRGINIA];
+export const EXPOSED_REGIONS = [Region.FRANKFURT];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
