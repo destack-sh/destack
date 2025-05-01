@@ -6,12 +6,12 @@
 # Variables
 variable "posthog_subdomain" {
   type        = string
-  description = "Subdomain for PostHog on our main domain"
+  description = "Subdomain for PostHog"
 }
 
 variable "posthog_region" {
   type        = string
-  description = "PostHog Cloud region (us or eu)"
+  description = "PostHog Cloud region ('us' or 'eu')"
 }
 
 # PostHog origin domains
@@ -21,7 +21,7 @@ locals {
   posthog_proxy_domain  = "${var.posthog_subdomain}.${local.main_website}"
 }
 
-# Cache policy for PostHog
+# Cache policy for PostHog (origin-cors)
 resource "aws_cloudfront_cache_policy" "posthog_origin_cors" {
   name        = "posthog-origin-cors-${var.env}"
   comment     = "Cache policy for PostHog with CORS headers"
@@ -50,10 +50,10 @@ resource "aws_cloudfront_cache_policy" "posthog_origin_cors" {
   }
 }
 
-# Origin request policy for PostHog
+# Origin request policy for PostHog (origin-request-policy)
 resource "aws_cloudfront_origin_request_policy" "posthog_origin_request" {
   name    = "posthog-origin-request-${var.env}"
-  comment = "Origin request policy for PostHog"
+  comment = "Origin request policy for PostHog Proxy"
 
   headers_config {
     header_behavior = "whitelist"
@@ -71,21 +71,21 @@ resource "aws_cloudfront_origin_request_policy" "posthog_origin_request" {
   }
 }
 
-# response headers policy
+# Response headers policy (CORS-with-preflight)
 resource "aws_cloudfront_response_headers_policy" "posthog_cors" {
   name    = "posthog-cors-${var.env}"
-  comment = "CORS policy for PostHog"
+  comment = "CORS policy for PostHog Proxy"
 
   cors_config {
     access_control_allow_credentials = true
     access_control_allow_headers {
-      items = ["Origin", "Authorization"]
+      items = ["Origin", "Authorization", "Content-Type", "Accept"]
     }
     access_control_allow_methods {
       items = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     }
     access_control_allow_origins {
-      items = ["*"]
+      items = ["https://${local.main_website}", "https://*.${local.main_website}"]
     }
     access_control_max_age_sec = 600
     origin_override            = true
@@ -187,4 +187,4 @@ resource "cloudflare_record" "posthog_proxy" {
 # Output the PostHog proxy URL
 output "posthog_proxy_url" {
   value = "https://${local.posthog_proxy_domain}"
-} 
+}

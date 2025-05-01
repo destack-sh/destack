@@ -57,8 +57,9 @@ async function init() {
 
   // dump startup info
   console.group(`%cBench Web`, "color:orangered");
+  console.info(`%cEnvironment: ${ENV ?? "dev"} (is_dev=${IS_DEV})`, "color:orangered");
   console.info(`%cVersion: ${VERSION} (${COMMIT ?? "local"})`, "color:orangered");
-  console.info(`%cEnvironment: ${ENV ?? "dev"}`, "color:orangered");
+  console.info(`%cCommit: ${COMMIT}`, "color:orangered");
   console.info(`%cSupervisor: ${SUPERVISOR_URL}`, "color:orangered");
   console.groupEnd();
 
