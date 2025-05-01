@@ -281,10 +281,7 @@ module "supervisor" {
   vpc_id            = aws_vpc.region_vpc.id
   public_subnet_ids = aws_subnet.public[*].id
 
-  global_pg_host     = var.global_pg_host
-  global_pg_name     = var.global_pg_name
-  global_pg_username = var.global_pg_username
-  global_pg_password = var.global_pg_password
+  global_pg_url = var.global_pg_url
 
   image_pull_secret_name          = kubernetes_secret.image_pull_secret.metadata[0].name
   web_certificate_secret_name     = kubernetes_secret.web_certificate_secret.metadata[0].name
@@ -293,6 +290,7 @@ module "supervisor" {
   web_certificate_private_key_pem = var.web_certificate_private_key_pem
 
   posthog_api_key = var.posthog_api_key
+  posthog_host    = var.posthog_host
   neon_api_key    = var.neon_api_key
   neon_base_url   = var.neon_base_url
 }
@@ -303,7 +301,7 @@ resource "cloudflare_record" "supervisor" {
   zone_id = var.web_zone_id
   name    = "supervisor"
   type    = "CNAME"
-  value   = module.supervisor[0].supervisor_hostname
+  content = module.supervisor[0].supervisor_hostname
   ttl     = 300
   proxied = false
 }

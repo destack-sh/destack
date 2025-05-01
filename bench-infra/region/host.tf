@@ -16,11 +16,11 @@ locals {
     KUBERNETES_COMPUTER_APP_LABEL = "bench-computer"
     KUBERNETES_IMAGE_PULL_SECRET  = kubernetes_secret.image_pull_secret.metadata[0].name
 
-    GLOBAL_PG_HOST       = var.global_pg_host
-    GLOBAL_PG_NAME       = var.global_pg_name
-    GLOBAL_PG_USERNAME   = var.global_pg_username
-    GLOBAL_PG_PASSWORD   = var.global_pg_password
-
+    # GLOBAL_PG_HOST       = var.global_pg_host
+    # GLOBAL_PG_NAME       = var.global_pg_name
+    # GLOBAL_PG_USERNAME   = var.global_pg_username
+    # GLOBAL_PG_PASSWORD   = var.global_pg_password
+    
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
     TRACING       = 1
     LOG_LEVEL     = "DEBUG"

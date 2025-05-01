@@ -73,6 +73,11 @@ variable "posthog_api_key" {
   sensitive   = true
 }
 
+variable "posthog_host" {
+  type        = string
+  description = "PostHog host"
+}
+
 variable "neon_api_key" {
   type        = string
   description = "Neon API key"

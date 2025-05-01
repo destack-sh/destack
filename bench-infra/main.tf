@@ -153,10 +153,7 @@ module "region_aws_eu_frankfurt" {
   system_node_instance_type   = var.system_node_instance_type
 
   # db
-  global_pg_host     = aws_rds_cluster.global_pg_primary.endpoint
-  global_pg_name     = var.global_pg_name
-  global_pg_username = var.global_pg_username
-  global_pg_password = var.global_pg_password
+  global_pg_url = "postgresql://${var.global_pg_username}:${var.global_pg_password}@${aws_rds_cluster.global_pg_primary.endpoint}/${var.global_pg_name}"
 
   # web
   web_zone_id                     = data.cloudflare_zone.main_website.id
@@ -178,4 +175,5 @@ module "region_aws_eu_frankfurt" {
   betterstack_token   = var.betterstack_token
   unsplash_access_key = var.unsplash_access_key
   posthog_api_key     = var.posthog_api_key
+  posthog_host        = var.posthog_host
 }
