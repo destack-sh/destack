@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 EXA_API_KEY = get_from_env("EXA_API_KEY")
 UNSPLASH_ACCESS_KEY = get_from_env("UNSPLASH_ACCESS_KEY")
-UNSPLASH_SECRET_KEY = get_from_env("UNSPLASH_SECRET_KEY")
 
 exa = AsyncExa(api_key=EXA_API_KEY)
 

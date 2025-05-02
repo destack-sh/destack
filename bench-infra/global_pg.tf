@@ -3,6 +3,11 @@
 # NOTE :Infra: global DB should probably be a global Aurora DB, but that requires an expensive memory-optimized instance
 # 
 
+resource "random_password" "global_pg_password" {
+  length  = 16
+  special = false
+}
+
 resource "aws_security_group" "global_pg_security_group" {
   name        = "bench-${var.env}-global-pg-security-group"
   description = "Allow inbound traffic to the global RDS cluster"
@@ -39,7 +44,7 @@ resource "aws_rds_cluster" "global_pg_primary" {
   engine_version            = "16.2"
   database_name             = var.global_pg_name
   master_username           = var.global_pg_username
-  master_password           = var.global_pg_password
+  master_password           = random_password.global_pg_password.result
   backup_retention_period   = 7
   preferred_backup_window   = "06:00-08:00"
   storage_encrypted         = true
@@ -52,7 +57,7 @@ resource "aws_rds_cluster" "global_pg_primary" {
 
 resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
   count                      = 1
-  identifier                 = "bench-${var.env}-global-db-${count.index}"
+  identifier                 = "bench-${var.env}-global-pg-${count.index}"
   cluster_identifier         = aws_rds_cluster.global_pg_primary.id
   instance_class             = "db.t3.medium"
   engine                     = aws_rds_cluster.global_pg_primary.engine
@@ -64,4 +69,9 @@ resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
 
 output "global_pg_host" {
   value = aws_rds_cluster.global_pg_primary.endpoint
+}
+
+output "global_pg_url" {
+  value     = "postgresql://${var.global_pg_username}:${random_password.global_pg_password.result}@${aws_rds_cluster.global_pg_primary.endpoint}/${var.global_pg_name}"
+  sensitive = true
 }

@@ -39,6 +39,7 @@ import {
   type AnyNodeData,
   PROVISIONABLE_NODE_TYPES,
   ProvisionableNodeData,
+  Continent,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, propertyInfo } from "@/proto/wiring";
 import { Casing, toCasing } from "@/utils/string";
@@ -371,6 +372,7 @@ export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.DURATION,
 ];
 export const EXPOSED_REGIONS = [Region.FRANKFURT];
+export const EXPOSED_CONTINENTS = [Continent.EUROPE];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.NODE_TYPE]: EXPOSED_NODE_TYPES,
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,

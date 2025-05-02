@@ -71,9 +71,6 @@ tracer = trace.get_tracer(__name__)
 SUPERVISOR_NODE_TYPES = USER_NODE_TYPES | bittuple(NodeType.BENCH)
 
 
-# nocheckin: make supervisor per region?
-
-
 class SupervisorService(GraphServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
     name = "supervisor"
@@ -108,7 +105,7 @@ class SupervisorService(GraphServiceBase, SupervisorBase):
         self._on_error = on_error
 
     def __str__(self):
-        return "shards=[*]"
+        return ""
 
     async def start(self) -> None:
         await super().start()

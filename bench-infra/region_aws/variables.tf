@@ -53,6 +53,22 @@ variable "supervisor_url" {
   description = "Supervisor URL"
 }
 
+# 
+# DB
+# 
+
+variable "regional_pg_name" {
+  type        = string
+  description = "Name of the regional Postgres database"
+  default     = "bench"
+}
+
+variable "regional_pg_username" {
+  type        = string
+  description = "Username for the regional Postgres database"
+  default     = "bench"
+}
+
 
 #
 # AWS
@@ -119,6 +135,7 @@ variable "web_certificate_private_key_pem" {
 # 
 # 3rd party secrets
 # 
+
 variable "posthog_api_key" {
   type        = string
   description = "PostHog API key"

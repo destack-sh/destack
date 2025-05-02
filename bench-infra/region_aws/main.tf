@@ -16,6 +16,10 @@ terraform {
       source  = "cloudflare/cloudflare"
       version = "~> 4.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
 }
 
@@ -142,7 +146,7 @@ data "aws_caller_identity" "current" {}
 module "cluster_0" {
   source = "terraform-aws-modules/eks/aws"
 
-  cluster_name    = "bench-${var.env}-${var.cloud}-${var.region}-cluster-0"
+  cluster_name    = "bench-${var.env}-${var.cloud}-${var.region}-0"
   cluster_version = "1.32"
   iam_role_name   = "bench-${var.env}-${var.region}"
   vpc_id          = aws_vpc.region_vpc.id
@@ -153,7 +157,7 @@ module "cluster_0" {
   cluster_endpoint_public_access           = true
 
   eks_managed_node_groups = {
-    "bench-${var.env}-${var.region}-nodes" = {
+    "bench-${var.env}-${var.cloud}-${var.region}-system" = {
       instance_types = ["t4g.large"]
       ami_type       = "AL2_ARM_64"
       min_size       = 2
@@ -165,7 +169,7 @@ module "cluster_0" {
   }
 
   cluster_tags = {
-    Name = "bench-${var.env}-${var.region}-cluster-0"
+    Name = "bench-${var.env}-${var.region}-0"
   }
 }
 module "cluster_0_auth" {
@@ -238,11 +242,6 @@ resource "kubernetes_secret" "web_certificate_secret" {
   }
 }
 
-# 
-# AWS stuff
-# 
-
-
 #
 # S3 bucket
 # 
@@ -264,53 +263,4 @@ resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
   }
-}
-
-#
-# Supervisor (if primary)
-# NOTE :Infra: supervisor should probably be in its own cluster? or should we have one supervisor per region?
-#
-
-module "supervisor" {
-  count  = var.is_primary ? 1 : 0
-  source = "../supervisor"
-
-  bench_version = var.bench_version
-  git_commit    = var.git_commit
-  env           = var.env
-  cloud         = var.cloud
-  region        = var.region
-  host_map      = var.host_map
-
-  vpc_id            = aws_vpc.region_vpc.id
-  public_subnet_ids = aws_subnet.public[*].id
-
-  global_pg_url = var.global_pg_url
-
-  image_pull_secret_name          = kubernetes_secret.image_pull_secret.metadata[0].name
-  web_certificate_secret_name     = kubernetes_secret.web_certificate_secret.metadata[0].name
-  web_certificate_arn             = var.web_certificate_arn
-  web_certificate_pem             = var.web_certificate_pem
-  web_certificate_private_key_pem = var.web_certificate_private_key_pem
-
-  posthog_api_key = var.posthog_api_key
-  posthog_host    = var.posthog_host
-  neon_api_key    = var.neon_api_key
-  neon_base_url   = var.neon_base_url
-}
-
-# point 'supervisor.<domain>' to the supervisor ingress
-resource "cloudflare_record" "supervisor" {
-  count   = var.is_primary ? 1 : 0
-  zone_id = var.web_zone_id
-  name    = "supervisor"
-  type    = "CNAME"
-  content = module.supervisor[0].supervisor_hostname
-  ttl     = 300
-  proxied = false
-}
-
-output "supervisor_hostname" {
-  value       = module.supervisor[0].supervisor_hostname
-  description = "The public hostname of the supervisor (if primary)"
 }

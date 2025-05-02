@@ -1,7 +1,7 @@
 
 
 #
-# Let's Encrypt certificate (for outside AWS / manual use)
+# Let's Encrypt certificate
 # 
 
 provider "acme" {
@@ -17,7 +17,8 @@ resource "acme_certificate" "main_website" {
   common_name     = local.main_website
   subject_alternative_names = [
     "*.${local.main_website}",
-    "*.host.${local.main_website}"
+    "*.host.${local.main_website}",
+    "*.supervisor.${local.main_website}"
   ]
 
   dns_challenge {
@@ -44,9 +45,9 @@ provider "aws" {
 resource "aws_acm_certificate" "main_website" {
   provider = aws.us-east-1 // all ACM certificates must be in us-east-1
 
-  certificate_body          = acme_certificate.main_website.certificate_pem
-  private_key               = acme_certificate.main_website.private_key_pem
-  certificate_chain         = acme_certificate.main_website.issuer_pem
+  certificate_body  = acme_certificate.main_website.certificate_pem
+  private_key       = acme_certificate.main_website.private_key_pem
+  certificate_chain = acme_certificate.main_website.issuer_pem
 
   tags = {
     Name = "bench-${var.env}-global-web-cert"

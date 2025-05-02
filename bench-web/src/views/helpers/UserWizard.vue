@@ -182,7 +182,7 @@ defineExpose<ViewExpose>({ self, focus });
           name="Region"
           title="Region"
           is-input
-          :value-type="makeType({ benchType: BenchType.REGION, isList: false, isRequired: true })"
+          :value-type="makeType({ benchType: BenchType.CONTINENT, isList: false, isRequired: true })"
         />
       </div>
     </div>
