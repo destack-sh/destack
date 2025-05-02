@@ -342,14 +342,6 @@ export function toIconMaybe(icon?: IconIn | null): IconData | undefined {
   return makeIcon(icon);
 }
 
-function _makeIcons<K extends string | number>(icons: Partial<Record<K, IconIn>>): Record<K, IconData> {
-  return Object.fromEntries(
-    Object.entries(icons).map(([key, value]) => {
-      return [key as K, makeIcon(value as IconIn)];
-    }),
-  ) as Record<K, IconData>;
-}
-
 export const DEFAULT_MISSING_ICON = makeIcon({ faName: "fas fa-question" });
 export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });

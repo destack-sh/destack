@@ -54,7 +54,7 @@ import Button from "@/views/controls/Button.vue";
         name="LogIn"
         :icon="makeIcon('fas fa-arrow-right-to-bracket')"
         title="Log In"
-        @click="fireCommandById('user.security.login')"
+        @click="fireCommandById('user.auth.login')"
       />
     </div>
     <div v-else-if="user && user.status == UserStatus.WAITLISTED" class="flex flex-col gap-y-2 self-center">
@@ -98,7 +98,7 @@ import Button from "@/views/controls/Button.vue";
         name="LogIn"
         :icon="makeIcon('fas fa-arrow-right-to-bracket')"
         title="Log In"
-        @click="fireCommandById('user.security.login')"
+        @click="fireCommandById('user.auth.login')"
       />
     </div>
   </div>

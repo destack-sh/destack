@@ -156,10 +156,9 @@ export const COMMAND_BUILTIN_IDS = [
   "view.space.resetDefault",
   "view.space.resetAdvanced",
   // user
-  "user.security.signup",
-  "user.security.login",
-  "user.security.logout",
-  "user.security.logoutAll",
+  "user.auth.signup",
+  "user.auth.login",
+  "user.auth.logout",
   "user.navigate.activate",
   "user.navigate.goToHome",
   // developer
