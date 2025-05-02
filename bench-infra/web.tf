@@ -178,7 +178,6 @@ resource "cloudflare_record" "root" {
   content         = aws_cloudfront_distribution.bench_web.domain_name
   ttl             = 300
   proxied         = false
-  allow_overwrite = true
 }
 
 resource "cloudflare_record" "www" {
@@ -188,7 +187,6 @@ resource "cloudflare_record" "www" {
   content         = aws_cloudfront_distribution.bench_web.domain_name
   ttl             = 300
   proxied         = false
-  allow_overwrite = true
 }
 
 #
