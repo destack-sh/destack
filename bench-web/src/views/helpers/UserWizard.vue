@@ -16,7 +16,7 @@ import Button from "@/views/controls/Button.vue";
 import ThreeIcon from "@/views/helpers/ThreeIcon.vue";
 import { ref, toRef, watchEffect, type Ref } from "vue";
 
-const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title">>();
+const props = defineProps<{ self?: TypedNodeReferenceData<NodeType.VIEW>; id: string } & Pick<ViewData, "title">>();
 const emit = defineEmits<ViewEmits>();
 const self = toRef(props, "self");
 const id = toRef(props, "id");
@@ -99,20 +99,20 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   }
 }
 
-defineExpose<ViewExpose>({ self, focus });
+defineExpose<ViewExpose>({ id, self, focus });
 </script>
 <template>
   <div class="flex h-full flex-row divide-x divide-gray-200">
-    <!-- nocheckin -->
-    <div class="flex h-full w-[70%] flex-col items-center justify-center bg-yellow-400">
-      <ThreeIcon class="w-[20%] h-[20%]" />
+    <!-- TODO :UX!: make UserWizard not suck -->
+    <div class="flex h-full w-[60%] flex-col items-center justify-center bg-yellow-400">
+      <ThreeIcon class="h-[20%] w-[20%]" />
     </div>
 
-    <div class="h-full flex-1 rounded-sm px-9 py-7 text-gray-900">
+    <div class="mx-10 flex h-full flex-1 flex-col justify-center rounded-sm px-9 text-left text-gray-900">
       <div>
         <!-- Header -->
         <div>
-          <h2 class="text-2xl font-semibold">{{ title }}</h2>
+          <h2 class="text-4xl font-semibold">Bench</h2>
           <p class="mt-2 text-gray-500">
             <span v-if="stage == UserWizardViewStage.LOG_IN">Log into an existing Bench account.</span>
             <span v-else>Create a new Bench account.</span>
