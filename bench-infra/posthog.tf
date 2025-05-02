@@ -1,4 +1,3 @@
-
 #
 # PostHog Reverse Proxy via CloudFront
 #
@@ -58,7 +57,7 @@ resource "aws_cloudfront_origin_request_policy" "posthog_origin_request" {
   headers_config {
     header_behavior = "whitelist"
     headers {
-      items = ["Origin", "Host"]
+      items = ["Origin"] # removed "Host" to avoid 4xx on preflight
     }
   }
 
