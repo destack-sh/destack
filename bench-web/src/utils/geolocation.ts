@@ -42,8 +42,6 @@ const GEOLOCATION_FIELDS = [
 
 export interface Geolocation {
   area: RegionContinent | undefined;
-  zone: RegionZone | undefined;
-  region: Region | undefined;
   detail: GeolocationRaw;
 }
 
@@ -60,9 +58,9 @@ async function getGeolocation(): Promise<Geolocation> {
     if (data.status === "fail") {
       throw new Error(data.message || "Failed to fetch geolocation");
     }
-    log.trace("geolocation.complete", data);
 
     const geolocation = parseGeolocation(data);
+    log.info("geolocation.complete", geolocation);
     return geolocation;
   } catch (error) {
     log.error("geolocation.error", error);
@@ -71,14 +69,8 @@ async function getGeolocation(): Promise<Geolocation> {
 }
 
 function parseGeolocation(data: GeolocationRaw): Geolocation {
-  // NOTE :Incomplete: parse zone/region in geolocation
   const area = REGION_CONTINENT_BY_CONTINENT_CODE[data.continentCode];
-  const gelocation: Geolocation = {
-    area,
-    zone: undefined,
-    region: undefined,
-    detail: data,
-  };
+  const gelocation: Geolocation = { area, detail: data };
   return gelocation;
 }
 

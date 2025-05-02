@@ -321,7 +321,6 @@ class EnumType(BuiltinEnum):
     PACKAGE_TYPE = 20050
     CLOUD = 20051
     REGION = 20052
-    REGION_ZONE = 20053
     REGION_AREA = 20054
     REGION_CONTINENT = 20055
     BENCH_STATUS = 20056
@@ -1053,13 +1052,6 @@ class Region(BuiltinEnum):
     @staticmethod
     def get_by_slug(slug: str) -> "Region":
         return REGION_BY_SLUG[slug]
-
-
-@enum_(EnumType.REGION_ZONE)
-class RegionZone(BuiltinEnum):
-    """An available region within a specific Region."""
-
-    ...
 
 
 REGION_SLUGS: dict[Region, str] = {r: r.slug for r in Region}

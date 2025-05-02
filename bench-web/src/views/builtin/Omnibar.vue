@@ -174,15 +174,19 @@ const TEXT_BY_MODE: Record<OmnibarMode, string> = {
 };
 
 for (const inMode of OMNIBAR_MODES) {
-  addCommand("static", {
-    id: ("space.omnibar." + inMode) as CommandBuiltinId,
-    title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
-    shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
-    icon: inMode == "commands" ? "fas fa-command" : "fas fa-magnifying-glass",
-    text: TEXT_BY_MODE[inMode],
-    command: () => open(inMode),
-    isEnabled: computed(() => props.box.width >= PANEL_WIDTH && lightbox.value == null),
-  });
+  addCommand(
+    "virtual",
+    {
+      id: ("space.omnibar." + inMode) as CommandBuiltinId,
+      title: `Search ${toCasing(inMode, Casing.CAMEL)}`,
+      shortcuts: SHORTCUTS_BY_MODE[inMode] ?? [],
+      icon: inMode == "commands" ? "fas fa-command" : "fas fa-magnifying-glass",
+      text: TEXT_BY_MODE[inMode],
+      command: () => open(inMode),
+      isEnabled: computed(() => props.box.width >= PANEL_WIDTH && lightbox.value == null),
+    },
+    { override: true }, // already declared in space.ts so we can reference it before this component is mounted
+  );
 }
 
 defineExpose({ isActive, open });

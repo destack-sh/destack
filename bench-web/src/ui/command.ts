@@ -236,7 +236,7 @@ export type CommandContribution = CommandDeclaration & CommandKit;
 export type CommandMapContribution<T extends string> = Record<FilterPrefix<CommandBuiltinId, T>, CommandContribution>;
 
 /** Adds an command (declaration or declaration+implementation) directly . */
-export function addCommand(kind: CommandKind, in_: CommandIn) {
+export function addCommand(kind: CommandKind, in_: CommandIn, options?: { override?: boolean }) {
   const idParts = in_.id.split(".").map((p) => toCasing(p, Casing.CAMEL));
   const command: Command = {
     kind,
@@ -248,7 +248,7 @@ export function addCommand(kind: CommandKind, in_: CommandIn) {
     subcategory: idParts[1],
     path: idParts.slice(0, -1).join(" / "),
   };
-  if (DECLARED_COMMANDS_BY_ID.value[in_.id] != null && (!IS_DEV || getCurrentInstance() == null)) {
+  if (DECLARED_COMMANDS_BY_ID.value[in_.id] != null && !options?.override && (!IS_DEV || getCurrentInstance() == null)) {
     // hot-reloading re-registers commands (sometimes)
     throw new Error(`command already exists: ${in_.id} (${in_} != ${DECLARED_COMMANDS_BY_ID.value[in_.id]})`);
   }
