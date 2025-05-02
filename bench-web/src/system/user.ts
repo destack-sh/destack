@@ -196,7 +196,7 @@ function userWizardView(view: { title: string; stage: UserWizardViewStage }): Vi
 }
 
 provideCommands<"user">({
-  "user.security.signup": {
+  "user.auth.signup": {
     icon: "fas fa-right-from-bracket",
     title: "Sign Up",
     text: "Create a new account.",
@@ -207,7 +207,7 @@ provideCommands<"user">({
       });
     },
   },
-  "user.security.login": {
+  "user.auth.login": {
     icon: "fas fa-right-from-bracket",
     title: "Log In",
     text: "Log in to an existing account.",
@@ -218,19 +218,12 @@ provideCommands<"user">({
       });
     },
   },
-  "user.security.logout": {
+  "user.auth.logout": {
     icon: "fas fa-right-to-bracket",
     title: "Log Out",
     text: "Log out of the current client.",
     isEnabled: isAuthenticated,
     command: () => logOut(),
-  },
-  "user.security.logoutAll": {
-    icon: "fas fa-right-to-bracket",
-    title: "Log Out Everywhere",
-    text: "Log out all clients (including current).",
-    isEnabled: isAuthenticated,
-    command: () => logOut({ all: true }),
   },
   "user.navigate.goToHome": {
     icon: "fas fa-home",

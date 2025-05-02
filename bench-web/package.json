@@ -49,6 +49,7 @@
     "prosemirror-transform": "^1.10.2",
     "prosemirror-view": "^1.39.2",
     "rrule": "^2.8.1",
+    "three": "^0.176.0",
     "uuid": "^10.0.0",
     "vue": "^3.5.13"
   },
@@ -71,6 +72,7 @@
     "@types/luxon": "^3.4.2",
     "@types/node": "^22.13.1",
     "@types/novnc__novnc": "^1.5.0",
+    "@types/three": "^0.176.0",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitejs/plugin-vue-jsx": "^4.1.1",

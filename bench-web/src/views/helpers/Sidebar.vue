@@ -26,7 +26,7 @@ const USER_MENU_ITEMS = computed(() => {
   if (isAuthenticated.value && !hasLocalBench.value) {
     items.push(menuItemFromCommand("user.navigate.activate", { category: "primary" }));
   }
-  items.push(...[menuItemFromCommand("user.security.logout", { category: "secondary" })]);
+  items.push(...[menuItemFromCommand("user.auth.logout", { category: "secondary" })]);
   return items;
 });
 
@@ -186,7 +186,7 @@ defineExpose<ViewExpose>({ self });
           })
         "
         class="mx-3 flex cursor-pointer flex-row items-center rounded-sm py-1 pr-1.5 pl-1.5 text-left transition-colors duration-75 hover:bg-gray-100"
-        @click="user == null && fireCommandById('user.security.login')"
+        @click="user == null && fireCommandById('user.auth.login')"
       >
         <AvatarInline
           v-tooltip="{ title: 'Change icon', small: true }"
