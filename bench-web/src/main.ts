@@ -56,11 +56,11 @@ async function init() {
   }
 
   // dump startup info
-  console.group(`%cBench Web`, "color:orangered");
-  console.info(`%cEnvironment: ${ENV ?? "dev"} (is_dev=${IS_DEV})`, "color:orangered");
-  console.info(`%cVersion: ${VERSION} (${COMMIT ?? "local"})`, "color:orangered");
-  console.info(`%cCommit: ${COMMIT}`, "color:orangered");
-  console.info(`%cSupervisor: ${SUPERVISOR_URL}`, "color:orangered");
+  console.group(`%cbench-web`, "color:yellow");
+  console.info(`%cENV: ${ENV ?? "dev"} (is_dev=${IS_DEV})`, "color:yellow");
+  console.info(`%cVERSION: ${VERSION}`, "color:yellow");
+  console.info(`%cCOMMIT: ${COMMIT ?? "<unknown>"}`, "color:yellow");
+  console.info(`%cSUPERVISOR_URL: ${SUPERVISOR_URL}`, "color:yellow");
   console.groupEnd();
 
   // prevent opening files that are dragged over the window
